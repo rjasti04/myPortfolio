@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rajeev Jasti | Principal Data Engineer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      /* The Reference Blue */
+      --primary-blue: #3b5bdb; 
+      --text-white: #ffffff;
+      --text-soft: rgba(255, 255, 255, 0.85);
+      --accent-yellow: #ffd700; /* For the waving hand */
+      
+      --card-bg: rgba(255, 255, 255, 0.1);
+      --card-border: rgba(255, 255, 255, 0.2);
+      --radius: 20px;
+      --header-height: 80px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      color: var(--text-white);
+      background-color: var(--primary-blue);
+      /* Subtle gradient to give it depth like high-end product sites */
+      background-image: linear-gradient(135deg, #3b5bdb 0%, #2a46c0 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* --- Header & Nav --- */
+    header {
+      position: absolute; /* Sits on top of hero */
+      top: 0; 
+      width: 100%;
+      height: var(--header-height); 
+      padding: 0 8%;
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between;
+      z-index: 100;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .logo-square {
+      width: 40px; height: 40px;
+      background: white;
+      color: var(--primary-blue);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 20px;
+      border-radius: 4px;
+    }
+
+    nav { display: flex; gap: 30px; }
+    nav a {
+      font-size: 15px; 
+      font-weight: 500; 
+      color: var(--text-soft);
+      text-decoration: none; 
+      transition: 0.3s ease; 
+      cursor: pointer;
+    }
+    nav a:hover, nav a.active { color: #fff; transform: translateY(-2px); }
+
+    /* --- Main Layout --- */
+    main { padding: 0 8%; }
+
+    /* --- Hero Section (The Clone) --- */
+    .hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 100vh; /* Full height */
+      padding-top: var(--header-height);
+      position: relative;
+    }
+
+    .hero-content {
+      flex: 1;
+      max-width: 600px;
+      z-index: 2;
+    }
+
+    .hero-image-container {
+      flex: 1;
+      height: 90vh;
+      display: flex;
+      align-items: flex-end; /* Pin image to bottom */
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Styled to match the "Hello I'm Kelvin" text */
+    h1 {
+      font-size: clamp(40px, 5vw, 65px);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+
+    .wave-emoji {
+      display: inline-block;
+      animation: wave 2.5s infinite;
+      transform-origin: 70% 70%;
+    }
+
+    @keyframes wave {
+      0% { transform: rotate(0deg); }
+      10% { transform: rotate(14deg); }
+      20% { transform: rotate(-8deg); }
+      30% { transform: rotate(14deg); }
+      40% { transform: rotate(-4deg); }
+      50% { transform: rotate(10deg); }
+      60% { transform: rotate(0deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    .hero-role {
+      font-size: clamp(18px, 2vw, 24px);
+      font-weight: 300;
+      color: var(--text-soft);
+      margin-bottom: 40px;
+      max-width: 480px;
+    }
+
+    /* Social Icons Styling */
+    .social-row {
+      display: flex;
+      gap: 25px;
+      margin-top: 20px;
+    }
+
+    .social-link {
+      color: white;
+      font-size: 22px;
+      transition: transform 0.3s;
+    }
+    .social-link:hover { transform: translateY(-5px) scale(1.1); }
+
+    /* The Hero Image styling */
+    .portrait-img {
+      max-width: 100%;
+      max-height: 85vh;
+      object-fit: contain;
+      /* Dropshadow to make it pop off the blue background */
+      filter: drop-shadow(10px 10px 20px rgba(0,0,0,0.2)); 
+      mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+    }
+
+    /* --- Content Sections (Adapted to Blue Theme) --- */
+    section { padding: 60px 0; border-top: 1px solid rgba(255,255,255,0.1); }
+    
+    h2 { font-size: 32px; margin-bottom: 30px; }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 30px;
+      border-radius: var(--radius);
+      backdrop-filter: blur(10px);
+      transition: 0.3s;
+    }
+    .card:hover { background: rgba(255,255,255,0.15); transform: translateY(-5px); }
+
+    .date-badge {
+      font-size: 12px; font-weight: 700; letter-spacing: 1px;
+      opacity: 0.7; display: block; margin-bottom: 10px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 12px 30px;
+      background: white;
+      color: var(--primary-blue);
+      font-weight: 700;
+      border-radius: 50px;
+      text-decoration: none;
+      margin-top: 20px;
+      transition: 0.3s;
+    }
+    .btn:hover { transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+
+    /* Mobile Responsive */
+    @media (max-width: 900px) {
+      .hero { flex-direction: column; text-align: center; padding-top: 120px; }
+      .hero-content { align-items: center; display: flex; flex-direction: column; }
+      .hero-image-container { height: 50vh; width: 100%; align-items: flex-end; }
+      .portrait-img { max-height: 50vh; }
+      nav { display: none; } /* Hide nav links on mobile for simplicity */
+      header { justify-content: center; }
+      .brand-logo { position: absolute; left: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand-logo">
+      <div class="logo-square">R</div>
+      <span>Rajeev Jasti</span>
+    </div>
+    <nav>
+      <a href="#about" class="active">Home</a>
+      <a href="#about">About</a>
+      <a href="#experience">Projects</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero" id="about">
+      <div class="hero-content">
+        <h1>Hello <span class="wave-emoji">👋</span><br>I'm Rajeev ,</h1>
+        <p class="hero-role">
+          I'm a <strong>Principal Data Engineer</strong>. I focus on creating low-latency architectures and massive-scale ETL pipelines that drive decisions.
+        </p>
+        
+        <div class="social-row">
+          <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
+          <a href="#" class="social-link"><i class="fab fa-github"></i></a>
+          <a href="#" class="social-link"><i class="fab fa-twitter"></i></a> <a href="mailto:rjasti04@gmail.com" class="social-link"><i class="fas fa-envelope"></i></a>
+        </div>
+        
+        <a href="rjasti_resume.pdf" target="_blank" class="btn">Download Resume</a>
+      </div>
+
+      <div class="hero-image-container">
+                <img src="profile-pic-outline.png" alt="Rajeev Jasti" class="portrait-img">
+      </div>
+    </div>
+
+    <section id="experience">
+      <h2>Experience</h2>
+      <div class="card-grid">
+        <div class="card">
+           <span class="date-badge">2022 — PRESENT</span>
+           <h3 style="font-size: 20px; margin-bottom: 10px;">Principal Data Engineer</h3>
+           <h4 style="font-size: 14px; opacity: 0.8; margin-bottom: 15px;">@ Tech Corp</h4>
+           <p style="font-size: 14px; opacity: 0.8;">Architected a multi-region data mesh serving 50+ internal teams. Reduced cloud infrastructure costs by 30% through Spot instance orchestration.</p>
+        </div>
+        <div class="card">
+           <span class="date-badge">2018 — 2022</span>
+           <h3 style="font-size: 20px; margin-bottom: 10px;">Senior Data Architect</h3>
+           <h4 style="font-size: 14px; opacity: 0.8; margin-bottom: 15px;">@ DataSystems Inc</h4>
+           <p style="font-size: 14px; opacity: 0.8;">Managed a team of 8 engineers building a real-time ingestion engine using Flink and Kafka, handling 5TB of data daily.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Selected Projects</h2>
+      <div class="card-grid">
+        <div class="card">
+          <i class="fas fa-bolt" style="font-size: 24px; color: var(--accent-yellow); margin-bottom: 15px;"></i>
+          <h3 style="font-size: 18px;">Real-time Analytics</h3>
+          <p style="font-size: 14px; opacity: 0.8; margin-top: 10px;">High-throughput Kafka & Flink pipeline processing 1M events/sec with sub-second latency.</p>
+        </div>
+        <div class="card">
+          <i class="fas fa-lock" style="font-size: 24px; color: var(--accent-yellow); margin-bottom: 15px;"></i>
+          <h3 style="font-size: 18px;">Governance Framework</h3>
+          <p style="font-size: 14px; opacity: 0.8; margin-top: 10px;">Automated PII detection and classification engine for GDPR compliance across Snowflake warehouses.</p>
+        </div>
+        <div class="card">
+          <i class="fas fa-network-wired" style="font-size: 24px; color: var(--accent-yellow); margin-bottom: 15px;"></i>
+          <h3 style="font-size: 18px;">Data Mesh Platform</h3>
+          <p style="font-size: 14px; opacity: 0.8; margin-top: 10px;">Self-service infrastructure allowing domain teams to publish data products independently.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+</body>
+</html>

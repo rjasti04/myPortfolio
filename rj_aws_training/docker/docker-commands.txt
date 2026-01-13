@@ -1,0 +1,44 @@
+sudo yum install -y docker
+sudo service docker start
+sudo usermod -a -G docker ec2-user
+
+
+docker build -t rj-webapp
+docker images
+docker run -d -p 8080:80 --name rj-webapp-container rj-webapp
+docker stop rj-webapp-container
+
+
+
+# Authenticate Docker to ECR
+aws ecr get-login-password --region us-east-1 --profile rj-admin | docker login --username AWS --password-stdin 130389328717.dkr.ecr.us-east-1.amazonaws.com
+
+#create repo
+aws ecr --profile rj-admin create-repository --repository-name rjt-ecr-repo --region us-east-1
+
+#post to repo and tag
+docker tag rjt-dckr-img:latest 130389328717.dkr.ecr.us-east-1.amazonaws.com/rjt-ecr-repo:latest
+
+#push to ecr
+docker push 130389328717.dkr.ecr.us-east-1.amazonaws.com/rjt-ecr-repo:latest
+
+#pull
+docker pull <account_id>.dkr.ecr.<region>.amazonaws.com/my-new-repository:latest
+#versioning
+docker tag my-new-image:v1 <account_id>.dkr.ecr.<region>.amazonaws.com/my-new-repository:v1.0.0
+docker push <account_id>.dkr.ecr.<region>.amazonaws.com/my-new-repository:v1.0.0
+
+
+-----------
+
+# Tag the image (Or use the latest tag)
+docker tag rj-webapp rj-webapp:v3
+
+# Push the image to ECR
+docker push rj-webapp:v3
+docker push rj-webapp:latest
+
+
+docker push 130389328717.dkr.ecr.us-east-1.amazonaws.com/rj-webapp:latest
+
+

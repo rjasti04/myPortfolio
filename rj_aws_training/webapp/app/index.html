@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rajeev Jasti</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="image-modal" id="image-modal">
+      <img src="profile-pic.jpg" alt="Rajeev Jasti" class="modal-content" />
+    </div>
+    <div class="signup-modal" id="signup-modal">
+      <div class="modal-content">
+        <h2 class="signup-title">Sign Up</h2>
+        <form class="signup-form" id="signup-form">
+          <div class="form-group">
+            <div class="input-wrapper">
+              <input
+                type="email"
+                id="signup-email"
+                name="email"
+                placeholder="Email"
+                required
+              />
+              <i class="fas fa-envelope input-icon"></i>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="input-wrapper">
+              <input
+                type="password"
+                id="signup-password"
+                name="password"
+                placeholder="Password"
+                required
+              />
+              <i class="fas fa-lock input-icon"></i>
+            </div>
+            <small class="password-note">Password must be 12-18 characters with at least one number, special character, and uppercase letter.</small>
+          </div>
+          <div class="form-group">
+            <div class="input-wrapper">
+              <input
+                type="password"
+                id="confirm-password"
+                name="confirmPassword"
+                placeholder="Confirm Password"
+                required
+              />
+              <i class="fas fa-lock input-icon"></i>
+            </div>
+          </div>
+          <button type="submit" class="signup-btn">Sign Up</button>
+        </form>
+        <p class="signup-footer">
+          Already have an account?
+          <a href="#" class="login-link" id="back-to-login">Login</a>
+        </p>
+      </div>
+    </div>
+    <div class="cursor-glow" id="cursor-glow"></div>
+    <div class="layout">
+      <header>
+        <div class="header-left" id="profile-trigger">
+          <img src="profile-pic.jpg" alt="Rajeev" class="profile-pic-small" />
+          <div class="logo-text">RJ</div>
+        </div>
+        <button class="hamburger-btn" id="hamburger-toggle">
+          <i class="fas fa-bars"></i>
+        </button>
+        <nav id="nav-menu">
+          <a data-target="about" class="active">About</a>
+          <a data-target="resume">Experience</a>
+          <a data-target="portfolio">Portfolio</a>
+          <a data-target="contact">Contact</a>
+        </nav>
+        <button id="theme-toggle" title="Toggle Theme">
+          <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+      </header>
+      <main>
+        <section id="about" class="active">
+          <div class="ticker-wrap">
+            <div class="ticker">
+              <span>Apache Spark</span>
+              <span>Snowflake</span>
+              <span>Kubernetes</span>
+              <span>AWS Redshift</span>
+              <span>Python</span>
+              <span>Kafka</span>
+              <span>Terraform</span>
+              <span>Data Mesh</span>
+              <span>PostgreSQL</span>
+              <span>Airflow</span>
+              <span>Docker</span>
+              <span>Distributed Systems</span>
+              <span>Apache Spark</span>
+              <span>Snowflake</span>
+              <span>Kubernetes</span>
+              <span>AWS Redshift</span>
+              <span>Python</span>
+              <span>Kafka</span>
+              <span>Terraform</span>
+              <span>Data Mesh</span>
+            </div>
+          </div>
+          <div class="hero">
+            <div class="hero-text">
+              <span class="hero-subtitle">Principal Data Engineer</span>
+              <h1 class="hero-title">Rajeev Jasti</h1>
+              <p class="hero-description">
+                Architecting low-latency distributed systems and massive-scale
+                ETL pipelines. I build the robust infrastructure that powers
+                real-time analytics for global enterprises.
+              </p>
+              <a href="rjasti_resume.pdf" target="_blank" class="btn"
+                >Download Resume <i class="fas fa-arrow-down"></i
+              ></a>
+            </div>
+            <div class="login-container">
+              <h2 class="login-title">Login</h2>
+              <form class="login-form" id="login-form">
+                <div class="form-group">
+                  <div class="input-wrapper">
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      placeholder="Email"
+                      required
+                    />
+                    <i class="fas fa-envelope input-icon"></i>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="input-wrapper">
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      placeholder="Password"
+                      required
+                    />
+                    <i class="fas fa-lock input-icon"></i>
+                  </div>
+                </div>
+                <div class="form-options">
+                  <label class="remember-me">
+                    <input type="checkbox" id="remember" name="remember" />
+                    Remember Me
+                  </label>
+                  <a href="#" class="forget-password">Forget Password?</a>
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+              </form>
+              <p class="login-footer">
+                Don't have an account?
+                <a href="#" class="login-link">Sign up</a>
+              </p>
+            </div>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-number">10+</div>
+              <div class="stat-label">Years Experience</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">50+</div>
+              <div class="stat-label">Projects Delivered</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">1M+</div>
+              <div class="stat-label">Events/Second</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">30%</div>
+              <div class="stat-label">Cost Reduction</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">40%</div>
+              <div class="stat-label">Latency Improvement</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">99.9%</div>
+              <div class="stat-label">Uptime</div>
+            </div>
+          </div>
+        </section>
+        <section id="resume">
+          <h2 class="section-title">Experience</h2>
+          <div class="item">
+            <div class="item-header">
+              <span class="item-date">2022 — PRESENT</span>
+              <span class="item-badge">Remote</span>
+            </div>
+            <h3>Principal Data Engineer @ Tech Corp</h3>
+            <p class="item-description">
+              Architected a multi-region data mesh serving 50+ internal teams.
+              Reduced cloud infrastructure costs by 30%.
+            </p>
+          </div>
+        </section>
+        <section id="portfolio">
+          <h2 class="section-title">Projects</h2>
+          <div class="portfolio-grid">
+            <div class="item">
+              <h4>
+                <i class="fas fa-microchip project-icon"></i> Real-time
+                Analytics
+              </h4>
+              <p class="project-description">
+                Kafka & Flink pipeline processing 1M events/sec.
+              </p>
+            </div>
+          </div>
+        </section>
+        <section id="contact">
+          <div class="item contact-section">
+            <h2 class="contact-title">Let's talk.</h2>
+            <p class="contact-description">
+              Available for consulting and technical leadership roles.
+            </p>
+            <a href="mailto:rjasti04@gmail.com" class="btn"
+              >rjasti04@gmail.com <i class="fas fa-paper-plane"></i
+            ></a>
+          </div>
+        </section>
+      </main>
+      <footer>
+        <span class="footer-text">© Rajeev Jasti</span>
+        <div class="footer-links">
+          <a href="#" class="social-icon">
+            <i class="fab fa-linkedin"></i>
+          </a>
+          <a href="#" class="social-icon">
+            <i class="fab fa-github"></i>
+          </a>
+        </div>
+      </footer>
+    </div>
+    <script src="scripts.js"></script>
+  </body>
+</html>
