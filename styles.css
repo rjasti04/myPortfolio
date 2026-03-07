@@ -1,5 +1,5 @@
 :root {
-  --accent: #f36c4f;
+  --accent: #f3684f;
   --accent-soft: rgba(243, 108, 79, 0.1);
   --accent-mild: rgba(243, 108, 79, 0.6);
   --accent-hover: #d1563d;
@@ -95,6 +95,10 @@ header {
   align-items: center;
   gap: 10px;
   cursor: pointer;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
 }
 
 .profile-pic-small {
@@ -168,10 +172,20 @@ nav a.active {
   color: white;
 }
 
+nav a:focus-visible,
+.header-left:focus-visible,
+#theme-toggle:focus-visible,
+.login-link:focus-visible,
+.forget-password:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* Main Content */
 main {
   flex: 1;
-  padding: 2.5% 5% 80px 5%; /* Added bottom padding for fixed footer */
+  padding: 2.5% 5% 80px 5%;
+  /* Added bottom padding for fixed footer */
   position: relative;
 }
 
@@ -407,6 +421,10 @@ section.active {
   color: var(--accent);
   text-decoration: none;
   font-weight: 600;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .forget-password:hover {
@@ -442,10 +460,18 @@ section.active {
   color: var(--accent);
   text-decoration: none;
   font-weight: 600;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .login-link:hover {
   text-decoration: underline;
+}
+
+.text-button {
+  font: inherit;
 }
 
 /* Ticker */
@@ -588,7 +614,8 @@ footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 60px; /* Fixed height for consistency */
+  height: 60px;
+  /* Fixed height for consistency */
   position: fixed;
   bottom: 0;
   left: 0;
@@ -627,7 +654,7 @@ footer {
   .hero {
     grid-template-columns: 1fr;
     text-align: center;
-    padding: 2.5%, 0px;
+    padding: 2.5% 0;
   }
 
   .hero-text {
@@ -779,4 +806,19 @@ footer {
   margin-top: 5px;
   font-style: italic;
   text-align: left;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.error-message {
+  color: #ff4444;
+  font-size: 12px;
+  margin-top: 5px;
+  display: block;
+  min-height: 18px;
+  /* Prevents layout jump */
 }

@@ -4,34 +4,53 @@ const navMenu = document.getElementById("nav-menu");
 const navLinks = document.querySelectorAll("nav a");
 const sections = document.querySelectorAll("main section");
 
-// Toggle Menu
-hamburger.addEventListener("click", () => {
-  navMenu.classList.toggle("show-menu");
+function closeMobileMenu() {
+  if (!navMenu || !hamburger) return;
+  navMenu.classList.remove("show-menu");
   const icon = hamburger.querySelector("i");
-  icon.classList.toggle("fa-bars");
-  icon.classList.toggle("fa-times");
-});
-
-// Navigation and closing menu on click
-navLinks.forEach((link) => {
-  link.addEventListener("click", (e) => {
-    e.preventDefault();
-    const target = link.dataset.target;
-
-    // UI Updates
-    navLinks.forEach((l) => l.classList.remove("active"));
-    link.classList.add("active");
-
-    sections.forEach((s) => {
-      s.classList.remove("active");
-      if (s.id === target) s.classList.add("active");
-    });
-
-    // Close mobile menu
-    navMenu.classList.remove("show-menu");
-    const icon = hamburger.querySelector("i");
+  if (icon) {
     icon.classList.add("fa-bars");
     icon.classList.remove("fa-times");
+  }
+}
+
+function setActiveSection(target) {
+  if (!target) return;
+  sections.forEach((section) => {
+    section.classList.toggle("active", section.id === target);
+  });
+
+  navLinks.forEach((link) => {
+    const isActive = link.dataset.target === target;
+    link.classList.toggle("active", isActive);
+    if (isActive) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
+}
+
+if (hamburger && navMenu) {
+  hamburger.addEventListener("click", () => {
+    navMenu.classList.toggle("show-menu");
+    const icon = hamburger.querySelector("i");
+    if (icon) {
+      icon.classList.toggle("fa-bars");
+      icon.classList.toggle("fa-times");
+    }
+  });
+}
+
+navLinks.forEach((link) => {
+  link.addEventListener("click", (e) => {
+    const target = link.dataset.target;
+    if (!target) return;
+
+    e.preventDefault();
+    setActiveSection(target);
+    history.replaceState(null, "", `#${target}`);
+    closeMobileMenu();
 
     window.scrollTo({
       top: 0,
@@ -40,45 +59,88 @@ navLinks.forEach((link) => {
   });
 });
 
+const initialHashTarget = window.location.hash.replace("#", "");
+if (initialHashTarget && document.getElementById(initialHashTarget)) {
+  setActiveSection(initialHashTarget);
+}
+
 // Theme Toggle
 const themeBtn = document.getElementById("theme-toggle");
 const themeIcon = document.getElementById("theme-icon");
 
-themeBtn.addEventListener("click", () => {
-  const isDark = document.body.classList.toggle("dark-theme");
-  themeIcon.className = isDark ? "fas fa-sun" : "fas fa-moon";
-  localStorage.setItem("theme", isDark ? "dark" : "light");
-});
+if (themeBtn && themeIcon) {
+  themeBtn.addEventListener("click", () => {
+    const isDark = document.body.classList.toggle("dark-theme");
+    themeIcon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+  });
+}
 
 if (localStorage.getItem("theme") === "dark") {
   document.body.classList.add("dark-theme");
-  themeIcon.className = "fas fa-sun";
+  if (themeIcon) {
+    themeIcon.className = "fas fa-sun";
+  }
 }
 
-// Modal Logic
-const modal = document.getElementById("image-modal");
-document
-  .getElementById("profile-trigger")
-  .addEventListener("click", () => modal.classList.add("active"));
-modal.addEventListener("click", () => modal.classList.remove("active"));
+// Profile Modal Logic
+const imageModal = document.getElementById("image-modal");
+const profileTrigger = document.getElementById("profile-trigger");
+if (imageModal && profileTrigger) {
+  profileTrigger.addEventListener("click", () => imageModal.classList.add("active"));
+  imageModal.addEventListener("click", () => imageModal.classList.remove("active"));
+}
 
 // Cursor Glow
 const glow = document.getElementById("cursor-glow");
-window.addEventListener("mousemove", (e) => {
-  glow.style.left = e.clientX + "px";
-  glow.style.top = e.clientY + "px";
-});
+if (glow) {
+  window.addEventListener("mousemove", (e) => {
+    glow.style.left = `${e.clientX}px`;
+    glow.style.top = `${e.clientY}px`;
+  });
+}
 
-// Login Form
+// Login / Sign-up Forms
 document.addEventListener("DOMContentLoaded", () => {
   const loginForm = document.getElementById("login-form");
-  if (loginForm) {
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
+  const rememberInput = document.getElementById("remember");
+  const forgetPasswordButton = document.getElementById("forget-password");
+  const signupModal = document.getElementById("signup-modal");
+  const signupOpenButton = document.getElementById("open-signup");
+  const backToLoginButton = document.getElementById("back-to-login");
+
+  const signupForm = document.getElementById("signup-form");
+  const signupEmailInput = document.getElementById("signup-email");
+  const signupPasswordInput = document.getElementById("signup-password");
+  const confirmPasswordInput = document.getElementById("confirm-password");
+  const passwordError = document.getElementById("password-error");
+
+  const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{12,18}$/;
+
+  if (signupPasswordInput && confirmPasswordInput && passwordError) {
+    const validatePasswordMatch = () => {
+      const password = signupPasswordInput.value;
+      const confirmPassword = confirmPasswordInput.value;
+      if (confirmPassword && password !== confirmPassword) {
+        passwordError.textContent = "Passwords do not match";
+      } else {
+        passwordError.textContent = "";
+      }
+    };
+
+    signupPasswordInput.addEventListener("input", validatePasswordMatch);
+    confirmPasswordInput.addEventListener("input", validatePasswordMatch);
+  }
+
+  if (loginForm && emailInput && passwordInput && rememberInput) {
     loginForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      const remember = document.getElementById("remember").checked;
-      // Basic validation
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      const remember = rememberInput.checked;
+
       if (email && password) {
         if (remember) {
           localStorage.setItem("rememberedEmail", email);
@@ -86,38 +148,30 @@ document.addEventListener("DOMContentLoaded", () => {
           localStorage.removeItem("rememberedEmail");
         }
         alert("Login successful! (This is a demo)");
-        // Here you can add actual login logic, e.g., API call
       } else {
         alert("Please fill in all fields.");
       }
     });
 
-    // Load remembered email
     const rememberedEmail = localStorage.getItem("rememberedEmail");
     if (rememberedEmail) {
-      document.getElementById("email").value = rememberedEmail;
-      document.getElementById("remember").checked = true;
+      emailInput.value = rememberedEmail;
+      rememberInput.checked = true;
     }
+  }
 
-    // Forget password link
-    const forgetLink = document.querySelector(".forget-password");
-    forgetLink.addEventListener("click", (e) => {
-      e.preventDefault();
+  if (forgetPasswordButton) {
+    forgetPasswordButton.addEventListener("click", () => {
       alert("Password reset link sent to your email! (Demo)");
     });
+  }
 
-    // Sign Up Modal
-    const signupModal = document.getElementById("signup-modal");
-    const signupLink = document.querySelector(".login-footer .login-link");
-    const backToLoginLink = document.getElementById("back-to-login");
-
-    signupLink.addEventListener("click", (e) => {
-      e.preventDefault();
+  if (signupModal && signupOpenButton && backToLoginButton) {
+    signupOpenButton.addEventListener("click", () => {
       signupModal.classList.add("active");
     });
 
-    backToLoginLink.addEventListener("click", (e) => {
-      e.preventDefault();
+    backToLoginButton.addEventListener("click", () => {
       signupModal.classList.remove("active");
     });
 
@@ -126,35 +180,42 @@ document.addEventListener("DOMContentLoaded", () => {
         signupModal.classList.remove("active");
       }
     });
+  }
 
-    // Sign Up Form
-    const signupForm = document.getElementById("signup-form");
-    if (signupForm) {
-      signupForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const email = document.getElementById("signup-email").value;
-        const password = document.getElementById("signup-password").value;
-        const confirmPassword = document.getElementById("confirm-password").value;
+  if (
+    signupForm &&
+    signupEmailInput &&
+    signupPasswordInput &&
+    confirmPasswordInput &&
+    passwordError &&
+    signupModal
+  ) {
+    signupForm.addEventListener("submit", (e) => {
+      e.preventDefault();
 
-        // Password validation: 12-18 chars, 1 number, 1 special char, 1 uppercase
-        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{12,18}$/;
+      const email = signupEmailInput.value.trim();
+      const password = signupPasswordInput.value;
+      const confirmPassword = confirmPasswordInput.value;
 
-        if (email && password && confirmPassword) {
-          if (!passwordRegex.test(password)) {
-            alert("Password must be 12-18 characters with at least one uppercase letter, one number, and one special character.");
-            return;
-          }
-          if (password === confirmPassword) {
-            alert("Sign up successful! (This is a demo)");
-            signupModal.classList.remove("active");
-            // Here you can add actual sign up logic, e.g., API call
-          } else {
-            alert("Passwords do not match.");
-          }
-        } else {
-          alert("Please fill in all fields.");
-        }
-      });
-    }
+      if (!email || !password || !confirmPassword) {
+        alert("Please fill in all fields.");
+        return;
+      }
+
+      if (!passwordRegex.test(password)) {
+        alert("Password must be 12-18 characters with at least one uppercase letter, one number, and one special character.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        passwordError.textContent = "Passwords do not match";
+        alert("Passwords do not match.");
+        return;
+      }
+
+      passwordError.textContent = "";
+      alert("Sign up successful! (This is a demo)");
+      signupModal.classList.remove("active");
+    });
   }
 });
