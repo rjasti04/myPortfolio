@@ -1,5 +1,5 @@
 :root {
-  --accent: #f3684f;
+  --accent: #f34f4f;
   --accent-soft: rgba(243, 108, 79, 0.1);
   --accent-mild: rgba(243, 108, 79, 0.6);
   --accent-hover: #d1563d;
@@ -112,8 +112,8 @@ header {
   border-radius: 10px;
   border: 2px solid var(--accent);
   object-fit: cover;
-  object-position: 50% 35%;
-  transform: scaleX(-1);
+  object-position: 5% 5%;
+  /* transform: scaleX(-1); */
   transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
