@@ -150,6 +150,19 @@ navLinks.forEach((link) => {
   });
 });
 
+// Secondary CTA "View Projects" button in hero
+document.querySelectorAll("a.nav-cta[data-target]").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    const target = link.dataset.target;
+    if (!target) return;
+    event.preventDefault();
+    setActiveSection(target);
+    history.replaceState(null, "", `#${target}`);
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "auto" : "smooth" });
+  });
+});
+
 syncSectionWithHash();
 
 window.addEventListener("hashchange", () => {
@@ -180,24 +193,29 @@ if (authDropdown && authToggle && loginDropdown) {
   });
 }
 
-// Theme Toggle
+// Theme Toggle — respects both localStorage and system preference
 const themeBtn = document.getElementById("theme-toggle");
 const themeIcon = document.getElementById("theme-icon");
 
-if (themeBtn && themeIcon) {
+function applyTheme(isDark) {
+  document.body.classList.toggle("dark-theme", isDark);
+  if (themeIcon) {
+    themeIcon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+  }
+}
+
+if (themeBtn) {
   themeBtn.addEventListener("click", () => {
     const isDark = document.body.classList.toggle("dark-theme");
-    themeIcon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+    if (themeIcon) themeIcon.className = isDark ? "fas fa-sun" : "fas fa-moon";
     localStorage.setItem("theme", isDark ? "dark" : "light");
   });
 }
 
-if (localStorage.getItem("theme") === "dark") {
-  document.body.classList.add("dark-theme");
-  if (themeIcon) {
-    themeIcon.className = "fas fa-sun";
-  }
-}
+// Apply saved theme or fall back to system preference
+const savedTheme = localStorage.getItem("theme");
+const prefersDarkSystem = window.matchMedia("(prefers-color-scheme: dark)").matches;
+applyTheme(savedTheme === "dark" || (!savedTheme && prefersDarkSystem));
 
 // Profile Modal Logic
 if (imageModal && profileTrigger) {
@@ -218,17 +236,173 @@ if (imageModal && profileTrigger) {
   });
 }
 
-// Cursor Glow
+// Cursor Glow — throttled via requestAnimationFrame
 const glow = document.getElementById("cursor-glow");
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 if (glow && !prefersReducedMotion.matches) {
+  let rafId = null;
   window.addEventListener("mousemove", (event) => {
-    glow.style.left = `${event.clientX}px`;
-    glow.style.top = `${event.clientY}px`;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      glow.style.left = `${event.clientX}px`;
+      glow.style.top = `${event.clientY}px`;
+      rafId = null;
+    });
   });
 }
 
-// Login / Sign-up Forms
+// Toast Notification System
+const toastContainer = document.getElementById("toast-container");
+
+function showToast(message, type = "info") {
+  if (!toastContainer) return;
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.setAttribute("role", "alert");
+  toast.textContent = message;
+  toastContainer.appendChild(toast);
+
+  // Double rAF ensures transition plays after element is in DOM
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      toast.classList.add("toast-show");
+    });
+  });
+
+  setTimeout(() => {
+    toast.classList.remove("toast-show");
+    toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+  }, 3500);
+}
+
+// Back to Top Button
+const backToTopBtn = document.getElementById("back-to-top");
+if (backToTopBtn) {
+  window.addEventListener("scroll", () => {
+    backToTopBtn.classList.toggle("visible", window.scrollY > 300);
+  });
+
+  backToTopBtn.addEventListener("click", () => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+  });
+}
+
+// Stat Counter Animation via IntersectionObserver
+const statNumbers = document.querySelectorAll(".stat-number[data-target]");
+
+function animateStat(el) {
+  if (el.dataset.animated) return;
+  el.dataset.animated = "true";
+
+  const target = parseFloat(el.dataset.target);
+  const suffix = el.dataset.suffix || "";
+  const isDecimal = !Number.isInteger(target);
+  const duration = 1500;
+  let startTime = null;
+
+  function step(timestamp) {
+    if (!startTime) startTime = timestamp;
+    const progress = Math.min((timestamp - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    const current = target * eased;
+    el.textContent = (isDecimal ? current.toFixed(1) : Math.floor(current)) + suffix;
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      el.textContent = (isDecimal ? target.toFixed(1) : target) + suffix;
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
+if (statNumbers.length > 0 && "IntersectionObserver" in window) {
+  const statObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          animateStat(entry.target);
+          statObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.5 },
+  );
+  statNumbers.forEach((el) => statObserver.observe(el));
+}
+
+// Footer Year
+const footerYear = document.getElementById("footer-year");
+if (footerYear) {
+  footerYear.textContent = new Date().getFullYear();
+}
+
+// Project Detail Modal
+const projectDetailModal = document.getElementById("project-detail-modal");
+const projectDetailClose = document.getElementById("project-detail-close");
+const projectDetailIcon = document.getElementById("project-detail-icon");
+const projectDetailTitle = document.getElementById("project-detail-title");
+const projectDetailDescription = document.getElementById("project-detail-description");
+const projectDetailStack = document.getElementById("project-detail-stack");
+const projectDetailOutcomes = document.getElementById("project-detail-outcomes");
+
+if (projectDetailModal) {
+  document.querySelectorAll(".project-details-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const card = btn.closest(".project-card");
+      if (!card) return;
+
+      const icon = card.dataset.icon || "fas fa-code";
+      const title = card.dataset.title || "";
+      const description = card.dataset.description || "";
+      const stack = (card.dataset.stack || "").split(",").map((s) => s.trim()).filter(Boolean);
+      const outcomes = (card.dataset.outcomes || "").split("|").map((s) => s.trim()).filter(Boolean);
+
+      if (projectDetailIcon) {
+        const i = document.createElement("i");
+        i.className = icon;
+        projectDetailIcon.replaceChildren(i);
+      }
+      if (projectDetailTitle) projectDetailTitle.textContent = title;
+      if (projectDetailDescription) projectDetailDescription.textContent = description;
+
+      if (projectDetailStack) {
+        projectDetailStack.replaceChildren(
+          ...stack.map((s) => {
+            const span = document.createElement("span");
+            span.className = "detail-tag";
+            span.textContent = s;
+            return span;
+          }),
+        );
+      }
+
+      if (projectDetailOutcomes) {
+        projectDetailOutcomes.replaceChildren(
+          ...outcomes.map((o) => {
+            const li = document.createElement("li");
+            li.textContent = o;
+            return li;
+          }),
+        );
+      }
+
+      const modalInner = projectDetailModal.querySelector(".modal-inner");
+      openModal(projectDetailModal, { initialFocus: projectDetailClose || modalInner });
+    });
+  });
+
+  if (projectDetailClose) {
+    projectDetailClose.addEventListener("click", () => closeModal(projectDetailModal));
+  }
+
+  projectDetailModal.addEventListener("click", (event) => {
+    if (event.target === projectDetailModal) closeModal(projectDetailModal);
+  });
+}
+
+// Login / Sign-up / Contact Forms
 document.addEventListener("DOMContentLoaded", () => {
   const loginForm = document.getElementById("login-form");
   const emailInput = document.getElementById("email");
@@ -257,6 +431,53 @@ document.addEventListener("DOMContentLoaded", () => {
   const projectCards = Array.from(document.querySelectorAll(".project-card"));
   const projectResults = document.getElementById("project-results");
 
+  function setFormStatus(element, message, state = "info") {
+    if (!element) return;
+    element.textContent = message;
+    element.dataset.state = state;
+  }
+
+  function clearFormStatus(element) {
+    if (!element) return;
+    element.textContent = "";
+    delete element.dataset.state;
+  }
+
+  // Copy Email Button
+  const copyEmailBtn = document.getElementById("copy-email-btn");
+  if (copyEmailBtn) {
+    copyEmailBtn.addEventListener("click", () => {
+      navigator.clipboard
+        .writeText("inboxtorj@gmail.com")
+        .then(() => showToast("Email copied to clipboard!", "success"))
+        .catch(() => showToast("Could not copy — please copy manually.", "error"));
+    });
+  }
+
+  // Contact Form (demo mode — swap fetch URL for Formspree in production)
+  const contactForm = document.getElementById("contact-form");
+  const contactStatus = document.getElementById("contact-status");
+  if (contactForm) {
+    contactForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = document.getElementById("contact-name")?.value.trim();
+      const email = document.getElementById("contact-email")?.value.trim();
+      const message = document.getElementById("contact-message")?.value.trim();
+
+      if (!name || !email || !message) {
+        setFormStatus(contactStatus, "Please fill in all fields.", "error");
+        return;
+      }
+
+      // To connect a real backend, replace this block with:
+      // fetch("https://formspree.io/f/YOUR_FORM_ID", { method: "POST", body: new FormData(contactForm) })
+      setFormStatus(contactStatus, "Message sent! I'll get back to you soon. (Demo mode)", "success");
+      showToast("Message sent successfully!", "success");
+      contactForm.reset();
+    });
+  }
+
+  // Project Filters
   function applyProjectFilters(activeFilter = "all", searchTerm = "") {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     let visibleCount = 0;
@@ -274,18 +495,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (projectResults) {
       projectResults.textContent = `${visibleCount} project${visibleCount === 1 ? "" : "s"} shown`;
     }
-  }
-
-  function setFormStatus(element, message, state = "info") {
-    if (!element) return;
-    element.textContent = message;
-    element.dataset.state = state;
-  }
-
-  function clearFormStatus(element) {
-    if (!element) return;
-    element.textContent = "";
-    delete element.dataset.state;
   }
 
   if (signupPasswordInput && confirmPasswordInput && passwordError) {
@@ -348,6 +557,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       closeAuthDropdown();
       setFormStatus(loginStatus, "Login successful! (Demo mode)", "success");
+      showToast("Logged in successfully! (Demo mode)", "success");
     });
 
     const rememberedEmail = localStorage.getItem("rememberedEmail");
@@ -369,7 +579,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (signupModal && signupOpenButton && backToLoginButton) {
     signupOpenButton.addEventListener("click", () => {
       clearFormStatus(signupStatus);
-      passwordError.textContent = "";
+      if (passwordError) passwordError.textContent = "";
       openModal(signupModal, { initialFocus: signupModalContent || signupEmailInput || signupModal });
       closeAuthDropdown();
     });
@@ -430,6 +640,7 @@ document.addEventListener("DOMContentLoaded", () => {
       closeModal(signupModal);
       openAuthDropdown();
       setFormStatus(loginStatus, "Account created. You can now log in. (Demo mode)", "success");
+      showToast("Account created successfully! (Demo mode)", "success");
     });
   }
 });
