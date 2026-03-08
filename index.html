@@ -15,7 +15,7 @@
 
 <body>
   <div class="image-modal" id="image-modal">
-    <img src="profile-pic.svg" alt="Rajeev Jasti" class="modal-content" loading="lazy" />
+    <img src="profile-pic.jpeg" alt="Rajeev Jasti" class="modal-content" loading="lazy" />
   </div>
   <div class="signup-modal" id="signup-modal">
     <div class="modal-content">
@@ -55,7 +55,7 @@
   <div class="layout">
     <header>
       <button type="button" class="header-left" id="profile-trigger" aria-label="Open profile photo">
-        <img src="profile-pic.svg" alt="Rajeev Jasti" class="profile-pic-small" />
+        <img src="profile-pic.jpeg" alt="Rajeev Jasti" class="profile-pic-small" />
         <div class="logo-text">RJ</div>
       </button>
       <button class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle Menu">
@@ -67,9 +67,48 @@
         <a href="#portfolio" data-target="portfolio">Portfolio</a>
         <a href="#contact" data-target="contact">Contact</a>
       </nav>
-      <button id="theme-toggle" title="Toggle Theme" aria-label="Toggle Theme">
-        <i class="fas fa-moon" id="theme-icon"></i>
-      </button>
+      <div class="header-actions">
+        <div class="auth-dropdown" id="auth-dropdown">
+          <button type="button" class="auth-toggle" id="auth-toggle" aria-label="Open login menu"
+            aria-controls="login-dropdown" aria-expanded="false">
+            <i class="fas fa-user"></i>
+          </button>
+          <div class="login-dropdown" id="login-dropdown" aria-hidden="true">
+            <div class="login-container">
+              <h2 class="login-title">Login</h2>
+              <form class="login-form" id="login-form">
+                <div class="form-group">
+                  <div class="input-wrapper">
+                    <input type="email" id="email" name="email" placeholder="Email" required />
+                    <i class="fas fa-envelope input-icon"></i>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="input-wrapper">
+                    <input type="password" id="password" name="password" placeholder="Password" required />
+                    <i class="fas fa-lock input-icon"></i>
+                  </div>
+                </div>
+                <div class="form-options">
+                  <label class="remember-me">
+                    <input type="checkbox" id="remember" name="remember" />
+                    Remember Me
+                  </label>
+                  <button type="button" class="forget-password text-button" id="forget-password">Forget Password?</button>
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+              </form>
+              <p class="login-footer">
+                Don't have an account?
+                <button type="button" class="login-link text-button" id="open-signup">Sign up</button>
+              </p>
+            </div>
+          </div>
+        </div>
+        <button id="theme-toggle" title="Toggle Theme" aria-label="Toggle Theme">
+          <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+      </div>
     </header>
     <main>
       <section id="about" class="active">
@@ -104,41 +143,14 @@
             <p class="hero-description">
               Architecting low-latency distributed systems and massive-scale
               ETL pipelines. I build the robust infrastructure that powers
+              real-time analytics for global enterprises. Architecting low-latency distributed systems and massive-scale
+              ETL pipelines. I build the robust infrastructure that powers
               real-time analytics for global enterprises.
             </p>
             <div class="hero-buttons">
               <a href="mailto:inboxtorj@gmail.com?subject=Resume%20Request" class="btn">Request Resume <i
                   class="fas fa-paper-plane"></i></a>
             </div>
-          </div>
-          <div class="login-container">
-            <h2 class="login-title">Login</h2>
-            <form class="login-form" id="login-form">
-              <div class="form-group">
-                <div class="input-wrapper">
-                  <input type="email" id="email" name="email" placeholder="Email" required />
-                  <i class="fas fa-envelope input-icon"></i>
-                </div>
-              </div>
-              <div class="form-group">
-                <div class="input-wrapper">
-                  <input type="password" id="password" name="password" placeholder="Password" required />
-                  <i class="fas fa-lock input-icon"></i>
-                </div>
-              </div>
-              <div class="form-options">
-                <label class="remember-me">
-                  <input type="checkbox" id="remember" name="remember" />
-                  Remember Me
-                </label>
-                <button type="button" class="forget-password text-button" id="forget-password">Forget Password?</button>
-              </div>
-              <button type="submit" class="login-btn">Login</button>
-            </form>
-            <p class="login-footer">
-              Don't have an account?
-              <button type="button" class="login-link text-button" id="open-signup">Sign up</button>
-            </p>
           </div>
         </div>
         <div class="stats-grid">

@@ -107,12 +107,13 @@ header {
   border-radius: 10px;
   border: 2px solid var(--accent);
   object-fit: cover;
-  object-position: top;
+  object-position: 50% 35%;
+  /*transform: scaleX(-1);*/
   transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .header-left:hover .profile-pic-small {
-  transform: scale(1.3);
+  transform: scaleX(-1) scale(1.3);
 }
 
 #theme-toggle {
@@ -133,6 +134,56 @@ header {
 
 #theme-toggle:hover {
   transform: rotate(15deg) scale(1.3);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-dropdown {
+  position: relative;
+}
+
+.auth-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--accent);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.3s ease,
+    color 0.3s ease;
+}
+
+.auth-toggle:hover {
+  transform: scale(1.2);
+}
+
+.login-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(360px, calc(100vw - 24px));
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+  z-index: 1300;
+}
+
+.auth-dropdown.open .login-dropdown {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 /* Mobile Menu Button */
@@ -175,6 +226,7 @@ nav a.active {
 nav a:focus-visible,
 .header-left:focus-visible,
 #theme-toggle:focus-visible,
+.auth-toggle:focus-visible,
 .login-link:focus-visible,
 .forget-password:focus-visible {
   outline: 2px solid var(--accent);
@@ -210,7 +262,7 @@ section.active {
 /* Hero Section */
 .hero {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 5px;
   align-items: center;
   min-height: 58vh;
@@ -337,30 +389,28 @@ section.active {
 
 /* Login Container */
 .login-container {
-  position: relative;
   width: 100%;
-  height: 375px;
-  background: var(--card-bg);
+  background: var(--bg);
   border-radius: var(--radius);
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 40px;
+  align-items: stretch;
+  padding: 28px;
   text-align: center;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.18);
 }
 
 .login-title {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--text);
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .login-form {
   width: 100%;
-  max-width: 300px;
+  max-width: none;
 }
 
 .form-group {
@@ -651,6 +701,14 @@ footer {
     animation: slideDown 0.3s ease forwards;
   }
 
+  .login-dropdown {
+    position: fixed;
+    top: calc(var(--header-height) + 10px);
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+
   .hero {
     grid-template-columns: 1fr;
     text-align: center;
@@ -711,8 +769,12 @@ footer {
   transition: 0.4s;
 }
 
+.image-modal .modal-content {
+  transform: scaleX(-1) scale(0.8);
+}
+
 .image-modal.active .modal-content {
-  transform: scale(1);
+  transform: scaleX(-1) scale(1);
 }
 
 /* Sign Up Modal */

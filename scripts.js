@@ -3,6 +3,9 @@ const hamburger = document.getElementById("hamburger-toggle");
 const navMenu = document.getElementById("nav-menu");
 const navLinks = document.querySelectorAll("nav a");
 const sections = document.querySelectorAll("main section");
+const authDropdown = document.getElementById("auth-dropdown");
+const authToggle = document.getElementById("auth-toggle");
+const loginDropdown = document.getElementById("login-dropdown");
 
 function closeMobileMenu() {
   if (!navMenu || !hamburger) return;
@@ -12,6 +15,21 @@ function closeMobileMenu() {
     icon.classList.add("fa-bars");
     icon.classList.remove("fa-times");
   }
+}
+
+function setAuthDropdownState(isOpen) {
+  if (!authDropdown || !authToggle || !loginDropdown) return;
+  authDropdown.classList.toggle("open", isOpen);
+  authToggle.setAttribute("aria-expanded", String(isOpen));
+  loginDropdown.setAttribute("aria-hidden", String(!isOpen));
+}
+
+function closeAuthDropdown() {
+  setAuthDropdownState(false);
+}
+
+function openAuthDropdown() {
+  setAuthDropdownState(true);
 }
 
 function setActiveSection(target) {
@@ -51,6 +69,7 @@ navLinks.forEach((link) => {
     setActiveSection(target);
     history.replaceState(null, "", `#${target}`);
     closeMobileMenu();
+    closeAuthDropdown();
 
     window.scrollTo({
       top: 0,
@@ -62,6 +81,30 @@ navLinks.forEach((link) => {
 const initialHashTarget = window.location.hash.replace("#", "");
 if (initialHashTarget && document.getElementById(initialHashTarget)) {
   setActiveSection(initialHashTarget);
+}
+
+if (authDropdown && authToggle && loginDropdown) {
+  authToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = !authDropdown.classList.contains("open");
+    setAuthDropdownState(isOpen);
+  });
+
+  loginDropdown.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!authDropdown.contains(e.target)) {
+      closeAuthDropdown();
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeAuthDropdown();
+    }
+  });
 }
 
 // Theme Toggle
@@ -147,6 +190,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
           localStorage.removeItem("rememberedEmail");
         }
+        closeAuthDropdown();
         alert("Login successful! (This is a demo)");
       } else {
         alert("Please fill in all fields.");
@@ -169,10 +213,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (signupModal && signupOpenButton && backToLoginButton) {
     signupOpenButton.addEventListener("click", () => {
       signupModal.classList.add("active");
+      closeAuthDropdown();
     });
 
     backToLoginButton.addEventListener("click", () => {
       signupModal.classList.remove("active");
+      openAuthDropdown();
     });
 
     signupModal.addEventListener("click", (e) => {
