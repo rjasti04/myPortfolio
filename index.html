@@ -14,12 +14,20 @@
 </head>
 
 <body>
-  <div class="image-modal" id="image-modal">
+  <div class="image-modal" id="image-modal" role="dialog" aria-modal="true" aria-label="Profile photo"
+    aria-hidden="true">
+    <button type="button" class="modal-close" id="image-modal-close" aria-label="Close profile photo">
+      <i class="fas fa-times"></i>
+    </button>
     <img src="profile-pic.jpeg" alt="Rajeev Jasti" class="modal-content" loading="lazy" />
   </div>
-  <div class="signup-modal" id="signup-modal">
-    <div class="modal-content">
-      <h2 class="signup-title">Sign Up</h2>
+  <div class="signup-modal" id="signup-modal" role="dialog" aria-modal="true" aria-labelledby="signup-title"
+    aria-hidden="true">
+    <div class="modal-content" tabindex="-1">
+      <button type="button" class="modal-close signup-modal-close" id="signup-modal-close" aria-label="Close sign up">
+        <i class="fas fa-times"></i>
+      </button>
+      <h2 class="signup-title" id="signup-title">Sign Up</h2>
       <form class="signup-form" id="signup-form">
         <div class="form-group">
           <div class="input-wrapper">
@@ -38,12 +46,14 @@
         <div class="form-group">
           <div class="input-wrapper">
             <input type="password" id="confirm-password" name="confirmPassword" placeholder="Confirm Password"
+              aria-describedby="password-error"
               required />
             <i class="fas fa-lock input-icon"></i>
           </div>
           <small id="password-error" class="error-message"></small>
         </div>
         <button type="submit" class="signup-btn">Sign Up</button>
+        <p id="signup-status" class="form-status" role="status" aria-live="polite"></p>
       </form>
       <p class="signup-footer">
         Already have an account?
@@ -97,6 +107,7 @@
                   <button type="button" class="forget-password text-button" id="forget-password">Forget Password?</button>
                 </div>
                 <button type="submit" class="login-btn">Login</button>
+                <p id="login-status" class="form-status" role="status" aria-live="polite"></p>
               </form>
               <p class="login-footer">
                 Don't have an account?
@@ -143,8 +154,6 @@
             <p class="hero-description">
               Architecting low-latency distributed systems and massive-scale
               ETL pipelines. I build the robust infrastructure that powers
-              real-time analytics for global enterprises. Architecting low-latency distributed systems and massive-scale
-              ETL pipelines. I build the robust infrastructure that powers
               real-time analytics for global enterprises.
             </p>
             <div class="hero-buttons">
@@ -152,6 +161,40 @@
                   class="fas fa-paper-plane"></i></a>
             </div>
           </div>
+          <aside class="terminal-panel" aria-label="Now Building panel">
+            <div class="terminal-topbar">
+              <span class="terminal-dot dot-red" aria-hidden="true"></span>
+              <span class="terminal-dot dot-amber" aria-hidden="true"></span>
+              <span class="terminal-dot dot-green" aria-hidden="true"></span>
+              <span class="terminal-title">now-building.sh</span>
+            </div>
+            <div class="terminal-body">
+              <p class="terminal-line"><span class="prompt">$</span> cat current_focus.md</p>
+              <ul class="terminal-list">
+                <li>Realtime lakehouse observability rollout</li>
+                <li>Self-serve pipeline templates for domain teams</li>
+              </ul>
+
+              <p class="terminal-line"><span class="prompt">$</span> stack --active</p>
+              <div class="terminal-tags">
+                <span>Kafka</span>
+                <span>Spark</span>
+                <span>Airflow</span>
+                <span>Snowflake</span>
+                <span>Terraform</span>
+                <span>Kubernetes</span>
+              </div>
+
+              <p class="terminal-line"><span class="prompt">$</span> tail -n 3 recent_wins.log</p>
+              <ul class="terminal-list">
+                <li>[OK] P95 latency down 40%</li>
+                <li>[OK] Cloud spend down 30%</li>
+                <li>[OK] Throughput stable at 1M+ events/sec</li>
+              </ul>
+
+              <p class="terminal-line is-live"><span class="prompt">$</span> deploy --env production</p>
+            </div>
+          </aside>
         </div>
         <div class="stats-grid">
           <div class="stat-card">

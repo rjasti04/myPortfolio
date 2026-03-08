@@ -6,6 +6,83 @@ const sections = document.querySelectorAll("main section");
 const authDropdown = document.getElementById("auth-dropdown");
 const authToggle = document.getElementById("auth-toggle");
 const loginDropdown = document.getElementById("login-dropdown");
+const imageModal = document.getElementById("image-modal");
+const imageModalCloseButton = document.getElementById("image-modal-close");
+const profileTrigger = document.getElementById("profile-trigger");
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const modalFocusReturn = new WeakMap();
+
+function getFocusableElements(container) {
+  return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter((element) => {
+    const isVisible = element.offsetParent !== null || element.getClientRects().length > 0;
+    return isVisible && element.getAttribute("aria-hidden") !== "true";
+  });
+}
+
+function handleFocusTrap(event, modal) {
+  if (event.key !== "Tab") return;
+
+  const focusable = getFocusableElements(modal);
+  if (focusable.length === 0) {
+    event.preventDefault();
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function openModal(modal, { initialFocus = null } = {}) {
+  if (!modal) return;
+  modalFocusReturn.set(modal, document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  modal.classList.add("active");
+  modal.setAttribute("aria-hidden", "false");
+
+  const onKeydown = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeModal(modal);
+      return;
+    }
+    handleFocusTrap(event, modal);
+  };
+
+  modal.__keydownHandler = onKeydown;
+  document.addEventListener("keydown", onKeydown);
+
+  const focusable = getFocusableElements(modal);
+  const target = initialFocus || focusable[0] || modal;
+  if (target && typeof target.focus === "function") {
+    target.focus();
+  }
+}
+
+function closeModal(modal, { restoreFocus = true } = {}) {
+  if (!modal || !modal.classList.contains("active")) return;
+  modal.classList.remove("active");
+  modal.setAttribute("aria-hidden", "true");
+
+  if (modal.__keydownHandler) {
+    document.removeEventListener("keydown", modal.__keydownHandler);
+    modal.__keydownHandler = null;
+  }
+
+  if (restoreFocus) {
+    const focusReturn = modalFocusReturn.get(modal);
+    if (focusReturn && typeof focusReturn.focus === "function") {
+      focusReturn.focus();
+    }
+  }
+}
 
 function closeMobileMenu() {
   if (!navMenu || !hamburger) return;
@@ -61,11 +138,11 @@ if (hamburger && navMenu) {
 }
 
 navLinks.forEach((link) => {
-  link.addEventListener("click", (e) => {
+  link.addEventListener("click", (event) => {
     const target = link.dataset.target;
     if (!target) return;
 
-    e.preventDefault();
+    event.preventDefault();
     setActiveSection(target);
     history.replaceState(null, "", `#${target}`);
     closeMobileMenu();
@@ -84,24 +161,24 @@ if (initialHashTarget && document.getElementById(initialHashTarget)) {
 }
 
 if (authDropdown && authToggle && loginDropdown) {
-  authToggle.addEventListener("click", (e) => {
-    e.stopPropagation();
+  authToggle.addEventListener("click", (event) => {
+    event.stopPropagation();
     const isOpen = !authDropdown.classList.contains("open");
     setAuthDropdownState(isOpen);
   });
 
-  loginDropdown.addEventListener("click", (e) => {
-    e.stopPropagation();
+  loginDropdown.addEventListener("click", (event) => {
+    event.stopPropagation();
   });
 
-  document.addEventListener("click", (e) => {
-    if (!authDropdown.contains(e.target)) {
+  document.addEventListener("click", (event) => {
+    if (!authDropdown.contains(event.target)) {
       closeAuthDropdown();
     }
   });
 
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
       closeAuthDropdown();
     }
   });
@@ -127,19 +204,30 @@ if (localStorage.getItem("theme") === "dark") {
 }
 
 // Profile Modal Logic
-const imageModal = document.getElementById("image-modal");
-const profileTrigger = document.getElementById("profile-trigger");
 if (imageModal && profileTrigger) {
-  profileTrigger.addEventListener("click", () => imageModal.classList.add("active"));
-  imageModal.addEventListener("click", () => imageModal.classList.remove("active"));
+  profileTrigger.addEventListener("click", () => {
+    openModal(imageModal, { initialFocus: imageModalCloseButton || imageModal });
+  });
+
+  if (imageModalCloseButton) {
+    imageModalCloseButton.addEventListener("click", () => {
+      closeModal(imageModal);
+    });
+  }
+
+  imageModal.addEventListener("click", (event) => {
+    if (event.target === imageModal) {
+      closeModal(imageModal);
+    }
+  });
 }
 
 // Cursor Glow
 const glow = document.getElementById("cursor-glow");
 if (glow) {
-  window.addEventListener("mousemove", (e) => {
-    glow.style.left = `${e.clientX}px`;
-    glow.style.top = `${e.clientY}px`;
+  window.addEventListener("mousemove", (event) => {
+    glow.style.left = `${event.clientX}px`;
+    glow.style.top = `${event.clientY}px`;
   });
 }
 
@@ -150,17 +238,34 @@ document.addEventListener("DOMContentLoaded", () => {
   const passwordInput = document.getElementById("password");
   const rememberInput = document.getElementById("remember");
   const forgetPasswordButton = document.getElementById("forget-password");
+  const loginStatus = document.getElementById("login-status");
+
   const signupModal = document.getElementById("signup-modal");
+  const signupModalContent = signupModal?.querySelector(".modal-content");
   const signupOpenButton = document.getElementById("open-signup");
   const backToLoginButton = document.getElementById("back-to-login");
+  const signupCloseButton = document.getElementById("signup-modal-close");
 
   const signupForm = document.getElementById("signup-form");
   const signupEmailInput = document.getElementById("signup-email");
   const signupPasswordInput = document.getElementById("signup-password");
   const confirmPasswordInput = document.getElementById("confirm-password");
   const passwordError = document.getElementById("password-error");
+  const signupStatus = document.getElementById("signup-status");
 
   const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{12,18}$/;
+
+  function setFormStatus(element, message, state = "info") {
+    if (!element) return;
+    element.textContent = message;
+    element.dataset.state = state;
+  }
+
+  function clearFormStatus(element) {
+    if (!element) return;
+    element.textContent = "";
+    delete element.dataset.state;
+  }
 
   if (signupPasswordInput && confirmPasswordInput && passwordError) {
     const validatePasswordMatch = () => {
@@ -175,26 +280,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
     signupPasswordInput.addEventListener("input", validatePasswordMatch);
     confirmPasswordInput.addEventListener("input", validatePasswordMatch);
+    signupEmailInput?.addEventListener("input", () => clearFormStatus(signupStatus));
+    signupPasswordInput.addEventListener("input", () => clearFormStatus(signupStatus));
+    confirmPasswordInput.addEventListener("input", () => clearFormStatus(signupStatus));
   }
 
   if (loginForm && emailInput && passwordInput && rememberInput) {
-    loginForm.addEventListener("submit", (e) => {
-      e.preventDefault();
+    loginForm.addEventListener("submit", (event) => {
+      event.preventDefault();
       const email = emailInput.value.trim();
       const password = passwordInput.value;
       const remember = rememberInput.checked;
 
-      if (email && password) {
-        if (remember) {
-          localStorage.setItem("rememberedEmail", email);
-        } else {
-          localStorage.removeItem("rememberedEmail");
-        }
-        closeAuthDropdown();
-        alert("Login successful! (This is a demo)");
-      } else {
-        alert("Please fill in all fields.");
+      if (!email || !password) {
+        setFormStatus(loginStatus, "Please enter both email and password.", "error");
+        return;
       }
+
+      if (remember) {
+        localStorage.setItem("rememberedEmail", email);
+      } else {
+        localStorage.removeItem("rememberedEmail");
+      }
+
+      closeAuthDropdown();
+      setFormStatus(loginStatus, "Login successful! (Demo mode)", "success");
     });
 
     const rememberedEmail = localStorage.getItem("rememberedEmail");
@@ -202,28 +312,37 @@ document.addEventListener("DOMContentLoaded", () => {
       emailInput.value = rememberedEmail;
       rememberInput.checked = true;
     }
+
+    emailInput.addEventListener("input", () => clearFormStatus(loginStatus));
+    passwordInput.addEventListener("input", () => clearFormStatus(loginStatus));
   }
 
   if (forgetPasswordButton) {
     forgetPasswordButton.addEventListener("click", () => {
-      alert("Password reset link sent to your email! (Demo)");
+      setFormStatus(loginStatus, "Password reset link sent! (Demo mode)", "info");
     });
   }
 
   if (signupModal && signupOpenButton && backToLoginButton) {
     signupOpenButton.addEventListener("click", () => {
-      signupModal.classList.add("active");
+      clearFormStatus(signupStatus);
+      passwordError.textContent = "";
+      openModal(signupModal, { initialFocus: signupModalContent || signupEmailInput || signupModal });
       closeAuthDropdown();
     });
 
     backToLoginButton.addEventListener("click", () => {
-      signupModal.classList.remove("active");
+      closeModal(signupModal);
       openAuthDropdown();
     });
 
-    signupModal.addEventListener("click", (e) => {
-      if (e.target === signupModal) {
-        signupModal.classList.remove("active");
+    signupCloseButton?.addEventListener("click", () => {
+      closeModal(signupModal);
+    });
+
+    signupModal.addEventListener("click", (event) => {
+      if (event.target === signupModal) {
+        closeModal(signupModal);
       }
     });
   }
@@ -236,32 +355,38 @@ document.addEventListener("DOMContentLoaded", () => {
     passwordError &&
     signupModal
   ) {
-    signupForm.addEventListener("submit", (e) => {
-      e.preventDefault();
+    signupForm.addEventListener("submit", (event) => {
+      event.preventDefault();
 
       const email = signupEmailInput.value.trim();
       const password = signupPasswordInput.value;
       const confirmPassword = confirmPasswordInput.value;
 
       if (!email || !password || !confirmPassword) {
-        alert("Please fill in all fields.");
+        setFormStatus(signupStatus, "Please fill in all fields.", "error");
         return;
       }
 
       if (!passwordRegex.test(password)) {
-        alert("Password must be 12-18 characters with at least one uppercase letter, one number, and one special character.");
+        setFormStatus(
+          signupStatus,
+          "Password must be 12-18 chars with uppercase, number, and special character.",
+          "error",
+        );
         return;
       }
 
       if (password !== confirmPassword) {
         passwordError.textContent = "Passwords do not match";
-        alert("Passwords do not match.");
+        setFormStatus(signupStatus, "Please make sure both password fields match.", "error");
         return;
       }
 
       passwordError.textContent = "";
-      alert("Sign up successful! (This is a demo)");
-      signupModal.classList.remove("active");
+      setFormStatus(signupStatus, "Sign up successful! (Demo mode)", "success");
+      closeModal(signupModal);
+      openAuthDropdown();
+      setFormStatus(loginStatus, "Account created. You can now log in. (Demo mode)", "success");
     });
   }
 });
