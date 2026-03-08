@@ -7,12 +7,14 @@
     "lint:js": "eslint scripts.js",
     "lint:css": "stylelint \"**/*.css\"",
     "format": "prettier --write \"**/*.{html,css,js,json,md,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{html,css,js,json,md,yml,yaml}\""
+    "format:check": "prettier --check \"**/*.{html,css,js,json,md,yml,yaml}\"",
+    "test": "node --test tests/*.test.js"
   },
   "devDependencies": {
     "eslint": "^8.57.1",
     "prettier": "^3.5.3",
     "stylelint": "^16.15.0",
-    "stylelint-config-standard": "^38.0.0"
+    "stylelint-config-standard": "^38.0.0",
+    "jsdom": "^26.1.0"
   }
 }
