@@ -110,20 +110,14 @@ function openAuthDropdown() {
 }
 
 function setActiveSection(target) {
-  if (!target) return;
-  sections.forEach((section) => {
-    section.classList.toggle("active", section.id === target);
-  });
+  if (!target || !window.AppLogic?.setActiveSection) return;
+  window.AppLogic.setActiveSection(target, sections, navLinks);
+}
 
-  navLinks.forEach((link) => {
-    const isActive = link.dataset.target === target;
-    link.classList.toggle("active", isActive);
-    if (isActive) {
-      link.setAttribute("aria-current", "page");
-    } else {
-      link.removeAttribute("aria-current");
-    }
-  });
+function syncSectionWithHash(hash = window.location.hash) {
+  if (!window.AppLogic?.getValidHashTarget) return;
+  const target = window.AppLogic.getValidHashTarget(hash, (id) => document.getElementById(id), "about");
+  setActiveSection(target);
 }
 
 if (hamburger && navMenu) {
@@ -155,10 +149,11 @@ navLinks.forEach((link) => {
   });
 });
 
-const initialHashTarget = window.location.hash.replace("#", "");
-if (initialHashTarget && document.getElementById(initialHashTarget)) {
-  setActiveSection(initialHashTarget);
-}
+syncSectionWithHash();
+
+window.addEventListener("hashchange", () => {
+  syncSectionWithHash();
+});
 
 if (authDropdown && authToggle && loginDropdown) {
   authToggle.addEventListener("click", (event) => {
