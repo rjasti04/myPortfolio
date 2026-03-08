@@ -142,9 +142,10 @@ navLinks.forEach((link) => {
     closeMobileMenu();
     closeAuthDropdown();
 
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({
       top: 0,
-      behavior: "smooth",
+      behavior: prefersReducedMotion ? "auto" : "smooth",
     });
   });
 });
@@ -219,7 +220,8 @@ if (imageModal && profileTrigger) {
 
 // Cursor Glow
 const glow = document.getElementById("cursor-glow");
-if (glow) {
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+if (glow && !prefersReducedMotion.matches) {
   window.addEventListener("mousemove", (event) => {
     glow.style.left = `${event.clientX}px`;
     glow.style.top = `${event.clientY}px`;
@@ -250,6 +252,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{12,18}$/;
 
+  const projectFilters = Array.from(document.querySelectorAll(".project-filter"));
+  const projectSearchInput = document.getElementById("project-search");
+  const projectCards = Array.from(document.querySelectorAll(".project-card"));
+  const projectResults = document.getElementById("project-results");
+
+  function applyProjectFilters(activeFilter = "all", searchTerm = "") {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    let visibleCount = 0;
+
+    projectCards.forEach((card) => {
+      const tags = (card.dataset.tags || "").toLowerCase();
+      const title = (card.dataset.title || "").toLowerCase();
+      const passesFilter = activeFilter === "all" || tags.includes(activeFilter);
+      const passesSearch = !normalizedSearch || tags.includes(normalizedSearch) || title.includes(normalizedSearch);
+      const visible = passesFilter && passesSearch;
+      card.hidden = !visible;
+      if (visible) visibleCount += 1;
+    });
+
+    if (projectResults) {
+      projectResults.textContent = `${visibleCount} project${visibleCount === 1 ? "" : "s"} shown`;
+    }
+  }
+
   function setFormStatus(element, message, state = "info") {
     if (!element) return;
     element.textContent = message;
@@ -278,6 +304,28 @@ document.addEventListener("DOMContentLoaded", () => {
     signupEmailInput?.addEventListener("input", () => clearFormStatus(signupStatus));
     signupPasswordInput.addEventListener("input", () => clearFormStatus(signupStatus));
     confirmPasswordInput.addEventListener("input", () => clearFormStatus(signupStatus));
+  }
+
+  if (projectFilters.length > 0 && projectCards.length > 0) {
+    let activeFilter = "all";
+
+    projectFilters.forEach((button) => {
+      button.addEventListener("click", () => {
+        activeFilter = button.dataset.filter || "all";
+        projectFilters.forEach((filterButton) => {
+          const isActive = filterButton === button;
+          filterButton.classList.toggle("active", isActive);
+          filterButton.setAttribute("aria-pressed", String(isActive));
+        });
+        applyProjectFilters(activeFilter, projectSearchInput?.value || "");
+      });
+    });
+
+    projectSearchInput?.addEventListener("input", () => {
+      applyProjectFilters(activeFilter, projectSearchInput.value);
+    });
+
+    applyProjectFilters(activeFilter, "");
   }
 
   if (loginForm && emailInput && passwordInput && rememberInput) {
