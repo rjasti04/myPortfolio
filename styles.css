@@ -656,21 +656,29 @@ section.active {
 }
 
 .contact-grid {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 40px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: stretch;
+  max-width: 760px;
+  margin: 0 auto;
   text-align: left;
 }
 
 .contact-info {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
   gap: 12px;
 }
 
 .contact-email-btn {
   white-space: nowrap;
+}
+
+.contact-form {
+  width: 100%;
 }
 
 .contact-submit-btn {
@@ -1574,8 +1582,12 @@ footer {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
 
-  .contact-grid {
-    grid-template-columns: 1fr;
+  .contact-info {
+    align-items: stretch;
+  }
+
+  .contact-info .btn {
+    justify-content: center;
   }
 
   footer {
