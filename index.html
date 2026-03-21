@@ -26,10 +26,35 @@
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄</text></svg>" />
   <link rel="manifest" href="manifest.json" />
 
+  <!-- SEO JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Rajeev Jasti",
+    "jobTitle": "Principal Data Engineer",
+    "image": "profile-pic.jpeg",
+    "url": "https://rajeevjasti.com",
+    "sameAs": [
+      "https://www.linkedin.com/in/rajeev-jasti-326080169",
+      "https://github.com"
+    ]
+  }
+  </script>
+
   <!-- Preconnect for performance -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+
+  <!-- Three.js Import Map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
 
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet"
@@ -38,6 +63,9 @@
 </head>
 
 <body>
+  <!-- 3D WebGL Background -->
+  <canvas id="webgl-canvas" class="webgl-canvas"></canvas>
+
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
@@ -110,15 +138,13 @@
     </div>
   </div>
 
-  <div class="cursor-glow" id="cursor-glow"></div>
-
   <!-- Back to Top -->
   <button class="back-to-top" id="back-to-top" aria-label="Back to top">
     <i class="fas fa-chevron-up"></i>
   </button>
 
   <div class="layout">
-    <header>
+    <header id="header">
       <button type="button" class="header-left" id="profile-trigger" aria-label="Open profile photo">
         <img src="profile-pic.jpeg" alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" />
         <div class="logo-text">RJ</div>
@@ -130,6 +156,7 @@
         <a href="#about" data-target="about" class="active" aria-current="page">About</a>
         <a href="#resume" data-target="resume">Experience</a>
         <a href="#portfolio" data-target="portfolio">Portfolio</a>
+        <a href="#hobbies" data-target="hobbies">Hobbies</a>
         <a href="#contact" data-target="contact">Contact</a>
       </nav>
       <div class="header-actions">
@@ -240,27 +267,27 @@
         </div>
 
         <div class="stats-grid">
-          <div class="stat-card">
+          <div class="stat-card reveal">
             <div class="stat-number" data-target="10" data-suffix="+">10+</div>
             <div class="stat-label">Years Experience</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card reveal">
             <div class="stat-number" data-target="50" data-suffix="+">50+</div>
             <div class="stat-label">Projects Delivered</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card reveal">
             <div class="stat-number" data-target="1" data-suffix="M+">1M+</div>
             <div class="stat-label">Events/Second</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card reveal">
             <div class="stat-number" data-target="30" data-suffix="%">30%</div>
             <div class="stat-label">Cost Reduction</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card reveal">
             <div class="stat-number" data-target="40" data-suffix="%">40%</div>
             <div class="stat-label">Latency Improvement</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card reveal">
             <div class="stat-number" data-target="99.9" data-suffix="%">99.9%</div>
             <div class="stat-label">Uptime</div>
           </div>
@@ -269,8 +296,11 @@
         <!-- Skills Section -->
         <div class="skills-section">
           <h2 class="section-title skills-title">Technical Skills</h2>
+          <div class="chart-container reveal" style="display: none;">
+            <canvas id="skills-chart"></canvas>
+          </div>
           <div class="skills-grid">
-            <div class="skill-group">
+            <div class="skill-group reveal">
               <h3 class="skill-group-label">Data Processing</h3>
               <div class="skill-tags">
                 <span class="skill-tag">Apache Spark</span>
@@ -280,7 +310,7 @@
                 <span class="skill-tag">dbt</span>
               </div>
             </div>
-            <div class="skill-group">
+            <div class="skill-group reveal">
               <h3 class="skill-group-label">Cloud &amp; Infrastructure</h3>
               <div class="skill-tags">
                 <span class="skill-tag">AWS</span>
@@ -290,7 +320,7 @@
                 <span class="skill-tag">GCP</span>
               </div>
             </div>
-            <div class="skill-group">
+            <div class="skill-group reveal">
               <h3 class="skill-group-label">Data Warehouse</h3>
               <div class="skill-tags">
                 <span class="skill-tag">Snowflake</span>
@@ -299,7 +329,7 @@
                 <span class="skill-tag">Delta Lake</span>
               </div>
             </div>
-            <div class="skill-group">
+            <div class="skill-group reveal">
               <h3 class="skill-group-label">Languages</h3>
               <div class="skill-tags">
                 <span class="skill-tag">Python</span>
@@ -308,7 +338,7 @@
                 <span class="skill-tag">Bash</span>
               </div>
             </div>
-            <div class="skill-group">
+            <div class="skill-group reveal">
               <h3 class="skill-group-label">Databases</h3>
               <div class="skill-tags">
                 <span class="skill-tag">PostgreSQL</span>
@@ -317,7 +347,7 @@
                 <span class="skill-tag">Cassandra</span>
               </div>
             </div>
-            <div class="skill-group">
+            <div class="skill-group reveal">
               <h3 class="skill-group-label">Observability</h3>
               <div class="skill-tags">
                 <span class="skill-tag">Prometheus</span>
@@ -328,13 +358,46 @@
             </div>
           </div>
         </div>
+
+        <!-- Data Pipeline Architecture Diagram -->
+        <h2 class="section-title skills-title" style="margin-top: 48px;">Reference Architecture</h2>
+        <div class="architecture-diagram reveal">
+          <div class="arch-node">
+            <i class="fas fa-server"></i>
+            <span>Source Systems</span>
+          </div>
+          <div class="arch-connector">
+            <div class="connector-line"></div>
+            <i class="fas fa-chevron-right connector-arrow"></i>
+          </div>
+          <div class="arch-node highlight-node">
+            <i class="fas fa-random"></i>
+            <span>Kafka</span>
+          </div>
+          <div class="arch-connector streaming">
+            <div class="connector-line streaming-line"></div>
+            <i class="fas fa-chevron-right connector-arrow"></i>
+          </div>
+          <div class="arch-node highlight-node">
+            <i class="fas fa-bolt"></i>
+            <span>Spark</span>
+          </div>
+          <div class="arch-connector">
+            <div class="connector-line"></div>
+            <i class="fas fa-chevron-right connector-arrow"></i>
+          </div>
+          <div class="arch-node end-node">
+            <i class="fas fa-database"></i>
+            <span>Lakehouse</span>
+          </div>
+        </div>
       </section>
 
       <!-- Experience Section -->
       <section id="resume">
         <h2 class="section-title">Experience</h2>
 
-        <div class="item">
+        <div class="item reveal">
           <div class="item-header">
             <span class="item-date">2022 &mdash; Present</span>
             <span class="item-badge">Remote</span>
@@ -355,7 +418,7 @@
           </div>
         </div>
 
-        <div class="item">
+        <div class="item reveal">
           <div class="item-header">
             <span class="item-date">2019 &mdash; 2022</span>
             <span class="item-badge">Hybrid</span>
@@ -374,7 +437,7 @@
           </div>
         </div>
 
-        <div class="item">
+        <div class="item reveal">
           <div class="item-header">
             <span class="item-date">2016 &mdash; 2019</span>
             <span class="item-badge">On-site</span>
@@ -412,7 +475,7 @@
         </div>
         <p class="project-results" id="project-results" role="status" aria-live="polite"></p>
         <div class="portfolio-grid" id="portfolio-grid">
-          <article class="item project-card" data-tags="kafka spark realtime"
+          <article class="item project-card reveal" data-tags="kafka spark realtime"
             data-title="Real-time Analytics Platform"
             data-description="Kafka &amp; Spark streaming pipeline processing 1M events/sec with fault-tolerant event ingestion. Deployed on Kubernetes with auto-scaling consumers and end-to-end latency monitoring."
             data-stack="Kafka,Spark,Python,Kubernetes,Prometheus"
@@ -434,7 +497,7 @@
             </div>
           </article>
 
-          <article class="item project-card" data-tags="snowflake airflow etl"
+          <article class="item project-card reveal" data-tags="snowflake airflow etl"
             data-title="Cloud ETL Modernization"
             data-description="Airflow-orchestrated Snowflake pipelines that reduced nightly batch runtime by 45%. Includes full lineage tracking, automated alerting via Slack, and self-healing retry logic."
             data-stack="Airflow,Snowflake,dbt,Python,AWS S3"
@@ -456,7 +519,7 @@
             </div>
           </article>
 
-          <article class="item project-card" data-tags="kafka snowflake cdc"
+          <article class="item project-card reveal" data-tags="kafka snowflake cdc"
             data-title="CDC Data Mesh Enablement"
             data-description="Built Kafka-to-Snowflake CDC templates for domain teams to self-serve compliant datasets. Includes schema registry, automated compatibility testing, and governance controls."
             data-stack="Kafka,Debezium,Snowflake,Terraform,Schema Registry"
@@ -480,9 +543,44 @@
         </div>
       </section>
 
+      <!-- Hobbies Section -->
+      <section id="hobbies">
+        <h2 class="section-title">Interests & Hobbies</h2>
+        <div class="articles-grid">
+          <div class="item article-card reveal">
+            <div class="article-meta">
+              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-futbol"></i> Soccer</span>
+            </div>
+            <h3>Sunday League Striker</h3>
+            <p class="article-excerpt">I play competitively on weekends, always looking to improve my striking and tactical awareness on the pitch.</p>
+          </div>
+          <div class="item article-card reveal">
+            <div class="article-meta">
+              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-hot-tub"></i> Sauna</span>
+            </div>
+            <h3>The Daily Detox</h3>
+            <p class="article-excerpt">Nothing beats a 20-minute sauna session after a long day of engineering. It's my ultimate life hack for recovery and deep thinking.</p>
+          </div>
+          <div class="item article-card reveal">
+            <div class="article-meta">
+              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-dumbbell"></i> Workout</span>
+            </div>
+            <h3>Strength & Conditioning</h3>
+            <p class="article-excerpt">Lifting heavy and staying mobile. Consistency in the gym translates directly to discipline and focus at the keyboard.</p>
+          </div>
+          <div class="item article-card reveal">
+            <div class="article-meta">
+              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-utensils"></i> Foodie</span>
+            </div>
+            <h3>Culinary Explorer</h3>
+            <p class="article-excerpt">Always on the hunt for the best local eats, from hidden street food gems to trying my hand at cooking new cuisines at home.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- Contact Section -->
       <section id="contact">
-        <div class="item contact-section">
+        <div class="item contact-section reveal">
           <h2 class="contact-title">Let's talk.</h2>
           <p class="contact-description">Have a project in mind or want to connect? Send me a message.</p>
           <div class="contact-grid">
@@ -536,8 +634,53 @@
     </footer>
   </div>
 
+  <!-- OS-style Command Palette -->
+  <dialog id="cmd-palette" class="cmd-palette">
+    <div class="cmd-container">
+      <div class="cmd-header">
+        <i class="fas fa-search cmd-icon"></i>
+        <input type="text" id="cmd-input" placeholder="Type a command or search..." autocomplete="off">
+        <button id="cmd-close" class="cmd-close-btn" aria-label="Close Command Palette"><kbd>ESC</kbd></button>
+      </div>
+      <div class="cmd-results" id="cmd-results">
+        <div class="cmd-group">Navigation</div>
+        <button class="cmd-option" data-action="nav" data-target="about"><i class="fas fa-user fa-fw"></i> Go to About</button>
+        <button class="cmd-option" data-action="nav" data-target="resume"><i class="fas fa-briefcase fa-fw"></i> View Experience</button>
+        <button class="cmd-option" data-action="nav" data-target="portfolio"><i class="fas fa-folder-open fa-fw"></i> View Portfolio</button>
+        <button class="cmd-option" data-action="nav" data-target="hobbies"><i class="fas fa-heart fa-fw"></i> View Interests</button>
+        <button class="cmd-option" data-action="nav" data-target="contact"><i class="fas fa-envelope fa-fw"></i> Contact Me</button>
+        <div class="cmd-group">Actions</div>
+        <button class="cmd-option" data-action="theme"><i class="fas fa-moon fa-fw"></i> Toggle Dark Mode</button>
+        <button class="cmd-option" data-action="cv"><i class="fas fa-download fa-fw"></i> Download Resume</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- OS-style Command Palette -->
+  <dialog id="cmd-palette" class="cmd-palette">
+    <div class="cmd-container">
+      <div class="cmd-header">
+        <i class="fas fa-search cmd-icon"></i>
+        <input type="text" id="cmd-input" placeholder="Type a command or search..." autocomplete="off">
+        <button id="cmd-close" class="cmd-close-btn" aria-label="Close Command Palette"><kbd>ESC</kbd></button>
+      </div>
+      <div class="cmd-results" id="cmd-results">
+        <div class="cmd-group">Navigation</div>
+        <button class="cmd-option" data-action="nav" data-target="about"><i class="fas fa-user fa-fw"></i> Go to About</button>
+        <button class="cmd-option" data-action="nav" data-target="resume"><i class="fas fa-briefcase fa-fw"></i> View Experience</button>
+        <button class="cmd-option" data-action="nav" data-target="portfolio"><i class="fas fa-folder-open fa-fw"></i> View Portfolio</button>
+        <button class="cmd-option" data-action="nav" data-target="hobbies"><i class="fas fa-heart fa-fw"></i> View Interests</button>
+        <button class="cmd-option" data-action="nav" data-target="contact"><i class="fas fa-envelope fa-fw"></i> Contact Me</button>
+        <div class="cmd-group">Actions</div>
+        <button class="cmd-option" data-action="theme"><i class="fas fa-moon fa-fw"></i> Toggle Dark Mode</button>
+        <button class="cmd-option" data-action="cv"><i class="fas fa-download fa-fw"></i> Download Resume</button>
+      </div>
+    </div>
+  </dialog>
+
   <script src="app-logic.js"></script>
   <script src="scripts.js"></script>
+  <script type="module" src="three-bg.js"></script>
 </body>
 
 </html>

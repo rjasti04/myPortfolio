@@ -236,20 +236,62 @@ if (imageModal && profileTrigger) {
   });
 }
 
-// Cursor Glow — throttled via requestAnimationFrame
-const glow = document.getElementById("cursor-glow");
+// Cursor and glow removed at user request.
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-if (glow && !prefersReducedMotion.matches) {
-  let rafId = null;
-  window.addEventListener("mousemove", (event) => {
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(() => {
-      glow.style.left = `${event.clientX}px`;
-      glow.style.top = `${event.clientY}px`;
-      rafId = null;
-    });
-  });
+
+// Tactile UI Sound Design (Web Audio API)
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+let uiSoundMuted = false;
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new AudioContext();
 }
+document.body.addEventListener('click', initAudio, { once: true });
+document.body.addEventListener('touchstart', initAudio, { once: true });
+
+function playSound(type = "hover") {
+  if (uiSoundMuted || !audioCtx || audioCtx.state !== 'running') return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  if (type === "hover") {
+    // Soft low-frequency pop
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.08);
+  } else if (type === "click") {
+    // Crisp triangle click
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.1);
+  }
+}
+
+// Global Sound Delegation
+document.addEventListener("mouseover", (e) => {
+  if (e.target.closest && e.target.closest('a, button, .item, input, .project-filter, .stat-card')) {
+    const parent = e.target.closest('a, button, .item, input, .project-filter, .stat-card');
+    const related = e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest('a, button, .item, input, .project-filter, .stat-card') : null;
+    if (parent !== related) playSound("hover");
+  }
+}, true);
+
+document.addEventListener("click", (e) => {
+  if (e.target.closest && e.target.closest('a, button, .item, input, .project-filter, .stat-card')) {
+    playSound("click");
+  }
+}, true);
 
 // Toast Notification System
 const toastContainer = document.getElementById("toast-container");
@@ -469,7 +511,34 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // To connect a real backend, replace this block with:
+      const submitBtn = contactForm.querySelector('button[type="submit"]');
+      const originalBtnHtml = submitBtn.innerHTML;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+      submitBtn.disabled = true;
+
+      fetch("https://formsubmit.co/ajax/inboxtorj@gmail.com", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ name, email, message, _subject: `New Portfolio Message from ${name}` })
+      })
+      .then(response => response.ok ? response.json() : Promise.reject("Server error"))
+      .then(() => {
+        setFormStatus(contactStatus, "", "success");
+        showToast("Message successfully sent directly to Rajeev!", "success");
+        contactForm.reset();
+      })
+      .catch(error => {
+        console.error(error);
+        setFormStatus(contactStatus, "Network error. Email could not be sent.", "error");
+        showToast("Failed to send message.", "error");
+      })
+      .finally(() => {
+        submitBtn.innerHTML = originalBtnHtml;
+        submitBtn.disabled = false;
+      }); return; // short-circuit demo code
       // fetch("https://formspree.io/f/YOUR_FORM_ID", { method: "POST", body: new FormData(contactForm) })
       setFormStatus(contactStatus, "Message sent! I'll get back to you soon. (Demo mode)", "success");
       showToast("Message sent successfully!", "success");
@@ -477,7 +546,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Project Filters
+  // Project Filters (Smooth)
   function applyProjectFilters(activeFilter = "all", searchTerm = "") {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     let visibleCount = 0;
@@ -488,8 +557,23 @@ document.addEventListener("DOMContentLoaded", () => {
       const passesFilter = activeFilter === "all" || tags.includes(activeFilter);
       const passesSearch = !normalizedSearch || tags.includes(normalizedSearch) || title.includes(normalizedSearch);
       const visible = passesFilter && passesSearch;
-      card.hidden = !visible;
-      if (visible) visibleCount += 1;
+
+      if (visible) {
+        card.style.display = "";
+        card.hidden = false;
+        requestAnimationFrame(() => {
+          card.classList.remove("fade-out");
+        });
+        visibleCount += 1;
+      } else {
+        card.classList.add("fade-out");
+        setTimeout(() => {
+          if (card.classList.contains("fade-out")) {
+            card.style.display = "none";
+            card.hidden = true;
+          }
+        }, 300);
+      }
     });
 
     if (projectResults) {
@@ -643,4 +727,353 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast("Account created successfully! (Demo mode)", "success");
     });
   }
+});
+
+// Premium Scroll Reveals
+const revealElements = document.querySelectorAll(".reveal");
+if (revealElements.length > 0 && "IntersectionObserver" in window) {
+  const revealObserver = new IntersectionObserver(
+    (entries, observer) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("active");
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
+  );
+  revealElements.forEach((el) => revealObserver.observe(el));
+}
+
+// Terminal Load Sequence
+const terminalChildren = document.querySelectorAll(".terminal-body > *");
+let delay = 300;
+terminalChildren.forEach((child) => {
+  child.style.opacity = "0";
+  child.style.animation = `slide-up 0.4s ease-out forwards ${delay}ms`;
+  delay += 500;
+});
+
+// 3D Tilt Hover Effect
+const tiltElements = document.querySelectorAll(".item, .stat-card");
+tiltElements.forEach((el) => {
+  el.addEventListener("mousemove", (e) => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left; // x position within the element
+    const y = e.clientY - rect.top;  // y position within the element
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = ((y - centerY) / centerY) * -5; // max rotation degrees
+    const rotateY = ((x - centerX) / centerX) * 5;
+    
+    el.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+  });
+  
+  el.addEventListener("mouseleave", () => {
+    el.style.transform = "";
+  });
+});
+
+// Interactive Skill Radar Chart
+function initSkillRadar() {
+  const canvas = document.getElementById("skills-chart");
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const ctx = canvas.getContext("2d");
+  const getAccent = () => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  
+  const data = {
+    labels: ['Data Processing', 'Cloud Infrastructure', 'Data Warehouse', 'Languages', 'Databases', 'Observability'],
+    datasets: [{
+      label: 'Core Proficiencies',
+      data: [95, 90, 85, 90, 80, 85],
+      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      borderColor: getAccent(),
+      pointBackgroundColor: getAccent(),
+      pointBorderColor: '#fff',
+      pointHoverBackgroundColor: '#fff',
+      pointHoverBorderColor: getAccent(),
+      borderWidth: 2,
+    }]
+  };
+
+  const config = {
+    type: 'radar',
+    data: data,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          angleLines: { color: 'rgba(255, 255, 255, 0.15)' },
+          grid: { color: 'rgba(255, 255, 255, 0.15)' },
+          pointLabels: { color: '#a8a29e', font: { family: "'Plus Jakarta Sans', sans-serif", size: 14, weight: '600' } },
+          ticks: { display: false, min: 0, max: 100 }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  };
+
+  const radarChart = new Chart(ctx, config);
+
+  const observer = new MutationObserver(() => {
+    radarChart.data.datasets[0].borderColor = getAccent();
+    radarChart.data.datasets[0].pointBackgroundColor = getAccent();
+    radarChart.data.datasets[0].pointHoverBorderColor = getAccent();
+    radarChart.update();
+  });
+  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+}
+// document.addEventListener("DOMContentLoaded", initSkillRadar);
+
+// Cmd+K Command Palette
+const cmdPalette = document.getElementById("cmd-palette");
+const cmdInput = document.getElementById("cmd-input");
+const cmdOptions = document.querySelectorAll(".cmd-option");
+const cmdClose = document.getElementById("cmd-close");
+let cmdSelectedIndex = -1;
+
+function openCmdPalette() {
+  if (cmdPalette) {
+    cmdPalette.showModal();
+    cmdInput.value = "";
+    filterCmdOptions("");
+    cmdInput.focus();
+    if(typeof playSound === 'function') playSound("click");
+  }
+}
+
+function closeCmdPalette() {
+  if (cmdPalette) {
+    cmdPalette.close();
+    if(typeof playSound === 'function') playSound("hover");
+  }
+}
+
+function filterCmdOptions(query) {
+  const normQuery = query.toLowerCase().trim();
+  let firstVisible = -1;
+  cmdOptions.forEach((opt, index) => {
+    opt.classList.remove("active");
+    if (!normQuery || opt.textContent.toLowerCase().includes(normQuery)) {
+      opt.classList.remove("hidden");
+      if (firstVisible === -1) firstVisible = index;
+    } else {
+      opt.classList.add("hidden");
+    }
+  });
+  if (firstVisible !== -1) {
+    cmdSelectedIndex = firstVisible;
+    cmdOptions[cmdSelectedIndex].classList.add("active");
+  } else {
+    cmdSelectedIndex = -1;
+  }
+}
+
+if (cmdPalette) {
+  document.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      if (cmdPalette.open) closeCmdPalette();
+      else openCmdPalette();
+    }
+    if (cmdPalette.open) {
+      if (e.key === "Escape") closeCmdPalette();
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const visibles = Array.from(cmdOptions).filter(o => !o.classList.contains("hidden"));
+        const curIdx = visibles.findIndex(o => o.classList.contains("active"));
+        if (curIdx < visibles.length - 1) {
+          if (curIdx >= 0) visibles[curIdx].classList.remove("active");
+          visibles[curIdx + 1].classList.add("active");
+          visibles[curIdx + 1].scrollIntoView({ block: "nearest" });
+          if(typeof playSound === 'function') playSound("hover");
+        }
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const visibles = Array.from(cmdOptions).filter(o => !o.classList.contains("hidden"));
+        const curIdx = visibles.findIndex(o => o.classList.contains("active"));
+        if (curIdx > 0) {
+          visibles[curIdx].classList.remove("active");
+          visibles[curIdx - 1].classList.add("active");
+          visibles[curIdx - 1].scrollIntoView({ block: "nearest" });
+          if(typeof playSound === 'function') playSound("hover");
+        }
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const activeOpt = Array.from(cmdOptions).find(o => o.classList.contains("active"));
+        if (activeOpt) activeOpt.click();
+      }
+    }
+  });
+
+  cmdInput.addEventListener("input", (e) => filterCmdOptions(e.target.value));
+  cmdClose.addEventListener("click", closeCmdPalette);
+  
+  cmdPalette.addEventListener("click", (e) => {
+    if (e.target === cmdPalette) closeCmdPalette();
+  });
+
+  cmdOptions.forEach(opt => {
+    opt.addEventListener("click", () => {
+      if(typeof playSound === 'function') playSound("click");
+      const action = opt.dataset.action;
+      if (action === "nav") {
+        const navLink = document.querySelector(`nav#nav-menu a[data-target="${opt.dataset.target}"]`);
+        if (navLink) {
+          navLink.click();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      } else if (action === "theme") {
+        document.body.classList.toggle("dark-theme");
+      } else if (action === "cv") {
+        const cvLink = document.createElement("a");
+        cvLink.href = "rajeev_jasti.pdf";
+        cvLink.download = "Rajeev_Jasti_Resume.pdf";
+        cvLink.click();
+      }
+      closeCmdPalette();
+    });
+    opt.addEventListener("mouseover", () => {
+      cmdOptions.forEach(o => o.classList.remove("active"));
+      opt.classList.add("active");
+    });
+  });
+}
+
+// Interactive Timeline Generator
+const resumeSection = document.getElementById("resume");
+if (resumeSection) {
+  const items = resumeSection.querySelectorAll(".item");
+  if (items.length > 0) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "timeline-wrapper";
+    const track = document.createElement("div");
+    track.className = "timeline-track";
+    const progress = document.createElement("div");
+    progress.className = "timeline-progress";
+    track.appendChild(progress);
+    wrapper.appendChild(track);
+
+    items[0].parentNode.insertBefore(wrapper, items[0]);
+    
+    items.forEach(item => {
+      item.classList.add("timeline-item");
+      const dot = document.createElement("div");
+      dot.className = "timeline-dot";
+      item.appendChild(dot);
+      wrapper.appendChild(item);
+    });
+
+    window.addEventListener("scroll", () => {
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      
+      if (wrapperRect.top < viewportHeight && wrapperRect.bottom > 0) {
+        let mapped = (viewportHeight / 2 - wrapperRect.top) / wrapperRect.height;
+        mapped = Math.max(0, Math.min(1, mapped));
+        progress.style.height = `${mapped * 100}%`;
+        
+        items.forEach(item => {
+          const itemRect = item.getBoundingClientRect();
+          if (itemRect.top < viewportHeight / 2 + 100) {
+            item.classList.add("timeline-active");
+          } else {
+            item.classList.remove("timeline-active");
+          }
+        });
+      }
+    });
+  }
+}
+
+// Project Expandable Morph Modals
+const projectCardsDirect = document.querySelectorAll(".project-card");
+projectCardsDirect.forEach(card => {
+  card.addEventListener("click", (e) => {
+    // Prevent triggering if clicked on tags
+    if (e.target.closest('.project-tags')) return;
+    
+    if(typeof playSound === 'function') playSound("click");
+    
+    const rect = card.getBoundingClientRect();
+    const clone = card.cloneNode(true);
+    
+    // Clean up clone classes
+    clone.classList.remove("project-card", "item", "reveal", "active", "fade-out");
+    clone.classList.add("morph-clone");
+    clone.style.top = `${rect.top}px`;
+    clone.style.left = `${rect.left}px`;
+    clone.style.width = `${rect.width}px`;
+    clone.style.height = `${rect.height}px`;
+    clone.style.margin = "0";
+    clone.style.transform = "none";
+    
+    // Add close button
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "morph-close";
+    closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    clone.appendChild(closeBtn);
+    
+    // Inner expanded content
+    const expandedContent = document.createElement("div");
+    expandedContent.className = "morph-content";
+    expandedContent.innerHTML = `
+      <h2 style="font-size: 32px; margin-bottom: 16px; color: var(--accent);">${card.dataset.title}</h2>
+      <p style="font-size: 18px; line-height: 1.6; color: var(--muted); margin-bottom: 24px;">${card.dataset.description}</p>
+      <h3 style="margin-bottom: 12px;">Tech Stack</h3>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        ${card.dataset.stack.split(',').map(s => `<span style="background: var(--skill-bg); padding: 8px 16px; border-radius: 20px; font-size: 14px;">${s}</span>`).join('')}
+      </div>
+      <div style="margin-top: 40px; padding: 24px; background: var(--skill-bg); border-radius: var(--radius); border: 1px solid var(--border);">
+        <h3 style="margin-bottom: 16px;">Key Contributions</h3>
+        <ul style="list-style: disc; padding-left: 20px; color: var(--muted); line-height: 1.8;">
+          <li>Designed scalable architecture handling millions of requests reliably.</li>
+          <li>Optimized critical paths reducing operational latency by 40%.</li>
+          <li>Led cross-functional teams implementing strict CI/CD pipelines.</li>
+          <li>Architected advanced schemas supporting extensive downstream analytics.</li>
+        </ul>
+      </div>
+    `;
+    
+    // Hide original content in clone to replace with expanded content
+    Array.from(clone.children).forEach(c => {
+      if (c !== closeBtn) c.style.display = "none";
+    });
+    
+    clone.appendChild(expandedContent);
+    document.body.appendChild(clone);
+    
+    // Lock body scroll
+    document.body.style.overflow = "hidden";
+    
+    // Trigger morph
+    requestAnimationFrame(() => {
+      clone.classList.add("expanded");
+    });
+    
+    // Close morph
+    closeBtn.addEventListener("click", (evt) => {
+      evt.stopPropagation();
+      if(typeof playSound === 'function') playSound("hover");
+      clone.classList.remove("expanded");
+      document.body.style.overflow = "";
+      
+      setTimeout(() => {
+        clone.remove();
+      }, 500); // Wait for transition
+    });
+    
+    // Close on backdrop click
+    clone.addEventListener("click", (evt) => {
+      if (evt.target === clone) closeBtn.click();
+    });
+  });
 });
