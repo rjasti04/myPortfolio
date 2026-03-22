@@ -148,6 +148,14 @@ export function initThreeBackground() {
     requestAnimationFrame(animate);
     const elapsedTime = clock.getElapsedTime();
 
+    // Smoothly Lerp Camera Matrix (Parallax + Scroll)
+    targetX = mouseX * 0.002;
+    targetY = mouseY * 0.002;
+    
+    // Map screen mouse coordinates to 3D world space roughly
+    const worldMouseX = (mouseX / windowHalfX) * 45;
+    const worldMouseZ = (mouseY / windowHalfY) * 30 - 5;
+
     // Mathematically undulate the Antigravity Wave layer using interference sine/cosine grids
     const positions = waveGeometry.attributes.position.array;
     let waveIdx = 0;
@@ -155,12 +163,23 @@ export function initThreeBackground() {
       for (let iz = 0; iz < countZ; iz++) {
          const cx = positions[waveIdx];
          const cz = positions[waveIdx + 2];
+         
+         // Fluid Radial Repulsion Math
+         const dx = cx - worldMouseX;
+         const dz = cz - worldMouseZ;
+         const dist = Math.sqrt(dx * dx + dz * dz);
+         let repulsion = 0;
+         if (dist < 16) {
+           // Cursor ripples pushing into the wave
+           repulsion = Math.cos(dist * 0.6 - elapsedTime * 4) * (16 - dist) * 0.25;
+         }
+
          // Complex continuous wave formula
          const dropY = Math.sin((cx + elapsedTime * 0.8) * 0.2) * 1.5;
          const swellY = Math.cos((cz + elapsedTime * 0.6) * 0.2) * 1.5;
          const complexInterference = Math.sin((cx + cz + elapsedTime) * 0.1) * 2;
          
-         positions[waveIdx + 1] = dropY + swellY + complexInterference;
+         positions[waveIdx + 1] = dropY + swellY + complexInterference + repulsion;
          waveIdx += 3;
       }
     }
@@ -170,9 +189,6 @@ export function initThreeBackground() {
     dustMesh.rotation.y = elapsedTime * 0.015;
     dustMesh.rotation.x = elapsedTime * 0.005;
 
-    // Smoothly Lerp Camera Matrix (Parallax + Scroll)
-    targetX = mouseX * 0.002;
-    targetY = mouseY * 0.002;
     
     camera.position.x += (targetX - camera.position.x) * 0.05;
     camera.position.y += (10 + (scrollOffset * -5) - targetY - camera.position.y) * 0.05;

@@ -511,7 +511,7 @@ section.active {
 }
 
 .item-bullets li::before {
-  content: "â–¹";
+  content: "\25B8";
   position: absolute;
   left: 0;
   color: var(--accent);
@@ -1254,7 +1254,7 @@ footer {
 }
 
 .project-detail-outcomes li::before {
-  content: "âœ“";
+  content: "\2713";
   position: absolute;
   left: 0;
   color: #34d399;
