@@ -951,7 +951,7 @@ if (cmdPalette) {
 // Interactive Timeline Generator
 const resumeSection = document.getElementById("resume");
 if (resumeSection) {
-  const items = resumeSection.querySelectorAll(".item");
+  const items = Array.from(resumeSection.querySelectorAll(".item"));
   if (items.length > 0) {
     const wrapper = document.createElement("div");
     wrapper.className = "timeline-wrapper";
@@ -990,7 +990,7 @@ if (resumeSection) {
           }
         });
       }
-    });
+    }, { passive: true });
   }
 }
 

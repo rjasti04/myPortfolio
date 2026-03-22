@@ -140,7 +140,7 @@ export function initThreeBackground() {
   window.addEventListener('scroll', () => {
     const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
     scrollOffset = Math.max(0, Math.min(1, window.scrollY / maxScroll));
-  });
+  }, { passive: true });
 
   const clock = new THREE.Clock();
 
