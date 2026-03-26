@@ -1,7 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { JSDOM } = require("jsdom");
-const { setActiveSection, getValidHashTarget } = require("../app-logic.js");
+const {
+  filterProjects,
+  getShortcutLabel,
+  getValidHashTarget,
+  setActiveSection,
+} = require("../app-logic.js");
 
 test("setActiveSection updates active section and nav aria-current", () => {
   const dom = new JSDOM(`
@@ -41,4 +46,22 @@ test("getValidHashTarget falls back for unknown hash", () => {
 
   assert.equal(getValidHashTarget("#missing", getById), "about");
   assert.equal(getValidHashTarget("", getById), "about");
+});
+
+test("filterProjects matches by filter and search term", () => {
+  const projects = [
+    { title: "Realtime Lakehouse", tags: "kafka spark realtime", description: "Streaming pipelines" },
+    { title: "Warehouse Modernization", tags: "snowflake airflow etl", description: "Batch processing" },
+  ];
+
+  const filtered = filterProjects(projects, "kafka", "real");
+
+  assert.equal(filtered[0].visible, true);
+  assert.equal(filtered[1].visible, false);
+});
+
+test("getShortcutLabel uses Cmd on Apple platforms", () => {
+  assert.equal(getShortcutLabel({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)" }), "Cmd+K");
+  assert.equal(getShortcutLabel({ platform: "macOS" }), "Cmd+K");
+  assert.equal(getShortcutLabel({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }), "Ctrl+K");
 });

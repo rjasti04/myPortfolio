@@ -6,28 +6,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description"
     content="Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines." />
-
-  <!-- Open Graph / Social Sharing -->
-  <meta property="og:title" content="Rajeev Jasti — Principal Data Engineer" />
+  <meta property="og:title" content="Rajeev Jasti | Principal Data Engineer" />
   <meta property="og:description"
     content="Architecting low-latency distributed systems and massive-scale ETL pipelines." />
   <meta property="og:image" content="https://rajeevjasti.com/profile-pic.jpeg" />
   <meta property="og:url" content="https://rajeevjasti.com/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Rajeev Jasti — Principal Data Engineer" />
+  <meta name="twitter:title" content="Rajeev Jasti | Principal Data Engineer" />
   <meta name="twitter:description"
     content="Architecting low-latency distributed systems and massive-scale ETL pipelines." />
   <meta name="twitter:image" content="https://rajeevjasti.com/profile-pic.jpeg" />
-
   <title>Rajeev Jasti</title>
-
-  <!-- Favicon -->
   <link rel="icon"
-    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄</text></svg>" />
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23f43f5e'/><text x='50' y='60' text-anchor='middle' font-size='40' font-family='Arial,sans-serif' font-weight='700' fill='white'>RJ</text></svg>" />
   <link rel="manifest" href="manifest.json" />
-
-  <!-- SEO JSON-LD -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -38,17 +31,13 @@
     "url": "https://rajeevjasti.com",
     "sameAs": [
       "https://www.linkedin.com/in/rajeev-jasti-326080169",
-      "https://github.com"
+      "https://github.com/rjasti04"
     ]
   }
   </script>
-
-  <!-- Preconnect for performance -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
-
-  <!-- Three.js Import Map -->
   <script type="importmap">
     {
       "imports": {
@@ -56,7 +45,9 @@
       }
     }
   </script>
-
+  <script>
+    document.documentElement.classList.add("js-enabled");
+  </script>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" />
@@ -66,70 +57,24 @@
 <body>
   <noscript>
     <div class="noscript-banner" role="alert">
-      JavaScript is disabled. This site requires JavaScript for navigation, the 3D background, and forms to work.
+      JavaScript is disabled. Core content is still available, but advanced animations and quick actions are turned off.
     </div>
   </noscript>
 
-  <!-- Subliminal CRT Noise Overlay -->
-  <div class="noise-overlay"></div>
+  <div class="noise-overlay js-only"></div>
+  <canvas id="webgl-canvas" class="webgl-canvas js-only" aria-hidden="true"></canvas>
+  <div class="toast-container js-only" id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
-  <!-- 3D WebGL Background -->
-  <canvas id="webgl-canvas" class="webgl-canvas"></canvas>
-
-  <!-- Toast Container -->
-  <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="false"></div>
-
-  <!-- Profile Image Modal -->
   <div class="image-modal" id="image-modal" role="dialog" aria-modal="true" aria-label="Profile photo"
     aria-hidden="true">
     <button type="button" class="modal-close" id="image-modal-close" aria-label="Close profile photo">
       <i class="fas fa-times"></i>
     </button>
-    <img src="profile-pic.jpeg" alt="Rajeev Jasti" class="modal-content" loading="lazy" />
+    <img src="profile-pic-360.jpg" srcset="profile-pic-360.jpg 360w, profile-pic.jpeg 725w"
+      sizes="(max-width: 540px) 90vw, 450px" alt="Rajeev Jasti" class="modal-content" loading="lazy" width="725"
+      height="1024" />
   </div>
 
-  <!-- Sign Up Modal -->
-  <div class="signup-modal" id="signup-modal" role="dialog" aria-modal="true" aria-labelledby="signup-title"
-    aria-hidden="true">
-    <div class="modal-content" tabindex="-1">
-      <button type="button" class="modal-close signup-modal-close" id="signup-modal-close" aria-label="Close sign up">
-        <i class="fas fa-times"></i>
-      </button>
-      <h2 class="signup-title" id="signup-title">Sign Up</h2>
-      <form class="signup-form" id="signup-form">
-        <div class="form-group">
-          <div class="input-wrapper">
-            <input type="email" id="signup-email" name="email" placeholder="Email" required />
-            <i class="fas fa-envelope input-icon"></i>
-          </div>
-        </div>
-        <div class="form-group">
-          <div class="input-wrapper">
-            <input type="password" id="signup-password" name="password" placeholder="Password" required />
-            <i class="fas fa-lock input-icon"></i>
-          </div>
-          <small class="password-note">Password must be 12-18 characters with at least one number, special character,
-            and uppercase letter.</small>
-        </div>
-        <div class="form-group">
-          <div class="input-wrapper">
-            <input type="password" id="confirm-password" name="confirmPassword" placeholder="Confirm Password"
-              aria-describedby="password-error" required />
-            <i class="fas fa-lock input-icon"></i>
-          </div>
-          <small id="password-error" class="error-message"></small>
-        </div>
-        <button type="submit" class="signup-btn">Sign Up</button>
-        <p id="signup-status" class="form-status" role="status" aria-live="polite"></p>
-      </form>
-      <p class="signup-footer">
-        Already have an account?
-        <button type="button" class="login-link text-button" id="back-to-login">Login</button>
-      </p>
-    </div>
-  </div>
-
-  <!-- Project Detail Modal -->
   <div class="project-detail-modal" id="project-detail-modal" role="dialog" aria-modal="true"
     aria-labelledby="project-detail-title" aria-hidden="true">
     <div class="project-detail-content modal-inner" tabindex="-1">
@@ -145,24 +90,29 @@
         <div class="project-detail-stack" id="project-detail-stack"></div>
         <ul class="project-detail-outcomes" id="project-detail-outcomes"></ul>
       </div>
+      <a href="#contact" data-target="contact" class="btn btn-outline nav-cta project-detail-cta" id="project-detail-cta">
+        Discuss This Project <i class="fas fa-arrow-right"></i>
+      </a>
     </div>
   </div>
 
-  <!-- Back to Top -->
-  <button class="back-to-top" id="back-to-top" aria-label="Back to top">
+  <button type="button" class="back-to-top js-only" id="back-to-top" aria-label="Back to top">
     <i class="fas fa-chevron-up"></i>
   </button>
 
   <div class="layout">
     <header id="header">
-      <button type="button" class="header-left" id="profile-trigger" aria-label="Open profile photo">
-        <img src="profile-pic.jpeg" alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" />
+      <a href="profile-pic.jpeg" target="_blank" rel="noopener noreferrer" class="header-left" id="profile-trigger"
+        aria-label="Open profile photo">
+        <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w"
+          sizes="42px" alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="725" height="1024" />
         <div class="logo-text">RJ</div>
-      </button>
-      <button class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle Menu">
+      </a>
+      <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu" aria-controls="nav-menu"
+        aria-expanded="false">
         <i class="fas fa-bars"></i>
       </button>
-      <nav id="nav-menu">
+      <nav id="nav-menu" aria-label="Primary">
         <a href="#about" data-target="about" class="active" aria-current="page">About</a>
         <a href="#resume" data-target="resume">Experience</a>
         <a href="#portfolio" data-target="portfolio">Portfolio</a>
@@ -170,61 +120,47 @@
         <a href="#contact" data-target="contact">Contact</a>
       </nav>
       <div class="header-actions">
-        <button type="button" class="cmd-shortcut-hint" id="cmd-shortcut-hint"
+        <button type="button" class="cmd-shortcut-hint js-only" id="cmd-shortcut-hint"
           aria-label="Open command palette" title="Open command palette">
-          <kbd>⌘K</kbd>
+          <i class="fas fa-terminal" aria-hidden="true"></i>
+          <kbd>Ctrl+K</kbd>
         </button>
-        <div class="auth-dropdown" id="auth-dropdown">
-          <button type="button" class="auth-toggle" id="auth-toggle" aria-label="Open login menu"
-            aria-controls="login-dropdown" aria-expanded="false">
-            <i class="fas fa-user"></i>
+        <div class="connect-dropdown js-only" id="connect-dropdown">
+          <button type="button" class="connect-toggle" id="connect-toggle" aria-label="Open connect menu"
+            aria-controls="connect-dropdown-menu" aria-expanded="false">
+            <i class="fas fa-paper-plane"></i>
           </button>
-          <div class="login-dropdown" id="login-dropdown" aria-hidden="true">
-            <div class="login-container">
-              <h2 class="login-title">Login</h2>
-              <form class="login-form" id="login-form">
-                <div class="form-group">
-                  <div class="input-wrapper">
-                    <input type="email" id="email" name="email" placeholder="Email" required />
-                    <i class="fas fa-envelope input-icon"></i>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <div class="input-wrapper">
-                    <input type="password" id="password" name="password" placeholder="Password" required />
-                    <i class="fas fa-lock input-icon"></i>
-                  </div>
-                </div>
-                <div class="form-options">
-                  <label class="remember-me">
-                    <input type="checkbox" id="remember" name="remember" />
-                    Remember Me
-                  </label>
-                  <button type="button" class="forget-password text-button" id="forget-password">Forgot
-                    Password?</button>
-                </div>
-                <button type="submit" class="login-btn">Login</button>
-                <p id="login-status" class="form-status" role="status" aria-live="polite"></p>
-              </form>
-              <p class="login-footer">
-                Don't have an account?
-                <button type="button" class="login-link text-button" id="open-signup">Sign up</button>
-              </p>
+          <div class="connect-menu" id="connect-dropdown-menu" aria-hidden="true">
+            <div class="connect-container">
+              <h2 class="connect-title">Connect</h2>
+              <p class="connect-copy">Reach me by email, LinkedIn, GitHub, or resume.</p>
+              <div class="connect-actions">
+                <a href="mailto:inboxtorj@gmail.com" class="connect-link">Email Me</a>
+                <a href="https://www.linkedin.com/in/rajeev-jasti-326080169" target="_blank" rel="noopener noreferrer"
+                  class="connect-link">LinkedIn</a>
+                <a href="https://github.com/rjasti04" target="_blank" rel="noopener noreferrer"
+                  class="connect-link">GitHub</a>
+                <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="connect-link">Resume</a>
+              </div>
             </div>
           </div>
         </div>
-        <button id="theme-toggle" title="Toggle Theme" aria-label="Toggle Theme">
+        <button type="button" class="js-only" id="sound-toggle" title="Toggle UI sound" aria-label="Toggle UI sound"
+          aria-pressed="false">
+          <i class="fas fa-volume-xmark" id="sound-icon"></i>
+        </button>
+        <button type="button" class="js-only" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme"
+          aria-pressed="false">
           <i class="fas fa-moon" id="theme-icon"></i>
         </button>
       </div>
     </header>
 
     <main>
-      <!-- About Section -->
       <section id="about" class="active">
         <div class="ticker-wrap">
           <div class="welcome-strip">
-            <span class="welcome-text">Welcome to my Website</span>
+            <span class="welcome-text">WELCOME TO MY WEBSITE</span>
           </div>
         </div>
 
@@ -307,12 +243,8 @@
           </div>
         </div>
 
-        <!-- Skills Section -->
         <div class="skills-section">
           <h2 class="section-title skills-title">Technical Skills</h2>
-          <div class="chart-container reveal" style="display: none;">
-            <canvas id="skills-chart"></canvas>
-          </div>
           <div class="skills-grid">
             <div class="skill-group reveal">
               <h3 class="skill-group-label">Data Processing</h3>
@@ -373,8 +305,7 @@
           </div>
         </div>
 
-        <!-- Data Pipeline Architecture Diagram -->
-        <h2 class="section-title skills-title" style="margin-top: 48px;">Architecture</h2>
+        <h2 class="section-title skills-title architecture-title">Architecture</h2>
         <div class="architecture-diagram reveal">
           <div class="arch-node">
             <i class="fas fa-server"></i>
@@ -407,16 +338,17 @@
         </div>
       </section>
 
-      <!-- Experience Section -->
       <section id="resume">
         <h2 class="section-title">Experience</h2>
+        <p class="section-intro">Company names are intentionally omitted for confidentiality; scope and outcomes reflect
+          production work.</p>
 
         <div class="item reveal">
           <div class="item-header">
             <span class="item-date">2022 &mdash; Present</span>
             <span class="item-badge">Remote</span>
           </div>
-          <h3>Principal Data Engineer @ Tech Corp</h3>
+          <h3>Principal Data Engineer &bull; Global Enterprise</h3>
           <p class="item-description">
             Architected a multi-region data mesh serving 50+ internal teams.
             Reduced cloud infrastructure costs by 30%.
@@ -437,7 +369,7 @@
             <span class="item-date">2019 &mdash; 2022</span>
             <span class="item-badge">Hybrid</span>
           </div>
-          <h3>Senior Data Engineer @ DataFlow Inc.</h3>
+          <h3>Senior Data Engineer &bull; Data Platform Company</h3>
           <p class="item-description">
             Built and owned the company's core data platform, enabling self-serve analytics for 20+ business teams.
           </p>
@@ -456,7 +388,7 @@
             <span class="item-date">2016 &mdash; 2019</span>
             <span class="item-badge">On-site</span>
           </div>
-          <h3>Data Engineer @ Analytics Co.</h3>
+          <h3>Data Engineer &bull; Product Analytics Team</h3>
           <p class="item-description">
             Developed ETL pipelines and data models supporting product analytics for 5M+ daily active users.
           </p>
@@ -471,9 +403,10 @@
         </div>
       </section>
 
-      <!-- Portfolio Section -->
       <section id="portfolio">
         <h2 class="section-title">Projects</h2>
+        <p class="section-intro">Selected platform work focused on reliability, observability, and reusable delivery
+          patterns.</p>
         <div class="project-toolbar" aria-label="Project filters">
           <div class="project-filter-group" role="group" aria-label="Filter projects by stack">
             <button type="button" class="project-filter active" data-filter="all" aria-pressed="true">All</button>
@@ -490,15 +423,15 @@
         <div class="portfolio-grid" id="portfolio-grid">
           <article class="item project-card reveal" data-tags="kafka spark realtime"
             data-title="Real-time Analytics Platform"
-            data-description="Kafka &amp; Spark streaming pipeline processing 1M events/sec with fault-tolerant event ingestion. Deployed on Kubernetes with auto-scaling consumers and end-to-end latency monitoring."
+            data-description="Kafka and Spark streaming pipeline processing 1M events per second with fault-tolerant event ingestion. Deployed on Kubernetes with auto-scaling consumers and end-to-end latency monitoring."
             data-stack="Kafka,Spark,Python,Kubernetes,Prometheus"
-            data-outcomes="P95 latency reduced by 40%|Handles 1M+ events/sec sustainably|99.9% uptime over 18 months"
+            data-outcomes="P95 latency reduced by 40%|Handles 1M+ events per second sustainably|99.9% uptime over 18 months"
             data-icon="fas fa-microchip">
             <h4>
               <i class="fas fa-microchip project-icon"></i> Real-time Analytics Platform
             </h4>
             <p class="project-description">
-              Kafka &amp; Spark streaming pipeline processing 1M events/sec with fault-tolerant event ingestion.
+              Kafka and Spark streaming pipeline processing 1M events per second with fault-tolerant event ingestion.
             </p>
             <div class="project-card-footer">
               <div class="project-card-tags">
@@ -512,7 +445,7 @@
 
           <article class="item project-card reveal" data-tags="snowflake airflow etl"
             data-title="Cloud ETL Modernization"
-            data-description="Airflow-orchestrated Snowflake pipelines that reduced nightly batch runtime by 45%. Includes full lineage tracking, automated alerting via Slack, and self-healing retry logic."
+            data-description="Airflow-orchestrated Snowflake pipelines that reduced nightly batch runtime by 45%. Includes lineage tracking, automated alerting, and self-healing retry logic."
             data-stack="Airflow,Snowflake,dbt,Python,AWS S3"
             data-outcomes="45% faster nightly batch runtime|30% cloud cost reduction|Zero data-loss incidents in 2 years"
             data-icon="fas fa-database">
@@ -556,14 +489,12 @@
         </div>
       </section>
 
-      <!-- Hobbies Section -->
       <section id="hobbies">
-        <h2 class="section-title">Interests & Hobbies</h2>
+        <h2 class="section-title">Interests &amp; Hobbies</h2>
         <div class="articles-grid">
           <div class="item article-card reveal">
             <div class="article-meta">
-              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-futbol"></i>
-                Soccer</span>
+              <span class="article-date article-topic"><i class="fas fa-futbol"></i> Soccer</span>
             </div>
             <h3>Sunday League Striker</h3>
             <p class="article-excerpt">I play competitively on weekends, always looking to improve my striking and
@@ -571,26 +502,23 @@
           </div>
           <div class="item article-card reveal">
             <div class="article-meta">
-              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-hot-tub"></i>
-                Sauna</span>
+              <span class="article-date article-topic"><i class="fas fa-hot-tub"></i> Sauna</span>
             </div>
             <h3>The Daily Detox</h3>
-            <p class="article-excerpt">Nothing beats a 20-minute sauna session after a long day of engineering. It's my
-              ultimate life hack for recovery and deep thinking.</p>
+            <p class="article-excerpt">Nothing beats a 20-minute sauna session after a long day of engineering. It is my
+              reset button for recovery and deep thinking.</p>
           </div>
           <div class="item article-card reveal">
             <div class="article-meta">
-              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-dumbbell"></i>
-                Workout</span>
+              <span class="article-date article-topic"><i class="fas fa-dumbbell"></i> Workout</span>
             </div>
-            <h3>Strength & Conditioning</h3>
+            <h3>Strength &amp; Conditioning</h3>
             <p class="article-excerpt">Lifting heavy and staying mobile. Consistency in the gym translates directly to
               discipline and focus at the keyboard.</p>
           </div>
           <div class="item article-card reveal">
             <div class="article-meta">
-              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-utensils"></i>
-                Foodie</span>
+              <span class="article-date article-topic"><i class="fas fa-utensils"></i> Foodie</span>
             </div>
             <h3>Culinary Explorer</h3>
             <p class="article-excerpt">Always on the hunt for the best local eats, from hidden street food gems to
@@ -599,10 +527,9 @@
         </div>
       </section>
 
-      <!-- Contact Section -->
       <section id="contact">
         <div class="item contact-section reveal">
-          <h2 class="contact-title">Let's talk.</h2>
+          <h2 class="contact-title">Let&apos;s talk.</h2>
           <p class="contact-description">Have a project in mind or want to connect? Send me a message.</p>
           <div class="contact-grid">
             <div class="contact-info">
@@ -613,24 +540,28 @@
                 Copy Email <i class="fas fa-copy"></i>
               </button>
             </div>
-            <form class="contact-form" id="contact-form" novalidate>
+            <form class="contact-form" id="contact-form" action="https://formsubmit.co/inboxtorj@gmail.com" method="post"
+              accept-charset="UTF-8">
+              <input type="hidden" name="_subject" value="New portfolio message from rajeevjasti.com" />
+              <input type="hidden" name="_captcha" value="false" />
               <div class="form-group">
+                <label class="form-label" for="contact-name">Name</label>
                 <div class="input-wrapper">
-                  <input type="text" id="contact-name" name="name" placeholder="Your Name" aria-label="Your name"
-                    required />
+                  <input type="text" id="contact-name" name="name" placeholder="Your Name" required />
                   <i class="fas fa-user input-icon"></i>
                 </div>
               </div>
               <div class="form-group">
+                <label class="form-label" for="contact-email">Email</label>
                 <div class="input-wrapper">
-                  <input type="email" id="contact-email" name="email" placeholder="Your Email" aria-label="Your email"
-                    required />
+                  <input type="email" id="contact-email" name="email" placeholder="Your Email" required />
                   <i class="fas fa-envelope input-icon"></i>
                 </div>
               </div>
               <div class="form-group">
-                <textarea id="contact-message" name="message" placeholder="Your Message" aria-label="Your message"
-                  rows="4" required></textarea>
+                <label class="form-label" for="contact-message">Message</label>
+                <textarea id="contact-message" name="message"
+                  placeholder="Tell me about your project, team, or hiring goal" rows="4" required></textarea>
               </div>
               <button type="submit" class="btn contact-submit-btn">Send Message <i
                   class="fas fa-paper-plane"></i></button>
@@ -648,40 +579,54 @@
           class="social-icon" aria-label="LinkedIn">
           <i class="fab fa-linkedin"></i>
         </a>
-        <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="social-icon" aria-label="GitHub">
+        <a href="https://github.com/rjasti04" target="_blank" rel="noopener noreferrer" class="social-icon"
+          aria-label="GitHub profile">
           <i class="fab fa-github"></i>
+        </a>
+        <a href="https://github.com/rjasti04/rjWebApp" target="_blank" rel="noopener noreferrer" class="social-icon"
+          aria-label="Website source code">
+          <i class="fas fa-code-branch"></i>
         </a>
       </div>
     </footer>
   </div>
 
-  <!-- OS-style Command Palette -->
-  <dialog id="cmd-palette" class="cmd-palette">
+  <dialog id="cmd-palette" class="cmd-palette js-only" aria-label="Command palette">
     <div class="cmd-container">
       <div class="cmd-header">
         <i class="fas fa-search cmd-icon"></i>
-        <input type="text" id="cmd-input" placeholder="Type a command or search..." autocomplete="off">
-        <button id="cmd-close" class="cmd-close-btn" aria-label="Close Command Palette"><kbd>ESC</kbd></button>
+        <input type="text" id="cmd-input" placeholder="Type a command or search..." autocomplete="off"
+          aria-label="Search commands" />
+        <button type="button" id="cmd-close" class="cmd-close-btn" aria-label="Close Command Palette"><kbd>ESC</kbd></button>
       </div>
       <div class="cmd-results" id="cmd-results">
         <div class="cmd-group">Navigation</div>
-        <button class="cmd-option" data-action="nav" data-target="about"><i class="fas fa-user fa-fw"></i> Go to
-          About</button>
-        <button class="cmd-option" data-action="nav" data-target="resume"><i class="fas fa-briefcase fa-fw"></i> View
-          Experience</button>
-        <button class="cmd-option" data-action="nav" data-target="portfolio"><i class="fas fa-folder-open fa-fw"></i>
-          View Portfolio</button>
-        <button class="cmd-option" data-action="nav" data-target="hobbies"><i class="fas fa-heart fa-fw"></i> View
-          Interests</button>
-        <button class="cmd-option" data-action="nav" data-target="contact"><i class="fas fa-envelope fa-fw"></i> Contact
-          Me</button>
+        <button type="button" class="cmd-option" data-action="nav" data-target="about"><i
+            class="fas fa-user fa-fw"></i> Go to About</button>
+        <button type="button" class="cmd-option" data-action="nav" data-target="resume"><i
+            class="fas fa-briefcase fa-fw"></i> View Experience</button>
+        <button type="button" class="cmd-option" data-action="nav" data-target="portfolio"><i
+            class="fas fa-folder-open fa-fw"></i> View Portfolio</button>
+        <button type="button" class="cmd-option" data-action="nav" data-target="hobbies"><i
+            class="fas fa-heart fa-fw"></i> View Interests</button>
+        <button type="button" class="cmd-option" data-action="nav" data-target="contact"><i
+            class="fas fa-envelope fa-fw"></i> Contact Me</button>
         <div class="cmd-group">Actions</div>
-        <button class="cmd-option" data-action="theme"><i class="fas fa-moon fa-fw"></i> Toggle Dark Mode</button>
-        <button class="cmd-option" data-action="cv"><i class="fas fa-download fa-fw"></i> Download Resume</button>
+        <button type="button" class="cmd-option" data-action="theme"><i class="fas fa-moon fa-fw"></i> Toggle Dark
+          Mode</button>
+        <button type="button" class="cmd-option" data-action="sound"><i class="fas fa-volume-xmark fa-fw"></i> Toggle UI
+          Sound</button>
+        <button type="button" class="cmd-option" data-action="copy-email"><i class="fas fa-copy fa-fw"></i> Copy
+          Email</button>
+        <button type="button" class="cmd-option" data-action="linkedin"><i class="fab fa-linkedin fa-fw"></i> Open
+          LinkedIn</button>
+        <button type="button" class="cmd-option" data-action="github"><i class="fab fa-github fa-fw"></i> Open
+          GitHub</button>
+        <button type="button" class="cmd-option" data-action="cv"><i class="fas fa-download fa-fw"></i> Download
+          Resume</button>
       </div>
     </div>
   </dialog>
-
 
   <script src="app-logic.js"></script>
   <script src="scripts.js"></script>
