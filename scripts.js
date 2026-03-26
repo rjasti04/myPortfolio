@@ -1,3 +1,6 @@
+// ─── App-wide constants ───────────────────────────────────────────────────────
+const CONTACT_EMAIL = "inboxtorj@gmail.com";
+
 // Navigation & Hamburger Logic
 const hamburger = document.getElementById("hamburger-toggle");
 const navMenu = document.getElementById("nav-menu");
@@ -78,9 +81,10 @@ function closeModal(modal, { restoreFocus = true } = {}) {
 
   if (restoreFocus) {
     const focusReturn = modalFocusReturn.get(modal);
-    if (focusReturn && typeof focusReturn.focus === "function") {
-      focusReturn.focus();
-    }
+    const target = (focusReturn && typeof focusReturn.focus === "function")
+      ? focusReturn
+      : document.body;
+    target.focus();
   }
 }
 
@@ -111,7 +115,34 @@ function openAuthDropdown() {
 
 function setActiveSection(target) {
   if (!target || !window.AppLogic?.setActiveSection) return;
-  window.AppLogic.setActiveSection(target, sections, navLinks);
+  const main = document.querySelector("main");
+  const currentActive = main.querySelector("section.active");
+  if (currentActive && currentActive.id === target) return;
+
+  main.style.transition = "opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)";
+  main.style.opacity = "0";
+  main.style.transform = "translateY(10px)";
+
+  setTimeout(() => {
+    window.AppLogic.setActiveSection(target, sections, navLinks);
+    
+    // Slight delay before fading back in to give DOM time to update
+    requestAnimationFrame(() => {
+      main.style.opacity = "1";
+      main.style.transform = "translateY(0)";
+      
+      // Re-trigger scroll reveals for the new section
+      const revealElements = main.querySelectorAll("section.active .reveal");
+      revealElements.forEach(el => {
+        el.classList.remove("active");
+        if (window.revealObserver) {
+           window.revealObserver.observe(el);
+        } else {
+           el.classList.add("active");
+        }
+      });
+    });
+  }, 250);
 }
 
 function syncSectionWithHash(hash = window.location.hash) {
@@ -217,6 +248,13 @@ const savedTheme = localStorage.getItem("theme");
 const prefersDarkSystem = window.matchMedia("(prefers-color-scheme: dark)").matches;
 applyTheme(savedTheme === "dark" || (!savedTheme && prefersDarkSystem));
 
+// Re-sync when OS theme changes (only if user hasn't manually set a preference)
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+  if (!localStorage.getItem("theme")) {
+    applyTheme(e.matches);
+  }
+});
+
 // Profile Modal Logic
 if (imageModal && profileTrigger) {
   profileTrigger.addEventListener("click", () => {
@@ -251,7 +289,9 @@ document.body.addEventListener('click', initAudio, { once: true });
 document.body.addEventListener('touchstart', initAudio, { once: true });
 
 function playSound(type = "hover") {
-  if (uiSoundMuted || !audioCtx || audioCtx.state !== 'running') return;
+  if (uiSoundMuted || !audioCtx) return;
+  if (audioCtx.state === 'suspended') { audioCtx.resume(); return; }
+  if (audioCtx.state !== 'running') return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.connect(gain);
@@ -317,11 +357,39 @@ function showToast(message, type = "info") {
   }, 3500);
 }
 
+// Scroll Progress Indicators
+let scrollRafPending = false;
+window.addEventListener("scroll", () => {
+  if (scrollRafPending) return;
+  scrollRafPending = true;
+  requestAnimationFrame(() => {
+    scrollRafPending = false;
+    const totalScroll = document.documentElement.scrollTop || document.body.scrollTop;
+
+    // Parallax Depth Layering for Hero Section
+    const aboutSection = document.getElementById("about");
+    if (aboutSection && aboutSection.classList.contains("active")) {
+      const heroText = document.querySelector(".hero-text");
+      const terminalPanel = document.querySelector(".terminal-panel");
+      if (totalScroll < window.innerHeight) {
+        if (heroText) heroText.style.transform = `translateY(${totalScroll * 0.15}px)`;
+        if (terminalPanel) terminalPanel.style.transform = `translateY(${totalScroll * 0.05}px)`;
+      }
+    }
+  });
+});
+
 // Back to Top Button
 const backToTopBtn = document.getElementById("back-to-top");
 if (backToTopBtn) {
+  let backToTopRafPending = false;
   window.addEventListener("scroll", () => {
-    backToTopBtn.classList.toggle("visible", window.scrollY > 300);
+    if (backToTopRafPending) return;
+    backToTopRafPending = true;
+    requestAnimationFrame(() => {
+      backToTopRafPending = false;
+      backToTopBtn.classList.toggle("visible", window.scrollY > 300);
+    });
   });
 
   backToTopBtn.addEventListener("click", () => {
@@ -490,7 +558,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (copyEmailBtn) {
     copyEmailBtn.addEventListener("click", () => {
       navigator.clipboard
-        .writeText("inboxtorj@gmail.com")
+        .writeText(CONTACT_EMAIL)
         .then(() => showToast("Email copied to clipboard!", "success"))
         .catch(() => showToast("Could not copy — please copy manually.", "error"));
     });
@@ -516,7 +584,7 @@ document.addEventListener("DOMContentLoaded", () => {
       submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
       submitBtn.disabled = true;
 
-      fetch("https://formsubmit.co/ajax/inboxtorj@gmail.com", {
+      fetch(`https://formsubmit.co/ajax/${CONTACT_EMAIL}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -538,11 +606,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .finally(() => {
         submitBtn.innerHTML = originalBtnHtml;
         submitBtn.disabled = false;
-      }); return; // short-circuit demo code
-      // fetch("https://formspree.io/f/YOUR_FORM_ID", { method: "POST", body: new FormData(contactForm) })
-      setFormStatus(contactStatus, "Message sent! I'll get back to you soon. (Demo mode)", "success");
-      showToast("Message sent successfully!", "success");
-      contactForm.reset();
+      });
     });
   }
 
@@ -577,7 +641,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     if (projectResults) {
-      projectResults.textContent = `${visibleCount} project${visibleCount === 1 ? "" : "s"} shown`;
+      if (visibleCount === 0) {
+        projectResults.textContent = "No projects found. Try a different search or filter.";
+        projectResults.dataset.empty = "true";
+      } else {
+        projectResults.textContent = `${visibleCount} project${visibleCount === 1 ? "" : "s"} shown`;
+        delete projectResults.dataset.empty;
+      }
     }
   }
 
@@ -633,15 +703,25 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      if (remember) {
-        localStorage.setItem("rememberedEmail", email);
-      } else {
-        localStorage.removeItem("rememberedEmail");
-      }
+      const submitBtn = loginForm.querySelector('button[type="submit"]');
+      const originalHtml = submitBtn.innerHTML;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+      submitBtn.disabled = true;
 
-      closeAuthDropdown();
-      setFormStatus(loginStatus, "Login successful! (Demo mode)", "success");
-      showToast("Logged in successfully! (Demo mode)", "success");
+      setTimeout(() => {
+        submitBtn.innerHTML = originalHtml;
+        submitBtn.disabled = false;
+
+        if (remember) {
+          localStorage.setItem("rememberedEmail", email);
+        } else {
+          localStorage.removeItem("rememberedEmail");
+        }
+
+        closeAuthDropdown();
+        setFormStatus(loginStatus, "Login successful! (Demo mode)", "success");
+        showToast("Logged in successfully! (Demo mode)", "success");
+      }, 800);
     });
 
     const rememberedEmail = localStorage.getItem("rememberedEmail");
@@ -720,11 +800,21 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       passwordError.textContent = "";
-      setFormStatus(signupStatus, "Sign up successful! (Demo mode)", "success");
-      closeModal(signupModal);
-      openAuthDropdown();
-      setFormStatus(loginStatus, "Account created. You can now log in. (Demo mode)", "success");
-      showToast("Account created successfully! (Demo mode)", "success");
+
+      const submitBtn = signupForm.querySelector('button[type="submit"]');
+      const originalHtml = submitBtn.innerHTML;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating account...';
+      submitBtn.disabled = true;
+
+      setTimeout(() => {
+        submitBtn.innerHTML = originalHtml;
+        submitBtn.disabled = false;
+        setFormStatus(signupStatus, "Sign up successful! (Demo mode)", "success");
+        closeModal(signupModal);
+        openAuthDropdown();
+        setFormStatus(loginStatus, "Account created. You can now log in. (Demo mode)", "success");
+        showToast("Account created successfully! (Demo mode)", "success");
+      }, 800);
     });
   }
 });
@@ -732,7 +822,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // Premium Scroll Reveals
 const revealElements = document.querySelectorAll(".reveal");
 if (revealElements.length > 0 && "IntersectionObserver" in window) {
-  const revealObserver = new IntersectionObserver(
+  window.revealObserver = new IntersectionObserver(
     (entries, observer) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -743,35 +833,47 @@ if (revealElements.length > 0 && "IntersectionObserver" in window) {
     },
     { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
   );
-  revealElements.forEach((el) => revealObserver.observe(el));
+  revealElements.forEach((el) => window.revealObserver.observe(el));
 }
 
 // Terminal Load Sequence
 const terminalChildren = document.querySelectorAll(".terminal-body > *");
-let delay = 300;
-terminalChildren.forEach((child) => {
-  child.style.opacity = "0";
-  child.style.animation = `slide-up 0.4s ease-out forwards ${delay}ms`;
-  delay += 500;
-});
+if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  terminalChildren.forEach((child) => { child.style.opacity = "1"; });
+} else {
+  let delay = 300;
+  terminalChildren.forEach((child) => {
+    child.style.opacity = "0";
+    child.style.animation = `slide-up 0.4s ease-out forwards ${delay}ms`;
+    delay += 500;
+  });
+}
 
-// 3D Tilt Hover Effect
+// 3D Tilt Hover Effect (RAF-throttled)
 const tiltElements = document.querySelectorAll(".item, .stat-card");
 tiltElements.forEach((el) => {
+  let tiltRafPending = false;
   el.addEventListener("mousemove", (e) => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const rect = el.getBoundingClientRect();
-    const x = e.clientX - rect.left; // x position within the element
-    const y = e.clientY - rect.top;  // y position within the element
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    const rotateX = ((y - centerY) / centerY) * -5; // max rotation degrees
-    const rotateY = ((x - centerX) / centerX) * 5;
-    
-    el.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+    if (tiltRafPending) return;
+    tiltRafPending = true;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    requestAnimationFrame(() => {
+      tiltRafPending = false;
+      const rect = el.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rotateX = ((y - centerY) / centerY) * -5;
+      const rotateY = ((x - centerX) / centerX) * 5;
+      el.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+    });
   });
-  
+
   el.addEventListener("mouseleave", () => {
+    tiltRafPending = false;
     el.style.transform = "";
   });
 });
@@ -932,7 +1034,13 @@ if (cmdPalette) {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }
       } else if (action === "theme") {
-        document.body.classList.toggle("dark-theme");
+        if (themeBtn) {
+          themeBtn.click(); // reuse existing toggle logic which persists to localStorage
+        } else {
+          const isDark = document.body.classList.toggle("dark-theme");
+          if (themeIcon) themeIcon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+          localStorage.setItem("theme", isDark ? "dark" : "light");
+        }
       } else if (action === "cv") {
         const cvLink = document.createElement("a");
         cvLink.href = "rajeev_jasti.pdf";
@@ -948,59 +1056,26 @@ if (cmdPalette) {
   });
 }
 
-// Interactive Timeline Generator
-const resumeSection = document.getElementById("resume");
-if (resumeSection) {
-  const items = Array.from(resumeSection.querySelectorAll(".item"));
-  if (items.length > 0) {
-    const wrapper = document.createElement("div");
-    wrapper.className = "timeline-wrapper";
-    const track = document.createElement("div");
-    track.className = "timeline-track";
-    const progress = document.createElement("div");
-    progress.className = "timeline-progress";
-    track.appendChild(progress);
-    wrapper.appendChild(track);
-
-    items[0].parentNode.insertBefore(wrapper, items[0]);
-    
-    items.forEach(item => {
-      item.classList.add("timeline-item");
-      const dot = document.createElement("div");
-      dot.className = "timeline-dot";
-      item.appendChild(dot);
-      wrapper.appendChild(item);
-    });
-
-    window.addEventListener("scroll", () => {
-      const wrapperRect = wrapper.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      
-      if (wrapperRect.top < viewportHeight && wrapperRect.bottom > 0) {
-        let mapped = (viewportHeight / 2 - wrapperRect.top) / wrapperRect.height;
-        mapped = Math.max(0, Math.min(1, mapped));
-        progress.style.height = `${mapped * 100}%`;
-        
-        items.forEach(item => {
-          const itemRect = item.getBoundingClientRect();
-          if (itemRect.top < viewportHeight / 2 + 100) {
-            item.classList.add("timeline-active");
-          } else {
-            item.classList.remove("timeline-active");
-          }
-        });
-      }
-    }, { passive: true });
-  }
+// Cmd palette shortcut hint — swap label based on platform
+const cmdHintBtn = document.getElementById("cmd-shortcut-hint");
+if (cmdHintBtn) {
+  const isMac = navigator.userAgentData
+    ? navigator.userAgentData.platform === "macOS"
+    : /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+  const kbdEl = cmdHintBtn.querySelector("kbd");
+  if (kbdEl) kbdEl.textContent = isMac ? "⌘K" : "Ctrl+K";
+  cmdHintBtn.addEventListener("click", openCmdPalette);
 }
 
 // Project Expandable Morph Modals
+let activeMorphClone = null;
 const projectCardsDirect = document.querySelectorAll(".project-card");
 projectCardsDirect.forEach(card => {
   card.addEventListener("click", (e) => {
     // Prevent triggering if clicked on tags
     if (e.target.closest('.project-tags')) return;
-    
+    if (activeMorphClone) return; // prevent duplicate clones
+
     if(typeof playSound === 'function') playSound("click");
     
     const rect = card.getBoundingClientRect();
@@ -1050,30 +1125,70 @@ projectCardsDirect.forEach(card => {
     
     clone.appendChild(expandedContent);
     document.body.appendChild(clone);
-    
+    activeMorphClone = clone;
+
     // Lock body scroll
     document.body.style.overflow = "hidden";
-    
+
     // Trigger morph
     requestAnimationFrame(() => {
       clone.classList.add("expanded");
     });
-    
-    // Close morph
-    closeBtn.addEventListener("click", (evt) => {
-      evt.stopPropagation();
+
+    function closeMorph() {
       if(typeof playSound === 'function') playSound("hover");
       clone.classList.remove("expanded");
       document.body.style.overflow = "";
-      
-      setTimeout(() => {
+      clone.addEventListener("transitionend", () => {
         clone.remove();
-      }, 500); // Wait for transition
-    });
-    
+        activeMorphClone = null;
+      }, { once: true });
+      // Fallback if transitionend never fires (reduced-motion etc.)
+      setTimeout(() => {
+        if (activeMorphClone === clone) {
+          clone.remove();
+          activeMorphClone = null;
+        }
+      }, 600);
+    }
+
+    // Close morph
+    closeBtn.addEventListener("click", (evt) => {
+      evt.stopPropagation();
+      closeMorph();
+    }, { once: true });
+
     // Close on backdrop click
     clone.addEventListener("click", (evt) => {
-      if (evt.target === clone) closeBtn.click();
+      if (evt.target === clone) closeMorph();
     });
   });
 });
+
+// 1. Cyberpunk Text Scrambler via IntersectionObserver
+const scramblerObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting && !entry.target.dataset.scrambled) {
+      entry.target.dataset.scrambled = "true";
+      scramblerObserver.unobserve(entry.target);
+      const originalText = entry.target.innerText;
+      let iterations = 0;
+      const chars = "!<>-_\\/[]{}—=+*^?#_";
+      
+      const interval = setInterval(() => {
+        entry.target.innerText = originalText.split("").map((char, index) => {
+          if (index < Math.floor(iterations)) return originalText[index];
+          return chars[Math.floor(Math.random() * chars.length)];
+        }).join("");
+        
+        if (iterations >= originalText.length) {
+          clearInterval(interval);
+          entry.target.innerText = originalText;
+        }
+        iterations += 1 / 2;
+      }, 30);
+    }
+  });
+}, { threshold: 0.5 });
+const glitchedTitles = document.querySelectorAll(".section-title, .hero-title, .login-title");
+glitchedTitles.forEach(title => scramblerObserver.observe(title));

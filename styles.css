@@ -41,6 +41,26 @@ body.dark-theme {
   padding: 0;
 }
 
+/* Utility — used by command palette filter and any JS toggle */
+.hidden {
+  display: none !important;
+}
+
+/* No-JS fallback banner */
+.noscript-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 99999;
+  background: #f43f5e;
+  color: #fff;
+  text-align: center;
+  padding: 12px 20px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
 body {
   font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text);
@@ -59,6 +79,7 @@ body {
   background: var(--accent);
   border-radius: 10px;
 }
+
 
 .webgl-canvas {
   position: fixed;
@@ -236,7 +257,17 @@ nav a:focus-visible,
 .auth-toggle:focus-visible,
 .login-link:focus-visible,
 .forget-password:focus-visible,
-.modal-close:focus-visible {
+.modal-close:focus-visible,
+.btn:focus-visible,
+.project-filter:focus-visible,
+.project-details-btn:focus-visible,
+.back-to-top:focus-visible,
+.cmd-option:focus-visible,
+.cmd-shortcut-hint:focus-visible,
+.signup-btn:focus-visible,
+.login-btn:focus-visible,
+.contact-submit-btn:focus-visible,
+.hamburger-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -778,12 +809,29 @@ section.active {
   color: var(--text);
   font-size: 14px;
   font-family: inherit;
-  transition: border-color 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .form-group input:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-mild);
+}
+
+.input-wrapper input:not(:placeholder-shown):valid {
+  border-color: #34d399;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2334d399' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 35px center;
+  background-size: 14px 14px;
+}
+
+.input-wrapper input:not(:placeholder-shown):invalid {
+  border-color: #fb7185;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='%23fb7185' viewBox='-2 -2 7 7'%3e%3cpath stroke='%23fb7185' stroke-width='1.5' d='M0 0l3 3m0-3L0 3'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 35px center;
+  background-size: 10px 10px;
 }
 
 .input-icon {
@@ -1579,7 +1627,7 @@ footer {
     border-bottom: 1px solid var(--border);
     border-radius: 0;
     gap: 15px;
-    z-index: 999;
+    z-index: 1001;
   }
 
   nav.show-menu {
@@ -1649,98 +1697,20 @@ footer {
   .contact-info .btn {
     justify-content: center;
   }
-}
 
-@media (orientation: landscape) and (height <=760px) {
-  #about.active {
-    gap: 20px;
+  .toast-container {
+    bottom: 80px;
+    right: 12px;
+    left: 12px;
+    align-items: flex-end;
   }
 
-  .hero {
-    min-height: auto;
-    align-items: start;
+  .back-to-top {
+    bottom: 20px;
   }
 
-  .hero-text {
-    gap: 10px;
-  }
-
-  .hero-description {
-    max-width: 58ch;
-  }
-
-  .stats-grid {
-    gap: 12px;
-  }
-
-  .skill-group {
-    padding: 16px;
-  }
-}
-
-@keyframes slide-down {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Reduced Motion */
-@media (prefers-reduced-motion: reduce) {
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-
-  .cursor-glow {
+  .cmd-shortcut-hint {
     display: none;
-  }
-
-  .ticker {
-    animation: none;
-  }
-
-  .welcome-text {
-    animation: none;
-  }
-}
-
-/* Print Styles */
-@media print {
-
-  .cursor-glow,
-  .back-to-top,
-  .toast-container,
-  .header-actions,
-  .hamburger-btn,
-  .ticker-wrap,
-  footer {
-    display: none !important;
-  }
-
-  header {
-    position: static;
-  }
-
-  section {
-    display: block !important;
-    opacity: 1 !important;
-    transform: none !important;
-    page-break-inside: avoid;
-  }
-
-  .hero {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -1811,18 +1781,32 @@ footer {
 /* Print Styles */
 @media print {
 
+  .webgl-canvas,
+  .noise-overlay,
   .cursor-glow,
   .back-to-top,
   .toast-container,
   .header-actions,
   .hamburger-btn,
   .ticker-wrap,
+  .image-modal,
+  .signup-modal,
+  .project-detail-modal,
+  .cmd-palette,
+  .cmd-shortcut-hint,
   footer {
     display: none !important;
   }
 
   header {
     position: static;
+    backdrop-filter: none;
+    background: white !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
   }
 
   section {
@@ -1842,6 +1826,8 @@ footer {
 
   .item {
     break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
   }
 }
 
@@ -2130,4 +2116,51 @@ footer {
   height: 100vh;
   z-index: 0;
   pointer-events: none;
+}
+
+/* Keyboard Shortcut Hint Badge */
+.cmd-shortcut-hint {
+  background: var(--skill-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.cmd-shortcut-hint:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-mild);
+}
+
+.cmd-shortcut-hint kbd {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* Project Empty State */
+.project-results[data-empty="true"] {
+  color: var(--text);
+  font-weight: 600;
+  padding: 20px 0;
+  text-align: center;
+  font-size: 15px;
+}
+
+/* CRT Film Grain Noise Overlay */
+.noise-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }

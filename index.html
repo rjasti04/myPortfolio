@@ -11,13 +11,14 @@
   <meta property="og:title" content="Rajeev Jasti — Principal Data Engineer" />
   <meta property="og:description"
     content="Architecting low-latency distributed systems and massive-scale ETL pipelines." />
-  <meta property="og:image" content="profile-pic.jpeg" />
+  <meta property="og:image" content="https://rajeevjasti.com/profile-pic.jpeg" />
+  <meta property="og:url" content="https://rajeevjasti.com/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Rajeev Jasti — Principal Data Engineer" />
   <meta name="twitter:description"
     content="Architecting low-latency distributed systems and massive-scale ETL pipelines." />
-  <meta name="twitter:image" content="profile-pic.jpeg" />
+  <meta name="twitter:image" content="https://rajeevjasti.com/profile-pic.jpeg" />
 
   <title>Rajeev Jasti</title>
 
@@ -63,6 +64,15 @@
 </head>
 
 <body>
+  <noscript>
+    <div class="noscript-banner" role="alert">
+      JavaScript is disabled. This site requires JavaScript for navigation, the 3D background, and forms to work.
+    </div>
+  </noscript>
+
+  <!-- Subliminal CRT Noise Overlay -->
+  <div class="noise-overlay"></div>
+
   <!-- 3D WebGL Background -->
   <canvas id="webgl-canvas" class="webgl-canvas"></canvas>
 
@@ -160,6 +170,10 @@
         <a href="#contact" data-target="contact">Contact</a>
       </nav>
       <div class="header-actions">
+        <button type="button" class="cmd-shortcut-hint" id="cmd-shortcut-hint"
+          aria-label="Open command palette" title="Open command palette">
+          <kbd>⌘K</kbd>
+        </button>
         <div class="auth-dropdown" id="auth-dropdown">
           <button type="button" class="auth-toggle" id="auth-toggle" aria-label="Open login menu"
             aria-controls="login-dropdown" aria-expanded="false">
@@ -360,7 +374,7 @@
         </div>
 
         <!-- Data Pipeline Architecture Diagram -->
-        <h2 class="section-title skills-title" style="margin-top: 48px;">Reference Architecture</h2>
+        <h2 class="section-title skills-title" style="margin-top: 48px;">Architecture</h2>
         <div class="architecture-diagram reveal">
           <div class="arch-node">
             <i class="fas fa-server"></i>
@@ -465,8 +479,7 @@
             <button type="button" class="project-filter active" data-filter="all" aria-pressed="true">All</button>
             <button type="button" class="project-filter" data-filter="kafka" aria-pressed="false">Kafka</button>
             <button type="button" class="project-filter" data-filter="spark" aria-pressed="false">Spark</button>
-            <button type="button" class="project-filter" data-filter="snowflake"
-              aria-pressed="false">Snowflake</button>
+            <button type="button" class="project-filter" data-filter="snowflake" aria-pressed="false">Snowflake</button>
             <button type="button" class="project-filter" data-filter="airflow" aria-pressed="false">Airflow</button>
           </div>
           <label class="project-search-label" for="project-search">Search projects</label>
@@ -549,31 +562,39 @@
         <div class="articles-grid">
           <div class="item article-card reveal">
             <div class="article-meta">
-              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-futbol"></i> Soccer</span>
+              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-futbol"></i>
+                Soccer</span>
             </div>
             <h3>Sunday League Striker</h3>
-            <p class="article-excerpt">I play competitively on weekends, always looking to improve my striking and tactical awareness on the pitch.</p>
+            <p class="article-excerpt">I play competitively on weekends, always looking to improve my striking and
+              tactical awareness on the pitch.</p>
           </div>
           <div class="item article-card reveal">
             <div class="article-meta">
-              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-hot-tub"></i> Sauna</span>
+              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-hot-tub"></i>
+                Sauna</span>
             </div>
             <h3>The Daily Detox</h3>
-            <p class="article-excerpt">Nothing beats a 20-minute sauna session after a long day of engineering. It's my ultimate life hack for recovery and deep thinking.</p>
+            <p class="article-excerpt">Nothing beats a 20-minute sauna session after a long day of engineering. It's my
+              ultimate life hack for recovery and deep thinking.</p>
           </div>
           <div class="item article-card reveal">
             <div class="article-meta">
-              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-dumbbell"></i> Workout</span>
+              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-dumbbell"></i>
+                Workout</span>
             </div>
             <h3>Strength & Conditioning</h3>
-            <p class="article-excerpt">Lifting heavy and staying mobile. Consistency in the gym translates directly to discipline and focus at the keyboard.</p>
+            <p class="article-excerpt">Lifting heavy and staying mobile. Consistency in the gym translates directly to
+              discipline and focus at the keyboard.</p>
           </div>
           <div class="item article-card reveal">
             <div class="article-meta">
-              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-utensils"></i> Foodie</span>
+              <span class="article-date" style="color: var(--accent); font-size: 16px;"><i class="fas fa-utensils"></i>
+                Foodie</span>
             </div>
             <h3>Culinary Explorer</h3>
-            <p class="article-excerpt">Always on the hunt for the best local eats, from hidden street food gems to trying my hand at cooking new cuisines at home.</p>
+            <p class="article-excerpt">Always on the hunt for the best local eats, from hidden street food gems to
+              trying my hand at cooking new cuisines at home.</p>
           </div>
         </div>
       </section>
@@ -602,8 +623,8 @@
               </div>
               <div class="form-group">
                 <div class="input-wrapper">
-                  <input type="email" id="contact-email" name="email" placeholder="Your Email"
-                    aria-label="Your email" required />
+                  <input type="email" id="contact-email" name="email" placeholder="Your Email" aria-label="Your email"
+                    required />
                   <i class="fas fa-envelope input-icon"></i>
                 </div>
               </div>
@@ -644,11 +665,16 @@
       </div>
       <div class="cmd-results" id="cmd-results">
         <div class="cmd-group">Navigation</div>
-        <button class="cmd-option" data-action="nav" data-target="about"><i class="fas fa-user fa-fw"></i> Go to About</button>
-        <button class="cmd-option" data-action="nav" data-target="resume"><i class="fas fa-briefcase fa-fw"></i> View Experience</button>
-        <button class="cmd-option" data-action="nav" data-target="portfolio"><i class="fas fa-folder-open fa-fw"></i> View Portfolio</button>
-        <button class="cmd-option" data-action="nav" data-target="hobbies"><i class="fas fa-heart fa-fw"></i> View Interests</button>
-        <button class="cmd-option" data-action="nav" data-target="contact"><i class="fas fa-envelope fa-fw"></i> Contact Me</button>
+        <button class="cmd-option" data-action="nav" data-target="about"><i class="fas fa-user fa-fw"></i> Go to
+          About</button>
+        <button class="cmd-option" data-action="nav" data-target="resume"><i class="fas fa-briefcase fa-fw"></i> View
+          Experience</button>
+        <button class="cmd-option" data-action="nav" data-target="portfolio"><i class="fas fa-folder-open fa-fw"></i>
+          View Portfolio</button>
+        <button class="cmd-option" data-action="nav" data-target="hobbies"><i class="fas fa-heart fa-fw"></i> View
+          Interests</button>
+        <button class="cmd-option" data-action="nav" data-target="contact"><i class="fas fa-envelope fa-fw"></i> Contact
+          Me</button>
         <div class="cmd-group">Actions</div>
         <button class="cmd-option" data-action="theme"><i class="fas fa-moon fa-fw"></i> Toggle Dark Mode</button>
         <button class="cmd-option" data-action="cv"><i class="fas fa-download fa-fw"></i> Download Resume</button>
@@ -656,27 +682,6 @@
     </div>
   </dialog>
 
-  <!-- OS-style Command Palette -->
-  <dialog id="cmd-palette" class="cmd-palette">
-    <div class="cmd-container">
-      <div class="cmd-header">
-        <i class="fas fa-search cmd-icon"></i>
-        <input type="text" id="cmd-input" placeholder="Type a command or search..." autocomplete="off">
-        <button id="cmd-close" class="cmd-close-btn" aria-label="Close Command Palette"><kbd>ESC</kbd></button>
-      </div>
-      <div class="cmd-results" id="cmd-results">
-        <div class="cmd-group">Navigation</div>
-        <button class="cmd-option" data-action="nav" data-target="about"><i class="fas fa-user fa-fw"></i> Go to About</button>
-        <button class="cmd-option" data-action="nav" data-target="resume"><i class="fas fa-briefcase fa-fw"></i> View Experience</button>
-        <button class="cmd-option" data-action="nav" data-target="portfolio"><i class="fas fa-folder-open fa-fw"></i> View Portfolio</button>
-        <button class="cmd-option" data-action="nav" data-target="hobbies"><i class="fas fa-heart fa-fw"></i> View Interests</button>
-        <button class="cmd-option" data-action="nav" data-target="contact"><i class="fas fa-envelope fa-fw"></i> Contact Me</button>
-        <div class="cmd-group">Actions</div>
-        <button class="cmd-option" data-action="theme"><i class="fas fa-moon fa-fw"></i> Toggle Dark Mode</button>
-        <button class="cmd-option" data-action="cv"><i class="fas fa-download fa-fw"></i> Download Resume</button>
-      </div>
-    </div>
-  </dialog>
 
   <script src="app-logic.js"></script>
   <script src="scripts.js"></script>
