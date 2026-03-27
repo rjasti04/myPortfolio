@@ -92,7 +92,6 @@ body.nav-open {
   width: 100vw;
   height: 100vh;
   z-index: 0;
-  pointer-events: none;
 }
 
 .layout {
@@ -1876,7 +1875,6 @@ footer {
   width: 100vw;
   height: 100vh;
   z-index: 0;
-  pointer-events: none;
 }
 
 /* Project Empty State */
