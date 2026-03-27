@@ -46,14 +46,8 @@
     });
   }
 
-  function getShortcutLabel({ userAgent = "", platform = "" } = {}) {
-    const isMacPlatform = platform === "macOS" || /Mac|iPhone|iPad|iPod/.test(userAgent);
-    return isMacPlatform ? "Cmd+K" : "Ctrl+K";
-  }
-
   const exportsObject = {
     filterProjects,
-    getShortcutLabel,
     getValidHashTarget,
     setActiveSection,
   };

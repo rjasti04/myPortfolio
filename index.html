@@ -4,34 +4,89 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta name="author" content="Rajeev Jasti" />
+  <meta name="theme-color" content="#f34f4f" />
   <meta name="description"
     content="Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines." />
+  <link rel="canonical" href="https://rajeevjasti.com/" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:site_name" content="Rajeev Jasti" />
   <meta property="og:title" content="Rajeev Jasti | Principal Data Engineer" />
   <meta property="og:description"
     content="Architecting low-latency distributed systems and massive-scale ETL pipelines." />
-  <meta property="og:image" content="https://rajeevjasti.com/profile-pic.jpeg" />
+  <meta property="og:image" content="https://rajeevjasti.com/social-preview.png" />
+  <meta property="og:image:secure_url" content="https://rajeevjasti.com/social-preview.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Rajeev Jasti portfolio preview card" />
   <meta property="og:url" content="https://rajeevjasti.com/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Rajeev Jasti | Principal Data Engineer" />
   <meta name="twitter:description"
     content="Architecting low-latency distributed systems and massive-scale ETL pipelines." />
-  <meta name="twitter:image" content="https://rajeevjasti.com/profile-pic.jpeg" />
-  <title>Rajeev Jasti</title>
-  <link rel="icon"
-    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23f43f5e'/><text x='50' y='60' text-anchor='middle' font-size='40' font-family='Arial,sans-serif' font-weight='700' fill='white'>RJ</text></svg>" />
+  <meta name="twitter:image" content="https://rajeevjasti.com/social-preview.png" />
+  <meta name="twitter:image:alt" content="Rajeev Jasti portfolio preview card" />
+  <title>Rajeev Jasti | Principal Data Engineer</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="manifest" href="manifest.json" />
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "Person",
-    "name": "Rajeev Jasti",
-    "jobTitle": "Principal Data Engineer",
-    "image": "profile-pic.jpeg",
-    "url": "https://rajeevjasti.com",
-    "sameAs": [
-      "https://www.linkedin.com/in/rajeev-jasti-326080169",
-      "https://github.com/rjasti04"
+    "@graph": [
+      {
+        "@type": "Person",
+        "@id": "https://rajeevjasti.com/#person",
+        "name": "Rajeev Jasti",
+        "jobTitle": "Principal Data Engineer",
+        "description": "Principal Data Engineer specializing in distributed systems, low-latency analytics, and ETL platform design.",
+        "url": "https://rajeevjasti.com/",
+        "image": {
+          "@type": "ImageObject",
+          "url": "https://rajeevjasti.com/profile-pic.jpeg",
+          "width": 725,
+          "height": 1024
+        },
+        "sameAs": [
+          "https://www.linkedin.com/in/rajeev-jasti-326080169",
+          "https://github.com/rjasti04"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://rajeevjasti.com/#website",
+        "url": "https://rajeevjasti.com/",
+        "name": "Rajeev Jasti",
+        "description": "Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines.",
+        "publisher": {
+          "@id": "https://rajeevjasti.com/#person"
+        },
+        "inLanguage": "en-US"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://rajeevjasti.com/#webpage",
+        "url": "https://rajeevjasti.com/",
+        "name": "Rajeev Jasti | Principal Data Engineer",
+        "description": "Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines.",
+        "isPartOf": {
+          "@id": "https://rajeevjasti.com/#website"
+        },
+        "about": {
+          "@id": "https://rajeevjasti.com/#person"
+        },
+        "primaryImageOfPage": {
+          "@type": "ImageObject",
+          "url": "https://rajeevjasti.com/social-preview.png",
+          "width": 1200,
+          "height": 630
+        },
+        "inLanguage": "en-US"
+      }
     ]
   }
   </script>
@@ -120,11 +175,6 @@
         <a href="#contact" data-target="contact">Contact</a>
       </nav>
       <div class="header-actions">
-        <button type="button" class="cmd-shortcut-hint js-only" id="cmd-shortcut-hint"
-          aria-label="Open command palette" title="Open command palette">
-          <i class="fas fa-terminal" aria-hidden="true"></i>
-          <kbd>Ctrl+K</kbd>
-        </button>
         <div class="connect-dropdown js-only" id="connect-dropdown">
           <button type="button" class="connect-toggle" id="connect-toggle" aria-label="Open connect menu"
             aria-controls="connect-dropdown-menu" aria-expanded="false">
@@ -590,43 +640,6 @@
       </div>
     </footer>
   </div>
-
-  <dialog id="cmd-palette" class="cmd-palette js-only" aria-label="Command palette">
-    <div class="cmd-container">
-      <div class="cmd-header">
-        <i class="fas fa-search cmd-icon"></i>
-        <input type="text" id="cmd-input" placeholder="Type a command or search..." autocomplete="off"
-          aria-label="Search commands" />
-        <button type="button" id="cmd-close" class="cmd-close-btn" aria-label="Close Command Palette"><kbd>ESC</kbd></button>
-      </div>
-      <div class="cmd-results" id="cmd-results">
-        <div class="cmd-group">Navigation</div>
-        <button type="button" class="cmd-option" data-action="nav" data-target="about"><i
-            class="fas fa-user fa-fw"></i> Go to About</button>
-        <button type="button" class="cmd-option" data-action="nav" data-target="resume"><i
-            class="fas fa-briefcase fa-fw"></i> View Experience</button>
-        <button type="button" class="cmd-option" data-action="nav" data-target="portfolio"><i
-            class="fas fa-folder-open fa-fw"></i> View Portfolio</button>
-        <button type="button" class="cmd-option" data-action="nav" data-target="hobbies"><i
-            class="fas fa-heart fa-fw"></i> View Interests</button>
-        <button type="button" class="cmd-option" data-action="nav" data-target="contact"><i
-            class="fas fa-envelope fa-fw"></i> Contact Me</button>
-        <div class="cmd-group">Actions</div>
-        <button type="button" class="cmd-option" data-action="theme"><i class="fas fa-moon fa-fw"></i> Toggle Dark
-          Mode</button>
-        <button type="button" class="cmd-option" data-action="sound"><i class="fas fa-volume-xmark fa-fw"></i> Toggle UI
-          Sound</button>
-        <button type="button" class="cmd-option" data-action="copy-email"><i class="fas fa-copy fa-fw"></i> Copy
-          Email</button>
-        <button type="button" class="cmd-option" data-action="linkedin"><i class="fab fa-linkedin fa-fw"></i> Open
-          LinkedIn</button>
-        <button type="button" class="cmd-option" data-action="github"><i class="fab fa-github fa-fw"></i> Open
-          GitHub</button>
-        <button type="button" class="cmd-option" data-action="cv"><i class="fas fa-download fa-fw"></i> Download
-          Resume</button>
-      </div>
-    </div>
-  </dialog>
 
   <script src="app-logic.js"></script>
   <script src="scripts.js"></script>

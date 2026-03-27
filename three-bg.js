@@ -3,17 +3,37 @@ import * as THREE from "three";
 const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 const compactViewportQuery = window.matchMedia("(max-width: 900px)");
 let destroyBackground = null;
+let backgroundVariant = null;
 
 function shouldEnableBackground() {
   if (reducedMotionQuery.matches) return false;
-  if (compactViewportQuery.matches) return false;
   return Boolean(window.WebGLRenderingContext);
 }
 
-function mountThreeBackground(canvas) {
+function getBackgroundVariant() {
+  return compactViewportQuery.matches ? "compact" : "default";
+}
+
+function getBackgroundConfig(variant = getBackgroundVariant()) {
+  const compact = variant === "compact";
+  return {
+    cameraY: compact ? 4.6 : 4,
+    cameraZ: compact ? 20 : 22,
+    dustCount: compact ? 120 : 220,
+    pixelRatioCap: compact ? 1.1 : 1.5,
+    pointSize: compact ? 0.78 : 0.65,
+    waveColumns: compact ? 34 : 52,
+    waveRows: compact ? 34 : 52,
+    waveSpacing: compact ? 1.4 : 1.25,
+    waveYOffset: compact ? -4 : -3.5,
+  };
+}
+
+function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
+  const config = getBackgroundConfig(variant);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 4, 22);
+  camera.position.set(0, config.cameraY, config.cameraZ);
 
   let renderer;
   try {
@@ -26,7 +46,7 @@ function mountThreeBackground(canvas) {
     console.error("Three.js background could not be initialized.", error);
     return null;
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, config.pixelRatioCap));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   const getAccent = () => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#f43f5e";
@@ -45,15 +65,14 @@ function mountThreeBackground(canvas) {
   const spriteTexture = new THREE.CanvasTexture(textureCanvas);
 
   const waveGeometry = new THREE.BufferGeometry();
-  const waveColumns = 52;
-  const waveRows = 52;
+  const { waveColumns, waveRows } = config;
   const wavePositions = new Float32Array(waveColumns * waveRows * 3);
   let cursor = 0;
   for (let xIndex = 0; xIndex < waveColumns; xIndex += 1) {
     for (let zIndex = 0; zIndex < waveRows; zIndex += 1) {
-      wavePositions[cursor] = (xIndex - waveColumns / 2) * 1.25;
+      wavePositions[cursor] = (xIndex - waveColumns / 2) * config.waveSpacing;
       wavePositions[cursor + 1] = 0;
-      wavePositions[cursor + 2] = (zIndex - waveRows / 2) * 1.25;
+      wavePositions[cursor + 2] = (zIndex - waveRows / 2) * config.waveSpacing;
       cursor += 3;
     }
   }
@@ -65,17 +84,17 @@ function mountThreeBackground(canvas) {
     depthWrite: false,
     map: spriteTexture,
     opacity: 0.2,
-    size: 0.65,
+    size: config.pointSize,
     transparent: true,
   });
 
   const waveMesh = new THREE.Points(waveGeometry, waveMaterial);
   waveMesh.rotation.x = -Math.PI / 6;
-  waveMesh.position.y = -3.5;
+  waveMesh.position.y = config.waveYOffset;
   scene.add(waveMesh);
 
   const dustGeometry = new THREE.BufferGeometry();
-  const dustCount = 220;
+  const { dustCount } = config;
   const dustPositions = new Float32Array(dustCount * 3);
   for (let index = 0; index < dustCount * 3; index += 1) {
     dustPositions[index] = (Math.random() - 0.5) * 90;
@@ -107,8 +126,8 @@ function mountThreeBackground(canvas) {
     const isDark = document.body.classList.contains("dark-theme");
     waveMaterial.color.copy(color);
     dustMaterial.color.copy(color);
-    waveMaterial.opacity = isDark ? 0.30 : 0.70;
-    dustMaterial.opacity = isDark ? 0.15 : 0.35;
+    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.24 : 0.30) : (variant === "compact" ? 0.52 : 0.70);
+    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.10 : 0.15) : (variant === "compact" ? 0.22 : 0.35);
   };
   syncTheme();
 
@@ -121,7 +140,7 @@ function mountThreeBackground(canvas) {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, config.pixelRatioCap));
   };
   window.addEventListener("resize", handleResize);
 
@@ -148,7 +167,7 @@ function mountThreeBackground(canvas) {
     dustMesh.rotation.x = elapsed * 0.004;
 
     camera.position.x += ((pointer.x * 1.4) - camera.position.x) * 0.02;
-    camera.position.y += ((4 - pointer.y * 0.7) - camera.position.y) * 0.02;
+    camera.position.y += ((config.cameraY - pointer.y * 0.7) - camera.position.y) * 0.02;
     camera.lookAt(scene.position);
     renderer.render(scene, camera);
   };
@@ -176,12 +195,17 @@ function syncThreeBackground() {
   const canvas = document.getElementById("webgl-canvas");
   if (!canvas) return;
 
+  const variant = getBackgroundVariant();
   if (shouldEnableBackground()) {
     canvas.hidden = false;
-    if (!destroyBackground) {
-      destroyBackground = mountThreeBackground(canvas);
+    if (!destroyBackground || backgroundVariant !== variant) {
+      destroyBackground?.();
+      destroyBackground = mountThreeBackground(canvas, variant);
       if (!destroyBackground) {
         canvas.hidden = true;
+        backgroundVariant = null;
+      } else {
+        backgroundVariant = variant;
       }
     }
     return;
@@ -192,6 +216,7 @@ function syncThreeBackground() {
     destroyBackground();
     destroyBackground = null;
   }
+  backgroundVariant = null;
 }
 
 function bindMediaQueryListener(query, handler) {

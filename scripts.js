@@ -5,6 +5,7 @@ const RESUME_URL = "rajeev_jasti.pdf";
 
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
+const compactViewport = window.matchMedia("(max-width: 900px)");
 const supportsHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
 const hamburger = document.getElementById("hamburger-toggle");
@@ -30,11 +31,6 @@ const soundToggle = document.getElementById("sound-toggle");
 const soundIcon = document.getElementById("sound-icon");
 const toastContainer = document.getElementById("toast-container");
 const backToTopBtn = document.getElementById("back-to-top");
-const cmdPalette = document.getElementById("cmd-palette");
-const cmdInput = document.getElementById("cmd-input");
-const cmdOptions = Array.from(document.querySelectorAll(".cmd-option"));
-const cmdClose = document.getElementById("cmd-close");
-const cmdHintBtn = document.getElementById("cmd-shortcut-hint");
 const footerYear = document.getElementById("footer-year");
 
 const FOCUSABLE_SELECTOR =
@@ -144,6 +140,7 @@ function setMobileMenuState(isOpen) {
   if (!navMenu || !hamburger) return;
   navMenu.classList.toggle("show-menu", isOpen);
   hamburger.setAttribute("aria-expanded", String(isOpen));
+  document.body.classList.toggle("nav-open", Boolean(isOpen) && compactViewport.matches);
 
   const icon = hamburger.querySelector("i");
   if (icon) {
@@ -355,158 +352,6 @@ function copyEmailToClipboard() {
 
 function openExternal(url) {
   window.open(url, "_blank", "noopener,noreferrer");
-}
-
-function runCommandAction(action, target = "") {
-  switch (action) {
-    case "nav":
-      navigateToSection(target);
-      break;
-    case "theme":
-      themeBtn?.click();
-      break;
-    case "sound":
-      soundToggle?.click();
-      break;
-    case "copy-email":
-      copyEmailToClipboard();
-      break;
-    case "linkedin":
-      openExternal(LINKEDIN_URL);
-      break;
-    case "github":
-      openExternal(GITHUB_URL);
-      break;
-    case "cv": {
-      const anchor = document.createElement("a");
-      anchor.href = RESUME_URL;
-      anchor.download = "Rajeev_Jasti_Resume.pdf";
-      anchor.click();
-      break;
-    }
-    default:
-      break;
-  }
-}
-
-function initCommandPalette() {
-  if (!cmdPalette || !cmdInput) return;
-
-  let selectedIndex = -1;
-  const supportsDialogApi = typeof cmdPalette.showModal === "function";
-
-  const getVisibleOptions = () => cmdOptions.filter((option) => !option.classList.contains("hidden"));
-
-  const setActiveOption = (option) => {
-    cmdOptions.forEach((item) => item.classList.remove("active"));
-    if (option) option.classList.add("active");
-  };
-
-  const filterOptions = (query) => {
-    const normalizedQuery = query.toLowerCase().trim();
-    const visibleOptions = cmdOptions.filter((option) => {
-      const visible = !normalizedQuery || option.textContent.toLowerCase().includes(normalizedQuery);
-      option.classList.toggle("hidden", !visible);
-      return visible;
-    });
-
-    selectedIndex = visibleOptions.length > 0 ? 0 : -1;
-    setActiveOption(visibleOptions[0] || null);
-  };
-
-  const openPalette = () => {
-    if (supportsDialogApi) {
-      if (!cmdPalette.open) {
-        cmdPalette.showModal();
-      }
-    } else {
-      cmdPalette.classList.add("is-open");
-      cmdPalette.setAttribute("open", "");
-    }
-    cmdInput.value = "";
-    filterOptions("");
-    cmdInput.focus();
-  };
-
-  const closePalette = () => {
-    if (supportsDialogApi) {
-      if (cmdPalette.open) {
-        cmdPalette.close();
-      }
-    } else {
-      cmdPalette.classList.remove("is-open");
-      cmdPalette.removeAttribute("open");
-    }
-  };
-
-  const isPaletteOpen = () => {
-    if (supportsDialogApi) {
-      return cmdPalette.open;
-    }
-    return cmdPalette.classList.contains("is-open");
-  };
-
-  document.addEventListener("keydown", (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-      event.preventDefault();
-      if (isPaletteOpen()) closePalette();
-      else openPalette();
-    }
-
-    if (!isPaletteOpen()) return;
-
-    const visibleOptions = getVisibleOptions();
-    if (event.key === "Escape") {
-      closePalette();
-    } else if (event.key === "ArrowDown") {
-      event.preventDefault();
-      selectedIndex = Math.min(selectedIndex + 1, visibleOptions.length - 1);
-      setActiveOption(visibleOptions[selectedIndex] || null);
-      visibleOptions[selectedIndex]?.scrollIntoView({ block: "nearest" });
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      selectedIndex = Math.max(selectedIndex - 1, 0);
-      setActiveOption(visibleOptions[selectedIndex] || null);
-      visibleOptions[selectedIndex]?.scrollIntoView({ block: "nearest" });
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      visibleOptions[selectedIndex]?.click();
-    }
-  });
-
-  cmdInput.addEventListener("input", (event) => filterOptions(event.target.value));
-  cmdClose?.addEventListener("click", closePalette);
-  cmdPalette.addEventListener("click", (event) => {
-    if (event.target === cmdPalette) closePalette();
-  });
-
-  cmdOptions.forEach((option) => {
-    option.addEventListener("click", () => {
-      runCommandAction(option.dataset.action, option.dataset.target);
-      closePalette();
-    });
-    option.addEventListener("mouseover", () => {
-      const visibleOptions = getVisibleOptions();
-      selectedIndex = visibleOptions.indexOf(option);
-      setActiveOption(option);
-    });
-  });
-
-  if (cmdHintBtn) {
-    const shortcutLabel = window.AppLogic?.getShortcutLabel
-      ? window.AppLogic.getShortcutLabel({
-        platform: navigator.userAgentData?.platform || "",
-        userAgent: navigator.userAgent,
-      })
-      : "Ctrl+K";
-    const kbdElement = cmdHintBtn.querySelector("kbd");
-    if (kbdElement) {
-      kbdElement.textContent = shortcutLabel;
-    }
-    cmdHintBtn.title = `Open command palette (${shortcutLabel})`;
-    cmdHintBtn.setAttribute("aria-label", `Open command palette (${shortcutLabel})`);
-    cmdHintBtn.addEventListener("click", openPalette);
-  }
 }
 
 function initReveals() {
@@ -796,7 +641,6 @@ initContactForm();
 initReveals();
 initStats();
 initTerminalIntro();
-initCommandPalette();
 
 if (footerYear) {
   footerYear.textContent = new Date().getFullYear();
@@ -809,3 +653,10 @@ prefersDarkScheme.addEventListener("change", (event) => {
     applyTheme(event.matches);
   }
 });
+if (typeof compactViewport.addEventListener === "function") {
+  compactViewport.addEventListener("change", (event) => {
+    if (!event.matches) {
+      setMobileMenuState(false);
+    }
+  });
+}
