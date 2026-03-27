@@ -27,8 +27,6 @@ const projectDetailStack = document.getElementById("project-detail-stack");
 const projectDetailOutcomes = document.getElementById("project-detail-outcomes");
 const themeBtn = document.getElementById("theme-toggle");
 const themeIcon = document.getElementById("theme-icon");
-const soundToggle = document.getElementById("sound-toggle");
-const soundIcon = document.getElementById("sound-icon");
 const toastContainer = document.getElementById("toast-container");
 const backToTopBtn = document.getElementById("back-to-top");
 const footerYear = document.getElementById("footer-year");
@@ -36,9 +34,6 @@ const footerYear = document.getElementById("footer-year");
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const modalFocusReturn = new WeakMap();
-
-let audioCtx = null;
-let soundEnabled = localStorage.getItem("sound-enabled") === "true";
 
 function showToast(message, type = "info") {
   if (!toastContainer) return;
@@ -164,46 +159,6 @@ function applyTheme(isDark) {
   if (themeBtn) {
     themeBtn.setAttribute("aria-pressed", String(isDark));
   }
-}
-
-function applySoundPreference(isEnabled) {
-  soundEnabled = isEnabled;
-  if (soundIcon) {
-    soundIcon.className = isEnabled ? "fas fa-volume-high" : "fas fa-volume-xmark";
-  }
-  if (soundToggle) {
-    soundToggle.setAttribute("aria-pressed", String(isEnabled));
-  }
-  localStorage.setItem("sound-enabled", String(isEnabled));
-}
-
-function initAudio() {
-  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextCtor || !soundEnabled || prefersReducedMotion.matches || !supportsHover) return;
-  if (!audioCtx) {
-    audioCtx = new AudioContextCtor();
-  }
-}
-
-function playSound() {
-  if (!soundEnabled || !audioCtx || prefersReducedMotion.matches || !supportsHover) return;
-  if (audioCtx.state === "suspended") {
-    audioCtx.resume();
-    return;
-  }
-  if (audioCtx.state !== "running") return;
-
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = "triangle";
-  osc.frequency.setValueAtTime(620, audioCtx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(180, audioCtx.currentTime + 0.08);
-  gain.gain.setValueAtTime(0.025, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.08);
 }
 
 function setActiveSection(target) {
@@ -528,8 +483,6 @@ function initContactForm() {
   });
 }
 
-document.addEventListener("pointerdown", initAudio, { once: true });
-
 if (hamburger) {
   hamburger.addEventListener("click", () => {
     const isOpen = !navMenu?.classList.contains("show-menu");
@@ -579,12 +532,6 @@ themeBtn?.addEventListener("click", () => {
   localStorage.setItem("theme", nextValue ? "dark" : "light");
 });
 
-soundToggle?.addEventListener("click", () => {
-  applySoundPreference(!soundEnabled);
-  if (soundEnabled) initAudio();
-  showToast(soundEnabled ? "UI sound enabled." : "UI sound disabled.", "info");
-});
-
 profileTrigger?.addEventListener("click", (event) => {
   event.preventDefault();
   openModal(imageModal, { initialFocus: imageModalCloseButton || imageModal });
@@ -626,15 +573,8 @@ if (backToTopBtn) {
   });
 }
 
-document.addEventListener("click", (event) => {
-  if (event.target.closest("button, a") && soundEnabled) {
-    playSound();
-  }
-}, true);
-
 const savedTheme = localStorage.getItem("theme");
 applyTheme(savedTheme === "dark" || (!savedTheme && prefersDarkScheme.matches));
-applySoundPreference(soundEnabled);
 syncSectionWithHash();
 filterProjects();
 initContactForm();

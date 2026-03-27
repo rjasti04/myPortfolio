@@ -96,7 +96,8 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
       }
     }
   </script>
@@ -195,10 +196,6 @@
             </div>
           </div>
         </div>
-        <button type="button" class="js-only" id="sound-toggle" title="Toggle UI sound" aria-label="Toggle UI sound"
-          aria-pressed="false">
-          <i class="fas fa-volume-xmark" id="sound-icon"></i>
-        </button>
         <button type="button" class="js-only" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme"
           aria-pressed="false">
           <i class="fas fa-moon" id="theme-icon"></i>
@@ -632,10 +629,6 @@
         <a href="https://github.com/rjasti04" target="_blank" rel="noopener noreferrer" class="social-icon"
           aria-label="GitHub profile">
           <i class="fab fa-github"></i>
-        </a>
-        <a href="https://github.com/rjasti04/rjWebApp" target="_blank" rel="noopener noreferrer" class="social-icon"
-          aria-label="Website source code">
-          <i class="fas fa-code-branch"></i>
         </a>
       </div>
     </footer>
