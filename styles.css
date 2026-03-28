@@ -1419,6 +1419,9 @@ footer {
   .hamburger-btn {
     display: block;
     padding: 8px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
   }
 
   nav {

@@ -68,13 +68,19 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   const waveGeometry = new THREE.BufferGeometry();
   const { waveColumns, waveRows } = config;
   const wavePositions = new Float32Array(waveColumns * waveRows * 3);
+  const waveDistances = new Float32Array(waveColumns * waveRows);
   let cursor = 0;
+  let distCursor = 0;
   for (let xIndex = 0; xIndex < waveColumns; xIndex += 1) {
     for (let zIndex = 0; zIndex < waveRows; zIndex += 1) {
-      wavePositions[cursor] = (xIndex - waveColumns / 2) * config.waveSpacing;
+      const x = (xIndex - waveColumns / 2) * config.waveSpacing;
+      const z = (zIndex - waveRows / 2) * config.waveSpacing;
+      wavePositions[cursor] = x;
       wavePositions[cursor + 1] = 0;
-      wavePositions[cursor + 2] = (zIndex - waveRows / 2) * config.waveSpacing;
+      wavePositions[cursor + 2] = z;
+      waveDistances[distCursor] = Math.sqrt(x * x + z * z);
       cursor += 3;
+      distCursor += 1;
     }
   }
   waveGeometry.setAttribute("position", new THREE.BufferAttribute(wavePositions, 3));
@@ -175,13 +181,13 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     const positions = waveGeometry.attributes.position.array;
 
     let index = 0;
+    let distIndex = 0;
     for (let xIndex = 0; xIndex < waveColumns; xIndex += 1) {
       for (let zIndex = 0; zIndex < waveRows; zIndex += 1) {
-        const x = positions[index];
-        const z = positions[index + 2];
-        const dist = Math.sqrt(x * x + z * z);
+        const dist = waveDistances[distIndex];
         positions[index + 1] = Math.sin(dist * 0.45 - elapsed * 2.5) * 1.5;
         index += 3;
+        distIndex += 1;
       }
     }
     waveGeometry.attributes.position.needsUpdate = true;

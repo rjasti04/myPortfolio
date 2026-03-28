@@ -85,7 +85,7 @@ export function initTerminalIntro() {
 }
 
 export function initMatrixDecode() {
-  const element = document.querySelector(".hero-title");
+  const element = document.querySelector(".welcome-text");
   if (!element || prefersReducedMotion.matches) return;
 
   const originalText = element.textContent;
