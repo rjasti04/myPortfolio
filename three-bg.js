@@ -129,8 +129,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     const isDark = document.body.classList.contains("dark-theme");
     waveMaterial.color.copy(color);
     dustMaterial.color.copy(color);
-    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.30 : 0.60) : (variant === "compact" ? 0.52 : 0.70);
-    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.15 : 0.30) : (variant === "compact" ? 0.22 : 0.35);
+    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.30 : 0.50) : (variant === "compact" ? 0.60 : 0.80);
+    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.15 : 0.25) : (variant === "compact" ? 0.30 : 0.40);
   };
   syncTheme();
 
