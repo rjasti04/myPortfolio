@@ -137,6 +137,19 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   const themeObserver = new MutationObserver(syncTheme);
   themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
+  let isVisible = true;
+
+  let mouseX = 0;
+  let mouseY = 0;
+  let targetMouseX = 0;
+  let targetMouseY = 0;
+
+  const handleMouseMove = (e) => {
+    targetMouseX = (e.clientX / window.innerWidth) * 2 - 1;
+    targetMouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+  };
+  window.addEventListener("mousemove", handleMouseMove);
+
   const clock = new THREE.Clock();
 
   let resizeWait = false;
@@ -156,7 +169,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   let animationFrame = 0;
   const render = () => {
     animationFrame = window.requestAnimationFrame(render);
-    if (document.hidden) return;
+    if (document.hidden || !isVisible) return;
+    
     const elapsed = clock.getElapsedTime();
     const positions = waveGeometry.attributes.position.array;
 
@@ -172,8 +186,11 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     }
     waveGeometry.attributes.position.needsUpdate = true;
 
-    dustMesh.rotation.y = elapsed * 0.02;
-    dustMesh.rotation.x = elapsed * 0.01;
+    mouseX += (targetMouseX - mouseX) * 0.05;
+    mouseY += (targetMouseY - mouseY) * 0.05;
+
+    dustMesh.rotation.y = elapsed * 0.02 + (mouseX * 0.4);
+    dustMesh.rotation.x = elapsed * 0.01 + (-mouseY * 0.4);
 
     controls.update();
     renderer.render(scene, camera);
@@ -184,6 +201,7 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   return () => {
     window.cancelAnimationFrame(animationFrame);
     window.removeEventListener("resize", handleResize);
+    window.removeEventListener("mousemove", handleMouseMove);
     controls.dispose();
     themeObserver.disconnect();
     renderer.setAnimationLoop(null);

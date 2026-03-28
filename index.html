@@ -126,9 +126,12 @@
     <button type="button" class="modal-close" id="image-modal-close" aria-label="Close profile photo">
       <i class="fas fa-times"></i>
     </button>
-    <img src="profile-pic-360.jpg" srcset="profile-pic-360.jpg 360w, profile-pic.jpeg 725w"
-      sizes="(max-width: 540px) 90vw, 450px" alt="Rajeev Jasti" class="modal-content" loading="lazy" width="725"
-      height="1024" />
+    <picture>
+      <source srcset="profile-pic-360.webp 360w, profile-pic.webp 725w" sizes="(max-width: 540px) 90vw, 450px" type="image/webp" />
+      <img src="profile-pic-360.jpg" srcset="profile-pic-360.jpg 360w, profile-pic.jpeg 725w"
+        sizes="(max-width: 540px) 90vw, 450px" alt="Rajeev Jasti" class="modal-content" loading="lazy" width="725"
+        height="1024" />
+    </picture>
   </div>
 
   <div class="project-detail-modal" id="project-detail-modal" role="dialog" aria-modal="true"
@@ -160,8 +163,11 @@
     <header id="header">
       <a href="profile-pic.jpeg" target="_blank" rel="noopener noreferrer" class="header-left" id="profile-trigger"
         aria-label="Open profile photo">
-        <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w"
-          sizes="42px" alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="725" height="1024" />
+        <picture>
+          <source srcset="profile-pic-160.webp 160w, profile-pic-360.webp 360w" sizes="42px" type="image/webp" />
+          <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w"
+            sizes="42px" alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="725" height="1024" />
+        </picture>
         <div class="logo-text">RJ</div>
       </a>
       <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu" aria-controls="nav-menu"
@@ -360,7 +366,7 @@
         <p class="section-intro">Company names are intentionally omitted for confidentiality; scope and outcomes reflect
           production work.</p>
 
-        <div class="item reveal">
+        <div class="item tilt-card reveal">
           <div class="item-header">
             <span class="item-date">2022 &mdash; Present</span>
             <span class="item-badge">Remote</span>
@@ -381,7 +387,7 @@
           </div>
         </div>
 
-        <div class="item reveal">
+        <div class="item tilt-card reveal">
           <div class="item-header">
             <span class="item-date">2019 &mdash; 2022</span>
             <span class="item-badge">Hybrid</span>
@@ -400,7 +406,7 @@
           </div>
         </div>
 
-        <div class="item reveal">
+        <div class="item tilt-card reveal">
           <div class="item-header">
             <span class="item-date">2016 &mdash; 2019</span>
             <span class="item-badge">On-site</span>
@@ -438,7 +444,7 @@
         </div>
         <p class="project-results" id="project-results" role="status" aria-live="polite"></p>
         <div class="portfolio-grid" id="portfolio-grid">
-          <article class="item project-card reveal" data-tags="kafka spark realtime"
+          <article class="item tilt-card project-card reveal" data-tags="kafka spark realtime"
             data-title="Real-time Analytics Platform"
             data-description="Kafka and Spark streaming pipeline processing 1M events per second with fault-tolerant event ingestion. Deployed on Kubernetes with auto-scaling consumers and end-to-end latency monitoring."
             data-stack="Kafka,Spark,Python,Kubernetes,Prometheus"
@@ -460,7 +466,7 @@
             </div>
           </article>
 
-          <article class="item project-card reveal" data-tags="snowflake airflow etl"
+          <article class="item tilt-card project-card reveal" data-tags="snowflake airflow etl"
             data-title="Cloud ETL Modernization"
             data-description="Airflow-orchestrated Snowflake pipelines that reduced nightly batch runtime by 45%. Includes lineage tracking, automated alerting, and self-healing retry logic."
             data-stack="Airflow,Snowflake,dbt,Python,AWS S3"
@@ -482,7 +488,7 @@
             </div>
           </article>
 
-          <article class="item project-card reveal" data-tags="kafka snowflake cdc"
+          <article class="item tilt-card project-card reveal" data-tags="kafka snowflake cdc"
             data-title="CDC Data Mesh Enablement"
             data-description="Built Kafka-to-Snowflake CDC templates for domain teams to self-serve compliant datasets. Includes schema registry, automated compatibility testing, and governance controls."
             data-stack="Kafka,Debezium,Snowflake,Terraform,Schema Registry"
@@ -509,7 +515,7 @@
       <section id="hobbies">
         <h2 class="section-title">Interests &amp; Hobbies</h2>
         <div class="articles-grid">
-          <div class="item article-card reveal">
+          <div class="item tilt-card article-card reveal">
             <div class="article-meta">
               <span class="article-date article-topic"><i class="fas fa-futbol"></i> Soccer</span>
             </div>
@@ -517,7 +523,7 @@
             <p class="article-excerpt">I play competitively on weekends, always looking to improve my striking and
               tactical awareness on the pitch.</p>
           </div>
-          <div class="item article-card reveal">
+          <div class="item tilt-card article-card reveal">
             <div class="article-meta">
               <span class="article-date article-topic"><i class="fas fa-hot-tub"></i> Sauna</span>
             </div>
@@ -525,7 +531,7 @@
             <p class="article-excerpt">Nothing beats a 20-minute sauna session after a long day of engineering. It is my
               reset button for recovery and deep thinking.</p>
           </div>
-          <div class="item article-card reveal">
+          <div class="item tilt-card article-card reveal">
             <div class="article-meta">
               <span class="article-date article-topic"><i class="fas fa-dumbbell"></i> Workout</span>
             </div>
@@ -533,7 +539,7 @@
             <p class="article-excerpt">Lifting heavy and staying mobile. Consistency in the gym translates directly to
               discipline and focus at the keyboard.</p>
           </div>
-          <div class="item article-card reveal">
+          <div class="item tilt-card article-card reveal">
             <div class="article-meta">
               <span class="article-date article-topic"><i class="fas fa-utensils"></i> Foodie</span>
             </div>
@@ -561,24 +567,26 @@
               accept-charset="UTF-8">
               <input type="hidden" name="_subject" value="New portfolio message from rajeevjasti.com" />
               <input type="hidden" name="_captcha" value="false" />
-              <div class="form-group">
-                <label class="form-label" for="contact-name">Name</label>
+              <div class="form-group floating-label-group">
                 <div class="input-wrapper">
-                  <input type="text" id="contact-name" name="name" placeholder="Your Name" required />
+                  <input type="text" id="contact-name" name="name" placeholder=" " required />
+                  <label class="form-label" for="contact-name">Name</label>
                   <i class="fas fa-user input-icon"></i>
                 </div>
               </div>
-              <div class="form-group">
-                <label class="form-label" for="contact-email">Email</label>
+              <div class="form-group floating-label-group">
                 <div class="input-wrapper">
-                  <input type="email" id="contact-email" name="email" placeholder="Your Email" required />
+                  <input type="email" id="contact-email" name="email" placeholder=" " required />
+                  <label class="form-label" for="contact-email">Email</label>
                   <i class="fas fa-envelope input-icon"></i>
                 </div>
               </div>
-              <div class="form-group">
-                <label class="form-label" for="contact-message">Message</label>
-                <textarea id="contact-message" name="message"
-                  placeholder="Tell me about your project, team, or hiring goal" rows="4" required></textarea>
+              <div class="form-group floating-label-group">
+                <div class="input-wrapper">
+                  <textarea id="contact-message" name="message"
+                    placeholder=" " rows="4" required></textarea>
+                  <label class="form-label" for="contact-message">Message</label>
+                </div>
               </div>
               <button type="submit" class="btn contact-submit-btn">Send Message <i
                   class="fas fa-paper-plane"></i></button>
@@ -605,7 +613,7 @@
   </div>
 
   <script src="app-logic.js"></script>
-  <script src="scripts.js"></script>
+  <script type="module" src="js/main.js"></script>
   <script type="module" src="three-bg.js"></script>
 </body>
 

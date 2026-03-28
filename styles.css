@@ -706,6 +706,50 @@ section.active {
   border-color: var(--accent);
 }
 
+/* Floating Labels */
+.floating-label-group .input-wrapper {
+  position: relative;
+}
+
+.floating-label-group input,
+.floating-label-group textarea {
+  padding-top: 24px;
+  padding-bottom: 8px;
+}
+
+.floating-label-group .form-label {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none;
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.floating-label-group textarea ~ .form-label {
+  top: 22px;
+}
+
+.floating-label-group input:focus ~ .form-label,
+.floating-label-group input:not(:placeholder-shown) ~ .form-label,
+.floating-label-group textarea:focus ~ .form-label,
+.floating-label-group textarea:not(:placeholder-shown) ~ .form-label {
+  top: 14px;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Tilt Base styles */
+.tilt-card {
+  transform-style: preserve-3d;
+  transform: perspective(1000px);
+  will-change: transform;
+}
+
 /* Footer */
 .footer-text {
   font-size: 13px;
@@ -1288,20 +1332,24 @@ footer {
 }
 
 .modal-content {
-  width: 90%;
-  max-width: 450px;
+  width: auto;
+  height: auto;
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
   border-radius: 20px;
   border: 4px solid var(--accent);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 30%);
   transform: scale(0.8);
-  transition: 0.4s;
+  transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .image-modal .modal-content {
-  transform: scaleX(-1) scale(0.8);
+  transform: scale(0.8);
 }
 
 .image-modal.active .modal-content {
-  transform: scaleX(-1) scale(1);
+  transform: scale(1);
 }
 
 .hero-buttons {
