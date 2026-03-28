@@ -245,7 +245,14 @@ section.active {
 }
 
 #about.active {
-  display: block;
+  display: grid;
+  gap: clamp(24px, 5vh, 52px);
+}
+
+#about .ticker-wrap,
+#about .stats-grid,
+#about .skills-section {
+  margin: 0;
 }
 
 @keyframes slide-up {
@@ -264,8 +271,7 @@ section.active {
 
 .reveal.active {
   opacity: 1;
-  transform: translate3d(0, 0, 0); /* Force GPU compositing isolation */
-  will-change: auto; /* Free VRAM after animation completes */
+  transform: translateY(0);
 }
 
 /* Hero Section */
@@ -275,7 +281,6 @@ section.active {
   gap: clamp(20px, 3vw, 40px);
   align-items: center;
   min-height: clamp(420px, 60vh, 660px);
-  margin-bottom: clamp(64px, 8vh, 96px);
 }
 
 .hero-text {
@@ -427,7 +432,7 @@ section.active {
 /* Section Titles */
 .section-title {
   font-size: 36px;
-  margin-bottom: 48px;
+  margin-bottom: 40px;
 }
 
 /* Items / Cards */
@@ -441,7 +446,6 @@ section.active {
   margin-bottom: 24px;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
-  backface-visibility: hidden; /* Prevent composite thrashing over WebGL */
 }
 
 .item:hover {
@@ -639,18 +643,19 @@ section.active {
 }
 
 /* Contact */
-.js-enabled #contact.active {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: calc(100vh - 160px);
+.contact-section {
+  padding: 60px 20px;
 }
 
-.contact-section {
-  width: 100%;
-  max-width: 840px;
-  padding: 60px 40px;
+.contact-title {
+  font-size: 42px;
+  text-align: center;
+}
+
+.contact-description {
+  margin: 16px 0 36px;
+  color: var(--muted);
+  text-align: center;
 }
 
 .contact-grid {
@@ -783,37 +788,14 @@ section.active {
   color: var(--muted);
 }
 
-/* Smooth Text Scramble Effect */
-.text-scramble {
-  display: inline;
-}
-
-.text-scramble .scramble-char {
-  display: inline-block;
-  color: var(--accent);
-  opacity: 0.9;
-  text-shadow: 0 0 12px var(--accent-mild);
-  transition: color 0.3s ease, opacity 0.3s ease, text-shadow 0.3s ease;
-  will-change: color, opacity, text-shadow;
-  /* Centering characters helps reduce layout jitter when characters swap */
-  min-width: 0.5em;
-  text-align: center;
-}
-
-.text-scramble .scramble-char.resolved {
-  color: inherit;
-  opacity: 1;
-  text-shadow: none;
-}
-
 /* Ticker */
 .ticker-wrap {
   width: 100%;
   overflow: hidden;
   background: var(--card-bg);
   padding: 10px 0;
-  margin-top: 0;
-  margin-bottom: clamp(24px, 4vh, 32px);
+  margin-top: 2.5%;
+  margin-bottom: 2.5%;
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
@@ -908,8 +890,7 @@ section.active {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
   gap: clamp(12px, 1.8vw, 24px);
-  margin-top: 24px;
-  margin-bottom: clamp(64px, 8vh, 96px);
+  margin: 2.5% 0;
 }
 
 .stat-card {
@@ -1375,7 +1356,9 @@ footer {
     padding: 14px 14px 88px;
   }
 
-  /* About block structure scales naturally */
+  #about.active {
+    gap: 22px;
+  }
 
   header {
     padding: 0 12px;
@@ -1425,7 +1408,7 @@ footer {
     text-align: center;
     padding: 0;
     min-height: auto;
-    gap: 40px;
+    gap: 20px;
   }
 
   .hero-text {
@@ -1553,7 +1536,7 @@ footer {
   }
 
   .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
@@ -2075,7 +2058,14 @@ section {
 }
 
 .js-enabled #about.active {
-  display: block;
+  display: grid;
+  gap: clamp(24px, 5vh, 52px);
+}
+
+.section-intro {
+  margin: -18px 0 26px;
+  max-width: 72ch;
+  color: var(--muted);
 }
 
 .architecture-title {

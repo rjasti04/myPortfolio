@@ -129,8 +129,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     const isDark = document.body.classList.contains("dark-theme");
     waveMaterial.color.copy(color);
     dustMaterial.color.copy(color);
-    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.40 : 0.60) : (variant === "compact" ? 0.50 : 0.80);
-    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.20 : 0.30) : (variant === "compact" ? 0.25 : 0.35);
+    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.30 : 0.60) : (variant === "compact" ? 0.52 : 0.80);
+    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.15 : 0.30) : (variant === "compact" ? 0.22 : 0.40);
   };
   syncTheme();
 
@@ -139,19 +139,24 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
 
   const clock = new THREE.Clock();
 
+  let resizeWait = false;
   const handleResize = () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, config.pixelRatioCap));
+    if (resizeWait) return;
+    resizeWait = true;
+    window.requestAnimationFrame(() => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, config.pixelRatioCap));
+      resizeWait = false;
+    });
   };
   window.addEventListener("resize", handleResize);
 
   let animationFrame = 0;
   const render = () => {
     animationFrame = window.requestAnimationFrame(render);
-    if (document.hidden) return; // Halt heavy GPU/math when tab is inactive
-
+    if (document.hidden) return;
     const elapsed = clock.getElapsedTime();
     const positions = waveGeometry.attributes.position.array;
 

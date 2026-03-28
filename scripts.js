@@ -8,112 +8,6 @@ const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
 const compactViewport = window.matchMedia("(max-width: 900px)");
 const supportsHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-><[]{}|/";
-const textOriginals = new WeakMap();
-const activeScrambles = new WeakMap();
-
-function matrixDecode(element, { duration = 1800, delay = 0 } = {}) {
-  if (!element || prefersReducedMotion.matches) return;
-
-  const existingTimer = activeScrambles.get(element);
-  if (existingTimer) {
-    cancelAnimationFrame(existingTimer);
-  }
-
-  if (!textOriginals.has(element)) {
-    textOriginals.set(element, element.textContent.trim());
-  }
-  const originalText = textOriginals.get(element);
-  if (!originalText) return;
-
-  element.innerHTML = "";
-  element.classList.add("text-scramble");
-
-  const length = originalText.length;
-  const spanElements = [];
-  const lockTimes = [];
-
-  for (let i = 0; i < length; i++) {
-    const span = document.createElement("span");
-    if (originalText[i] === " ") {
-      span.innerHTML = "&nbsp;";
-    } else {
-      span.className = "scramble-char";
-      span.textContent = SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
-    }
-    element.appendChild(span);
-    spanElements.push(span);
-
-    // Left-to-right bias + randomness
-    const baseTime = (i / length) * (duration * 0.6);
-    const randomTime = Math.random() * (duration * 0.4);
-    lockTimes.push(baseTime + randomTime);
-  }
-
-  let start = null;
-  let lastFrameTime = 0;
-  // Limit scramble updates to ~30fps to avoid manic flickering while keeping it smooth
-  const frameInterval = 1000 / 30;
-
-  const tick = (timestamp) => {
-    if (!start) start = timestamp;
-    const elapsed = timestamp - start - delay;
-
-    const shouldUpdateScramble = (timestamp - lastFrameTime) > frameInterval;
-    if (shouldUpdateScramble) {
-      lastFrameTime = timestamp;
-    }
-
-    let allResolved = true;
-
-    for (let i = 0; i < length; i++) {
-      if (originalText[i] === " ") continue;
-
-      const span = spanElements[i];
-
-      if (elapsed >= lockTimes[i]) {
-        // Character is resolved
-        if (!span.dataset.resolved) {
-          span.textContent = originalText[i];
-          span.dataset.resolved = "true";
-          span.className = "scramble-char resolved";
-        }
-      } else {
-        // Still scrambling
-        allResolved = false;
-        if (shouldUpdateScramble) {
-          span.textContent = SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
-        }
-      }
-    }
-
-    if (!allResolved && elapsed < duration + 200) {
-      activeScrambles.set(element, requestAnimationFrame(tick));
-    } else {
-      // Ensure all are completely resolved
-      for (let i = 0; i < length; i++) {
-        if (originalText[i] !== " " && !spanElements[i].dataset.resolved) {
-          spanElements[i].textContent = originalText[i];
-          spanElements[i].className = "scramble-char resolved";
-        }
-      }
-      activeScrambles.delete(element);
-    }
-  };
-
-  activeScrambles.set(element, requestAnimationFrame(tick));
-}
-
-function matrixDecodeSection(sectionId) {
-  const section = document.getElementById(sectionId);
-  if (!section) return;
-
-  const titles = section.querySelectorAll(".hero-title, .section-title, .skills-title, .contact-title");
-  titles.forEach((title, index) => {
-    matrixDecode(title, { delay: index * 300 });
-  });
-}
-
 const hamburger = document.getElementById("hamburger-toggle");
 const navMenu = document.getElementById("nav-menu");
 const navLinks = Array.from(document.querySelectorAll("nav a[data-target]"));
@@ -289,9 +183,6 @@ function navigateToSection(target, { updateHash = true } = {}) {
     top: 0,
     behavior: prefersReducedMotion.matches ? "auto" : "smooth",
   });
-
-  // Trigger matrix decode on section titles immediately
-  matrixDecodeSection(target);
 }
 
 function syncSectionWithHash(hash = window.location.hash) {
@@ -359,8 +250,18 @@ function filterProjects() {
       : projects.map((project) => ({ ...project, visible: true }));
 
     const visibleCount = filteredProjects.reduce((count, project) => {
-      project.card.hidden = !project.visible;
-      project.card.classList.toggle("fade-out", !project.visible);
+      if (project.visible) {
+        project.card.hidden = false;
+        requestAnimationFrame(() => project.card.classList.remove("fade-out"));
+      } else {
+        project.card.classList.add("fade-out");
+        clearTimeout(project.card.hideTimeout);
+        project.card.hideTimeout = setTimeout(() => {
+          if (project.card.classList.contains("fade-out")) {
+            project.card.hidden = true;
+          }
+        }, 400);
+      }
       return count + (project.visible ? 1 : 0);
     }, 0);
 
@@ -592,6 +493,49 @@ function initContactForm() {
   });
 }
 
+function initMatrixDecode() {
+  const element = document.querySelector(".hero-title");
+  if (!element || prefersReducedMotion.matches) return;
+
+  const originalText = element.textContent;
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
+  
+  const animateText = () => {
+    let iterations = 0;
+    let lastTime = 0;
+    
+    const tick = (time) => {
+      if (!lastTime) lastTime = time;
+      if (time - lastTime >= 40) {
+        element.innerHTML = originalText.split("").map((letter, index) => {
+          if (letter === " ") return " ";
+          if (index < iterations) return letter;
+          return `<span style="color: var(--accent);">${chars[Math.floor(Math.random() * chars.length)]}</span>`;
+        }).join("");
+        
+        iterations += 1 / 3;
+        lastTime = time;
+      }
+      
+      if (iterations < originalText.length) {
+        requestAnimationFrame(tick);
+      } else {
+        element.textContent = originalText;
+      }
+    };
+
+    requestAnimationFrame(tick);
+  };
+
+  setTimeout(animateText, 100);
+
+  element.addEventListener("mouseenter", () => {
+    if (element.textContent === originalText) {
+      animateText();
+    }
+  });
+}
+
 if (hamburger) {
   hamburger.addEventListener("click", () => {
     const isOpen = !navMenu?.classList.contains("show-menu");
@@ -670,17 +614,16 @@ projectDetailModal?.addEventListener("click", (event) => {
 });
 
 if (backToTopBtn) {
-  const header = document.getElementById("header");
-  if (header && "IntersectionObserver" in window) {
-    const topObserver = new IntersectionObserver((entries) => {
-      backToTopBtn.classList.toggle("visible", !entries[0].isIntersecting);
-    }, { rootMargin: "300px 0px 0px 0px" });
-    topObserver.observe(header);
-  } else {
-    window.addEventListener("scroll", () => {
-      backToTopBtn.classList.toggle("visible", window.scrollY > 280);
-    }, { passive: true });
-  }
+  let isScrolling = false;
+  window.addEventListener("scroll", () => {
+    if (!isScrolling) {
+      window.requestAnimationFrame(() => {
+        backToTopBtn.classList.toggle("visible", window.scrollY > 280);
+        isScrolling = false;
+      });
+      isScrolling = true;
+    }
+  }, { passive: true });
 
   backToTopBtn.addEventListener("click", () => {
     window.scrollTo({
@@ -698,10 +641,7 @@ initContactForm();
 initReveals();
 initStats();
 initTerminalIntro();
-
-// Matrix decode the initial section's titles on page load
-const initialHash = window.location.hash.replace(/^#/, "").trim();
-matrixDecodeSection(initialHash || "about");
+initMatrixDecode();
 
 if (footerYear) {
   footerYear.textContent = new Date().getFullYear();

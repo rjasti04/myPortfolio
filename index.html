@@ -146,8 +146,7 @@
         <div class="project-detail-stack" id="project-detail-stack"></div>
         <ul class="project-detail-outcomes" id="project-detail-outcomes"></ul>
       </div>
-      <a href="#contact" data-target="contact" class="btn btn-outline nav-cta project-detail-cta"
-        id="project-detail-cta">
+      <a href="#contact" data-target="contact" class="btn btn-outline nav-cta project-detail-cta" id="project-detail-cta">
         Discuss This Project <i class="fas fa-arrow-right"></i>
       </a>
     </div>
@@ -161,12 +160,12 @@
     <header id="header">
       <a href="profile-pic.jpeg" target="_blank" rel="noopener noreferrer" class="header-left" id="profile-trigger"
         aria-label="Open profile photo">
-        <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w" sizes="42px"
-          alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="725" height="1024" />
+        <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w"
+          sizes="42px" alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="725" height="1024" />
         <div class="logo-text">RJ</div>
       </a>
-      <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
-        aria-controls="nav-menu" aria-expanded="false">
+      <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu" aria-controls="nav-menu"
+        aria-expanded="false">
         <i class="fas fa-bars"></i>
       </button>
       <nav id="nav-menu" aria-label="Primary">
@@ -291,7 +290,8 @@
           </div>
         </div>
 
-        <div class="skills-section" aria-label="Technical Skills">
+        <div class="skills-section">
+          <h2 class="section-title skills-title">Technical Skills</h2>
           <div class="skills-grid">
             <div class="skill-group reveal">
               <h3 class="skill-group-label">Data Processing</h3>
@@ -352,42 +352,13 @@
           </div>
         </div>
 
-        <!-- Architecture Section (Commented for future use)
-        <h2 class="section-title skills-title architecture-title">Architecture</h2>
-        <div class="architecture-diagram reveal">
-          <div class="arch-node">
-            <i class="fas fa-server"></i>
-            <span>Source Systems</span>
-          </div>
-          <div class="arch-connector">
-            <div class="connector-line"></div>
-            <i class="fas fa-chevron-right connector-arrow"></i>
-          </div>
-          <div class="arch-node highlight-node">
-            <i class="fas fa-random"></i>
-            <span>Kafka</span>
-          </div>
-          <div class="arch-connector streaming">
-            <div class="connector-line streaming-line"></div>
-            <i class="fas fa-chevron-right connector-arrow"></i>
-          </div>
-          <div class="arch-node highlight-node">
-            <i class="fas fa-bolt"></i>
-            <span>Spark</span>
-          </div>
-          <div class="arch-connector">
-            <div class="connector-line"></div>
-            <i class="fas fa-chevron-right connector-arrow"></i>
-          </div>
-          <div class="arch-node end-node">
-            <i class="fas fa-database"></i>
-            <span>Lakehouse</span>
-          </div>
-        </div>
-        -->
+
       </section>
 
-      <section id="resume" aria-label="Experience">
+      <section id="resume">
+        <h2 class="section-title">Experience</h2>
+        <p class="section-intro">Company names are intentionally omitted for confidentiality; scope and outcomes reflect
+          production work.</p>
 
         <div class="item reveal">
           <div class="item-header">
@@ -449,7 +420,10 @@
         </div>
       </section>
 
-      <section id="portfolio" aria-label="Projects">
+      <section id="portfolio">
+        <h2 class="section-title">Projects</h2>
+        <p class="section-intro">Selected platform work focused on reliability, observability, and reusable delivery
+          patterns.</p>
         <div class="project-toolbar" aria-label="Project filters">
           <div class="project-filter-group" role="group" aria-label="Filter projects by stack">
             <button type="button" class="project-filter active" data-filter="all" aria-pressed="true">All</button>
@@ -532,7 +506,8 @@
         </div>
       </section>
 
-      <section id="hobbies" aria-label="Interests & Hobbies">
+      <section id="hobbies">
+        <h2 class="section-title">Interests &amp; Hobbies</h2>
         <div class="articles-grid">
           <div class="item article-card reveal">
             <div class="article-meta">
@@ -571,6 +546,8 @@
 
       <section id="contact">
         <div class="item contact-section reveal">
+          <h2 class="contact-title">Let&apos;s talk.</h2>
+          <p class="contact-description">Have a project in mind or want to connect? Send me a message.</p>
           <div class="contact-grid">
             <div class="contact-info">
               <a href="mailto:inboxtorj@gmail.com" class="btn contact-email-btn">
@@ -580,8 +557,8 @@
                 Copy Email <i class="fas fa-copy"></i>
               </button>
             </div>
-            <form class="contact-form" id="contact-form" action="https://formsubmit.co/inboxtorj@gmail.com"
-              method="post" accept-charset="UTF-8">
+            <form class="contact-form" id="contact-form" action="https://formsubmit.co/inboxtorj@gmail.com" method="post"
+              accept-charset="UTF-8">
               <input type="hidden" name="_subject" value="New portfolio message from rajeevjasti.com" />
               <input type="hidden" name="_captcha" value="false" />
               <div class="form-group">
