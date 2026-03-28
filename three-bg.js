@@ -129,8 +129,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     const isDark = document.body.classList.contains("dark-theme");
     waveMaterial.color.copy(color);
     dustMaterial.color.copy(color);
-    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.40 : 0.60) : (variant === "compact" ? 0.50 : 0.90);
-    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.20 : 0.30) : (variant === "compact" ? 0.25 : 0.45);
+    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.40 : 0.60) : (variant === "compact" ? 0.50 : 0.80);
+    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.20 : 0.30) : (variant === "compact" ? 0.25 : 0.35);
   };
   syncTheme();
 
@@ -150,6 +150,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   let animationFrame = 0;
   const render = () => {
     animationFrame = window.requestAnimationFrame(render);
+    if (document.hidden) return; // Halt heavy GPU/math when tab is inactive
+
     const elapsed = clock.getElapsedTime();
     const positions = waveGeometry.attributes.position.array;
 
