@@ -1,8 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-
-const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-const compactViewportQuery = window.matchMedia("(max-width: 900px)");
+import { prefersReducedMotion as reducedMotionQuery, compactViewport as compactViewportQuery } from "./js/config.js";
 let destroyBackground = null;
 let backgroundVariant = null;
 

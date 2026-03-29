@@ -1,5 +1,7 @@
 import { openModal, closeModal } from "./modal.js";
 
+const hideTimeouts = new WeakMap();
+
 let projectDetailModal, projectDetailClose, projectDetailIcon, projectDetailTitle, projectDetailDescription, projectDetailStack, projectDetailOutcomes;
 
 export function fillProjectDetails(card) {
@@ -51,10 +53,10 @@ export function filterProjects() {
         requestAnimationFrame(() => project.card.classList.remove("fade-out"));
       } else {
         project.card.classList.add("fade-out");
-        clearTimeout(project.card.hideTimeout);
-        project.card.hideTimeout = setTimeout(() => {
+        clearTimeout(hideTimeouts.get(project.card));
+        hideTimeouts.set(project.card, setTimeout(() => {
           if (project.card.classList.contains("fade-out")) project.card.hidden = true;
-        }, 400);
+        }, 400));
       }
       return count + (project.visible ? 1 : 0);
     }, 0);

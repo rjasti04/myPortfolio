@@ -1,5 +1,6 @@
 const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const modalFocusReturn = new WeakMap();
+const modalKeydown = new WeakMap();
 
 export function getFocusableElements(container) {
   return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter((element) => {
@@ -43,7 +44,7 @@ export function openModal(modal, { initialFocus = null } = {}) {
     handleFocusTrap(event, modal);
   };
 
-  modal.__keydownHandler = onKeydown;
+  modalKeydown.set(modal, onKeydown);
   document.addEventListener("keydown", onKeydown);
 
   const focusable = getFocusableElements(modal);
@@ -58,9 +59,10 @@ export function closeModal(modal, { restoreFocus = true } = {}) {
   modal.classList.remove("active");
   modal.setAttribute("aria-hidden", "true");
 
-  if (modal.__keydownHandler) {
-    document.removeEventListener("keydown", modal.__keydownHandler);
-    modal.__keydownHandler = null;
+  const handler = modalKeydown.get(modal);
+  if (handler) {
+    document.removeEventListener("keydown", handler);
+    modalKeydown.delete(modal);
   }
 
   if (restoreFocus) {

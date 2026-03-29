@@ -92,24 +92,38 @@ export function initMatrixDecode() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
   
   const animateText = () => {
+    const letters = originalText.split("");
+    element.textContent = "";
+    const spans = letters.map(letter => {
+      const s = document.createElement("span");
+      s.textContent = letter;
+      element.appendChild(s);
+      return s;
+    });
     let iterations = 0;
     let lastTime = 0;
-    
+
     const tick = (time) => {
       if (!lastTime) lastTime = time;
       if (time - lastTime >= 40) {
-        element.innerHTML = originalText.split("").map((letter, index) => {
-          if (letter === " ") return " ";
-          if (index < iterations) return letter;
-          return `<span style="color: var(--accent);">${chars[Math.floor(Math.random() * chars.length)]}</span>`;
-        }).join("");
-        
+        for (let i = 0; i < letters.length; i++) {
+          if (letters[i] === " ") continue;
+          if (i < iterations) {
+            if (spans[i].style.color) {
+              spans[i].textContent = letters[i];
+              spans[i].style.color = "";
+            }
+          } else {
+            spans[i].textContent = chars[Math.floor(Math.random() * chars.length)];
+            spans[i].style.color = "var(--accent)";
+          }
+        }
         iterations += 1 / 3;
         lastTime = time;
       }
-      
+
       if (iterations < originalText.length) requestAnimationFrame(tick);
-      else element.innerHTML = originalText;
+      else element.textContent = originalText;
     };
     requestAnimationFrame(tick);
   };
