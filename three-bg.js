@@ -48,7 +48,7 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, config.pixelRatioCap));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
-  const getAccent = () => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#f43f5e";
+  const getAccent = () => getComputedStyle(document.body).getPropertyValue("--accent").trim() || "#f43f5e";
 
   const textureCanvas = document.createElement("canvas");
   textureCanvas.width = 64;
