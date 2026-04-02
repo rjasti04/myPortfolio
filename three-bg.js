@@ -1,7 +1,6 @@
 import * as THREE from "three";
-
-const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-const compactViewportQuery = window.matchMedia("(max-width: 900px)");
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { prefersReducedMotion as reducedMotionQuery, compactViewport as compactViewportQuery } from "./js/config.js";
 let destroyBackground = null;
 let backgroundVariant = null;
 
@@ -17,15 +16,15 @@ function getBackgroundVariant() {
 function getBackgroundConfig(variant = getBackgroundVariant()) {
   const compact = variant === "compact";
   return {
-    cameraY: compact ? 4.6 : 4,
-    cameraZ: compact ? 20 : 22,
-    dustCount: compact ? 120 : 220,
+    cameraY: compact ? 8 : 10,
+    cameraZ: compact ? 20 : 25,
+    dustCount: compact ? 150 : 300,
     pixelRatioCap: compact ? 1.1 : 1.5,
-    pointSize: compact ? 0.78 : 0.65,
-    waveColumns: compact ? 34 : 52,
-    waveRows: compact ? 34 : 52,
-    waveSpacing: compact ? 1.4 : 1.25,
-    waveYOffset: compact ? -4 : -3.5,
+    pointSize: compact ? 0.8 : 0.65,
+    waveColumns: compact ? 40 : 60,
+    waveRows: compact ? 40 : 60,
+    waveSpacing: compact ? 1.2 : 1.1,
+    waveYOffset: compact ? -4 : -5,
   };
 }
 
@@ -49,7 +48,7 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, config.pixelRatioCap));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
-  const getAccent = () => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#f43f5e";
+  const getAccent = () => getComputedStyle(document.body).getPropertyValue("--accent").trim() || "#f43f5e";
 
   const textureCanvas = document.createElement("canvas");
   textureCanvas.width = 64;
@@ -67,13 +66,19 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   const waveGeometry = new THREE.BufferGeometry();
   const { waveColumns, waveRows } = config;
   const wavePositions = new Float32Array(waveColumns * waveRows * 3);
+  const waveDistances = new Float32Array(waveColumns * waveRows);
   let cursor = 0;
+  let distCursor = 0;
   for (let xIndex = 0; xIndex < waveColumns; xIndex += 1) {
     for (let zIndex = 0; zIndex < waveRows; zIndex += 1) {
-      wavePositions[cursor] = (xIndex - waveColumns / 2) * config.waveSpacing;
+      const x = (xIndex - waveColumns / 2) * config.waveSpacing;
+      const z = (zIndex - waveRows / 2) * config.waveSpacing;
+      wavePositions[cursor] = x;
       wavePositions[cursor + 1] = 0;
-      wavePositions[cursor + 2] = (zIndex - waveRows / 2) * config.waveSpacing;
+      wavePositions[cursor + 2] = z;
+      waveDistances[distCursor] = Math.sqrt(x * x + z * z);
       cursor += 3;
+      distCursor += 1;
     }
   }
   waveGeometry.setAttribute("position", new THREE.BufferAttribute(wavePositions, 3));
@@ -114,61 +119,84 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   const dustMesh = new THREE.Points(dustGeometry, dustMaterial);
   scene.add(dustMesh);
 
-  const pointer = { x: 0, y: 0 };
-  const updatePointer = (event) => {
-    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-    pointer.y = (event.clientY / window.innerHeight) * 2 - 1;
-  };
-  document.addEventListener("pointermove", updatePointer, { passive: true });
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.5;
+  controls.maxDistance = 50;
+  controls.minDistance = 10;
+  controls.maxPolarAngle = Math.PI / 2 + 0.1;
 
   const syncTheme = () => {
     const color = new THREE.Color(getAccent());
     const isDark = document.body.classList.contains("dark-theme");
     waveMaterial.color.copy(color);
     dustMaterial.color.copy(color);
-    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.24 : 0.30) : (variant === "compact" ? 0.52 : 0.70);
-    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.10 : 0.15) : (variant === "compact" ? 0.22 : 0.35);
+    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.30 : 0.60) : (variant === "compact" ? 0.52 : 0.80);
+    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.15 : 0.30) : (variant === "compact" ? 0.22 : 0.40);
   };
   syncTheme();
 
   const themeObserver = new MutationObserver(syncTheme);
   themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
+  let isVisible = true;
+
+  let mouseX = 0;
+  let mouseY = 0;
+  let targetMouseX = 0;
+  let targetMouseY = 0;
+
+  const handleMouseMove = (e) => {
+    targetMouseX = (e.clientX / window.innerWidth) * 2 - 1;
+    targetMouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+  };
+  window.addEventListener("mousemove", handleMouseMove);
+
   const clock = new THREE.Clock();
 
+  let resizeWait = false;
   const handleResize = () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, config.pixelRatioCap));
+    if (resizeWait) return;
+    resizeWait = true;
+    window.requestAnimationFrame(() => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, config.pixelRatioCap));
+      resizeWait = false;
+    });
   };
   window.addEventListener("resize", handleResize);
 
   let animationFrame = 0;
   const render = () => {
     animationFrame = window.requestAnimationFrame(render);
+    if (document.hidden || !isVisible) return;
+    
     const elapsed = clock.getElapsedTime();
     const positions = waveGeometry.attributes.position.array;
 
     let index = 0;
+    let distIndex = 0;
     for (let xIndex = 0; xIndex < waveColumns; xIndex += 1) {
       for (let zIndex = 0; zIndex < waveRows; zIndex += 1) {
-        const x = positions[index];
-        const z = positions[index + 2];
-        positions[index + 1] =
-          Math.sin((x + elapsed * 2.2) * 0.16) * 0.85
-          + Math.cos((z + elapsed * 1.6) * 0.15) * 0.8;
+        const dist = waveDistances[distIndex];
+        positions[index + 1] = Math.sin(dist * 0.45 - elapsed * 2.5) * 1.5;
         index += 3;
+        distIndex += 1;
       }
     }
     waveGeometry.attributes.position.needsUpdate = true;
 
-    dustMesh.rotation.y = elapsed * 0.01;
-    dustMesh.rotation.x = elapsed * 0.004;
+    mouseX += (targetMouseX - mouseX) * 0.05;
+    mouseY += (targetMouseY - mouseY) * 0.05;
 
-    camera.position.x += ((pointer.x * 1.4) - camera.position.x) * 0.02;
-    camera.position.y += ((config.cameraY - pointer.y * 0.7) - camera.position.y) * 0.02;
-    camera.lookAt(scene.position);
+    dustMesh.rotation.y = elapsed * 0.02 + (mouseX * 0.4);
+    dustMesh.rotation.x = elapsed * 0.01 + (-mouseY * 0.4);
+
+    controls.update();
     renderer.render(scene, camera);
   };
 
@@ -177,7 +205,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   return () => {
     window.cancelAnimationFrame(animationFrame);
     window.removeEventListener("resize", handleResize);
-    document.removeEventListener("pointermove", updatePointer);
+    window.removeEventListener("mousemove", handleMouseMove);
+    controls.dispose();
     themeObserver.disconnect();
     renderer.setAnimationLoop(null);
     renderer.dispose();

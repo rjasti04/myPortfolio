@@ -54,6 +54,7 @@
 
   globalObject.AppLogic = exportsObject;
 
+  // CJS export for Node.js test runner (node --test). Remove if migrating to ESM tests.
   if (typeof module !== "undefined" && module.exports) {
     module.exports = exportsObject;
   }
