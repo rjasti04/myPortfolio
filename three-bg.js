@@ -174,7 +174,7 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   const render = () => {
     animationFrame = window.requestAnimationFrame(render);
     if (document.hidden || !isVisible) return;
-    
+
     const elapsed = clock.getElapsedTime();
     const positions = waveGeometry.attributes.position.array;
 

@@ -1,8 +1,8 @@
 :root {
-  --accent: #f43f5e;
-  --accent-soft: rgb(244 63 94 / 10%);
-  --accent-mild: rgb(244 63 94 / 60%);
-  --accent-hover: #e11d48;
+  --accent: #e61e4d;
+  --accent-soft: rgba(230, 30, 77, 0.1);
+  --accent-mild: rgba(230, 30, 77, 0.6);
+  --accent-hover: #c4133e;
   --bg: #f8fafc;
   --bg-gradient: radial-gradient(circle at top left, #ffffff, #f0f9ff);
   --text: #1c1917;
@@ -29,10 +29,10 @@ body.dark-theme {
   --card-bg: rgb(10 10 10 / 60%);
   --skill-bg: rgba(20, 20, 20, 0.6);
   --select-bg: #111111;
-  --accent: #fb7185;
-  --accent-soft: rgba(251, 113, 133, 0.1);
-  --accent-mild: rgba(251, 113, 133, 0.6);
-  --accent-hover: #f43f5e;
+  --accent: #ff3864;
+  --accent-soft: rgba(255, 56, 100, 0.1);
+  --accent-mild: rgba(255, 56, 100, 0.6);
+  --accent-hover: #e61e4d;
   --terminal-green: #39ff14;
 }
 
