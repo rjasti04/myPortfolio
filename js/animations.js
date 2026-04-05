@@ -70,7 +70,7 @@ export function initStats() {
 }
 
 export function initTerminalIntro() {
-  const terminalChildren = Array.from(document.querySelectorAll(".terminal-body > *"));
+  const terminalChildren = Array.from(document.querySelectorAll(".terminal-body > *:not(.terminal-input-line)"));
   if (prefersReducedMotion.matches || terminalChildren.length === 0) {
     terminalChildren.forEach((child) => { child.style.opacity = "1"; });
     return;
@@ -85,10 +85,10 @@ export function initTerminalIntro() {
 }
 
 export function initMatrixDecode() {
-  const element = document.querySelector(".welcome-text");
+  const element = document.querySelector(".hero-title");
   if (!element || prefersReducedMotion.matches) return;
 
-  const originalText = element.textContent;
+  const originalText = element.textContent.trim();
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
   
   const animateText = () => {

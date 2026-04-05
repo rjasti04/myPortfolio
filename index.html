@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="Rajeev Jasti" />
-  <meta name="theme-color" content="#f34f4f" />
+  <meta name="theme-color" content="#e61e4d" />
   <meta name="description"
     content="Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines." />
   <link rel="canonical" href="https://rajeevjasti.com/" />
@@ -36,6 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="RJ Portfolio" />
+  <meta name="format-detection" content="telephone=no" />
   <link rel="manifest" href="manifest.json" />
   <script type="application/ld+json">
   {
@@ -214,9 +215,20 @@
 
     <main>
       <section id="about" class="active">
-        <div class="ticker-wrap">
-          <div class="welcome-strip">
-            <span class="welcome-text">WELCOME TO MY WEBSITE</span>
+        <div class="info-bar">
+          <div class="info-group">
+            <i class="fas fa-clock"></i>
+            <span id="user-time">--:--:--</span>
+          </div>
+          <div class="info-group">
+            <i class="fas fa-calendar-alt"></i>
+            <span id="user-date">Loading date...</span>
+          </div>
+          <div class="info-group location-group">
+            <span id="user-location"><i class="fas fa-map-marker-alt"></i> Locating...</span>
+          </div>
+          <div class="info-group weather-group">
+            <span id="user-weather"><span class="weather-icon">--</span></span>
           </div>
         </div>
 
@@ -243,31 +255,35 @@
               <span class="terminal-dot dot-green" aria-hidden="true"></span>
               <span class="terminal-title">now-building.sh</span>
             </div>
-            <div class="terminal-body">
-              <p class="terminal-line"><span class="prompt">$</span> cat current_focus.md</p>
-              <ul class="terminal-list">
-                <li>Realtime lakehouse observability rollout</li>
-                <li>Self-serve pipeline templates for domain teams</li>
-              </ul>
+            <div class="terminal-body" id="terminal-body">
+              <div id="terminal-output">
+                <p class="terminal-line"><span class="prompt">$</span> cat current_focus.md</p>
+                <ul class="terminal-list">
+                  <li>Realtime lakehouse observability rollout</li>
+                  <li>Self-serve pipeline templates for domain teams</li>
+                </ul>
 
-              <p class="terminal-line"><span class="prompt">$</span> stack --active</p>
-              <div class="terminal-tags">
-                <span>Kafka</span>
-                <span>Spark</span>
-                <span>Airflow</span>
-                <span>Snowflake</span>
-                <span>Terraform</span>
-                <span>Kubernetes</span>
+                <p class="terminal-line"><span class="prompt">$</span> stack --active</p>
+                <div class="terminal-tags">
+                  <span>Kafka</span>
+                  <span>Spark</span>
+                  <span>Airflow</span>
+                  <span>Snowflake</span>
+                  <span>Terraform</span>
+                  <span>Kubernetes</span>
+                </div>
+
+                <p class="terminal-line"><span class="prompt">$</span> tail -n 3 recent_wins.log</p>
+                <ul class="terminal-list">
+                  <li>[OK] P95 latency down 40%</li>
+                  <li>[OK] Cloud spend down 30%</li>
+                  <li>[OK] Throughput stable at 1M+ events/sec</li>
+                </ul>
               </div>
-
-              <p class="terminal-line"><span class="prompt">$</span> tail -n 3 recent_wins.log</p>
-              <ul class="terminal-list">
-                <li>[OK] P95 latency down 40%</li>
-                <li>[OK] Cloud spend down 30%</li>
-                <li>[OK] Throughput stable at 1M+ events/sec</li>
-              </ul>
-
-              <p class="terminal-line is-live"><span class="prompt">$</span> deploy --env production</p>
+              <div class="terminal-input-line">
+                <span class="prompt">$</span>
+                <input type="text" id="terminal-input" class="terminal-input" autocomplete="off" spellcheck="false" placeholder="Type 'help' to see commands..." aria-label="Terminal command input" />
+              </div>
             </div>
           </aside>
         </div>
@@ -617,7 +633,7 @@
 
   <script src="app-logic.js"></script>
   <script type="module" src="js/main.js"></script>
-  <script type="module" src="three-bg.js"></script>
+
 </body>
 
 </html>

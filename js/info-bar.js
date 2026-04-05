@@ -1,0 +1,76 @@
+export function initInfoBar() {
+  const clockEl = document.getElementById("user-time");
+  const dateEl = document.getElementById("user-date");
+  const locationEl = document.getElementById("user-location");
+  const weatherEl = document.getElementById("user-weather");
+
+  if (!clockEl || !dateEl) return;
+
+  // Initialize Clock
+  function updateClock() {
+    const now = new Date();
+    
+    // Time like '10:42:05 AM'
+    clockEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    // Date like 'Monday, April 5'
+    dateEl.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+
+  // Run immediately and then every second
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // If no location element, we can skip API calls
+  if (!locationEl || !weatherEl) return;
+
+  // Fetch Location
+  async function fetchLocationAndWeather() {
+    try {
+      const geoRes = await fetch("https://get.geojs.io/v1/ip/geo.json");
+      if (!geoRes.ok) throw new Error("GeoAPI fail");
+      const geoData = await geoRes.json();
+      
+      const city = geoData.city || "Unknown";
+      const country = geoData.country || "";
+      locationEl.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${city}, ${country}`;
+
+      const lat = geoData.latitude;
+      const lon = geoData.longitude;
+
+      if (!lat || !lon) return;
+
+      // Fetch Weather
+      const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+      if (!weatherRes.ok) throw new Error("WeatherAPI fail");
+      const weatherData = await weatherRes.json();
+
+      const current = weatherData.current_weather;
+      if (current) {
+        const temp = Math.round(current.temperature);
+        const code = current.weathercode;
+        const weatherObj = getWeatherCode(code);
+        
+        weatherEl.innerHTML = `<span class="weather-icon" title="${weatherObj.desc}">${weatherObj.icon}</span> ${temp}°C`;
+      }
+
+    } catch (e) {
+      console.error("InfoBar API Error:", e);
+      locationEl.textContent = "🌍 Earth (Remote)";
+      weatherEl.textContent = "";
+    }
+  }
+
+  fetchLocationAndWeather();
+}
+
+function getWeatherCode(code) {
+  if (code === 0) return { icon: "☀️", desc: "Clear" };
+  if (code === 1 || code === 2 || code === 3) return { icon: "⛅", desc: "Partly Cloudy" };
+  if (code >= 45 && code <= 48) return { icon: "🌫️", desc: "Fog" };
+  if (code >= 51 && code <= 67) return { icon: "🌧️", desc: "Rain" };
+  if (code >= 71 && code <= 77) return { icon: "❄️", desc: "Snow" };
+  if (code >= 80 && code <= 82) return { icon: "🌦️", desc: "Showers" };
+  if (code >= 95 && code <= 99) return { icon: "⛈️", desc: "Thunderstorm" };
+  return { icon: "🌡️", desc: "Unknown" };
+}

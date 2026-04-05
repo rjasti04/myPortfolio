@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v1';
+const CACHE_NAME = 'rj-portfolio-v2';
 
 const PRECACHE_URLS = [
   '/',
@@ -18,7 +18,9 @@ const PRECACHE_URLS = [
   '/js/animations.js',
   '/js/tilt.js',
   '/js/modal.js',
-  '/js/utils.js'
+  '/js/utils.js',
+  '/js/terminal.js',
+  '/js/info-bar.js'
 ];
 
 self.addEventListener('install', event => {
@@ -90,7 +92,12 @@ self.addEventListener('fetch', event => {
           }
           return networkResponse;
         }).catch(() => {
-          // If offline and fetching fails, we just silently fail the background update.
+          // If offline and fetching fails, return a basic offline response
+          return new Response('Offline — cached content unavailable.', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain' }
+          });
         });
 
         // Return the cached response immediately, or wait for the network response if nothing is cached.

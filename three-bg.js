@@ -216,7 +216,6 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     waveMaterial.dispose();
     dustMaterial.dispose();
     spriteTexture.dispose();
-    canvas.width = canvas.width;
   };
 }
 
@@ -266,4 +265,8 @@ export function initThreeBackground() {
   bindMediaQueryListener(compactViewportQuery, syncThreeBackground);
 }
 
-document.addEventListener("DOMContentLoaded", initThreeBackground);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initThreeBackground);
+} else {
+  initThreeBackground();
+}

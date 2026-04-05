@@ -4,6 +4,8 @@ import { initProjects } from "./projects.js";
 import { initContactForm } from "./form.js";
 import { initAnimations } from "./animations.js";
 import { initTilt } from "./tilt.js";
+import { initTerminal } from "./terminal.js";
+import { initInfoBar } from "./info-bar.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
@@ -12,9 +14,19 @@ document.addEventListener("DOMContentLoaded", () => {
   initContactForm();
   initAnimations();
   initTilt();
+  initTerminal();
+  initInfoBar();
   
   const footerYear = document.getElementById("footer-year");
   if (footerYear) footerYear.textContent = new Date().getFullYear();
+
+  // Defer Three.js background for faster initial paint
+  const loadThreeBackground = () => import("../three-bg.js");
+  if ("requestIdleCallback" in window) {
+    requestIdleCallback(loadThreeBackground);
+  } else {
+    setTimeout(loadThreeBackground, 200);
+  }
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {

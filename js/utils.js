@@ -18,7 +18,3 @@ export function showToast(message, type = "info") {
     toast.addEventListener("transitionend", () => toast.remove(), { once: true });
   }, 3200);
 }
-
-export function openExternal(url) {
-  window.open(url, "_blank", "noopener,noreferrer");
-}

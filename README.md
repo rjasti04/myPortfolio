@@ -5,8 +5,7 @@ A single-page portfolio web application with responsive section navigation, an a
 ## Getting started
 
 ### Prerequisites
-- Node.js 18+
-- npm
+- **Node.js 18+** and **npm** — required for running tests (`jsdom`), linting, and formatting
 
 ### Install dependencies
 ```bash
@@ -24,7 +23,7 @@ Then open `http://localhost:8080`.
 
 ## Available scripts
 - `npm run lint` - runs all linters.
-- `npm run lint:js` - runs ESLint on `scripts.js`.
+- `npm run lint:js` - runs ESLint on `app-logic.js` and `js/*.js`.
 - `npm run lint:css` - runs Stylelint on all CSS files.
 - `npm run format` - formats HTML/CSS/JS/JSON/Markdown/YAML files with Prettier.
 - `npm run format:check` - verifies formatting without writing changes.
@@ -32,7 +31,7 @@ Then open `http://localhost:8080`.
 
 ## Features
 - Section-based in-page navigation with active-link state and hash restoration.
-- Light/dark theme toggle and optional UI sound persisted in `localStorage`.
+- Light/dark theme toggle persisted in `localStorage`.
 - Accessible project detail modal with keyboard dismissal and focus handling.
 - Progressive enhancement so core content remains available without JavaScript.
 - Contact form with native form fallback plus AJAX enhancement when JavaScript is available.
