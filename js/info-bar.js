@@ -51,7 +51,7 @@ export function initInfoBar() {
         const code = current.weathercode;
         const weatherObj = getWeatherCode(code);
         
-        weatherEl.innerHTML = `<span class="weather-icon" title="${weatherObj.desc}">${weatherObj.icon}</span> ${temp}°C`;
+        weatherEl.innerHTML = `<i class="${weatherObj.icon} weather-icon" title="${weatherObj.desc}"></i> ${temp}°C`;
       }
 
     } catch (e) {
@@ -65,12 +65,13 @@ export function initInfoBar() {
 }
 
 function getWeatherCode(code) {
-  if (code === 0) return { icon: "☀️", desc: "Clear" };
-  if (code === 1 || code === 2 || code === 3) return { icon: "⛅", desc: "Partly Cloudy" };
-  if (code >= 45 && code <= 48) return { icon: "🌫️", desc: "Fog" };
-  if (code >= 51 && code <= 67) return { icon: "🌧️", desc: "Rain" };
-  if (code >= 71 && code <= 77) return { icon: "❄️", desc: "Snow" };
-  if (code >= 80 && code <= 82) return { icon: "🌦️", desc: "Showers" };
-  if (code >= 95 && code <= 99) return { icon: "⛈️", desc: "Thunderstorm" };
-  return { icon: "🌡️", desc: "Unknown" };
+  if (code === 0) return { icon: "fas fa-sun", desc: "Clear" };
+  if (code === 1 || code === 2 || code === 3) return { icon: "fas fa-cloud-sun", desc: "Partly Cloudy" };
+  if (code >= 45 && code <= 48) return { icon: "fas fa-smog", desc: "Fog" };
+  if (code >= 51 && code <= 67) return { icon: "fas fa-cloud-rain", desc: "Rain" };
+  if (code >= 71 && code <= 77) return { icon: "fas fa-snowflake", desc: "Snow" };
+  if (code >= 80 && code <= 82) return { icon: "fas fa-cloud-showers-heavy", desc: "Showers" };
+  if (code >= 95 && code <= 99) return { icon: "fas fa-bolt", desc: "Thunderstorm" };
+  return { icon: "fas fa-thermometer-half", desc: "Unknown" };
 }
+
