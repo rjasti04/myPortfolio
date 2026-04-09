@@ -1,4 +1,4 @@
-export const API_BASE = "http://localhost:8000"; // Change this for production deployment
+export const API_BASE = "https://rjasti.com/api";
 let sessionId = sessionStorage.getItem("rj_session_id");
 const eventQueue = [];
 let heartbeatInterval;
