@@ -42,25 +42,27 @@ async function startSession() {
 
 function startHeartbeat() {
   if (heartbeatInterval) clearInterval(heartbeatInterval);
-  // Send heartbeat every 60 seconds
-  heartbeatInterval = setInterval(async () => {
+  heartbeatInterval = setInterval(async () => { // Added async for cleaner handling
     if (!sessionId) return;
-
     try {
       const response = await fetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
       });
-
-      if (response.status === 404) {
-        console.warn("Analytics: Session expired or not found. Stopping heartbeat.");
-        clearInterval(heartbeatInterval);
-        return;
-      }
       
-      if (!response.ok) throw new Error(`Status: ${response.status}`);
+      if (response.status === 404) {
+        // If session is not found, stop heartbeating on this stale ID
+        clearInterval(heartbeatInterval);
+        console.warn("Analytics: Session expired or not found. Clearing stale ID and restarting.");
+        
+        // The most likely cause is the API's database was cleared or the session expired on the server.
+        // We need to forget the old ID and generate a new one so tracking can resume.
+        sessionStorage.removeItem("rj_session_id");
+        sessionId = null;
+        startSession();
+      }
     } catch (err) {
-      console.error("Analytics: Heartbeat failed", err);
+      console.error("Analytics: Heartbeat network failure", err);
     }
   }, 60000);
 }
