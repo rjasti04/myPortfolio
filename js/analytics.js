@@ -43,12 +43,25 @@ async function startSession() {
 function startHeartbeat() {
   if (heartbeatInterval) clearInterval(heartbeatInterval);
   // Send heartbeat every 60 seconds
-  heartbeatInterval = setInterval(() => {
+  heartbeatInterval = setInterval(async () => {
     if (!sessionId) return;
-    fetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-    }).catch(err => console.error("Analytics: Heartbeat failed", err));
+
+    try {
+      const response = await fetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (response.status === 404) {
+        console.warn("Analytics: Session expired or not found. Stopping heartbeat.");
+        clearInterval(heartbeatInterval);
+        return;
+      }
+      
+      if (!response.ok) throw new Error(`Status: ${response.status}`);
+    } catch (err) {
+      console.error("Analytics: Heartbeat failed", err);
+    }
   }, 60000);
 }
 
@@ -99,18 +112,28 @@ async function flushEvents() {
 function flushEventsOnUnload() {
   if (eventQueue.length > 0 && sessionId) {
     const payload = JSON.stringify({ events: eventQueue });
-    const blob = new Blob([payload], { type: 'application/json' });
 
-    // navigator.sendBeacon is highly reliable for sending data when the page is closing
-    navigator.sendBeacon(`${API_BASE}/events/bulk`, blob);
+    // Use fetch with keepalive as it can reliably send data on unload and supports proper headers/methods
+    fetch(`${API_BASE}/events/bulk`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      keepalive: true
+    }).catch(console.error);
+
     eventQueue.length = 0;
   }
 
-  // Also send an end session beacon
+  // Also send an end session call
+  // API requires a PATCH method, which sendBeacon doesn't support
   if (sessionId) {
     const endPayload = JSON.stringify({ end_reason: "tab_closed_or_hidden" });
-    const endBlob = new Blob([endPayload], { type: 'application/json' });
-    navigator.sendBeacon(`${API_BASE}/sessions/${sessionId}/end`, endBlob);
+    fetch(`${API_BASE}/sessions/${sessionId}/end`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: endPayload,
+      keepalive: true
+    }).catch(console.error);
   }
 }
 
