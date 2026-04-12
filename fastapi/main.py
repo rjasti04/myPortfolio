@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 import asyncpg
 import os
 
+import json
+
 # ---------------------------------------------------------------------------
 # App setup
 # ---------------------------------------------------------------------------
@@ -108,18 +110,19 @@ async def create_session(payload: SessionCreate, request: Request):
 async def session_heartbeat(session_id: UUID, request: Request):
     """Call periodically (e.g. every 60 s) to keep the session alive."""
     async with request.app.state.pool.acquire() as conn:
+        # Removing `AND is_active = true` so a heartbeat can revive an inactive session
         result = await conn.execute(
             """
             UPDATE user_sessions
-               SET last_active_at = now()
+               SET last_active_at = now(),
+                   is_active = true
              WHERE session_id = $1
-               AND is_active = true
             """,
             session_id,
         )
 
     if result == "UPDATE 0":
-        raise HTTPException(404, "Session not found or already ended")
+        raise HTTPException(404, "Session not found")
 
     return {"status": "ok", "last_active_at": _now()}
 
@@ -128,6 +131,8 @@ async def session_heartbeat(session_id: UUID, request: Request):
 async def end_session(session_id: UUID, payload: SessionEnd, request: Request):
     """Marks the session inactive and records ended_at + end_reason."""
     async with request.app.state.pool.acquire() as conn:
+        # Removing `AND is_active = true` allows multiple repeat "end" calls 
+        # (e.g. from tab visibility toggling) to succeed without throwing 404s.
         result = await conn.execute(
             """
             UPDATE user_sessions
@@ -136,14 +141,13 @@ async def end_session(session_id: UUID, payload: SessionEnd, request: Request):
                    last_active_at = now(),
                    end_reason     = $2
              WHERE session_id = $1
-               AND is_active = true
             """,
             session_id,
             payload.end_reason,
         )
 
     if result == "UPDATE 0":
-        raise HTTPException(404, "Session not found or already ended")
+        raise HTTPException(404, "Session not found")
 
     return {"status": "ended", "ended_at": _now()}
 
@@ -181,13 +185,13 @@ async def create_event(payload: EventCreate, request: Request):
         row = await conn.fetchrow(
             """
             INSERT INTO user_activity_events (session_id, event_type, page_path, event_data)
-            VALUES ($1, $2, $3, $4)
+            VALUES ($1, $2, $3, $4::jsonb)
             RETURNING event_id, created_at
             """,
             payload.session_id,
             payload.event_type,
             payload.page_path,
-            payload.event_data,  # asyncpg serialises dict â†’ jsonb automatically
+            json.dumps(payload.event_data) if payload.event_data is not None else None,
         )
 
     return {"event_id": row["event_id"], "created_at": row["created_at"]}
@@ -205,19 +209,24 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request):
         raise HTTPException(400, "Maximum 500 events per bulk request")
 
     rows = [
-        (str(e.session_id), e.event_type, e.page_path, e.event_data)
+        (e.session_id, e.event_type, e.page_path, json.dumps(e.event_data) if e.event_data is not None else None)
         for e in payload.events
     ]
 
     async with request.app.state.pool.acquire() as conn:
-        async with conn.transaction():
-            await conn.executemany(
-                """
-                INSERT INTO user_activity_events (session_id, event_type, page_path, event_data)
-                VALUES ($1, $2, $3, $4)
-                """,
-                rows,
-            )
+        try:
+            async with conn.transaction():
+                await conn.executemany(
+                    """
+                    INSERT INTO user_activity_events (session_id, event_type, page_path, event_data)
+                    VALUES ($1, $2, $3, $4::jsonb)
+                    """,
+                    rows,
+                )
+        except asyncpg.exceptions.ForeignKeyViolationError:
+            raise HTTPException(422, "One or more session IDs not found in database")
+        except Exception as e:
+            raise HTTPException(400, f"Database error: {str(e)}")
 
     return {"inserted": len(rows)}
 

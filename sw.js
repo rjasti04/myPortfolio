@@ -58,9 +58,14 @@ self.addEventListener('fetch', event => {
         }
         // If not in cache, fetch it AND cache it for next time
         return fetch(event.request).then(networkResponse => {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic' && networkResponse.type !== 'cors') {
+          // Check if the request is internal/extension (non-http) or invalid
+          const requestScheme = new URL(event.request.url).protocol;
+          if (!networkResponse || networkResponse.status !== 200 || 
+              (networkResponse.type !== 'basic' && networkResponse.type !== 'cors') ||
+              !requestScheme.startsWith('http')) {
             return networkResponse;
           }
+
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
             cache.put(event.request, responseToCache);
@@ -84,7 +89,8 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       caches.match(event.request).then(cachedResponse => {
         const fetchPromise = fetch(event.request).then(networkResponse => {
-          if (networkResponse && networkResponse.status === 200) {
+          const requestScheme = new URL(event.request.url).protocol;
+          if (networkResponse && networkResponse.status === 200 && requestScheme.startsWith('http')) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then(cache => {
               cache.put(event.request, responseToCache);

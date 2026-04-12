@@ -42,7 +42,8 @@ async function startSession() {
 
 function startHeartbeat() {
   if (heartbeatInterval) clearInterval(heartbeatInterval);
-  heartbeatInterval = setInterval(async () => { // Added async for cleaner handling
+  
+  const ping = async () => {
     if (!sessionId) return;
     try {
       const response = await fetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
@@ -64,7 +65,12 @@ function startHeartbeat() {
     } catch (err) {
       console.error("Analytics: Heartbeat network failure", err);
     }
-  }, 60000);
+  };
+
+  heartbeatInterval = setInterval(ping, 60000);
+  
+  // On resume/reload, trigger a quick verify ping shortly after initialization
+  setTimeout(ping, 1000);
 }
 
 export function trackEvent(eventType, eventData = {}) {
@@ -104,10 +110,16 @@ async function flushEvents() {
     });
 
     if (!response.ok) {
-      console.error("Analytics: Failed to push events");
+      if (response.status >= 500 || response.status === 429) {
+        // Put events back at the start of the queue to retry later for temporary failures
+        eventQueue.unshift(...eventsToSend);
+      }
+      console.error(`Analytics: Server returned ${response.status}`);
     }
   } catch (error) {
-    console.error("Analytics: Error bulk sending events", error);
+    // Put events back in queue on network error
+    eventQueue.unshift(...eventsToSend);
+    console.error("Analytics: Network error bulk sending events", error);
   }
 }
 
@@ -141,10 +153,18 @@ function flushEventsOnUnload() {
 
 // Set up event listeners for global behaviors
 function attachGlobalListeners() {
-  // Flush on tab hide/close
+  // Flush on tab hide/close, revive on show
   window.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       flushEventsOnUnload();
+    } else if (document.visibilityState === "visible") {
+      if (sessionId) {
+        // Immediately ping the heartbeat to revive the session in the backend
+        fetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" }
+        }).catch(err => console.error("Analytics: Revive error", err));
+      }
     }
   });
 
