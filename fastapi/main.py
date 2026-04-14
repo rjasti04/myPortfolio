@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import asyncpg
 import os
 
-import json
+import orjson
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -89,7 +89,10 @@ async def create_session(payload: SessionCreate, request: Request):
     Creates a new row in user_sessions and returns the generated session_id.
     ip_address can be passed explicitly or auto-detected from the request.
     """
-    ip = payload.ip_address or request.client.host
+    # Support reverse proxies like Nginx/Caddy by checking X-Forwarded-For
+    forwarded = request.headers.get("x-forwarded-for")
+    client_ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else None)
+    ip = payload.ip_address or client_ip
 
     async with request.app.state.pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -191,7 +194,7 @@ async def create_event(payload: EventCreate, request: Request):
             payload.session_id,
             payload.event_type,
             payload.page_path,
-            json.dumps(payload.event_data) if payload.event_data is not None else None,
+            orjson.dumps(payload.event_data).decode('utf-8') if payload.event_data is not None else None,
         )
 
     return {"event_id": row["event_id"], "created_at": row["created_at"]}
@@ -209,7 +212,7 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request):
         raise HTTPException(400, "Maximum 500 events per bulk request")
 
     rows = [
-        (e.session_id, e.event_type, e.page_path, json.dumps(e.event_data) if e.event_data is not None else None)
+        (e.session_id, e.event_type, e.page_path, orjson.dumps(e.event_data).decode('utf-8') if e.event_data is not None else None)
         for e in payload.events
     ]
 

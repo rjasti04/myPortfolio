@@ -182,14 +182,17 @@ export function initTerminal() {
           terminalInput.value = matches[0] + " ";
         } else if (matches.length > 1) {
           // If multiple matches exist, print them
+          const fragment = document.createDocumentFragment();
           const commandElement = document.createElement("p");
           commandElement.className = "terminal-line";
           commandElement.innerHTML = `<span class="prompt">$</span> ${escapeHTML(current)}`;
-          terminalOutput.appendChild(commandElement);
+          fragment.appendChild(commandElement);
           
           const resultElement = document.createElement("div");
           resultElement.innerHTML = `<p class="terminal-output-text">${matches.join("  ")}</p>`;
-          terminalOutput.appendChild(resultElement);
+          fragment.appendChild(resultElement);
+          
+          terminalOutput.appendChild(fragment);
           
           requestAnimationFrame(() => {
             terminalBody.scrollTop = terminalBody.scrollHeight;
@@ -209,10 +212,11 @@ export function initTerminal() {
       }
       historyIndex = commandHistory.length;
 
+      const fragment = document.createDocumentFragment();
       const commandElement = document.createElement("p");
       commandElement.className = "terminal-line";
       commandElement.innerHTML = `<span class="prompt">$</span> ${escapeHTML(inputVal)}`;
-      terminalOutput.appendChild(commandElement);
+      fragment.appendChild(commandElement);
 
       const parts = inputVal.split(" ");
       const cmd = parts[0].toLowerCase();
@@ -229,8 +233,10 @@ export function initTerminal() {
       }
 
       if (resultElement.innerHTML) {
-        terminalOutput.appendChild(resultElement);
+        fragment.appendChild(resultElement);
       }
+      
+      terminalOutput.appendChild(fragment);
 
       terminalInput.value = "";
       

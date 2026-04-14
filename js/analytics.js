@@ -1,5 +1,20 @@
 export const API_BASE = "https://rjasti.com/api";
-let sessionId = sessionStorage.getItem("rj_session_id");
+let sessionId = null;
+try {
+  sessionId = sessionStorage.getItem("rj_session_id");
+} catch (e) {
+  console.warn("Analytics: sessionStorage not available");
+}
+
+function setSessionId(id) {
+  sessionId = id;
+  try { sessionStorage.setItem("rj_session_id", id); } catch (e) {}
+}
+
+function clearSessionId() {
+  sessionId = null;
+  try { sessionStorage.removeItem("rj_session_id"); } catch (e) {}
+}
 const eventQueue = [];
 let heartbeatInterval;
 
@@ -30,7 +45,7 @@ async function startSession() {
     if (response.ok) {
       const data = await response.json();
       sessionId = data.session_id;
-      sessionStorage.setItem("rj_session_id", sessionId);
+      setSessionId(data.session_id);
 
       startHeartbeat();
       trackEvent("page_view", { referrer: document.referrer });
@@ -58,8 +73,7 @@ function startHeartbeat() {
         
         // The most likely cause is the API's database was cleared or the session expired on the server.
         // We need to forget the old ID and generate a new one so tracking can resume.
-        sessionStorage.removeItem("rj_session_id");
-        sessionId = null;
+        clearSessionId();
         startSession();
       }
     } catch (err) {
@@ -154,18 +168,28 @@ function flushEventsOnUnload() {
 // Set up event listeners for global behaviors
 function attachGlobalListeners() {
   // Flush on tab hide/close, revive on show
+  let visibilityTimeout;
   window.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-      flushEventsOnUnload();
-    } else if (document.visibilityState === "visible") {
-      if (sessionId) {
-        // Immediately ping the heartbeat to revive the session in the backend
-        fetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" }
-        }).catch(err => console.error("Analytics: Revive error", err));
+    clearTimeout(visibilityTimeout);
+    visibilityTimeout = setTimeout(() => {
+      if (document.visibilityState === "hidden") {
+        flushEventsOnUnload();
+      } else if (document.visibilityState === "visible") {
+        if (sessionId) {
+          // Immediately ping the heartbeat to revive the session in the backend
+          fetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" }
+          }).then(res => {
+            if (res.status === 404) {
+               console.warn("Analytics: Session expired during revive. Restarting.");
+               clearSessionId();
+               startSession();
+            }
+          }).catch(err => console.error("Analytics: Revive error", err));
+        }
       }
-    }
+    }, 250); // Debounce visibility change
   });
 
   // Track global clicks on interactive elements
