@@ -16,15 +16,15 @@ function getBackgroundVariant() {
 function getBackgroundConfig(variant = getBackgroundVariant()) {
   const compact = variant === "compact";
   return {
-    cameraY: compact ? 8 : 10,
-    cameraZ: compact ? 20 : 25,
-    dustCount: compact ? 150 : 300,
-    pixelRatioCap: compact ? 1.1 : 1.5,
-    pointSize: compact ? 0.8 : 0.65,
-    waveColumns: compact ? 40 : 60,
-    waveRows: compact ? 40 : 60,
-    waveSpacing: compact ? 1.2 : 1.1,
-    waveYOffset: compact ? -4 : -5,
+    cameraY: compact ? 5 : 10,
+    cameraZ: compact ? 10 : 20,
+    dustCount: compact ? 0 : 0,
+    pixelRatioCap: compact ? 1 : 1,
+    pointSize: compact ? 0.30 : 0.5,
+    waveColumns: compact ? 50 : 100,
+    waveRows: compact ? 50 : 100,
+    waveSpacing: compact ? 1.5 : 1.75,
+    waveYOffset: compact ? -10 : -10,
   };
 }
 
@@ -88,13 +88,13 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     color: new THREE.Color(getAccent()),
     depthWrite: false,
     map: spriteTexture,
-    opacity: 0.2,
     size: config.pointSize,
-    transparent: true,
+    transparent: false,
   });
 
   const waveMesh = new THREE.Points(waveGeometry, waveMaterial);
   waveMesh.rotation.x = -Math.PI / 6;
+  waveMesh.rotation.z = Math.PI / 6;
   waveMesh.position.y = config.waveYOffset;
   scene.add(waveMesh);
 
@@ -111,9 +111,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     color: new THREE.Color(getAccent()),
     depthWrite: false,
     map: spriteTexture,
-    opacity: 0.12,
-    size: 0.28,
-    transparent: true,
+    size: 0.25,
+    transparent: false,
   });
 
   const dustMesh = new THREE.Points(dustGeometry, dustMaterial);
@@ -122,19 +121,18 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.5;
-  controls.maxDistance = 50;
-  controls.minDistance = 10;
-  controls.maxPolarAngle = Math.PI / 2 + 0.1;
+  controls.autoRotate = false;
+  controls.enableRotate = false;
+  controls.enableZoom = false;
+  controls.enablePan = false;
 
   const syncTheme = () => {
     const color = new THREE.Color(getAccent());
     const isDark = document.body.classList.contains("dark-theme");
     waveMaterial.color.copy(color);
     dustMaterial.color.copy(color);
-    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.30 : 0.60) : (variant === "compact" ? 0.52 : 0.80);
-    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.15 : 0.30) : (variant === "compact" ? 0.22 : 0.40);
+    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.30 : 0.60) : (variant === "compact" ? 0.52 : 1);
+    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.15 : 0.30) : (variant === "compact" ? 0.22 : 1);
   };
   syncTheme();
 
@@ -183,7 +181,7 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     for (let xIndex = 0; xIndex < waveColumns; xIndex += 1) {
       for (let zIndex = 0; zIndex < waveRows; zIndex += 1) {
         const dist = waveDistances[distIndex];
-        positions[index + 1] = Math.sin(dist * 0.45 - elapsed * 2.5) * 1.5;
+        positions[index + 1] = Math.sin(dist * 0.45 - elapsed * 1.25) * 1.5;
         index += 3;
         distIndex += 1;
       }

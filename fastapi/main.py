@@ -1,44 +1,146 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Query, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from typing import Optional, Any
 from uuid import UUID
 from datetime import datetime, timezone
+from contextlib import asynccontextmanager
+from collections import defaultdict
 import asyncpg
 import os
+import json
+import time
+import logging
 
 import orjson
 
-# ---------------------------------------------------------------------------
-# App setup
-# ---------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Activity Tracker API", version="1.0.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://webapp:B-rabbit<3@localhost:5432/myappdb",
 )
 
+_raw_origins = os.getenv("CORS_ORIGINS", "https://rajeevjasti.com")
+_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
+API_KEY = os.getenv("API_KEY", "")
+MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", str(1_048_576)))  # 1 MB
+
 # ---------------------------------------------------------------------------
-# DB pool lifecycle
+# Rate Limiting Middleware (in-memory, per-IP)
 # ---------------------------------------------------------------------------
 
-@app.on_event("startup")
-async def startup():
+class RateLimitMiddleware:
+    """Simple sliding-window rate limiter. Good enough for single-instance
+    deployments; use Redis-backed limiting for multi-instance."""
+
+    def __init__(self, app, max_requests: int = 60, window_seconds: int = 60):
+        self.app = app
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self._hits: dict[str, list[float]] = defaultdict(list)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
+        forwarded = request.headers.get("x-forwarded-for")
+        client_ip = (
+            forwarded.split(",")[0].strip()
+            if forwarded
+            else (request.client.host if request.client else "unknown")
+        )
+
+        now = time.time()
+        window = self.window_seconds
+        self._hits[client_ip] = [
+            t for t in self._hits[client_ip] if now - t < window
+        ]
+
+        if len(self._hits[client_ip]) >= self.max_requests:
+            from starlette.responses import JSONResponse
+
+            response = JSONResponse(
+                {"detail": "Rate limit exceeded. Try again later."},
+                status_code=429,
+            )
+            await response(scope, receive, send)
+            return
+
+        self._hits[client_ip].append(now)
+        await self.app(scope, receive, send)
+
+# ---------------------------------------------------------------------------
+# Body Size Limit Middleware
+# ---------------------------------------------------------------------------
+
+class BodySizeLimitMiddleware:
+    """Reject requests whose Content-Length exceeds a threshold."""
+
+    def __init__(self, app, max_bytes: int = MAX_BODY_BYTES):
+        self.app = app
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > self.max_bytes:
+            from starlette.responses import JSONResponse
+
+            response = JSONResponse(
+                {"detail": "Request body too large"},
+                status_code=413,
+            )
+            await response(scope, receive, send)
+            return
+
+        await self.app(scope, receive, send)
+
+# ---------------------------------------------------------------------------
+# App setup
+# ---------------------------------------------------------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     app.state.pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
-
-@app.on_event("shutdown")
-async def shutdown():
+    yield
     await app.state.pool.close()
+
+app = FastAPI(title="Activity Tracker API", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(BodySizeLimitMiddleware, max_bytes=MAX_BODY_BYTES)
+app.add_middleware(RateLimitMiddleware, max_requests=60, window_seconds=60)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH"],
+    allow_headers=["Content-Type", "X-API-Key"],
+)
+
+# ---------------------------------------------------------------------------
+# Auth helper (optional — only enforced when API_KEY env var is set)
+# ---------------------------------------------------------------------------
+
+async def verify_api_key(request: Request):
+    """Guard for read endpoints. Skipped when API_KEY is not configured."""
+    if not API_KEY:
+        return
+    key = request.headers.get("x-api-key", "")
+    if key != API_KEY:
+        raise HTTPException(403, "Invalid or missing API key")
 
 # ---------------------------------------------------------------------------
 # Pydantic models
@@ -53,7 +155,7 @@ class SessionEnd(BaseModel):
     end_reason: Optional[str] = None   # "logout" | "timeout" | "closed" | etc.
 
 class SessionUpdate(BaseModel):
-    """Lightweight heartbeat â€” just bumps last_active_at."""
+    """Lightweight heartbeat — just bumps last_active_at."""
     pass
 
 class EventCreate(BaseModel):
@@ -68,6 +170,14 @@ class EventCreate(BaseModel):
         if not v.strip():
             raise ValueError("event_type must not be blank")
         return v.strip()
+
+    @field_validator("event_data")
+    @classmethod
+    def event_data_size_limit(cls, v):
+        if v is not None:
+            if len(json.dumps(v)) > 4096:
+                raise ValueError("event_data exceeds 4 KB limit")
+        return v
 
 class BulkEventCreate(BaseModel):
     events: list[EventCreate]
@@ -155,11 +265,21 @@ async def end_session(session_id: UUID, payload: SessionEnd, request: Request):
     return {"status": "ended", "ended_at": _now()}
 
 
-@app.get("/sessions/{session_id}", summary="Get session details")
+@app.get(
+    "/sessions/{session_id}",
+    summary="Get session details",
+    dependencies=[Depends(verify_api_key)],
+)
 async def get_session(session_id: UUID, request: Request):
     async with request.app.state.pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT * FROM user_sessions WHERE session_id = $1", session_id
+            """
+            SELECT session_id, started_at, ended_at, is_active,
+                   device_type, user_agent, last_active_at, end_reason
+              FROM user_sessions
+             WHERE session_id = $1
+            """,
+            session_id,
         )
 
     if not row:
@@ -178,7 +298,7 @@ async def create_event(payload: EventCreate, request: Request):
     The session must exist in user_sessions.
     """
     async with request.app.state.pool.acquire() as conn:
-        # Verify session exists (optional guard â€” remove if perf-sensitive)
+        # Verify session exists (optional guard — remove if perf-sensitive)
         exists = await conn.fetchval(
             "SELECT 1 FROM user_sessions WHERE session_id = $1", payload.session_id
         )
@@ -228,18 +348,23 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request):
                 )
         except asyncpg.exceptions.ForeignKeyViolationError:
             raise HTTPException(422, "One or more session IDs not found in database")
-        except Exception as e:
-            raise HTTPException(400, f"Database error: {str(e)}")
+        except Exception:
+            logger.exception("Bulk event insert failed")
+            raise HTTPException(500, "Internal server error")
 
     return {"inserted": len(rows)}
 
 
-@app.get("/sessions/{session_id}/events", summary="List events for a session")
+@app.get(
+    "/sessions/{session_id}/events",
+    summary="List events for a session",
+    dependencies=[Depends(verify_api_key)],
+)
 async def get_session_events(
     session_id: UUID,
     request: Request,
-    limit: int = 100,
-    offset: int = 0,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ):
     async with request.app.state.pool.acquire() as conn:
         rows = await conn.fetch(

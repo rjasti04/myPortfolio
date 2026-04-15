@@ -1,4 +1,5 @@
 export const API_BASE = "https://rjasti.com/api";
+const MAX_QUEUE_SIZE = 200;
 let sessionId = null;
 try {
   sessionId = sessionStorage.getItem("rj_session_id");
@@ -127,12 +128,20 @@ async function flushEvents() {
       if (response.status >= 500 || response.status === 429) {
         // Put events back at the start of the queue to retry later for temporary failures
         eventQueue.unshift(...eventsToSend);
+        // Prevent unbounded growth when API is persistently down
+        if (eventQueue.length > MAX_QUEUE_SIZE) {
+          eventQueue.length = MAX_QUEUE_SIZE;
+        }
       }
       console.error(`Analytics: Server returned ${response.status}`);
     }
   } catch (error) {
     // Put events back in queue on network error
     eventQueue.unshift(...eventsToSend);
+    // Prevent unbounded growth when offline
+    if (eventQueue.length > MAX_QUEUE_SIZE) {
+      eventQueue.length = MAX_QUEUE_SIZE;
+    }
     console.error("Analytics: Network error bulk sending events", error);
   }
 }

@@ -1,3 +1,11 @@
+let clockInterval = null;
+
+function escapeInfoHTML(str) {
+  const div = document.createElement("div");
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+
 export function initInfoBar() {
   const clockEl = document.getElementById("user-time");
   const dateEl = document.getElementById("user-date");
@@ -17,9 +25,10 @@ export function initInfoBar() {
     dateEl.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
   }
 
-  // Run immediately and then every second
+  // Run immediately and then every second (guard against double-init)
   updateClock();
-  setInterval(updateClock, 1000);
+  if (clockInterval) clearInterval(clockInterval);
+  clockInterval = setInterval(updateClock, 1000);
 
   // If no location element, we can skip API calls
   if (!locationEl || !weatherEl) return;
@@ -33,7 +42,7 @@ export function initInfoBar() {
       
       const city = geoData.city || "Unknown";
       const country = geoData.country || "";
-      locationEl.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${city}, ${country}`;
+      locationEl.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${escapeInfoHTML(city)}, ${escapeInfoHTML(country)}`;
 
       const lat = geoData.latitude;
       const lon = geoData.longitude;
@@ -51,7 +60,7 @@ export function initInfoBar() {
         const code = current.weathercode;
         const weatherObj = getWeatherCode(code);
         
-        weatherEl.innerHTML = `<i class="${weatherObj.icon} weather-icon" title="${weatherObj.desc}"></i> ${temp}°C`;
+        weatherEl.innerHTML = `<i class="${escapeInfoHTML(weatherObj.icon)} weather-icon" title="${escapeInfoHTML(weatherObj.desc)}"></i> ${escapeInfoHTML(temp)}°C`;
       }
 
     } catch (e) {

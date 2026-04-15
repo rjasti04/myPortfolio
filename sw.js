@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v3';
+const CACHE_NAME = 'rj-portfolio-v5';
 
 const PRECACHE_URLS = [
   '/',
@@ -20,7 +20,8 @@ const PRECACHE_URLS = [
   '/js/modal.js',
   '/js/utils.js',
   '/js/terminal.js',
-  '/js/info-bar.js'
+  '/js/info-bar.js',
+  '/js/analytics.js'
 ];
 
 self.addEventListener('install', event => {
@@ -82,31 +83,29 @@ self.addEventListener('fetch', event => {
   // 2. Local App Shell & Assets (HTML/CSS/JS/Images): Stale-While-Revalidate strategy
   // We serve exactly what is in the cache instantly, then blindly fetch in the background
   // to update the cache for the NEXT page load.
-  if (url.origin === location.origin) {
-    if (event.request.method !== 'GET') return;
+  if (event.request.method !== 'GET') return;
 
-    event.respondWith(
-      caches.match(event.request).then(cachedResponse => {
-        const fetchPromise = fetch(event.request).then(networkResponse => {
-          if (networkResponse && networkResponse.status === 200 && event.request.url.startsWith('http')) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        }).catch(() => {
-          // If offline and fetching fails, return a basic offline response
-          return new Response('Offline — cached content unavailable.', {
-            status: 503,
-            statusText: 'Service Unavailable',
-            headers: { 'Content-Type': 'text/plain' }
+  event.respondWith(
+    caches.match(event.request).then(cachedResponse => {
+      const fetchPromise = fetch(event.request).then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200 && event.request.url.startsWith('http')) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
           });
+        }
+        return networkResponse;
+      }).catch(() => {
+        // If offline and fetching fails, return a basic offline response
+        return new Response('Offline — cached content unavailable.', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'text/plain' }
         });
+      });
 
-        // Return the cached response immediately, or wait for the network response if nothing is cached.
-        return cachedResponse || fetchPromise;
-      })
-    );
-  }
+      // Return the cached response immediately, or wait for the network response if nothing is cached.
+      return cachedResponse || fetchPromise;
+    })
+  );
 });

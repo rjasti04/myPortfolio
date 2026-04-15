@@ -101,8 +101,8 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
       }
     }
   </script>
@@ -117,6 +117,16 @@
 </head>
 
 <body>
+  <!-- Inline theme bootstrap: runs before first paint to prevent white flash.
+       Defaults to dark-theme if no preference has been saved. -->
+  <script>
+    (function () {
+      var saved = localStorage.getItem('theme');
+      if (saved !== 'light') {
+        document.body.classList.add('dark-theme');
+      }
+    }());
+  </script>
   <noscript>
     <div class="noscript-banner" role="alert">
       JavaScript is disabled. Core content is still available, but advanced animations and quick actions are turned off.
@@ -126,6 +136,7 @@
   <div class="noise-overlay js-only"></div>
   <canvas id="webgl-canvas" class="webgl-canvas js-only" aria-hidden="true"></canvas>
   <div class="toast-container js-only" id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
 
   <div class="image-modal" id="image-modal" role="dialog" aria-modal="true" aria-label="Profile photo"
     aria-hidden="true">
@@ -587,7 +598,7 @@
             <form class="contact-form" id="contact-form" action="https://formsubmit.co/inboxtorj@gmail.com" method="post"
               accept-charset="UTF-8">
               <input type="hidden" name="_subject" value="New portfolio message from rajeevjasti.com" />
-              <input type="hidden" name="_captcha" value="false" />
+              <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
               <div class="form-group floating-label-group">
                 <div class="input-wrapper">
                   <input type="text" id="contact-name" name="name" placeholder=" " autocomplete="name" required />

@@ -2085,12 +2085,23 @@ section {
 .js-enabled section {
   display: none;
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(16px) scale(0.985);
 }
 
 .js-enabled section.active {
   display: block;
-  animation: slide-up 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  animation: section-enter 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes section-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .js-enabled #about.active {
@@ -2164,3 +2175,4 @@ section {
     width: auto;
   }
 }
+

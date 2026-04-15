@@ -17,7 +17,7 @@ export function initTheme() {
   themeIcon = document.getElementById("theme-icon");
 
   const savedTheme = localStorage.getItem("theme");
-  applyTheme(savedTheme === "dark" || (!savedTheme && prefersDarkScheme.matches));
+  applyTheme(savedTheme !== "light");
 
   themeBtn?.addEventListener("click", () => {
     const nextValue = !document.body.classList.contains("dark-theme");

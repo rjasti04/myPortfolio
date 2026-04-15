@@ -84,7 +84,11 @@ export function filterProjects() {
     });
   });
 
-  projectSearchInput?.addEventListener("input", syncVisibleCards);
+  let searchTimeout;
+  projectSearchInput?.addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(syncVisibleCards, 150);
+  });
   syncVisibleCards();
 }
 

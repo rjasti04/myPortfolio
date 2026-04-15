@@ -1,4 +1,4 @@
-import { compactViewport, prefersReducedMotion } from "./config.js";
+import { compactViewport, prefersReducedMotion, supportsHover } from "./config.js";
 import { closeModal, openModal } from "./modal.js";
 
 let hamburger, navMenu, navLinks, sections, connectDropdown, connectToggle, connectMenu, imageModal, imageModalCloseButton, profileTrigger, backToTopBtn;
@@ -137,4 +137,28 @@ export function initNavigation() {
   }
 
   syncSectionWithHash();
+
+  // Feature 4: Keyboard shortcut hints on nav links
+  if (supportsHover.matches) {
+    navLinks.forEach((link, index) => {
+      const kbd = document.createElement("kbd");
+      kbd.className = "nav-shortcut";
+      kbd.textContent = String(index + 1);
+      link.appendChild(kbd);
+    });
+  }
+
+  // Number key navigation (1-5)
+  document.addEventListener("keydown", (event) => {
+    const tag = document.activeElement?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+    const num = parseInt(event.key, 10);
+    if (num >= 1 && num <= navLinks.length) {
+      event.preventDefault();
+      const target = navLinks[num - 1]?.dataset.target;
+      if (target) navigateToSection(target);
+    }
+  });
 }

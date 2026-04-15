@@ -1,4 +1,4 @@
-import { prefersReducedMotion } from "./config.js";
+import { prefersReducedMotion, mobileDevice } from "./config.js";
 
 export function initReveals() {
   const revealElements = Array.from(document.querySelectorAll(".reveal"));
@@ -71,7 +71,7 @@ export function initStats() {
 
 export function initTerminalIntro() {
   const terminalChildren = Array.from(document.querySelectorAll(".terminal-body > *:not(.terminal-input-line)"));
-  if (prefersReducedMotion.matches || terminalChildren.length === 0) {
+  if (mobileDevice.matches || prefersReducedMotion.matches || terminalChildren.length === 0) {
     terminalChildren.forEach((child) => { child.style.opacity = "1"; });
     return;
   }
