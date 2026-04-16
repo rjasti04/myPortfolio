@@ -18,7 +18,7 @@ function getBackgroundConfig(variant = getBackgroundVariant()) {
   return {
     cameraY: compact ? 5 : 10,
     cameraZ: compact ? 10 : 20,
-    dustCount: compact ? 0 : 0,
+    dustCount: compact ? 10000 : 10000,
     pixelRatioCap: compact ? 1 : 1,
     pointSize: compact ? 0.30 : 0.5,
     waveColumns: compact ? 50 : 100,

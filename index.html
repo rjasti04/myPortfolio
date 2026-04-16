@@ -111,6 +111,7 @@
   </script>
   <link rel="preload" href="profile-pic-160.webp" as="image" type="image/webp" />
   <link rel="stylesheet" href="styles.min.css" />
+  <link rel="stylesheet" href="styles-activity.css" />
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -196,6 +197,7 @@
         <a href="#resume" data-target="resume">Experience</a>
         <a href="#portfolio" data-target="portfolio">Portfolio</a>
         <a href="#hobbies" data-target="hobbies">Hobbies</a>
+        <a href="#activity" data-target="activity">Activity</a>
         <a href="#contact" data-target="contact">Contact</a>
       </nav>
       <div class="header-actions">
@@ -579,6 +581,30 @@
             <p class="article-excerpt">Always on the hunt for the best local eats, from hidden street food gems to
               trying my hand at cooking new cuisines at home.</p>
           </div>
+        </div>
+      </section>
+
+      <section id="activity">
+        <h2 class="section-title">Session Activity</h2>
+        <p class="section-intro">Live view of current session events from FastAPI heartbeat session.</p>
+        <div class="activity-controls">
+          <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i> Refresh View</button>
+          <div class="activity-session-info">Session ID: <span id="current-session-id">-</span></div>
+        </div>
+        <div class="activity-table-container">
+          <table class="activity-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Type</th>
+                <th>Path</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody id="activity-tbody">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
         </div>
       </section>
 
