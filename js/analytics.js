@@ -179,11 +179,11 @@ function attachGlobalListeners() {
   // Flush on tab hide/close, revive on show
   let visibilityTimeout;
   window.addEventListener("visibilitychange", () => {
-    clearTimeout(visibilityTimeout);
-    visibilityTimeout = setTimeout(() => {
-      if (document.visibilityState === "hidden") {
-        flushEventsOnUnload();
-      } else if (document.visibilityState === "visible") {
+    if (document.visibilityState === "hidden") {
+      flushEventsOnUnload();
+    } else if (document.visibilityState === "visible") {
+      clearTimeout(visibilityTimeout);
+      visibilityTimeout = setTimeout(() => {
         if (sessionId) {
           // Immediately ping the heartbeat to revive the session in the backend
           fetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
@@ -197,8 +197,12 @@ function attachGlobalListeners() {
             }
           }).catch(err => console.error("Analytics: Revive error", err));
         }
-      }
-    }, 250); // Debounce visibility change
+      }, 250); // Debounce revive
+    }
+  });
+
+  window.addEventListener("pagehide", () => {
+    flushEventsOnUnload();
   });
 
   // Track global clicks on interactive elements
@@ -222,6 +226,27 @@ function attachGlobalListeners() {
   window.addEventListener("hashchange", () => {
     trackEvent("page_view", { hash: window.location.hash });
   });
+
+  // Track max scroll depth
+  const scrollDepths = new Set();
+  let scrollTimeout;
+  window.addEventListener("scroll", () => {
+    if (scrollTimeout) return;
+    scrollTimeout = setTimeout(() => {
+      scrollTimeout = null;
+      const root = document.documentElement;
+      const maxScroll = Math.max(0, root.scrollHeight - root.clientHeight);
+      if (maxScroll === 0) return;
+      
+      const percent = (root.scrollTop / maxScroll) * 100;
+      [25, 50, 75, 90, 100].forEach(depth => {
+        if (percent >= depth && !scrollDepths.has(depth)) {
+          scrollDepths.add(depth);
+          trackEvent("scroll_depth", { percent: depth });
+        }
+      });
+    }, 500);
+  }, { passive: true });
 }
 
 export function initAnalytics() {

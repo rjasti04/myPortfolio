@@ -13,7 +13,7 @@
   box-shadow: 0 4px 20px rgba(0,0,0,0.02);
   margin-top: 20px;
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  scrollbar-color: var(--accent) transparent;
 }
 .activity-table-container::-webkit-scrollbar {
   height: 6px;
@@ -23,7 +23,7 @@
   background: transparent;
 }
 .activity-table-container::-webkit-scrollbar-thumb {
-  background-color: var(--border);
+  background-color: var(--accent);
   border-radius: 6px;
 }
 .activity-table-container::-webkit-scrollbar-thumb:hover {

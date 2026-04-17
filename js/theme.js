@@ -1,4 +1,5 @@
 import { prefersDarkScheme } from "./config.js";
+import { trackEvent } from "./analytics.js";
 
 let themeBtn, themeIcon;
 
@@ -21,6 +22,7 @@ export function initTheme() {
 
   themeBtn?.addEventListener("click", () => {
     const nextValue = !document.body.classList.contains("dark-theme");
+    trackEvent("theme_change", { theme: nextValue ? "dark" : "light" });
     applyTheme(nextValue);
     localStorage.setItem("theme", nextValue ? "dark" : "light");
   });

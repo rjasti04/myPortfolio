@@ -1,5 +1,6 @@
 import { CONTACT_EMAIL } from "./config.js";
 import { showToast } from "./utils.js";
+import { trackEvent } from "./analytics.js";
 
 function setFormStatus(element, message, state = "info") {
   if (!element) return;
@@ -16,11 +17,18 @@ function clearFormStatus(element) {
 function copyEmailToClipboard() {
   if (!navigator.clipboard?.writeText) {
     showToast("Clipboard access is unavailable. Please copy the email manually.", "error");
+    trackEvent("copy_email", { success: false, reason: "unavailable" });
     return;
   }
   navigator.clipboard.writeText(CONTACT_EMAIL)
-    .then(() => showToast("Email copied to clipboard.", "success"))
-    .catch(() => showToast("Clipboard copy failed. Please copy the email manually.", "error"));
+    .then(() => {
+      showToast("Email copied to clipboard.", "success");
+      trackEvent("copy_email", { success: true });
+    })
+    .catch(() => {
+      showToast("Clipboard copy failed. Please copy the email manually.", "error");
+      trackEvent("copy_email", { success: false, reason: "exception" });
+    });
 }
 
 export function initContactForm() {
@@ -71,11 +79,13 @@ export function initContactForm() {
       });
       if (!response.ok) throw new Error("Request failed");
       contactForm.reset();
+      trackEvent("contact_submission", { success: true, native_fallback: false });
       setFormStatus(contactStatus, "Message sent successfully. Thanks for reaching out.", "success");
       showToast("Message sent successfully.", "success");
     } catch (error) {
       console.error(error);
       setFormStatus(contactStatus, "Trying the standard form submission flow...", "info");
+      trackEvent("contact_submission", { success: false, native_fallback: true });
       submitNatively();
     } finally {
       if (submitBtn && !nativeFallbackInProgress) {

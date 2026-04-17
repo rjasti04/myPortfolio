@@ -1,3 +1,5 @@
+import { trackEvent } from "./analytics.js";
+
 function escapeHTML(str) {
   return str.replace(/[&<>'"]/g,
     tag => ({
@@ -334,6 +336,8 @@ export function initTerminal() {
       const parts = inputVal.split(" ");
       const cmd = parts[0].toLowerCase();
       const args = parts.slice(1);
+
+      trackEvent("terminal_command", { command: cmd, args: args });
 
       const resultElement = document.createElement("div");
 
