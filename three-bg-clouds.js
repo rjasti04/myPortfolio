@@ -16,15 +16,15 @@ function getBackgroundVariant() {
 function getBackgroundConfig(variant = getBackgroundVariant()) {
   const compact = variant === "compact";
   return {
-    cameraY: compact ? 6 : 12,
-    cameraZ: compact ? 12 : 25,
-    dustCount: compact ? 2000 : 5000,
-    pixelRatioCap: compact ? 1.5 : 2,
-    pointSize: compact ? 0.35 : 0.6,
-    waveColumns: compact ? 60 : 100,
-    waveRows: compact ? 60 : 100,
-    waveSpacing: compact ? 1.4 : 1.8,
-    waveYOffset: compact ? -12 : -15,
+    cameraY: compact ? 5 : 10,
+    cameraZ: compact ? 10 : 20,
+    dustCount: compact ? 10000 : 10000,
+    pixelRatioCap: compact ? 1 : 1,
+    pointSize: compact ? 0.30 : 0.5,
+    waveColumns: compact ? 50 : 100,
+    waveRows: compact ? 50 : 100,
+    waveSpacing: compact ? 1.5 : 1.75,
+    waveYOffset: compact ? -10 : -10,
   };
 }
 
@@ -111,8 +111,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     color: new THREE.Color(getAccent()),
     depthWrite: false,
     map: spriteTexture,
-    size: variant === "compact" ? 0.25 : 0.4,
-    transparent: true,
+    size: 0.25,
+    transparent: false,
   });
 
   const dustMesh = new THREE.Points(dustGeometry, dustMaterial);
@@ -180,18 +180,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     let distIndex = 0;
     for (let xIndex = 0; xIndex < waveColumns; xIndex += 1) {
       for (let zIndex = 0; zIndex < waveRows; zIndex += 1) {
-        const x = positions[index];
-        const z = positions[index + 2];
         const dist = waveDistances[distIndex];
-        
-        // Multi-layered sine waves for a smooth, organic, ocean-like feel
-        let y = 0;
-        y += Math.sin(x * 0.05 + elapsed * 0.15) * 1.5; // slow primary roll
-        y += Math.cos(z * 0.05 + elapsed * 0.12) * 1.5; // slow cross roll
-        y += Math.sin((x + z) * 0.03 - elapsed * 0.2) * 1.0; // gentle diagonal interference
-        y += Math.sin(dist * 0.08 - elapsed * 0.25) * 0.5; // subtle outward ripple
-
-        positions[index + 1] = y;
+        positions[index + 1] = Math.sin(dist * 0.45 - elapsed * 1.25) * 1.5;
         index += 3;
         distIndex += 1;
       }
@@ -201,13 +191,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     mouseX += (targetMouseX - mouseX) * 0.05;
     mouseY += (targetMouseY - mouseY) * 0.05;
 
-    // Slowly rotate dust independently for a floating ambient effect
-    dustMesh.rotation.y = elapsed * 0.015;
-    dustMesh.rotation.z = elapsed * 0.005;
-
-    // Apply gentle parallax effect to the entire scene using mouse coordinates
-    scene.rotation.x = mouseY * 0.15;
-    scene.rotation.y = mouseX * 0.15;
+    dustMesh.rotation.y = elapsed * 0.02 + (mouseX * 0.4);
+    dustMesh.rotation.x = elapsed * 0.01 + (-mouseY * 0.4);
 
     controls.update();
     renderer.render(scene, camera);
