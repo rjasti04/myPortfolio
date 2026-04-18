@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v5';
+const CACHE_NAME = 'rj-portfolio-v6';
 
 const PRECACHE_URLS = [
   '/',

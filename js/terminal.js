@@ -20,8 +20,17 @@ export function initTerminal() {
   if (!terminalInput || !terminalOutput || !terminalBody) return;
 
   // State for command history
+  const HISTORY_KEY = "rj_terminal_history";
   let commandHistory = [];
-  let historyIndex = -1;
+  try {
+    const saved = localStorage.getItem(HISTORY_KEY);
+    if (saved) {
+      commandHistory = JSON.parse(saved);
+    }
+  } catch (e) {
+    // Ignore parse errors
+  }
+  let historyIndex = commandHistory.length;
 
   // Ensure clicking anywhere in the terminal focuses the input
   terminalBody.addEventListener("click", () => {
@@ -324,6 +333,9 @@ export function initTerminal() {
       if (commandHistory[commandHistory.length - 1] !== inputVal) {
         commandHistory.push(inputVal);
         if (commandHistory.length > 100) commandHistory.shift();
+        try {
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(commandHistory));
+        } catch (e) {}
       }
       historyIndex = commandHistory.length;
 

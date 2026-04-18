@@ -84,13 +84,54 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   }
   waveGeometry.setAttribute("position", new THREE.BufferAttribute(wavePositions, 3));
 
-  const waveMaterial = new THREE.PointsMaterial({
+  const waveMaterial = new THREE.ShaderMaterial({
     blending: THREE.AdditiveBlending,
-    color: new THREE.Color(getAccent()),
     depthWrite: false,
-    map: spriteTexture,
-    size: config.pointSize,
-    transparent: false,
+    transparent: true,
+    uniforms: {
+      uTime: { value: 0 },
+      uColor: { value: new THREE.Color(getAccent()) },
+      uTexture: { value: spriteTexture },
+      uSize: { value: config.pointSize * window.devicePixelRatio * 15.0 }, // Scaling factor for point size
+      uMaxDist: { value: (Math.max(waveColumns, waveRows) * config.waveSpacing) / 2 },
+      uOpacity: { value: 1.0 }
+    },
+    vertexShader: `
+      uniform float uTime;
+      uniform float uSize;
+      uniform float uMaxDist;
+      varying float vOpacity;
+      
+      void main() {
+        vec3 pos = position;
+        float dist = sqrt(pos.x * pos.x + pos.z * pos.z);
+        
+        float y = 0.0;
+        y += sin(pos.x * 0.05 + uTime * 0.15) * 1.5;
+        y += cos(pos.z * 0.05 + uTime * 0.12) * 1.5;
+        y += sin((pos.x + pos.z) * 0.03 - uTime * 0.2) * 1.0;
+        y += sin(dist * 0.08 - uTime * 0.25) * 0.5;
+        
+        float dampening = max(0.0, 1.0 - pow(dist / uMaxDist, 2.0));
+        pos.y = y * dampening;
+        vOpacity = dampening;
+        
+        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+        gl_PointSize = uSize * (10.0 / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      uniform sampler2D uTexture;
+      uniform float uOpacity;
+      varying float vOpacity;
+      
+      void main() {
+        vec4 texColor = texture2D(uTexture, gl_PointCoord);
+        gl_FragColor = vec4(uColor, texColor.a * vOpacity * uOpacity);
+      }
+    `
   });
 
   const waveMesh = new THREE.Points(waveGeometry, waveMaterial);
@@ -130,9 +171,9 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   const syncTheme = () => {
     const color = new THREE.Color(getAccent());
     const isDark = document.body.classList.contains("dark-theme");
-    waveMaterial.color.copy(color);
+    waveMaterial.uniforms.uColor.value.copy(color);
     dustMaterial.color.copy(color);
-    waveMaterial.opacity = isDark ? (variant === "compact" ? 0.30 : 0.60) : (variant === "compact" ? 0.52 : 1);
+    waveMaterial.uniforms.uOpacity.value = isDark ? (variant === "compact" ? 0.30 : 0.60) : (variant === "compact" ? 0.52 : 1);
     dustMaterial.opacity = isDark ? (variant === "compact" ? 0.15 : 0.30) : (variant === "compact" ? 0.22 : 1);
   };
   syncTheme();
@@ -175,33 +216,9 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     if (document.hidden || !isVisible) return;
 
     const elapsed = clock.getElapsedTime();
-    const positions = waveGeometry.attributes.position.array;
-
-    let index = 0;
-    let distIndex = 0;
-    for (let xIndex = 0; xIndex < waveColumns; xIndex += 1) {
-      for (let zIndex = 0; zIndex < waveRows; zIndex += 1) {
-        const x = positions[index];
-        const z = positions[index + 2];
-        const dist = waveDistances[distIndex];
-        
-        // Multi-layered sine waves for a smooth, organic, ocean-like feel
-        let y = 0;
-        y += Math.sin(x * 0.05 + elapsed * 0.15) * 1.5; // slow primary roll
-        y += Math.cos(z * 0.05 + elapsed * 0.12) * 1.5; // slow cross roll
-        y += Math.sin((x + z) * 0.03 - elapsed * 0.2) * 1.0; // gentle diagonal interference
-        y += Math.sin(dist * 0.08 - elapsed * 0.25) * 0.5; // subtle outward ripple
-
-        // Smooth edge dampening (attenuation) so it fades seamlessly into the distance
-        const maxDist = (Math.max(waveColumns, waveRows) * config.waveSpacing) / 2;
-        const dampening = Math.max(0, 1 - Math.pow(dist / maxDist, 2));
-
-        positions[index + 1] = y * dampening;
-        index += 3;
-        distIndex += 1;
-      }
-    }
-    waveGeometry.attributes.position.needsUpdate = true;
+    
+    // Update Shader Uniforms instead of CPU calculations
+    waveMaterial.uniforms.uTime.value = elapsed;
 
     mouseX += (targetMouseX - mouseX) * 0.05;
     mouseY += (targetMouseY - mouseY) * 0.05;
