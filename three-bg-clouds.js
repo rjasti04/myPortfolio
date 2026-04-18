@@ -1,11 +1,12 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { prefersReducedMotion as reducedMotionQuery, compactViewport as compactViewportQuery } from "./js/config.js";
+import { prefersReducedMotion as reducedMotionQuery, compactViewport as compactViewportQuery, mobileDevice } from "./js/config.js";
 let destroyBackground = null;
 let backgroundVariant = null;
 
 function shouldEnableBackground() {
   if (reducedMotionQuery.matches) return false;
+  if (mobileDevice.matches) return false;
   return Boolean(window.WebGLRenderingContext);
 }
 
@@ -181,7 +182,13 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     for (let xIndex = 0; xIndex < waveColumns; xIndex += 1) {
       for (let zIndex = 0; zIndex < waveRows; zIndex += 1) {
         const dist = waveDistances[distIndex];
-        positions[index + 1] = Math.sin(dist * 0.45 - elapsed * 1.25) * 1.5;
+        let y = Math.sin(dist * 0.45 - elapsed * 1.25) * 1.5;
+        
+        // Smooth edge dampening (attenuation)
+        const maxDist = (Math.max(waveColumns, waveRows) * config.waveSpacing) / 2;
+        const dampening = Math.max(0, 1 - Math.pow(dist / maxDist, 2));
+
+        positions[index + 1] = y * dampening;
         index += 3;
         distIndex += 1;
       }
@@ -261,6 +268,7 @@ export function initThreeBackground() {
 
   bindMediaQueryListener(reducedMotionQuery, syncThreeBackground);
   bindMediaQueryListener(compactViewportQuery, syncThreeBackground);
+  bindMediaQueryListener(mobileDevice, syncThreeBackground);
 }
 
 if (document.readyState === "loading") {

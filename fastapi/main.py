@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, Query, Depends, Header
+from fastapi import FastAPI, HTTPException, Request, Query, Depends, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from typing import Optional, Any
@@ -377,7 +377,30 @@ async def get_session_events(
             """,
             session_id,
             limit,
-            offset,
+             offset,
         )
 
     return [dict(r) for r in rows]
+
+# ---------------------------------------------------------------------------
+# WebSocket Chat Endpoint
+# ---------------------------------------------------------------------------
+
+@app.websocket("/ws/chat")
+async def websocket_chat(websocket: WebSocket):
+    await websocket.accept()
+    
+    # We can send an initial greeting
+    await websocket.send_text(
+        "Hi there! I am an automated assistant. Rajeev will get back to you soon. How can I help?"
+    )
+    
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # Simple echo / auto-reply
+            reply = f"Automated reply: You said '{data}'. I've logged this message."
+            await websocket.send_text(reply)
+            
+    except WebSocketDisconnect:
+        logger.info("Chat websocket disconnected.")

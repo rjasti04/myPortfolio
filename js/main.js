@@ -8,6 +8,7 @@ import { initTerminal } from "./terminal.js";
 import { initInfoBar } from "./info-bar.js";
 import { initAnalytics } from "./analytics.js";
 import { initActivity } from "./activity.js";
+import { initChat } from "./chat.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
@@ -20,6 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initInfoBar();
   initAnalytics();
   initActivity();
+  initChat();
   const footerYear = document.getElementById("footer-year");
   if (footerYear) footerYear.textContent = new Date().getFullYear();
 

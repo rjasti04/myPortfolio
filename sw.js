@@ -3,7 +3,7 @@ const CACHE_NAME = 'rj-portfolio-v5';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
-  '/styles.min.css',
+  '/styles.css',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',

@@ -110,7 +110,7 @@
     document.documentElement.classList.add("js-enabled");
   </script>
   <link rel="preload" href="profile-pic-160.webp" as="image" type="image/webp" />
-  <link rel="stylesheet" href="styles.min.css" />
+  <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="styles-activity.css" />
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" />
@@ -659,6 +659,36 @@
         </div>
       </section>
     </main>
+
+    <!-- Chat Widget -->
+    <div class="chat-widget js-only">
+      <div class="chat-dialog hidden" id="chat-dialog" role="dialog" aria-label="Chat with Assistant" aria-hidden="true">
+        <div class="chat-header">
+          <div class="chat-title-group">
+            <div class="chat-avatar"><i class="fas fa-robot"></i></div>
+            <div class="chat-title">
+              <span class="chat-name">Rajeev's Assistant</span>
+              <span class="chat-status">Online</span>
+            </div>
+          </div>
+          <button type="button" class="chat-close-btn" id="chat-close-btn" aria-label="Close chat">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="chat-messages" id="chat-messages" aria-live="polite">
+          <!-- Messages will be injected here -->
+        </div>
+        <form class="chat-input-area" id="chat-form">
+          <input type="text" id="chat-input" class="chat-input" placeholder="Type your message..." autocomplete="off" required />
+          <button type="submit" class="chat-send-btn" aria-label="Send message">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </form>
+      </div>
+      <button type="button" class="chat-toggle-btn" id="chat-toggle-btn" aria-label="Open chat" aria-expanded="false">
+        <i class="fas fa-comment-dots"></i>
+      </button>
+    </div>
 
     <footer>
       <span class="footer-text">&copy; <span id="footer-year"></span> Rajeev Jasti</span>
