@@ -104,6 +104,9 @@ export function initChat() {
       dialog.classList.add('hidden');
       dialog.setAttribute('aria-hidden', 'true');
       toggleBtn.setAttribute('aria-expanded', 'false');
+      
+      // Move focus back to the element that opened the dialog to avoid focus trap
+      toggleBtn.focus();
     }
   }
 

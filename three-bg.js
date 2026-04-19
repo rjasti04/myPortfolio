@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { prefersReducedMotion as reducedMotionQuery, compactViewport as compactViewportQuery, mobileDevice } from "./js/config.js";
 let destroyBackground = null;
 let backgroundVariant = null;
@@ -14,26 +13,14 @@ function getBackgroundVariant() {
   return compactViewportQuery.matches ? "compact" : "default";
 }
 
-function getBackgroundConfig(variant = getBackgroundVariant()) {
-  const compact = variant === "compact";
-  return {
-    cameraY: compact ? 6 : 12,
-    cameraZ: compact ? 12 : 25,
-    dustCount: compact ? 2000 : 5000,
-    pixelRatioCap: compact ? 1.5 : 2,
-    pointSize: compact ? 0.35 : 0.6,
-    waveColumns: compact ? 60 : 100,
-    waveRows: compact ? 60 : 100,
-    waveSpacing: compact ? 1.4 : 1.8,
-    waveYOffset: compact ? -12 : -15,
-  };
-}
-
 function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
-  const config = getBackgroundConfig(variant);
+  const compact = variant === "compact";
   const scene = new THREE.Scene();
+  
+  // Camera looking down at an angle over the landscape
   const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, config.cameraY, config.cameraZ);
+  camera.position.set(0, 15, 30);
+  camera.lookAt(0, -5, 0);
 
   let renderer;
   try {
@@ -46,143 +33,135 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     console.error("Three.js background could not be initialized.", error);
     return null;
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, config.pixelRatioCap));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, compact ? 1.5 : 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
-  const getAccent = () => getComputedStyle(document.body).getPropertyValue("--accent").trim() || "#f43f5e";
+  // Ethereal Fluid Topology system (Particle Grid)
+  const columns = compact ? 80 : 120;
+  const rows = compact ? 80 : 120;
+  const spacing = 0.8;
+  const geometry = new THREE.BufferGeometry();
+  
+  const particleCount = columns * rows;
+  const positions = new Float32Array(particleCount * 3);
+  const uvs = new Float32Array(particleCount * 2);
 
-  const textureCanvas = document.createElement("canvas");
-  textureCanvas.width = 64;
-  textureCanvas.height = 64;
-  const textureContext = textureCanvas.getContext("2d");
-  const gradient = textureContext.createRadialGradient(32, 32, 0, 32, 32, 32);
-  gradient.addColorStop(0, "rgba(255,255,255,1)");
-  gradient.addColorStop(0.25, "rgba(255,255,255,0.8)");
-  gradient.addColorStop(0.55, "rgba(255,255,255,0.16)");
-  gradient.addColorStop(1, "rgba(255,255,255,0)");
-  textureContext.fillStyle = gradient;
-  textureContext.fillRect(0, 0, 64, 64);
-  const spriteTexture = new THREE.CanvasTexture(textureCanvas);
-
-  const waveGeometry = new THREE.BufferGeometry();
-  const { waveColumns, waveRows } = config;
-  const wavePositions = new Float32Array(waveColumns * waveRows * 3);
-  const waveDistances = new Float32Array(waveColumns * waveRows);
-  let cursor = 0;
-  let distCursor = 0;
-  for (let xIndex = 0; xIndex < waveColumns; xIndex += 1) {
-    for (let zIndex = 0; zIndex < waveRows; zIndex += 1) {
-      const x = (xIndex - waveColumns / 2) * config.waveSpacing;
-      const z = (zIndex - waveRows / 2) * config.waveSpacing;
-      wavePositions[cursor] = x;
-      wavePositions[cursor + 1] = 0;
-      wavePositions[cursor + 2] = z;
-      waveDistances[distCursor] = Math.sqrt(x * x + z * z);
-      cursor += 3;
-      distCursor += 1;
+  let i = 0;
+  for (let ix = 0; ix < columns; ix++) {
+    for (let iy = 0; iy < rows; iy++) {
+      // Center the grid
+      positions[i * 3] = (ix - columns / 2) * spacing;
+      positions[i * 3 + 1] = 0; // Y is calculated in shader
+      positions[i * 3 + 2] = (iy - rows / 2) * spacing;
+      
+      uvs[i * 2] = ix / columns;
+      uvs[i * 2 + 1] = iy / rows;
+      
+      i++;
     }
   }
-  waveGeometry.setAttribute("position", new THREE.BufferAttribute(wavePositions, 3));
 
-  const waveMaterial = new THREE.ShaderMaterial({
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    transparent: true,
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+
+  const getAccent = () => getComputedStyle(document.body).getPropertyValue("--accent").trim() || "#f43f5e";
+  
+  // Custom shader for the fluid topology
+  const material = new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
       uColor: { value: new THREE.Color(getAccent()) },
-      uTexture: { value: spriteTexture },
-      uSize: { value: config.pointSize * window.devicePixelRatio * 15.0 }, // Scaling factor for point size
-      uMaxDist: { value: (Math.max(waveColumns, waveRows) * config.waveSpacing) / 2 },
-      uOpacity: { value: 1.0 }
+      uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+      uThemeOpacityMultiplier: { value: 1.0 },
     },
     vertexShader: `
       uniform float uTime;
-      uniform float uSize;
-      uniform float uMaxDist;
-      varying float vOpacity;
+      uniform float uPixelRatio;
+      
+      varying vec2 vUv;
+      varying float vElevation;
       
       void main() {
+        vUv = uv;
         vec3 pos = position;
-        float dist = sqrt(pos.x * pos.x + pos.z * pos.z);
         
-        float y = 0.0;
-        y += sin(pos.x * 0.05 + uTime * 0.15) * 1.5;
-        y += cos(pos.z * 0.05 + uTime * 0.12) * 1.5;
-        y += sin((pos.x + pos.z) * 0.03 - uTime * 0.2) * 1.0;
-        y += sin(dist * 0.08 - uTime * 0.25) * 0.5;
+        // Very slow, ambient wave generation using overlapping sines
+        float time = uTime * 0.15;
         
-        float dampening = max(0.0, 1.0 - pow(dist / uMaxDist, 2.0));
-        pos.y = y * dampening;
-        vOpacity = dampening;
+        float elevation = sin(pos.x * 0.15 + time) * 1.5;
+        elevation += cos(pos.z * 0.15 + time * 0.8) * 1.5;
+        elevation += sin((pos.x + pos.z) * 0.05 - time * 0.5) * 1.0;
+        
+        // Dampen the edges so it fades into nothingness nicely
+        float distanceToCenter = length(pos.xz);
+        float dampen = smoothstep(50.0, 10.0, distanceToCenter);
+        
+        pos.y = elevation * dampen;
+        vElevation = pos.y;
         
         vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-        gl_PointSize = uSize * (10.0 / -mvPosition.z);
+        
+        // Size attenuation based on depth and pixel ratio
+        gl_PointSize = (4.0 * uPixelRatio) * (20.0 / -mvPosition.z);
         gl_Position = projectionMatrix * mvPosition;
       }
     `,
     fragmentShader: `
       uniform vec3 uColor;
-      uniform sampler2D uTexture;
-      uniform float uOpacity;
-      varying float vOpacity;
+      uniform float uThemeOpacityMultiplier;
+      
+      varying vec2 vUv;
+      varying float vElevation;
       
       void main() {
-        vec4 texColor = texture2D(uTexture, gl_PointCoord);
-        gl_FragColor = vec4(uColor, texColor.a * vOpacity * uOpacity);
+        // Soft circular particle shape
+        vec2 xy = gl_PointCoord.xy - vec2(0.5);
+        float ll = length(xy);
+        float alpha = smoothstep(0.5, 0.1, ll);
+        
+        // Blend color based on height (elevation)
+        // Higher points are brighter pink, lower points fade into darkness/purple
+        float mixRatio = smoothstep(-2.0, 2.0, vElevation);
+        vec3 deepColor = vec3(uColor.r * 0.2, uColor.g * 0.1, uColor.b * 0.4); // Darker, purple-ish undertone
+        vec3 finalColor = mix(deepColor, uColor, mixRatio);
+        
+        // Add a slight core glow to the particles
+        float core = smoothstep(0.2, 0.0, ll) * 0.4 * mixRatio;
+        finalColor += vec3(core);
+        
+        // Fade out based on distance from center (handled mostly by dampen in vertex, but let's add depth fade)
+        float depthAlpha = alpha * uThemeOpacityMultiplier;
+        
+        if (depthAlpha < 0.01) discard;
+        
+        gl_FragColor = vec4(finalColor, depthAlpha * (0.3 + 0.7 * mixRatio));
       }
-    `
-  });
-
-  const waveMesh = new THREE.Points(waveGeometry, waveMaterial);
-  waveMesh.rotation.x = -Math.PI / 6;
-  waveMesh.rotation.z = Math.PI / 6;
-  waveMesh.position.y = config.waveYOffset;
-  scene.add(waveMesh);
-
-  const dustGeometry = new THREE.BufferGeometry();
-  const { dustCount } = config;
-  const dustPositions = new Float32Array(dustCount * 3);
-  for (let index = 0; index < dustCount * 3; index += 1) {
-    dustPositions[index] = (Math.random() - 0.5) * 90;
-  }
-  dustGeometry.setAttribute("position", new THREE.BufferAttribute(dustPositions, 3));
-
-  const dustMaterial = new THREE.PointsMaterial({
-    blending: THREE.AdditiveBlending,
-    color: new THREE.Color(getAccent()),
-    depthWrite: false,
-    map: spriteTexture,
-    size: variant === "compact" ? 0.25 : 0.4,
+    `,
     transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
   });
 
-  const dustMesh = new THREE.Points(dustGeometry, dustMaterial);
-  scene.add(dustMesh);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.autoRotate = false;
-  controls.enableRotate = false;
-  controls.enableZoom = false;
-  controls.enablePan = false;
+  const particles = new THREE.Points(geometry, material);
+  // Tilt the mesh slightly
+  particles.rotation.x = -Math.PI / 12;
+  scene.add(particles);
 
   const syncTheme = () => {
-    const color = new THREE.Color(getAccent());
     const isDark = document.body.classList.contains("dark-theme");
-    waveMaterial.uniforms.uColor.value.copy(color);
-    dustMaterial.color.copy(color);
-    waveMaterial.uniforms.uOpacity.value = isDark ? (variant === "compact" ? 0.30 : 0.60) : (variant === "compact" ? 0.52 : 1);
-    dustMaterial.opacity = isDark ? (variant === "compact" ? 0.15 : 0.30) : (variant === "compact" ? 0.22 : 1);
+    material.uniforms.uColor.value.set(getAccent());
+    material.uniforms.uThemeOpacityMultiplier.value = isDark ? 0.8 : 0.6;
+    
+    // Switch to NormalBlending in light mode so colors are visible against white
+    material.blending = isDark ? THREE.AdditiveBlending : THREE.NormalBlending;
+    material.needsUpdate = true;
   };
   syncTheme();
 
   const themeObserver = new MutationObserver(syncTheme);
-  themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class", "style"] });
 
   let isVisible = true;
-
   let mouseX = 0;
   let mouseY = 0;
   let targetMouseX = 0;
@@ -204,7 +183,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, config.pixelRatioCap));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, compact ? 1.5 : 2));
+      material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio, 2);
       resizeWait = false;
     });
   };
@@ -216,22 +196,19 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     if (document.hidden || !isVisible) return;
 
     const elapsed = clock.getElapsedTime();
-    
-    // Update Shader Uniforms instead of CPU calculations
-    waveMaterial.uniforms.uTime.value = elapsed;
+    material.uniforms.uTime.value = elapsed;
 
-    mouseX += (targetMouseX - mouseX) * 0.05;
-    mouseY += (targetMouseY - mouseY) * 0.05;
+    // Extremely slow and smooth mouse follow
+    mouseX += (targetMouseX - mouseX) * 0.02;
+    mouseY += (targetMouseY - mouseY) * 0.02;
 
-    // Slowly rotate dust independently for a floating ambient effect
-    dustMesh.rotation.y = elapsed * 0.015;
-    dustMesh.rotation.z = elapsed * 0.005;
+    // Subtle parallax effect, rotating the entire scene slightly
+    scene.rotation.x = mouseY * 0.05;
+    scene.rotation.y = mouseX * 0.05;
 
-    // Apply gentle parallax effect to the entire scene using mouse coordinates
-    scene.rotation.x = mouseY * 0.15;
-    scene.rotation.y = mouseX * 0.15;
+    // Slowly rotate the particle grid for ambient motion
+    particles.rotation.z = elapsed * 0.02;
 
-    controls.update();
     renderer.render(scene, camera);
   };
 
@@ -241,16 +218,12 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     window.cancelAnimationFrame(animationFrame);
     window.removeEventListener("resize", handleResize);
     window.removeEventListener("mousemove", handleMouseMove);
-    controls.dispose();
     themeObserver.disconnect();
     renderer.setAnimationLoop(null);
     renderer.dispose();
     renderer.forceContextLoss?.();
-    waveGeometry.dispose();
-    dustGeometry.dispose();
-    waveMaterial.dispose();
-    dustMaterial.dispose();
-    spriteTexture.dispose();
+    geometry.dispose();
+    material.dispose();
   };
 }
 

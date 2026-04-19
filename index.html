@@ -144,7 +144,8 @@
       <i class="fas fa-times"></i>
     </button>
     <picture>
-      <source srcset="profile-pic-360.webp 360w, profile-pic.webp 725w" sizes="(max-width: 540px) 90vw, 90vw" type="image/webp" />
+      <source srcset="profile-pic-360.webp 360w, profile-pic.webp 725w" sizes="(max-width: 540px) 90vw, 90vw"
+        type="image/webp" />
       <img src="profile-pic-360.jpg" srcset="profile-pic-360.jpg 360w, profile-pic.jpeg 725w"
         sizes="(max-width: 540px) 90vw, 90vw" alt="Rajeev Jasti" class="modal-content" loading="lazy" width="725"
         height="1024" />
@@ -166,7 +167,8 @@
         <div class="project-detail-stack" id="project-detail-stack"></div>
         <ul class="project-detail-outcomes" id="project-detail-outcomes"></ul>
       </div>
-      <a href="#contact" data-target="contact" class="btn btn-outline nav-cta project-detail-cta" id="project-detail-cta">
+      <a href="#contact" data-target="contact" class="btn btn-outline nav-cta project-detail-cta"
+        id="project-detail-cta">
         Discuss This Project <i class="fas fa-arrow-right"></i>
       </a>
     </div>
@@ -182,13 +184,13 @@
         aria-label="Open profile photo">
         <picture>
           <source srcset="profile-pic-160.webp 160w, profile-pic-360.webp 360w" sizes="42px" type="image/webp" />
-          <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w"
-            sizes="42px" alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="725" height="1024" />
+          <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w" sizes="42px"
+            alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="725" height="1024" />
         </picture>
         <div class="logo-text">RJ</div>
       </a>
-      <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu" aria-controls="nav-menu"
-        aria-expanded="false">
+      <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
+        aria-controls="nav-menu" aria-expanded="false">
         <i class="fas fa-bars"></i>
       </button>
       <nav id="nav-menu" aria-label="Primary">
@@ -256,9 +258,9 @@
               real-time analytics for global enterprises.
             </p>
             <div class="hero-buttons">
-              <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="btn">Download Resume <i
+              <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="btn">Resume <i
                   class="fas fa-arrow-down"></i></a>
-              <a href="#portfolio" data-target="portfolio" class="btn btn-outline nav-cta">View Projects <i
+              <a href="#portfolio" data-target="portfolio" class="btn btn-outline nav-cta">Projects <i
                   class="fas fa-arrow-right"></i></a>
             </div>
           </div>
@@ -296,7 +298,8 @@
               </div>
               <div class="terminal-input-line">
                 <span class="prompt">$</span>
-                <input type="text" id="terminal-input" class="terminal-input" autocomplete="off" spellcheck="false" placeholder="Type 'help' to see commands..." aria-label="Terminal command input" />
+                <input type="text" id="terminal-input" class="terminal-input" autocomplete="off" spellcheck="false"
+                  placeholder="Type 'help' to see commands..." aria-label="Terminal command input" />
               </div>
             </div>
           </aside>
@@ -587,7 +590,8 @@
         <h2 class="section-title">Session Activity</h2>
         <p class="section-intro">Live view of current session events from FastAPI heartbeat session.</p>
         <div class="activity-controls">
-          <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i> Refresh View</button>
+          <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
+            Refresh View</button>
           <div class="activity-session-info">Session ID: <span id="current-session-id">-</span></div>
         </div>
         <div class="activity-table-container">
@@ -604,10 +608,13 @@
               <!-- Rendered by JS -->
             </tbody>
           </table>
-          <div class="activity-pagination" id="activity-pagination" style="display: none; justify-content: space-between; margin-top: 20px; align-items: center;">
-            <button id="activity-prev-btn" class="btn btn-outline" style="padding: 6px 14px; font-size: 13px;" disabled><i class="fas fa-chevron-left"></i> Prev</button>
+          <div class="activity-pagination" id="activity-pagination"
+            style="display: none; justify-content: space-between; margin-top: 20px; align-items: center;">
+            <button id="activity-prev-btn" class="btn btn-outline" style="padding: 6px 14px; font-size: 13px;"
+              disabled><i class="fas fa-chevron-left"></i> Prev</button>
             <span id="activity-page-info" style="font-size: 13px; color: var(--muted);">Page 1</span>
-            <button id="activity-next-btn" class="btn btn-outline" style="padding: 6px 14px; font-size: 13px;" disabled>Next <i class="fas fa-chevron-right"></i></button>
+            <button id="activity-next-btn" class="btn btn-outline" style="padding: 6px 14px; font-size: 13px;"
+              disabled>Next <i class="fas fa-chevron-right"></i></button>
           </div>
         </div>
       </section>
@@ -625,8 +632,8 @@
                 Copy Email <i class="fas fa-copy"></i>
               </button>
             </div>
-            <form class="contact-form" id="contact-form" action="https://formsubmit.co/inboxtorj@gmail.com" method="post"
-              accept-charset="UTF-8">
+            <form class="contact-form" id="contact-form" action="https://formsubmit.co/inboxtorj@gmail.com"
+              method="post" accept-charset="UTF-8">
               <input type="hidden" name="_subject" value="New portfolio message from rajeevjasti.com" />
               <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
               <div class="form-group floating-label-group">
@@ -645,8 +652,7 @@
               </div>
               <div class="form-group floating-label-group">
                 <div class="input-wrapper">
-                  <textarea id="contact-message" name="message"
-                    placeholder=" " rows="4" required></textarea>
+                  <textarea id="contact-message" name="message" placeholder=" " rows="4" required></textarea>
                   <label class="form-label" for="contact-message">Message</label>
                 </div>
               </div>
@@ -661,7 +667,8 @@
 
     <!-- Chat Widget -->
     <div class="chat-widget js-only">
-      <div class="chat-dialog hidden" id="chat-dialog" role="dialog" aria-label="Chat with Assistant" aria-hidden="true">
+      <div class="chat-dialog hidden" id="chat-dialog" role="dialog" aria-label="Chat with Assistant"
+        aria-hidden="true">
         <div class="chat-header">
           <div class="chat-title-group">
             <div class="chat-avatar"><i class="fas fa-robot"></i></div>
@@ -678,7 +685,8 @@
           <!-- Messages will be injected here -->
         </div>
         <form class="chat-input-area" id="chat-form">
-          <input type="text" id="chat-input" class="chat-input" placeholder="Type your message..." autocomplete="off" required />
+          <input type="text" id="chat-input" class="chat-input" placeholder="Type your message..." autocomplete="off"
+            required />
           <button type="submit" class="chat-send-btn" aria-label="Send message">
             <i class="fas fa-paper-plane"></i>
           </button>
