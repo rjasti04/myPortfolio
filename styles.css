@@ -256,7 +256,7 @@ main {
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
-  gap: clamp(20px, 3vw, 40px);
+  gap: clamp(12px, 2vw, 24px);
   align-items: center;
   min-height: clamp(420px, 60vh, 660px);
 }
@@ -918,11 +918,11 @@ main {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 8px;
   background: var(--card-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  padding: 12px 24px;
+  padding: 8px 16px;
   margin-top: 2.5%;
   margin-bottom: 2.5%;
   border: 1px solid var(--border);
@@ -997,7 +997,7 @@ main {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
-  gap: clamp(12px, 1.8vw, 24px);
+  gap: clamp(4px, 1vw, 8px);
   margin: 2.5% 0;
 }
 
@@ -1007,7 +1007,7 @@ main {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 24px 14px;
+  padding: 16px 12px;
   text-align: center;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
@@ -1103,7 +1103,7 @@ footer {
 .skills-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
-  gap: clamp(12px, 1.8vw, 18px);
+  gap: clamp(4px, 1vw, 8px);
 }
 
 .skill-group {
@@ -1112,7 +1112,7 @@ footer {
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: clamp(20px, 2vw, 24px);
+  padding: clamp(12px, 1.5vw, 16px);
   height: 100%;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }

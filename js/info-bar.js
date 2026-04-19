@@ -18,11 +18,11 @@ export function initInfoBar() {
   function updateClock() {
     const now = new Date();
     
-    // Time like '10:42:05 AM'
-    clockEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    // Time like '10:42 AM'
+    clockEl.textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
 
-    // Date like 'Monday, April 5'
-    dateEl.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+    // Date like 'Mon, April 5'
+    dateEl.textContent = now.toLocaleDateString([], { weekday: 'short', month: 'long', day: 'numeric' });
   }
 
   // Run immediately and then every second (guard against double-init)
@@ -41,8 +41,8 @@ export function initInfoBar() {
       const geoData = await geoRes.json();
       
       const city = geoData.city || "Unknown";
-      const country = geoData.country || "";
-      locationEl.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${escapeInfoHTML(city)}, ${escapeInfoHTML(country)}`;
+      const airportCode = getAirportCode(city);
+      locationEl.innerHTML = `<i class="fas fa-map-marker-alt" title="${escapeInfoHTML(city)}"></i> ${escapeInfoHTML(airportCode)}`;
 
       const lat = geoData.latitude;
       const lon = geoData.longitude;
@@ -84,3 +84,150 @@ function getWeatherCode(code) {
   return { icon: "fas fa-thermometer-half", desc: "Unknown" };
 }
 
+function getAirportCode(city) {
+  const map = {
+    'charlotte': 'CLT',
+    'salt lake city': 'SLC',
+    'new york': 'NYC',
+    'los angeles': 'LAX',
+    'chicago': 'ORD',
+    'houston': 'IAH',
+    'phoenix': 'PHX',
+    'philadelphia': 'PHL',
+    'san antonio': 'SAT',
+    'san diego': 'SAN',
+    'dallas': 'DFW',
+    'san jose': 'SJC',
+    'austin': 'AUS',
+    'jacksonville': 'JAX',
+    'fort worth': 'DFW',
+    'columbus': 'CMH',
+    'san francisco': 'SFO',
+    'indianapolis': 'IND',
+    'seattle': 'SEA',
+    'denver': 'DEN',
+    'washington': 'IAD',
+    'boston': 'BOS',
+    'el paso': 'ELP',
+    'nashville': 'BNA',
+    'detroit': 'DTW',
+    'oklahoma city': 'OKC',
+    'portland': 'PDX',
+    'las vegas': 'LAS',
+    'memphis': 'MEM',
+    'louisville': 'SDF',
+    'baltimore': 'BWI',
+    'milwaukee': 'MKE',
+    'albuquerque': 'ABQ',
+    'tucson': 'TUS',
+    'fresno': 'FAT',
+    'sacramento': 'SMF',
+    'kansas city': 'MCI',
+    'mesa': 'AZA',
+    'atlanta': 'ATL',
+    'omaha': 'OMA',
+    'colorado springs': 'COS',
+    'raleigh': 'RDU',
+    'miami': 'MIA',
+    'oakland': 'OAK',
+    'minneapolis': 'MSP',
+    'tulsa': 'TUL',
+    'cleveland': 'CLE',
+    'wichita': 'ICT',
+    'arlington': 'DCA',
+    'new orleans': 'MSY',
+    'bakersfield': 'BFL',
+    'tampa': 'TPA',
+    'honolulu': 'HNL',
+    'anaheim': 'SNA',
+    'aurora': 'DEN',
+    'santa ana': 'SNA',
+    'st. louis': 'STL',
+    'riverside': 'RAL',
+    'corpus christi': 'CRP',
+    'lexington': 'LEX',
+    'pittsburgh': 'PIT',
+    'anchorage': 'ANC',
+    'stockton': 'SCK',
+    'cincinnati': 'CVG',
+    'st. paul': 'MSP',
+    'toledo': 'TOL',
+    'greensboro': 'GSO',
+    'newark': 'EWR',
+    'plano': 'DFW',
+    'henderson': 'LAS',
+    'lincoln': 'LNK',
+    'buffalo': 'BUF',
+    'jersey city': 'EWR',
+    'chula vista': 'SAN',
+    'fort wayne': 'FWA',
+    'orlando': 'MCO',
+    'st. petersburg': 'PIE',
+    'chandler': 'PHX',
+    'laredo': 'LRD',
+    'norfolk': 'ORF',
+    'durham': 'RDU',
+    'madison': 'MSN',
+    'lubbock': 'LBB',
+    'irvine': 'SNA',
+    'winston-salem': 'INT',
+    'glendale': 'PHX',
+    'garland': 'DFW',
+    'hialeah': 'MIA',
+    'reno': 'RNO',
+    'chesapeake': 'ORF',
+    'gilbert': 'PHX',
+    'baton rouge': 'BTR',
+    'irving': 'DFW',
+    'scottsdale': 'PHX',
+    'north las vegas': 'LAS',
+    'fremont': 'OAK',
+    'boise': 'BOI',
+    'richmond': 'RIC',
+    'london': 'LHR',
+    'paris': 'CDG',
+    'tokyo': 'HND',
+    'beijing': 'PEK',
+    'dubai': 'DXB',
+    'sydney': 'SYD',
+    'toronto': 'YYZ',
+    'vancouver': 'YVR',
+    'montreal': 'YUL',
+    'frankfurt': 'FRA',
+    'amsterdam': 'AMS',
+    'madrid': 'MAD',
+    'rome': 'FCO',
+    'mexico city': 'MEX',
+    'mumbai': 'BOM',
+    'delhi': 'DEL',
+    'singapore': 'SIN',
+    'seoul': 'ICN',
+    'shanghai': 'PVG',
+    'hong kong': 'HKG',
+    'bangkok': 'BKK',
+    'istanbul': 'IST',
+    'sao paulo': 'GRU',
+    'buenos aires': 'EZE',
+    'johannesburg': 'JNB'
+  };
+
+  if (!city || city === "Unknown") return "UNK";
+
+  const normalized = city.toLowerCase().trim();
+  if (map[normalized]) {
+    return map[normalized];
+  }
+
+  // Fallback: generate a 3-letter code
+  const parts = normalized.split(/[\s-]/).filter(p => p.length > 0);
+  let code = '';
+  if (parts.length >= 3) {
+    code = parts[0][0] + parts[1][0] + parts[2][0];
+  } else if (parts.length === 2) {
+    code = parts[0][0] + parts[1][0] + (parts[1][1] || parts[0][1] || 'X');
+  } else {
+    code = city.replace(/[^a-zA-Z]/g, '').substring(0, 3);
+    if (code.length < 3) code = code.padEnd(3, 'X');
+  }
+  return code.toUpperCase();
+}
