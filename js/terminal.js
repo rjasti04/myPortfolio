@@ -1,4 +1,5 @@
 import { trackEvent } from "./analytics.js";
+import { prefersReducedMotion } from "./config.js";
 
 function escapeHTML(str) {
   return str.replace(/[&<>'"]/g,
@@ -36,6 +37,70 @@ export function initTerminal() {
   terminalBody.addEventListener("click", () => {
     terminalInput.focus();
   });
+
+  // Animated placeholder: cycles through example commands until the user interacts
+  const placeholderSamples = ["help", "whoami", "skills", "projects", "neofetch", "fortune"];
+  const basePlaceholder = "Type 'help' to see commands...";
+  let placeholderAnimationId = null;
+  let placeholderStopped = false;
+
+  function stopPlaceholderAnimation() {
+    if (placeholderStopped) return;
+    placeholderStopped = true;
+    if (placeholderAnimationId !== null) {
+      clearTimeout(placeholderAnimationId);
+      placeholderAnimationId = null;
+    }
+    terminalInput.setAttribute("placeholder", basePlaceholder);
+  }
+
+  function runPlaceholderAnimation() {
+    if (prefersReducedMotion.matches) return;
+    let sampleIdx = 0;
+    let charIdx = 0;
+    let phase = "typing"; // typing | holding | erasing | pausing
+
+    const tick = () => {
+      if (placeholderStopped) return;
+      const sample = placeholderSamples[sampleIdx];
+      let delay = 110;
+
+      if (phase === "typing") {
+        charIdx++;
+        terminalInput.setAttribute("placeholder", sample.slice(0, charIdx) + "\u2588");
+        if (charIdx >= sample.length) {
+          phase = "holding";
+          delay = 1200;
+        }
+      } else if (phase === "holding") {
+        terminalInput.setAttribute("placeholder", sample);
+        phase = "erasing";
+        delay = 500;
+      } else if (phase === "erasing") {
+        charIdx--;
+        terminalInput.setAttribute("placeholder", sample.slice(0, charIdx) + "\u2588");
+        if (charIdx <= 0) {
+          phase = "pausing";
+          delay = 400;
+        } else {
+          delay = 55;
+        }
+      } else if (phase === "pausing") {
+        sampleIdx = (sampleIdx + 1) % placeholderSamples.length;
+        charIdx = 0;
+        phase = "typing";
+        delay = 250;
+      }
+
+      placeholderAnimationId = setTimeout(tick, delay);
+    };
+
+    placeholderAnimationId = setTimeout(tick, 600);
+  }
+
+  terminalInput.addEventListener("focus", stopPlaceholderAnimation, { once: true });
+  terminalInput.addEventListener("input", stopPlaceholderAnimation, { once: true });
+  runPlaceholderAnimation();
 
   const commands = {
     help: () => {

@@ -1,7 +1,7 @@
 import { API_BASE } from "./analytics.js";
 
 let currentOffset = 0;
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 export async function loadActivity(offset = currentOffset) {
   const tbody = document.getElementById("activity-tbody");
@@ -20,21 +20,21 @@ export async function loadActivity(offset = currentOffset) {
   }
 
   if (!sessionId) {
-    tbody.innerHTML = `<tr><td colspan="4" class="activity-message">No active session found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="activity-message">No active session found.</td></tr>`;
     if (paginationControls) paginationControls.style.display = "none";
     return;
   }
 
-  tbody.innerHTML = `<tr><td colspan="4" class="activity-message"><i class="fas fa-spinner fa-spin"></i> Loading activity...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="5" class="activity-message"><i class="fas fa-spinner fa-spin"></i> Loading activity...</td></tr>`;
 
   try {
     const response = await fetch(`${API_BASE}/sessions/${sessionId}/events?limit=${PAGE_SIZE}&offset=${offset}`);
     if (!response.ok) {
       if (response.status === 404) {
-        tbody.innerHTML = `<tr><td colspan="4" class="activity-message">Session not found or expired.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="activity-message">Session not found or expired.</td></tr>`;
         if (paginationControls) paginationControls.style.display = "none";
       } else {
-        tbody.innerHTML = `<tr><td colspan="4" class="activity-message">Failed to load activity. (Status: ${response.status})</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="activity-message">Failed to load activity. (Status: ${response.status})</td></tr>`;
         if (paginationControls) paginationControls.style.display = "none";
       }
       return;
@@ -42,10 +42,10 @@ export async function loadActivity(offset = currentOffset) {
     const events = await response.json();
     if (!events || events.length === 0) {
       if (offset === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="activity-message">No events found for the current session.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="activity-message">No events found for the current session.</td></tr>`;
         if (paginationControls) paginationControls.style.display = "none";
       } else {
-        tbody.innerHTML = `<tr><td colspan="4" class="activity-message">No more events.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="activity-message">No more events.</td></tr>`;
         if (paginationControls) {
           paginationControls.style.display = "flex";
           prevBtn.disabled = false;
@@ -59,11 +59,14 @@ export async function loadActivity(offset = currentOffset) {
     }
 
     tbody.innerHTML = events.map(e => {
-        const date = new Date(e.created_at).toLocaleString();
+        const d = new Date(e.created_at);
+        const dateStr = d.toLocaleDateString();
+        const timeStr = d.toLocaleTimeString();
         const dataStr = e.event_data ? JSON.stringify(e.event_data) : "-";
         return `
           <tr>
-            <td>${date}</td>
+            <td>${dateStr}</td>
+            <td>${timeStr}</td>
             <td><strong>${e.event_type}</strong></td>
             <td>${e.page_path || '-'}</td>
             <td>${dataStr}</td>
@@ -84,7 +87,7 @@ export async function loadActivity(offset = currentOffset) {
 
   } catch (error) {
     console.error("Activity load error", error);
-    tbody.innerHTML = `<tr><td colspan="4" class="activity-message">Network error loading activity.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="activity-message">Network error loading activity.</td></tr>`;
     if (paginationControls) paginationControls.style.display = "none";
   }
 }

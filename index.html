@@ -189,6 +189,16 @@
         </picture>
         <div class="logo-text">RJ</div>
       </a>
+      <div class="header-datetime" aria-label="Current date and time">
+        <span class="header-info-group">
+          <i class="fas fa-clock"></i>
+          <span id="user-time">--:--:--</span>
+        </span>
+        <span class="header-info-group">
+          <i class="fas fa-calendar-alt"></i>
+          <span id="user-date">Loading date...</span>
+        </span>
+      </div>
       <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
         aria-controls="nav-menu" aria-expanded="false">
         <i class="fas fa-bars"></i>
@@ -201,6 +211,10 @@
         <a href="#activity" data-target="activity">Activity</a>
         <a href="#contact" data-target="contact">Contact</a>
       </nav>
+      <div class="header-locweather" aria-label="Location and weather">
+        <span class="header-info-group" id="user-location"><i class="fas fa-map-marker-alt"></i> Locating...</span>
+        <span class="header-info-group" id="user-weather"><span class="weather-icon">--</span></span>
+      </div>
       <div class="header-actions">
         <div class="connect-dropdown js-only" id="connect-dropdown">
           <button type="button" class="connect-toggle" id="connect-toggle" aria-label="Open connect menu"
@@ -231,23 +245,6 @@
 
     <main>
       <section id="about" class="active">
-        <div class="info-bar">
-          <div class="info-group">
-            <i class="fas fa-clock"></i>
-            <span id="user-time">--:--:--</span>
-          </div>
-          <div class="info-group">
-            <i class="fas fa-calendar-alt"></i>
-            <span id="user-date">Loading date...</span>
-          </div>
-          <div class="info-group location-group">
-            <span id="user-location"><i class="fas fa-map-marker-alt"></i> Locating...</span>
-          </div>
-          <div class="info-group weather-group">
-            <span id="user-weather"><span class="weather-icon">--</span></span>
-          </div>
-        </div>
-
         <div class="hero">
           <div class="hero-text">
             <span class="hero-subtitle">Principal Data Engineer</span>
@@ -598,7 +595,8 @@
           <table class="activity-table">
             <thead>
               <tr>
-                <th>Timestamp</th>
+                <th>Date</th>
+                <th>Time</th>
                 <th>Type</th>
                 <th>Path</th>
                 <th>Data</th>
