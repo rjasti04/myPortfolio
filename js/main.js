@@ -9,6 +9,7 @@ import { initInfoBar } from "./info-bar.js";
 import { initAnalytics } from "./analytics.js";
 import { initActivity } from "./activity.js";
 import { initChat } from "./chat.js";
+import { initSkillsCarousel } from "./skills-carousel.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
@@ -22,6 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initAnalytics();
   initActivity();
   initChat();
+  initSkillsCarousel();
   const footerYear = document.getElementById("footer-year");
   if (footerYear) footerYear.textContent = new Date().getFullYear();
 

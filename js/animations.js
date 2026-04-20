@@ -89,8 +89,8 @@ export function initMatrixDecode() {
   if (!element || prefersReducedMotion.matches) return;
 
   const originalText = element.textContent.trim();
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
-  
+  const chars = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜｦﾝ";
+
   const animateText = () => {
     const letters = originalText.split("");
     element.textContent = "";
@@ -100,12 +100,21 @@ export function initMatrixDecode() {
       element.appendChild(s);
       return s;
     });
+    spans.forEach((s, i) => {
+      if (letters[i] === " ") return;
+      const w = s.getBoundingClientRect().width;
+      s.style.display = "inline-block";
+      s.style.width = `${w}px`;
+      s.style.textAlign = "center";
+      s.style.overflow = "hidden";
+    });
     let iterations = 0;
     let lastTime = 0;
 
     const tick = (time) => {
       if (!lastTime) lastTime = time;
-      if (time - lastTime >= 40) {
+      const elapsed = time - lastTime;
+      if (elapsed >= 28) {
         for (let i = 0; i < letters.length; i++) {
           if (letters[i] === " ") continue;
           if (i < iterations) {
@@ -118,7 +127,7 @@ export function initMatrixDecode() {
             spans[i].style.color = "var(--accent)";
           }
         }
-        iterations += 1 / 3;
+        iterations += 0.2;
         lastTime = time;
       }
 

@@ -189,6 +189,7 @@
         </picture>
         <div class="logo-text">RJ</div>
       </a>
+      <!-- Date/time info bar disabled; uncomment to re-enable.
       <div class="header-datetime" aria-label="Current date and time">
         <span class="header-info-group">
           <i class="fas fa-clock"></i>
@@ -199,6 +200,8 @@
           <span id="user-date">Loading date...</span>
         </span>
       </div>
+      -->
+
       <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
         aria-controls="nav-menu" aria-expanded="false">
         <i class="fas fa-bars"></i>
@@ -211,10 +214,12 @@
         <a href="#activity" data-target="activity">Activity</a>
         <a href="#contact" data-target="contact">Contact</a>
       </nav>
+      <!-- Location/weather info bar disabled; uncomment to re-enable.
       <div class="header-locweather" aria-label="Location and weather">
         <span class="header-info-group" id="user-location"><i class="fas fa-map-marker-alt"></i> Locating...</span>
         <span class="header-info-group" id="user-weather"><span class="weather-icon">--</span></span>
       </div>
+      -->
       <div class="header-actions">
         <div class="connect-dropdown js-only" id="connect-dropdown">
           <button type="button" class="connect-toggle" id="connect-toggle" aria-label="Open connect menu"
@@ -331,7 +336,8 @@
 
         <div class="skills-section">
           <h2 class="section-title skills-title">Technical Skills</h2>
-          <div class="skills-grid">
+          <div class="skills-carousel" data-skills-carousel>
+            <div class="skills-grid">
             <div class="skill-group reveal">
               <h3 class="skill-group-label"><i class="fas fa-network-wired"></i> Data Processing</h3>
               <div class="skill-tags">
@@ -388,6 +394,14 @@
                 <span class="skill-tag">OpenTelemetry</span>
               </div>
             </div>
+            </div>
+            <button type="button" class="skills-carousel-arrow skills-carousel-arrow--prev" aria-label="Previous skill group">
+              <i class="fas fa-chevron-left" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="skills-carousel-arrow skills-carousel-arrow--next" aria-label="Next skill group">
+              <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            </button>
+            <div class="skills-carousel-dots" role="tablist" aria-label="Skill group navigation"></div>
           </div>
         </div>
 
