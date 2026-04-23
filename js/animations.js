@@ -115,8 +115,12 @@ export function initMatrixDecode() {
       if (!lastTime) lastTime = time;
       const elapsed = time - lastTime;
       if (elapsed >= 28) {
+        let currentString = "";
         for (let i = 0; i < letters.length; i++) {
-          if (letters[i] === " ") continue;
+          if (letters[i] === " ") {
+            currentString += " ";
+            continue;
+          }
           if (i < iterations) {
             if (spans[i].style.color) {
               spans[i].textContent = letters[i];
@@ -126,13 +130,19 @@ export function initMatrixDecode() {
             spans[i].textContent = chars[Math.floor(Math.random() * chars.length)];
             spans[i].style.color = "var(--accent)";
           }
+          currentString += spans[i].textContent;
         }
+        element.setAttribute("data-text", currentString);
         iterations += 0.2;
         lastTime = time;
       }
 
-      if (iterations < originalText.length) requestAnimationFrame(tick);
-      else element.textContent = originalText;
+      if (iterations < originalText.length) {
+        requestAnimationFrame(tick);
+      } else {
+        element.textContent = originalText;
+        element.setAttribute("data-text", originalText);
+      }
     };
     requestAnimationFrame(tick);
   };
@@ -141,6 +151,9 @@ export function initMatrixDecode() {
   element.addEventListener("mouseenter", () => {
     if (element.textContent === originalText) animateText();
   });
+  setInterval(() => {
+    if (element.textContent === originalText) animateText();
+  }, 12000);
 }
 
 export function initAnimations() {

@@ -138,6 +138,12 @@ export function initNavigation() {
 
   syncSectionWithHash();
 
+  // Force scroll to top on initial load if landing on home or #about
+  const currentHash = window.location.hash;
+  if (!currentHash || currentHash === "#about") {
+    window.scrollTo(0, 0);
+  }
+
   // Feature 4: Keyboard shortcut hints on nav links
   if (supportsHover.matches) {
     navLinks.forEach((link, index) => {

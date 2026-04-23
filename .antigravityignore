@@ -1,0 +1,21 @@
+# Ignore dependency folders
+node_modules/
+venv/
+.env
+.git/
+
+# Ignore build/dist folders
+dist/
+build/
+out/
+
+# Ignore large data/log files (crucial for Data Engineers)
+*.csv
+*.jsonl
+*.log
+sql_dumps/
+
+# Ignore lock files (AI rarely needs these to code)
+package-lock.json
+yarn.lock
+poetry.lock

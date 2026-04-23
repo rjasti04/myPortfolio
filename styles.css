@@ -11,6 +11,7 @@
   --card-bg: rgb(255 255 255 / 65%);
   --skill-bg: rgba(255, 241, 242, 0.7);
   --header-height: 80px;
+  scroll-padding-top: var(--header-height);
   --radius: 20px;
   --select-bg: #fff;
   --terminal-bg: #1c1917;
@@ -270,13 +271,21 @@ main {
 }
 
 .hero-subtitle {
-  color: var(--accent);
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 3px;
   display: block;
   margin-bottom: 0;
   text-transform: uppercase;
+  
+  background: linear-gradient(90deg, var(--accent) 0%, #f59e0b 35%, #fb7185 50%, #f59e0b 65%, var(--accent) 100%);
+  background-size: 250% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--accent);
+  animation: btn-shimmer 4s linear infinite;
+  will-change: background-position;
 }
 
 .hero-title {
@@ -285,55 +294,123 @@ main {
   line-height: 1.15;
   margin-bottom: 0;
   padding-bottom: 0.1em;
+  position: relative;
+  display: inline-block;
   
-  /* Gold/Yellow/Pink Shimmer Theme */
-  background: linear-gradient(90deg,
+  /* Scanlines + Gold/Yellow/Pink Shimmer Theme */
+  background: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px),
+    linear-gradient(90deg,
       var(--accent) 0%,
       #f59e0b 35%,
       #fb7185 50%,
       #f59e0b 65%,
       var(--accent) 100%);
-  background-size: 250% auto;
+  background-size: 100% 100%, 250% auto;
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   color: var(--accent);
-  animation: hero-shimmer 4s linear infinite, hero-glitch-jitter 6s steps(1) infinite;
+  animation: hero-shimmer 4s linear infinite, hero-glitch-jitter 5s steps(1) infinite;
   will-change: transform, background-position, filter;
   white-space: nowrap;
 }
 
+/* Pseudo-elements for Horizontal Pixel Slicing */
+.hero-title::before,
+.hero-title::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: inherit;
+  background-size: inherit;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  pointer-events: none;
+}
+
+.hero-title::before {
+  animation: hero-slice-1 3s infinite steps(1);
+}
+
+.hero-title::after {
+  animation: hero-slice-2 2.5s infinite steps(1);
+}
+
+@keyframes hero-slice-1 {
+  0%   { clip-path: inset(20% 0 80% 0); transform: translate(-4px, 0); }
+  10%  { clip-path: inset(60% 0 10% 0); transform: translate(3px, 0); }
+  20%  { clip-path: inset(40% 0 50% 0); transform: translate(-3px, 0); }
+  30%  { clip-path: inset(80% 0 5% 0); transform: translate(4px, 0); }
+  40%  { clip-path: inset(10% 0 70% 0); transform: translate(-2px, 0); }
+  50%  { clip-path: inset(30% 0 50% 0); transform: translate(3px, 0); }
+  60%  { clip-path: inset(70% 0 20% 0); transform: translate(-4px, 0); }
+  70%  { clip-path: inset(15% 0 65% 0); transform: translate(2px, 0); }
+  80%  { clip-path: inset(85% 0 5% 0); transform: translate(-3px, 0); }
+  90%  { clip-path: inset(50% 0 30% 0); transform: translate(4px, 0); }
+  100% { clip-path: inset(25% 0 55% 0); transform: translate(-2px, 0); }
+}
+
+@keyframes hero-slice-2 {
+  0%   { clip-path: inset(10% 0 60% 0); transform: translate(4px, 0); }
+  10%  { clip-path: inset(30% 0 20% 0); transform: translate(-3px, 0); }
+  20%  { clip-path: inset(70% 0 10% 0); transform: translate(2px, 0); }
+  30%  { clip-path: inset(20% 0 50% 0); transform: translate(-4px, 0); }
+  40%  { clip-path: inset(50% 0 30% 0); transform: translate(3px, 0); }
+  50%  { clip-path: inset(5% 0 80% 0); transform: translate(-2px, 0); }
+  60%  { clip-path: inset(65% 0 15% 0); transform: translate(4px, 0); }
+  70%  { clip-path: inset(45% 0 45% 0); transform: translate(-3px, 0); }
+  80%  { clip-path: inset(80% 0 5% 0); transform: translate(2px, 0); }
+  90%  { clip-path: inset(15% 0 75% 0); transform: translate(-4px, 0); }
+  100% { clip-path: inset(55% 0 25% 0); transform: translate(3px, 0); }
+}
+
 @keyframes hero-shimmer {
   0% {
-    background-position: 0% center;
+    background-position: 0% 0%, 0% center;
   }
   100% {
-    background-position: 250% center;
+    background-position: 0% 0%, 250% center;
   }
 }
 
 @keyframes hero-glitch-jitter {
-  0%, 68%, 100% {
+  0%, 66%, 100% {
     transform: translate(0, 0) skewX(0);
     filter: none;
   }
-  69% { transform: translate(-2px, 0) skewX(-1.5deg); filter: blur(0.3px); }
-  70% { transform: translate(1.5px, 0) skewX(0.6deg); filter: none; }
-  71% { transform: translate(-1px, 0); }
-  72% { transform: translate(0.5px, 0); filter: blur(0.2px); }
-  73% { transform: translate(0, 0); filter: none; }
-  82% { transform: translate(-2.5px, 0.5px) scaleY(1.02); }
-  83% { transform: translate(1px, 0) scaleY(1); }
-  84% { transform: translate(-0.5px, 0); }
-  85% { transform: translate(0, 0); }
-  90% { transform: translate(-1.5px, 0) skewX(1deg); filter: blur(0.4px); }
-  91% { transform: translate(1px, 0) skewX(-0.5deg); }
-  92% { transform: translate(-0.5px, 0); filter: none; }
+  /* Burst 1 — aggressive horizontal jitter */
+  67%  { transform: translate(-4px, 0) skewX(-2deg); filter: blur(0.4px); }
+  68%  { transform: translate(3px, 0) skewX(1.2deg); filter: none; }
+  69%  { transform: translate(-6px, 1px) skewX(-0.8deg); }
+  70%  { transform: translate(2px, -1px); filter: blur(0.3px); }
+  71%  { transform: translate(-1px, 0) skewX(0.5deg); filter: none; }
+  72%  { transform: translate(0, 0); }
+  /* Burst 2 — quick stutter */
+  80%  { transform: translate(-3px, 0) scaleY(1.03); }
+  81%  { transform: translate(5px, 0.5px) skewX(-1.5deg); }
+  82%  { transform: translate(-2px, 0) scaleY(0.98); filter: blur(0.5px); }
+  83%  { transform: translate(1px, 0); filter: none; }
+  84%  { transform: translate(0, 0); }
+  /* Burst 3 — subtle flicker */
+  89%  { transform: translate(-2px, 0) skewX(1.5deg); filter: blur(0.4px); }
+  90%  { transform: translate(4px, -0.5px) skewX(-0.8deg); }
+  91%  { transform: translate(-1px, 0) skewX(0.3deg); }
+  92%  { transform: translate(0, 0); filter: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .hero-title {
     animation: hero-shimmer 4s linear infinite;
+  }
+  .hero-title::before,
+  .hero-title::after {
+    animation: none;
+    display: none;
   }
 }
 
@@ -985,7 +1062,7 @@ main {
   }
 }
 
-@media (hover: none) and (pointer: coarse) {
+@media (hover: none) and (pointer: coarse) and (max-width: 820px) {
   .header-datetime,
   .header-locweather {
     display: none;
@@ -1078,6 +1155,73 @@ main {
   background: var(--accent);
   color: white;
 }
+
+.hero-buttons .btn {
+  color: #fff;
+  border-radius: 999px;
+  padding: 10px 10px 10px 32px;
+  gap: 16px;
+  
+  /* Animated Shimmering Gradient */
+  background: linear-gradient(90deg, var(--accent) 0%, #f59e0b 35%, #fb7185 50%, #f59e0b 65%, var(--accent) 100%);
+  background-size: 250% auto;
+  border: none;
+  box-shadow: 0 8px 24px rgba(230, 30, 77, 0.3);
+  position: relative;
+  overflow: hidden;
+  animation: btn-shimmer 4s linear infinite;
+}
+
+@keyframes btn-shimmer {
+  0% { background-position: 0% center; }
+  100% { background-position: 250% center; }
+}
+
+/* Shine effect pseudo-element */
+.hero-buttons .btn::before {
+  content: "";
+  position: absolute;
+  top: 0; left: -100%;
+  width: 50%; height: 100%;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.5), transparent);
+  transform: skewX(-25deg);
+  pointer-events: none;
+}
+
+.hero-buttons .btn:hover::before {
+  animation: btn-shine 0.8s ease-out forwards;
+}
+
+.hero-buttons .btn:hover {
+  box-shadow: 0 0 30px #f59e0b;
+  transform: translateY(-2px);
+  color: #fff;
+}
+
+@keyframes btn-shine {
+  100% { left: 200%; }
+}
+
+.hero-buttons .btn i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: white;
+  color: var(--accent);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  margin-left: 4px;
+}
+
+.hero-buttons .btn:hover i {
+  transform: translateX(4px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+}
+
+
 
 /* Logo */
 .logo-text {
@@ -1195,7 +1339,7 @@ footer {
   box-shadow: 0 6px 14px var(--accent-mild);
 }
 
-@media (hover: none) and (pointer: coarse) {
+@media (hover: none) and (pointer: coarse) and (max-width: 820px) {
   .skills-grid {
     display: flex;
     grid-template-columns: none;
@@ -1560,8 +1704,9 @@ footer {
 /* Back to Top */
 .back-to-top {
   position: fixed;
-  bottom: 80px;
+  bottom: 126px;
   left: 20px;
+  right: auto;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -1852,9 +1997,9 @@ footer {
   }
 
   .back-to-top {
-    right: 14px;
-    left: auto;
-    bottom: 18px;
+    left: 14px;
+    right: auto;
+    bottom: 126px;
   }
 
   .project-detail-content {
@@ -2300,6 +2445,14 @@ section {
 .js-enabled section.active {
   display: block;
   animation: section-enter 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Disable initial animation for the first view on mobile/load if desired, 
+   or just make it instant for the about section to prevent "popping" feel */
+.js-enabled #about.active {
+  animation: none;
+  opacity: 1;
+  transform: none;
 }
 
 @keyframes section-enter {
