@@ -1,7 +1,7 @@
 import { compactViewport, prefersReducedMotion, supportsHover } from "./config.js";
 import { closeModal, openModal } from "./modal.js";
 
-let hamburger, navMenu, navLinks, sections, connectDropdown, connectToggle, connectMenu, imageModal, imageModalCloseButton, profileTrigger, backToTopBtn;
+let hamburger, navMenu, navLinks, sections, connectDropdown, connectToggle, connectMenu, imageModal, imageModalCloseButton, profileTrigger;
 
 function setMobileMenuState(isOpen) {
   if (!navMenu || !hamburger) return;
@@ -65,7 +65,6 @@ export function initNavigation() {
   imageModal = document.getElementById("image-modal");
   imageModalCloseButton = document.getElementById("image-modal-close");
   profileTrigger = document.getElementById("profile-trigger");
-  backToTopBtn = document.getElementById("back-to-top");
 
   if (hamburger) {
     hamburger.addEventListener("click", () => setMobileMenuState(!navMenu?.classList.contains("show-menu")));
@@ -109,23 +108,6 @@ export function initNavigation() {
   imageModal?.addEventListener("click", (event) => {
     if (event.target === imageModal) closeModal(imageModal);
   });
-
-  if (backToTopBtn) {
-    let isScrolling = false;
-    window.addEventListener("scroll", () => {
-      if (!isScrolling) {
-        window.requestAnimationFrame(() => {
-          backToTopBtn.classList.toggle("visible", window.scrollY > 280);
-          isScrolling = false;
-        });
-        isScrolling = true;
-      }
-    }, { passive: true });
-
-    backToTopBtn.addEventListener("click", () => {
-      window.scrollTo({ top: 0, behavior: prefersReducedMotion.matches ? "auto" : "smooth" });
-    });
-  }
 
   window.addEventListener("hashchange", () => syncSectionWithHash());
   window.addEventListener("popstate", () => syncSectionWithHash());

@@ -15,7 +15,6 @@ export function initChat() {
   const aiPageSendBtn = document.getElementById('ai-page-send-btn');
   const aiSidebarHistory = document.getElementById('ai-sidebar-history');
   const newChatBtn = document.getElementById('new-chat-btn');
-  const sidebarToggleMobile = document.getElementById('ai-sidebar-toggle');
   const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
   const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
   const aiLayout = document.getElementById('ai-layout');
@@ -78,8 +77,8 @@ export function initChat() {
         activeSessionId = session.id;
         renderSidebar();
         restoreActiveSession();
-        if (window.innerWidth <= 768 && aiSidebar) {
-          aiSidebar.classList.remove('open');
+        if (window.innerWidth <= 768 && aiLayout) {
+          aiLayout.classList.add('sidebar-hidden');
         }
       });
       aiSidebarHistory.appendChild(item);
@@ -89,15 +88,9 @@ export function initChat() {
   if (newChatBtn) {
     newChatBtn.addEventListener('click', () => {
       if (!isGenerating) createNewSession();
-      if (window.innerWidth <= 768 && aiSidebar) {
-        aiSidebar.classList.remove('open');
+      if (window.innerWidth <= 768 && aiLayout) {
+        aiLayout.classList.add('sidebar-hidden');
       }
-    });
-  }
-
-  if (sidebarToggleMobile && aiSidebar) {
-    sidebarToggleMobile.addEventListener('click', () => {
-      aiSidebar.classList.toggle('open');
     });
   }
 

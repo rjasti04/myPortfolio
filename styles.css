@@ -221,7 +221,6 @@ nav a:focus-visible,
 .btn:focus-visible,
 .project-filter:focus-visible,
 .project-details-btn:focus-visible,
-.back-to-top:focus-visible,
 .contact-submit-btn:focus-visible,
 .hamburger-btn:focus-visible {
   outline: 2px solid var(--accent);
@@ -433,6 +432,47 @@ main {
   text-align: left;
 }
 
+.hero-buttons {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.hero-chat-btn {
+  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: linear-gradient(90deg, var(--accent) 0%, #fb7185 35%, #f59e0b 50%, #fb7185 65%, var(--accent) 100%);
+  background-size: 250% auto;
+  color: #fff !important;
+  border: none;
+  animation: hero-shimmer 4s linear infinite;
+  box-shadow: 0 4px 15px var(--accent-mild);
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.hero-chat-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Hide floating chat toggle on the About page to avoid duplication */
+body:has(main > #about.active) .chat-toggle-btn {
+  display: none !important;
+}
+
+/* Hide the entire floating chat widget on the AI page */
+body:has(main > #ai.active) .chat-widget {
+  display: none !important;
+}
+
 .terminal-panel {
   border: 1px solid var(--terminal-border);
   border-radius: 14px;
@@ -621,9 +661,16 @@ main {
 
 
 /* Section Titles */
-.section-title {
+.section-title, .contact-title {
   font-size: 36px;
   margin-bottom: 40px;
+  background: -webkit-linear-gradient(45deg, var(--text), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  width: fit-content;
+  display: block;
 }
 
 /* Items / Cards */
@@ -844,6 +891,7 @@ main {
 .contact-title {
   font-size: 42px;
   text-align: center;
+  margin-inline: auto;
 }
 
 .contact-description {
@@ -1735,43 +1783,6 @@ footer::before {
   border-left: 3px solid var(--accent);
 }
 
-/* Back to Top */
-.back-to-top {
-  position: fixed;
-  bottom: 126px;
-  left: 20px;
-  right: auto;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  z-index: 999;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(10px);
-  transition:
-    opacity 0.3s ease,
-    transform 0.3s ease,
-    background 0.2s ease;
-}
-
-.back-to-top.visible {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
-}
-
-.back-to-top:hover {
-  background: var(--accent-hover);
-}
-
 /* Modal */
 .image-modal {
   position: fixed;
@@ -2034,12 +2045,6 @@ footer::before {
     align-items: flex-end;
   }
 
-  .back-to-top {
-    left: 14px;
-    right: auto;
-    bottom: 126px;
-  }
-
   .project-detail-content {
     padding: 28px 20px 22px;
     max-height: calc(100vh - 28px);
@@ -2183,7 +2188,6 @@ footer::before {
 
   .webgl-canvas,
   .noise-overlay,
-  .back-to-top,
   .toast-container,
   .header-actions,
   .hamburger-btn,
@@ -2342,8 +2346,7 @@ footer::before {
   display: block !important;
 }
 
-.js-enabled #theme-toggle.js-only,
-.js-enabled .back-to-top.js-only {
+.js-enabled #theme-toggle.js-only {
   display: flex !important;
 }
 
@@ -3238,18 +3241,12 @@ nav a:hover .nav-shortcut {
     left: 0;
     top: 0;
     height: 100%;
+    width: 100%;
     z-index: 20;
-    transform: translateX(-100%);
+    background: var(--bg);
   }
-  .ai-sidebar.open {
-    transform: translateX(0);
-    box-shadow: 4px 0 20px rgba(0,0,0,0.1);
-  }
-  .ai-sidebar-toggle {
-    display: block;
-  }
-  #ai {
-    padding-top: 50px;
+  .ai-layout:not(.sidebar-hidden) .ai-sidebar {
+    box-shadow: 4px 0 20px rgba(0,0,0,0.2);
   }
   .ai-page-heading { font-size: 2rem; }
   .ai-page-messages .chat-message { max-width: 95%; }
