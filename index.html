@@ -211,6 +211,7 @@
         <a href="#portfolio" data-target="portfolio">Portfolio</a>
         <a href="#hobbies" data-target="hobbies">Hobbies</a>
         <a href="#activity" data-target="activity">Activity</a>
+        <a href="#ai" data-target="ai">AI</a>
         <a href="#contact" data-target="contact">Contact</a>
       </nav>
       <!-- Location/weather info bar disabled; uncomment to re-enable.
@@ -677,6 +678,45 @@
           </div>
         </div>
       </section>
+
+      <section id="ai">
+        <button type="button" class="ai-sidebar-toggle" id="ai-sidebar-toggle" aria-label="Toggle history">
+          <i class="fas fa-bars"></i>
+        </button>
+        <div class="ai-layout sidebar-hidden" id="ai-layout">
+          <button type="button" class="sidebar-open-btn" id="sidebar-open-btn" aria-label="Open sidebar" title="Open sidebar">
+            <i class="fas fa-list"></i>
+          </button>
+          <div class="ai-sidebar" id="ai-sidebar">
+            <div class="ai-sidebar-header">
+              <button type="button" class="btn btn-outline new-chat-btn" id="new-chat-btn">
+                <i class="fas fa-plus"></i> New Chat
+              </button>
+              <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close sidebar" title="Close sidebar">
+                <i class="fas fa-list"></i>
+              </button>
+            </div>
+            <div class="ai-sidebar-history" id="ai-sidebar-history">
+              <!-- Chat history injected here -->
+            </div>
+          </div>
+
+          <div class="ai-page-container empty-state" id="ai-page-container">
+            <div class="ai-page-content">
+              <h1 class="ai-page-heading" id="ai-page-heading">What’s on your mind today?</h1>
+              <div class="ai-page-messages" id="ai-page-messages" aria-live="polite"></div>
+            </div>
+            <div class="ai-page-input-wrapper">
+              <form class="ai-page-form" id="ai-page-form">
+                <textarea id="ai-page-input" class="ai-page-input" placeholder="Message AI..." autocomplete="off" rows="1" required></textarea>
+                <button type="submit" class="ai-page-send-btn" id="ai-page-send-btn" aria-label="Send message">
+                  <i class="fas fa-paper-plane"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <!-- Chat Widget -->
@@ -707,11 +747,11 @@
         </form>
       </div>
       <button type="button" class="chat-toggle-btn" id="chat-toggle-btn" aria-label="Open chat" aria-expanded="false">
-        <i class="fas fa-comment-dots"></i>
+        <i class="fas fa-robot"></i>
       </button>
     </div>
 
-    <footer>
+    <!-- <footer>
       <span class="footer-text">&copy; <span id="footer-year"></span> Rajeev Jasti</span>
       <div class="footer-links">
         <a href="https://www.linkedin.com/in/rajeev-jasti-326080169" target="_blank" rel="noopener noreferrer"
@@ -723,9 +763,10 @@
           <i class="fab fa-github"></i>
         </a>
       </div>
-    </footer>
+    </footer> -->
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="app-logic.js" defer></script>
   <script type="module" src="js/main.js"></script>
 

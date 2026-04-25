@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, Query, Depends, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 from typing import Optional, Any
 from uuid import UUID
@@ -13,8 +14,15 @@ import time
 import logging
 
 import orjson
+from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
+
+# Initialize OpenAI client with the provided bedrock token
+bedrock_client = AsyncOpenAI(
+    api_key="bedrock-api-key-YmVkcm9jay5hbWF6b25hd3MuY29tLz9BY3Rpb249Q2FsbFdpdGhCZWFyZXJUb2tlbiZYLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFTSUFSNFc2UElORzZNWFFORktWJTJGMjAyNjA0MjQlMkZ1cy1lYXN0LTElMkZiZWRyb2NrJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyNjA0MjRUMTM1MTEzWiZYLUFtei1FeHBpcmVzPTQzMjAwJlgtQW16LVNlY3VyaXR5LVRva2VuPUlRb0piM0pwWjJsdVgyVmpFTGIlMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkZ3RWFDWFZ6TFdWaGMzUXRNU0pITUVVQ0lRRHE0ckxPakdYbWdBaHFOS252WDFOcmJJZnc1TXg1djBYJTJCS1UxTTFHV1Q4UUlnRXR0R1FSTllJNmZZTWlOUUxkY0x4QUF0WGt1QTI4bW9mOVBFcElKakVETXFxUU1JZnhBQUdnd3hNekF6T0Rrek1qZzNNVGNpREF4TUFDUXlIdWUwMnYlMkYzQ2lxR0E5V3BkQkRibW5aYjBuTUQlMkJLRU1UYThRYWx1UXhaZ3ZNbWZFUHB5Tzd6Ujd1RCUyRjVkd2pkbmQlMkJtVDFVQ3c5SnE0T1ZhZEdGSVZPeDhldzROS3MlMkI1WFhVMm1mUWY3WDN2YWQ4cDlHMkdVYXpZUCUyQjB4TlJlZG94aFAwWld2QWZwYmJlV0NGMko3Y3hRcXZXV0RJNyUyRmVhQSUyRjNEckdkYlEzUDk1RFA3aHMyQnNvTkZwZzk5NEdGeUl3bTJYN2hBWEx0TzBPdlNSS1MlMkZaM1VkJTJCRjZuYjVSTnRLV3Nqb1ZyZFVQZ3NHcDRUbVFXMnlWU1dEUkZqNWZaVUElMkZPM0V0MlIyNHphZUR4dmFXSlpjVWxuTExoVlpGYlNMNlZhaGdzRzBCbTdBYUthck1uQTRSSEh4d1VBbFdtOGs1bGlaZU9EJTJGOWFOdXdEZklmcGVDcjhoQ0xNTE5haUxyeklxNzZMWTJubiUyRldxJTJCd2lYMEdZUEFKMUQ5SHV4TzlXUFdLdmFnU3hIOTJyaWx0NmZ2VUlCMzVQdGhpQmVOUSUyQjdLbGRDOWkzYTBhdnkyQzl1TVNkWFJWUXY4ZmNGRGp3VWt0Y1NTZTY4WXhRdlMxSzJ0WnNiMlBvcjlGWWclMkJvVG1sbGpsSFhmTjY2RW5GU3JIcWQ5OTMwS1E1YURMZGZTVDR4N1ZxZzBtUHhmVmxlVWxwakNqNEszUEJqcmVBc0FHeGh0eG5DVDY1bndIZVV5eXYlMkZqeWpOMlU2N2VZNUc1JTJCS0FUTVZVU3plZXJLVW90c21qVVllVWZhYUJVakl3ayUyQmVRNjZWdFdGalN1JTJCWjNHYzk1UEU5MldNcUJoMTdWYThGbGVHQWI2ZFY4ZlJLYWl4bCUyRkFUMldPS0J1ZW1jJTJGR1FIQXRucm50eSUyQmx0blJoNzk1MVZXR0l3a3N6ZUw2ZnJLbjJoaWg0NWdaJTJCN2t0N2IzMnZWb1ZwJTJGU05NQUdTWW81V3RCZFdsTUZrb2NDZUtRQnolMkJkSllzNkNIQXQlMkZDSUVBVmtBSE9lbkc0YUxVJTJGSUN3NVBpbUNYakZGaG1lJTJGek9VMGIlMkI0ZnV1V3dmcXNFVEZwSjhDUmYwU29lJTJGOTRKOUcxYiUyQk01RnpVQUp0JTJGcGRPZ1NHYVhpcnRGbk1qWm9GT1FRQXhTUHU0OGhBaXNzQSUyRnhGUSUyRnVVcElNSDBYMkF2bVFVWkx5YXdyYkRlTDh2Q3VQRmM0VWJBdGJyJTJGUFZ0WDdJT0lWTUtma29OJTJCdnVwUVdqNkJ5bnh1Sm1aM3pablNqTUxjSFVsZFpKY3lhYzJ6Rm1wRVZyUEdPNTc3RXdKWjFvaFg4WHp2ZWpKekowcWglMkYlMkJoJlgtQW16LVNpZ25hdHVyZT0zZjAyODVmNDY0OGJmYTllYTgxMjRmYmJjNjliNTRjNTU4MTFjYjEwNDYzMzQxYzEyZDc0ZmNiMmUzYzdhMzYyJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZWZXJzaW9uPTE=",
+    base_url="https://bedrock-mantle.us-east-1.api.aws/v1"
+)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -181,6 +189,13 @@ class EventCreate(BaseModel):
 
 class BulkEventCreate(BaseModel):
     events: list[EventCreate]
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -383,24 +398,27 @@ async def get_session_events(
     return [dict(r) for r in rows]
 
 # ---------------------------------------------------------------------------
-# WebSocket Chat Endpoint
+# HTTP Chat Endpoint
 # ---------------------------------------------------------------------------
 
-@app.websocket("/ws/chat")
-async def websocket_chat(websocket: WebSocket):
-    await websocket.accept()
+@app.post("/chat")
+async def chat_endpoint(request: ChatRequest):
+    # Convert Pydantic models to dicts for OpenAI client
+    messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
     
-    # We can send an initial greeting
-    await websocket.send_text(
-        "Hi there! I am an automated assistant. Rajeev will get back to you soon. How can I help?"
-    )
-    
-    try:
-        while True:
-            data = await websocket.receive_text()
-            # Simple echo / auto-reply
-            reply = f"Automated reply: You said '{data}'. I've logged this message."
-            await websocket.send_text(reply)
+    async def generate_response():
+        try:
+            stream = await bedrock_client.chat.completions.create(
+                model="openai.gpt-oss-120b",
+                messages=messages,
+                stream=True
+            )
+            async for chunk in stream:
+                content = chunk.choices[0].delta.content
+                if content:
+                    yield content
+        except Exception as e:
+            logger.error(f"Error calling Bedrock model: {e}")
+            yield "\n(Error connecting to the AI model.)"
             
-    except WebSocketDisconnect:
-        logger.info("Chat websocket disconnected.")
+    return StreamingResponse(generate_response(), media_type="text/plain")
