@@ -9,7 +9,7 @@
   --muted: #1c1917;
   --border: rgb(28 25 23 / 8%);
   --card-bg: rgb(255 255 255 / 65%);
-  --skill-bg: rgba(255, 241, 242, 0.7);
+  --skill-bg: rgba(255, 248, 249, 0.5);
   --header-height: 80px;
   scroll-padding-top: var(--header-height);
   --radius: 20px;
@@ -1487,10 +1487,8 @@ footer::before {
   }
 
   .skills-carousel .skills-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
-    gap: 0;
+    display: block;
+    position: relative;
     overflow: visible;
     padding: 0;
     scroll-snap-type: none;
@@ -1508,6 +1506,9 @@ footer::before {
     min-width: 0;
     height: auto;
     padding-bottom: 52px;
+    position: absolute;
+    top: 0;
+    left: 0;
     transform: translateX(110%);
     opacity: 0;
     pointer-events: none;
@@ -1518,6 +1519,7 @@ footer::before {
   }
 
   .skills-carousel .skill-group.is-active {
+    position: relative;
     transform: translateX(0);
     opacity: 1;
     pointer-events: auto;
@@ -3004,23 +3006,89 @@ nav a:hover .nav-shortcut {
 }
 
 .history-item {
-  padding: 10px;
-  border-radius: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
   cursor: pointer;
   color: var(--text);
   font-size: var(--text-body-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  position: relative;
+}
+
+.history-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
 }
 
 .history-item:hover {
   background: var(--skill-bg);
+  transform: translateX(2px);
 }
+
 .history-item.active {
-  background: var(--border);
+  background: var(--accent-soft);
   font-weight: 600;
+  border-left: 3px solid var(--accent);
+}
+
+.history-item .delete-session-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  font-size: 12px;
+  flex-shrink: 0;
+  transition: color 0.2s, background 0.2s;
+}
+
+.history-item:hover .delete-session-btn {
+  display: flex;
+}
+
+.history-item .delete-session-btn:hover {
+  color: var(--color-error);
+  background: rgba(251, 113, 133, 0.15);
+}
+
+/* Sidebar Footer */
+.ai-sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.clear-all-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-body-xs);
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.clear-all-btn:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+  background: rgba(251, 113, 133, 0.08);
 }
 
 .ai-page-container {
@@ -3066,12 +3134,73 @@ nav a:hover .nav-shortcut {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   color: transparent;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-.ai-page-container:not(.empty-state) .ai-page-heading {
+.ai-page-subtitle {
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--text-body-sm);
+  opacity: 0.6;
+  margin-bottom: 32px;
+}
+
+.ai-page-container:not(.empty-state) .ai-page-heading,
+.ai-page-container:not(.empty-state) .ai-page-subtitle,
+.ai-page-container:not(.empty-state) .ai-suggested-prompts {
   display: none;
+}
+
+/* Suggested Prompts Grid */
+.ai-suggested-prompts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+  max-width: 520px;
+  margin-bottom: 24px;
+}
+
+.suggested-prompt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text);
+  font-size: var(--text-body-sm);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  animation: prompt-fade-in 0.5s ease both;
+}
+
+.suggested-prompt:nth-child(1) { animation-delay: 0.05s; }
+.suggested-prompt:nth-child(2) { animation-delay: 0.1s; }
+.suggested-prompt:nth-child(3) { animation-delay: 0.15s; }
+.suggested-prompt:nth-child(4) { animation-delay: 0.2s; }
+
+@keyframes prompt-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.suggested-prompt i {
+  font-size: 16px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.suggested-prompt:hover {
+  border-color: var(--accent-mild);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(230, 30, 77, 0.1);
 }
 
 .ai-page-messages {
@@ -3102,12 +3231,12 @@ nav a:hover .nav-shortcut {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  transition: box-shadow 0.35s ease, border-color 0.35s ease;
 }
 
 .ai-page-form:focus-within {
-  border-color: var(--accent-mild);
-  box-shadow: 0 10px 40px rgba(230, 30, 77, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft), 0 10px 40px rgba(230, 30, 77, 0.12);
 }
 
 .ai-page-input {
@@ -3148,7 +3277,7 @@ nav a:hover .nav-shortcut {
 
 .ai-page-send-btn:hover:not(:disabled) {
   background: var(--accent-hover);
-  transform: scale(1.05);
+  transform: scale(1.1);
 }
 
 .ai-page-send-btn:disabled {
@@ -3163,6 +3292,12 @@ nav a:hover .nav-shortcut {
   font-size: var(--text-body);
   line-height: 1.6;
   position: relative;
+  animation: msg-enter 0.35s ease both;
+}
+
+@keyframes msg-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .ai-page-messages .chat-message.user {
@@ -3180,6 +3315,7 @@ nav a:hover .nav-shortcut {
   border-radius: 20px 20px 20px 4px;
   background: var(--card-bg);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
 }
 
 /* Streaming Blinking Cursor */
@@ -3263,7 +3399,9 @@ nav a:hover .nav-shortcut {
   .ai-layout:not(.sidebar-hidden) .ai-sidebar {
     box-shadow: 4px 0 20px rgba(0,0,0,0.2);
   }
-  .ai-page-heading { font-size: 2rem; }
+  .ai-page-heading { font-size: 1.75rem; }
+  .ai-page-subtitle { font-size: var(--text-body-xs); }
+  .ai-suggested-prompts { grid-template-columns: 1fr; max-width: 100%; }
   .ai-page-messages .chat-message { max-width: 95%; }
 }
 

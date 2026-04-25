@@ -19,6 +19,8 @@ export function initChat() {
   const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
   const aiLayout = document.getElementById('ai-layout');
   const aiSidebar = document.getElementById('ai-sidebar');
+  const clearAllBtn = document.getElementById('clear-all-btn');
+  const suggestedPrompts = document.querySelectorAll('.suggested-prompt');
 
   let isOpen = false;
   let isGenerating = false;
@@ -71,9 +73,24 @@ export function initChat() {
     sessions.forEach(session => {
       const item = document.createElement('div');
       item.className = `history-item ${session.id === activeSessionId ? 'active' : ''}`;
-      item.textContent = session.title;
+
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = session.title;
+      item.appendChild(titleSpan);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-session-btn';
+      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      deleteBtn.title = 'Delete chat';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isGenerating) return;
+        deleteSession(session.id);
+      });
+      item.appendChild(deleteBtn);
+
       item.addEventListener('click', () => {
-        if (isGenerating) return; // Prevent switching while generating
+        if (isGenerating) return;
         activeSessionId = session.id;
         renderSidebar();
         restoreActiveSession();
@@ -85,6 +102,19 @@ export function initChat() {
     });
   }
 
+  function deleteSession(id) {
+    sessions = sessions.filter(s => s.id !== id);
+    if (sessions.length === 0) {
+      createNewSession();
+      return;
+    }
+    if (activeSessionId === id) {
+      activeSessionId = sessions[0].id;
+      restoreActiveSession();
+    }
+    saveSessions();
+  }
+
   if (newChatBtn) {
     newChatBtn.addEventListener('click', () => {
       if (!isGenerating) createNewSession();
@@ -93,6 +123,26 @@ export function initChat() {
       }
     });
   }
+
+  // Clear all sessions
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', () => {
+      if (isGenerating) return;
+      sessions = [];
+      createNewSession();
+    });
+  }
+
+  // Suggested prompt quick actions
+  suggestedPrompts.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (isGenerating) return;
+      const prompt = btn.getAttribute('data-prompt');
+      if (!prompt) return;
+      if (aiPageInput) aiPageInput.value = prompt;
+      handleChatSubmit(prompt);
+    });
+  });
 
   if (sidebarOpenBtn && aiLayout) {
     sidebarOpenBtn.addEventListener('click', () => {
