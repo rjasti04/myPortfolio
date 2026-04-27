@@ -3,10 +3,25 @@ import { prefersReducedMotion as reducedMotionQuery, compactViewport as compactV
 let destroyBackground = null;
 let backgroundVariant = null;
 
+let isWebGLAvailable = null;
+
 function shouldEnableBackground() {
   if (reducedMotionQuery.matches) return false;
   if (mobileDevice.matches) return false;
-  return Boolean(window.WebGLRenderingContext);
+
+  if (isWebGLAvailable === null) {
+    try {
+      const canvas = document.createElement("canvas");
+      isWebGLAvailable = !!(
+        window.WebGLRenderingContext &&
+        (canvas.getContext("webgl") || canvas.getContext("experimental-webgl"))
+      );
+    } catch (e) {
+      isWebGLAvailable = false;
+    }
+  }
+
+  return isWebGLAvailable;
 }
 
 function getBackgroundVariant() {
@@ -22,12 +37,18 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   camera.position.set(0, 15, 30);
   camera.lookAt(0, -5, 0);
 
+  // Ensure the canvas element is actually available
+  if (!canvas) {
+    console.error("Renderer initialization failed: No canvas element provided.");
+    return null;
+  }
+
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({
       alpha: true,
       antialias: true,
-      canvas,
+      canvas: canvas,
     });
   } catch (error) {
     console.error("Three.js background could not be initialized.", error);

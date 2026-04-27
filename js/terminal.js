@@ -107,6 +107,7 @@ export function initTerminal() {
       return `
         <ul class="terminal-list">
           <li><strong>whoami</strong>    - Display details about me</li>
+          <li><strong>ai</strong>        - Launch the AI assistant</li>
           <li><strong>projects</strong>  - Current high-level focuses</li>
           <li><strong>skills</strong>    - Technologies I work with</li>
           <li><strong>cd</strong>        - Navigate sections (e.g., cd portfolio)</li>
@@ -138,6 +139,13 @@ export function initTerminal() {
           <li><strong>Bio:</strong> Architecting low-latency distributed systems and massive-scale ETL pipelines.</li>
         </ul>
       `;
+    },
+    ai: () => {
+      setTimeout(() => {
+        const aiLink = document.querySelector('nav a[data-target="ai"]');
+        if (aiLink) aiLink.click();
+      }, 500);
+      return `<p class="terminal-output-text">Initializing neural interface... Redirecting to AI portal.</p>`;
     },
     projects: () => {
       return `

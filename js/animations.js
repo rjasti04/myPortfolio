@@ -91,23 +91,26 @@ export function initMatrixDecode() {
   const originalText = element.textContent.trim();
   const chars = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜｦﾝ";
 
+  // Pre-generate spans once
+  const letters = originalText.split("");
+  element.textContent = "";
+  const spans = letters.map(letter => {
+    const s = document.createElement("span");
+    s.textContent = letter;
+    element.appendChild(s);
+    return s;
+  });
+
+  spans.forEach((s, i) => {
+    if (letters[i] === " ") return;
+    const w = s.getBoundingClientRect().width;
+    s.style.display = "inline-block";
+    s.style.width = `${w}px`;
+    s.style.textAlign = "center";
+    s.style.overflow = "hidden";
+  });
+
   const animateText = () => {
-    const letters = originalText.split("");
-    element.textContent = "";
-    const spans = letters.map(letter => {
-      const s = document.createElement("span");
-      s.textContent = letter;
-      element.appendChild(s);
-      return s;
-    });
-    spans.forEach((s, i) => {
-      if (letters[i] === " ") return;
-      const w = s.getBoundingClientRect().width;
-      s.style.display = "inline-block";
-      s.style.width = `${w}px`;
-      s.style.textAlign = "center";
-      s.style.overflow = "hidden";
-    });
     let iterations = 0;
     let lastTime = 0;
 
@@ -122,13 +125,15 @@ export function initMatrixDecode() {
             continue;
           }
           if (i < iterations) {
-            if (spans[i].style.color) {
+            if (spans[i].dataset.scrambled === "true") {
               spans[i].textContent = letters[i];
               spans[i].style.color = "";
+              spans[i].dataset.scrambled = "false";
             }
           } else {
             spans[i].textContent = chars[Math.floor(Math.random() * chars.length)];
             spans[i].style.color = "var(--accent)";
+            spans[i].dataset.scrambled = "true";
           }
           currentString += spans[i].textContent;
         }
@@ -140,7 +145,11 @@ export function initMatrixDecode() {
       if (iterations < originalText.length) {
         requestAnimationFrame(tick);
       } else {
-        element.textContent = originalText;
+        spans.forEach((s, i) => {
+          s.textContent = letters[i];
+          s.style.color = "";
+          s.dataset.scrambled = "false";
+        });
         element.setAttribute("data-text", originalText);
       }
     };
@@ -149,10 +158,10 @@ export function initMatrixDecode() {
 
   setTimeout(animateText, 100);
   element.addEventListener("mouseenter", () => {
-    if (element.textContent === originalText) animateText();
+    if (element.getAttribute("data-text") === originalText) animateText();
   });
   setInterval(() => {
-    if (element.textContent === originalText) animateText();
+    if (element.getAttribute("data-text") === originalText) animateText();
   }, 12000);
 }
 

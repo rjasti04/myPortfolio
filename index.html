@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="Rajeev Jasti" />
   <meta name="theme-color" content="#e61e4d" />
@@ -607,8 +607,11 @@
         <p class="section-intro">Live view of current session events from FastAPI heartbeat session.</p>
         <div class="activity-controls">
           <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
-            Refresh View</button>
-          <div class="activity-session-info">Session ID: <span id="current-session-id">-</span></div>
+            Refresh</button>
+          <div class="activity-session-grid">
+            <div class="activity-refresh static session-id-pill">Session ID: <span id="current-session-id">-</span>
+            </div>
+          </div>
         </div>
         <div class="activity-table-container">
           <table class="activity-table">
@@ -684,7 +687,7 @@
         <div class="ai-layout sidebar-hidden" id="ai-layout">
           <button type="button" class="sidebar-open-btn" id="sidebar-open-btn" aria-label="Open sidebar"
             title="Open sidebar">
-            <i class="fas fa-list"></i>
+            <i class="fas fa-chevron-right"></i>
           </button>
           <div class="ai-sidebar" id="ai-sidebar">
             <div class="ai-sidebar-header">
@@ -693,7 +696,7 @@
               </button>
               <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close sidebar"
                 title="Close sidebar">
-                <i class="fas fa-list"></i>
+                <i class="fas fa-chevron-left"></i>
               </button>
             </div>
             <div class="ai-sidebar-history" id="ai-sidebar-history">
@@ -715,7 +718,8 @@
                   <i class="fas fa-atom"></i>
                   <span>Explain quantum computing in simple terms</span>
                 </button>
-                <button type="button" class="suggested-prompt" data-prompt="What are the best strategies for learning a new language?">
+                <button type="button" class="suggested-prompt"
+                  data-prompt="What are the best strategies for learning a new language?">
                   <i class="fas fa-language"></i>
                   <span>What are the best strategies for learning a new language?</span>
                 </button>
@@ -735,7 +739,7 @@
                 <textarea id="ai-page-input" class="ai-page-input" placeholder="Ask AI ..." autocomplete="off" rows="1"
                   required></textarea>
                 <button type="submit" class="ai-page-send-btn" id="ai-page-send-btn" aria-label="Send message">
-                  <i class="fas fa-paper-plane"></i>
+                  <i class="fas fa-arrow-up"></i>
                 </button>
               </form>
             </div>
@@ -768,7 +772,7 @@
           <input type="text" id="chat-input" class="chat-input" placeholder="Type your message..." autocomplete="off"
             required />
           <button type="submit" class="chat-send-btn" aria-label="Send message">
-            <i class="fas fa-paper-plane"></i>
+            <i class="fas fa-arrow-up"></i>
           </button>
         </form>
       </div>

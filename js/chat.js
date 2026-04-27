@@ -208,11 +208,11 @@ export function initChat() {
   function restoreActiveSession() {
     if (messagesContainer) messagesContainer.innerHTML = '';
     if (aiPageMessages) aiPageMessages.innerHTML = '';
-    
+
     const session = getActiveSession();
     if (session.messages.length === 0) {
       if (aiPageContainer) aiPageContainer.classList.add('empty-state');
-      appendMessage("Hi there! I am an automated assistant powered by Bedrock. How can I help?", 'bot', false);
+      appendMessage("How can I help?", 'bot', false);
     } else {
       if (aiPageContainer) aiPageContainer.classList.remove('empty-state');
       // Temporarily disable auto-scroll to avoid jumping while rendering
@@ -222,11 +222,11 @@ export function initChat() {
 
   // Auto-resize textarea
   if (aiPageInput) {
-    aiPageInput.addEventListener('input', function() {
+    aiPageInput.addEventListener('input', function () {
       this.style.height = 'auto';
       this.style.height = (this.scrollHeight) + 'px';
     });
-    aiPageInput.addEventListener('keydown', function(e) {
+    aiPageInput.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         aiPageForm.dispatchEvent(new Event('submit'));
@@ -245,42 +245,42 @@ export function initChat() {
 
     toggleBtn.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
-      
+
       wasDragged = false;
       dragStartX = e.clientX;
       dragStartY = e.clientY;
-      
+
       toggleBtn.setPointerCapture(e.pointerId);
       toggleBtn.style.cursor = 'grabbing';
-      
+
       const onPointerMove = (moveEvent) => {
         const dx = moveEvent.clientX - dragStartX;
         const dy = moveEvent.clientY - dragStartY;
-        
+
         if (!wasDragged && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
           wasDragged = true;
         }
-        
+
         if (wasDragged) {
           currentTranslateX = initialTranslateX + dx;
           currentTranslateY = initialTranslateY + dy;
           widget.style.transform = `translate(${currentTranslateX}px, ${currentTranslateY}px)`;
         }
       };
-      
+
       const onPointerUp = (upEvent) => {
         toggleBtn.releasePointerCapture(e.pointerId);
         toggleBtn.removeEventListener('pointermove', onPointerMove);
         toggleBtn.removeEventListener('pointerup', onPointerUp);
         toggleBtn.removeEventListener('pointercancel', onPointerUp);
         toggleBtn.style.cursor = '';
-        
+
         if (wasDragged) {
           initialTranslateX = currentTranslateX;
           initialTranslateY = currentTranslateY;
         }
       };
-      
+
       toggleBtn.addEventListener('pointermove', onPointerMove);
       toggleBtn.addEventListener('pointerup', onPointerUp);
       toggleBtn.addEventListener('pointercancel', onPointerUp);
@@ -315,12 +315,12 @@ export function initChat() {
     if (aiPageInput) aiPageInput.disabled = disabled;
     if (aiPageSendBtn) {
       aiPageSendBtn.disabled = disabled;
-      aiPageSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-paper-plane"></i>';
+      aiPageSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
     }
     if (chatInput) chatInput.disabled = disabled;
     if (chatSendBtn) {
       chatSendBtn.disabled = disabled;
-      chatSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-paper-plane"></i>';
+      chatSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
     }
     if (newChatBtn) newChatBtn.disabled = disabled;
   }
@@ -405,7 +405,7 @@ export function initChat() {
         const chunk = decoder.decode(value, { stream: true });
         botFullText += chunk;
         const html = marked.parse(botFullText);
-        
+
         if (widgetMsgEl) {
           widgetMsgEl.innerHTML = html;
           // Auto scroll smoothly if near bottom
