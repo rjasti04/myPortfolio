@@ -16,7 +16,7 @@ export async function loadActivity(offset = currentOffset) {
 
   const sessionIdSpan = document.getElementById("current-session-id");
   if (sessionIdSpan) {
-    const displayId = sessionId ? sessionId.split('-')[0] : "None";
+    const displayId = sessionId ? sessionId.split('-').slice(0, 3).join('-') : "None";
     sessionIdSpan.textContent = displayId;
   }
 

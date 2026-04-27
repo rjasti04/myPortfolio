@@ -91,7 +91,7 @@ export function initMatrixDecode() {
   const originalText = element.textContent.trim();
   const chars = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜｦﾝ";
 
-  // Pre-generate spans once
+  // Pre-generate spans
   const letters = originalText.split("");
   element.textContent = "";
   const spans = letters.map(letter => {
@@ -101,14 +101,8 @@ export function initMatrixDecode() {
     return s;
   });
 
-  spans.forEach((s, i) => {
-    if (letters[i] === " ") return;
-    const w = s.getBoundingClientRect().width;
-    s.style.display = "inline-block";
-    s.style.width = `${w}px`;
-    s.style.textAlign = "center";
-    s.style.overflow = "hidden";
-  });
+  // Ensure data-text is set immediately for pseudo-elements
+  element.setAttribute("data-text", originalText);
 
   const animateText = () => {
     let iterations = 0;
@@ -156,10 +150,36 @@ export function initMatrixDecode() {
     requestAnimationFrame(tick);
   };
 
-  setTimeout(animateText, 100);
+  const startAnimation = () => {
+    // Only set fixed widths if fonts are loaded and we get non-zero widths
+    spans.forEach((s, i) => {
+      if (letters[i] === " ") return;
+      // Reset width before measuring if this is a re-run
+      s.style.width = "";
+      const w = s.getBoundingClientRect().width;
+      if (w > 0) {
+        s.style.display = "inline-block";
+        s.style.width = `${w}px`;
+        s.style.textAlign = "center";
+        s.style.overflow = "hidden";
+      }
+    });
+    animateText();
+  };
+
+  // Use document.fonts if available to wait for Jakarta Sans
+  if (document.fonts) {
+    document.fonts.ready.then(() => {
+      setTimeout(startAnimation, 100);
+    });
+  } else {
+    setTimeout(startAnimation, 500);
+  }
+
   element.addEventListener("mouseenter", () => {
     if (element.getAttribute("data-text") === originalText) animateText();
   });
+  
   setInterval(() => {
     if (element.getAttribute("data-text") === originalText) animateText();
   }, 12000);

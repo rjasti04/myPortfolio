@@ -11,7 +11,7 @@
   --card-bg: rgb(255 255 255 / 65%);
   --skill-bg: rgba(255, 248, 249, 0.5);
   --header-height: 80px;
-  scroll-padding-top: var(--header-height);
+  scroll-padding-top: calc(var(--header-height) + 24px);
   --radius: 20px;
   --select-bg: #fff;
   --terminal-bg: #1c1917;
@@ -346,8 +346,10 @@ main {
   -webkit-text-fill-color: transparent;
   color: var(--accent);
   animation: hero-shimmer 4s linear infinite, hero-glitch-jitter 5s steps(1) infinite;
-  will-change: transform, background-position, filter, clip-path;
+  will-change: transform, background-position;
   white-space: nowrap;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 /* Pseudo-elements for Horizontal Pixel Slicing */
@@ -2077,6 +2079,7 @@ footer::before {
 @media (width <=900px) {
   :root {
     --header-height: 72px;
+    scroll-padding-top: calc(var(--header-height) + 28px);
   }
 
   .hero-title {
@@ -2107,7 +2110,7 @@ footer::before {
   }
 
   main {
-    padding: 14px 14px 88px;
+    padding: 48px 14px 88px;
   }
 
   #about.active {
@@ -3135,7 +3138,9 @@ nav a:hover .nav-shortcut {
 }
 
 .activity-refresh {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: none;
   border: 1px solid var(--accent);
   color: var(--accent);
@@ -3145,6 +3150,7 @@ nav a:hover .nav-shortcut {
   border-radius: 999px;
   cursor: pointer;
   transition: 0.2s ease;
+  line-height: 1;
 }
 
 .activity-refresh:hover {
@@ -3165,29 +3171,25 @@ nav a:hover .nav-shortcut {
   margin-bottom: 16px;
 }
 
-.activity-refresh.session-id-pill {
-  font-size: 12px;
-  padding: 4px 10px;
-}
-
-.activity-session-grid {
+.activity-pills-group {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+}
+
+.activity-refresh.session-id-pill {
+  /* Inherits base activity-refresh styles */
 }
 
 @media (width <=600px) {
   .activity-controls {
-    justify-content: center;
+    justify-content: flex-start;
   }
 
-  .activity-session-grid {
+  .activity-pills-group {
     width: 100%;
-    justify-content: center;
-  }
-
-  .activity-session-grid .activity-refresh {
-    text-align: center;
+    justify-content: flex-start;
   }
 }
 
@@ -3223,9 +3225,9 @@ nav a:hover .nav-shortcut {
   width: 100%;
   position: relative;
   background: var(--card-bg);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 0 30px var(--accent-mild), 0 10px 40px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
   overflow: hidden;
 }
 
