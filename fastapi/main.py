@@ -18,26 +18,22 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI client with the provided bedrock token
-bedrock_client = AsyncOpenAI(
-    api_key="bedrock-api-key-YmVkcm9jay5hbWF6b25hd3MuY29tLz9BY3Rpb249Q2FsbFdpdGhCZWFyZXJUb2tlbiZYLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFTSUFSNFc2UElORzZNWFFORktWJTJGMjAyNjA0MjQlMkZ1cy1lYXN0LTElMkZiZWRyb2NrJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyNjA0MjRUMTM1MTEzWiZYLUFtei1FeHBpcmVzPTQzMjAwJlgtQW16LVNlY3VyaXR5LVRva2VuPUlRb0piM0pwWjJsdVgyVmpFTGIlMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkZ3RWFDWFZ6TFdWaGMzUXRNU0pITUVVQ0lRRHE0ckxPakdYbWdBaHFOS252WDFOcmJJZnc1TXg1djBYJTJCS1UxTTFHV1Q4UUlnRXR0R1FSTllJNmZZTWlOUUxkY0x4QUF0WGt1QTI4bW9mOVBFcElKakVETXFxUU1JZnhBQUdnd3hNekF6T0Rrek1qZzNNVGNpREF4TUFDUXlIdWUwMnYlMkYzQ2lxR0E5V3BkQkRibW5aYjBuTUQlMkJLRU1UYThRYWx1UXhaZ3ZNbWZFUHB5Tzd6Ujd1RCUyRjVkd2pkbmQlMkJtVDFVQ3c5SnE0T1ZhZEdGSVZPeDhldzROS3MlMkI1WFhVMm1mUWY3WDN2YWQ4cDlHMkdVYXpZUCUyQjB4TlJlZG94aFAwWld2QWZwYmJlV0NGMko3Y3hRcXZXV0RJNyUyRmVhQSUyRjNEckdkYlEzUDk1RFA3aHMyQnNvTkZwZzk5NEdGeUl3bTJYN2hBWEx0TzBPdlNSS1MlMkZaM1VkJTJCRjZuYjVSTnRLV3Nqb1ZyZFVQZ3NHcDRUbVFXMnlWU1dEUkZqNWZaVUElMkZPM0V0MlIyNHphZUR4dmFXSlpjVWxuTExoVlpGYlNMNlZhaGdzRzBCbTdBYUthck1uQTRSSEh4d1VBbFdtOGs1bGlaZU9EJTJGOWFOdXdEZklmcGVDcjhoQ0xNTE5haUxyeklxNzZMWTJubiUyRldxJTJCd2lYMEdZUEFKMUQ5SHV4TzlXUFdLdmFnU3hIOTJyaWx0NmZ2VUlCMzVQdGhpQmVOUSUyQjdLbGRDOWkzYTBhdnkyQzl1TVNkWFJWUXY4ZmNGRGp3VWt0Y1NTZTY4WXhRdlMxSzJ0WnNiMlBvcjlGWWclMkJvVG1sbGpsSFhmTjY2RW5GU3JIcWQ5OTMwS1E1YURMZGZTVDR4N1ZxZzBtUHhmVmxlVWxwakNqNEszUEJqcmVBc0FHeGh0eG5DVDY1bndIZVV5eXYlMkZqeWpOMlU2N2VZNUc1JTJCS0FUTVZVU3plZXJLVW90c21qVVllVWZhYUJVakl3ayUyQmVRNjZWdFdGalN1JTJCWjNHYzk1UEU5MldNcUJoMTdWYThGbGVHQWI2ZFY4ZlJLYWl4bCUyRkFUMldPS0J1ZW1jJTJGR1FIQXRucm50eSUyQmx0blJoNzk1MVZXR0l3a3N6ZUw2ZnJLbjJoaWg0NWdaJTJCN2t0N2IzMnZWb1ZwJTJGU05NQUdTWW81V3RCZFdsTUZrb2NDZUtRQnolMkJkSllzNkNIQXQlMkZDSUVBVmtBSE9lbkc0YUxVJTJGSUN3NVBpbUNYakZGaG1lJTJGek9VMGIlMkI0ZnV1V3dmcXNFVEZwSjhDUmYwU29lJTJGOTRKOUcxYiUyQk01RnpVQUp0JTJGcGRPZ1NHYVhpcnRGbk1qWm9GT1FRQXhTUHU0OGhBaXNzQSUyRnhGUSUyRnVVcElNSDBYMkF2bVFVWkx5YXdyYkRlTDh2Q3VQRmM0VWJBdGJyJTJGUFZ0WDdJT0lWTUtma29OJTJCdnVwUVdqNkJ5bnh1Sm1aM3pablNqTUxjSFVsZFpKY3lhYzJ6Rm1wRVZyUEdPNTc3RXdKWjFvaFg4WHp2ZWpKekowcWglMkYlMkJoJlgtQW16LVNpZ25hdHVyZT0zZjAyODVmNDY0OGJmYTllYTgxMjRmYmJjNjliNTRjNTU4MTFjYjEwNDYzMzQxYzEyZDc0ZmNiMmUzYzdhMzYyJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZWZXJzaW9uPTE=",
-    base_url="https://bedrock-mantle.us-east-1.api.aws/v1"
-)
-
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://webapp:B-rabbit<3@localhost:5432/myappdb",
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+BEDROCK_URL = os.getenv("BEDROCK_URL")
+BEDROCK_KEY = os.getenv("BEDROCK_KEY")
 
 _raw_origins = os.getenv("CORS_ORIGINS", "https://rajeevjasti.com")
 _origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 API_KEY = os.getenv("API_KEY", "")
 MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", str(1_048_576)))  # 1 MB
+
+# Initialize OpenAI client with the provided bedrock token
+bedrock_client = AsyncOpenAI(api_key=BEDROCK_KEY,base_url=BEDROCK_URL)
 
 # ---------------------------------------------------------------------------
 # Rate Limiting Middleware (in-memory, per-IP)
@@ -139,7 +135,7 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# Auth helper (optional — only enforced when API_KEY env var is set)
+# Auth helper (optional â€” only enforced when API_KEY env var is set)
 # ---------------------------------------------------------------------------
 
 async def verify_api_key(request: Request):
@@ -163,7 +159,7 @@ class SessionEnd(BaseModel):
     end_reason: Optional[str] = None   # "logout" | "timeout" | "closed" | etc.
 
 class SessionUpdate(BaseModel):
-    """Lightweight heartbeat — just bumps last_active_at."""
+    """Lightweight heartbeat â€” just bumps last_active_at."""
     pass
 
 class EventCreate(BaseModel):
@@ -313,7 +309,7 @@ async def create_event(payload: EventCreate, request: Request):
     The session must exist in user_sessions.
     """
     async with request.app.state.pool.acquire() as conn:
-        # Verify session exists (optional guard — remove if perf-sensitive)
+        # Verify session exists (optional guard â€” remove if perf-sensitive)
         exists = await conn.fetchval(
             "SELECT 1 FROM user_sessions WHERE session_id = $1", payload.session_id
         )
