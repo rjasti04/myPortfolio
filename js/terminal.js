@@ -26,7 +26,10 @@ export function initTerminal() {
   try {
     const saved = localStorage.getItem(HISTORY_KEY);
     if (saved) {
-      commandHistory = JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+        commandHistory = parsed;
+      }
     }
   } catch (e) {
     // Ignore parse errors

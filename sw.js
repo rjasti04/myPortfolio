@@ -1,5 +1,13 @@
 const CACHE_NAME = 'rj-portfolio-v6';
 
+const ALLOWED_ORIGINS = new Set([
+  'https://fonts.googleapis.com',
+  'https://fonts.gstatic.com',
+  'https://cdnjs.cloudflare.com',
+  'https://unpkg.com',
+  'https://cdn.jsdelivr.net',
+]);
+
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -51,7 +59,8 @@ self.addEventListener('fetch', event => {
   // We want to lock down external scripts/fonts and serve from cache instantly.
   if (url.origin !== location.origin) {
     if (event.request.method !== 'GET') return;
-    
+    if (!ALLOWED_ORIGINS.has(url.origin)) return;
+
     event.respondWith(
       caches.match(event.request).then(cachedResponse => {
         if (cachedResponse) {

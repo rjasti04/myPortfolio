@@ -1119,6 +1119,14 @@ body:has(main > #ai.active) .chat-widget {
   gap: 12px;
 }
 
+.contact-grid .btn {
+  width: 240px;
+  max-width: 100%;
+  min-width: 0;
+  text-align: center;
+  justify-content: center;
+}
+
 .contact-email-btn {
   white-space: nowrap;
 }
@@ -2250,13 +2258,15 @@ footer::before {
   }
 
   .contact-info {
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: stretch;
-    flex-direction: column;
   }
 
   .contact-info .btn {
+    min-width: 0;
     justify-content: center;
-    width: 100%;
+    text-align: center;
   }
 
   .toast-container {
@@ -2291,8 +2301,7 @@ footer::before {
     margin-bottom: 24px;
   }
 
-  .project-details-btn,
-  .contact-submit-btn {
+  .project-details-btn {
     width: 100%;
     justify-content: center;
   }
@@ -2334,7 +2343,7 @@ footer::before {
   }
 
   .contact-section {
-    padding: 24px 0 16px;
+    padding: 24px 16px 16px;
   }
 
   .contact-description {

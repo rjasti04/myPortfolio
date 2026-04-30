@@ -418,16 +418,14 @@ async def chat_endpoint(request: ChatRequest):
     model_id = request.model or DEFAULT_MODEL_ID
 
     # Build Converse-compatible message list
-    converse_messages = []
-    for msg in request.messages:
-        converse_messages.append({
-            "role": msg.role,
-            "content": [{"text": msg.content}],
-        })
+    converse_messages = [
+        {"role": msg.role, "content": [{"text": msg.content}]}
+        for msg in request.messages
+    ]
 
     async def generate_response():
         queue: asyncio.Queue = asyncio.Queue()
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _stream_worker():
             """Runs in a thread – reads the synchronous Bedrock stream and
