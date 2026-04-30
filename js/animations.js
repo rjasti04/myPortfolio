@@ -1,4 +1,5 @@
-import { prefersReducedMotion, mobileDevice } from "./config.js";
+import { prefersReducedMotion, mobileDevice, supportsHover } from "./config.js";
+import { animateSpring } from "./physics.js";
 
 export function initReveals() {
   const revealElements = Array.from(document.querySelectorAll(".reveal"));
@@ -19,11 +20,31 @@ export function initReveals() {
   }, { threshold: 0.1, rootMargin: "0px 0px -40px 0px" });
 
   revealElements.forEach((element) => observer.observe(element));
+
+  // Stagger delays for grid children (stats, skills, project cards)
+  document.querySelectorAll(".stats-grid, .skills-grid, .portfolio-grid, .articles-grid").forEach((grid) => {
+    const children = Array.from(grid.querySelectorAll(".reveal"));
+    children.forEach((child, i) => {
+      child.style.setProperty("--reveal-delay", `${i * 80}ms`);
+    });
+  });
 }
 
 export function initStats() {
   const statNumbers = Array.from(document.querySelectorAll(".stat-number[data-target]"));
   if (statNumbers.length === 0) return;
+
+  const springPop = (el) => {
+    if (prefersReducedMotion.matches) return;
+    // Quick scale pop: 1.15 → 1 with snappy spring
+    animateSpring({
+      from: 1.15,
+      to: 1,
+      onUpdate: (v) => { el.style.transform = `scale(${v})`; },
+      onComplete: () => { el.style.transform = ""; },
+      config: { stiffness: 400, damping: 18 }
+    });
+  };
 
   const animateStat = (element) => {
     if (element.dataset.animated) return;
@@ -47,7 +68,10 @@ export function initStats() {
       const current = target * eased;
       element.textContent = `${isDecimal ? current.toFixed(1) : Math.floor(current)}${suffix}`;
       if (progress < 1) requestAnimationFrame(step);
-      else element.textContent = `${isDecimal ? target.toFixed(1) : target}${suffix}`;
+      else {
+        element.textContent = `${isDecimal ? target.toFixed(1) : target}${suffix}`;
+        springPop(element);
+      }
     };
     requestAnimationFrame(step);
   };
@@ -185,9 +209,54 @@ export function initMatrixDecode() {
   }, 12000);
 }
 
+export function initSpringHovers() {
+  if (prefersReducedMotion.matches || !supportsHover.matches) return;
+
+  const springConfig = { stiffness: 400, damping: 30 };
+
+  // Spring hover for .btn elements
+  document.querySelectorAll(".btn").forEach((btn) => {
+    btn.addEventListener("mouseenter", () => {
+      animateSpring({
+        from: 0, to: -3,
+        onUpdate: (y) => { btn.style.transform = `translateY(${y}px) scale(${1 + Math.abs(y) * 0.01})`; },
+        config: springConfig
+      });
+    });
+    btn.addEventListener("mouseleave", () => {
+      animateSpring({
+        from: -3, to: 0,
+        onUpdate: (y) => { btn.style.transform = `translateY(${y}px)`; },
+        onComplete: () => { btn.style.transform = ""; },
+        config: springConfig
+      });
+    });
+  });
+
+  // Spring hover for .item cards (non-tilt)
+  document.querySelectorAll(".item:not(.tilt-card)").forEach((card) => {
+    card.addEventListener("mouseenter", () => {
+      animateSpring({
+        from: 0, to: -8,
+        onUpdate: (y) => { card.style.transform = `translateY(${y}px) scale(1.01)`; },
+        config: springConfig
+      });
+    });
+    card.addEventListener("mouseleave", () => {
+      animateSpring({
+        from: -8, to: 0,
+        onUpdate: (y) => { card.style.transform = `translateY(${y}px)`; },
+        onComplete: () => { card.style.transform = ""; },
+        config: springConfig
+      });
+    });
+  });
+}
+
 export function initAnimations() {
   initReveals();
   initStats();
   initTerminalIntro();
   initMatrixDecode();
+  initSpringHovers();
 }

@@ -139,7 +139,10 @@ export function initChat() {
       if (isGenerating) return;
       const prompt = btn.getAttribute('data-prompt');
       if (!prompt) return;
-      if (aiPageInput) aiPageInput.value = prompt;
+      if (aiPageInput) {
+        aiPageInput.value = '';
+        aiPageInput.style.height = 'auto';
+      }
       handleChatSubmit(prompt);
     });
   });
@@ -170,15 +173,35 @@ export function initChat() {
     }
   }
 
+  function createCopyButton(getText) {
+    const btn = document.createElement('button');
+    btn.className = 'msg-copy-btn';
+    btn.title = 'Copy';
+    btn.innerHTML = '<i class="fas fa-copy"></i>';
+    btn.addEventListener('click', async () => {
+      try {
+        const text = typeof getText === 'function' ? getText() : getText;
+        await navigator.clipboard.writeText(text);
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i>'; }, 1500);
+      } catch (e) {
+        console.error('Copy failed', e);
+      }
+    });
+    return btn;
+  }
+
   function appendMessage(text, sender, save = true) {
     const isBot = sender === 'bot';
     const htmlContent = isBot ? marked.parse(text) : text;
+    const showCopy = save; // skip copy btn for system/greeting messages
 
     if (messagesContainer) {
       const msgEl = document.createElement('div');
       msgEl.className = `chat-message ${sender}`;
       if (isBot) msgEl.innerHTML = htmlContent;
       else msgEl.textContent = text;
+      if (showCopy) msgEl.appendChild(createCopyButton(text));
       messagesContainer.appendChild(msgEl);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
@@ -191,6 +214,7 @@ export function initChat() {
       msgEl2.className = `chat-message ${sender}`;
       if (isBot) msgEl2.innerHTML = htmlContent;
       else msgEl2.textContent = text;
+      if (showCopy) msgEl2.appendChild(createCopyButton(text));
       aiPageMessages.appendChild(msgEl2);
       aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
     }
@@ -212,7 +236,7 @@ export function initChat() {
     const session = getActiveSession();
     if (session.messages.length === 0) {
       if (aiPageContainer) aiPageContainer.classList.add('empty-state');
-      appendMessage("How can I help?", 'bot', false);
+      appendMessage("Ask anything!", 'bot', false);
     } else {
       if (aiPageContainer) aiPageContainer.classList.remove('empty-state');
       // Temporarily disable auto-scroll to avoid jumping while rendering
@@ -419,8 +443,14 @@ export function initChat() {
         }
       }
 
-      if (widgetMsgEl) widgetMsgEl.classList.remove('streaming');
-      if (aiMsgEl) aiMsgEl.classList.remove('streaming');
+      if (widgetMsgEl) {
+        widgetMsgEl.classList.remove('streaming');
+        widgetMsgEl.appendChild(createCopyButton(() => botFullText));
+      }
+      if (aiMsgEl) {
+        aiMsgEl.classList.remove('streaming');
+        aiMsgEl.appendChild(createCopyButton(() => botFullText));
+      }
 
       session.messages.push({ text: botFullText, sender: 'bot' });
       saveSessions();

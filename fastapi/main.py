@@ -8,14 +8,16 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from collections import defaultdict
 import asyncpg
+import asyncio
 import os
 import json
 import time
 import logging
 
+import boto3
 import orjson
-from openai import AsyncOpenAI
 
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -23,17 +25,30 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-BEDROCK_URL = os.getenv("BEDROCK_URL")
-BEDROCK_KEY = os.getenv("BEDROCK_KEY")
+AWS_REGION = os.getenv("AWS_REGION")
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+DEFAULT_MODEL_ID = os.getenv("DEFAULT_MODEL_ID")
 
-_raw_origins = os.getenv("CORS_ORIGINS", "https://rajeevjasti.com")
+_raw_origins = os.getenv("CORS_ORIGINS")
 _origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 API_KEY = os.getenv("API_KEY", "")
 MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", str(1_048_576)))  # 1 MB
 
-# Initialize OpenAI client with the provided bedrock token
-bedrock_client = AsyncOpenAI(api_key=BEDROCK_KEY,base_url=BEDROCK_URL)
+# Boto3 Bedrock clients
+bedrock_runtime = boto3.client(
+    "bedrock-runtime",
+    region_name=AWS_REGION,
+    aws_access_key_id=AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+)
+bedrock_mgmt = boto3.client(
+    "bedrock",
+    region_name=AWS_REGION,
+    aws_access_key_id=AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+)
 
 # ---------------------------------------------------------------------------
 # Rate Limiting Middleware (in-memory, per-IP)
@@ -192,6 +207,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
+    model: Optional[str] = None  # Bedrock model ID; falls back to DEFAULT_MODEL_ID
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -394,27 +410,101 @@ async def get_session_events(
     return [dict(r) for r in rows]
 
 # ---------------------------------------------------------------------------
-# HTTP Chat Endpoint
+# HTTP Chat Endpoint  (Bedrock Converse API – model-agnostic)
 # ---------------------------------------------------------------------------
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
-    # Convert Pydantic models to dicts for OpenAI client
-    messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
-    
+    model_id = request.model or DEFAULT_MODEL_ID
+
+    # Build Converse-compatible message list
+    converse_messages = []
+    for msg in request.messages:
+        converse_messages.append({
+            "role": msg.role,
+            "content": [{"text": msg.content}],
+        })
+
     async def generate_response():
-        try:
-            stream = await bedrock_client.chat.completions.create(
-                model="openai.gpt-oss-120b",
-                messages=messages,
-                stream=True
-            )
-            async for chunk in stream:
-                content = chunk.choices[0].delta.content
-                if content:
-                    yield content
-        except Exception as e:
-            logger.error(f"Error calling Bedrock model: {e}")
-            yield "\n(Error connecting to the AI model.)"
-            
-    return StreamingResponse(generate_response(), media_type="text/plain")
+        queue: asyncio.Queue = asyncio.Queue()
+        loop = asyncio.get_event_loop()
+
+        def _stream_worker():
+            """Runs in a thread – reads the synchronous Bedrock stream and
+            pushes chunks (or a sentinel) into the async queue."""
+            try:
+                response = bedrock_runtime.converse_stream(
+                    modelId=model_id,
+                    messages=converse_messages,
+                )
+                stream = response.get("stream")
+                if stream:
+                    for event in stream:
+                        delta = event.get("contentBlockDelta")
+                        if delta:
+                            text = delta.get("delta", {}).get("text", "")
+                            if text:
+                                loop.call_soon_threadsafe(queue.put_nowait, text)
+            except Exception as exc:
+                loop.call_soon_threadsafe(
+                    queue.put_nowait, exc
+                )
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel
+
+        # Kick off the blocking reader in a background thread
+        thread_future = loop.run_in_executor(None, _stream_worker)
+
+        # Yield chunks as they arrive
+        while True:
+            item = await queue.get()
+            if item is None:
+                break
+            if isinstance(item, Exception):
+                logger.exception(f"Error calling Bedrock model {model_id}", exc_info=item)
+                yield f"\n(Error: {item})"
+                break
+            yield item
+
+        # Ensure the thread has finished
+        await thread_future
+
+    return StreamingResponse(
+        generate_response(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disables Nginx buffering
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Model listing endpoint
+# ---------------------------------------------------------------------------
+
+@app.get(
+    "/models",
+    summary="List available Bedrock foundation models",
+    dependencies=[Depends(verify_api_key)],
+)
+async def list_models():
+    """Returns Bedrock foundation models available in the configured region."""
+    try:
+        resp = await asyncio.to_thread(
+            bedrock_mgmt.list_foundation_models,
+        )
+        models = [
+            {
+                "modelId": m["modelId"],
+                "modelName": m.get("modelName", ""),
+                "provider": m.get("providerName", ""),
+                "inputModalities": m.get("inputModalities", []),
+                "outputModalities": m.get("outputModalities", []),
+            }
+            for m in resp.get("modelSummaries", [])
+        ]
+        return {"models": models}
+    except Exception as e:
+        logger.error(f"Error listing Bedrock models: {e}")
+        raise HTTPException(500, "Unable to list models")

@@ -6,7 +6,7 @@
   --bg: #f8fafc;
   --bg-gradient: radial-gradient(circle at top left, #ffffff, #f0f9ff);
   --text: #1c1917;
-  --muted: #1c1917;
+  --muted: #57534e;
   --border: rgb(28 25 23 / 8%);
   --card-bg: rgb(255 255 255 / 65%);
   --skill-bg: rgba(255, 248, 249, 0.5);
@@ -44,7 +44,7 @@ body.dark-theme {
   --bg: #050505;
   --bg-gradient: radial-gradient(circle at 15% 50%, #111111, #050505 80%);
   --text: #fafaf9;
-  --muted: #fafaf9;
+  --muted: #a8a29e;
   --border: rgb(250 250 249 / 10%);
   --card-bg: rgb(10 10 10 / 60%);
   --skill-bg: rgba(20, 20, 20, 0.6);
@@ -228,7 +228,7 @@ nav a:not(.active):hover {
 }
 
 body.dark-theme nav a:not(.active):hover {
-  background: rgba(250, 250, 249, 0.05);
+  background: rgba(250, 250, 249, 0.10);
 }
 
 nav a:focus-visible,
@@ -241,7 +241,8 @@ nav a:focus-visible,
 .contact-submit-btn:focus-visible,
 .hamburger-btn:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 4px;
+  transition: outline-offset 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 
@@ -281,7 +282,8 @@ main {
 .reveal {
   opacity: 0;
   transform: translateY(30px);
-  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms);
   will-change: opacity, transform;
 }
 
@@ -623,7 +625,7 @@ main {
   background-size: 250% auto;
   color: #fff !important;
   border: none;
-  animation: hero-shimmer 4s linear infinite;
+  animation: hero-shimmer 4s linear infinite, pulse-breathe 3s ease-in-out infinite;
   box-shadow: 0 4px 15px var(--accent-mild);
   transition: transform 0.3s ease;
   flex-shrink: 0;
@@ -887,7 +889,7 @@ body:has(main > #ai.active) .chat-widget {
 }
 
 .item:not(.tilt-card):hover {
-  transform: translateY(-8px) scale(1.01);
+  /* transform handled by JS spring in animations.js */
 }
 
 .item-header {
@@ -997,6 +999,10 @@ body:has(main > #ai.active) .chat-widget {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
+}
+
+.project-filter:active {
+  transform: scale(0.95);
 }
 
 .project-search-label {
@@ -1398,8 +1404,8 @@ body:has(main > #ai.active) .chat-widget {
 
 .btn:hover {
   background: var(--accent-hover);
-  transform: translateY(-2px);
   box-shadow: 0 0 20px var(--accent-mild);
+  /* transform handled by JS spring in animations.js */
 }
 
 .btn.btn-outline {
@@ -1466,6 +1472,11 @@ body:has(main > #ai.active) .chat-widget {
   100% {
     left: 200%;
   }
+}
+
+@keyframes pulse-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
 }
 
 .hero-buttons .btn i {
@@ -1535,7 +1546,7 @@ footer::before {
 
 /* Skills Section */
 .skills-section {
-  margin-top: 48px;
+  margin-top: clamp(24px, 4vh, 48px);
 }
 
 .skills-title {
@@ -1967,7 +1978,7 @@ footer::before {
   transform: translateX(20px);
   transition:
     opacity 0.3s ease,
-    transform 0.3s ease;
+    transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: auto;
   max-width: 320px;
 }
@@ -2323,7 +2334,7 @@ footer::before {
   }
 
   .contact-section {
-    padding: 24px 0 0;
+    padding: 24px 0 16px;
   }
 
   .contact-description {
@@ -2723,7 +2734,7 @@ section {
 }
 
 .section-intro {
-  margin: -18px 0 26px;
+  margin: -10px 0 26px;
   max-width: 72ch;
   color: var(--muted);
 }
@@ -2980,6 +2991,49 @@ section {
   color: #fff;
   align-self: flex-end;
   border-bottom-right-radius: 4px;
+}
+
+/* Copy button on messages */
+.chat-message {
+  position: relative;
+  overflow: visible;
+}
+
+.chat-message:has(.msg-copy-btn) {
+  margin-bottom: 4px;
+}
+
+.msg-copy-btn {
+  position: absolute;
+  bottom: -22px;
+  right: 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  width: 24px;
+  height: 20px;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.2s ease, color 0.2s ease;
+  z-index: 1;
+}
+
+.chat-message:hover .msg-copy-btn {
+  opacity: 0.6;
+}
+
+.msg-copy-btn:hover {
+  opacity: 1 !important;
+  color: var(--accent);
+}
+
+.chat-message.user .msg-copy-btn {
+  color: var(--muted);
 }
 
 .chat-input-area {
@@ -3430,8 +3484,30 @@ nav a:hover .nav-shortcut {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  scrollbar-width: thin;
   padding-bottom: 20px;
+  padding-right: 8px;
+
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+/* Webkit (Chrome, Safari, Edge) */
+.ai-page-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ai-page-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-page-content::-webkit-scrollbar-thumb {
+  background-color: var(--accent);
+  border-radius: 6px;
+}
+
+.ai-page-content::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent-hover);
 }
 
 /* Empty state centering */
@@ -3794,7 +3870,7 @@ nav a:hover .nav-shortcut {
     left: 0;
     top: 0;
     height: 100%;
-    width: 100%;
+    width: 75%;
     z-index: 20;
     background: var(--bg);
   }
