@@ -1120,9 +1120,10 @@ body:has(main > #ai.active) .chat-widget {
 }
 
 .contact-grid .btn {
-  width: 240px;
+  width: 180px;
   max-width: 100%;
-  min-width: 0;
+  flex-shrink: 0;
+  font-size: 0.75em;
   text-align: center;
   justify-content: center;
 }
