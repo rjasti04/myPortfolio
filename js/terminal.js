@@ -27,12 +27,16 @@ export function initTerminal() {
     const saved = localStorage.getItem(HISTORY_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+      if (
+        Array.isArray(parsed) &&
+        parsed.length <= 100 &&
+        parsed.every(item => typeof item === 'string' && item.length <= 500)
+      ) {
         commandHistory = parsed;
       }
     }
   } catch (e) {
-    // Ignore parse errors
+    // Ignore parse errors — start with empty history
   }
   let historyIndex = commandHistory.length;
 

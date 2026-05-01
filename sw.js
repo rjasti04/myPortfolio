@@ -66,12 +66,15 @@ self.addEventListener('fetch', event => {
         if (cachedResponse) {
           return cachedResponse;
         }
+        // Guard: only fetch URLs with http/https scheme to prevent SSRF via extension/internal URLs
+        if (!event.request.url.startsWith('https://') && !event.request.url.startsWith('http://')) {
+          return new Response('', { status: 400, statusText: 'Bad Request' });
+        }
         // If not in cache, fetch it AND cache it for next time
         return fetch(event.request).then(networkResponse => {
-          // Check if the request is internal/extension (non-http) or invalid
-          if (!networkResponse || networkResponse.status !== 200 || 
-              (networkResponse.type !== 'basic' && networkResponse.type !== 'cors') ||
-              !event.request.url.startsWith('http')) {
+          // Only cache valid CORS responses from allowlisted origins
+          if (!networkResponse || networkResponse.status !== 200 ||
+              networkResponse.type !== 'cors') {
             return networkResponse;
           }
 
@@ -96,8 +99,12 @@ self.addEventListener('fetch', event => {
 
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
+      // Guard: only fetch same-origin http/https URLs
+      if (!event.request.url.startsWith('https://') && !event.request.url.startsWith('http://')) {
+        return cachedResponse || new Response('', { status: 400, statusText: 'Bad Request' });
+      }
       const fetchPromise = fetch(event.request).then(networkResponse => {
-        if (networkResponse && networkResponse.status === 200 && event.request.url.startsWith('http')) {
+        if (networkResponse && networkResponse.status === 200 && event.request.url.startsWith('https://')) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
             cache.put(event.request, responseToCache);
