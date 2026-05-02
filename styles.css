@@ -373,11 +373,14 @@ main {
 
 .hero-title::before {
   animation: hero-slice-1 3s infinite steps(1);
+  will-change: clip-path, transform;
 }
 
 .hero-title::after {
   animation: hero-slice-2 2.5s infinite steps(1);
+  will-change: clip-path, transform;
 }
+
 
 @keyframes hero-slice-1 {
   0% {

@@ -2,8 +2,10 @@ import * as THREE from "three";
 import { prefersReducedMotion as reducedMotionQuery, compactViewport as compactViewportQuery, mobileDevice } from "./js/config.js";
 let destroyBackground = null;
 let backgroundVariant = null;
+let destroyMobileBackground = null;
 
 let isWebGLAvailable = null;
+let syncThreeBackgroundTimeout = null;
 
 function shouldEnableBackground() {
   if (reducedMotionQuery.matches) return false;
@@ -30,8 +32,14 @@ function getBackgroundVariant() {
 
 function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   const compact = variant === "compact";
+
+  // Don't try to initialize WebGL on very small viewports
+  if (window.innerWidth < 768 || window.innerHeight < 600) {
+    return null;
+  }
+
   const scene = new THREE.Scene();
-  
+
   // Camera looking down at an angle over the landscape
   const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
   camera.position.set(0, 15, 30);
@@ -49,6 +57,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
       alpha: true,
       antialias: true,
       canvas: canvas,
+      powerPreference: "high-performance",
+      failIfMajorPerformanceCaveat: false
     });
   } catch (error) {
     console.error("Three.js background could not be initialized.", error);
@@ -241,17 +251,184 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     window.removeEventListener("mousemove", handleMouseMove);
     themeObserver.disconnect();
     renderer.setAnimationLoop(null);
-    renderer.dispose();
-    renderer.forceContextLoss?.();
     geometry.dispose();
     material.dispose();
+    renderer.dispose();
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Mobile "Data Stream" background – 2D Canvas
+ * Snake-like energy traces crawling on a grid (H/V only).
+ * ───────────────────────────────────────────────────────────── */
+function mountMobileBackground() {
+  const canvas = document.createElement('canvas');
+  canvas.id = 'mobile-stream-canvas';
+  canvas.setAttribute('aria-hidden', 'true');
+  Object.assign(canvas.style, {
+    position: 'fixed', top: '0', left: '0',
+    width: '100vw', height: '100vh',
+    zIndex: '-1', pointerEvents: 'none',
+    backgroundColor: 'transparent',
+  });
+  document.body.insertBefore(canvas, document.querySelector('.layout'));
+
+  const ctx = canvas.getContext('2d', { alpha: true });
+  if (!ctx) { canvas.remove(); return null; }
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w, h;
+  const setSize = () => {
+    w = window.innerWidth; h = window.innerHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  setSize();
+
+  let resizeWait = false;
+  const onResize = () => {
+    if (resizeWait) return; resizeWait = true;
+    requestAnimationFrame(() => { setSize(); resizeWait = false; });
+  };
+  window.addEventListener('resize', onResize);
+
+  const readAccent = () =>
+    getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#e61e4d';
+  let accent = readAccent();
+  const themeObs = new MutationObserver(() => { accent = readAccent(); });
+  themeObs.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'] });
+
+  const GRID = 20, NUM = 20, SPD = 1.2;
+
+  class Stream {
+    constructor() { this.reset(true); }
+    reset(init = false) {
+      this.x = Math.floor(Math.random() * (w / GRID)) * GRID;
+      this.y = Math.floor(Math.random() * (h / GRID)) * GRID;
+      this.trail = [];
+      this.dir = Math.floor(Math.random() * 4);
+      this.seg = this._rndSeg();
+      this.maxLen = 20 + Math.floor(Math.random() * 40);
+      this.warmup = init ? Math.floor(Math.random() * this.maxLen) : 0;
+    }
+    _rndSeg() { return (3 + Math.floor(Math.random() * 8)) * GRID; }
+    step() {
+      if (this.warmup > 0) { this.warmup--; }
+      const dx = [0, SPD, 0, -SPD][this.dir];
+      const dy = [-SPD, 0, SPD, 0][this.dir];
+      this.x += dx; this.y += dy; this.seg -= SPD;
+      if (this.seg <= 0) {
+        this.x = Math.round(this.x / GRID) * GRID;
+        this.y = Math.round(this.y / GRID) * GRID;
+        this.dir = (this.dir + (Math.random() < 0.5 ? 1 : 3)) % 4;
+        this.seg = this._rndSeg();
+      }
+      this.trail.unshift({ x: this.x, y: this.y });
+      if (this.trail.length > this.maxLen) this.trail.pop();
+      if (this.x < -120 || this.x > w + 120 || this.y < -120 || this.y > h + 120) this.reset();
+    }
+    draw(c, col) {
+      const n = this.trail.length; if (n < 2) return;
+      c.lineCap = 'round'; c.lineJoin = 'round';
+      for (let i = 0; i < n - 1; i++) {
+        const a = this.trail[i], b = this.trail[i + 1];
+        const alpha = Math.pow(1 - i / n, 1.5);
+        c.globalAlpha = alpha;
+
+        c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y);
+
+        if (i === 0) {
+          c.lineWidth = 3;
+          c.strokeStyle = col;
+          c.shadowColor = col;
+          c.shadowBlur = 24;
+          c.shadowOffsetX = 0;
+          c.shadowOffsetY = 0;
+        } else if (i < 4) {
+          c.lineWidth = 2.5;
+          c.strokeStyle = col;
+          c.shadowColor = col;
+          c.shadowBlur = 18;
+        } else {
+          c.lineWidth = 1.8;
+          c.strokeStyle = col;
+          c.shadowColor = col;
+          c.shadowBlur = 8;
+        }
+        c.stroke();
+      }
+      c.shadowBlur = 0;
+      c.shadowOffsetX = 0;
+      c.shadowOffsetY = 0;
+      c.globalAlpha = 1;
+    }
+  }
+
+  const streams = Array.from({ length: NUM }, () => new Stream());
+  let raf = 0;
+  const tick = () => {
+    raf = requestAnimationFrame(tick);
+    if (document.hidden) return;
+    ctx.clearRect(0, 0, w, h);
+    for (const s of streams) { s.step(); s.draw(ctx, accent); }
+  };
+  tick();
+
+  console.debug('Mobile background mounted:', { w, h, accent, mobileDevice: mobileDevice.matches });
+
+  return () => {
+    cancelAnimationFrame(raf);
+    window.removeEventListener('resize', onResize);
+    themeObs.disconnect();
+    canvas.remove();
   };
 }
 
 function syncThreeBackground() {
+  // Debounce rapid calls to prevent WebGL context issues during resize
+  if (syncThreeBackgroundTimeout) {
+    clearTimeout(syncThreeBackgroundTimeout);
+  }
+
+  syncThreeBackgroundTimeout = setTimeout(() => {
+    syncThreeBackgroundTimeout = null;
+    _syncThreeBackgroundImpl();
+  }, 300);
+}
+
+function _syncThreeBackgroundImpl() {
   const canvas = document.getElementById("webgl-canvas");
   if (!canvas) return;
 
+  // Reduced motion: kill everything
+  if (reducedMotionQuery.matches) {
+    canvas.hidden = true;
+    if (destroyBackground) { destroyBackground(); destroyBackground = null; }
+    if (destroyMobileBackground) { destroyMobileBackground(); destroyMobileBackground = null; }
+    backgroundVariant = null;
+    return;
+  }
+
+  // Mobile: 2D Data Stream canvas (always mount on mobile, even if small viewport)
+  if (mobileDevice.matches) {
+    canvas.hidden = true;
+    if (destroyBackground) { destroyBackground(); destroyBackground = null; backgroundVariant = null; }
+    if (!destroyMobileBackground) {
+      destroyMobileBackground = mountMobileBackground();
+    }
+    return;
+  }
+
+  // Hide WebGL canvas on very small non-mobile viewports
+  if (window.innerWidth < 768 || window.innerHeight < 600) {
+    canvas.hidden = true;
+    if (destroyBackground) { destroyBackground(); destroyBackground = null; }
+    backgroundVariant = null;
+    return;
+  }
+
+  // Desktop: Three.js WebGL
+  if (destroyMobileBackground) { destroyMobileBackground(); destroyMobileBackground = null; }
   const variant = getBackgroundVariant();
   if (shouldEnableBackground()) {
     canvas.hidden = false;

@@ -128,15 +128,22 @@ export function initActivity() {
     });
   }
 
-  // Load activity whenever the user navigates into the #activity section
-  window.addEventListener("hashchange", () => {
-    if (window.location.hash === "#activity") {
+  const activitySection = document.getElementById("activity");
+  if (activitySection) {
+    let wasActive = activitySection.classList.contains("active");
+    const observer = new MutationObserver(() => {
+      const isActive = activitySection.classList.contains("active");
+      if (isActive && !wasActive) {
+        currentOffset = 0;
+        loadActivity(0);
+      }
+      wasActive = isActive;
+    });
+    observer.observe(activitySection, { attributes: true, attributeFilter: ["class"] });
+
+    // Initial load if starting on the activity page
+    if (wasActive) {
       loadActivity();
     }
-  });
-
-  // Initial load if starting on the activity page
-  if (window.location.hash === "#activity") {
-    loadActivity();
   }
 }
