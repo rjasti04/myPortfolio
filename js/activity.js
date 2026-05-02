@@ -70,11 +70,11 @@ export async function loadActivity(offset = currentOffset) {
     }
 
     tbody.innerHTML = events.map(e => {
-        const d = new Date(e.created_at);
-        const dateStr = d.toLocaleDateString();
-        const timeStr = d.toLocaleTimeString();
-        const dataStr = e.event_data ? JSON.stringify(e.event_data) : "-";
-        return `
+      const d = new Date(e.created_at);
+      const dateStr = d.toLocaleDateString();
+      const timeStr = d.toLocaleTimeString();
+      const dataStr = e.event_data ? JSON.stringify(e.event_data) : "-";
+      return `
           <tr>
             <td>${dateStr}</td>
             <td>${timeStr}</td>
@@ -84,14 +84,14 @@ export async function loadActivity(offset = currentOffset) {
           </tr>
         `;
     }).join("");
-    
+
     currentOffset = offset;
-    
+
     if (paginationControls) {
       paginationControls.style.display = "flex";
       prevBtn.disabled = currentOffset === 0;
       nextBtn.disabled = events.length < PAGE_SIZE;
-      
+
       const currentPage = Math.floor(currentOffset / PAGE_SIZE) + 1;
       if (pageInfo) pageInfo.textContent = `Page ${currentPage}`;
     }
@@ -114,7 +114,7 @@ export function initActivity() {
 
   const prevBtn = document.getElementById("activity-prev-btn");
   const nextBtn = document.getElementById("activity-next-btn");
-  
+
   if (prevBtn) {
     prevBtn.addEventListener("click", () => {
       if (currentOffset >= PAGE_SIZE) {
