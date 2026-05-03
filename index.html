@@ -3,6 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://get.geojs.io https://api.open-meteo.com wss: https:;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="Rajeev Jasti" />
@@ -101,8 +102,7 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+        "three": "./js/vendor/three.module.js"
       }
     }
   </script>
@@ -616,6 +616,12 @@
             </div>
           </div>
         </div>
+        <noscript>
+          <div class="noscript-message" style="margin-top: 20px; padding: 20px; background: var(--accent-soft); border-radius: var(--radius); text-align: center;">
+            <i class="fas fa-exclamation-circle" style="color: var(--accent); font-size: 24px; margin-bottom: 10px;"></i>
+            <p>JavaScript is required to view live session activity.</p>
+          </div>
+        </noscript>
         <div class="activity-table-container">
           <table class="activity-table">
             <thead>
@@ -748,6 +754,13 @@
             </div>
           </div>
         </div>
+        <noscript>
+          <div class="noscript-message" style="margin-top: 40px; padding: 40px 20px; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); text-align: center;">
+            <i class="fas fa-robot" style="color: var(--muted); font-size: 48px; margin-bottom: 20px;"></i>
+            <h3 style="margin-bottom: 10px;">AI Chat requires JavaScript</h3>
+            <p style="color: var(--muted);">Please enable JavaScript to interact with the Bedrock AI model.</p>
+          </div>
+        </noscript>
       </section>
 
     </main>
@@ -799,6 +812,35 @@
     </footer> -->
   </div>
 
+  <!-- Keyboard Shortcuts Overlay -->
+  <div class="keyboard-overlay" id="keyboard-overlay" aria-hidden="true">
+    <div class="keyboard-overlay-content">
+      <button class="close-overlay-btn" id="close-overlay-btn" aria-label="Close shortcuts">
+        <i class="fas fa-times"></i>
+      </button>
+      <h3>Keyboard Shortcuts</h3>
+      <ul class="shortcut-list">
+        <li class="shortcut-item">
+          <span>Navigate to Sections</span>
+          <span class="shortcut-key">1</span> - <span class="shortcut-key">5</span>
+        </li>
+        <li class="shortcut-item">
+          <span>Toggle Dark Mode</span>
+          <div><span class="shortcut-key">Shift</span> + <span class="shortcut-key">D</span></div>
+        </li>
+        <li class="shortcut-item">
+          <span>Open Chat</span>
+          <div><span class="shortcut-key">Shift</span> + <span class="shortcut-key">C</span></div>
+        </li>
+        <li class="shortcut-item">
+          <span>Show this overlay</span>
+          <span class="shortcut-key">?</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js" integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+" crossorigin="anonymous"></script>
   <script src="app-logic.js" defer></script>
   <script type="module" src="js/main.js"></script>

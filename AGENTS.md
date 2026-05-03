@@ -14,3 +14,22 @@
 * **Be Concise:** Provide code diffs or updated snippets rather than re-writing the entire file.
 * **No Prose:** Skip the "Sure, I can help with that" fluff. Go straight to the plan or code.
 * **Minimal Output:** Unless I ask for an explanation, just show the logic and the code.
+
+### OUTPUT FORMAT (STRICT)
+
+For each issue:
+- **Category**: (Bug / Security / Performance / Architecture / etc.)
+- **Severity**: (Critical / High / Medium / Low)
+- **File/Location**: (file name + line or function)
+- **Problem**: Clear explanation
+- **Impact**: Why it matters
+- **Fix**: Exact recommendation (include code snippet if possible)
+
+---
+
+### ADDITIONAL INSTRUCTIONS
+- Be brutally honest and precise — no generic advice
+- Prioritize high-impact issues first
+- Avoid repeating obvious things unless critical
+- If something is well-designed, briefly acknowledge it
+- If assumptions are made, state them clearly

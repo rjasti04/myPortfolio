@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, Query, Depends, Header, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
@@ -17,7 +17,10 @@ import logging
 import boto3
 import orjson
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logging.basicConfig(
+    level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -26,11 +29,9 @@ logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 AWS_REGION = os.getenv("AWS_REGION")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 DEFAULT_MODEL_ID = os.getenv("DEFAULT_MODEL_ID")
 
-_raw_origins = os.getenv("CORS_ORIGINS")
+_raw_origins = os.getenv("CORS_ORIGINS", "")
 _origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 API_KEY = os.getenv("API_KEY", "")
@@ -39,15 +40,11 @@ MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", str(1_048_576)))  # 1 MB
 # Boto3 Bedrock clients
 bedrock_runtime = boto3.client(
     "bedrock-runtime",
-    region_name=AWS_REGION,
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+    region_name=AWS_REGION
 )
 bedrock_mgmt = boto3.client(
     "bedrock",
-    region_name=AWS_REGION,
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+    region_name=AWS_REGION
 )
 
 # ---------------------------------------------------------------------------
@@ -83,7 +80,11 @@ class RateLimitMiddleware:
             t for t in self._hits[client_ip] if now - t < window
         ]
 
-        if len(self._hits[client_ip]) >= self.max_requests:
+        # Prune empty entries to prevent unbounded dict growth
+        if not self._hits[client_ip]:
+            del self._hits[client_ip]
+
+        if len(self._hits.get(client_ip, [])) >= self.max_requests:
             from starlette.responses import JSONResponse
 
             response = JSONResponse(
@@ -114,15 +115,20 @@ class BodySizeLimitMiddleware:
 
         request = Request(scope, receive)
         content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > self.max_bytes:
-            from starlette.responses import JSONResponse
+        if content_length:
+            try:
+                cl = int(content_length)
+            except (ValueError, TypeError):
+                cl = 0
+            if cl > self.max_bytes:
+                from starlette.responses import JSONResponse
 
-            response = JSONResponse(
-                {"detail": "Request body too large"},
-                status_code=413,
-            )
-            await response(scope, receive, send)
-            return
+                response = JSONResponse(
+                    {"detail": "Request body too large"},
+                    status_code=413,
+                )
+                await response(scope, receive, send)
+                return
 
         await self.app(scope, receive, send)
 
@@ -216,11 +222,32 @@ class ChatRequest(BaseModel):
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
+@app.get("/health", summary="Health check endpoint")
+async def health_check():
+    """Verify application and database health."""
+    try:
+        if not hasattr(app.state, "pool"):
+            return JSONResponse(status_code=503, content={"status": "starting up"})
+        
+        # Check DB connection
+        async with app.state.pool.acquire() as conn:
+            await conn.execute("SELECT 1")
+            
+        return {"status": "ok", "db": "connected"}
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return JSONResponse(status_code=503, content={"status": "error", "detail": "Database unavailable"})
+
 # ---------------------------------------------------------------------------
 # Session endpoints
 # ---------------------------------------------------------------------------
 
-@app.post("/sessions", status_code=201, summary="Start a new session")
+@app.post(
+    "/sessions",
+    status_code=201,
+    summary="Start a new session",
+    dependencies=[Depends(verify_api_key)],
+)
 async def create_session(payload: SessionCreate, request: Request):
     """
     Creates a new row in user_sessions and returns the generated session_id.
@@ -318,7 +345,12 @@ async def get_session(session_id: UUID, request: Request):
 # Event endpoints
 # ---------------------------------------------------------------------------
 
-@app.post("/events", status_code=201, summary="Record a single activity event")
+@app.post(
+    "/events",
+    status_code=201,
+    summary="Record a single activity event",
+    dependencies=[Depends(verify_api_key)],
+)
 async def create_event(payload: EventCreate, request: Request):
     """
     Inserts one row into user_activity_events.
@@ -347,7 +379,12 @@ async def create_event(payload: EventCreate, request: Request):
     return {"event_id": row["event_id"], "created_at": row["created_at"]}
 
 
-@app.post("/events/bulk", status_code=201, summary="Record multiple events in one shot")
+@app.post(
+    "/events/bulk",
+    status_code=201,
+    summary="Record multiple events in one shot",
+    dependencies=[Depends(verify_api_key)],
+)
 async def create_events_bulk(payload: BulkEventCreate, request: Request):
     """
     Inserts up to 500 events in a single transaction using executemany.
@@ -413,7 +450,7 @@ async def get_session_events(
 # HTTP Chat Endpoint  (Bedrock Converse API – model-agnostic)
 # ---------------------------------------------------------------------------
 
-@app.post("/chat")
+@app.post("/chat", dependencies=[Depends(verify_api_key)])
 async def chat_endpoint(request: ChatRequest):
     model_id = request.model or DEFAULT_MODEL_ID
 
@@ -459,7 +496,7 @@ async def chat_endpoint(request: ChatRequest):
             if item is None:
                 break
             if isinstance(item, Exception):
-                logger.exception(f"Error calling Bedrock model {model_id}", exc_info=item)
+                logger.exception("Error calling Bedrock model %s", model_id, exc_info=item)
                 yield f"\n(Error: {item})"
                 break
             yield item

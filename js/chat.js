@@ -1,3 +1,11 @@
+import { API_BASE } from "./analytics.js";
+
+/** Sanitize HTML through DOMPurify when available, passthrough otherwise. */
+function sanitizeHTML(html) {
+  if (typeof DOMPurify !== "undefined") return DOMPurify.sanitize(html);
+  return html;
+}
+
 export function initChat() {
   const widget = document.querySelector('.chat-widget');
   const toggleBtn = document.getElementById('chat-toggle-btn');
@@ -191,10 +199,9 @@ export function initChat() {
     return btn;
   }
 
-  function appendMessage(text, sender, save = true) {
+  function appendMessage(text, sender, { save = true, showCopy = save } = {}) {
     const isBot = sender === 'bot';
-    const htmlContent = isBot ? marked.parse(text) : text;
-    const showCopy = save; // skip copy btn for system/greeting messages
+    const htmlContent = isBot ? sanitizeHTML(marked.parse(text)) : text;
 
     if (messagesContainer) {
       const msgEl = document.createElement('div');
@@ -227,6 +234,7 @@ export function initChat() {
       }
       saveSessions();
     }
+    return { showCopy };
   }
 
   function restoreActiveSession() {
@@ -236,11 +244,11 @@ export function initChat() {
     const session = getActiveSession();
     if (session.messages.length === 0) {
       if (aiPageContainer) aiPageContainer.classList.add('empty-state');
-      appendMessage("Ask anything!", 'bot', false);
+      appendMessage("Ask anything!", 'bot', { save: false, showCopy: false });
     } else {
       if (aiPageContainer) aiPageContainer.classList.remove('empty-state');
       // Temporarily disable auto-scroll to avoid jumping while rendering
-      session.messages.forEach(msg => appendMessage(msg.text, msg.sender, false));
+      session.messages.forEach(msg => appendMessage(msg.text, msg.sender, { save: false, showCopy: true }));
     }
   }
 
@@ -357,7 +365,7 @@ export function initChat() {
   }
 
   async function handleChatSubmit(text) {
-    appendMessage(text, 'user');
+    appendMessage(text, 'user', { save: true, showCopy: true });
     setInputState(true);
 
     let widgetIndicator = null;
@@ -374,12 +382,7 @@ export function initChat() {
       aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-    let host = window.location.host;
-    if (host.includes('localhost') || host.includes('127.0.0.1')) {
-      host = host.split(':')[0] + ':8000';
-    }
-    const apiUrl = `${protocol}//${host}/api/chat`;
+    const apiUrl = `${API_BASE}/chat`;
 
     const session = getActiveSession();
     // exclude the last message we just pushed to history because backend doesn't need it duplicated if we send history?
@@ -421,18 +424,13 @@ export function initChat() {
       }
 
       let botFullText = '';
+      let parseTimer = null;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        botFullText += chunk;
-        const html = marked.parse(botFullText);
-
+      const flushParse = () => {
+        parseTimer = null;
+        const html = sanitizeHTML(marked.parse(botFullText));
         if (widgetMsgEl) {
           widgetMsgEl.innerHTML = html;
-          // Auto scroll smoothly if near bottom
           const isNearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
           if (isNearBottom) messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
@@ -441,7 +439,22 @@ export function initChat() {
           const isNearBottom = aiPageMessages.scrollHeight - aiPageMessages.scrollTop - aiPageMessages.clientHeight < 100;
           if (isNearBottom) aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
         }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        botFullText += decoder.decode(value, { stream: true });
+        // Throttle markdown parsing to max once per 100ms
+        if (!parseTimer) {
+          parseTimer = setTimeout(flushParse, 100);
+        }
       }
+
+      // Final flush to ensure all content is rendered
+      if (parseTimer) { clearTimeout(parseTimer); parseTimer = null; }
+      flushParse();
 
       if (widgetMsgEl) {
         widgetMsgEl.classList.remove('streaming');
@@ -459,7 +472,30 @@ export function initChat() {
       console.error('Chat API Error:', err);
       if (widgetIndicator) widgetIndicator.remove();
       if (aiIndicator) aiIndicator.remove();
-      appendMessage('System: Connection failed.', 'bot', false);
+      const errorId = 'err-' + Date.now();
+      const errorMsg = `
+        <div class="chat-error-boundary">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span>Connection to AI service failed.</span>
+          <button type="button" class="btn btn-outline retry-btn" id="${errorId}">
+            <i class="fas fa-sync-alt"></i> Retry
+          </button>
+        </div>
+      `;
+      const result = appendMessage(errorMsg, 'bot', { save: false, showCopy: false });
+      
+      // We need to attach event listener to the freshly inserted button
+      // To do this reliably across both views, we can use event delegation or direct query
+      setTimeout(() => {
+        document.querySelectorAll(`#${errorId}`).forEach(btn => {
+          btn.addEventListener('click', () => {
+            // Remove the error messages from the DOM
+            btn.closest('.message').remove();
+            // Retry the submission
+            handleChatSubmit(text);
+          });
+        });
+      }, 50);
     } finally {
       setInputState(false);
       if (aiPageInput) {

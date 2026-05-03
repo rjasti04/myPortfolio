@@ -2,6 +2,12 @@ import { API_BASE } from "./analytics.js";
 
 const _ALLOWED_API_ORIGIN = new URL(API_BASE).origin;
 
+function escapeHTML(str) {
+  const d = document.createElement("div");
+  d.textContent = String(str);
+  return d.innerHTML;
+}
+
 function safeFetch(url, options) {
   const parsed = new URL(url);
   if (parsed.origin !== _ALLOWED_API_ORIGIN) {
@@ -71,15 +77,15 @@ export async function loadActivity(offset = currentOffset) {
 
     tbody.innerHTML = events.map(e => {
       const d = new Date(e.created_at);
-      const dateStr = d.toLocaleDateString();
-      const timeStr = d.toLocaleTimeString();
-      const dataStr = e.event_data ? JSON.stringify(e.event_data) : "-";
+      const dateStr = escapeHTML(d.toLocaleDateString());
+      const timeStr = escapeHTML(d.toLocaleTimeString());
+      const dataStr = e.event_data ? escapeHTML(JSON.stringify(e.event_data)) : "-";
       return `
           <tr>
             <td>${dateStr}</td>
             <td>${timeStr}</td>
-            <td><strong>${e.event_type}</strong></td>
-            <td>${e.page_path || '-'}</td>
+            <td><strong>${escapeHTML(e.event_type)}</strong></td>
+            <td>${escapeHTML(e.page_path || '-')}</td>
             <td>${dataStr}</td>
           </tr>
         `;

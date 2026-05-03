@@ -149,4 +149,41 @@ export function initNavigation() {
       if (target) navigateToSection(target);
     }
   });
+
+  // Feature: Keyboard overlay toggle
+  const overlay = document.getElementById("keyboard-overlay");
+  const closeBtn = document.getElementById("close-overlay-btn");
+
+  if (overlay && closeBtn) {
+    const toggleOverlay = () => {
+      const isActive = overlay.classList.contains("active");
+      if (isActive) {
+        overlay.classList.remove("active");
+        overlay.setAttribute("aria-hidden", "true");
+      } else {
+        overlay.classList.add("active");
+        overlay.setAttribute("aria-hidden", "false");
+      }
+    };
+
+    document.addEventListener("keydown", (event) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (event.key === "?" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        toggleOverlay();
+      }
+
+      if (event.key === "Escape" && overlay.classList.contains("active")) {
+        event.preventDefault();
+        toggleOverlay();
+      }
+    });
+
+    closeBtn.addEventListener("click", toggleOverlay);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) toggleOverlay();
+    });
+  }
 }

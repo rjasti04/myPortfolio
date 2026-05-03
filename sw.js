@@ -29,7 +29,11 @@ const PRECACHE_URLS = [
   '/js/utils.js',
   '/js/terminal.js',
   '/js/info-bar.js',
-  '/js/analytics.js'
+  '/js/analytics.js',
+  '/js/chat.js',
+  '/js/activity.js',
+  '/js/physics.js',
+  '/js/skills-carousel.js'
 ];
 
 self.addEventListener('install', event => {

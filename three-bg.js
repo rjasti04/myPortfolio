@@ -68,8 +68,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   // Ethereal Fluid Topology system (Particle Grid)
-  const columns = compact ? 80 : 120;
-  const rows = compact ? 80 : 120;
+  const columns = compact ? 50 : 80;
+  const rows = compact ? 50 : 80;
   const spacing = 0.8;
   const geometry = new THREE.BufferGeometry();
   
@@ -374,7 +374,7 @@ function mountMobileBackground() {
   };
   tick();
 
-  console.debug('Mobile background mounted:', { w, h, accent, mobileDevice: mobileDevice.matches });
+
 
   return () => {
     cancelAnimationFrame(raf);
