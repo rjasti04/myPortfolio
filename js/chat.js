@@ -6,6 +6,34 @@ function sanitizeHTML(html) {
   return html;
 }
 
+if (typeof marked !== 'undefined') {
+  const renderer = new marked.Renderer();
+  const originalCode = renderer.code.bind(renderer);
+  renderer.code = function(token) {
+    const text = typeof token === 'object' ? token.text : arguments[0];
+    const escapedText = encodeURIComponent(text);
+    const html = originalCode.apply(this, arguments);
+    return html.replace(/^<pre([^>]*)>/i, `<pre$1><button type="button" class="code-copy-btn" data-code="${escapedText}" title="Copy code"><i class="fas fa-copy"></i></button>`);
+  };
+  marked.use({ renderer });
+
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.code-copy-btn');
+    if (btn) {
+      try {
+        const code = decodeURIComponent(btn.getAttribute('data-code'));
+        await navigator.clipboard.writeText(code);
+        const icon = btn.querySelector('i');
+        if (icon) {
+          icon.className = 'fas fa-check';
+          setTimeout(() => { icon.className = 'fas fa-copy'; }, 1500);
+        }
+      } catch (err) {
+        console.error('Failed to copy code', err);
+      }
+    }
+  });
+}
 export function initChat() {
   const widget = document.querySelector('.chat-widget');
   const toggleBtn = document.getElementById('chat-toggle-btn');
@@ -21,14 +49,22 @@ export function initChat() {
   const aiPageForm = document.getElementById('ai-page-form');
   const aiPageInput = document.getElementById('ai-page-input');
   const aiPageSendBtn = document.getElementById('ai-page-send-btn');
+  const aiTokenCounter = document.getElementById('ai-token-counter');
   const aiSidebarHistory = document.getElementById('ai-sidebar-history');
+
+  function updateTokenCounter() {
+    if (!aiPageInput || !aiTokenCounter) return;
+    const text = aiPageInput.value.trim();
+    const tokens = text.length === 0 ? 0 : Math.ceil(text.length / 4);
+    aiTokenCounter.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
+  }
   const newChatBtn = document.getElementById('new-chat-btn');
   const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
   const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
   const aiLayout = document.getElementById('ai-layout');
   const aiSidebar = document.getElementById('ai-sidebar');
   const clearAllBtn = document.getElementById('clear-all-btn');
-  const suggestedPrompts = document.querySelectorAll('.suggested-prompt');
+  const suggestedPrompts = document.querySelectorAll('.ai-suggestion-card');
 
   let isOpen = false;
   let isGenerating = false;
@@ -150,6 +186,7 @@ export function initChat() {
       if (aiPageInput) {
         aiPageInput.value = '';
         aiPageInput.style.height = 'auto';
+        updateTokenCounter();
       }
       handleChatSubmit(prompt);
     });
@@ -181,22 +218,44 @@ export function initChat() {
     }
   }
 
-  function createCopyButton(getText) {
+  function createMessageActions(getText, isTruncated = false) {
+    const container = document.createElement('div');
+    container.className = 'msg-actions';
+
+    if (isTruncated) {
+      const warnIcon = document.createElement('i');
+      warnIcon.className = 'fas fa-exclamation-triangle warning-icon';
+      warnIcon.title = 'Response truncated due to length limit (2000 tokens).';
+      warnIcon.style.color = '#ff9800';
+      warnIcon.style.marginRight = '8px';
+      warnIcon.style.cursor = 'help';
+      container.appendChild(warnIcon);
+    }
+
+    const tokenSpan = document.createElement('span');
+    tokenSpan.className = 'msg-token-count';
+    const textVal = typeof getText === 'function' ? getText() : getText;
+    const tokens = textVal ? Math.ceil(textVal.length / 4) : 0;
+    tokenSpan.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
+
     const btn = document.createElement('button');
     btn.className = 'msg-copy-btn';
     btn.title = 'Copy';
     btn.innerHTML = '<i class="fas fa-copy"></i>';
     btn.addEventListener('click', async () => {
       try {
-        const text = typeof getText === 'function' ? getText() : getText;
-        await navigator.clipboard.writeText(text);
+        const textToCopy = typeof getText === 'function' ? getText() : getText;
+        await navigator.clipboard.writeText(textToCopy);
         btn.innerHTML = '<i class="fas fa-check"></i>';
         setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i>'; }, 1500);
       } catch (e) {
         console.error('Copy failed', e);
       }
     });
-    return btn;
+
+    container.appendChild(tokenSpan);
+    container.appendChild(btn);
+    return container;
   }
 
   function appendMessage(text, sender, { save = true, showCopy = save } = {}) {
@@ -208,7 +267,7 @@ export function initChat() {
       msgEl.className = `chat-message ${sender}`;
       if (isBot) msgEl.innerHTML = htmlContent;
       else msgEl.textContent = text;
-      if (showCopy) msgEl.appendChild(createCopyButton(text));
+      if (showCopy) msgEl.appendChild(createMessageActions(text));
       messagesContainer.appendChild(msgEl);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
@@ -221,7 +280,7 @@ export function initChat() {
       msgEl2.className = `chat-message ${sender}`;
       if (isBot) msgEl2.innerHTML = htmlContent;
       else msgEl2.textContent = text;
-      if (showCopy) msgEl2.appendChild(createCopyButton(text));
+      if (showCopy) msgEl2.appendChild(createMessageActions(text));
       aiPageMessages.appendChild(msgEl2);
       aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
     }
@@ -257,6 +316,7 @@ export function initChat() {
     aiPageInput.addEventListener('input', function () {
       this.style.height = 'auto';
       this.style.height = (this.scrollHeight) + 'px';
+      updateTokenCounter();
     });
     aiPageInput.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -385,9 +445,37 @@ export function initChat() {
     const apiUrl = `${API_BASE}/chat`;
 
     const session = getActiveSession();
-    // exclude the last message we just pushed to history because backend doesn't need it duplicated if we send history?
-    // Wait, the backend needs the full conversation including the user's latest query.
-    // The previous code mapped the entire history.
+    
+    // Summarize old messages if history gets too long (e.g. > 6 messages)
+    if (session.messages.length > 6) {
+      // Keep the last 2 messages (usually 1 bot, 1 user) plus the new one.
+      // We slice up to `length - 2` to summarize the older messages.
+      const messagesToSummarize = session.messages.slice(0, session.messages.length - 2);
+      const summaryPayload = messagesToSummarize.map(h => ({
+        role: h.sender === 'bot' ? 'assistant' : 'user',
+        content: h.text
+      }));
+      
+      try {
+        const sumRes = await fetch(`${API_BASE}/chat/summarize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: summaryPayload })
+        });
+        if (sumRes.ok) {
+          const sumData = await sumRes.json();
+          // Replace summarized history with a single bot message
+          session.messages = [
+            { text: "[Context Summary]: " + sumData.summary, sender: 'bot' },
+            ...session.messages.slice(session.messages.length - 2)
+          ];
+          saveSessions();
+        }
+      } catch (err) {
+        console.error("Failed to summarize context:", err);
+      }
+    }
+
     const messages = session.messages.map(h => ({
       role: h.sender === 'bot' ? 'assistant' : 'user',
       content: h.text
@@ -454,15 +542,22 @@ export function initChat() {
 
       // Final flush to ensure all content is rendered
       if (parseTimer) { clearTimeout(parseTimer); parseTimer = null; }
+      
+      let isTruncated = false;
+      if (botFullText.endsWith('\n[__TRUNCATED__]')) {
+        isTruncated = true;
+        botFullText = botFullText.replace('\n[__TRUNCATED__]', '');
+      }
+      
       flushParse();
 
       if (widgetMsgEl) {
         widgetMsgEl.classList.remove('streaming');
-        widgetMsgEl.appendChild(createCopyButton(() => botFullText));
+        widgetMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
       }
       if (aiMsgEl) {
         aiMsgEl.classList.remove('streaming');
-        aiMsgEl.appendChild(createCopyButton(() => botFullText));
+        aiMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
       }
 
       session.messages.push({ text: botFullText, sender: 'bot' });
@@ -525,6 +620,7 @@ export function initChat() {
       if (!text) return;
       aiPageInput.value = '';
       aiPageInput.style.height = 'auto';
+      updateTokenCounter();
       await handleChatSubmit(text);
     });
   }

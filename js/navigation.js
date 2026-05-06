@@ -120,6 +120,14 @@ export function initNavigation() {
 
   syncSectionWithHash();
 
+  // Compact header on scroll
+  const headerEl = document.getElementById("header");
+  if (headerEl) {
+    const onScroll = () => headerEl.classList.toggle("scrolled", window.scrollY > 32);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }
+
   // Force scroll to top on initial load if landing on home or #about
   const currentHash = window.location.hash;
   if (!currentHash || currentHash === "#about") {

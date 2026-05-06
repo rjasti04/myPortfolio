@@ -75,18 +75,18 @@ export async function loadActivity(offset = currentOffset) {
       return;
     }
 
-    tbody.innerHTML = events.map(e => {
+    tbody.innerHTML = events.map((e, i) => {
       const d = new Date(e.created_at);
       const dateStr = escapeHTML(d.toLocaleDateString());
       const timeStr = escapeHTML(d.toLocaleTimeString());
       const dataStr = e.event_data ? escapeHTML(JSON.stringify(e.event_data)) : "-";
       return `
-          <tr>
+          <tr class="activity-row-enter" style="animation-delay: ${i * 50}ms">
             <td>${dateStr}</td>
             <td>${timeStr}</td>
-            <td><strong>${escapeHTML(e.event_type)}</strong></td>
+            <td><span class="activity-type-badge">${escapeHTML(e.event_type)}</span></td>
             <td>${escapeHTML(e.page_path || '-')}</td>
-            <td>${dataStr}</td>
+            <td title="${dataStr}">${dataStr}</td>
           </tr>
         `;
     }).join("");

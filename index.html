@@ -612,7 +612,7 @@
           <div class="activity-pills-group">
             <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
               Refresh</button>
-            <div class="activity-refresh static session-id-pill">Session ID: <span id="current-session-id">-</span>
+            <div class="activity-refresh static session-id-pill">Session: <span id="current-session-id">-</span>
             </div>
           </div>
         </div>
@@ -638,10 +638,10 @@
             </tbody>
           </table>
           <div class="activity-pagination activity-pagination-wrapper" id="activity-pagination" style="display: none;">
-            <button id="activity-prev-btn" class="btn btn-outline activity-pagination-btn" disabled><i
+            <button id="activity-prev-btn" class="activity-pagination-btn" disabled><i
                 class="fas fa-chevron-left"></i> Prev</button>
             <span id="activity-page-info" class="activity-page-info">Page 1</span>
-            <button id="activity-next-btn" class="btn btn-outline activity-pagination-btn" disabled>Next <i
+            <button id="activity-next-btn" class="activity-pagination-btn" disabled>Next <i
                 class="fas fa-chevron-right"></i></button>
           </div>
         </div>
@@ -649,62 +649,77 @@
 
       <section id="contact">
         <div class="item contact-section reveal">
-          <h2 class="contact-title">Let&apos;s talk.</h2>
-          <p class="contact-description">Have a project in mind or want to connect? Send me a message.</p>
-          <div class="contact-grid">
-            <div class="contact-info">
-              <a href="mailto:inboxtorj@gmail.com" class="btn contact-email-btn">
-                inboxtorj@gmail.com <i class="fas fa-paper-plane"></i>
-              </a>
-              <button type="button" class="btn btn-outline" id="copy-email-btn" aria-label="Copy email address">
-                Copy Email <i class="fas fa-copy"></i>
-              </button>
+          <div class="contact-layout">
+            <div class="contact-text-content">
+              <h2 class="contact-title">Let&apos;s talk.</h2>
+              <p class="contact-description">Have a project in mind or want to connect? Send me a message, and I'll get back to you soon.</p>
+              
+              <div class="contact-methods">
+                <a href="mailto:inboxtorj@gmail.com" class="contact-method-card">
+                  <div class="contact-icon-wrapper"><i class="fas fa-envelope"></i></div>
+                  <div class="contact-method-details">
+                    <span class="contact-method-label">Email Me</span>
+                    <span class="contact-method-value">inboxtorj@gmail.com</span>
+                  </div>
+                </a>
+                
+                <button type="button" class="contact-method-card copy-btn" id="copy-email-btn" aria-label="Copy email address">
+                  <div class="contact-icon-wrapper"><i class="fas fa-copy"></i></div>
+                  <div class="contact-method-details">
+                    <span class="contact-method-label">Copy Address</span>
+                    <span class="contact-method-value" id="copy-status-text">Click to copy</span>
+                  </div>
+                </button>
+              </div>
             </div>
-            <form class="contact-form" id="contact-form" action="https://formsubmit.co/inboxtorj@gmail.com"
-              method="post" accept-charset="UTF-8">
-              <input type="hidden" name="_subject" value="New portfolio message from rajeevjasti.com" />
-              <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
-              <div class="form-group floating-label-group">
-                <div class="input-wrapper">
-                  <input type="text" id="contact-name" name="name" placeholder=" " autocomplete="name" required />
-                  <label class="form-label" for="contact-name">Name</label>
-                  <i class="fas fa-user input-icon"></i>
+
+            <div class="contact-form-container">
+              <form class="contact-form premium-form" id="contact-form" action="https://formsubmit.co/inboxtorj@gmail.com"
+                method="post" accept-charset="UTF-8">
+                <input type="hidden" name="_subject" value="New portfolio message from rajeevjasti.com" />
+                <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
+                
+                <div class="form-group floating-label-group">
+                  <div class="input-wrapper">
+                    <input type="text" id="contact-name" name="name" placeholder=" " autocomplete="name" required />
+                    <label class="form-label" for="contact-name">Name</label>
+                    <i class="fas fa-user input-icon"></i>
+                  </div>
                 </div>
-              </div>
-              <div class="form-group floating-label-group">
-                <div class="input-wrapper">
-                  <input type="email" id="contact-email" name="email" placeholder=" " autocomplete="email" required />
-                  <label class="form-label" for="contact-email">Email</label>
-                  <i class="fas fa-envelope input-icon"></i>
+                <div class="form-group floating-label-group">
+                  <div class="input-wrapper">
+                    <input type="email" id="contact-email" name="email" placeholder=" " autocomplete="email" required />
+                    <label class="form-label" for="contact-email">Email</label>
+                    <i class="fas fa-envelope input-icon"></i>
+                  </div>
                 </div>
-              </div>
-              <div class="form-group floating-label-group">
-                <div class="input-wrapper">
-                  <textarea id="contact-message" name="message" placeholder=" " rows="4" required></textarea>
-                  <label class="form-label" for="contact-message">Message</label>
+                <div class="form-group floating-label-group">
+                  <div class="input-wrapper">
+                    <textarea id="contact-message" name="message" placeholder=" " rows="4" required></textarea>
+                    <label class="form-label" for="contact-message">Message</label>
+                  </div>
                 </div>
-              </div>
-              <button type="submit" class="btn contact-submit-btn">Send<i
-                  class="fas fa-paper-plane"></i></button>
-              <p id="contact-status" class="form-status" role="status" aria-live="polite"></p>
-            </form>
+                <button type="submit" class="btn contact-submit-btn">Send Message <i
+                    class="fas fa-paper-plane"></i></button>
+                <p id="contact-status" class="form-status" role="status" aria-live="polite"></p>
+              </form>
+            </div>
           </div>
         </div>
       </section>
 
       <section id="ai">
-        <div class="ai-layout sidebar-hidden" id="ai-layout">
-          <button type="button" class="sidebar-open-btn" id="sidebar-open-btn" aria-label="Open sidebar"
-            title="Open sidebar">
+        <div class="ai-container sidebar-hidden" id="ai-layout">
+          <button type="button" class="ai-sidebar-toggle" id="sidebar-open-btn" aria-label="Open sidebar">
             <i class="fas fa-chevron-right"></i>
           </button>
-          <div class="ai-sidebar" id="ai-sidebar">
+
+          <aside class="ai-sidebar" id="ai-sidebar">
             <div class="ai-sidebar-header">
-              <button type="button" class="btn btn-outline new-chat-btn" id="new-chat-btn">
+              <button type="button" class="btn btn-accent new-chat-btn" id="new-chat-btn">
                 <i class="fas fa-plus"></i> New Chat
               </button>
-              <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close sidebar"
-                title="Close sidebar">
+              <button type="button" class="ai-close-btn" id="sidebar-close-btn" aria-label="Close sidebar">
                 <i class="fas fa-chevron-left"></i>
               </button>
             </div>
@@ -712,48 +727,59 @@
               <!-- Chat history injected here -->
             </div>
             <div class="ai-sidebar-footer">
-              <button type="button" class="clear-all-btn" id="clear-all-btn" aria-label="Clear all chats">
-                <i class="fas fa-trash-alt"></i> Clear All
+              <button type="button" class="btn-clear" id="clear-all-btn">
+                <i class="fas fa-trash-alt"></i> Clear All History
               </button>
             </div>
-          </div>
+          </aside>
 
-          <div class="ai-page-container empty-state" id="ai-page-container">
-            <div class="ai-page-content">
-              <h1 class="ai-page-heading" id="ai-page-heading">What's on your mind today?</h1>
-              <p class="ai-page-subtitle">Powered by Gemma 3 / 12B &mdash; ask me anything.</p>
-              <div class="ai-suggested-prompts" id="ai-suggested-prompts">
-                <button type="button" class="suggested-prompt" data-prompt="Explain quantum computing in simple terms">
-                  <i class="fas fa-atom"></i>
-                  <span>Explain quantum computing in simple terms</span>
-                </button>
-                <button type="button" class="suggested-prompt"
-                  data-prompt="What are the best strategies for learning a new language?">
-                  <i class="fas fa-language"></i>
-                  <span>What are the best strategies for learning a new language?</span>
-                </button>
-                <button type="button" class="suggested-prompt" data-prompt="How does the stock market work?">
-                  <i class="fas fa-chart-line"></i>
-                  <span>How does the stock market work?</span>
-                </button>
-                <button type="button" class="suggested-prompt" data-prompt="What's the science behind black holes?">
-                  <i class="fas fa-meteor"></i>
-                  <span>What's the science behind black holes?</span>
-                </button>
+          <div class="ai-main empty-state" id="ai-page-container">
+            <div class="ai-content-area">
+              <!-- Empty State View -->
+              <div class="ai-empty-view">
+                <div class="ai-hero-icon"><i class="fas fa-robot"></i></div>
+                <h1 class="ai-heading" id="ai-page-heading">How can I help you?</h1>
+                <p class="ai-subtitle" id="ai-page-subtitle">Powered by AWS Bedrock &mdash; ask me anything.</p>
+                
+                <div class="ai-suggestions" id="ai-suggested-prompts">
+                  <button type="button" class="ai-suggestion-card" data-prompt="Explain how Kafka handles fault tolerance">
+                    <i class="fas fa-stream"></i>
+                    <span>Explain how Kafka handles fault tolerance</span>
+                  </button>
+                  <button type="button" class="ai-suggestion-card" data-prompt="What are best practices for Spark optimization?">
+                    <i class="fas fa-bolt"></i>
+                    <span>What are best practices for Spark optimization?</span>
+                  </button>
+                  <button type="button" class="ai-suggestion-card" data-prompt="Compare Snowflake vs Redshift for analytics">
+                    <i class="fas fa-database"></i>
+                    <span>Compare Snowflake vs Redshift for analytics</span>
+                  </button>
+                  <button type="button" class="ai-suggestion-card" data-prompt="How does a data mesh architecture work?">
+                    <i class="fas fa-network-wired"></i>
+                    <span>How does a data mesh architecture work?</span>
+                  </button>
+                </div>
               </div>
-              <div class="ai-page-messages" id="ai-page-messages" aria-live="polite"></div>
+
+              <!-- Message Display -->
+              <div class="ai-messages" id="ai-page-messages" aria-live="polite"></div>
             </div>
-            <div class="ai-page-input-wrapper">
-              <form class="ai-page-form" id="ai-page-form">
-                <textarea id="ai-page-input" class="ai-page-input" placeholder="Ask AI ..." autocomplete="off" rows="1"
-                  required></textarea>
-                <button type="submit" class="ai-page-send-btn" id="ai-page-send-btn" aria-label="Send message">
-                  <i class="fas fa-arrow-up"></i>
-                </button>
+
+            <div class="ai-input-container">
+              <form class="ai-input-form" id="ai-page-form">
+                <textarea id="ai-page-input" class="ai-textarea" placeholder="Message AI..." autocomplete="off" rows="1" required></textarea>
+                <div class="ai-input-actions">
+                  <span class="ai-tokens" id="ai-token-counter">0 tokens</span>
+                  <button type="submit" class="ai-send-btn" id="ai-page-send-btn" aria-label="Send message">
+                    <i class="fas fa-arrow-up"></i>
+                  </button>
+                </div>
               </form>
+              <p class="ai-disclaimer">AI can make mistakes. Check important info.</p>
             </div>
           </div>
         </div>
+
         <noscript>
           <div class="noscript-message" style="margin-top: 40px; padding: 40px 20px; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); text-align: center;">
             <i class="fas fa-robot" style="color: var(--muted); font-size: 48px; margin-bottom: 20px;"></i>

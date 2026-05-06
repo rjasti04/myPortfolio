@@ -471,6 +471,7 @@ async def chat_endpoint(request: ChatRequest):
                 response = bedrock_runtime.converse_stream(
                     modelId=model_id,
                     messages=converse_messages,
+    inferenceConfig={"maxTokens": 2000} 
                 )
                 stream = response.get("stream")
                 if stream:
@@ -480,6 +481,10 @@ async def chat_endpoint(request: ChatRequest):
                             text = delta.get("delta", {}).get("text", "")
                             if text:
                                 loop.call_soon_threadsafe(queue.put_nowait, text)
+                        stop_event = event.get("messageStop")
+                        if stop_event:
+                            if stop_event.get("stopReason") == "max_tokens":
+                                loop.call_soon_threadsafe(queue.put_nowait, "\n[__TRUNCATED__]")
             except Exception as exc:
                 loop.call_soon_threadsafe(
                     queue.put_nowait, exc
@@ -512,6 +517,30 @@ async def chat_endpoint(request: ChatRequest):
             "X-Accel-Buffering": "no",  # disables Nginx buffering
         },
     )
+
+
+@app.post("/chat/summarize", dependencies=[Depends(verify_api_key)])
+async def chat_summarize_endpoint(request: ChatRequest):
+    model_id = request.model or DEFAULT_MODEL_ID
+
+    converse_messages = [
+        {"role": msg.role, "content": [{"text": msg.content}]}
+        for msg in request.messages
+    ]
+
+    try:
+        response = await asyncio.to_thread(
+            bedrock_runtime.converse,
+            modelId=model_id,
+            messages=converse_messages,
+            system=[{"text": "You are a helpful assistant. Please provide a concise summary of the key facts, user preferences, and context established in the conversation above. Omit pleasantries."}],
+            inferenceConfig={"maxTokens": 500}
+        )
+        summary_text = response.get("output", {}).get("message", {}).get("content", [{}])[0].get("text", "")
+        return {"summary": summary_text}
+    except Exception as e:
+        logger.exception("Error summarizing chat history: %s", e)
+        raise HTTPException(500, "Summarization failed")
 
 
 # ---------------------------------------------------------------------------
