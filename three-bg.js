@@ -298,7 +298,7 @@ function mountMobileBackground() {
   const themeObs = new MutationObserver(() => { accent = readAccent(); });
   themeObs.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'] });
 
-  const GRID = 20, NUM = 20, SPD = 1.2;
+  const GRID = 20, NUM = 7, SPD = 1.2;
 
   class Stream {
     constructor() { this.reset(true); }
@@ -308,7 +308,7 @@ function mountMobileBackground() {
       this.trail = [];
       this.dir = Math.floor(Math.random() * 4);
       this.seg = this._rndSeg();
-      this.maxLen = 20 + Math.floor(Math.random() * 40);
+      this.maxLen = 45 + Math.floor(Math.random() * 90);
       this.warmup = init ? Math.floor(Math.random() * this.maxLen) : 0;
     }
     _rndSeg() { return (3 + Math.floor(Math.random() * 8)) * GRID; }

@@ -448,9 +448,10 @@ export function initChat() {
     
     // Summarize old messages if history gets too long (e.g. > 6 messages)
     if (session.messages.length > 6) {
-      // Keep the last 2 messages (usually 1 bot, 1 user) plus the new one.
-      // We slice up to `length - 2` to summarize the older messages.
-      const messagesToSummarize = session.messages.slice(0, session.messages.length - 2);
+      // The current user message is the last entry (just pushed via appendMessage).
+      const currentUserMsg = session.messages[session.messages.length - 1];
+      // Everything before the current message gets summarized.
+      const messagesToSummarize = session.messages.slice(0, session.messages.length - 1);
       const summaryPayload = messagesToSummarize.map(h => ({
         role: h.sender === 'bot' ? 'assistant' : 'user',
         content: h.text
@@ -464,10 +465,12 @@ export function initChat() {
         });
         if (sumRes.ok) {
           const sumData = await sumRes.json();
-          // Replace summarized history with a single bot message
+          // Rebuild as: user(synthetic) → bot(summary) → user(current)
+          // This guarantees strict user/assistant alternation.
           session.messages = [
-            { text: "[Context Summary]: " + sumData.summary, sender: 'bot' },
-            ...session.messages.slice(session.messages.length - 2)
+            { text: "Summarize our conversation so far.", sender: 'user' },
+            { text: sumData.summary, sender: 'bot' },
+            currentUserMsg
           ];
           saveSessions();
         }
