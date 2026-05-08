@@ -3948,13 +3948,141 @@ nav a:hover .nav-shortcut {
 }
 
 .activity-table td:nth-child(5) {
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
+}
+
+.activity-data-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.activity-data-toggle:hover,
+.activity-data-toggle:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.activity-data-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.activity-data-toggle i {
+  flex: 0 0 auto;
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.activity-data-toggle[aria-expanded="true"] i {
+  transform: rotate(180deg);
+}
+
+.activity-data-summary {
+  overflow-wrap: anywhere;
+}
+
+.activity-data-empty {
+  color: var(--muted);
+}
+
+.activity-data-row td {
+  padding: 10px 16px 18px;
+  background: color-mix(in srgb, var(--card-bg) 88%, var(--accent-soft));
+}
+
+.activity-table tbody tr.activity-data-row:hover {
+  background: transparent;
+}
+
+.activity-data-panel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.activity-data-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card-bg) 72%, var(--accent-soft));
+}
+
+.activity-data-label {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.activity-copy-json {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.activity-copy-json:hover,
+.activity-copy-json:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.activity-copy-json:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.activity-copy-json[data-copy-state="copied"] {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.activity-copy-json[data-copy-state="failed"] {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.activity-data-pre {
+  max-height: 320px;
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* Type Badge */
@@ -4047,8 +4175,21 @@ nav a:hover .nav-shortcut {
     padding: 10px 12px;
   }
 
-  .activity-table td:nth-child(5) {
-    max-width: 120px;
+  .activity-data-toggle {
+    padding: 5px 8px;
+  }
+
+  .activity-data-row td {
+    padding: 8px 10px 14px;
+  }
+
+  .activity-data-toolbar {
+    padding: 8px 10px;
+  }
+
+  .activity-data-pre {
+    max-height: 260px;
+    padding: 12px;
   }
 }
 

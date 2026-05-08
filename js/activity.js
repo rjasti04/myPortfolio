@@ -16,6 +16,65 @@ function safeFetch(url, options) {
   return apiFetch(url, options);
 }
 
+function encodeBase64Text(text) {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function decodeBase64Text(encodedText) {
+  const binary = atob(encodedText);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function formatDecodedJson(encodedText) {
+  const decodedText = decodeBase64Text(encodedText);
+  return JSON.stringify(JSON.parse(decodedText), null, 2);
+}
+
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.top = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  textarea.remove();
+
+  return copied ? Promise.resolve() : Promise.reject(new Error("Copy command failed"));
+}
+
+const copyResetTimers = new WeakMap();
+
+function setCopyButtonState(button, state) {
+  const label = button.querySelector(".activity-copy-label");
+  const defaultLabel = button.dataset.defaultLabel || label?.textContent || "Copy";
+  button.dataset.defaultLabel = defaultLabel;
+  button.dataset.copyState = state;
+  if (label) label.textContent = state === "copied" ? "Copied" : "Failed";
+
+  const existingTimer = copyResetTimers.get(button);
+  if (existingTimer) clearTimeout(existingTimer);
+
+  const resetTimer = setTimeout(() => {
+    delete button.dataset.copyState;
+    if (label) label.textContent = defaultLabel;
+    copyResetTimers.delete(button);
+  }, 1600);
+  copyResetTimers.set(button, resetTimer);
+}
+
 let currentOffset = 0;
 const PAGE_SIZE = 5;
 
@@ -85,15 +144,41 @@ export async function loadActivity(offset = currentOffset) {
       const d = new Date(e.created_at);
       const dateStr = escapeHTML(d.toLocaleDateString());
       const timeStr = escapeHTML(d.toLocaleTimeString());
-      const dataStr = e.event_data ? escapeHTML(JSON.stringify(e.event_data)) : "-";
+      const hasData = Boolean(e.event_data);
+      const encodedData = hasData ? encodeBase64Text(JSON.stringify(e.event_data)) : "";
+      const dataJson = hasData ? escapeHTML(formatDecodedJson(encodedData)) : "";
+      const detailRowId = `activity-data-${offset}-${i}`;
       return `
           <tr class="activity-row-enter" style="animation-delay: ${i * 50}ms">
             <td>${dateStr}</td>
             <td>${timeStr}</td>
             <td><span class="activity-type-badge">${escapeHTML(e.event_type)}</span></td>
             <td>${escapeHTML(e.page_path || '-')}</td>
-            <td title="${dataStr}">${dataStr}</td>
+            <td>
+              ${hasData ? `
+                <button class="activity-data-toggle" type="button" aria-expanded="false" aria-controls="${detailRowId}">
+                  <span class="activity-data-summary">${escapeHTML(encodedData)}</span>
+                  <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+              ` : `<span class="activity-data-empty">-</span>`}
+            </td>
           </tr>
+          ${hasData ? `
+            <tr class="activity-data-row" id="${detailRowId}" hidden>
+              <td colspan="5">
+                <div class="activity-data-panel">
+                  <div class="activity-data-toolbar">
+                    <span class="activity-data-label">Decoded JSON</span>
+                    <button class="activity-copy-json" type="button" aria-label="Copy activity JSON">
+                      <i class="fas fa-copy" aria-hidden="true"></i>
+                      <span class="activity-copy-label">Copy</span>
+                    </button>
+                  </div>
+                  <pre class="activity-data-pre">${dataJson}</pre>
+                </div>
+              </td>
+            </tr>
+          ` : ""}
         `;
     }).join("");
 
@@ -116,6 +201,38 @@ export async function loadActivity(offset = currentOffset) {
 }
 
 export function initActivity() {
+  const tbody = document.getElementById("activity-tbody");
+  if (tbody) {
+    tbody.addEventListener("click", async (event) => {
+      const copyButton = event.target.closest(".activity-copy-json");
+      if (copyButton) {
+        const detailRow = copyButton.closest(".activity-data-row");
+        const jsonBlock = detailRow?.querySelector(".activity-data-pre");
+        if (!jsonBlock) return;
+
+        try {
+          await copyText(jsonBlock.textContent || "");
+          setCopyButtonState(copyButton, "copied");
+        } catch (error) {
+          console.error("Activity JSON copy failed", error);
+          setCopyButtonState(copyButton, "failed");
+        }
+        return;
+      }
+
+      const button = event.target.closest(".activity-data-toggle");
+      if (!button) return;
+
+      const detailRowId = button.getAttribute("aria-controls");
+      const detailRow = detailRowId ? document.getElementById(detailRowId) : null;
+      if (!detailRow) return;
+
+      const isExpanded = button.getAttribute("aria-expanded") === "true";
+      button.setAttribute("aria-expanded", String(!isExpanded));
+      detailRow.hidden = isExpanded;
+    });
+  }
+
   const refreshBtn = document.getElementById("activity-refresh-btn");
   if (refreshBtn) {
     refreshBtn.addEventListener("click", () => {
