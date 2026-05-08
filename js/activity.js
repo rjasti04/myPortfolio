@@ -1,4 +1,4 @@
-import { API_BASE } from "./analytics.js";
+import { API_BASE, apiFetch, isApiConfigured } from "./analytics.js";
 
 const _ALLOWED_API_ORIGIN = new URL(API_BASE).origin;
 
@@ -13,7 +13,7 @@ function safeFetch(url, options) {
   if (parsed.origin !== _ALLOWED_API_ORIGIN) {
     return Promise.reject(new Error(`Blocked fetch to disallowed origin: ${parsed.origin}`));
   }
-  return fetch(url, options);
+  return apiFetch(url, options);
 }
 
 let currentOffset = 0;
@@ -34,6 +34,12 @@ export async function loadActivity(offset = currentOffset) {
   if (sessionIdSpan) {
     const displayId = sessionId ? sessionId.split('-').slice(0, 3).join('-') : "None";
     sessionIdSpan.textContent = displayId;
+  }
+
+  if (!isApiConfigured()) {
+    tbody.innerHTML = `<tr><td colspan="5" class="activity-message">Activity API is not configured.</td></tr>`;
+    if (paginationControls) paginationControls.style.display = "none";
+    return;
   }
 
   if (!sessionId) {

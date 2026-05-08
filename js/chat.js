@@ -1,9 +1,23 @@
-import { API_BASE } from "./analytics.js";
+import { API_BASE, apiFetch, ensureSession, isApiConfigured } from "./analytics.js";
 
-/** Sanitize HTML through DOMPurify when available, passthrough otherwise. */
+function escapeHTML(str) {
+  const d = document.createElement("div");
+  d.textContent = String(str);
+  return d.innerHTML;
+}
+
+/** Sanitize HTML through DOMPurify when available, escape otherwise. */
 function sanitizeHTML(html) {
   if (typeof DOMPurify !== "undefined") return DOMPurify.sanitize(html);
-  return html;
+  console.error("DOMPurify is unavailable; rendering escaped content.");
+  return escapeHTML(html);
+}
+
+function renderBotHTML(text) {
+  if (typeof marked === "undefined") {
+    return escapeHTML(text).replace(/\n/g, "<br>");
+  }
+  return sanitizeHTML(marked.parse(text));
 }
 
 if (typeof marked !== 'undefined') {
@@ -260,7 +274,7 @@ export function initChat() {
 
   function appendMessage(text, sender, { save = true, showCopy = save } = {}) {
     const isBot = sender === 'bot';
-    const htmlContent = isBot ? sanitizeHTML(marked.parse(text)) : text;
+    const htmlContent = isBot ? renderBotHTML(text) : text;
 
     if (messagesContainer) {
       const msgEl = document.createElement('div');
@@ -425,6 +439,15 @@ export function initChat() {
   }
 
   async function handleChatSubmit(text) {
+    if (!isApiConfigured()) {
+      appendMessage("AI service is not configured.", 'bot', { save: false, showCopy: false });
+      return;
+    }
+    if (!(await ensureSession())) {
+      appendMessage("AI service is not available.", 'bot', { save: false, showCopy: false });
+      return;
+    }
+
     appendMessage(text, 'user', { save: true, showCopy: true });
     setInputState(true);
 
@@ -458,7 +481,7 @@ export function initChat() {
       }));
       
       try {
-        const sumRes = await fetch(`${API_BASE}/chat/summarize`, {
+        const sumRes = await apiFetch(`${API_BASE}/chat/summarize`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: summaryPayload })
@@ -485,7 +508,7 @@ export function initChat() {
     }));
 
     try {
-      const response = await fetch(apiUrl, {
+      const response = await apiFetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages })
@@ -519,7 +542,7 @@ export function initChat() {
 
       const flushParse = () => {
         parseTimer = null;
-        const html = sanitizeHTML(marked.parse(botFullText));
+        const html = renderBotHTML(botFullText);
         if (widgetMsgEl) {
           widgetMsgEl.innerHTML = html;
           const isNearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
@@ -580,7 +603,7 @@ export function initChat() {
           </button>
         </div>
       `;
-      const result = appendMessage(errorMsg, 'bot', { save: false, showCopy: false });
+      appendMessage(errorMsg, 'bot', { save: false, showCopy: false });
       
       // We need to attach event listener to the freshly inserted button
       // To do this reliably across both views, we can use event delegation or direct query
@@ -588,7 +611,7 @@ export function initChat() {
         document.querySelectorAll(`#${errorId}`).forEach(btn => {
           btn.addEventListener('click', () => {
             // Remove the error messages from the DOM
-            btn.closest('.message').remove();
+            btn.closest('.chat-message')?.remove();
             // Retry the submission
             handleChatSubmit(text);
           });

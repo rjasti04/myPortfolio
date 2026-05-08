@@ -13,6 +13,79 @@ function escapeHTML(str) {
   );
 }
 
+function evaluateMathExpression(expr) {
+  let index = 0;
+
+  function skipSpaces() {
+    while (/\s/.test(expr[index] || "")) index++;
+  }
+
+  function parseNumber() {
+    skipSpaces();
+    const start = index;
+    while (/[\d.]/.test(expr[index] || "")) index++;
+    const raw = expr.slice(start, index);
+    if (!raw || raw.split(".").length > 2) {
+      throw new Error("invalid number");
+    }
+    return Number(raw);
+  }
+
+  function parseFactor() {
+    skipSpaces();
+    if (expr[index] === "+") {
+      index++;
+      return parseFactor();
+    }
+    if (expr[index] === "-") {
+      index++;
+      return -parseFactor();
+    }
+    if (expr[index] === "(") {
+      index++;
+      const value = parseExpression();
+      skipSpaces();
+      if (expr[index] !== ")") throw new Error("missing closing paren");
+      index++;
+      return value;
+    }
+    return parseNumber();
+  }
+
+  function parseTerm() {
+    let value = parseFactor();
+    while (true) {
+      skipSpaces();
+      const op = expr[index];
+      if (op !== "*" && op !== "/") break;
+      index++;
+      const right = parseFactor();
+      value = op === "*" ? value * right : value / right;
+    }
+    return value;
+  }
+
+  function parseExpression() {
+    let value = parseTerm();
+    while (true) {
+      skipSpaces();
+      const op = expr[index];
+      if (op !== "+" && op !== "-") break;
+      index++;
+      const right = parseTerm();
+      value = op === "+" ? value + right : value - right;
+    }
+    return value;
+  }
+
+  const result = parseExpression();
+  skipSpaces();
+  if (index !== expr.length || !Number.isFinite(result)) {
+    throw new Error("invalid expression");
+  }
+  return result;
+}
+
 export function initTerminal() {
   const terminalInput = document.getElementById("terminal-input");
   const terminalOutput = document.getElementById("terminal-output");
@@ -231,19 +304,17 @@ export function initTerminal() {
     calc: (args) => {
       if (!args.length) return `<p class="terminal-output-text">calc: missing expression. Try 'calc 5 * 10'</p>`;
       const expr = args.join(" ");
+      if (expr.length > 120) {
+        return `<p class="terminal-output-text">calc: expression is too long</p>`;
+      }
       if (!/^[\d+\-*/().\s]+$/.test(expr)) {
         return `<p class="terminal-output-text">calc: invalid characters in expression. Only numbers and basic operators are allowed.</p>`;
       }
-      // Secondary guard: reject any alphabetic/identifier characters that
-      // could have slipped through the dot (.) in the character class.
       if (/[a-zA-Z_$]/.test(expr)) {
         return `<p class="terminal-output-text">calc: letters are not allowed in expressions</p>`;
       }
       try {
-        const result = Function('"use strict"; return (' + expr + ')')();
-        if (typeof result !== 'number' || !isFinite(result)) {
-          return `<p class="terminal-output-text">calc: expression did not evaluate to a valid number</p>`;
-        }
+        const result = evaluateMathExpression(expr);
         return `<p class="terminal-output-text">${escapeHTML(String(result))}</p>`;
       } catch (e) {
         return `<p class="terminal-output-text">calc: invalid expression</p>`;

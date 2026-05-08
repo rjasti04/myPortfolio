@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://get.geojs.io https://api.open-meteo.com wss: https:;" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action https://formsubmit.co; script-src 'self' https://cdn.jsdelivr.net 'sha256-0/PLsWCeqKyS+oiYqnl4MhX8G5Q1tdDiTym+KJh/JJQ=' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-7qJiTE0SDGqsGuUtWq0yY/Ojx48LheZZjk0mLT1uGYM='; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="Rajeev Jasti" />
@@ -99,13 +99,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "./js/vendor/three.module.js"
-      }
-    }
-  </script>
   <script>
     document.documentElement.classList.add("js-enabled");
   </script>
@@ -871,7 +864,7 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js" integrity="sha384-qSFej5dZNviyoPgYJ5+Xk4bEbX8AYddxAHPuzs1aSgRiXxJ3qmyWNaPsRkpv/+x5" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js" integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+" crossorigin="anonymous"></script>
   <script src="app-logic.js" defer></script>
   <script type="module" src="js/main.js"></script>

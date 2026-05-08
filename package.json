@@ -2,6 +2,9 @@
   "name": "rjwebapp",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "lint": "npm run lint:js && npm run lint:css",
     "lint:js": "eslint app-logic.js js/*.js",
@@ -12,7 +15,7 @@
     "audit": "npm audit --audit-level=high"
   },
   "devDependencies": {
-    "eslint": "^9.18.0",
+    "eslint": "^8.57.1",
     "prettier": "^3.5.3",
     "stylelint": "^16.15.0",
     "stylelint-config-standard": "^38.0.0",

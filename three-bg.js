@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import * as THREE from "./js/vendor/three.module.js";
 import { prefersReducedMotion as reducedMotionQuery, compactViewport as compactViewportQuery, mobileDevice } from "./js/config.js";
 let destroyBackground = null;
 let backgroundVariant = null;

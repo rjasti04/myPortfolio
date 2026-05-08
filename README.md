@@ -10,6 +10,7 @@ A single-page portfolio web application with responsive section navigation, an a
 ### Install dependencies
 ```bash
 npm install
+python -m pip install -r requirements.txt
 ```
 
 ### Run locally
@@ -20,6 +21,24 @@ Example using Python:
 python -m http.server 8080
 ```
 Then open `http://localhost:8080`.
+
+### Run the API
+Set the required API environment variables before starting ASGI:
+
+```powershell
+$env:DATABASE_URL="postgresql://user:password@host:5432/dbname"
+$env:AWS_REGION="us-east-1"
+$env:DEFAULT_MODEL_ID="your-bedrock-model-id"
+python -m uvicorn server.main:app
+```
+
+Optional hardening knobs:
+- `ALLOWED_MODEL_IDS` - comma-separated Bedrock model IDs allowed from API requests.
+- `CORS_ORIGINS` - comma-separated browser origins allowed by FastAPI CORS.
+- `TRUSTED_PROXY_IPS` - comma-separated proxy IPs/CIDRs allowed to supply `X-Forwarded-For`.
+- `MAX_BODY_BYTES`, `CHAT_MAX_CONCURRENCY`, and `BEDROCK_TIMEOUT_SECONDS` - request and chat safety limits.
+
+The API does not require application-level authentication. Keep the FastAPI service private with same-host networking, firewall/security-group rules, or a reverse proxy if it should not be publicly callable.
 
 ## Available scripts
 - `npm run lint` - runs all linters.

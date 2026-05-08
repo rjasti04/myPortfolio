@@ -1,21 +1,25 @@
-from fastapi import FastAPI, HTTPException, Request, Query, Depends
+from fastapi import FastAPI, HTTPException, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, field_validator
-from typing import Optional, Any
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, Any, Literal
 from uuid import UUID
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from collections import defaultdict
+from concurrent.futures import TimeoutError as FutureTimeoutError
 import asyncpg
 import asyncio
 import os
 import json
 import time
 import logging
+import ipaddress
+import threading
 
 import boto3
 import orjson
+from botocore.config import Config
 
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
@@ -27,25 +31,105 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ---------------------------------------------------------------------------
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-AWS_REGION = os.getenv("AWS_REGION")
-DEFAULT_MODEL_ID = os.getenv("DEFAULT_MODEL_ID")
+def _required_env(name: str) -> str:
+    value = os.getenv(name, "").strip()
+    if not value:
+        raise RuntimeError(f"{name} must be set")
+    return value
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name, str(default))
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        raise RuntimeError(f"{name} must be an integer")
+    if value <= 0:
+        raise RuntimeError(f"{name} must be greater than zero")
+    return value
+
+
+DATABASE_URL = _required_env("DATABASE_URL")
+AWS_REGION = _required_env("AWS_REGION")
+DEFAULT_MODEL_ID = _required_env("DEFAULT_MODEL_ID")
 
 _raw_origins = os.getenv("CORS_ORIGINS", "")
 _origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
-API_KEY = os.getenv("API_KEY", "")
-MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", str(1_048_576)))  # 1 MB
+MAX_BODY_BYTES = _env_int("MAX_BODY_BYTES", 1_048_576)  # 1 MB
+CHAT_MAX_CONCURRENCY = _env_int("CHAT_MAX_CONCURRENCY", 4)
+CHAT_STREAM_QUEUE_SIZE = _env_int("CHAT_STREAM_QUEUE_SIZE", 32)
+BEDROCK_TIMEOUT_SECONDS = _env_int("BEDROCK_TIMEOUT_SECONDS", 60)
+BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS = _env_int("BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS", 2)
+
+_raw_allowed_models = os.getenv("ALLOWED_MODEL_IDS", "")
+ALLOWED_MODEL_IDS = {
+    model.strip()
+    for model in _raw_allowed_models.split(",")
+    if model.strip()
+}
+ALLOWED_MODEL_IDS.add(DEFAULT_MODEL_ID)
+
+
+def _parse_proxy_networks(raw: str) -> list[Any]:
+    networks = []
+    for item in raw.split(","):
+        candidate = item.strip()
+        if not candidate:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(candidate, strict=False))
+        except ValueError:
+            logger.warning("Ignoring invalid TRUSTED_PROXY_IPS entry: %s", candidate)
+    return networks
+
+
+TRUSTED_PROXY_NETWORKS = _parse_proxy_networks(os.getenv("TRUSTED_PROXY_IPS", ""))
+
+bedrock_config = Config(
+    connect_timeout=10,
+    read_timeout=BEDROCK_TIMEOUT_SECONDS,
+    retries={"max_attempts": 2, "mode": "standard"},
+)
 
 # Boto3 Bedrock clients
 bedrock_runtime = boto3.client(
     "bedrock-runtime",
-    region_name=AWS_REGION
+    region_name=AWS_REGION,
+    config=bedrock_config,
 )
 bedrock_mgmt = boto3.client(
     "bedrock",
-    region_name=AWS_REGION
+    region_name=AWS_REGION,
+    config=bedrock_config,
 )
+
+chat_semaphore = asyncio.Semaphore(CHAT_MAX_CONCURRENCY)
+
+
+def _is_trusted_proxy(ip: Optional[str]) -> bool:
+    if not ip:
+        return False
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return any(address in network for network in TRUSTED_PROXY_NETWORKS)
+
+
+def _client_ip_from_request(request: Request) -> str:
+    direct_ip = request.client.host if request.client else "unknown"
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded and _is_trusted_proxy(direct_ip):
+        forwarded_ips = [ip.strip() for ip in forwarded.split(",") if ip.strip()]
+        for candidate in reversed(forwarded_ips):
+            try:
+                ipaddress.ip_address(candidate)
+            except ValueError:
+                continue
+            if not _is_trusted_proxy(candidate):
+                return candidate[:64]
+    return direct_ip
 
 # ---------------------------------------------------------------------------
 # Rate Limiting Middleware (in-memory, per-IP)
@@ -67,12 +151,7 @@ class RateLimitMiddleware:
             return
 
         request = Request(scope, receive)
-        forwarded = request.headers.get("x-forwarded-for")
-        client_ip = (
-            forwarded.split(",")[0].strip()
-            if forwarded
-            else (request.client.host if request.client else "unknown")
-        )
+        client_ip = _client_ip_from_request(request)
 
         now = time.time()
         window = self.window_seconds
@@ -85,8 +164,6 @@ class RateLimitMiddleware:
             del self._hits[client_ip]
 
         if len(self._hits.get(client_ip, [])) >= self.max_requests:
-            from starlette.responses import JSONResponse
-
             response = JSONResponse(
                 {"detail": "Rate limit exceeded. Try again later."},
                 status_code=429,
@@ -101,8 +178,12 @@ class RateLimitMiddleware:
 # Body Size Limit Middleware
 # ---------------------------------------------------------------------------
 
+class BodyTooLargeError(Exception):
+    pass
+
+
 class BodySizeLimitMiddleware:
-    """Reject requests whose Content-Length exceeds a threshold."""
+    """Reject requests whose Content-Length or streamed body exceeds a threshold."""
 
     def __init__(self, app, max_bytes: int = MAX_BODY_BYTES):
         self.app = app
@@ -119,10 +200,8 @@ class BodySizeLimitMiddleware:
             try:
                 cl = int(content_length)
             except (ValueError, TypeError):
-                cl = 0
+                cl = self.max_bytes + 1
             if cl > self.max_bytes:
-                from starlette.responses import JSONResponse
-
                 response = JSONResponse(
                     {"detail": "Request body too large"},
                     status_code=413,
@@ -130,10 +209,28 @@ class BodySizeLimitMiddleware:
                 await response(scope, receive, send)
                 return
 
-        await self.app(scope, receive, send)
+        received = 0
+
+        async def receive_limited():
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > self.max_bytes:
+                    raise BodyTooLargeError
+            return message
+
+        try:
+            await self.app(scope, receive_limited, send)
+        except BodyTooLargeError:
+            response = JSONResponse(
+                {"detail": "Request body too large"},
+                status_code=413,
+            )
+            await response(scope, receive, send)
 
 # ---------------------------------------------------------------------------
-# App setup
+# FastAPI app setup
 # ---------------------------------------------------------------------------
 
 @asynccontextmanager
@@ -152,32 +249,22 @@ app.add_middleware(
     allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH"],
-    allow_headers=["Content-Type", "X-API-Key"],
+    allow_headers=["Content-Type"],
 )
-
-# ---------------------------------------------------------------------------
-# Auth helper (optional â€” only enforced when API_KEY env var is set)
-# ---------------------------------------------------------------------------
-
-async def verify_api_key(request: Request):
-    """Guard for read endpoints. Skipped when API_KEY is not configured."""
-    if not API_KEY:
-        return
-    key = request.headers.get("x-api-key", "")
-    if key != API_KEY:
-        raise HTTPException(403, "Invalid or missing API key")
 
 # ---------------------------------------------------------------------------
 # Pydantic models
 # ---------------------------------------------------------------------------
 
 class SessionCreate(BaseModel):
-    ip_address:  Optional[str] = None
-    user_agent:  Optional[str] = None
-    device_type: Optional[str] = None  # "desktop" | "mobile" | "tablet" | etc.
+    ip_address: Optional[str] = Field(default=None, max_length=64)
+    user_agent: Optional[str] = Field(default=None, max_length=512)
+    device_type: Optional[Literal["desktop", "mobile", "tablet", "unknown"]] = None
 
 class SessionEnd(BaseModel):
-    end_reason: Optional[str] = None   # "logout" | "timeout" | "closed" | etc.
+    end_reason: Optional[
+        Literal["logout", "timeout", "closed", "tab_closed_or_hidden", "unknown"]
+    ] = None
 
 class SessionUpdate(BaseModel):
     """Lightweight heartbeat â€” just bumps last_active_at."""
@@ -185,16 +272,17 @@ class SessionUpdate(BaseModel):
 
 class EventCreate(BaseModel):
     session_id: UUID
-    event_type: str                    # "page_view" | "click" | "scroll" | etc.
-    page_path:  Optional[str] = None
+    event_type: Literal[
+        "page_view",
+        "click",
+        "scroll_depth",
+        "terminal_command",
+        "theme_change",
+        "copy_email",
+        "contact_submission",
+    ]
+    page_path: Optional[str] = Field(default=None, max_length=256)
     event_data: Optional[dict[str, Any]] = None
-
-    @field_validator("event_type")
-    @classmethod
-    def event_type_not_empty(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("event_type must not be blank")
-        return v.strip()
 
     @field_validator("event_data")
     @classmethod
@@ -205,15 +293,15 @@ class EventCreate(BaseModel):
         return v
 
 class BulkEventCreate(BaseModel):
-    events: list[EventCreate]
+    events: list[EventCreate] = Field(..., min_length=1, max_length=500)
 
 class ChatMessage(BaseModel):
-    role: str
-    content: str
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=8_000)
 
 class ChatRequest(BaseModel):
-    messages: list[ChatMessage]
-    model: Optional[str] = None  # Bedrock model ID; falls back to DEFAULT_MODEL_ID
+    messages: list[ChatMessage] = Field(..., min_length=1, max_length=24)
+    model: Optional[str] = Field(default=None, max_length=256)
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -246,17 +334,15 @@ async def health_check():
     "/sessions",
     status_code=201,
     summary="Start a new session",
-    dependencies=[Depends(verify_api_key)],
 )
 async def create_session(payload: SessionCreate, request: Request):
     """
     Creates a new row in user_sessions and returns the generated session_id.
     ip_address can be passed explicitly or auto-detected from the request.
     """
-    # Support reverse proxies like Nginx/Caddy by checking X-Forwarded-For
-    forwarded = request.headers.get("x-forwarded-for")
-    client_ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else None)
-    ip = payload.ip_address or client_ip
+    # Trust X-Forwarded-For only when the direct client is a configured proxy.
+    client_ip = _client_ip_from_request(request)
+    ip = client_ip
 
     async with request.app.state.pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -273,7 +359,10 @@ async def create_session(payload: SessionCreate, request: Request):
     return {"session_id": str(row["session_id"]), "started_at": row["started_at"]}
 
 
-@app.patch("/sessions/{session_id}/heartbeat", summary="Update last_active_at")
+@app.patch(
+    "/sessions/{session_id}/heartbeat",
+    summary="Update last_active_at",
+)
 async def session_heartbeat(session_id: UUID, request: Request):
     """Call periodically (e.g. every 60 s) to keep the session alive."""
     async with request.app.state.pool.acquire() as conn:
@@ -294,7 +383,10 @@ async def session_heartbeat(session_id: UUID, request: Request):
     return {"status": "ok", "last_active_at": _now()}
 
 
-@app.patch("/sessions/{session_id}/end", summary="End a session")
+@app.patch(
+    "/sessions/{session_id}/end",
+    summary="End a session",
+)
 async def end_session(session_id: UUID, payload: SessionEnd, request: Request):
     """Marks the session inactive and records ended_at + end_reason."""
     async with request.app.state.pool.acquire() as conn:
@@ -322,7 +414,6 @@ async def end_session(session_id: UUID, payload: SessionEnd, request: Request):
 @app.get(
     "/sessions/{session_id}",
     summary="Get session details",
-    dependencies=[Depends(verify_api_key)],
 )
 async def get_session(session_id: UUID, request: Request):
     async with request.app.state.pool.acquire() as conn:
@@ -349,7 +440,6 @@ async def get_session(session_id: UUID, request: Request):
     "/events",
     status_code=201,
     summary="Record a single activity event",
-    dependencies=[Depends(verify_api_key)],
 )
 async def create_event(payload: EventCreate, request: Request):
     """
@@ -383,7 +473,6 @@ async def create_event(payload: EventCreate, request: Request):
     "/events/bulk",
     status_code=201,
     summary="Record multiple events in one shot",
-    dependencies=[Depends(verify_api_key)],
 )
 async def create_events_bulk(payload: BulkEventCreate, request: Request):
     """
@@ -422,7 +511,6 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request):
 @app.get(
     "/sessions/{session_id}/events",
     summary="List events for a session",
-    dependencies=[Depends(verify_api_key)],
 )
 async def get_session_events(
     session_id: UUID,
@@ -474,19 +562,43 @@ def _ensure_alternating_roles(messages: list[dict]) -> list[dict]:
     return merged
 
 
-@app.post("/chat", dependencies=[Depends(verify_api_key)])
-async def chat_endpoint(request: ChatRequest):
-    model_id = request.model or DEFAULT_MODEL_ID
+def _resolve_model_id(requested_model: Optional[str]) -> str:
+    model_id = requested_model or DEFAULT_MODEL_ID
+    if model_id not in ALLOWED_MODEL_IDS:
+        raise HTTPException(400, "Unsupported model")
+    return model_id
+
+
+@app.post("/chat")
+async def chat_endpoint(payload: ChatRequest, http_request: Request):
+    model_id = _resolve_model_id(payload.model)
 
     # Build Converse-compatible message list (enforce alternation)
     converse_messages = _ensure_alternating_roles([
         {"role": msg.role, "content": [{"text": msg.content}]}
-        for msg in request.messages
+        for msg in payload.messages
     ])
 
+    try:
+        await asyncio.wait_for(chat_semaphore.acquire(), timeout=0.1)
+    except asyncio.TimeoutError:
+        raise HTTPException(429, "Chat service is busy. Try again shortly.")
+
     async def generate_response():
-        queue: asyncio.Queue = asyncio.Queue()
+        queue: asyncio.Queue = asyncio.Queue(maxsize=CHAT_STREAM_QUEUE_SIZE)
         loop = asyncio.get_running_loop()
+        stop_stream = threading.Event()
+
+        def enqueue_from_thread(item) -> bool:
+            if stop_stream.is_set():
+                return False
+            try:
+                future = asyncio.run_coroutine_threadsafe(queue.put(item), loop)
+                future.result(timeout=BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS)
+                return True
+            except (FutureTimeoutError, RuntimeError):
+                stop_stream.set()
+                return False
 
         def _stream_worker():
             """Runs in a thread – reads the synchronous Bedrock stream and
@@ -495,43 +607,68 @@ async def chat_endpoint(request: ChatRequest):
                 response = bedrock_runtime.converse_stream(
                     modelId=model_id,
                     messages=converse_messages,
-    inferenceConfig={"maxTokens": 2000} 
+                    inferenceConfig={"maxTokens": 2000},
                 )
                 stream = response.get("stream")
                 if stream:
-                    for event in stream:
-                        delta = event.get("contentBlockDelta")
-                        if delta:
-                            text = delta.get("delta", {}).get("text", "")
-                            if text:
-                                loop.call_soon_threadsafe(queue.put_nowait, text)
-                        stop_event = event.get("messageStop")
-                        if stop_event:
-                            if stop_event.get("stopReason") == "max_tokens":
-                                loop.call_soon_threadsafe(queue.put_nowait, "\n[__TRUNCATED__]")
+                    try:
+                        for event in stream:
+                            if stop_stream.is_set():
+                                break
+                            delta = event.get("contentBlockDelta")
+                            if delta:
+                                text = delta.get("delta", {}).get("text", "")
+                                if text and not enqueue_from_thread(text):
+                                    break
+                            stop_event = event.get("messageStop")
+                            if stop_event and stop_event.get("stopReason") == "max_tokens":
+                                enqueue_from_thread("\n[__TRUNCATED__]")
+                    finally:
+                        close_stream = getattr(stream, "close", None)
+                        if callable(close_stream):
+                            close_stream()
             except Exception as exc:
-                loop.call_soon_threadsafe(
-                    queue.put_nowait, exc
-                )
+                enqueue_from_thread(exc)
             finally:
-                loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel
+                enqueue_from_thread(None)
 
-        # Kick off the blocking reader in a background thread
-        thread_future = loop.run_in_executor(None, _stream_worker)
+        thread_future = None
+        try:
+            # Kick off the blocking reader in a background thread
+            thread_future = loop.run_in_executor(None, _stream_worker)
 
-        # Yield chunks as they arrive
-        while True:
-            item = await queue.get()
-            if item is None:
-                break
-            if isinstance(item, Exception):
-                logger.exception("Error calling Bedrock model %s", model_id, exc_info=item)
-                yield f"\n(Error: {item})"
-                break
-            yield item
+            # Yield chunks as they arrive, checking for client disconnects.
+            while True:
+                if await http_request.is_disconnected():
+                    stop_stream.set()
+                    break
+                try:
+                    item = await asyncio.wait_for(queue.get(), timeout=1)
+                except asyncio.TimeoutError:
+                    if stop_stream.is_set():
+                        break
+                    continue
+                if item is None:
+                    break
+                if isinstance(item, Exception):
+                    logger.error(
+                        "Error calling Bedrock model %s",
+                        model_id,
+                        exc_info=(type(item), item, item.__traceback__),
+                    )
+                    yield "\n(Error: AI service unavailable)"
+                    break
+                yield item
 
-        # Ensure the thread has finished
-        await thread_future
+            stop_stream.set()
+            if thread_future:
+                try:
+                    await asyncio.wait_for(thread_future, timeout=5)
+                except asyncio.TimeoutError:
+                    logger.warning("Bedrock stream worker did not stop promptly")
+        finally:
+            stop_stream.set()
+            chat_semaphore.release()
 
     return StreamingResponse(
         generate_response(),
@@ -543,13 +680,13 @@ async def chat_endpoint(request: ChatRequest):
     )
 
 
-@app.post("/chat/summarize", dependencies=[Depends(verify_api_key)])
-async def chat_summarize_endpoint(request: ChatRequest):
-    model_id = request.model or DEFAULT_MODEL_ID
+@app.post("/chat/summarize")
+async def chat_summarize_endpoint(payload: ChatRequest):
+    model_id = _resolve_model_id(payload.model)
 
     converse_messages = _ensure_alternating_roles([
         {"role": msg.role, "content": [{"text": msg.content}]}
-        for msg in request.messages
+        for msg in payload.messages
     ])
 
     try:
@@ -574,7 +711,6 @@ async def chat_summarize_endpoint(request: ChatRequest):
 @app.get(
     "/models",
     summary="List available Bedrock foundation models",
-    dependencies=[Depends(verify_api_key)],
 )
 async def list_models():
     """Returns Bedrock foundation models available in the configured region."""

@@ -9,15 +9,27 @@ try {
 
 function setSessionId(id) {
   sessionId = id;
-  try { sessionStorage.setItem("rj_session_id", id); } catch (e) {}
+  try {
+    sessionStorage.setItem("rj_session_id", id);
+  } catch (e) {}
 }
 
 function clearSessionId() {
   sessionId = null;
-  try { sessionStorage.removeItem("rj_session_id"); } catch (e) {}
+  try {
+    sessionStorage.removeItem("rj_session_id");
+  } catch (e) {}
 }
 const eventQueue = [];
 let heartbeatInterval;
+
+export function isApiConfigured() {
+  return API_BASE.length > 0;
+}
+
+export function apiFetch(url, options = {}) {
+  return fetch(url, options);
+}
 
 function getDeviceType() {
   const ua = navigator.userAgent;
@@ -32,6 +44,10 @@ function getDeviceType() {
 
 async function startSession() {
   if (sessionId) return; // Already have a session for this tab
+  if (!isApiConfigured()) {
+    console.warn("Analytics: API base is not configured; tracking disabled.");
+    return;
+  }
 
   try {
     const response = await fetch(`${API_BASE}/sessions`, {
@@ -45,7 +61,6 @@ async function startSession() {
 
     if (response.ok) {
       const data = await response.json();
-      sessionId = data.session_id;
       setSessionId(data.session_id);
 
       startHeartbeat();
@@ -56,13 +71,21 @@ async function startSession() {
   }
 }
 
+export async function ensureSession() {
+  if (sessionId) {
+    return true;
+  }
+  await startSession();
+  return Boolean(sessionId);
+}
+
 function startHeartbeat() {
   if (heartbeatInterval) clearInterval(heartbeatInterval);
   
   const ping = async () => {
     if (!sessionId) return;
     try {
-      const response = await fetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
+      const response = await apiFetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
       });
@@ -118,7 +141,7 @@ async function flushEvents() {
   eventQueue.length = 0; // Clear the queue
 
   try {
-    const response = await fetch(`${API_BASE}/events/bulk`, {
+    const response = await apiFetch(`${API_BASE}/events/bulk`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ events: eventsToSend })
@@ -151,7 +174,7 @@ function flushEventsOnUnload() {
     const payload = JSON.stringify({ events: eventQueue });
 
     // Use fetch with keepalive as it can reliably send data on unload and supports proper headers/methods
-    fetch(`${API_BASE}/events/bulk`, {
+    apiFetch(`${API_BASE}/events/bulk`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: payload,
@@ -165,7 +188,7 @@ function flushEventsOnUnload() {
   // API requires a PATCH method, which sendBeacon doesn't support
   if (sessionId) {
     const endPayload = JSON.stringify({ end_reason: "tab_closed_or_hidden" });
-    fetch(`${API_BASE}/sessions/${sessionId}/end`, {
+    apiFetch(`${API_BASE}/sessions/${sessionId}/end`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: endPayload,
@@ -186,7 +209,7 @@ function attachGlobalListeners() {
       visibilityTimeout = setTimeout(() => {
         if (sessionId) {
           // Immediately ping the heartbeat to revive the session in the backend
-          fetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
+          apiFetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" }
           }).then(res => {
@@ -209,15 +232,11 @@ function attachGlobalListeners() {
   document.addEventListener("click", (e) => {
     const target = e.target.closest("a, button, .project-card, [data-track]");
     if (target) {
-      const classStr = target.className || "";
-      const className = typeof classStr === "string" ? classStr : "";
-
       trackEvent("click", {
         tag: target.tagName,
-        text: target.textContent?.trim().substring(0, 50),
-        href: target.href,
-        id: target.id,
-        className: className
+        tracked: Boolean(target.dataset.track),
+        element_id_present: Boolean(target.id),
+        link_origin: target.href ? new URL(target.href, window.location.href).origin : undefined,
       });
     }
   });
@@ -250,14 +269,21 @@ function attachGlobalListeners() {
 }
 
 export function initAnalytics() {
+  if (!isApiConfigured()) {
+    clearSessionId();
+    console.warn("Analytics: API base is not configured; tracking disabled.");
+    return;
+  }
+
+  attachGlobalListeners();
+
   if (sessionId) {
     // Session already exists from this tab (e.g., page reload)
     startHeartbeat();
     trackEvent("page_view", { referrer: document.referrer, is_reload: true });
   } else {
+    clearSessionId();
     // New tab, start session
     startSession();
   }
-
-  attachGlobalListeners();
 }

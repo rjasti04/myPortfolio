@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v6';
+const CACHE_NAME = 'rj-portfolio-v7';
 
 const ALLOWED_ORIGINS = new Set([
   'https://fonts.googleapis.com',
@@ -95,6 +95,9 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
+
+  // Never cache API responses; they may contain session-scoped data.
+  if (url.pathname.startsWith('/api/')) return;
 
   // 2. Local App Shell & Assets (HTML/CSS/JS/Images): Stale-While-Revalidate strategy
   // We serve exactly what is in the cache instantly, then blindly fetch in the background
