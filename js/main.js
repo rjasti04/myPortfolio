@@ -10,6 +10,7 @@ import { initActivity } from "./activity.js";
 import { initSkillsCarousel } from "./skills-carousel.js";
 import { initRipple } from "./ripple.js";
 import { initScrollToTop } from "./scroll-to-top.js";
+import { initThemeCustomizer } from "./theme-customizer.js";
 
 // Lazy-load chat module on first interaction
 let chatLoaded = false;
@@ -36,6 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initSkillsCarousel();
   initRipple();
   initScrollToTop();
+  initThemeCustomizer();
 
   // Lazy-load chat on first interaction with chat widget or AI section
   const chatToggle = document.getElementById('chat-toggle-btn');
@@ -58,8 +60,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Only load on capable devices to avoid performance issues
   const loadThreeBackground = () => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const hasGoodHardware = navigator.hardwareConcurrency > 4;
-    const hasEnoughMemory = !navigator.deviceMemory || navigator.deviceMemory >= 4;
+    const cores = navigator.hardwareConcurrency || 4;
+    const memory = navigator.deviceMemory || 4;
+    const isMobileViewport = window.matchMedia('(pointer: coarse) and (max-width: 768px)').matches;
+    const hasGoodHardware = isMobileViewport ? cores >= 4 : cores >= 2;
+    const hasEnoughMemory = memory >= 3;
     
     if (!prefersReducedMotion && hasGoodHardware && hasEnoughMemory) {
       import("../three-bg.js").catch(err => {

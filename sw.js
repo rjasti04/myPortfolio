@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v8';
+const CACHE_NAME = 'rj-portfolio-v9';
 
 const ALLOWED_ORIGINS = new Set([
   'https://fonts.googleapis.com',
@@ -17,7 +17,6 @@ const PRECACHE_URLS = [
   '/icon-512.png',
   '/profile-pic-160.webp',
   '/js/app-logic.js',
-  '/three-bg.js',
   '/js/main.js',
   '/js/config.js',
   '/js/navigation.js',
@@ -33,8 +32,7 @@ const PRECACHE_URLS = [
   '/js/chat.js',
   '/js/activity.js',
   '/js/physics.js',
-  '/js/skills-carousel.js',
-  '/js/vendor/three.module.js'
+  '/js/skills-carousel.js'
 ];
 
 self.addEventListener('install', event => {

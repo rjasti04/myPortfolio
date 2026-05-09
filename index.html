@@ -106,7 +106,6 @@
     document.documentElement.classList.add("js-enabled");
   </script>
   <link rel="preload" href="profile-pic-160.webp" as="image" type="image/webp" />
-  <link rel="preload" href="js/vendor/three.module.js" as="script" crossorigin />
   <link rel="preload" href="styles.css" as="style" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet"
@@ -135,6 +134,7 @@
       }
     }());
   </script>
+  <script src="js/theme-bootstrap.js"></script>
   <noscript>
     <div class="noscript-banner" role="alert">
       JavaScript is disabled. Core content is still available, but advanced animations and quick actions are turned off.
@@ -183,6 +183,7 @@
   </div>
 
 
+
   <div class="layout">
     <header id="header">
       <a href="profile-pic.jpeg" target="_blank" rel="noopener noreferrer" class="header-left" id="profile-trigger"
@@ -211,13 +212,13 @@
       </nav>
 
       <div class="header-actions">
-        <div class="connect-dropdown js-only" id="connect-dropdown">
-          <button type="button" class="connect-toggle" id="connect-toggle" aria-label="Open connect menu"
+        <div class="header-dropdown js-only" id="connect-dropdown">
+          <button type="button" class="header-icon-btn" id="connect-toggle" aria-label="Open connect menu"
             aria-controls="connect-dropdown-menu" aria-expanded="false">
             <i class="fas fa-paper-plane"></i>
           </button>
-          <div class="connect-menu" id="connect-dropdown-menu" aria-hidden="true">
-            <div class="connect-container">
+          <div class="header-dropdown-menu" id="connect-dropdown-menu" aria-hidden="true">
+            <div class="header-dropdown-container">
               <h2 class="connect-title">Connect</h2>
               <p class="connect-copy">Reach me by email, LinkedIn, GitHub, or resume.</p>
               <div class="connect-actions">
@@ -231,7 +232,74 @@
             </div>
           </div>
         </div>
-        <button type="button" class="js-only" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme"
+
+        <div class="header-dropdown js-only" id="theme-customizer-dropdown">
+          <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme" aria-label="Customize theme"
+            aria-controls="theme-customizer-menu" aria-expanded="false">
+            <i class="fas fa-palette"></i>
+          </button>
+          <div class="header-dropdown-menu" id="theme-customizer-menu" aria-hidden="true">
+            <div class="header-dropdown-container customizer-content">
+              <h3 class="customizer-title">Customize Theme</h3>
+              <p class="customizer-description">Choose your colors. We'll automatically generate accessible light and dark variants.</p>
+
+              <div class="customizer-form">
+                <div class="color-picker-group">
+                  <label for="color-primary">Primary</label>
+                  <button type="button" class="color-input-wrapper" id="color-primary" data-color-key="primary"
+                    data-color-value="#0ea5e9" style="--selected-color: #0ea5e9;" aria-haspopup="dialog"
+                    aria-expanded="false" aria-controls="theme-color-popover">
+                    <span class="color-preview" aria-hidden="true"></span>
+                    <span class="color-hex-display" id="hex-primary">#0ea5e9</span>
+                  </button>
+                </div>
+                <div class="color-picker-group">
+                  <label for="color-secondary">Secondary</label>
+                  <button type="button" class="color-input-wrapper" id="color-secondary" data-color-key="secondary"
+                    data-color-value="#a855f7" style="--selected-color: #a855f7;" aria-haspopup="dialog"
+                    aria-expanded="false" aria-controls="theme-color-popover">
+                    <span class="color-preview" aria-hidden="true"></span>
+                    <span class="color-hex-display" id="hex-secondary">#a855f7</span>
+                  </button>
+                </div>
+                <div class="color-picker-group">
+                  <label for="color-accent">Highlight</label>
+                  <button type="button" class="color-input-wrapper" id="color-accent" data-color-key="accent"
+                    data-color-value="#10b981" style="--selected-color: #10b981;" aria-haspopup="dialog"
+                    aria-expanded="false" aria-controls="theme-color-popover">
+                    <span class="color-preview" aria-hidden="true"></span>
+                    <span class="color-hex-display" id="hex-accent">#10b981</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="custom-color-popover" id="theme-color-popover" role="dialog" aria-modal="false"
+                aria-labelledby="color-popover-title" hidden>
+                <div class="color-popover-header">
+                  <span class="color-popover-title" id="color-popover-title">Primary</span>
+                  <button type="button" class="color-popover-close" id="color-popover-close"
+                    aria-label="Close color editor">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                  </button>
+                </div>
+                <div class="color-popover-preview-row">
+                  <span class="color-popover-preview" id="color-popover-preview" aria-hidden="true"></span>
+                  <label class="color-popover-field" for="color-popover-hex">Hex</label>
+                  <input type="text" class="color-popover-hex" id="color-popover-hex" inputmode="text"
+                    maxlength="7" spellcheck="false" autocomplete="off" />
+                </div>
+                <div class="color-popover-swatches" id="color-popover-swatches" aria-label="Preset colors"></div>
+              </div>
+
+              <div class="customizer-actions">
+                <button type="button" class="btn btn-outline" id="theme-customizer-reset">Reset</button>
+                <button type="button" class="btn" id="theme-customizer-apply">Apply</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme"
           aria-pressed="false">
           <i class="fas fa-moon" id="theme-icon"></i>
         </button>

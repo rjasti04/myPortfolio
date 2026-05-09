@@ -24,16 +24,17 @@ function setMobileMenuState(isOpen) {
   }
 }
 
-function setConnectMenuState(isOpen) {
-  if (!connectDropdown || !connectToggle || !connectMenu) return;
-  connectDropdown.classList.toggle("open", isOpen);
-  connectToggle.setAttribute("aria-expanded", String(isOpen));
-  connectMenu.setAttribute("aria-hidden", String(!isOpen));
+function closeAllDropdowns() {
+  document.querySelectorAll('.header-dropdown.is-open').forEach(dropdown => {
+    dropdown.classList.remove('is-open');
+    dropdown.querySelector('button')?.setAttribute('aria-expanded', 'false');
+    dropdown.querySelector('.header-dropdown-menu')?.setAttribute('aria-hidden', 'true');
+  });
 }
 
 function closeTransientUi() {
   setMobileMenuState(false);
-  setConnectMenuState(false);
+  closeAllDropdowns();
 }
 
 export function setActiveSection(target) {
@@ -67,9 +68,6 @@ export function initNavigation() {
   navMenu = document.getElementById("nav-menu");
   navLinks = Array.from(document.querySelectorAll("nav a[data-target]"));
   sections = Array.from(document.querySelectorAll("main section"));
-  connectDropdown = document.getElementById("connect-dropdown");
-  connectToggle = document.getElementById("connect-toggle");
-  connectMenu = document.getElementById("connect-dropdown-menu");
   imageModal = document.getElementById("image-modal");
   imageModalCloseButton = document.getElementById("image-modal-close");
   profileTrigger = document.getElementById("profile-trigger");
@@ -79,6 +77,9 @@ export function initNavigation() {
       event.stopPropagation();
       const isCurrentlyOpen = navMenu?.classList.contains("show-menu");
       setMobileMenuState(!isCurrentlyOpen);
+      if (!isCurrentlyOpen) {
+        closeAllDropdowns();
+      }
     });
   }
 
@@ -108,15 +109,34 @@ export function initNavigation() {
     });
   });
 
-  connectToggle?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    setConnectMenuState(!connectDropdown.classList.contains("open"));
+  // Generic Dropdown Logic
+  const dropdownToggles = document.querySelectorAll('.header-dropdown > button');
+  dropdownToggles.forEach(toggle => {
+    toggle.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const dropdown = toggle.closest('.header-dropdown');
+      const menu = dropdown.querySelector('.header-dropdown-menu');
+      const isOpen = dropdown.classList.contains('is-open');
+      
+      closeAllDropdowns();
+      setMobileMenuState(false);
+      
+      if (!isOpen) {
+        dropdown.classList.add('is-open');
+        toggle.setAttribute('aria-expanded', 'true');
+        if (menu) menu.setAttribute('aria-hidden', 'false');
+      }
+    });
   });
 
-  connectMenu?.addEventListener("click", (event) => event.stopPropagation());
-
   document.addEventListener("click", (event) => {
-    if (connectDropdown && !connectDropdown.contains(event.target)) setConnectMenuState(false);
+    document.querySelectorAll('.header-dropdown.is-open').forEach(dropdown => {
+      if (!dropdown.contains(event.target)) {
+        dropdown.classList.remove('is-open');
+        dropdown.querySelector('button')?.setAttribute('aria-expanded', 'false');
+        dropdown.querySelector('.header-dropdown-menu')?.setAttribute('aria-hidden', 'true');
+      }
+    });
   });
 
   document.addEventListener("keydown", (event) => {
