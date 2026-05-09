@@ -1,6 +1,14 @@
 import { prefersReducedMotion, mobileDevice, supportsHover } from "./config.js";
 import { animateSpring } from "./physics.js";
 
+// Animation timing constants
+const REVEAL_STAGGER_MS = 80;
+const STAT_COUNT_DURATION_MS = 900;
+const TERMINAL_INTRO_START_MS = 180;
+const TERMINAL_INTRO_STEP_MS = 180;
+const MATRIX_FRAME_MS = 28;
+const MATRIX_ITERATION_STEP = 0.2;
+
 export function initReveals() {
   const revealElements = Array.from(document.querySelectorAll(".reveal"));
   if (revealElements.length === 0) return;
@@ -25,7 +33,7 @@ export function initReveals() {
   document.querySelectorAll(".stats-grid, .skills-grid, .portfolio-grid, .articles-grid").forEach((grid) => {
     const children = Array.from(grid.querySelectorAll(".reveal"));
     children.forEach((child, i) => {
-      child.style.setProperty("--reveal-delay", `${i * 80}ms`);
+      child.style.setProperty("--reveal-delay", `${i * REVEAL_STAGGER_MS}ms`);
     });
   });
 }
@@ -53,7 +61,7 @@ export function initStats() {
     const target = Number.parseFloat(element.dataset.target || "0");
     const suffix = element.dataset.suffix || "";
     const isDecimal = !Number.isInteger(target);
-    const duration = prefersReducedMotion.matches ? 0 : 1200;
+    const duration = prefersReducedMotion.matches ? 0 : STAT_COUNT_DURATION_MS;
 
     if (duration === 0) {
       element.textContent = `${isDecimal ? target.toFixed(1) : target}${suffix}`;
@@ -100,11 +108,11 @@ export function initTerminalIntro() {
     return;
   }
 
-  let delay = 180;
+  let delay = TERMINAL_INTRO_START_MS;
   terminalChildren.forEach((child) => {
     child.style.opacity = "0";
-    child.style.animation = `slide-up 0.35s ease-out forwards ${delay}ms`;
-    delay += 180;
+    child.style.animation = `slide-up var(--motion-medium) var(--ease-enter) forwards ${delay}ms`;
+    delay += TERMINAL_INTRO_STEP_MS;
   });
 }
 
@@ -121,6 +129,7 @@ export function initMatrixDecode() {
   const spans = letters.map(letter => {
     const s = document.createElement("span");
     s.textContent = letter;
+    s.dataset.scrambled = "false";
     element.appendChild(s);
     return s;
   });
@@ -128,14 +137,21 @@ export function initMatrixDecode() {
   // Ensure data-text is set immediately for pseudo-elements
   element.setAttribute("data-text", originalText);
 
-  const animateText = () => {
+  /** Enable CSS glitch animations after decode finishes to avoid repaint conflicts */
+  const enableGlitch = () => {
+    element.classList.add("glitch-active");
+    // Release GPU compositing layers after 30s to save memory
+    setTimeout(() => { element.style.willChange = "auto"; }, 30000);
+  };
+
+  const animateText = (isInitial = false) => {
     let iterations = 0;
     let lastTime = 0;
 
     const tick = (time) => {
       if (!lastTime) lastTime = time;
       const elapsed = time - lastTime;
-      if (elapsed >= 28) {
+      if (elapsed >= MATRIX_FRAME_MS) {
         let currentString = "";
         for (let i = 0; i < letters.length; i++) {
           if (letters[i] === " ") {
@@ -150,13 +166,13 @@ export function initMatrixDecode() {
             }
           } else {
             spans[i].textContent = chars[Math.floor(Math.random() * chars.length)];
-            spans[i].style.color = "var(--accent)";
+            spans[i].style.color = "var(--accent-text)";
             spans[i].dataset.scrambled = "true";
           }
           currentString += spans[i].textContent;
         }
         element.setAttribute("data-text", currentString);
-        iterations += 0.2;
+        iterations += MATRIX_ITERATION_STEP;
         lastTime = time;
       }
 
@@ -169,6 +185,7 @@ export function initMatrixDecode() {
           s.dataset.scrambled = "false";
         });
         element.setAttribute("data-text", originalText);
+        if (isInitial) enableGlitch();
       }
     };
     requestAnimationFrame(tick);
@@ -177,18 +194,19 @@ export function initMatrixDecode() {
   const startAnimation = () => {
     // Only set fixed widths if fonts are loaded and we get non-zero widths
     spans.forEach((s, i) => {
-      if (letters[i] === " ") return;
+      if (letters[i] === " ") {
+        s.dataset.scrambled = "false";
+        return;
+      }
       // Reset width before measuring if this is a re-run
       s.style.width = "";
       const w = s.getBoundingClientRect().width;
       if (w > 0) {
-        s.style.display = "inline-block";
-        s.style.width = `${w}px`;
-        s.style.textAlign = "center";
-        s.style.overflow = "hidden";
+        s.style.cssText = `display: inline-block; width: ${w}px; text-align: center;`;
+        s.dataset.scrambled = "false";
       }
     });
-    animateText();
+    animateText(true);
   };
 
   // Use document.fonts if available to wait for Jakarta Sans
@@ -201,12 +219,8 @@ export function initMatrixDecode() {
   }
 
   element.addEventListener("mouseenter", () => {
-    if (element.getAttribute("data-text") === originalText) animateText();
+    if (element.getAttribute("data-text") === originalText) animateText(false);
   });
-  
-  setInterval(() => {
-    if (element.getAttribute("data-text") === originalText) animateText();
-  }, 12000);
 }
 
 export function initSpringHovers() {
@@ -214,8 +228,8 @@ export function initSpringHovers() {
 
   const springConfig = { stiffness: 400, damping: 30 };
 
-  // Spring hover for .btn elements
-  document.querySelectorAll(".btn").forEach((btn) => {
+  // Optional spring hover for explicitly marked elements. Default controls use CSS motion tokens.
+  document.querySelectorAll("[data-spring-hover]").forEach((btn) => {
     btn.addEventListener("mouseenter", () => {
       animateSpring({
         from: 0, to: -3,
@@ -233,8 +247,7 @@ export function initSpringHovers() {
     });
   });
 
-  // Spring hover for .item cards (non-tilt)
-  document.querySelectorAll(".item:not(.tilt-card)").forEach((card) => {
+  document.querySelectorAll("[data-spring-card-hover]").forEach((card) => {
     card.addEventListener("mouseenter", () => {
       animateSpring({
         from: 0, to: -8,

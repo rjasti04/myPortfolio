@@ -67,9 +67,9 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, compact ? 1.5 : 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
-  // Ethereal Fluid Topology system (Particle Grid)
-  const columns = compact ? 50 : 80;
-  const rows = compact ? 50 : 80;
+  // Ethereal Fluid Topology system (Particle Grid) - OPTIMIZED
+  const columns = compact ? 35 : 50;
+  const rows = compact ? 35 : 50;
   const spacing = 0.8;
   const geometry = new THREE.BufferGeometry();
   
@@ -95,7 +95,7 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
 
-  const getAccent = () => getComputedStyle(document.body).getPropertyValue("--accent").trim() || "#f43f5e";
+  const getAccent = () => getComputedStyle(document.body).getPropertyValue("--accent-fill").trim() || "#c02645";
   
   // Custom shader for the fluid topology
   const material = new THREE.ShaderMaterial({
@@ -151,10 +151,27 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
         float alpha = smoothstep(0.5, 0.1, ll);
         
         // Blend color based on height (elevation)
-        // Higher points are brighter pink, lower points fade into darkness/purple
+        // Create gradient: deep blue → accent blue → purple → teal
         float mixRatio = smoothstep(-2.0, 2.0, vElevation);
-        vec3 deepColor = vec3(uColor.r * 0.2, uColor.g * 0.1, uColor.b * 0.4); // Darker, purple-ish undertone
-        vec3 finalColor = mix(deepColor, uColor, mixRatio);
+        
+        // Deep blue base
+        vec3 deepColor = vec3(uColor.r * 0.3, uColor.g * 0.3, uColor.b * 0.6);
+        
+        // Purple accent for mid-high elevation
+        vec3 purpleAccent = vec3(0.7, 0.4, 0.9);
+        
+        // Teal highlight for peaks
+        vec3 tealHighlight = vec3(0.3, 0.85, 0.75);
+        
+        // Multi-stage gradient
+        vec3 finalColor;
+        if (mixRatio < 0.5) {
+          finalColor = mix(deepColor, uColor, mixRatio * 2.0);
+        } else if (mixRatio < 0.8) {
+          finalColor = mix(uColor, purpleAccent, (mixRatio - 0.5) * 3.33);
+        } else {
+          finalColor = mix(purpleAccent, tealHighlight, (mixRatio - 0.8) * 5.0);
+        }
         
         // Add a slight core glow to the particles
         float core = smoothstep(0.2, 0.0, ll) * 0.4 * mixRatio;
@@ -181,7 +198,7 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   const syncTheme = () => {
     const isDark = document.body.classList.contains("dark-theme");
     material.uniforms.uColor.value.set(getAccent());
-    material.uniforms.uThemeOpacityMultiplier.value = isDark ? 0.8 : 0.6;
+    material.uniforms.uThemeOpacityMultiplier.value = isDark ? 0.48 : 0.36;
     
     // Switch to NormalBlending in light mode so colors are visible against white
     material.blending = isDark ? THREE.AdditiveBlending : THREE.NormalBlending;
@@ -221,13 +238,44 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   };
   window.addEventListener("resize", handleResize);
 
+  // FPS monitoring and throttling
   let animationFrame = 0;
-  const render = () => {
+  let lastFrameTime = 0;
+  const targetFPS = 30;
+  const frameInterval = 1000 / targetFPS;
+  let fpsHistory = [];
+  let qualityLevel = compact ? 1 : 2;
+  let lastQualityCheck = 0;
+  
+  const render = (currentTime) => {
     animationFrame = window.requestAnimationFrame(render);
     if (document.hidden || !isVisible) return;
 
+    // Throttle to 30fps
+    const deltaTime = currentTime - lastFrameTime;
+    if (deltaTime < frameInterval) return;
+    
+    lastFrameTime = currentTime - (deltaTime % frameInterval);
+
     const elapsed = clock.getElapsedTime();
     material.uniforms.uTime.value = elapsed;
+
+    // FPS monitoring (check every 2 seconds)
+    if (currentTime - lastQualityCheck > 2000) {
+      const fps = 1000 / deltaTime;
+      fpsHistory.push(fps);
+      if (fpsHistory.length > 5) fpsHistory.shift();
+      
+      const avgFPS = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+      
+      // Auto-reduce quality if FPS drops below 25
+      if (avgFPS < 25 && qualityLevel > 1) {
+        qualityLevel--;
+        material.uniforms.uThemeOpacityMultiplier.value *= 0.8;
+      }
+      
+      lastQualityCheck = currentTime;
+    }
 
     // Extremely slow and smooth mouse follow
     mouseX += (targetMouseX - mouseX) * 0.02;
@@ -237,8 +285,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
     scene.rotation.x = mouseY * 0.05;
     scene.rotation.y = mouseX * 0.05;
 
-    // Slowly rotate the particle grid for ambient motion
-    particles.rotation.z = elapsed * 0.02;
+    // Slowly rotate the particle grid for ambient motion (reduced by 50%)
+    particles.rotation.z = elapsed * 0.01;
 
     renderer.render(scene, camera);
   };
@@ -293,12 +341,12 @@ function mountMobileBackground() {
   window.addEventListener('resize', onResize);
 
   const readAccent = () =>
-    getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#e61e4d';
+    getComputedStyle(document.body).getPropertyValue('--accent-fill').trim() || '#c02645';
   let accent = readAccent();
   const themeObs = new MutationObserver(() => { accent = readAccent(); });
   themeObs.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'] });
 
-  const GRID = 20, NUM = 7, SPD = 1.2;
+  const GRID = 20, NUM = 5, SPD = 1.2;
 
   class Stream {
     constructor() { this.reset(true); }
@@ -308,7 +356,7 @@ function mountMobileBackground() {
       this.trail = [];
       this.dir = Math.floor(Math.random() * 4);
       this.seg = this._rndSeg();
-      this.maxLen = 45 + Math.floor(Math.random() * 90);
+      this.maxLen = 30 + Math.floor(Math.random() * 40);
       this.warmup = init ? Math.floor(Math.random() * this.maxLen) : 0;
     }
     _rndSeg() { return (3 + Math.floor(Math.random() * 8)) * GRID; }
@@ -341,19 +389,19 @@ function mountMobileBackground() {
           c.lineWidth = 3;
           c.strokeStyle = col;
           c.shadowColor = col;
-          c.shadowBlur = 24;
+          c.shadowBlur = 16;
           c.shadowOffsetX = 0;
           c.shadowOffsetY = 0;
         } else if (i < 4) {
           c.lineWidth = 2.5;
           c.strokeStyle = col;
           c.shadowColor = col;
-          c.shadowBlur = 18;
+          c.shadowBlur = 12;
         } else {
           c.lineWidth = 1.8;
           c.strokeStyle = col;
           c.shadowColor = col;
-          c.shadowBlur = 8;
+          c.shadowBlur = 6;
         }
         c.stroke();
       }
@@ -365,12 +413,29 @@ function mountMobileBackground() {
   }
 
   const streams = Array.from({ length: NUM }, () => new Stream());
+  
+  // Throttle to 30fps for mobile battery savings
   let raf = 0;
-  const tick = () => {
+  let lastMobileFrame = 0;
+  const mobileFrameInterval = 1000 / 30;
+  
+  const tick = (currentTime) => {
     raf = requestAnimationFrame(tick);
     if (document.hidden) return;
+    
+    // Throttle to 30fps
+    const deltaTime = currentTime - lastMobileFrame;
+    if (deltaTime < mobileFrameInterval) return;
+    lastMobileFrame = currentTime - (deltaTime % mobileFrameInterval);
+    
     ctx.clearRect(0, 0, w, h);
-    for (const s of streams) { s.step(); s.draw(ctx, accent); }
+    
+    // Alternate colors between blue and teal
+    for (let i = 0; i < streams.length; i++) {
+      const streamColor = i % 2 === 0 ? accent : `hsl(160, 84%, 42%)`;
+      streams[i].step();
+      streams[i].draw(ctx, streamColor);
+    }
   };
   tick();
 

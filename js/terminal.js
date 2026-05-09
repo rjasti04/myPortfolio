@@ -420,7 +420,7 @@ export function initTerminal() {
       return `<pre class="terminal-output-text" style="white-space:pre">${items}</pre>`;
     },
     sudo: () => {
-      return `<p class="terminal-line" style="color: #fb7185;">rjasti is not in the sudoers file. This incident will be reported.</p>`;
+      return `<p class="terminal-line terminal-error">rjasti is not in the sudoers file. This incident will be reported.</p>`;
     }
   };
 
@@ -509,7 +509,7 @@ export function initTerminal() {
       } else if (cmd === "echo") {
         resultElement.innerHTML = `<p class="terminal-output-text">${escapeHTML(args.join(" "))}</p>`;
       } else {
-        resultElement.innerHTML = `<p class="terminal-line" style="color: #fb7185;">bash: ${escapeHTML(cmd)}: command not found. Type 'help' for available commands.</p>`;
+        resultElement.innerHTML = `<p class="terminal-line terminal-error">bash: ${escapeHTML(cmd)}: command not found. Type 'help' for available commands.</p>`;
       }
 
       if (resultElement.innerHTML) {

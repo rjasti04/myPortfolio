@@ -15,13 +15,26 @@ function clearFormStatus(element) {
 }
 
 function copyEmailToClipboard() {
+  const copyEmailBtn = document.getElementById("copy-email-btn");
+  const statusText = copyEmailBtn?.querySelector('.contact-method-value');
+  const originalText = statusText?.textContent || 'Click to copy';
+  
   if (!navigator.clipboard?.writeText) {
     showToast("Clipboard access is unavailable. Please copy the email manually.", "error");
     trackEvent("copy_email", { success: false, reason: "unavailable" });
     return;
   }
+  
   navigator.clipboard.writeText(CONTACT_EMAIL)
     .then(() => {
+      if (statusText) {
+        statusText.textContent = 'Copied!';
+        statusText.style.color = 'var(--color-success)';
+        setTimeout(() => {
+          statusText.textContent = originalText;
+          statusText.style.color = '';
+        }, 2000);
+      }
       showToast("Email copied to clipboard.", "success");
       trackEvent("copy_email", { success: true });
     })
@@ -40,6 +53,26 @@ export function initContactForm() {
   copyEmailBtn?.addEventListener("click", copyEmailToClipboard);
 
   if (!contactForm || !contactStatus) return;
+
+  // Real-time validation feedback
+  contactForm.querySelectorAll('input, textarea').forEach(field => {
+    field.addEventListener('blur', () => {
+      if (field.value && !field.checkValidity()) {
+        field.setAttribute('aria-invalid', 'true');
+        field.style.borderColor = 'var(--color-error)';
+      } else if (field.value) {
+        field.removeAttribute('aria-invalid');
+        field.style.borderColor = '';
+      }
+    });
+    
+    field.addEventListener('input', () => {
+      if (field.hasAttribute('aria-invalid') && field.checkValidity()) {
+        field.removeAttribute('aria-invalid');
+        field.style.borderColor = '';
+      }
+    });
+  });
 
   const submitNatively = () => {
     nativeFallbackInProgress = true;

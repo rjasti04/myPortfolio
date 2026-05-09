@@ -1,3 +1,6 @@
+import { prefersReducedMotion } from "./config.js";
+
+// Carousel configuration constants
 const MOBILE_QUERY = "(max-width: 500px)";
 const AUTOPLAY_MS = 4500;
 const SWIPE_THRESHOLD = 40;
@@ -19,6 +22,7 @@ export function initSkillsCarousel() {
   let autoplayTimer = null;
   let visible = false;
   let isMobile = mq.matches;
+  let reduceMotion = prefersReducedMotion.matches;
 
   const dots = slides.map((_, i) => {
     const dot = document.createElement("button");
@@ -78,7 +82,7 @@ export function initSkillsCarousel() {
 
   function startAutoplay() {
     stopAutoplay();
-    if (!isMobile || !visible) return;
+    if (!isMobile || !visible || reduceMotion || carousel.matches(":focus-within")) return;
     autoplayTimer = window.setInterval(() => goTo(activeIdx + 1), AUTOPLAY_MS);
   }
 
@@ -144,6 +148,8 @@ export function initSkillsCarousel() {
 
   carousel.addEventListener("mouseenter", stopAutoplay);
   carousel.addEventListener("mouseleave", startAutoplay);
+  carousel.addEventListener("focusin", stopAutoplay);
+  carousel.addEventListener("focusout", startAutoplay);
 
   if ("IntersectionObserver" in window) {
     const io = new IntersectionObserver(
@@ -181,6 +187,18 @@ export function initSkillsCarousel() {
     mq.addEventListener("change", onMqChange);
   } else if (typeof mq.addListener === "function") {
     mq.addListener(onMqChange);
+  }
+
+  function onMotionChange(e) {
+    reduceMotion = e.matches;
+    if (reduceMotion) stopAutoplay();
+    else startAutoplay();
+  }
+
+  if (typeof prefersReducedMotion.addEventListener === "function") {
+    prefersReducedMotion.addEventListener("change", onMotionChange);
+  } else if (typeof prefersReducedMotion.addListener === "function") {
+    prefersReducedMotion.addListener(onMotionChange);
   }
 
   if (isMobile) {

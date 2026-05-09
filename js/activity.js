@@ -1,19 +1,9 @@
 import { API_BASE, apiFetch, isApiConfigured } from "./analytics.js";
 
-const _ALLOWED_API_ORIGIN = new URL(API_BASE).origin;
-
 function escapeHTML(str) {
   const d = document.createElement("div");
   d.textContent = String(str);
   return d.innerHTML;
-}
-
-function safeFetch(url, options) {
-  const parsed = new URL(url);
-  if (parsed.origin !== _ALLOWED_API_ORIGIN) {
-    return Promise.reject(new Error(`Blocked fetch to disallowed origin: ${parsed.origin}`));
-  }
-  return apiFetch(url, options);
 }
 
 function encodeBase64Text(text) {
@@ -110,7 +100,7 @@ export async function loadActivity(offset = currentOffset) {
   tbody.innerHTML = `<tr><td colspan="5" class="activity-message"><i class="fas fa-spinner fa-spin"></i> Loading activity...</td></tr>`;
 
   try {
-    const response = await safeFetch(`${API_BASE}/sessions/${sessionId}/events?limit=${PAGE_SIZE}&offset=${offset}`);
+    const response = await apiFetch(`${API_BASE}/sessions/${sessionId}/events?limit=${PAGE_SIZE}&offset=${offset}`);
     if (!response.ok) {
       if (response.status === 404) {
         tbody.innerHTML = `<tr><td colspan="5" class="activity-message">Session not found or expired.</td></tr>`;

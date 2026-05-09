@@ -4,8 +4,22 @@ import { closeModal, openModal } from "./modal.js";
 let hamburger, navMenu, navLinks, sections, connectDropdown, connectToggle, connectMenu, imageModal, imageModalCloseButton, profileTrigger;
 
 function setMobileMenuState(isOpen) {
+  console.log('setMobileMenuState called with:', isOpen);
+  console.log('navMenu exists:', !!navMenu);
+  console.log('hamburger exists:', !!hamburger);
+  
   if (!navMenu || !hamburger) return;
-  navMenu.classList.toggle("show-menu", isOpen);
+  
+  if (isOpen) {
+    navMenu.classList.add("show-menu");
+    console.log('Added show-menu class');
+  } else {
+    navMenu.classList.remove("show-menu");
+    console.log('Removed show-menu class');
+  }
+  
+  console.log('navMenu classes after:', navMenu.className);
+  
   hamburger.setAttribute("aria-expanded", String(isOpen));
   document.body.classList.toggle("nav-open", Boolean(isOpen) && compactViewport.matches);
 
@@ -67,7 +81,12 @@ export function initNavigation() {
   profileTrigger = document.getElementById("profile-trigger");
 
   if (hamburger) {
-    hamburger.addEventListener("click", () => setMobileMenuState(!navMenu?.classList.contains("show-menu")));
+    hamburger.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const isCurrentlyOpen = navMenu?.classList.contains("show-menu");
+      console.log('Hamburger clicked. Current state:', isCurrentlyOpen);
+      setMobileMenuState(!isCurrentlyOpen);
+    });
   }
 
   navLinks.forEach((link) => {
@@ -123,7 +142,22 @@ export function initNavigation() {
   // Compact header on scroll
   const headerEl = document.getElementById("header");
   if (headerEl) {
-    const onScroll = () => headerEl.classList.toggle("scrolled", window.scrollY > 32);
+    let scrollTicking = false;
+    const onScroll = () => {
+      if (!scrollTicking) {
+        requestAnimationFrame(() => {
+          headerEl.classList.toggle("scrolled", window.scrollY > 32);
+          
+          // Update scroll progress bar
+          const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+          const scrollProgress = (window.scrollY / scrollHeight) * 100;
+          headerEl.style.setProperty('--scroll-progress', `${Math.min(scrollProgress, 100)}%`);
+          
+          scrollTicking = false;
+        });
+        scrollTicking = true;
+      }
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
   }

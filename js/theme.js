@@ -2,7 +2,7 @@ import { prefersDarkScheme, prefersReducedMotion } from "./config.js";
 import { trackEvent } from "./analytics.js";
 import { animateSpring } from "./physics.js";
 
-let themeBtn, themeIcon;
+let themeBtn, themeIcon, themeColorMeta;
 
 export function applyTheme(isDark) {
   document.body.classList.toggle("dark-theme", isDark);
@@ -11,6 +11,12 @@ export function applyTheme(isDark) {
   }
   if (themeBtn) {
     themeBtn.setAttribute("aria-pressed", String(isDark));
+  }
+  if (themeColorMeta) {
+    // Use computed CSS variable instead of hardcoded color
+    const accentColor = getComputedStyle(document.documentElement)
+      .getPropertyValue('--accent-fill').trim();
+    themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#c02645"));
   }
 }
 
@@ -30,6 +36,7 @@ function spinToggle() {
 export function initTheme() {
   themeBtn = document.getElementById("theme-toggle");
   themeIcon = document.getElementById("theme-icon");
+  themeColorMeta = document.querySelector('meta[name="theme-color"]');
 
   const savedTheme = localStorage.getItem("theme");
   applyTheme(savedTheme !== "light");

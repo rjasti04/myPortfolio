@@ -4,8 +4,8 @@
   "description": "Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fdfdfd",
-  "theme_color": "#e61e4d",
+  "background_color": "#f8fafc",
+  "theme_color": "#c02645",
   "orientation": "any",
   "icons": [
     {

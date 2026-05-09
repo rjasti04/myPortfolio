@@ -36,7 +36,16 @@ export function filterProjects() {
   const projectFilters = Array.from(document.querySelectorAll(".project-filter"));
   const projectSearchInput = document.getElementById("project-search");
   const projectResults = document.getElementById("project-results");
-  let activeFilter = "all";
+  
+  // Restore saved filter state
+  let activeFilter = localStorage.getItem('rj_project_filter') || "all";
+  
+  // Set initial active filter button
+  projectFilters.forEach(button => {
+    const isActive = button.dataset.filter === activeFilter;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
 
   const syncVisibleCards = () => {
     const projects = projectCards.map(card => ({
@@ -75,6 +84,10 @@ export function filterProjects() {
   projectFilters.forEach(button => {
     button.addEventListener("click", () => {
       activeFilter = button.dataset.filter || "all";
+      
+      // Save filter state
+      localStorage.setItem('rj_project_filter', activeFilter);
+      
       projectFilters.forEach((fb) => {
         const isActive = fb === button;
         fb.classList.toggle("active", isActive);
@@ -87,8 +100,14 @@ export function filterProjects() {
   let searchTimeout;
   projectSearchInput?.addEventListener("input", () => {
     clearTimeout(searchTimeout);
+    // Show loading state
+    if (projectResults) {
+      projectResults.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Filtering...';
+    }
     searchTimeout = setTimeout(syncVisibleCards, 150);
   });
+  
+  // Initial sync
   syncVisibleCards();
 }
 

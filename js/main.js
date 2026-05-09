@@ -5,11 +5,12 @@ import { initContactForm } from "./form.js";
 import { initAnimations } from "./animations.js";
 import { initTilt } from "./tilt.js";
 import { initTerminal } from "./terminal.js";
-import { initInfoBar } from "./info-bar.js";
 import { initAnalytics } from "./analytics.js";
 import { initActivity } from "./activity.js";
 import { initChat } from "./chat.js";
 import { initSkillsCarousel } from "./skills-carousel.js";
+import { initRipple } from "./ripple.js";
+import { initScrollToTop } from "./scroll-to-top.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
@@ -19,16 +20,26 @@ document.addEventListener("DOMContentLoaded", () => {
   initAnimations();
   initTilt();
   initTerminal();
-  initInfoBar();
   initAnalytics();
   initActivity();
   initChat();
   initSkillsCarousel();
-  const footerYear = document.getElementById("footer-year");
-  if (footerYear) footerYear.textContent = new Date().getFullYear();
+  initRipple();
+  initScrollToTop();
 
   // Defer Three.js background for faster initial paint
-  const loadThreeBackground = () => import("../three-bg.js");
+  // Only load on capable devices to avoid performance issues
+  const loadThreeBackground = () => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const hasGoodHardware = navigator.hardwareConcurrency > 4;
+    
+    if (!prefersReducedMotion && hasGoodHardware) {
+      import("../three-bg.js").catch(err => {
+        console.warn('Three.js background failed to load:', err);
+      });
+    }
+  };
+  
   if ("requestIdleCallback" in window) {
     requestIdleCallback(loadThreeBackground);
   } else {

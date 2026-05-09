@@ -1,4 +1,6 @@
 import { API_BASE, apiFetch, ensureSession, isApiConfigured } from "./analytics.js";
+import { prefersReducedMotion } from "./config.js";
+import { estimateTokens } from "./utils.js";
 
 function escapeHTML(str) {
   const d = document.createElement("div");
@@ -69,8 +71,20 @@ export function initChat() {
   function updateTokenCounter() {
     if (!aiPageInput || !aiTokenCounter) return;
     const text = aiPageInput.value.trim();
-    const tokens = text.length === 0 ? 0 : Math.ceil(text.length / 4);
+    const tokens = estimateTokens(text);
     aiTokenCounter.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
+    
+    // Visual warning when approaching limits
+    if (tokens > 1800) {
+      aiTokenCounter.style.color = 'var(--color-warning)';
+      aiTokenCounter.style.fontWeight = '700';
+    } else if (tokens > 1950) {
+      aiTokenCounter.style.color = 'var(--color-error)';
+      aiTokenCounter.style.fontWeight = '800';
+    } else {
+      aiTokenCounter.style.color = '';
+      aiTokenCounter.style.fontWeight = '';
+    }
   }
   const newChatBtn = document.getElementById('new-chat-btn');
   const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
@@ -186,8 +200,10 @@ export function initChat() {
   if (clearAllBtn) {
     clearAllBtn.addEventListener('click', () => {
       if (isGenerating) return;
-      sessions = [];
-      createNewSession();
+      if (confirm('Delete all chat history? This action cannot be undone.')) {
+        sessions = [];
+        createNewSession();
+      }
     });
   }
 
@@ -240,7 +256,6 @@ export function initChat() {
       const warnIcon = document.createElement('i');
       warnIcon.className = 'fas fa-exclamation-triangle warning-icon';
       warnIcon.title = 'Response truncated due to length limit (2000 tokens).';
-      warnIcon.style.color = '#ff9800';
       warnIcon.style.marginRight = '8px';
       warnIcon.style.cursor = 'help';
       container.appendChild(warnIcon);
@@ -249,7 +264,7 @@ export function initChat() {
     const tokenSpan = document.createElement('span');
     tokenSpan.className = 'msg-token-count';
     const textVal = typeof getText === 'function' ? getText() : getText;
-    const tokens = textVal ? Math.ceil(textVal.length / 4) : 0;
+    const tokens = estimateTokens(textVal);
     tokenSpan.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
 
     const btn = document.createElement('button');
@@ -434,7 +449,14 @@ export function initChat() {
   function createTypingIndicator() {
     const indicator = document.createElement('div');
     indicator.className = 'chat-message bot typing-indicator';
-    indicator.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+    indicator.setAttribute('role', 'status');
+    indicator.setAttribute('aria-live', 'polite');
+    if (prefersReducedMotion.matches) {
+      indicator.textContent = 'Assistant is responding...';
+    } else {
+      indicator.setAttribute('aria-label', 'Assistant is responding');
+      indicator.innerHTML = '<div class="typing-dot" aria-hidden="true"></div><div class="typing-dot" aria-hidden="true"></div><div class="typing-dot" aria-hidden="true"></div>';
+    }
     return indicator;
   }
 
@@ -597,7 +619,7 @@ export function initChat() {
       const errorMsg = `
         <div class="chat-error-boundary">
           <i class="fas fa-exclamation-triangle"></i>
-          <span>Connection to AI service failed.</span>
+          <span>Connection to AI service failed. Check your internet connection and try again.</span>
           <button type="button" class="btn btn-outline retry-btn" id="${errorId}">
             <i class="fas fa-sync-alt"></i> Retry
           </button>
