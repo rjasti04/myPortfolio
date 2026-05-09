@@ -1,3 +1,28 @@
+export function escapeHTML(value) {
+  const div = document.createElement("div");
+  div.textContent = String(value);
+  return div.innerHTML;
+}
+
+export function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.top = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  textarea.remove();
+
+  return copied ? Promise.resolve() : Promise.reject(new Error("Copy command failed"));
+}
+
 export function showToast(message, type = "info") {
   const toastContainer = document.getElementById("toast-container");
   if (!toastContainer) return;

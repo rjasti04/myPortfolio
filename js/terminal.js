@@ -1,17 +1,6 @@
 import { trackEvent } from "./analytics.js";
 import { prefersReducedMotion } from "./config.js";
-
-function escapeHTML(str) {
-  return str.replace(/[&<>'"]/g,
-    tag => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      "'": '&#39;',
-      '"': '&quot;'
-    }[tag])
-  );
-}
+import { escapeHTML } from "./utils.js";
 
 function evaluateMathExpression(expr) {
   let index = 0;

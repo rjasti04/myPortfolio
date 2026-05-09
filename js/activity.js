@@ -1,10 +1,5 @@
 import { API_BASE, apiFetch, isApiConfigured } from "./analytics.js";
-
-function escapeHTML(str) {
-  const d = document.createElement("div");
-  d.textContent = String(str);
-  return d.innerHTML;
-}
+import { copyText, escapeHTML } from "./utils.js";
 
 function encodeBase64Text(text) {
   const bytes = new TextEncoder().encode(text);
@@ -24,25 +19,6 @@ function decodeBase64Text(encodedText) {
 function formatDecodedJson(encodedText) {
   const decodedText = decodeBase64Text(encodedText);
   return JSON.stringify(JSON.parse(decodedText), null, 2);
-}
-
-function copyText(text) {
-  if (navigator.clipboard && window.isSecureContext) {
-    return navigator.clipboard.writeText(text);
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.top = "-9999px";
-  document.body.appendChild(textarea);
-  textarea.select();
-
-  const copied = document.execCommand("copy");
-  textarea.remove();
-
-  return copied ? Promise.resolve() : Promise.reject(new Error("Copy command failed"));
 }
 
 const copyResetTimers = new WeakMap();

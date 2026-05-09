@@ -1,12 +1,6 @@
 import { API_BASE, apiFetch, ensureSession, isApiConfigured } from "./analytics.js";
 import { prefersReducedMotion } from "./config.js";
-import { estimateTokens } from "./utils.js";
-
-function escapeHTML(str) {
-  const d = document.createElement("div");
-  d.textContent = String(str);
-  return d.innerHTML;
-}
+import { copyText, escapeHTML, estimateTokens } from "./utils.js";
 
 /** Sanitize HTML through DOMPurify when available, escape otherwise. */
 function sanitizeHTML(html) {
@@ -38,7 +32,7 @@ if (typeof marked !== 'undefined') {
     if (btn) {
       try {
         const code = decodeURIComponent(btn.getAttribute('data-code'));
-        await navigator.clipboard.writeText(code);
+        await copyText(code);
         const icon = btn.querySelector('i');
         if (icon) {
           icon.className = 'fas fa-check';
@@ -90,7 +84,6 @@ export function initChat() {
   const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
   const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
   const aiLayout = document.getElementById('ai-layout');
-  const aiSidebar = document.getElementById('ai-sidebar');
   const clearAllBtn = document.getElementById('clear-all-btn');
   const suggestedPrompts = document.querySelectorAll('.ai-suggestion-card');
 
@@ -274,7 +267,7 @@ export function initChat() {
     btn.addEventListener('click', async () => {
       try {
         const textToCopy = typeof getText === 'function' ? getText() : getText;
-        await navigator.clipboard.writeText(textToCopy);
+        await copyText(textToCopy);
         btn.innerHTML = '<i class="fas fa-check"></i>';
         setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i>'; }, 1500);
       } catch (e) {

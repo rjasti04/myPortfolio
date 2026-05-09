@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v9';
+const CACHE_NAME = 'rj-portfolio-v10';
 
 const ALLOWED_ORIGINS = new Set([
   'https://fonts.googleapis.com',
@@ -13,8 +13,8 @@ const PRECACHE_URLS = [
   '/index.html',
   '/styles.css',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
+  '/android-chrome-192x192.png',
+  '/android-chrome-512x512.png',
   '/profile-pic-160.webp',
   '/js/app-logic.js',
   '/js/main.js',

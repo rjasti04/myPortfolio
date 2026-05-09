@@ -1,7 +1,7 @@
 import { compactViewport, prefersReducedMotion, supportsHover } from "./config.js";
 import { closeModal, openModal } from "./modal.js";
 
-let hamburger, navMenu, navLinks, sections, connectDropdown, connectToggle, connectMenu, imageModal, imageModalCloseButton, profileTrigger;
+let hamburger, navMenu, navLinks, sections, imageModal, imageModalCloseButton, profileTrigger;
 
 function setMobileMenuState(isOpen) {
   if (!navMenu || !hamburger) return;

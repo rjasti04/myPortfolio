@@ -979,18 +979,6 @@ body:has(main > #ai.active) .chat-widget {
   padding: 4px 8px;
 }
 
-.terminal-line.is-live::after {
-  content: "_";
-  margin-left: 3px;
-  animation: terminal-blink 1s steps(2, end) infinite;
-}
-
-@keyframes terminal-blink {
-  50% {
-    opacity: 0;
-  }
-}
-
 .terminal-input-line {
   display: flex;
   align-items: center;
@@ -1977,17 +1965,6 @@ body.dark-theme #resume .item {
   will-change: transform;
 }
 
-/* Footer */
-.footer-text {
-  font-size: 13px;
-  letter-spacing: 0;
-}
-
-.footer-links {
-  display: flex;
-  gap: 20px;
-}
-
 .form-group {
   margin-bottom: 20px;
   text-align: left;
@@ -2130,23 +2107,6 @@ body.dark-theme #resume .item {
   .header-locweather {
     display: none;
   }
-}
-
-/* Social Icons */
-.social-icon {
-  display: inline-block;
-  font-size: 20px;
-  transition:
-    color var(--motion-base) var(--ease-standard),
-    text-shadow var(--motion-base) var(--ease-standard),
-    transform var(--motion-base) var(--ease-standard);
-  color: var(--accent-text);
-}
-
-.social-icon:hover {
-  transform: scale(1.25) translateY(-2px);
-  color: var(--accent-hover);
-  text-shadow: none;
 }
 
 /* Stat Counter */
@@ -2387,31 +2347,6 @@ body.dark-theme #resume .item {
 
 .header-left:hover .logo-text {
   transform: translateX(2px);
-}
-
-/* Footer */
-footer {
-  padding: 32px 2.5%;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  background: transparent;
-  margin-top: auto;
-  width: 100%;
-  position: relative;
-}
-
-footer::before {
-  content: '';
-  position: absolute;
-  top: -1px;
-  left: 15%;
-  right: 15%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent-mild), transparent);
 }
 
 /* Skills Section */
@@ -3314,18 +3249,6 @@ footer::before {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
 
-  .contact-info {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: stretch;
-  }
-
-  .contact-info .btn {
-    min-width: 0;
-    justify-content: center;
-    text-align: center;
-  }
-
   .toast-container {
     bottom: 80px;
     right: 12px;
@@ -3387,20 +3310,10 @@ footer::before {
   }
 
   .item-header,
-  .project-card-footer,
-  footer {
+  .project-card-footer {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
-  }
-
-  footer {
-    align-items: center;
-    text-align: center;
-  }
-
-  .footer-links {
-    gap: 12px;
   }
 
   .project-card-tags {
@@ -3551,10 +3464,8 @@ footer::before {
   .toast-container,
   .header-actions,
   .hamburger-btn,
-  .ticker-wrap,
   .image-modal,
-  .project-detail-modal,
-  footer {
+  .project-detail-modal {
     display: none !important;
   }
 
@@ -3672,21 +3583,6 @@ footer::before {
   font-size: var(--text-body-sm);
   flex-grow: 1;
   line-height: 1.7;
-}
-
-.article-link {
-  color: var(--accent-text);
-  font-weight: 700;
-  font-size: 13px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.article-card:hover .article-link i {
-  transform: translateX(4px);
-  transition: transform var(--motion-base) var(--ease-standard);
 }
 
 /* Staggered entrance */
@@ -4037,15 +3933,16 @@ section {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: var(--accent-fill);
-  color: var(--on-accent);
+  background: var(--accent-text);
+  color: #fff !important;
   border: none;
   font-size: var(--text-h3);
   cursor: pointer;
-  box-shadow: none;
+  box-shadow: 0 4px 14px var(--accent-soft);
   transition:
     transform var(--motion-base) var(--ease-standard),
-    background-color var(--motion-base) var(--ease-standard);
+    background-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4054,6 +3951,8 @@ section {
 .chat-toggle-btn:hover {
   transform: scale(1.1);
   background: var(--accent-hover);
+  color: #fff !important;
+  box-shadow: 0 6px 18px var(--accent-soft);
 }
 
 .chat-dialog {
@@ -4669,26 +4568,6 @@ nav a:hover .nav-shortcut {
 .activity-message i {
   margin-right: 8px;
   color: var(--accent-text);
-}
-
-.activity-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 64px 24px;
-  color: var(--muted);
-}
-
-.activity-empty-state h3 {
-  font-size: var(--text-body-lg);
-  font-weight: 700;
-}
-
-.activity-empty-state p {
-  max-width: 40ch;
-  margin: 0;
 }
 
 /* Row Entrance Animation */
@@ -5392,45 +5271,6 @@ body.dark-theme .ai-input-container {
 @keyframes typing {
   0%, 80%, 100% { transform: scale(0); }
   40%           { transform: scale(1); }
-}
-
-/* Skeleton Loader */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--skill-bg) 0%,
-    color-mix(in srgb, var(--accent-soft) 30%, var(--skill-bg)) 50%,
-    var(--skill-bg) 100%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
-  border-radius: 8px;
-}
-
-@keyframes skeleton-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.skeleton-text {
-  height: 16px;
-  margin-bottom: 8px;
-}
-
-.skeleton-text:last-child {
-  width: 70%;
-  margin-bottom: 0;
-}
-
-.skeleton-message {
-  max-width: 80%;
-  padding: 14px 18px;
-  border-radius: 16px;
-  align-self: flex-start;
-}
-
-.skeleton-message .skeleton-text {
-  height: 14px;
 }
 
 /* ── Markdown in messages ── */

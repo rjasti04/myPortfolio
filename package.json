@@ -7,7 +7,7 @@
   },
   "scripts": {
     "lint": "npm run lint:js && npm run lint:css",
-    "lint:js": "eslint app-logic.js js/*.js",
+    "lint:js": "eslint js/*.js",
     "lint:css": "stylelint \"**/*.css\"",
     "format": "prettier --write \"**/*.{html,css,js,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{html,css,js,json,md,yml,yaml}\"",

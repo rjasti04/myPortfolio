@@ -1,5 +1,5 @@
 import { CONTACT_EMAIL } from "./config.js";
-import { showToast } from "./utils.js";
+import { copyText, showToast } from "./utils.js";
 import { trackEvent } from "./analytics.js";
 
 function setFormStatus(element, message, state = "info") {
@@ -19,13 +19,7 @@ function copyEmailToClipboard() {
   const statusText = copyEmailBtn?.querySelector('.contact-method-value');
   const originalText = statusText?.textContent || 'Click to copy';
   
-  if (!navigator.clipboard?.writeText) {
-    showToast("Clipboard access is unavailable. Please copy the email manually.", "error");
-    trackEvent("copy_email", { success: false, reason: "unavailable" });
-    return;
-  }
-  
-  navigator.clipboard.writeText(CONTACT_EMAIL)
+  copyText(CONTACT_EMAIL)
     .then(() => {
       if (statusText) {
         statusText.textContent = 'Copied!';
