@@ -7,10 +7,21 @@ import { initTilt } from "./tilt.js";
 import { initTerminal } from "./terminal.js";
 import { initAnalytics } from "./analytics.js";
 import { initActivity } from "./activity.js";
-import { initChat } from "./chat.js";
 import { initSkillsCarousel } from "./skills-carousel.js";
 import { initRipple } from "./ripple.js";
 import { initScrollToTop } from "./scroll-to-top.js";
+
+// Lazy-load chat module on first interaction
+let chatLoaded = false;
+function loadChatModule() {
+  if (chatLoaded) return;
+  chatLoaded = true;
+  import("./chat.js").then(module => {
+    module.initChat();
+  }).catch(err => {
+    console.warn('Chat module failed to load:', err);
+  });
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
@@ -22,18 +33,35 @@ document.addEventListener("DOMContentLoaded", () => {
   initTerminal();
   initAnalytics();
   initActivity();
-  initChat();
   initSkillsCarousel();
   initRipple();
   initScrollToTop();
+
+  // Lazy-load chat on first interaction with chat widget or AI section
+  const chatToggle = document.getElementById('chat-toggle-btn');
+  const aiSection = document.getElementById('ai');
+  const heroChatBtn = document.getElementById('hero-chat-btn');
+  
+  const loadChat = () => {
+    loadChatModule();
+    // Remove listeners after first load
+    chatToggle?.removeEventListener('click', loadChat);
+    aiSection?.removeEventListener('mouseenter', loadChat);
+    heroChatBtn?.removeEventListener('click', loadChat);
+  };
+  
+  chatToggle?.addEventListener('click', loadChat, { once: true });
+  aiSection?.addEventListener('mouseenter', loadChat, { once: true });
+  heroChatBtn?.addEventListener('click', loadChat, { once: true });
 
   // Defer Three.js background for faster initial paint
   // Only load on capable devices to avoid performance issues
   const loadThreeBackground = () => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const hasGoodHardware = navigator.hardwareConcurrency > 4;
+    const hasEnoughMemory = !navigator.deviceMemory || navigator.deviceMemory >= 4;
     
-    if (!prefersReducedMotion && hasGoodHardware) {
+    if (!prefersReducedMotion && hasGoodHardware && hasEnoughMemory) {
       import("../three-bg.js").catch(err => {
         console.warn('Three.js background failed to load:', err);
       });

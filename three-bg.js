@@ -1,4 +1,4 @@
-import * as THREE from "./js/vendor/three.module.js";
+import * as THREE from './js/vendor/three.module.js';
 import { prefersReducedMotion as reducedMotionQuery, compactViewport as compactViewportQuery, mobileDevice } from "./js/config.js";
 let destroyBackground = null;
 let backgroundVariant = null;
@@ -68,8 +68,8 @@ function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   // Ethereal Fluid Topology system (Particle Grid) - OPTIMIZED
-  const columns = compact ? 35 : 50;
-  const rows = compact ? 35 : 50;
+  const columns = compact ? 25 : 30;
+  const rows = compact ? 25 : 30;
   const spacing = 0.8;
   const geometry = new THREE.BufferGeometry();
   
@@ -346,7 +346,7 @@ function mountMobileBackground() {
   const themeObs = new MutationObserver(() => { accent = readAccent(); });
   themeObs.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'] });
 
-  const GRID = 20, NUM = 5, SPD = 1.2;
+  const GRID = 20, NUM = 4, SPD = 1.2;
 
   class Stream {
     constructor() { this.reset(true); }

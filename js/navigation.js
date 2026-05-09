@@ -4,21 +4,15 @@ import { closeModal, openModal } from "./modal.js";
 let hamburger, navMenu, navLinks, sections, connectDropdown, connectToggle, connectMenu, imageModal, imageModalCloseButton, profileTrigger;
 
 function setMobileMenuState(isOpen) {
-  console.log('setMobileMenuState called with:', isOpen);
-  console.log('navMenu exists:', !!navMenu);
-  console.log('hamburger exists:', !!hamburger);
-  
   if (!navMenu || !hamburger) return;
   
   if (isOpen) {
     navMenu.classList.add("show-menu");
-    console.log('Added show-menu class');
+    document.body.style.overflow = 'hidden';
   } else {
     navMenu.classList.remove("show-menu");
-    console.log('Removed show-menu class');
+    document.body.style.overflow = '';
   }
-  
-  console.log('navMenu classes after:', navMenu.className);
   
   hamburger.setAttribute("aria-expanded", String(isOpen));
   document.body.classList.toggle("nav-open", Boolean(isOpen) && compactViewport.matches);
@@ -84,10 +78,21 @@ export function initNavigation() {
     hamburger.addEventListener("click", (event) => {
       event.stopPropagation();
       const isCurrentlyOpen = navMenu?.classList.contains("show-menu");
-      console.log('Hamburger clicked. Current state:', isCurrentlyOpen);
       setMobileMenuState(!isCurrentlyOpen);
     });
   }
+
+  // Close menu when clicking on backdrop
+  document.addEventListener("click", (event) => {
+    if (navMenu?.classList.contains("show-menu")) {
+      const isClickInsideMenu = navMenu.contains(event.target);
+      const isClickOnHamburger = hamburger?.contains(event.target);
+      
+      if (!isClickInsideMenu && !isClickOnHamburger) {
+        setMobileMenuState(false);
+      }
+    }
+  });
 
   navLinks.forEach((link) => {
     link.addEventListener("click", (event) => {

@@ -100,13 +100,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+  <link rel="dns-prefetch" href="https://formsubmit.co" />
+  <link rel="dns-prefetch" href="https://get.geojs.io" />
   <script>
     document.documentElement.classList.add("js-enabled");
   </script>
   <link rel="preload" href="profile-pic-160.webp" as="image" type="image/webp" />
+  <link rel="preload" href="js/vendor/three.module.js" as="script" crossorigin />
+  <link rel="preload" href="styles.css" as="style" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" />
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+    media="print" onload="this.media='all'" />
+  <noscript>
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" />
+  </noscript>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
     crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -858,8 +867,8 @@
   <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"
     integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
     crossorigin="anonymous"></script>
-  <script src="js/app-logic.js" defer></script>
-  <script type="module" src="js/main.js"></script>
+  <script src="./js/app-logic.js" defer></script>
+  <script type="module" src="./js/main.js"></script>
 
 </body>
 

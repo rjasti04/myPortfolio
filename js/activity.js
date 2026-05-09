@@ -67,10 +67,24 @@ function setCopyButtonState(button, state) {
 
 let currentOffset = 0;
 const PAGE_SIZE = 5;
+let activityRefreshTimer = null;
 
 export async function loadActivity(offset = currentOffset) {
+  // Debounce rapid refresh calls
+  if (activityRefreshTimer) {
+    clearTimeout(activityRefreshTimer);
+  }
+  
+  activityRefreshTimer = setTimeout(() => {
+    activityRefreshTimer = null;
+    _loadActivityImpl(offset);
+  }, 300);
+}
+
+async function _loadActivityImpl(offset) {
   const tbody = document.getElementById("activity-tbody");
-  if (!tbody) return;
+  const tableContainer = document.querySelector(".activity-table-container");
+  if (!tbody || !tableContainer) return;
 
   const paginationControls = document.getElementById("activity-pagination");
   const prevBtn = document.getElementById("activity-prev-btn");
@@ -85,14 +99,19 @@ export async function loadActivity(offset = currentOffset) {
     sessionIdSpan.textContent = displayId;
   }
 
+  // Check if we're on mobile
+  const isMobile = window.innerWidth <= 480;
+
   if (!isApiConfigured()) {
-    tbody.innerHTML = `<tr><td colspan="5" class="activity-message">Activity API is not configured.</td></tr>`;
+    const message = `<tr><td colspan="5" class="activity-message">Activity API is not configured.</td></tr>`;
+    tbody.innerHTML = message;
     if (paginationControls) paginationControls.style.display = "none";
     return;
   }
 
   if (!sessionId) {
-    tbody.innerHTML = `<tr><td colspan="5" class="activity-message">No active session found.</td></tr>`;
+    const message = `<tr><td colspan="5" class="activity-message">No active session found.</td></tr>`;
+    tbody.innerHTML = message;
     if (paginationControls) paginationControls.style.display = "none";
     return;
   }
@@ -130,47 +149,12 @@ export async function loadActivity(offset = currentOffset) {
       return;
     }
 
-    tbody.innerHTML = events.map((e, i) => {
-      const d = new Date(e.created_at);
-      const dateStr = escapeHTML(d.toLocaleDateString());
-      const timeStr = escapeHTML(d.toLocaleTimeString());
-      const hasData = Boolean(e.event_data);
-      const encodedData = hasData ? encodeBase64Text(JSON.stringify(e.event_data)) : "";
-      const dataJson = hasData ? escapeHTML(formatDecodedJson(encodedData)) : "";
-      const detailRowId = `activity-data-${offset}-${i}`;
-      return `
-          <tr class="activity-row-enter" style="animation-delay: ${i * 50}ms">
-            <td>${dateStr}</td>
-            <td>${timeStr}</td>
-            <td><span class="activity-type-badge">${escapeHTML(e.event_type)}</span></td>
-            <td>${escapeHTML(e.page_path || '-')}</td>
-            <td>
-              ${hasData ? `
-                <button class="activity-data-toggle" type="button" aria-expanded="false" aria-controls="${detailRowId}">
-                  <span class="activity-data-summary">${escapeHTML(encodedData)}</span>
-                  <i class="fas fa-chevron-down" aria-hidden="true"></i>
-                </button>
-              ` : `<span class="activity-data-empty">-</span>`}
-            </td>
-          </tr>
-          ${hasData ? `
-            <tr class="activity-data-row" id="${detailRowId}" hidden>
-              <td colspan="5">
-                <div class="activity-data-panel">
-                  <div class="activity-data-toolbar">
-                    <span class="activity-data-label">Decoded JSON</span>
-                    <button class="activity-copy-json" type="button" aria-label="Copy activity JSON">
-                      <i class="fas fa-copy" aria-hidden="true"></i>
-                      <span class="activity-copy-label">Copy</span>
-                    </button>
-                  </div>
-                  <pre class="activity-data-pre">${dataJson}</pre>
-                </div>
-              </td>
-            </tr>
-          ` : ""}
-        `;
-    }).join("");
+    // Render mobile cards or table rows based on viewport
+    if (isMobile) {
+      renderMobileCards(events, tableContainer, offset);
+    } else {
+      renderTableRows(events, tbody, offset);
+    }
 
     currentOffset = offset;
 
@@ -188,6 +172,93 @@ export async function loadActivity(offset = currentOffset) {
     tbody.innerHTML = `<tr><td colspan="5" class="activity-message">Network error loading activity.</td></tr>`;
     if (paginationControls) paginationControls.style.display = "none";
   }
+}
+
+function renderTableRows(events, tbody, offset) {
+  tbody.innerHTML = events.map((e, i) => {
+    const d = new Date(e.created_at);
+    const dateStr = escapeHTML(d.toLocaleDateString());
+    const timeStr = escapeHTML(d.toLocaleTimeString());
+    const hasData = Boolean(e.event_data);
+    const encodedData = hasData ? encodeBase64Text(JSON.stringify(e.event_data)) : "";
+    const dataJson = hasData ? escapeHTML(formatDecodedJson(encodedData)) : "";
+    const detailRowId = `activity-data-${offset}-${i}`;
+    return `
+        <tr class="activity-row-enter" style="animation-delay: ${i * 50}ms">
+          <td>${dateStr}</td>
+          <td>${timeStr}</td>
+          <td><span class="activity-type-badge">${escapeHTML(e.event_type)}</span></td>
+          <td>${escapeHTML(e.page_path || '-')}</td>
+          <td>
+            ${hasData ? `
+              <button class="activity-data-toggle" type="button" aria-expanded="false" aria-controls="${detailRowId}">
+                <span class="activity-data-summary">${escapeHTML(encodedData)}</span>
+                <i class="fas fa-chevron-down" aria-hidden="true"></i>
+              </button>
+            ` : `<span class="activity-data-empty">-</span>`}
+          </td>
+        </tr>
+        ${hasData ? `
+          <tr class="activity-data-row" id="${detailRowId}" hidden>
+            <td colspan="5">
+              <div class="activity-data-panel">
+                <div class="activity-data-toolbar">
+                  <span class="activity-data-label">Decoded JSON</span>
+                  <button class="activity-copy-json" type="button" aria-label="Copy activity JSON">
+                    <i class="fas fa-copy" aria-hidden="true"></i>
+                    <span class="activity-copy-label">Copy</span>
+                  </button>
+                </div>
+                <pre class="activity-data-pre">${dataJson}</pre>
+              </div>
+            </td>
+          </tr>
+        ` : ""}
+      `;
+  }).join("");
+}
+
+function renderMobileCards(events, container, offset) {
+  // Remove existing mobile cards container if it exists
+  let mobileContainer = container.querySelector('.activity-mobile-cards');
+  if (!mobileContainer) {
+    mobileContainer = document.createElement('div');
+    mobileContainer.className = 'activity-mobile-cards';
+    container.appendChild(mobileContainer);
+  }
+
+  mobileContainer.innerHTML = events.map((e, i) => {
+    const d = new Date(e.created_at);
+    const dateStr = escapeHTML(d.toLocaleDateString());
+    const timeStr = escapeHTML(d.toLocaleTimeString());
+    const hasData = Boolean(e.event_data);
+    const dataPreview = hasData ? escapeHTML(JSON.stringify(e.event_data).substring(0, 50) + '...') : '-';
+    
+    return `
+      <div class="activity-card" style="animation: activityRowFade var(--motion-medium) var(--ease-enter) both; animation-delay: ${i * 50}ms;">
+        <div class="activity-card-row">
+          <span class="activity-card-label">Date</span>
+          <span class="activity-card-value">${dateStr}</span>
+        </div>
+        <div class="activity-card-row">
+          <span class="activity-card-label">Time</span>
+          <span class="activity-card-value">${timeStr}</span>
+        </div>
+        <div class="activity-card-row">
+          <span class="activity-card-label">Type</span>
+          <span class="activity-card-value"><span class="activity-type-badge">${escapeHTML(e.event_type)}</span></span>
+        </div>
+        <div class="activity-card-row">
+          <span class="activity-card-label">Path</span>
+          <span class="activity-card-value"><code>${escapeHTML(e.page_path || '-')}</code></span>
+        </div>
+        <div class="activity-card-row">
+          <span class="activity-card-label">Data</span>
+          <span class="activity-card-value"><code>${dataPreview}</code></span>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 export function initActivity() {
@@ -265,4 +336,21 @@ export function initActivity() {
       loadActivity();
     }
   }
+
+  // Handle responsive layout changes
+  let resizeTimeout;
+  let lastWidth = window.innerWidth;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      const newWidth = window.innerWidth;
+      const crossedMobileThreshold = (lastWidth > 480 && newWidth <= 480) || (lastWidth <= 480 && newWidth > 480);
+      
+      if (crossedMobileThreshold && activitySection?.classList.contains('active')) {
+        loadActivity(currentOffset);
+      }
+      
+      lastWidth = newWidth;
+    }, 300);
+  });
 }
