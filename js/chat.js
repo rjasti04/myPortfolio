@@ -372,11 +372,13 @@ export function initChat() {
     return container;
   }
 
-  function appendMessage(text, sender, { save = true, showCopy = save } = {}) {
+  function appendMessage(text, sender, { save = true, showCopy = save, target = 'all' } = {}) {
     const isBot = sender === 'bot';
     const htmlContent = isBot ? renderBotHTML(text) : text;
+    const renderWidget = target === 'all' || target === 'widget';
+    const renderAiPage = target === 'all' || target === 'ai';
 
-    if (messagesContainer) {
+    if (renderWidget && messagesContainer) {
       const msgEl = document.createElement('div');
       msgEl.className = `chat-message ${sender}`;
       if (isBot) msgEl.innerHTML = htmlContent;
@@ -386,7 +388,7 @@ export function initChat() {
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    if (aiPageMessages) {
+    if (renderAiPage && aiPageMessages) {
       if (aiPageContainer && aiPageContainer.classList.contains('empty-state')) {
         aiPageContainer.classList.remove('empty-state');
       }
@@ -417,7 +419,7 @@ export function initChat() {
     const session = getActiveSession();
     if (session.messages.length === 0) {
       if (aiPageContainer) aiPageContainer.classList.add('empty-state');
-      appendMessage("Ask anything!", 'bot', { save: false, showCopy: false });
+      appendMessage("Ask anything!", 'bot', { save: false, showCopy: false, target: 'widget' });
     } else {
       if (aiPageContainer) aiPageContainer.classList.remove('empty-state');
       // Temporarily disable auto-scroll to avoid jumping while rendering

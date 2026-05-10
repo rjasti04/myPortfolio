@@ -135,7 +135,7 @@ export function initContactForm() {
       const response = await fetch(`https://formsubmit.co/ajax/${CONTACT_EMAIL}`, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({ _subject: "New portfolio message from rajeevjasti.com", email, message, name }),
+        body: JSON.stringify({ _subject: "New portfolio message from rjasti.com", email, message, name }),
       });
       if (!response.ok) throw new Error("Request failed");
       contactForm.reset();

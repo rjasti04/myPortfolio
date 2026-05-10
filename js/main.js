@@ -15,14 +15,21 @@ import { initParticles, initSpotlight } from "./particles-config.js";
 
 // Lazy-load chat module on first interaction
 let chatLoaded = false;
+let chatModulePromise = null;
+
 function loadChatModule() {
-  if (chatLoaded) return;
+  if (chatLoaded) return chatModulePromise;
   chatLoaded = true;
-  import("./chat.js").then(module => {
+  chatModulePromise = import("./chat.js").then(module => {
     module.initChat();
+    return module;
   }).catch(err => {
+    chatLoaded = false;
+    chatModulePromise = null;
     console.warn('Chat module failed to load:', err);
+    return null;
   });
+  return chatModulePromise;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -55,25 +62,46 @@ document.addEventListener("DOMContentLoaded", () => {
     heroSection.style.position = 'relative';
     heroSection.insertBefore(particlesContainer, heroSection.firstChild);
     
-    requestIdleCallback(() => {
+    const initHeroEffects = () => {
       initParticles('particles-canvas');
       initSpotlight('about');
-    });
+    };
+
+    if ("requestIdleCallback" in window) {
+      requestIdleCallback(initHeroEffects);
+    } else {
+      setTimeout(initHeroEffects, 200);
+    }
   }
 
   // Lazy-load chat on first interaction with chat widget or AI section
   const chatToggle = document.getElementById('chat-toggle-btn');
-  const heroChatBtn = document.getElementById('hero-chat-btn');
-  
+  const aiSection = document.getElementById('ai');
+
   const loadChat = () => {
-    loadChatModule();
-    // Remove listeners after first load
-    chatToggle?.removeEventListener('click', loadChat);
-    heroChatBtn?.removeEventListener('click', loadChat);
+    void loadChatModule();
   };
-  
+
   chatToggle?.addEventListener('click', loadChat, { once: true });
-  heroChatBtn?.addEventListener('click', loadChat, { once: true });
+
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('[data-target="ai"], a[href="#ai"]')) {
+      loadChat();
+    }
+  }, { capture: true });
+
+  const ensureChatForActiveAiSection = () => {
+    if (aiSection?.classList.contains('active') || window.location.hash === '#ai') {
+      loadChat();
+    }
+  };
+
+  if (aiSection) {
+    new MutationObserver(ensureChatForActiveAiSection)
+      .observe(aiSection, { attributes: true, attributeFilter: ['class'] });
+    ensureChatForActiveAiSection();
+  }
 
   // Defer Three.js background for faster initial paint
   // Only load on capable devices to avoid performance issues

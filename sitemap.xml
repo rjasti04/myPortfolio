@@ -2,12 +2,12 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
-    <loc>https://rajeevjasti.com/</loc>
+    <loc>https://rjasti.com/</loc>
     <lastmod>2026-04-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://rajeevjasti.com/social-preview.png</image:loc>
+      <image:loc>https://rjasti.com/social-preview.png</image:loc>
       <image:title>Rajeev Jasti | Principal Data Engineer</image:title>
       <image:caption>Portfolio preview for Rajeev Jasti</image:caption>
     </image:image>

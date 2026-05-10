@@ -323,7 +323,7 @@ export function initTerminal() {
           <li><strong>rjasti</strong>@portfolio</li>
           <li>─────────────────</li>
           <li><strong>OS:</strong> Portfolio v1.0</li>
-          <li><strong>Host:</strong> rajeevjasti.com</li>
+          <li><strong>Host:</strong> rjasti.com</li>
           <li><strong>Uptime:</strong> 10+ years in engineering</li>
           <li><strong>Shell:</strong> bash</li>
           <li><strong>Theme:</strong> ${isDark ? "dark \uD83C\uDF19" : "light \u2600\uFE0F"}</li>
@@ -377,7 +377,7 @@ export function initTerminal() {
             <li><strong>Email:</strong> inboxtorj@gmail.com</li>
             <li><strong>LinkedIn:</strong> linkedin.com/in/rajeev-jasti-326080169</li>
             <li><strong>GitHub:</strong> github.com/rjasti04</li>
-            <li><strong>Website:</strong> rajeevjasti.com</li>
+            <li><strong>Website:</strong> rjasti.com</li>
           </ul>
         `;
       }
