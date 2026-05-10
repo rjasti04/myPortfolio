@@ -1,6 +1,10 @@
 import { CONTACT_EMAIL } from "./config.js";
-import { copyText, showToast } from "./utils.js";
+import { copyText, showToast, isNetworkOnline } from "./utils.js";
 import { trackEvent } from "./analytics.js";
+import { triggerConfetti, confettiPresets } from "./confetti.js";
+
+// Constants
+const SUBMIT_TIMEOUT_MS = 10000;
 
 function setFormStatus(element, message, state = "info") {
   if (!element) return;
@@ -48,22 +52,44 @@ export function initContactForm() {
 
   if (!contactForm || !contactStatus) return;
 
-  // Real-time validation feedback
+  // Real-time validation feedback with ARIA announcements
   contactForm.querySelectorAll('input, textarea').forEach(field => {
+    // Create error message element for accessibility
+    const errorId = `${field.id}-error`;
+    let errorEl = document.getElementById(errorId);
+    if (!errorEl) {
+      errorEl = document.createElement('span');
+      errorEl.id = errorId;
+      errorEl.className = 'form-error-message';
+      errorEl.setAttribute('role', 'alert');
+      errorEl.style.display = 'none';
+      errorEl.style.color = 'var(--color-error)';
+      errorEl.style.fontSize = '12px';
+      errorEl.style.marginTop = '4px';
+      field.parentElement.appendChild(errorEl);
+    }
+    
     field.addEventListener('blur', () => {
       if (field.value && !field.checkValidity()) {
         field.setAttribute('aria-invalid', 'true');
+        field.setAttribute('aria-describedby', errorId);
         field.style.borderColor = 'var(--color-error)';
+        errorEl.textContent = field.validationMessage;
+        errorEl.style.display = 'block';
       } else if (field.value) {
         field.removeAttribute('aria-invalid');
+        field.removeAttribute('aria-describedby');
         field.style.borderColor = '';
+        errorEl.style.display = 'none';
       }
     });
     
     field.addEventListener('input', () => {
       if (field.hasAttribute('aria-invalid') && field.checkValidity()) {
         field.removeAttribute('aria-invalid');
+        field.removeAttribute('aria-describedby');
         field.style.borderColor = '';
+        errorEl.style.display = 'none';
       }
     });
   });
@@ -87,6 +113,13 @@ export function initContactForm() {
     event.preventDefault();
     if (!contactForm.reportValidity()) return;
 
+    // Check network status
+    if (!isNetworkOnline()) {
+      setFormStatus(contactStatus, "You appear to be offline. Please check your connection.", "error");
+      showToast("No internet connection detected.", "error");
+      return;
+    }
+
     const submitBtn = contactForm.querySelector('button[type="submit"]');
     const name = contactForm.querySelector("#contact-name")?.value.trim() || "";
     const email = contactForm.querySelector("#contact-email")?.value.trim() || "";
@@ -109,6 +142,9 @@ export function initContactForm() {
       trackEvent("contact_submission", { success: true, native_fallback: false });
       setFormStatus(contactStatus, "Message sent successfully. Thanks for reaching out.", "success");
       showToast("Message sent successfully.", "success");
+      
+      // Trigger confetti celebration
+      triggerConfetti(confettiPresets.success);
     } catch (error) {
       console.error(error);
       setFormStatus(contactStatus, "Trying the standard form submission flow...", "info");

@@ -64,3 +64,30 @@ export function estimateTokens(text) {
   if (!text || text.length === 0) return 0;
   return Math.ceil(text.length / 4);
 }
+
+// Offline detection
+let isOnline = navigator.onLine;
+const onlineCallbacks = [];
+const offlineCallbacks = [];
+
+export function onOnline(callback) {
+  onlineCallbacks.push(callback);
+}
+
+export function onOffline(callback) {
+  offlineCallbacks.push(callback);
+}
+
+export function isNetworkOnline() {
+  return isOnline;
+}
+
+window.addEventListener('online', () => {
+  isOnline = true;
+  onlineCallbacks.forEach(cb => cb());
+});
+
+window.addEventListener('offline', () => {
+  isOnline = false;
+  offlineCallbacks.forEach(cb => cb());
+});

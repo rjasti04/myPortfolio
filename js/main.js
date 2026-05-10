@@ -11,6 +11,7 @@ import { initSkillsCarousel } from "./skills-carousel.js";
 import { initRipple } from "./ripple.js";
 import { initScrollToTop } from "./scroll-to-top.js";
 import { initThemeCustomizer } from "./theme-customizer.js";
+import { initParticles, initSpotlight } from "./particles-config.js";
 
 // Lazy-load chat module on first interaction
 let chatLoaded = false;
@@ -39,21 +40,39 @@ document.addEventListener("DOMContentLoaded", () => {
   initScrollToTop();
   initThemeCustomizer();
 
+  // Initialize particle effects on hero section
+  const heroSection = document.querySelector('.hero');
+  if (heroSection && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const particlesContainer = document.createElement('div');
+    particlesContainer.id = 'particles-canvas';
+    particlesContainer.style.position = 'absolute';
+    particlesContainer.style.top = '0';
+    particlesContainer.style.left = '0';
+    particlesContainer.style.width = '100%';
+    particlesContainer.style.height = '100%';
+    particlesContainer.style.pointerEvents = 'none';
+    particlesContainer.style.zIndex = '0';
+    heroSection.style.position = 'relative';
+    heroSection.insertBefore(particlesContainer, heroSection.firstChild);
+    
+    requestIdleCallback(() => {
+      initParticles('particles-canvas');
+      initSpotlight('about');
+    });
+  }
+
   // Lazy-load chat on first interaction with chat widget or AI section
   const chatToggle = document.getElementById('chat-toggle-btn');
-  const aiSection = document.getElementById('ai');
   const heroChatBtn = document.getElementById('hero-chat-btn');
   
   const loadChat = () => {
     loadChatModule();
     // Remove listeners after first load
     chatToggle?.removeEventListener('click', loadChat);
-    aiSection?.removeEventListener('mouseenter', loadChat);
     heroChatBtn?.removeEventListener('click', loadChat);
   };
   
   chatToggle?.addEventListener('click', loadChat, { once: true });
-  aiSection?.addEventListener('mouseenter', loadChat, { once: true });
   heroChatBtn?.addEventListener('click', loadChat, { once: true });
 
   // Defer Three.js background for faster initial paint
@@ -81,7 +100,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/sw.js").catch(console.error);
+      navigator.serviceWorker.register("/sw.js")
+        .then(registration => {
+          // Check for updates periodically
+          setInterval(() => {
+            registration.update();
+          }, 60000); // Check every minute
+
+          // Listen for updates
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New service worker available
+                showUpdateNotification();
+              }
+            });
+          });
+        })
+        .catch(console.error);
     });
   }
 });
+
+function showUpdateNotification() {
+  const updateBanner = document.createElement('div');
+  updateBanner.className = 'update-banner';
+  updateBanner.setAttribute('role', 'alert');
+  updateBanner.innerHTML = `
+    <span><i class="fas fa-info-circle"></i> A new version is available!</span>
+    <button type="button" class="update-refresh-btn" id="update-refresh-btn">
+      <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+  `;
+  updateBanner.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--accent-fill);
+    color: var(--on-accent);
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-xl);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 10001;
+    animation: slideInUp var(--motion-medium) var(--ease-enter);
+  `;
+  
+  document.body.appendChild(updateBanner);
+  
+  document.getElementById('update-refresh-btn').addEventListener('click', () => {
+    window.location.reload();
+  });
+}

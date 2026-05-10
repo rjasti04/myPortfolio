@@ -1,5 +1,13 @@
 export const API_BASE = "https://rjasti.com/api";
+
+// Constants
 const MAX_QUEUE_SIZE = 200;
+const QUEUE_FLUSH_THRESHOLD = 10;
+const HEARTBEAT_INTERVAL_MS = 60000;
+const HEARTBEAT_INITIAL_DELAY_MS = 1000;
+const SCROLL_DEBOUNCE_MS = 500;
+const EVENT_QUEUE_STORAGE_KEY = 'rj_event_queue';
+
 let sessionId = null;
 try {
   sessionId = sessionStorage.getItem("rj_session_id");
@@ -22,6 +30,30 @@ function clearSessionId() {
 }
 const eventQueue = [];
 let heartbeatInterval;
+
+// Load persisted event queue from localStorage
+function loadEventQueue() {
+  try {
+    const stored = localStorage.getItem(EVENT_QUEUE_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        eventQueue.push(...parsed.slice(0, MAX_QUEUE_SIZE));
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load event queue from localStorage:', e);
+  }
+}
+
+// Persist event queue to localStorage
+function saveEventQueue() {
+  try {
+    localStorage.setItem(EVENT_QUEUE_STORAGE_KEY, JSON.stringify(eventQueue));
+  } catch (e) {
+    console.warn('Failed to save event queue to localStorage:', e);
+  }
+}
 
 export function isApiConfigured() {
   return API_BASE.length > 0;
@@ -105,10 +137,10 @@ function startHeartbeat() {
     }
   };
 
-  heartbeatInterval = setInterval(ping, 60000);
+  heartbeatInterval = setInterval(ping, HEARTBEAT_INTERVAL_MS);
   
   // On resume/reload, trigger a quick verify ping shortly after initialization
-  setTimeout(ping, 1000);
+  setTimeout(ping, HEARTBEAT_INITIAL_DELAY_MS);
 }
 
 export function trackEvent(eventType, eventData = {}) {
@@ -127,9 +159,10 @@ export function trackEvent(eventType, eventData = {}) {
   };
 
   eventQueue.push(event);
+  saveEventQueue();
 
-  // Flush if queue gets to 10
-  if (eventQueue.length >= 10) {
+  // Flush if queue gets to threshold
+  if (eventQueue.length >= QUEUE_FLUSH_THRESHOLD) {
     flushEvents();
   }
 }
@@ -139,6 +172,7 @@ async function flushEvents() {
 
   const eventsToSend = [...eventQueue];
   eventQueue.length = 0; // Clear the queue
+  saveEventQueue();
 
   try {
     const response = await apiFetch(`${API_BASE}/events/bulk`, {
@@ -155,6 +189,7 @@ async function flushEvents() {
         if (eventQueue.length > MAX_QUEUE_SIZE) {
           eventQueue.length = MAX_QUEUE_SIZE;
         }
+        saveEventQueue();
       }
       console.error(`Analytics: Server returned ${response.status}`);
     }
@@ -165,6 +200,7 @@ async function flushEvents() {
     if (eventQueue.length > MAX_QUEUE_SIZE) {
       eventQueue.length = MAX_QUEUE_SIZE;
     }
+    saveEventQueue();
     console.error("Analytics: Network error bulk sending events", error);
   }
 }
@@ -182,6 +218,7 @@ function flushEventsOnUnload() {
     }).catch(console.error);
 
     eventQueue.length = 0;
+    saveEventQueue();
   }
 
   // Also send an end session call
@@ -264,7 +301,7 @@ function attachGlobalListeners() {
           trackEvent("scroll_depth", { percent: depth });
         }
       });
-    }, 500);
+    }, SCROLL_DEBOUNCE_MS);
   }, { passive: true });
 }
 
@@ -274,6 +311,9 @@ export function initAnalytics() {
     console.warn("Analytics: API base is not configured; tracking disabled.");
     return;
   }
+
+  // Load persisted event queue
+  loadEventQueue();
 
   attachGlobalListeners();
 

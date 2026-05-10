@@ -1,6 +1,13 @@
 import { API_BASE, apiFetch, isApiConfigured } from "./analytics.js";
 import { copyText, escapeHTML } from "./utils.js";
 
+// Constants
+const PAGE_SIZE = 5;
+const DEBOUNCE_DELAY_MS = 300;
+const COPY_RESET_DELAY_MS = 1600;
+const MOBILE_BREAKPOINT = 480;
+const RESIZE_DEBOUNCE_MS = 300;
+
 function encodeBase64Text(text) {
   const bytes = new TextEncoder().encode(text);
   let binary = "";
@@ -37,12 +44,11 @@ function setCopyButtonState(button, state) {
     delete button.dataset.copyState;
     if (label) label.textContent = defaultLabel;
     copyResetTimers.delete(button);
-  }, 1600);
+  }, COPY_RESET_DELAY_MS);
   copyResetTimers.set(button, resetTimer);
 }
 
 let currentOffset = 0;
-const PAGE_SIZE = 5;
 let activityRefreshTimer = null;
 
 export async function loadActivity(offset = currentOffset) {
@@ -54,7 +60,7 @@ export async function loadActivity(offset = currentOffset) {
   activityRefreshTimer = setTimeout(() => {
     activityRefreshTimer = null;
     _loadActivityImpl(offset);
-  }, 300);
+  }, DEBOUNCE_DELAY_MS);
 }
 
 async function _loadActivityImpl(offset) {
@@ -76,7 +82,7 @@ async function _loadActivityImpl(offset) {
   }
 
   // Check if we're on mobile
-  const isMobile = window.innerWidth <= 480;
+  const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
 
   if (!isApiConfigured()) {
     const message = `<tr><td colspan="5" class="activity-message">Activity API is not configured.</td></tr>`;
@@ -92,7 +98,26 @@ async function _loadActivityImpl(offset) {
     return;
   }
 
-  tbody.innerHTML = `<tr><td colspan="5" class="activity-message"><i class="fas fa-spinner fa-spin"></i> Loading activity...</td></tr>`;
+  tbody.innerHTML = `
+    <tr><td colspan="5">
+      <div style="padding: 20px;">
+        <div class="skeleton skeleton-text" style="width: 60%; margin-bottom: 12px;"></div>
+        <div class="skeleton skeleton-text" style="width: 80%; margin-bottom: 12px;"></div>
+        <div class="skeleton skeleton-text" style="width: 70%; margin-bottom: 12px;"></div>
+        <div class="skeleton skeleton-text" style="width: 90%;"></div>
+      </div>
+    </td></tr>
+  `;
+  
+  // Add loading state to refresh button
+  const refreshBtn = document.getElementById('activity-refresh-btn');
+  if (refreshBtn) {
+    refreshBtn.disabled = true;
+    const icon = refreshBtn.querySelector('i');
+    if (icon) {
+      icon.className = 'fas fa-circle-notch fa-spin';
+    }
+  }
 
   try {
     const response = await apiFetch(`${API_BASE}/sessions/${sessionId}/events?limit=${PAGE_SIZE}&offset=${offset}`);
@@ -112,6 +137,12 @@ async function _loadActivityImpl(offset) {
         tbody.innerHTML = `<tr><td colspan="5" class="activity-message">No events found for the current session.</td></tr>`;
         if (paginationControls) paginationControls.style.display = "none";
       } else {
+        // User navigated past the end - go back to last valid page
+        const lastValidOffset = Math.max(0, offset - PAGE_SIZE);
+        if (lastValidOffset !== offset) {
+          loadActivity(lastValidOffset);
+          return;
+        }
         tbody.innerHTML = `<tr><td colspan="5" class="activity-message">No more events.</td></tr>`;
         if (paginationControls) {
           paginationControls.style.display = "flex";
@@ -147,11 +178,24 @@ async function _loadActivityImpl(offset) {
     console.error("Activity load error", error);
     tbody.innerHTML = `<tr><td colspan="5" class="activity-message">Network error loading activity.</td></tr>`;
     if (paginationControls) paginationControls.style.display = "none";
+  } finally {
+    // Reset refresh button state
+    const refreshBtn = document.getElementById('activity-refresh-btn');
+    if (refreshBtn) {
+      refreshBtn.disabled = false;
+      const icon = refreshBtn.querySelector('i');
+      if (icon) {
+        icon.className = 'fas fa-sync-alt';
+      }
+    }
   }
 }
 
 function renderTableRows(events, tbody, offset) {
-  tbody.innerHTML = events.map((e, i) => {
+  // Use DocumentFragment for better performance
+  const fragment = document.createDocumentFragment();
+  
+  events.forEach((e, i) => {
     const d = new Date(e.created_at);
     const dateStr = escapeHTML(d.toLocaleDateString());
     const timeStr = escapeHTML(d.toLocaleTimeString());
@@ -159,39 +203,53 @@ function renderTableRows(events, tbody, offset) {
     const encodedData = hasData ? encodeBase64Text(JSON.stringify(e.event_data)) : "";
     const dataJson = hasData ? escapeHTML(formatDecodedJson(encodedData)) : "";
     const detailRowId = `activity-data-${offset}-${i}`;
-    return `
-        <tr class="activity-row-enter" style="animation-delay: ${i * 50}ms">
-          <td>${dateStr}</td>
-          <td>${timeStr}</td>
-          <td><span class="activity-type-badge">${escapeHTML(e.event_type)}</span></td>
-          <td>${escapeHTML(e.page_path || '-')}</td>
-          <td>
-            ${hasData ? `
-              <button class="activity-data-toggle" type="button" aria-expanded="false" aria-controls="${detailRowId}">
-                <span class="activity-data-summary">${escapeHTML(encodedData)}</span>
-                <i class="fas fa-chevron-down" aria-hidden="true"></i>
-              </button>
-            ` : `<span class="activity-data-empty">-</span>`}
-          </td>
-        </tr>
+    
+    // Create main row
+    const mainRow = document.createElement('tr');
+    mainRow.className = 'activity-row-enter';
+    mainRow.style.animationDelay = `${i * 50}ms`;
+    mainRow.innerHTML = `
+      <td>${dateStr}</td>
+      <td>${timeStr}</td>
+      <td><span class="activity-type-badge">${escapeHTML(e.event_type)}</span></td>
+      <td>${escapeHTML(e.page_path || '-')}</td>
+      <td>
         ${hasData ? `
-          <tr class="activity-data-row" id="${detailRowId}" hidden>
-            <td colspan="5">
-              <div class="activity-data-panel">
-                <div class="activity-data-toolbar">
-                  <span class="activity-data-label">Decoded JSON</span>
-                  <button class="activity-copy-json" type="button" aria-label="Copy activity JSON">
-                    <i class="fas fa-copy" aria-hidden="true"></i>
-                    <span class="activity-copy-label">Copy</span>
-                  </button>
-                </div>
-                <pre class="activity-data-pre">${dataJson}</pre>
-              </div>
-            </td>
-          </tr>
-        ` : ""}
+          <button class="activity-data-toggle" type="button" aria-expanded="false" aria-controls="${detailRowId}">
+            <span class="activity-data-summary">${escapeHTML(encodedData)}</span>
+            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+          </button>
+        ` : `<span class="activity-data-empty">-</span>`}
+      </td>
+    `;
+    fragment.appendChild(mainRow);
+    
+    // Create detail row if has data
+    if (hasData) {
+      const detailRow = document.createElement('tr');
+      detailRow.className = 'activity-data-row';
+      detailRow.id = detailRowId;
+      detailRow.hidden = true;
+      detailRow.innerHTML = `
+        <td colspan="5">
+          <div class="activity-data-panel">
+            <div class="activity-data-toolbar">
+              <span class="activity-data-label">Decoded JSON</span>
+              <button class="activity-copy-json" type="button" aria-label="Copy activity JSON">
+                <i class="fas fa-copy" aria-hidden="true"></i>
+                <span class="activity-copy-label">Copy</span>
+              </button>
+            </div>
+            <pre class="activity-data-pre">${dataJson}</pre>
+          </div>
+        </td>
       `;
-  }).join("");
+      fragment.appendChild(detailRow);
+    }
+  });
+  
+  tbody.innerHTML = '';
+  tbody.appendChild(fragment);
 }
 
 function renderMobileCards(events, container, offset) {
@@ -320,13 +378,13 @@ export function initActivity() {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
       const newWidth = window.innerWidth;
-      const crossedMobileThreshold = (lastWidth > 480 && newWidth <= 480) || (lastWidth <= 480 && newWidth > 480);
+      const crossedMobileThreshold = (lastWidth > MOBILE_BREAKPOINT && newWidth <= MOBILE_BREAKPOINT) || (lastWidth <= MOBILE_BREAKPOINT && newWidth > MOBILE_BREAKPOINT);
       
       if (crossedMobileThreshold && activitySection?.classList.contains('active')) {
         loadActivity(currentOffset);
       }
       
       lastWidth = newWidth;
-    }, 300);
+    }, RESIZE_DEBOUNCE_MS);
   });
 }

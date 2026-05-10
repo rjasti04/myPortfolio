@@ -2,6 +2,15 @@ import { API_BASE, apiFetch, ensureSession, isApiConfigured } from "./analytics.
 import { prefersReducedMotion } from "./config.js";
 import { copyText, escapeHTML, estimateTokens } from "./utils.js";
 
+// Constants
+const MAX_SESSIONS = 50;
+const TOKEN_WARNING_THRESHOLD = 1500;
+const TOKEN_ERROR_THRESHOLD = 1950;
+const TOKEN_LIMIT = 2000;
+const SUMMARIZE_TOKEN_THRESHOLD = 6000;
+const MARKDOWN_PARSE_THROTTLE_MS = 100;
+const STREAM_QUEUE_SIZE = 32;
+
 /** Sanitize HTML through DOMPurify when available, escape otherwise. */
 function sanitizeHTML(html) {
   if (typeof DOMPurify !== "undefined") return DOMPurify.sanitize(html);
@@ -62,6 +71,85 @@ export function initChat() {
   const aiTokenCounter = document.getElementById('ai-token-counter');
   const aiSidebarHistory = document.getElementById('ai-sidebar-history');
 
+  // Voice input support for mobile
+  const initVoiceInput = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    
+    const addVoiceButton = (input, form) => {
+      if (!input || !form) return;
+      
+      const voiceBtn = document.createElement('button');
+      voiceBtn.type = 'button';
+      voiceBtn.className = 'voice-input-btn';
+      voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+      voiceBtn.title = 'Voice input';
+      voiceBtn.style.cssText = `
+        background: transparent;
+        border: none;
+        color: var(--accent-text);
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 8px;
+        transition: background-color 0.2s ease;
+      `;
+      
+      let isListening = false;
+      
+      voiceBtn.addEventListener('click', () => {
+        if (isListening) {
+          recognition.stop();
+          return;
+        }
+        
+        recognition.start();
+        isListening = true;
+        voiceBtn.innerHTML = '<i class="fas fa-stop-circle"></i>';
+        voiceBtn.style.color = 'var(--color-error)';
+      });
+      
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        input.value = transcript;
+        input.dispatchEvent(new Event('input'));
+        input.focus();
+      };
+      
+      recognition.onend = () => {
+        isListening = false;
+        voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+        voiceBtn.style.color = '';
+      };
+      
+      recognition.onerror = () => {
+        isListening = false;
+        voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+        voiceBtn.style.color = '';
+      };
+      
+      const actions = form.querySelector('.ai-input-actions') || form;
+      const sendBtn = form.querySelector('button[type="submit"]');
+      if (sendBtn && actions) {
+        actions.insertBefore(voiceBtn, sendBtn);
+      }
+    };
+    
+    if (aiPageInput && aiPageForm && window.innerWidth <= 768) {
+      addVoiceButton(aiPageInput, aiPageForm);
+    }
+    
+    if (chatInput && chatForm && window.innerWidth <= 768) {
+      addVoiceButton(chatInput, chatForm);
+    }
+  };
+  
+  initVoiceInput();
+
   function updateTokenCounter() {
     if (!aiPageInput || !aiTokenCounter) return;
     const text = aiPageInput.value.trim();
@@ -69,10 +157,10 @@ export function initChat() {
     aiTokenCounter.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
     
     // Visual warning when approaching limits
-    if (tokens > 1800) {
+    if (tokens > TOKEN_WARNING_THRESHOLD) {
       aiTokenCounter.style.color = 'var(--color-warning)';
       aiTokenCounter.style.fontWeight = '700';
-    } else if (tokens > 1950) {
+    } else if (tokens > TOKEN_ERROR_THRESHOLD) {
       aiTokenCounter.style.color = 'var(--color-error)';
       aiTokenCounter.style.fontWeight = '800';
     } else {
@@ -112,6 +200,10 @@ export function initChat() {
   }
 
   function saveSessions() {
+    // Limit to MAX_SESSIONS to prevent localStorage quota issues
+    if (sessions.length > MAX_SESSIONS) {
+      sessions = sessions.slice(0, MAX_SESSIONS);
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
     renderSidebar();
   }
@@ -444,10 +536,10 @@ export function initChat() {
     indicator.className = 'chat-message bot typing-indicator';
     indicator.setAttribute('role', 'status');
     indicator.setAttribute('aria-live', 'polite');
+    indicator.setAttribute('aria-label', 'Assistant is responding');
     if (prefersReducedMotion.matches) {
       indicator.textContent = 'Assistant is responding...';
     } else {
-      indicator.setAttribute('aria-label', 'Assistant is responding');
       indicator.innerHTML = '<div class="typing-dot" aria-hidden="true"></div><div class="typing-dot" aria-hidden="true"></div><div class="typing-dot" aria-hidden="true"></div>';
     }
     return indicator;
@@ -484,8 +576,9 @@ export function initChat() {
 
     const session = getActiveSession();
     
-    // Summarize old messages if history gets too long (e.g. > 6 messages)
-    if (session.messages.length > 6) {
+    // Summarize old messages if token count gets too high
+    const totalTokens = session.messages.reduce((sum, msg) => sum + estimateTokens(msg.text), 0);
+    if (totalTokens > SUMMARIZE_TOKEN_THRESHOLD) {
       // The current user message is the last entry (just pushed via appendMessage).
       const currentUserMsg = session.messages[session.messages.length - 1];
       // Everything before the current message gets summarized.
@@ -556,6 +649,7 @@ export function initChat() {
       let parseTimer = null;
 
       const flushParse = () => {
+        if (parseTimer) clearTimeout(parseTimer);
         parseTimer = null;
         const html = renderBotHTML(botFullText);
         if (widgetMsgEl) {
@@ -575,9 +669,9 @@ export function initChat() {
         if (done) break;
 
         botFullText += decoder.decode(value, { stream: true });
-        // Throttle markdown parsing to max once per 100ms
+        // Throttle markdown parsing to reduce CPU usage during streaming
         if (!parseTimer) {
-          parseTimer = setTimeout(flushParse, 100);
+          parseTimer = setTimeout(flushParse, MARKDOWN_PARSE_THROTTLE_MS);
         }
       }
 
@@ -603,35 +697,27 @@ export function initChat() {
 
       session.messages.push({ text: botFullText, sender: 'bot' });
       saveSessions();
+      
+      // Announce completion to screen readers
+      announceToScreenReader('Response received');
 
     } catch (err) {
       console.error('Chat API Error:', err);
       if (widgetIndicator) widgetIndicator.remove();
       if (aiIndicator) aiIndicator.remove();
-      const errorId = 'err-' + Date.now();
+      
+      // Store the original text for retry
+      const retryText = text;
       const errorMsg = `
         <div class="chat-error-boundary">
           <i class="fas fa-exclamation-triangle"></i>
           <span>Connection to AI service failed. Check your internet connection and try again.</span>
-          <button type="button" class="btn btn-outline retry-btn" id="${errorId}">
+          <button type="button" class="btn btn-outline retry-btn" data-retry-text="${escapeHTML(retryText)}">
             <i class="fas fa-sync-alt"></i> Retry
           </button>
         </div>
       `;
       appendMessage(errorMsg, 'bot', { save: false, showCopy: false });
-      
-      // We need to attach event listener to the freshly inserted button
-      // To do this reliably across both views, we can use event delegation or direct query
-      setTimeout(() => {
-        document.querySelectorAll(`#${errorId}`).forEach(btn => {
-          btn.addEventListener('click', () => {
-            // Remove the error messages from the DOM
-            btn.closest('.chat-message')?.remove();
-            // Retry the submission
-            handleChatSubmit(text);
-          });
-        });
-      }, 50);
     } finally {
       setInputState(false);
       if (aiPageInput) {
@@ -641,6 +727,18 @@ export function initChat() {
       if (chatInput && isOpen) chatInput.focus();
     }
   }
+
+  // Use event delegation for retry buttons
+  document.addEventListener('click', (e) => {
+    const retryBtn = e.target.closest('.retry-btn');
+    if (retryBtn) {
+      const retryText = retryBtn.getAttribute('data-retry-text');
+      if (retryText) {
+        retryBtn.closest('.chat-message')?.remove();
+        handleChatSubmit(retryText);
+      }
+    }
+  });
 
   if (chatForm) {
     chatForm.addEventListener('submit', async (e) => {
@@ -669,4 +767,30 @@ export function initChat() {
   // Init UI
   loadSessions();
   renderSidebar();
+}
+
+// Screen reader announcements
+function announceToScreenReader(message) {
+  const announcement = document.createElement('div');
+  announcement.setAttribute('role', 'status');
+  announcement.setAttribute('aria-live', 'polite');
+  announcement.className = 'sr-only';
+  announcement.textContent = message;
+  announcement.style.cssText = `
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  `;
+  
+  document.body.appendChild(announcement);
+  
+  setTimeout(() => {
+    announcement.remove();
+  }, 1000);
 }

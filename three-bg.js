@@ -12,37 +12,37 @@ let syncThreeBackgroundTimeout = null;
 
 const PROFILE_CONFIG = {
   desktop: {
-    nodes: 54,
-    links: 86,
-    packets: 58,
-    nodeSize: [3.5, 8.5],
-    packetSize: [5.5, 9.5],
+    nodes: 80,
+    links: 120,
+    packets: 60,
+    nodeSize: [4.5, 9.5],
+    packetSize: [6.5, 10.5],
     dpr: 1.65,
     fps: 30,
-    edgeBias: 0.72,
-    opacity: { dark: 1.18, light: 0.84 }
+    edgeBias: 0.5,
+    opacity: { dark: 2.5, light: 3.5 }
   },
   compact: {
-    nodes: 38,
-    links: 58,
-    packets: 38,
-    nodeSize: [3.25, 7.5],
-    packetSize: [5, 8.25],
-    dpr: 1.45,
-    fps: 30,
-    edgeBias: 0.78,
-    opacity: { dark: 1.04, light: 0.74 }
+  nodes: 80,
+  links: 120,
+  packets: 60,
+  nodeSize: [4.0, 8.5],
+  packetSize: [6.0, 9.5],
+  dpr: 1.45,
+  fps: 30,
+  edgeBias: 0.50,
+    opacity: { dark: 2.5, light: 3.5 }
   },
   mobile: {
-    nodes: 24,
-    links: 34,
-    packets: 20,
-    nodeSize: [3, 6.5],
-    packetSize: [4.5, 7.25],
-    dpr: 1.25,
-    fps: 24,
-    edgeBias: 0.86,
-    opacity: { dark: 0.9, light: 0.62 }
+  nodes: 40,
+  links: 80,
+  packets: 30,
+  nodeSize: [3.5, 7.5],
+  packetSize: [5.5, 8.5],
+  dpr: 1.25,
+  fps: 24,
+  edgeBias: 0.90,
+    opacity: { dark: 2.5, light: 3.5 }
   }
 };
 
@@ -586,7 +586,7 @@ function mountSignalMeshBackground(canvas, profileName = getProfileName()) {
   const syncTheme = () => {
     const isDark = document.body.classList.contains("dark-theme");
     const opacity = isDark ? config.opacity.dark : config.opacity.light;
-    const blending = isDark ? THREE.AdditiveBlending : THREE.NormalBlending;
+    const blending = THREE.AdditiveBlending;
 
     uniforms.uPrimaryColor.value.copy(readCssColor("--accent-fill", "#0ea5e9"));
     uniforms.uSecondaryColor.value.copy(readCssColor("--secondary-fill", "#a855f7"));
