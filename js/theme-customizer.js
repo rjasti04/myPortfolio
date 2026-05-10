@@ -58,7 +58,8 @@ export function generateVariants(primaryHex, isDark) {
   const onColor = contrastWithWhite > contrastWithBlack ? '#ffffff' : '#000000';
   
   let fillL = l;
-  let textL = isDark ? Math.min(l + 20, 90) : Math.max(l - 20, 10);
+  // Use a gentler lightness boost in dark mode to retain color vibrancy and avoid making text/button backgrounds pale.
+  let textL = isDark ? Math.min(l + 5, 80) : Math.max(l - 15, 10);
   let hoverL = isDark ? Math.max(l - 10, 10) : Math.max(l - 10, 10);
   
   return {
@@ -451,6 +452,27 @@ export function initThemeCustomizer() {
   window.addEventListener('resize', () => {
     if (!activeColorKey || colorPopover?.hidden) return;
     positionColorPopover(colorControls[activeColorKey]);
+  });
+
+  const themePresets = {
+    matrix: { primary: '#00FF41', secondary: '#008F11', accent: '#03A062' },
+    solarized: { primary: '#268BD2', secondary: '#859900', accent: '#B58900' },
+    dracula: { primary: '#BD93F9', secondary: '#FF79C6', accent: '#50FA7B' }
+  };
+
+  const presetButtons = customizerDropdown.querySelectorAll('.preset-btn');
+  presetButtons.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const presetKey = btn.dataset.preset;
+      const colors = themePresets[presetKey];
+      if (colors) {
+        setColorValue('primary', colors.primary, { preview: false, syncPopover: false });
+        setColorValue('secondary', colors.secondary, { preview: false, syncPopover: false });
+        setColorValue('accent', colors.accent, { preview: true, syncPopover: false });
+        closeColorPopover();
+      }
+    });
   });
 
   applyBtn?.addEventListener('click', () => {

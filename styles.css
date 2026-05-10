@@ -112,14 +112,14 @@ body.dark-theme {
   --card-bg: var(--surface);
   --skill-bg: hsl(210, 20%, 14%, 0.72);
   --select-bg: #0f1419;
-  /* Vibrant dark theme accent colors */
-  --accent-fill: hsl(200, 98%, 58%);
-  --accent-text: hsl(200, 98%, 65%);
-  --accent-hover: hsl(200, 98%, 52%);
-  --accent-soft: hsl(200, 98%, 60%, 0.18);
-  --accent-mild: hsl(200, 98%, 60%, 0.58);
-  --secondary-text: hsl(280, 85%, 68%);
-  --data-text: hsl(160, 84%, 52%);
+  /* Vibrant dark theme accent colors - adjusted for vibrancy and button contrast */
+  --accent-fill: hsl(200, 98%, 50%);
+  --accent-text: hsl(200, 98%, 48%);
+  --accent-hover: hsl(200, 98%, 42%);
+  --accent-soft: hsl(200, 98%, 50%, 0.18);
+  --accent-mild: hsl(200, 98%, 50%, 0.58);
+  --secondary-text: hsl(280, 85%, 58%);
+  --data-text: hsl(160, 84%, 46%);
   --color-success: #34d399;
   --color-warning: #fbbf24;
   --color-error: #fb7185;
@@ -513,6 +513,51 @@ nav a:focus-visible,
   margin-bottom: 24px;
 }
 
+.customizer-presets {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customizer-presets-label {
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.preset-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.preset-btn {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--skill-bg);
+  color: var(--text);
+  font-size: var(--text-body-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+}
+
+.preset-btn:hover {
+  border-color: var(--accent-fill);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+.preset-btn:focus-visible {
+  outline: 3px solid var(--accent-fill);
+  outline-offset: 3px;
+}
+
 .customizer-form {
   display: grid;
   gap: 12px;
@@ -866,7 +911,7 @@ main {
   align-items: center;
   justify-content: center;
   font-size: 22px;
-  background: var(--accent-text);
+  background: var(--accent-fill);
   color: #fff !important;
   border: none;
   box-shadow: 0 4px 14px var(--accent-soft);
@@ -2354,7 +2399,7 @@ body.dark-theme #resume .item {
   border-radius: 999px;
   padding: 10px 10px 10px 32px;
   gap: 16px;
-  background: var(--accent-text);
+  background: var(--accent-fill);
   border: none;
   box-shadow: 0 4px 14px var(--accent-soft);
   position: relative;
@@ -4040,7 +4085,7 @@ section {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: var(--accent-text);
+  background: var(--accent-fill);
   color: #fff !important;
   border: none;
   font-size: var(--text-h3);

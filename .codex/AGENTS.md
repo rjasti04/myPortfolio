@@ -50,7 +50,7 @@ The plan must include:
 - **Files likely affected**
 - **Logic or behavior to change**
 - **Tests or validation to run**
-- **Potential impact on data pipelines, AWS resources, security, or runtime behavior**
+- **Potential impact on UI performance, API stability, or security**
 - **Open questions**, only if they are blocking
 
 Do not wait for approval for read-only actions such as:
@@ -64,9 +64,8 @@ Do not wait for approval for read-only actions such as:
 Always request approval before:
 - Writing or deleting files
 - Changing dependencies
-- Running migrations
-- Modifying AWS/IAM/VPC/Lambda/RDS/Redshift/S3-related configuration
-- Running commands that mutate local state, cloud resources, databases, or production-like data
+- Modifying database schemas (e.g., in PostgreSQL)
+- Running commands that mutate local state or the production deployment
 
 ---
 
@@ -74,11 +73,10 @@ Always request approval before:
 
 Ask a question before proceeding when the task depends on unknowns such as:
 
-- Target environment: local, dev, staging, production
-- AWS account, region, VPC, IAM role, security group, subnet, or Lambda timeout
-- Database engine, schema, table ownership, migration policy, or retention rules
-- Data sensitivity, PII/PHI/financial data, encryption, or access-control requirements
-- Library/runtime constraints such as Python, Node, package versions, Lambda layers, or deployment tooling
+- UI/UX expectations for Vanilla JS components or Three.js effects
+- API endpoint structure or request/response payloads in FastAPI
+- Expected state of the PostgreSQL database tables
+- Specific environment variables required for Bedrock or PostgreSQL
 
 If there are multiple valid approaches, present the meaningful options with tradeoffs and ask for preference.
 
@@ -118,37 +116,19 @@ Before finalizing:
 
 ---
 
-## 5. AWS and Data Safety
+## 5. Application Safety
 
-Treat AWS, database, and pipeline changes as high-risk by default.
+Treat database and backend API changes as high-risk by default.
 
-Before recommending or implementing changes involving AWS or data infrastructure, verify or ask about:
+Before recommending or implementing changes involving the API or database, verify or ask about:
 
-- Environment and account
-- IAM permissions
-- VPC/subnet/security group requirements
-- Secrets source
-- Timeout and memory constraints
-- Retry behavior
-- Idempotency
-- Logging and observability
-- Cost impact
-- Backfill or replay behavior
-- Failure handling
-- Data retention and privacy constraints
+- Proper raw SQL syntax for `asyncpg` (avoid ORMs)
+- Expected data validation via Pydantic
+- Chat streaming integrity via Amazon Bedrock
+- Cost impact of Bedrock model usage
+- Browser compatibility and responsive design constraints for CSS/JS
 
-Never suggest destructive data operations without explicitly calling out the risk and requiring approval.
-
-For pipelines, always consider:
-
-- Schema compatibility
-- Downstream consumers
-- Incremental vs full refresh behavior
-- Duplicate handling
-- Late-arriving data
-- Partitioning
-- Error recovery
-- Monitoring and alerts
+Never suggest destructive data operations (like dropping PostgreSQL tables) without explicitly calling out the risk and requiring approval.
 
 ---
 

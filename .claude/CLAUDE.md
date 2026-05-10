@@ -29,7 +29,7 @@ Before writing or modifying any code, output a short implementation plan:
 
 - **Files affected**: list paths
 - **Logic summary**: what changes and why
-- **Risk flags**: any impact on pipelines, replication, tempdb, IAM, or S3
+- **Risk flags**: any impact on UI state, API performance, or database schemas
 
 **Wait for explicit approval before proceeding.** Approval = "proceed", "go", "looks good", etc.
 
@@ -39,9 +39,9 @@ Before writing or modifying any code, output a short implementation plan:
 
 If a request is ambiguous, stop and ask — do not guess. Specifically flag ambiguity around:
 
-- Schema names, DB context, or table ownership
-- IAM roles, VPC routing, or S3 bucket permissions
-- Whether a change touches CDC/replication (HVR log readers are sensitive)
+- Expected UI/UX behavior or component structure
+- Database schema changes in PostgreSQL
+- FastAPI endpoint structures and Bedrock integration
 
 If multiple valid approaches exist, present them with a brief tradeoff summary and ask
 for preference before writing code.

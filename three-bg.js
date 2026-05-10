@@ -9,6 +9,61 @@ let destroyBackground = null;
 let backgroundProfile = null;
 let isWebGLAvailable = null;
 let syncThreeBackgroundTimeout = null;
+let surgeIntensity = 0;
+
+window.triggerWebGlSurge = () => {
+  surgeIntensity = 1.0;
+};
+
+const NOISE_CHUNK = `
+vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+float snoise(vec3 v){
+  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+  vec3 i  = floor(v + dot(v, C.yyy) );
+  vec3 x0 = v - i + dot(i, C.xxx) ;
+  vec3 g = step(x0.yzx, x0.xyz);
+  vec3 l = 1.0 - g;
+  vec3 i1 = min( g.xyz, l.zxy );
+  vec3 i2 = max( g.xyz, l.zxy );
+  vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+  vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+  vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
+  i = mod(i, 289.0 );
+  vec4 p = permute( permute( permute(
+             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+           + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
+           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+  float n_ = 1.0/7.0;
+  vec3  ns = n_ * D.wyz - D.xzx;
+  vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_ );
+  vec4 x = x_ *ns.x + ns.yyyy;
+  vec4 y = y_ *ns.x + ns.yyyy;
+  vec4 h = 1.0 - abs(x) - abs(y);
+  vec4 b0 = vec4( x.xy, y.xy );
+  vec4 b1 = vec4( x.zw, y.zw );
+  vec4 s0 = floor(b0)*2.0 + 1.0;
+  vec4 s1 = floor(b1)*2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+  vec3 p0 = vec3(a0.xy,h.x);
+  vec3 p1 = vec3(a0.zw,h.y);
+  vec3 p2 = vec3(a1.xy,h.z);
+  vec3 p3 = vec3(a1.zw,h.w);
+  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+  p0 *= norm.x;
+  p1 *= norm.y;
+  p2 *= norm.z;
+  p3 *= norm.w;
+  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
+}
+`;
 
 const PROFILE_CONFIG = {
   desktop: {
@@ -304,13 +359,34 @@ function createLineMesh(nodes, links, uniforms) {
       attribute float aLineAlpha;
       attribute float aColorMix;
 
+      uniform float uTime;
+      uniform vec2 uPointer;
+      uniform float uIntensity;
+
       varying float vLineAlpha;
       varying float vColorMix;
+      varying float vIntensity;
+
+      ${NOISE_CHUNK}
 
       void main() {
         vLineAlpha = aLineAlpha;
         vColorMix = aColorMix;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vIntensity = uIntensity;
+        
+        vec3 pos = position;
+        
+        // Noise
+        pos.z += snoise(vec3(pos.xy * 2.0, uTime * 0.2)) * 0.15;
+        pos.x += snoise(vec3(pos.y, pos.z, uTime * 0.1)) * 0.08;
+        pos.y += snoise(vec3(pos.x, pos.z, uTime * 0.1)) * 0.08;
+        
+        // Pointer repulsion
+        float dist = distance(pos.xy, uPointer);
+        float effect = smoothstep(0.5, 0.0, dist);
+        pos.xy += normalize(pos.xy - uPointer) * effect * 0.15;
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
       }
     `,
     fragmentShader: `
@@ -323,11 +399,16 @@ function createLineMesh(nodes, links, uniforms) {
 
       varying float vLineAlpha;
       varying float vColorMix;
+      varying float vIntensity;
 
       void main() {
         vec3 base = mix(uPrimaryColor, uSecondaryColor, smoothstep(0.15, 0.85, vColorMix));
         vec3 color = mix(base, uDataColor, smoothstep(0.55, 1.0, vColorMix) * 0.55);
-        gl_FragColor = vec4(color, vLineAlpha * uOpacity);
+        
+        color += vec3(vIntensity * 0.3); // Bloom glow
+        float alpha = vLineAlpha * uOpacity * (1.0 + vIntensity * 1.5);
+        
+        gl_FragColor = vec4(color, alpha);
       }
     `,
     transparent: true,
@@ -369,6 +450,8 @@ function createNodeMesh(nodes, uniforms) {
     vertexShader: `
       uniform float uTime;
       uniform float uPixelRatio;
+      uniform vec2 uPointer;
+      uniform float uIntensity;
 
       attribute float aSize;
       attribute float aSeed;
@@ -376,12 +459,32 @@ function createNodeMesh(nodes, uniforms) {
 
       varying float vPulse;
       varying float vColorMix;
+      varying float vIntensity;
+
+      ${NOISE_CHUNK}
 
       void main() {
         vColorMix = aColorMix;
+        vIntensity = uIntensity;
+        
+        vec3 pos = position;
+        
+        // Organic noise movement
+        float noise = snoise(vec3(pos.xy * 2.0, uTime * 0.2 + aSeed));
+        pos.z += noise * 0.15;
+        pos.x += snoise(vec3(pos.y, pos.z, uTime * 0.1)) * 0.08;
+        pos.y += snoise(vec3(pos.x, pos.z, uTime * 0.1)) * 0.08;
+
+        // Pointer repulsion & scaling
+        float dist = distance(pos.xy, uPointer);
+        float effect = smoothstep(0.5, 0.0, dist);
+        pos.xy += normalize(pos.xy - uPointer) * effect * 0.15;
+        
+        float scaleMultiplier = 1.0 + (effect * 1.5) + (uIntensity * 2.0);
+
         vPulse = 0.74 + 0.26 * sin(uTime * 0.72 + aSeed * 6.283185);
-        gl_PointSize = aSize * uPixelRatio * vPulse;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = aSize * uPixelRatio * vPulse * scaleMultiplier;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
       }
     `,
     fragmentShader: `
@@ -394,15 +497,20 @@ function createNodeMesh(nodes, uniforms) {
 
       varying float vPulse;
       varying float vColorMix;
+      varying float vIntensity;
 
       void main() {
         vec2 point = gl_PointCoord.xy - vec2(0.5);
         float dist = length(point);
         float halo = smoothstep(0.5, 0.12, dist) * 0.58;
         float core = smoothstep(0.24, 0.0, dist);
+        
         vec3 base = mix(uPrimaryColor, uSecondaryColor, smoothstep(0.1, 0.9, vColorMix));
         vec3 color = mix(base, uDataColor, smoothstep(0.62, 1.0, vColorMix) * 0.48);
-        float alpha = (halo + core) * uOpacity * (0.76 + 0.24 * vPulse);
+        
+        // Pseudo-bloom
+        color += vec3(vIntensity * 0.4);
+        float alpha = (halo + core) * uOpacity * (0.76 + 0.24 * vPulse) * (1.0 + vIntensity * 1.5);
 
         if (alpha < 0.01) discard;
 
@@ -454,6 +562,9 @@ function createPackets(nodes, links, count, config, aspect, profileName, uniform
     },
     vertexShader: `
       uniform float uPixelRatio;
+      uniform float uTime;
+      uniform vec2 uPointer;
+      uniform float uIntensity;
 
       attribute float aSize;
       attribute float aPacketAlpha;
@@ -461,12 +572,31 @@ function createPackets(nodes, links, count, config, aspect, profileName, uniform
 
       varying float vPacketAlpha;
       varying float vColorMix;
+      varying float vIntensity;
+
+      ${NOISE_CHUNK}
 
       void main() {
         vPacketAlpha = aPacketAlpha;
         vColorMix = aColorMix;
-        gl_PointSize = aSize * uPixelRatio;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vIntensity = uIntensity;
+        
+        vec3 pos = position;
+        
+        // Noise displacement
+        pos.z += snoise(vec3(pos.xy * 2.0, uTime * 0.2)) * 0.15;
+        pos.x += snoise(vec3(pos.y, pos.z, uTime * 0.1)) * 0.08;
+        pos.y += snoise(vec3(pos.x, pos.z, uTime * 0.1)) * 0.08;
+        
+        // Pointer repulsion
+        float dist = distance(pos.xy, uPointer);
+        float effect = smoothstep(0.5, 0.0, dist);
+        pos.xy += normalize(pos.xy - uPointer) * effect * 0.15;
+
+        float scaleMultiplier = 1.0 + (effect * 1.5) + (uIntensity * 2.5);
+        
+        gl_PointSize = aSize * uPixelRatio * scaleMultiplier;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
       }
     `,
     fragmentShader: `
@@ -479,19 +609,32 @@ function createPackets(nodes, links, count, config, aspect, profileName, uniform
 
       varying float vPacketAlpha;
       varying float vColorMix;
+      varying float vIntensity;
 
       void main() {
         vec2 point = gl_PointCoord.xy - vec2(0.5);
         float dist = length(point);
         float body = smoothstep(0.5, 0.08, dist);
         float core = smoothstep(0.18, 0.0, dist);
+        
         vec3 base = mix(uPrimaryColor, uSecondaryColor, smoothstep(0.12, 0.9, vColorMix));
         vec3 color = mix(base, uDataColor, smoothstep(0.42, 1.0, vColorMix) * 0.72);
-        float alpha = body * vPacketAlpha * uOpacity;
+        
+        color += vec3(vIntensity * 0.5);
+        float alpha = body * vPacketAlpha * uOpacity * (1.0 + vIntensity * 2.0);
 
         if (alpha < 0.01) discard;
 
-        gl_FragColor = vec4(color + core * 0.26, alpha);
+        // Chromatic shift
+        vec3 finalColor = color + core * 0.26;
+        if (vIntensity > 0.05) {
+            float r = smoothstep(0.5, 0.0, distance(gl_PointCoord.xy, vec2(0.5 + vIntensity * 0.1, 0.5)));
+            float b = smoothstep(0.5, 0.0, distance(gl_PointCoord.xy, vec2(0.5 - vIntensity * 0.1, 0.5)));
+            finalColor.r += r * vIntensity * 0.8;
+            finalColor.b += b * vIntensity * 0.8;
+        }
+
+        gl_FragColor = vec4(finalColor, alpha);
       }
     `,
     transparent: true,
@@ -567,7 +710,9 @@ function mountSignalMeshBackground(canvas, profileName = getProfileName()) {
     uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, config.dpr) },
     uPrimaryColor: { value: new THREE.Color("#0ea5e9") },
     uSecondaryColor: { value: new THREE.Color("#a855f7") },
-    uDataColor: { value: new THREE.Color("#10b981") }
+    uDataColor: { value: new THREE.Color("#10b981") },
+    uPointer: { value: new THREE.Vector2(999.0, 999.0) },
+    uIntensity: { value: 0.0 }
   };
 
   const nodes = createNodes(config.nodes, aspect, profileName, config, rand);
@@ -644,44 +789,79 @@ function mountSignalMeshBackground(canvas, profileName = getProfileName()) {
   const supportsPointerParallax = profileName !== "mobile" &&
     window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-  let pointerX = 0;
-  let pointerY = 0;
-  let targetPointerX = 0;
-  let targetPointerY = 0;
+  let pointerX = 999;
+  let pointerY = 999;
+  let targetPointerX = 999;
+  let targetPointerY = 999;
 
   const handlePointerMove = (event) => {
-    targetPointerX = (event.clientX / window.innerWidth) * 2 - 1;
-    targetPointerY = -((event.clientY / window.innerHeight) * 2 - 1);
+    const nx = (event.clientX / window.innerWidth) * 2 - 1;
+    const ny = -((event.clientY / window.innerHeight) * 2 - 1);
+    
+    if (targetPointerX === 999) {
+      pointerX = nx;
+      pointerY = ny;
+    }
+    
+    targetPointerX = nx;
+    targetPointerY = ny;
+  };
+  
+  const handlePointerLeave = () => {
+    targetPointerX = 999;
+    targetPointerY = 999;
   };
 
   if (supportsPointerParallax) {
     window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    document.body.addEventListener("pointerleave", handlePointerLeave, { passive: true });
   }
 
   const clock = new THREE.Clock();
-  const frameInterval = 1000 / config.fps;
   let animationFrame = 0;
-  let lastFrameTime = 0;
+  let lastFrameTime = performance.now();
+  let packetTime = 0;
 
   const render = (currentTime) => {
     animationFrame = window.requestAnimationFrame(render);
 
-    if (document.hidden) return;
+    if (document.hidden) {
+      lastFrameTime = currentTime;
+      return;
+    }
 
-    const deltaTime = currentTime - lastFrameTime;
-    if (deltaTime < frameInterval) return;
-    lastFrameTime = currentTime - (deltaTime % frameInterval);
+    let delta = (currentTime - lastFrameTime) * 0.001;
+    lastFrameTime = currentTime;
+    
+    // Prevent massive jumps if inactive
+    if (delta > 0.1) delta = 0.016;
 
     const elapsed = clock.getElapsedTime();
     uniforms.uTime.value = elapsed;
-    packets.update(elapsed);
+    
+    // Smooth surge intensity
+    uniforms.uIntensity.value += (surgeIntensity - uniforms.uIntensity.value) * 0.1;
+    surgeIntensity *= 0.95;
+
+    // Dynamic packet speed based on intensity
+    const surgeMultiplier = 1.0 + uniforms.uIntensity.value * 3.0;
+    packetTime += delta * surgeMultiplier;
+    
+    packets.update(packetTime);
 
     if (supportsPointerParallax) {
-      pointerX += (targetPointerX - pointerX) * 0.035;
-      pointerY += (targetPointerY - pointerY) * 0.035;
-      scene.position.x = pointerX * aspect * 0.018;
-      scene.position.y = pointerY * 0.018;
-      scene.rotation.z = pointerX * 0.006;
+      pointerX += (targetPointerX - pointerX) * 0.1;
+      pointerY += (targetPointerY - pointerY) * 0.1;
+      
+      uniforms.uPointer.value.x = pointerX === 999 ? 999 : pointerX * aspect;
+      uniforms.uPointer.value.y = pointerY === 999 ? 999 : pointerY;
+      
+      if (pointerX !== 999) {
+        scene.position.x = pointerX * aspect * 0.018;
+        scene.position.y = pointerY * 0.018;
+        scene.rotation.z = pointerX * 0.006;
+        scene.rotation.x = -pointerY * 0.006;
+      }
     }
 
     renderer.render(scene, camera);
@@ -705,6 +885,7 @@ function mountSignalMeshBackground(canvas, profileName = getProfileName()) {
     window.cancelAnimationFrame(animationFrame);
     window.removeEventListener("resize", handleResize);
     window.removeEventListener("pointermove", handlePointerMove);
+    document.body.removeEventListener("pointerleave", handlePointerLeave);
     canvas.removeEventListener("webglcontextlost", handleContextLost);
     canvas.removeEventListener("webglcontextrestored", handleContextRestored);
     themeObserver.disconnect();
