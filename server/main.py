@@ -586,8 +586,12 @@ async def get_session_events(
     session_id: UUID,
     request: Request,
     limit: int = Query(default=100, ge=1, le=500),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=1_000_000),
 ):
+    # Explicit integer casting for defense-in-depth
+    limit = int(limit)
+    offset = int(offset)
+    
     async with request.app.state.pool.acquire() as conn:
         rows = await conn.fetch(
             """

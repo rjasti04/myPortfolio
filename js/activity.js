@@ -50,6 +50,7 @@ function setCopyButtonState(button, state) {
 
 let currentOffset = 0;
 let activityRefreshTimer = null;
+let resizeController = null;
 
 export async function loadActivity(offset = currentOffset) {
   // Debounce rapid refresh calls
@@ -372,8 +373,14 @@ export function initActivity() {
   }
 
   // Handle responsive layout changes
+  if (resizeController) {
+    resizeController.abort();
+  }
+  
+  resizeController = new AbortController();
   let resizeTimeout;
   let lastWidth = window.innerWidth;
+  
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
@@ -386,5 +393,5 @@ export function initActivity() {
       
       lastWidth = newWidth;
     }, RESIZE_DEBOUNCE_MS);
-  });
+  }, { signal: resizeController.signal, passive: true });
 }

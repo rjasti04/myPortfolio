@@ -22,7 +22,13 @@ function renderBotHTML(text) {
   if (typeof marked === "undefined") {
     return escapeHTML(text).replace(/\n/g, "<br>");
   }
-  return sanitizeHTML(marked.parse(text));
+  
+  if (typeof DOMPurify === "undefined") {
+    console.error("DOMPurify unavailable - cannot render markdown safely");
+    return escapeHTML(text).replace(/\n/g, "<br>");
+  }
+  
+  return DOMPurify.sanitize(marked.parse(text));
 }
 
 if (typeof marked !== 'undefined') {
@@ -72,14 +78,33 @@ export function initChat() {
   const aiSidebarHistory = document.getElementById('ai-sidebar-history');
 
   // Voice input support for mobile
+  let recognitionInstance = null;
+  
+  const cleanupVoiceInput = () => {
+    if (recognitionInstance) {
+      try {
+        recognitionInstance.stop();
+      } catch (e) {
+        // Ignore if already stopped
+      }
+      recognitionInstance.onresult = null;
+      recognitionInstance.onend = null;
+      recognitionInstance.onerror = null;
+      recognitionInstance = null;
+    }
+  };
+  
   const initVoiceInput = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
     
+    // Clean up any existing instance
+    cleanupVoiceInput();
+    
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
+    recognitionInstance = new SpeechRecognition();
+    recognitionInstance.continuous = false;
+    recognitionInstance.interimResults = false;
+    recognitionInstance.lang = 'en-US';
     
     const addVoiceButton = (input, form) => {
       if (!input || !form) return;
@@ -103,30 +128,30 @@ export function initChat() {
       
       voiceBtn.addEventListener('click', () => {
         if (isListening) {
-          recognition.stop();
+          recognitionInstance.stop();
           return;
         }
         
-        recognition.start();
+        recognitionInstance.start();
         isListening = true;
         voiceBtn.innerHTML = '<i class="fas fa-stop-circle"></i>';
         voiceBtn.style.color = 'var(--color-error)';
       });
       
-      recognition.onresult = (event) => {
+      recognitionInstance.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         input.value = transcript;
         input.dispatchEvent(new Event('input'));
         input.focus();
       };
       
-      recognition.onend = () => {
+      recognitionInstance.onend = () => {
         isListening = false;
         voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
         voiceBtn.style.color = '';
       };
       
-      recognition.onerror = () => {
+      recognitionInstance.onerror = () => {
         isListening = false;
         voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
         voiceBtn.style.color = '';
@@ -156,16 +181,49 @@ export function initChat() {
     const tokens = estimateTokens(text);
     aiTokenCounter.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
     
-    // Visual warning when approaching limits
-    if (tokens > TOKEN_WARNING_THRESHOLD) {
-      aiTokenCounter.style.color = 'var(--color-warning)';
-      aiTokenCounter.style.fontWeight = '700';
-    } else if (tokens > TOKEN_ERROR_THRESHOLD) {
+    // Disable send button if over limit
+    const isOverLimit = tokens > TOKEN_LIMIT;
+    
+    if (aiPageSendBtn) {
+      aiPageSendBtn.disabled = isOverLimit || isGenerating;
+      aiPageSendBtn.title = isOverLimit 
+        ? `Message too long (${tokens}/${TOKEN_LIMIT} tokens)` 
+        : 'Send message';
+    }
+    
+    // Visual feedback
+    if (isOverLimit) {
       aiTokenCounter.style.color = 'var(--color-error)';
       aiTokenCounter.style.fontWeight = '800';
+      aiPageInput.setAttribute('aria-invalid', 'true');
+      aiPageInput.setAttribute('aria-describedby', 'token-error');
+      
+      // Add error message
+      let errorMsg = document.getElementById('token-error');
+      if (!errorMsg) {
+        errorMsg = document.createElement('div');
+        errorMsg.id = 'token-error';
+        errorMsg.className = 'form-error-message';
+        errorMsg.setAttribute('role', 'alert');
+        errorMsg.style.cssText = 'color: var(--color-error); font-size: 12px; margin-top: 4px;';
+        aiPageInput.parentElement.appendChild(errorMsg);
+      }
+      errorMsg.textContent = `Message exceeds ${TOKEN_LIMIT} token limit. Please shorten your message.`;
     } else {
-      aiTokenCounter.style.color = '';
-      aiTokenCounter.style.fontWeight = '';
+      aiPageInput.removeAttribute('aria-invalid');
+      aiPageInput.removeAttribute('aria-describedby');
+      document.getElementById('token-error')?.remove();
+      
+      if (tokens > TOKEN_WARNING_THRESHOLD) {
+        aiTokenCounter.style.color = 'var(--color-warning)';
+        aiTokenCounter.style.fontWeight = '700';
+      } else if (tokens > TOKEN_ERROR_THRESHOLD) {
+        aiTokenCounter.style.color = 'var(--color-error)';
+        aiTokenCounter.style.fontWeight = '800';
+      } else {
+        aiTokenCounter.style.color = '';
+        aiTokenCounter.style.fontWeight = '';
+      }
     }
   }
   const newChatBtn = document.getElementById('new-chat-btn');
@@ -377,12 +435,18 @@ export function initChat() {
     const htmlContent = isBot ? renderBotHTML(text) : text;
     const renderWidget = target === 'all' || target === 'widget';
     const renderAiPage = target === 'all' || target === 'ai';
+    const canRenderHTML = typeof DOMPurify !== "undefined" && typeof marked !== "undefined";
 
     if (renderWidget && messagesContainer) {
       const msgEl = document.createElement('div');
       msgEl.className = `chat-message ${sender}`;
-      if (isBot) msgEl.innerHTML = htmlContent;
-      else msgEl.textContent = text;
+      if (isBot && canRenderHTML) {
+        msgEl.innerHTML = htmlContent;
+      } else if (isBot) {
+        msgEl.textContent = text;
+      } else {
+        msgEl.textContent = text;
+      }
       if (showCopy) msgEl.appendChild(createMessageActions(text));
       messagesContainer.appendChild(msgEl);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -394,8 +458,13 @@ export function initChat() {
       }
       const msgEl2 = document.createElement('div');
       msgEl2.className = `chat-message ${sender}`;
-      if (isBot) msgEl2.innerHTML = htmlContent;
-      else msgEl2.textContent = text;
+      if (isBot && canRenderHTML) {
+        msgEl2.innerHTML = htmlContent;
+      } else if (isBot) {
+        msgEl2.textContent = text;
+      } else {
+        msgEl2.textContent = text;
+      }
       if (showCopy) msgEl2.appendChild(createMessageActions(text));
       aiPageMessages.appendChild(msgEl2);
       aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
@@ -666,14 +735,30 @@ export function initChat() {
         }
       };
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        botFullText += decoder.decode(value, { stream: true });
-        // Throttle markdown parsing to reduce CPU usage during streaming
-        if (!parseTimer) {
-          parseTimer = setTimeout(flushParse, MARKDOWN_PARSE_THROTTLE_MS);
+          botFullText += decoder.decode(value, { stream: true });
+          // Throttle markdown parsing to reduce CPU usage during streaming
+          if (!parseTimer) {
+            parseTimer = setTimeout(flushParse, MARKDOWN_PARSE_THROTTLE_MS);
+          }
+        }
+      } catch (streamError) {
+        console.error('Stream reading error:', streamError);
+        
+        // Gracefully handle partial response
+        if (botFullText.length > 0) {
+          if (parseTimer) {
+            clearTimeout(parseTimer);
+            parseTimer = null;
+          }
+          flushParse();
+          botFullText += "\n\n[Connection interrupted]";
+        } else {
+          throw streamError;
         }
       }
 

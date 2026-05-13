@@ -1,3 +1,15 @@
+// Add global unhandled rejection handler
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+  
+  // Show user-friendly message for critical failures
+  if (event.reason?.message?.includes('fetch') || event.reason?.message?.includes('network')) {
+    showToast('Network error. Please check your connection.', 'error');
+  }
+  
+  event.preventDefault();
+});
+
 import { initNavigation } from "./navigation.js";
 import { initTheme } from "./theme.js";
 import { initProjects } from "./projects.js";
@@ -83,12 +95,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   chatToggle?.addEventListener('click', loadChat, { once: true });
 
+  const chatClickController = new AbortController();
   document.addEventListener('click', (event) => {
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest('[data-target="ai"], a[href="#ai"]')) {
       loadChat();
     }
-  }, { capture: true });
+  }, { capture: true, signal: chatClickController.signal });
 
   const ensureChatForActiveAiSection = () => {
     if (aiSection?.classList.contains('active') || window.location.hash === '#ai') {
@@ -115,6 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!prefersReducedMotion && hasGoodHardware && hasEnoughMemory) {
       import("../three-bg.js").catch(err => {
         console.warn('Three.js background failed to load:', err);
+        // Silently degrade - background is non-critical
       });
     }
   };

@@ -37,16 +37,16 @@ const PROFILE_CONFIG = {
     maxDistance: 195,
     maxLinks: 5,
     radius: [1.3, 3.2],
-    speed: [3.8, 10.5],
+    speed: [2.4, 6.8],
     dpr: 1.75,
-    lineAlpha: 0.68,
+    lineAlpha: 0.58,
     repelRadius: 155,
-    repelStrength: 280,
-    homeStrength: 0.08,
-    glowIntensity: 1.2,
-    connectionFalloff: 1.4,
+    repelStrength: 220,
+    homeStrength: 0.06,
+    glowIntensity: 1.0,
+    connectionFalloff: 1.5,
     glassFacetCount: 24,
-    glassFacetAlpha: 0.19,
+    glassFacetAlpha: 0.16,
     glassFacetAreaFactor: 0.34
   },
   compact: {
@@ -57,16 +57,16 @@ const PROFILE_CONFIG = {
     maxDistance: 165,
     maxLinks: 4,
     radius: [1.1, 2.5],
-    speed: [3.5, 9.2],
+    speed: [2.1, 5.8],
     dpr: 1.5,
-    lineAlpha: 0.58,
+    lineAlpha: 0.50,
     repelRadius: 135,
-    repelStrength: 240,
-    homeStrength: 0.09,
-    glowIntensity: 1.1,
-    connectionFalloff: 1.35,
+    repelStrength: 200,
+    homeStrength: 0.07,
+    glowIntensity: 0.95,
+    connectionFalloff: 1.45,
     glassFacetCount: 16,
-    glassFacetAlpha: 0.16,
+    glassFacetAlpha: 0.14,
     glassFacetAreaFactor: 0.3
   },
   mobile: {
@@ -77,16 +77,16 @@ const PROFILE_CONFIG = {
     maxDistance: 120,
     maxLinks: 3,
     radius: [1.0, 2.2],
-    speed: [2.8, 7.5],
+    speed: [1.6, 4.8],
     dpr: 1.3,
-    lineAlpha: 0.48,
+    lineAlpha: 0.42,
     repelRadius: 0,
     repelStrength: 0,
-    homeStrength: 0.12,
-    glowIntensity: 1.0,
-    connectionFalloff: 1.3,
+    homeStrength: 0.09,
+    glowIntensity: 0.9,
+    connectionFalloff: 1.4,
     glassFacetCount: 8,
-    glassFacetAlpha: 0.12,
+    glassFacetAlpha: 0.10,
     glassFacetAreaFactor: 0.26
   }
 };
@@ -299,7 +299,7 @@ function createParticle(width, height, config) {
     radius: randomBetween(config.radius) * (zone === "speck" ? 0.65 : 1),
     alpha: zone === "speck" ? lerp(0.16, 0.38, Math.random()) : lerp(0.52, 0.92, Math.random()),
     phase: Math.random() * TWO_PI,
-    turn: lerp(0.08, 0.28, Math.random()) * (Math.random() > 0.5 ? 1 : -1),
+    turn: lerp(0.04, 0.15, Math.random()) * (Math.random() > 0.5 ? 1 : -1),
     pulseOffset: Math.random() * TWO_PI
   };
 }
@@ -346,7 +346,7 @@ function nudgeAwayFromCenter(particle, delta, width, height) {
 }
 
 function updateParticle(particle, delta, elapsed, width, height, pointer, config, intensity) {
-  const turn = Math.sin(elapsed * particle.turn + particle.phase) * delta * 0.14;
+  const turn = Math.sin(elapsed * particle.turn + particle.phase) * delta * 0.07;
   const cos = Math.cos(turn);
   const sin = Math.sin(turn);
   const vx = particle.vx * cos - particle.vy * sin;
@@ -371,15 +371,15 @@ function updateParticle(particle, delta, elapsed, width, height, pointer, config
 
     if (distanceSquared < radiusSquared) {
       const distance = Math.sqrt(distanceSquared) || 1;
-      const force = (1 - distance / config.repelRadius) ** 2.2;
+      const force = (1 - distance / config.repelRadius) ** 1.8;
       const push = force * config.repelStrength * delta;
 
       particle.x += (dx / distance) * push;
       particle.y += (dy / distance) * push;
       
       // Dampen velocity during repulsion for smoother interaction
-      particle.vx *= 0.95;
-      particle.vy *= 0.95;
+      particle.vx *= 0.92;
+      particle.vy *= 0.92;
     }
   }
 
@@ -420,28 +420,48 @@ function midpointIsTooCentral(a, b, width, height) {
     midY < height * 0.86;
 }
 
+function buildSpatialGrid(particles, cellSize) {
+  const grid = new Map();
+  for (let i = 0; i < particles.length; i += 1) {
+    const cx = Math.floor(particles[i].x / cellSize);
+    const cy = Math.floor(particles[i].y / cellSize);
+    const key = cx * 10007 + cy;
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(i);
+  }
+  return grid;
+}
+
 function collectConnections(particles, config, width, height) {
+  const cellSize = config.maxDistance;
+  const grid = buildSpatialGrid(particles, cellSize);
   const candidates = [];
 
-  for (let i = 0; i < particles.length - 1; i += 1) {
+  for (let i = 0; i < particles.length; i += 1) {
     const a = particles[i];
+    const cx = Math.floor(a.x / cellSize);
+    const cy = Math.floor(a.y / cellSize);
 
-    for (let j = i + 1; j < particles.length; j += 1) {
-      const b = particles[j];
-      const maxDistance = connectionDistanceFor(a, b, config);
-      const dx = a.x - b.x;
-      const dy = a.y - b.y;
-      const distanceSquared = dx * dx + dy * dy;
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dy = -1; dy <= 1; dy += 1) {
+        const nKey = (cx + dx) * 10007 + (cy + dy);
+        const bucket = grid.get(nKey);
+        if (!bucket) continue;
 
-      if (distanceSquared > maxDistance * maxDistance) continue;
-      if (midpointIsTooCentral(a, b, width, height)) continue;
+        for (const j of bucket) {
+          if (j <= i) continue;
+          const b = particles[j];
+          const maxDist = connectionDistanceFor(a, b, config);
+          const ex = a.x - b.x;
+          const ey = a.y - b.y;
+          const d2 = ex * ex + ey * ey;
 
-      candidates.push({
-        from: i,
-        to: j,
-        distance: Math.sqrt(distanceSquared),
-        maxDistance
-      });
+          if (d2 > maxDist * maxDist) continue;
+          if (midpointIsTooCentral(a, b, width, height)) continue;
+
+          candidates.push({ from: i, to: j, distance: Math.sqrt(d2), maxDistance: maxDist });
+        }
+      }
     }
   }
 
@@ -593,34 +613,76 @@ function traceTriangle(ctx, a, b, c) {
   ctx.closePath();
 }
 
-function drawGlassFacets(ctx, particles, connections, config, width, height, intensity, themeColors) {
+function drawGlassFacets(ctx, particles, connections, config, width, height, intensity, themeColors, facetOpacity, delta) {
   const facets = collectGlassFacets(particles, connections, config, width, height);
-  if (!facets.length) return;
+
+  // Temporal smoothing: fade-in rate and fade-out rate per second
+  const fadeIn = 2.2 * delta;   // ~0.037 per frame at 60fps → full in ~27 frames
+  const fadeOut = 1.4 * delta;  // ~0.023 per frame → gone in ~43 frames
+
+  // Mark all existing keys for potential fade-out
+  const activeKeys = new Set();
+
+  // Update opacity for currently visible facets
+  facets.forEach((facet) => {
+    const key = facet.points.slice().sort((a, b) => a - b).join(":");
+    activeKeys.add(key);
+    const prev = facetOpacity.get(key) || 0;
+    facetOpacity.set(key, Math.min(prev + fadeIn, 1));
+  });
+
+  // Fade out facets that are no longer detected
+  for (const [key, opacity] of facetOpacity) {
+    if (!activeKeys.has(key)) {
+      const next = opacity - fadeOut;
+      if (next <= 0.01) {
+        facetOpacity.delete(key);
+      } else {
+        facetOpacity.set(key, next);
+      }
+    }
+  }
+
+  // Build a lookup of current facets by key for drawing fading-out ones
+  const facetByKey = new Map();
+  facets.forEach((facet) => {
+    const key = facet.points.slice().sort((a, b) => a - b).join(":");
+    facetByKey.set(key, facet);
+  });
+
+  if (!facetOpacity.size) return;
 
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
 
-  facets.forEach((facet) => {
+  // Draw all facets that have any opacity (active + fading out)
+  for (const [key, opacity] of facetOpacity) {
+    const facet = facetByKey.get(key);
+    if (!facet) continue; // fading-out facet whose particles moved — skip gracefully
+
     const [first, second, third] = facet.points;
     const a = particles[first];
     const b = particles[second];
     const c = particles[third];
+    if (!a || !b || !c) continue;
+
     const colors = [a, b, c].map((particle) => themeColors[particle.colorKey] || themeColors.accent);
     const cyanGlass = blendColors(themeColors.accent, themeColors.data, 0.22);
     const glassColor = blendColors(averageColors(colors), cyanGlass, 0.72);
     const highlightColor = blendColors(glassColor, themeColors.node, 0.56);
-    const alpha = clamp(
+    const baseAlpha = clamp(
       (config.glassFacetAlpha || 0.14) * (0.65 + facet.strength * 0.9) * (1 + intensity * 0.35),
       0,
       0.32
     );
+    const alpha = baseAlpha * opacity;
 
     const fill = ctx.createLinearGradient(a.x, a.y, c.x, c.y);
     fill.addColorStop(0, colorString(highlightColor, alpha * 0.82));
     fill.addColorStop(0.48, colorString(glassColor, alpha * 0.55));
     fill.addColorStop(1, colorString(cyanGlass, alpha * 0.28));
 
-    ctx.shadowBlur = 16 + intensity * 8;
+    ctx.shadowBlur = (16 + intensity * 8) * opacity;
     ctx.shadowColor = colorString(themeColors.accent, alpha * 1.7);
     ctx.fillStyle = fill;
     traceTriangle(ctx, a, b, c);
@@ -658,100 +720,82 @@ function drawGlassFacets(ctx, particles, connections, config, width, height, int
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
-  });
+  }
 
   ctx.restore();
 }
 
 function drawConnections(ctx, particles, config, width, height, intensity, themeColors, connections) {
   ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
 
   connections.forEach((connection) => {
     const a = particles[connection.from];
     const b = particles[connection.to];
     const alpha = connection.alpha;
-    const glowIntensity = config.glowIntensity || 1.0;
+    const gi = config.glowIntensity || 1.0;
 
     const aColor = themeColors[a.colorKey] || themeColors.accent;
     const bColor = themeColors[b.colorKey] || themeColors.accent;
     const midColor = averageColors([aColor, bColor]);
 
-    // Enhanced gradient with midpoint for smoother blending
-    const glow = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-    glow.addColorStop(0, colorString(aColor, alpha * 0.28 * glowIntensity));
-    glow.addColorStop(0.5, colorString(midColor, alpha * 0.32 * glowIntensity));
-    glow.addColorStop(1, colorString(bColor, alpha * 0.28 * glowIntensity));
-
-    const line = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-    line.addColorStop(0, colorString(aColor, alpha));
-    line.addColorStop(0.5, colorString(midColor, alpha * 1.1));
-    line.addColorStop(1, colorString(bColor, alpha));
-
-    // Outer glow
-    ctx.lineWidth = 5.2 + intensity * 1.2;
-    ctx.strokeStyle = glow;
+    // Soft outer glow — single blended color avoids per-line gradient allocation
+    ctx.lineWidth = 4.0 + intensity * 0.8;
+    ctx.strokeStyle = colorString(midColor, alpha * 0.22 * gi);
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
 
-    // Core line
-    ctx.lineWidth = 1.5 + intensity * 0.3;
+    // Core line with gradient
+    const line = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    line.addColorStop(0, colorString(aColor, alpha * 0.92));
+    line.addColorStop(0.5, colorString(midColor, alpha));
+    line.addColorStop(1, colorString(bColor, alpha * 0.92));
+
+    ctx.lineWidth = 1.2 + intensity * 0.25;
     ctx.strokeStyle = line;
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
-
   });
+
+  ctx.lineCap = "butt";
 }
 
 function drawParticles(ctx, particles, elapsed, intensity, themeColors) {
   ctx.globalCompositeOperation = "lighter";
 
   particles.forEach((particle) => {
-    const pulse = 0.85 + Math.sin(elapsed * 0.72 + particle.pulseOffset) * 0.15;
-    const alpha = clamp(particle.alpha * pulse * (1 + intensity * 0.28), 0, 0.98);
-    const haloRadius = particle.radius * (particle.zone === "speck" ? 4.2 : 5.8);
+    // Layered organic pulse: primary + subtle harmonic for living feel
+    const pulse = 0.88
+      + Math.sin(elapsed * 0.55 + particle.pulseOffset) * 0.10
+      + Math.sin(elapsed * 1.3 + particle.pulseOffset * 1.7) * 0.04;
+    const alpha = clamp(particle.alpha * pulse * (1 + intensity * 0.22), 0, 0.96);
+    const r = particle.radius * (1 + intensity * 0.12);
+    const hr = r * (particle.zone === "speck" ? 4.0 : 5.4);
     const color = themeColors[particle.colorKey] || themeColors.accent;
-    
-    // Multi-layer halo for enhanced glow
-    const halo = ctx.createRadialGradient(
-      particle.x,
-      particle.y,
-      0,
-      particle.x,
-      particle.y,
-      haloRadius
+    const coreRatio = r / hr;
+
+    // Combined halo + core in a single gradient — halves GPU gradient ops
+    const grad = ctx.createRadialGradient(
+      particle.x, particle.y, 0,
+      particle.x, particle.y, hr
     );
 
-    halo.addColorStop(0, colorString(color, alpha * 0.65));
-    halo.addColorStop(0.25, colorString(color, alpha * 0.38));
-    halo.addColorStop(0.5, colorString(color, alpha * 0.18));
-    halo.addColorStop(1, colorString(color, 0));
+    // Bright core center (dimmed 50%)
+    grad.addColorStop(0, colorString(themeColors.node, alpha * 0.48));
+    grad.addColorStop(coreRatio * 0.55, colorString(color, alpha * 0.41));
+    grad.addColorStop(coreRatio, colorString(color, alpha * 0.28));
+    // Halo bloom
+    grad.addColorStop(Math.min(coreRatio * 2.2, 0.48), colorString(color, alpha * 0.16));
+    grad.addColorStop(Math.min(coreRatio * 4.0, 0.72), colorString(color, alpha * 0.06));
+    grad.addColorStop(1, colorString(color, 0));
 
-    ctx.fillStyle = halo;
+    ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(particle.x, particle.y, haloRadius, 0, TWO_PI);
-    ctx.fill();
-
-    // Inner bright core with subtle color tint
-    const coreGradient = ctx.createRadialGradient(
-      particle.x,
-      particle.y,
-      0,
-      particle.x,
-      particle.y,
-      particle.radius * (1 + intensity * 0.15)
-    );
-    
-    coreGradient.addColorStop(0, colorString(themeColors.node, alpha));
-    coreGradient.addColorStop(0.6, colorString(color, alpha * 0.85));
-    coreGradient.addColorStop(1, colorString(color, alpha * 0.4));
-
-    ctx.fillStyle = coreGradient;
-    ctx.beginPath();
-    ctx.arc(particle.x, particle.y, particle.radius * (1 + intensity * 0.15), 0, TWO_PI);
+    ctx.arc(particle.x, particle.y, hr, 0, TWO_PI);
     ctx.fill();
   });
 }
@@ -769,6 +813,11 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
     x: POINTER_AWAY,
     y: POINTER_AWAY
   };
+  const smoothPointer = {
+    active: false,
+    x: POINTER_AWAY,
+    y: POINTER_AWAY
+  };
 
   let width = 0;
   let height = 0;
@@ -776,6 +825,7 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
   let animationFrame = 0;
   let lastFrameTime = performance.now();
   let themeColors = readThemeColors();
+  const facetOpacity = new Map();
 
   const setSize = () => {
     const nextWidth = window.innerWidth;
@@ -839,16 +889,32 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
     const delta = Math.min((currentTime - lastFrameTime) * 0.001, 0.05);
     const elapsed = currentTime * 0.001;
     lastFrameTime = currentTime;
-    surgeIntensity += (0 - surgeIntensity) * 0.035;
+    surgeIntensity += (0 - surgeIntensity) * 0.018;
+
+    // Smooth pointer lerp for graceful mouse interaction
+    if (pointer.active) {
+      if (smoothPointer.x < -1000) {
+        smoothPointer.x = pointer.x;
+        smoothPointer.y = pointer.y;
+      } else {
+        smoothPointer.x = lerp(smoothPointer.x, pointer.x, 0.12);
+        smoothPointer.y = lerp(smoothPointer.y, pointer.y, 0.12);
+      }
+      smoothPointer.active = true;
+    } else {
+      smoothPointer.active = false;
+      smoothPointer.x = POINTER_AWAY;
+      smoothPointer.y = POINTER_AWAY;
+    }
 
     drawBackground(ctx, width, height);
 
     particles.forEach((particle) => {
-      updateParticle(particle, delta, elapsed, width, height, pointer, config, surgeIntensity);
+      updateParticle(particle, delta, elapsed, width, height, smoothPointer, config, surgeIntensity);
     });
 
     const connections = selectConnections(particles, config, width, height, surgeIntensity);
-    drawGlassFacets(ctx, particles, connections, config, width, height, surgeIntensity, themeColors);
+    drawGlassFacets(ctx, particles, connections, config, width, height, surgeIntensity, themeColors, facetOpacity, delta);
     drawConnections(ctx, particles, config, width, height, surgeIntensity, themeColors, connections);
     drawParticles(ctx, particles, elapsed, surgeIntensity, themeColors);
   };

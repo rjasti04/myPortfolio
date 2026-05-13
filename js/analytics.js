@@ -74,33 +74,48 @@ function getDeviceType() {
   return "desktop";
 }
 
+let sessionPromise = null;
+
 async function startSession() {
-  if (sessionId) return; // Already have a session for this tab
+  if (sessionId) return sessionId;
+  
+  // Return existing promise if session creation in progress
+  if (sessionPromise) return sessionPromise;
+  
   if (!isApiConfigured()) {
     console.warn("Analytics: API base is not configured; tracking disabled.");
-    return;
+    return null;
   }
 
-  try {
-    const response = await fetch(`${API_BASE}/sessions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_agent: navigator.userAgent,
-        device_type: getDeviceType()
-      })
-    });
+  sessionPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE}/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_agent: navigator.userAgent,
+          device_type: getDeviceType()
+        })
+      });
 
-    if (response.ok) {
-      const data = await response.json();
-      setSessionId(data.session_id);
+      if (response.ok) {
+        const data = await response.json();
+        setSessionId(data.session_id);
 
-      startHeartbeat();
-      trackEvent("page_view", { referrer: document.referrer });
+        startHeartbeat();
+        trackEvent("page_view", { referrer: document.referrer });
+        return data.session_id;
+      }
+      return null;
+    } catch (error) {
+      console.error("Analytics: Failed to start session", error);
+      return null;
+    } finally {
+      sessionPromise = null;
     }
-  } catch (error) {
-    console.error("Analytics: Failed to start session", error);
-  }
+  })();
+  
+  return sessionPromise;
 }
 
 export async function ensureSession() {
@@ -234,6 +249,9 @@ function flushEventsOnUnload() {
   }
 }
 
+// Store global click handler reference to prevent duplicates
+let globalClickHandler = null;
+
 // Set up event listeners for global behaviors
 function attachGlobalListeners() {
   // Flush on tab hide/close, revive on show
@@ -265,18 +283,21 @@ function attachGlobalListeners() {
     flushEventsOnUnload();
   });
 
-  // Track global clicks on interactive elements
-  document.addEventListener("click", (e) => {
-    const target = e.target.closest("a, button, .project-card, [data-track]");
-    if (target) {
-      trackEvent("click", {
-        tag: target.tagName,
-        tracked: Boolean(target.dataset.track),
-        element_id_present: Boolean(target.id),
-        link_origin: target.href ? new URL(target.href, window.location.href).origin : undefined,
-      });
-    }
-  });
+  // Track global clicks on interactive elements (only attach once)
+  if (!globalClickHandler) {
+    globalClickHandler = (e) => {
+      const target = e.target.closest("a, button, .project-card, [data-track]");
+      if (target) {
+        trackEvent("click", {
+          tag: target.tagName,
+          tracked: Boolean(target.dataset.track),
+          element_id_present: Boolean(target.id),
+          link_origin: target.href ? new URL(target.href, window.location.href).origin : undefined,
+        });
+      }
+    };
+    document.addEventListener("click", globalClickHandler);
+  }
 
   // Track hash changes (single page navigation)
   window.addEventListener("hashchange", () => {

@@ -70,15 +70,18 @@ export function filterProjects() {
       return count + (project.visible ? 1 : 0);
     }, 0);
 
-    if (projectResults) {
-      if (visibleCount === 0) {
-        projectResults.textContent = "No projects found. Try a different search or filter.";
-        projectResults.dataset.empty = "true";
-      } else {
-        projectResults.textContent = `${visibleCount} project${visibleCount === 1 ? "" : "s"} shown`;
-        delete projectResults.dataset.empty;
-      }
+  if (projectResults) {
+    projectResults.setAttribute('aria-live', 'polite');
+    projectResults.setAttribute('aria-atomic', 'true');
+    
+    if (visibleCount === 0) {
+      projectResults.textContent = "No projects found. Try a different search or filter.";
+      projectResults.dataset.empty = "true";
+    } else {
+      projectResults.textContent = `${visibleCount} project${visibleCount === 1 ? "" : "s"} shown`;
+      delete projectResults.dataset.empty;
     }
+  }
   };
 
   projectFilters.forEach(button => {

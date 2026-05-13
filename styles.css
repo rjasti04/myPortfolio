@@ -2668,20 +2668,25 @@ body.dark-theme .skill-tag {
     display: none;
   }
 
-  .skills-carousel .skill-group {
-    grid-column: 1;
-    grid-row: 1;
-    flex: none;
-    width: 100%;
-    min-width: 0;
-    height: auto;
-    padding-bottom: 70px;
-    position: absolute;
-    top: 0;
-    left: 0;
-    transform: translateX(110%);
-    opacity: 0;
-    pointer-events: none;
+  /* Prevent transition flash on initial load */
+  .skills-carousel:not(.carousel-initialized) .skills-grid .skill-group {
+    transition: none !important;
+  }
+
+  .skills-carousel.carousel-initialized .skills-grid .skill-group {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    flex: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    padding-bottom: 70px !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: translateX(110%) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
     transition:
       transform var(--motion-page) var(--ease-enter),
       opacity var(--motion-base) var(--ease-standard);
@@ -2689,46 +2694,45 @@ body.dark-theme .skill-tag {
     will-change: transform;
   }
 
-  .skills-carousel .skill-group.is-active {
-    position: relative;
-    transform: translateX(0);
-    opacity: 1;
-    pointer-events: auto;
-    z-index: 2;
+  .skills-carousel.carousel-initialized .skills-grid .skill-group.is-active {
+    position: relative !important;
+    transform: translateX(0) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 2 !important;
   }
 
-  .skills-carousel .skill-group.is-prev {
-    transform: translateX(-110%);
-    opacity: 0;
-    z-index: 1;
+  .skills-carousel.carousel-initialized .skills-grid .skill-group.is-prev {
+    transform: translateX(-110%) !important;
+    opacity: 0 !important;
+    z-index: 1 !important;
   }
 
-  .skills-carousel .skill-group.is-next {
-    transform: translateX(110%);
-    opacity: 0;
-    z-index: 1;
+  .skills-carousel.carousel-initialized .skills-grid .skill-group.is-next {
+    transform: translateX(110%) !important;
+    opacity: 0 !important;
+    z-index: 1 !important;
   }
 
-  .skills-carousel .skill-group.reveal {
-    opacity: 0;
+  .skills-carousel:not(.carousel-initialized) .skills-grid .skill-group:first-child {
+    position: relative !important;
+    transform: translateX(0) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
 
-  .skills-carousel .skill-group.is-active.reveal {
-    opacity: 1;
+  .skills-carousel.carousel-initialized .skills-grid .skill-group:hover {
+    transform: translateX(110%) !important;
+    box-shadow: none !important;
+    border-color: var(--border) !important;
   }
 
-  .skills-carousel .skill-group:hover {
-    transform: translateX(110%);
-    box-shadow: none;
-    border-color: var(--border);
+  .skills-carousel.carousel-initialized .skills-grid .skill-group.is-active:hover {
+    transform: translateX(0) !important;
   }
 
-  .skills-carousel .skill-group.is-active:hover {
-    transform: translateX(0);
-  }
-
-  .skills-carousel .skill-group.is-prev:hover {
-    transform: translateX(-110%);
+  .skills-carousel.carousel-initialized .skills-grid .skill-group.is-prev:hover {
+    transform: translateX(-110%) !important;
   }
 
   .skills-carousel-arrow {
