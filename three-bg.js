@@ -1,135 +1,204 @@
-import * as THREE from "./js/vendor/three.module.js";
 import {
   prefersReducedMotion as reducedMotionQuery,
   compactViewport as compactViewportQuery,
-  mobileDevice
+  mobileDevice,
+  supportsHover
 } from "./js/config.js";
 
 let destroyBackground = null;
 let backgroundProfile = null;
-let isWebGLAvailable = null;
 let syncThreeBackgroundTimeout = null;
 let surgeIntensity = 0;
 
-window.triggerWebGlSurge = () => {
-  surgeIntensity = 1.0;
+const TWO_PI = Math.PI * 2;
+const POINTER_AWAY = -10000;
+
+const COLOR_KEYS = {
+  left: "secondary",
+  right: "accent",
+  top: "accent",
+  bottom: "secondary",
+  speck: "data"
 };
 
-const NOISE_CHUNK = `
-vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
-vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
-float snoise(vec3 v){
-  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
-  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
-  vec3 i  = floor(v + dot(v, C.yyy) );
-  vec3 x0 = v - i + dot(i, C.xxx) ;
-  vec3 g = step(x0.yzx, x0.xyz);
-  vec3 l = 1.0 - g;
-  vec3 i1 = min( g.xyz, l.zxy );
-  vec3 i2 = max( g.xyz, l.zxy );
-  vec3 x1 = x0 - i1 + 1.0 * C.xxx;
-  vec3 x2 = x0 - i2 + 2.0 * C.xxx;
-  vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
-  i = mod(i, 289.0 );
-  vec4 p = permute( permute( permute(
-             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-           + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
-           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
-  float n_ = 1.0/7.0;
-  vec3  ns = n_ * D.wyz - D.xzx;
-  vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
-  vec4 x_ = floor(j * ns.z);
-  vec4 y_ = floor(j - 7.0 * x_ );
-  vec4 x = x_ *ns.x + ns.yyyy;
-  vec4 y = y_ *ns.x + ns.yyyy;
-  vec4 h = 1.0 - abs(x) - abs(y);
-  vec4 b0 = vec4( x.xy, y.xy );
-  vec4 b1 = vec4( x.zw, y.zw );
-  vec4 s0 = floor(b0)*2.0 + 1.0;
-  vec4 s1 = floor(b1)*2.0 + 1.0;
-  vec4 sh = -step(h, vec4(0.0));
-  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
-  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
-  vec3 p0 = vec3(a0.xy,h.x);
-  vec3 p1 = vec3(a0.zw,h.y);
-  vec3 p2 = vec3(a1.xy,h.z);
-  vec3 p3 = vec3(a1.zw,h.w);
-  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-  p0 *= norm.x;
-  p1 *= norm.y;
-  p2 *= norm.z;
-  p3 *= norm.w;
-  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-  m = m * m;
-  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
-}
-`;
+const COLOR_FALLBACKS = {
+  accent: [14, 165, 233],
+  secondary: [168, 85, 247],
+  data: [16, 185, 129],
+  node: [255, 255, 255]
+};
 
 const PROFILE_CONFIG = {
   desktop: {
-    nodes: 80,
-    links: 120,
-    packets: 60,
-    nodeSize: [4.5, 9.5],
-    packetSize: [6.5, 10.5],
-    dpr: 1.65,
-    fps: 30,
-    edgeBias: 0.5,
-    opacity: { dark: 2.5, light: 3.5 }
+    minParticles: 150,
+    maxParticles: 180,
+    density: 10500,
+    sideWidth: 0.28,
+    maxDistance: 195,
+    maxLinks: 5,
+    radius: [1.3, 3.2],
+    speed: [3.8, 10.5],
+    dpr: 1.75,
+    lineAlpha: 0.68,
+    repelRadius: 155,
+    repelStrength: 280,
+    homeStrength: 0.08,
+    glowIntensity: 1.2,
+    connectionFalloff: 1.4,
+    glassFacetCount: 24,
+    glassFacetAlpha: 0.19,
+    glassFacetAreaFactor: 0.34
   },
   compact: {
-  nodes: 80,
-  links: 120,
-  packets: 60,
-  nodeSize: [4.0, 8.5],
-  packetSize: [6.0, 9.5],
-  dpr: 1.45,
-  fps: 30,
-  edgeBias: 0.50,
-    opacity: { dark: 2.5, light: 3.5 }
+    minParticles: 125,
+    maxParticles: 155,
+    density: 9900,
+    sideWidth: 0.31,
+    maxDistance: 165,
+    maxLinks: 4,
+    radius: [1.1, 2.5],
+    speed: [3.5, 9.2],
+    dpr: 1.5,
+    lineAlpha: 0.58,
+    repelRadius: 135,
+    repelStrength: 240,
+    homeStrength: 0.09,
+    glowIntensity: 1.1,
+    connectionFalloff: 1.35,
+    glassFacetCount: 16,
+    glassFacetAlpha: 0.16,
+    glassFacetAreaFactor: 0.3
   },
   mobile: {
-  nodes: 40,
-  links: 80,
-  packets: 30,
-  nodeSize: [3.5, 7.5],
-  packetSize: [5.5, 8.5],
-  dpr: 1.25,
-  fps: 24,
-  edgeBias: 0.90,
-    opacity: { dark: 2.5, light: 3.5 }
+    minParticles: 80,
+    maxParticles: 100,
+    density: 9500,
+    sideWidth: 0.35,
+    maxDistance: 120,
+    maxLinks: 3,
+    radius: [1.0, 2.2],
+    speed: [2.8, 7.5],
+    dpr: 1.3,
+    lineAlpha: 0.48,
+    repelRadius: 0,
+    repelStrength: 0,
+    homeStrength: 0.12,
+    glowIntensity: 1.0,
+    connectionFalloff: 1.3,
+    glassFacetCount: 8,
+    glassFacetAlpha: 0.12,
+    glassFacetAreaFactor: 0.26
   }
 };
 
-function createPrng(seed) {
-  let state = seed >>> 0;
-  return () => {
-    state = (state * 1664525 + 1013904223) >>> 0;
-    return state / 4294967296;
-  };
+window.triggerWebGlSurge = () => {
+  surgeIntensity = 1;
+};
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
+function randomBetween(range) {
+  return lerp(range[0], range[1], Math.random());
 }
 
-function readCssColor(name, fallback) {
-  const styles = getComputedStyle(document.body);
-  const rootStyles = getComputedStyle(document.documentElement);
-  const value = styles.getPropertyValue(name).trim() || rootStyles.getPropertyValue(name).trim() || fallback;
-  const color = new THREE.Color();
+function colorString(color, alpha) {
+  return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`;
+}
 
-  try {
-    color.setStyle(value);
-  } catch (error) {
-    color.set(fallback);
+function blendColors(a, b, weight = 0.5) {
+  const t = clamp(weight, 0, 1);
+  return [
+    Math.round(lerp(a[0], b[0], t)),
+    Math.round(lerp(a[1], b[1], t)),
+    Math.round(lerp(a[2], b[2], t))
+  ];
+}
+
+function averageColors(colors) {
+  const total = colors.reduce(
+    (sum, color) => [
+      sum[0] + color[0],
+      sum[1] + color[1],
+      sum[2] + color[2]
+    ],
+    [0, 0, 0]
+  );
+
+  return total.map((channel) => Math.round(channel / colors.length));
+}
+
+function parseHexColor(value) {
+  const hex = value.replace("#", "").trim();
+
+  if (hex.length === 3) {
+    return hex.split("").map((channel) => parseInt(`${channel}${channel}`, 16));
   }
 
-  return color;
+  if (hex.length >= 6) {
+    return [
+      parseInt(hex.slice(0, 2), 16),
+      parseInt(hex.slice(2, 4), 16),
+      parseInt(hex.slice(4, 6), 16)
+    ];
+  }
+
+  return null;
+}
+
+function parseRgbColor(value) {
+  const match = value.match(/rgba?\(([^)]+)\)/i);
+  if (!match) return null;
+
+  const channels = match[1]
+    .split(",")
+    .slice(0, 3)
+    .map((channel) => Number.parseFloat(channel.trim()));
+
+  if (channels.some((channel) => Number.isNaN(channel))) return null;
+  return channels;
+}
+
+function getColorParser() {
+  if (!getColorParser.context) {
+    getColorParser.context = document.createElement("canvas").getContext("2d");
+  }
+
+  return getColorParser.context;
+}
+
+function parseCssColor(value, fallback) {
+  const parser = getColorParser();
+  if (!parser || !value) return fallback;
+
+  parser.fillStyle = "#000000";
+  parser.fillStyle = value.trim();
+
+  const normalized = parser.fillStyle;
+  if (normalized.startsWith("#")) return parseHexColor(normalized) || fallback;
+  if (normalized.startsWith("rgb")) return parseRgbColor(normalized) || fallback;
+
+  return fallback;
+}
+
+function readThemeColors() {
+  const bodyStyles = getComputedStyle(document.body);
+  const rootStyles = getComputedStyle(document.documentElement);
+  const readVar = (name) =>
+    bodyStyles.getPropertyValue(name).trim() ||
+    rootStyles.getPropertyValue(name).trim();
+
+  return {
+    accent: parseCssColor(readVar("--accent-fill"), COLOR_FALLBACKS.accent),
+    secondary: parseCssColor(readVar("--secondary-fill"), COLOR_FALLBACKS.secondary),
+    data: parseCssColor(readVar("--data-fill"), COLOR_FALLBACKS.data),
+    node: COLOR_FALLBACKS.node
+  };
 }
 
 function getProfileName() {
@@ -138,689 +207,626 @@ function getProfileName() {
   return "desktop";
 }
 
-function canUseWebGL() {
-  if (isWebGLAvailable !== null) return isWebGLAvailable;
-
-  try {
-    const canvas = document.createElement("canvas");
-    isWebGLAvailable = Boolean(
-      window.WebGLRenderingContext &&
-      (canvas.getContext("webgl") || canvas.getContext("experimental-webgl"))
-    );
-  } catch (error) {
-    isWebGLAvailable = false;
-  }
-
-  return isWebGLAvailable;
-}
-
 function shouldEnableBackground() {
   if (reducedMotionQuery.matches) return false;
   if (window.innerWidth < 320 || window.innerHeight < 420) return false;
-  return canUseWebGL();
+  return Boolean(
+    window.requestAnimationFrame &&
+      typeof document.createElement("canvas").getContext === "function"
+  );
 }
 
-function quietZoneAmount(x, y, aspect, profileName) {
-  const quietX = aspect * (profileName === "mobile" ? 0.44 : 0.52);
-  const quietY = profileName === "mobile" ? 0.34 : 0.42;
-  const xAmount = 1 - clamp(Math.abs(x) / quietX, 0, 1);
-  const yAmount = 1 - clamp(Math.abs(y) / quietY, 0, 1);
-  return clamp(Math.min(xAmount, yAmount), 0, 1);
+function getParticleCount(width, height, config) {
+  const count = Math.round((width * height) / config.density);
+  return clamp(count, config.minParticles, config.maxParticles);
 }
 
-function moveOutOfQuietZone(point, aspect, profileName, rand) {
-  const quietX = aspect * (profileName === "mobile" ? 0.34 : 0.44);
-  const quietY = profileName === "mobile" ? 0.24 : 0.32;
+function pickZone() {
+  const roll = Math.random();
+  if (roll < 0.44) return "left";
+  if (roll < 0.88) return "right";
+  if (roll < 0.94) return "top";
+  if (roll < 0.98) return "bottom";
+  return "speck";
+}
 
-  if (Math.abs(point.x) >= quietX || Math.abs(point.y) >= quietY) {
-    return point;
+function zonePosition(zone, width, height, config) {
+  const sideBand = width * config.sideWidth;
+  const outside = config.maxDistance * 0.35;
+  const verticalPadding = height * 0.05;
+
+  if (zone === "left") {
+    return {
+      x: lerp(-outside * 0.25, sideBand, Math.random() ** 0.9),
+      y: lerp(-verticalPadding, height + verticalPadding, Math.random())
+    };
   }
 
-  const pushHorizontal = rand() > 0.45;
-  if (pushHorizontal) {
-    const sign = point.x >= 0 ? 1 : -1;
-    point.x = sign * lerp(quietX, aspect * 1.08, rand());
-  } else {
-    const sign = point.y >= 0 ? 1 : -1;
-    point.y = sign * lerp(quietY, 1.05, rand());
+  if (zone === "right") {
+    return {
+      x: width - lerp(-outside * 0.25, sideBand, Math.random() ** 0.9),
+      y: lerp(-verticalPadding, height + verticalPadding, Math.random())
+    };
   }
 
-  return point;
+  if (zone === "top") {
+    const leftSide = Math.random() > 0.5;
+    return {
+      x: leftSide
+        ? lerp(-outside * 0.25, width * 0.38, Math.random())
+        : lerp(width * 0.62, width + outside * 0.25, Math.random()),
+      y: lerp(-outside * 0.8, height * 0.22, Math.random() ** 1.35)
+    };
+  }
+
+  if (zone === "bottom") {
+    const leftSide = Math.random() > 0.5;
+    return {
+      x: leftSide
+        ? lerp(-outside * 0.25, width * 0.32, Math.random())
+        : lerp(width * 0.68, width + outside * 0.25, Math.random()),
+      y: height - lerp(-outside * 0.8, height * 0.2, Math.random() ** 1.45)
+    };
+  }
+
+  return {
+    x: lerp(width * 0.3, width * 0.7, Math.random()),
+    y: lerp(height * 0.2, height * 0.75, Math.random())
+  };
 }
 
-function createNodes(count, aspect, profileName, config, rand) {
-  const nodes = [];
-  const xMax = aspect * 1.12;
-  const yMax = 1.08;
+function createParticle(width, height, config) {
+  const zone = pickZone();
+  const position = zonePosition(zone, width, height, config);
+  const angle = zone === "left"
+    ? lerp(-0.5, 0.5, Math.random())
+    : zone === "right"
+      ? Math.PI + lerp(-0.5, 0.5, Math.random())
+      : Math.random() * TWO_PI;
+  const speed = randomBetween(config.speed) * (zone === "speck" ? 0.3 : 1);
+  const colorKey = COLOR_KEYS[zone];
 
-  for (let i = 0; i < count; i += 1) {
-    const lane = rand();
-    const edgeBias = config.edgeBias;
-    const point = { x: 0, y: 0, z: 0 };
+  return {
+    zone,
+    colorKey,
+    x: position.x,
+    y: position.y,
+    homeX: position.x,
+    homeY: position.y,
+    baseSpeed: speed,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    radius: randomBetween(config.radius) * (zone === "speck" ? 0.65 : 1),
+    alpha: zone === "speck" ? lerp(0.16, 0.38, Math.random()) : lerp(0.52, 0.92, Math.random()),
+    phase: Math.random() * TWO_PI,
+    turn: lerp(0.08, 0.28, Math.random()) * (Math.random() > 0.5 ? 1 : -1),
+    pulseOffset: Math.random() * TWO_PI
+  };
+}
 
-    if (lane < edgeBias * 0.28) {
-      point.x = lerp(-xMax, -aspect * 0.58, rand());
-      point.y = lerp(-yMax, yMax, rand());
-    } else if (lane < edgeBias * 0.56) {
-      point.x = lerp(aspect * 0.58, xMax, rand());
-      point.y = lerp(-yMax, yMax, rand());
-    } else if (lane < edgeBias * 0.78) {
-      point.x = lerp(-xMax, xMax, rand());
-      point.y = lerp(0.54, yMax, rand());
-    } else if (lane < edgeBias) {
-      point.x = lerp(-xMax, xMax, rand());
-      point.y = lerp(-yMax, -0.54, rand());
-    } else {
-      point.x = lerp(-xMax, xMax, rand());
-      point.y = lerp(-yMax, yMax, rand());
+function reconcileParticles(particles, width, height, config) {
+  const nextCount = getParticleCount(width, height, config);
+
+  while (particles.length < nextCount) {
+    particles.push(createParticle(width, height, config));
+  }
+
+  if (particles.length > nextCount) {
+    particles.length = nextCount;
+  }
+
+  particles.forEach((particle) => {
+    particle.x = clamp(particle.x, -config.maxDistance, width + config.maxDistance);
+    particle.y = clamp(particle.y, -config.maxDistance, height + config.maxDistance);
+  });
+}
+
+function drawBackground(ctx, width, height) {
+  ctx.globalCompositeOperation = "source-over";
+  ctx.clearRect(0, 0, width, height);
+}
+
+function applyHomeForce(particle, delta, config) {
+  if (particle.zone === "speck") return;
+
+  particle.vx += (particle.homeX - particle.x) * config.homeStrength * delta;
+  particle.vy += (particle.homeY - particle.y) * config.homeStrength * delta * 0.55;
+}
+
+function nudgeAwayFromCenter(particle, delta, width, height) {
+  if (particle.zone === "speck") return;
+
+  const inQuietX = particle.x > width * 0.32 && particle.x < width * 0.68;
+  const inQuietY = particle.y > height * 0.16 && particle.y < height * 0.86;
+
+  if (!inQuietX || !inQuietY) return;
+
+  const direction = particle.zone === "right" ? 1 : -1;
+  particle.vx += direction * width * 0.22 * delta;
+}
+
+function updateParticle(particle, delta, elapsed, width, height, pointer, config, intensity) {
+  const turn = Math.sin(elapsed * particle.turn + particle.phase) * delta * 0.14;
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  const vx = particle.vx * cos - particle.vy * sin;
+  const vy = particle.vx * sin + particle.vy * cos;
+  const speed = Math.hypot(vx, vy) || particle.baseSpeed || 1;
+  const targetSpeed = particle.baseSpeed * (1 + intensity * 0.5);
+
+  particle.vx = (vx / speed) * targetSpeed;
+  particle.vy = (vy / speed) * targetSpeed;
+
+  applyHomeForce(particle, delta, config);
+  nudgeAwayFromCenter(particle, delta, width, height);
+
+  particle.x += particle.vx * delta;
+  particle.y += particle.vy * delta;
+
+  if (pointer.active && config.repelRadius > 0) {
+    const dx = particle.x - pointer.x;
+    const dy = particle.y - pointer.y;
+    const distanceSquared = dx * dx + dy * dy;
+    const radiusSquared = config.repelRadius * config.repelRadius;
+
+    if (distanceSquared < radiusSquared) {
+      const distance = Math.sqrt(distanceSquared) || 1;
+      const force = (1 - distance / config.repelRadius) ** 2.2;
+      const push = force * config.repelStrength * delta;
+
+      particle.x += (dx / distance) * push;
+      particle.y += (dy / distance) * push;
+      
+      // Dampen velocity during repulsion for smoother interaction
+      particle.vx *= 0.95;
+      particle.vy *= 0.95;
     }
-
-    moveOutOfQuietZone(point, aspect, profileName, rand);
-
-    nodes.push({
-      x: point.x,
-      y: point.y,
-      z: lerp(-0.04, 0.04, rand()),
-      size: lerp(config.nodeSize[0], config.nodeSize[1], rand()),
-      seed: rand(),
-      colorMix: rand()
-    });
   }
 
-  return nodes;
+  const margin = config.maxDistance * 0.6;
+  if (particle.x < -margin || particle.x > width + margin) particle.vx *= -0.98;
+  if (particle.y < -margin || particle.y > height + margin) particle.vy *= -0.98;
+
+  particle.x = clamp(particle.x, -margin, width + margin);
+  particle.y = clamp(particle.y, -margin, height + margin);
 }
 
-function createLinks(nodes, desiredCount, aspect, profileName, rand) {
-  const links = [];
-  const seen = new Set();
-  const maxDistance = profileName === "mobile" ? Math.max(0.82, aspect * 1.1) : Math.max(0.9, aspect * 0.78);
+function connectionDistanceFor(a, b, config) {
+  if (a.zone === "speck" || b.zone === "speck") return config.maxDistance * 0.5;
+  if (a.zone === b.zone) return config.maxDistance * 1.05;
+  if ((a.zone === "left" && b.zone === "top") || (a.zone === "top" && b.zone === "left")) {
+    return config.maxDistance * 0.82;
+  }
+  if ((a.zone === "right" && b.zone === "top") || (a.zone === "top" && b.zone === "right")) {
+    return config.maxDistance * 0.82;
+  }
+  if ((a.zone === "left" && b.zone === "bottom") || (a.zone === "bottom" && b.zone === "left")) {
+    return config.maxDistance * 0.75;
+  }
+  if ((a.zone === "right" && b.zone === "bottom") || (a.zone === "bottom" && b.zone === "right")) {
+    return config.maxDistance * 0.75;
+  }
+  return config.maxDistance * 0.38;
+}
 
-  nodes.forEach((node, index) => {
-    const nearest = nodes
-      .map((candidate, candidateIndex) => {
-        if (candidateIndex === index) return null;
-        const dx = node.x - candidate.x;
-        const dy = node.y - candidate.y;
-        const distance = Math.hypot(dx, dy);
-        return { index: candidateIndex, distance };
-      })
-      .filter(Boolean)
-      .filter((candidate) => candidate.distance < maxDistance)
-      .sort((a, b) => a.distance - b.distance)
-      .slice(0, 3);
+function midpointIsTooCentral(a, b, width, height) {
+  if (a.zone === "speck" || b.zone === "speck") return false;
 
-    nearest.forEach((candidate) => {
-      if (links.length >= desiredCount) return;
-      if (rand() < 0.34 && nearest.length > 1) return;
+  const midX = (a.x + b.x) * 0.5;
+  const midY = (a.y + b.y) * 0.5;
+  return midX > width * 0.32 &&
+    midX < width * 0.68 &&
+    midY > height * 0.14 &&
+    midY < height * 0.86;
+}
 
-      const a = Math.min(index, candidate.index);
-      const b = Math.max(index, candidate.index);
-      const key = `${a}:${b}`;
-      if (seen.has(key)) return;
+function collectConnections(particles, config, width, height) {
+  const candidates = [];
 
-      seen.add(key);
+  for (let i = 0; i < particles.length - 1; i += 1) {
+    const a = particles[i];
 
-      const from = nodes[a];
-      const to = nodes[b];
-      const midX = (from.x + to.x) * 0.5;
-      const midY = (from.y + to.y) * 0.5;
-      const quiet = quietZoneAmount(midX, midY, aspect, profileName);
+    for (let j = i + 1; j < particles.length; j += 1) {
+      const b = particles[j];
+      const maxDistance = connectionDistanceFor(a, b, config);
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const distanceSquared = dx * dx + dy * dy;
 
-      links.push({
-        from: a,
-        to: b,
-        distance: candidate.distance,
-        seed: rand(),
-        colorMix: rand(),
-        alpha: lerp(0.22, 0.52, rand()) * (1 - quiet * 0.56)
+      if (distanceSquared > maxDistance * maxDistance) continue;
+      if (midpointIsTooCentral(a, b, width, height)) continue;
+
+      candidates.push({
+        from: i,
+        to: j,
+        distance: Math.sqrt(distanceSquared),
+        maxDistance
       });
-    });
-  });
-
-  let attempts = 0;
-  const maxAttempts = desiredCount * nodes.length * 8;
-
-  while (links.length < desiredCount && attempts < maxAttempts) {
-    attempts += 1;
-    const fromIndex = Math.floor(rand() * nodes.length);
-    const toIndex = Math.floor(rand() * nodes.length);
-    if (fromIndex === toIndex) continue;
-
-    const a = Math.min(fromIndex, toIndex);
-    const b = Math.max(fromIndex, toIndex);
-    const key = `${a}:${b}`;
-    if (seen.has(key)) continue;
-
-    const from = nodes[a];
-    const to = nodes[b];
-    const distance = Math.hypot(from.x - to.x, from.y - to.y);
-    if (distance > maxDistance * 1.18) continue;
-
-    seen.add(key);
-    links.push({
-      from: a,
-      to: b,
-      distance,
-      seed: rand(),
-      colorMix: rand(),
-      alpha: lerp(0.16, 0.38, rand())
-    });
+    }
   }
 
-  if (links.length === 0 && nodes.length > 1) {
-    links.push({
-      from: 0,
-      to: 1,
-      distance: Math.hypot(nodes[0].x - nodes[1].x, nodes[0].y - nodes[1].y),
-      seed: rand(),
-      colorMix: rand(),
-      alpha: 0.24
-    });
-  }
-
-  return links.slice(0, desiredCount);
+  return candidates.sort((a, b) => a.distance - b.distance);
 }
 
-function createLineMesh(nodes, links, uniforms) {
-  const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(links.length * 2 * 3);
-  const alphas = new Float32Array(links.length * 2);
-  const colorMixes = new Float32Array(links.length * 2);
-
-  links.forEach((link, index) => {
-    const from = nodes[link.from];
-    const to = nodes[link.to];
-    const offset = index * 6;
-    const attributeOffset = index * 2;
-
-    positions[offset] = from.x;
-    positions[offset + 1] = from.y;
-    positions[offset + 2] = from.z;
-    positions[offset + 3] = to.x;
-    positions[offset + 4] = to.y;
-    positions[offset + 5] = to.z;
-
-    alphas[attributeOffset] = link.alpha;
-    alphas[attributeOffset + 1] = link.alpha;
-    colorMixes[attributeOffset] = link.colorMix;
-    colorMixes[attributeOffset + 1] = link.colorMix;
-  });
-
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("aLineAlpha", new THREE.BufferAttribute(alphas, 1));
-  geometry.setAttribute("aColorMix", new THREE.BufferAttribute(colorMixes, 1));
-
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      ...uniforms,
-      uOpacity: { value: 1 }
-    },
-    vertexShader: `
-      attribute float aLineAlpha;
-      attribute float aColorMix;
-
-      uniform float uTime;
-      uniform vec2 uPointer;
-      uniform float uIntensity;
-
-      varying float vLineAlpha;
-      varying float vColorMix;
-      varying float vIntensity;
-
-      ${NOISE_CHUNK}
-
-      void main() {
-        vLineAlpha = aLineAlpha;
-        vColorMix = aColorMix;
-        vIntensity = uIntensity;
-        
-        vec3 pos = position;
-        
-        // Noise
-        pos.z += snoise(vec3(pos.xy * 2.0, uTime * 0.2)) * 0.15;
-        pos.x += snoise(vec3(pos.y, pos.z, uTime * 0.1)) * 0.08;
-        pos.y += snoise(vec3(pos.x, pos.z, uTime * 0.1)) * 0.08;
-        
-        // Pointer repulsion
-        float dist = distance(pos.xy, uPointer);
-        float effect = smoothstep(0.5, 0.0, dist);
-        pos.xy += normalize(pos.xy - uPointer) * effect * 0.15;
-
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-      }
-    `,
-    fragmentShader: `
-      precision mediump float;
-
-      uniform vec3 uPrimaryColor;
-      uniform vec3 uSecondaryColor;
-      uniform vec3 uDataColor;
-      uniform float uOpacity;
-
-      varying float vLineAlpha;
-      varying float vColorMix;
-      varying float vIntensity;
-
-      void main() {
-        vec3 base = mix(uPrimaryColor, uSecondaryColor, smoothstep(0.15, 0.85, vColorMix));
-        vec3 color = mix(base, uDataColor, smoothstep(0.55, 1.0, vColorMix) * 0.55);
-        
-        color += vec3(vIntensity * 0.3); // Bloom glow
-        float alpha = vLineAlpha * uOpacity * (1.0 + vIntensity * 1.5);
-        
-        gl_FragColor = vec4(color, alpha);
-      }
-    `,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  });
-
-  return new THREE.LineSegments(geometry, material);
+function connectionKey(a, b) {
+  return a < b ? `${a}:${b}` : `${b}:${a}`;
 }
 
-function createNodeMesh(nodes, uniforms) {
-  const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(nodes.length * 3);
-  const sizes = new Float32Array(nodes.length);
-  const seeds = new Float32Array(nodes.length);
-  const colorMixes = new Float32Array(nodes.length);
-
-  nodes.forEach((node, index) => {
-    const offset = index * 3;
-    positions[offset] = node.x;
-    positions[offset + 1] = node.y;
-    positions[offset + 2] = node.z + 0.02;
-    sizes[index] = node.size;
-    seeds[index] = node.seed;
-    colorMixes[index] = node.colorMix;
-  });
-
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
-  geometry.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
-  geometry.setAttribute("aColorMix", new THREE.BufferAttribute(colorMixes, 1));
-
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      ...uniforms,
-      uOpacity: { value: 1 }
-    },
-    vertexShader: `
-      uniform float uTime;
-      uniform float uPixelRatio;
-      uniform vec2 uPointer;
-      uniform float uIntensity;
-
-      attribute float aSize;
-      attribute float aSeed;
-      attribute float aColorMix;
-
-      varying float vPulse;
-      varying float vColorMix;
-      varying float vIntensity;
-
-      ${NOISE_CHUNK}
-
-      void main() {
-        vColorMix = aColorMix;
-        vIntensity = uIntensity;
-        
-        vec3 pos = position;
-        
-        // Organic noise movement
-        float noise = snoise(vec3(pos.xy * 2.0, uTime * 0.2 + aSeed));
-        pos.z += noise * 0.15;
-        pos.x += snoise(vec3(pos.y, pos.z, uTime * 0.1)) * 0.08;
-        pos.y += snoise(vec3(pos.x, pos.z, uTime * 0.1)) * 0.08;
-
-        // Pointer repulsion & scaling
-        float dist = distance(pos.xy, uPointer);
-        float effect = smoothstep(0.5, 0.0, dist);
-        pos.xy += normalize(pos.xy - uPointer) * effect * 0.15;
-        
-        float scaleMultiplier = 1.0 + (effect * 1.5) + (uIntensity * 2.0);
-
-        vPulse = 0.74 + 0.26 * sin(uTime * 0.72 + aSeed * 6.283185);
-        gl_PointSize = aSize * uPixelRatio * vPulse * scaleMultiplier;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-      }
-    `,
-    fragmentShader: `
-      precision mediump float;
-
-      uniform vec3 uPrimaryColor;
-      uniform vec3 uSecondaryColor;
-      uniform vec3 uDataColor;
-      uniform float uOpacity;
-
-      varying float vPulse;
-      varying float vColorMix;
-      varying float vIntensity;
-
-      void main() {
-        vec2 point = gl_PointCoord.xy - vec2(0.5);
-        float dist = length(point);
-        float halo = smoothstep(0.5, 0.12, dist) * 0.58;
-        float core = smoothstep(0.24, 0.0, dist);
-        
-        vec3 base = mix(uPrimaryColor, uSecondaryColor, smoothstep(0.1, 0.9, vColorMix));
-        vec3 color = mix(base, uDataColor, smoothstep(0.62, 1.0, vColorMix) * 0.48);
-        
-        // Pseudo-bloom
-        color += vec3(vIntensity * 0.4);
-        float alpha = (halo + core) * uOpacity * (0.76 + 0.24 * vPulse) * (1.0 + vIntensity * 1.5);
-
-        if (alpha < 0.01) discard;
-
-        gl_FragColor = vec4(color + core * 0.14, alpha);
-      }
-    `,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  });
-
-  return new THREE.Points(geometry, material);
+function distanceSquared(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
 }
 
-function createPackets(nodes, links, count, config, aspect, profileName, uniforms, rand) {
-  const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(count * 3);
-  const sizes = new Float32Array(count);
-  const alphas = new Float32Array(count);
-  const colorMixes = new Float32Array(count);
-  const packets = [];
+function triangleArea(a, b, c) {
+  return Math.abs(
+    (a.x * (b.y - c.y) +
+      b.x * (c.y - a.y) +
+      c.x * (a.y - b.y)) * 0.5
+  );
+}
 
-  for (let i = 0; i < count; i += 1) {
-    const link = links[Math.floor(rand() * links.length)];
-    const speedBase = profileName === "mobile" ? 0.035 : 0.045;
-    const distanceFactor = clamp(link.distance, 0.45, 2.8);
+function triangleCentroid(a, b, c) {
+  return {
+    x: (a.x + b.x + c.x) / 3,
+    y: (a.y + b.y + c.y) / 3
+  };
+}
 
-    packets.push({
-      link,
-      phase: rand(),
-      speed: lerp(speedBase, speedBase * 2.1, rand()) / distanceFactor,
-      alpha: lerp(0.52, 0.92, rand())
+function pointIsTooCentral(x, y, width, height) {
+  return x > width * 0.34 &&
+    x < width * 0.66 &&
+    y > height * 0.16 &&
+    y < height * 0.84;
+}
+
+function longestTriangleEdge(a, b, c) {
+  const edges = [
+    [a, b, distanceSquared(a, b)],
+    [b, c, distanceSquared(b, c)],
+    [c, a, distanceSquared(c, a)]
+  ];
+
+  return edges.sort((first, second) => second[2] - first[2])[0];
+}
+
+function selectConnections(particles, config, width, height, intensity) {
+  const linkCounts = new Uint8Array(particles.length);
+  const connections = collectConnections(particles, config, width, height);
+  const selectedConnections = [];
+
+  connections.forEach((connection) => {
+    const a = particles[connection.from];
+    const b = particles[connection.to];
+    const maxLinks = a.zone === "speck" || b.zone === "speck" ? 1 : config.maxLinks;
+
+    if (linkCounts[connection.from] >= maxLinks || linkCounts[connection.to] >= maxLinks) return;
+
+    const proximity = 1 - connection.distance / connection.maxDistance;
+    const falloff = config.connectionFalloff || 1.4;
+    const alpha = clamp(proximity ** falloff * config.lineAlpha * (1 + intensity * 0.45), 0, 0.78);
+
+    selectedConnections.push({
+      ...connection,
+      alpha,
+      proximity
     });
 
-    sizes[i] = lerp(config.packetSize[0], config.packetSize[1], rand());
-    colorMixes[i] = rand();
-  }
-
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
-  geometry.setAttribute("aPacketAlpha", new THREE.BufferAttribute(alphas, 1));
-  geometry.setAttribute("aColorMix", new THREE.BufferAttribute(colorMixes, 1));
-
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      ...uniforms,
-      uOpacity: { value: 1 }
-    },
-    vertexShader: `
-      uniform float uPixelRatio;
-      uniform float uTime;
-      uniform vec2 uPointer;
-      uniform float uIntensity;
-
-      attribute float aSize;
-      attribute float aPacketAlpha;
-      attribute float aColorMix;
-
-      varying float vPacketAlpha;
-      varying float vColorMix;
-      varying float vIntensity;
-
-      ${NOISE_CHUNK}
-
-      void main() {
-        vPacketAlpha = aPacketAlpha;
-        vColorMix = aColorMix;
-        vIntensity = uIntensity;
-        
-        vec3 pos = position;
-        
-        // Noise displacement
-        pos.z += snoise(vec3(pos.xy * 2.0, uTime * 0.2)) * 0.15;
-        pos.x += snoise(vec3(pos.y, pos.z, uTime * 0.1)) * 0.08;
-        pos.y += snoise(vec3(pos.x, pos.z, uTime * 0.1)) * 0.08;
-        
-        // Pointer repulsion
-        float dist = distance(pos.xy, uPointer);
-        float effect = smoothstep(0.5, 0.0, dist);
-        pos.xy += normalize(pos.xy - uPointer) * effect * 0.15;
-
-        float scaleMultiplier = 1.0 + (effect * 1.5) + (uIntensity * 2.5);
-        
-        gl_PointSize = aSize * uPixelRatio * scaleMultiplier;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-      }
-    `,
-    fragmentShader: `
-      precision mediump float;
-
-      uniform vec3 uPrimaryColor;
-      uniform vec3 uSecondaryColor;
-      uniform vec3 uDataColor;
-      uniform float uOpacity;
-
-      varying float vPacketAlpha;
-      varying float vColorMix;
-      varying float vIntensity;
-
-      void main() {
-        vec2 point = gl_PointCoord.xy - vec2(0.5);
-        float dist = length(point);
-        float body = smoothstep(0.5, 0.08, dist);
-        float core = smoothstep(0.18, 0.0, dist);
-        
-        vec3 base = mix(uPrimaryColor, uSecondaryColor, smoothstep(0.12, 0.9, vColorMix));
-        vec3 color = mix(base, uDataColor, smoothstep(0.42, 1.0, vColorMix) * 0.72);
-        
-        color += vec3(vIntensity * 0.5);
-        float alpha = body * vPacketAlpha * uOpacity * (1.0 + vIntensity * 2.0);
-
-        if (alpha < 0.01) discard;
-
-        // Chromatic shift
-        vec3 finalColor = color + core * 0.26;
-        if (vIntensity > 0.05) {
-            float r = smoothstep(0.5, 0.0, distance(gl_PointCoord.xy, vec2(0.5 + vIntensity * 0.1, 0.5)));
-            float b = smoothstep(0.5, 0.0, distance(gl_PointCoord.xy, vec2(0.5 - vIntensity * 0.1, 0.5)));
-            finalColor.r += r * vIntensity * 0.8;
-            finalColor.b += b * vIntensity * 0.8;
-        }
-
-        gl_FragColor = vec4(finalColor, alpha);
-      }
-    `,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
+    linkCounts[connection.from] += 1;
+    linkCounts[connection.to] += 1;
   });
 
-  const mesh = new THREE.Points(geometry, material);
+  return selectedConnections;
+}
 
-  const update = (elapsed) => {
-    const positionAttribute = geometry.getAttribute("position");
-    const alphaAttribute = geometry.getAttribute("aPacketAlpha");
+function collectGlassFacets(particles, connections, config, width, height) {
+  const maxFacets = config.glassFacetCount || 0;
+  if (maxFacets <= 0 || connections.length < 3) return [];
 
-    packets.forEach((packet, index) => {
-      const from = nodes[packet.link.from];
-      const to = nodes[packet.link.to];
-      const progress = (packet.phase + elapsed * packet.speed) % 1;
-      const ease = progress;
-      const x = lerp(from.x, to.x, ease);
-      const y = lerp(from.y, to.y, ease);
-      const z = lerp(from.z, to.z, ease) + 0.04;
-      const fade = Math.sin(progress * Math.PI);
-      const quiet = quietZoneAmount(x, y, aspect, profileName);
-      const offset = index * 3;
+  const adjacency = new Map();
+  const edgeMap = new Map();
+  const minArea = config.glassFacetMinArea || 280;
+  const maxArea = config.maxDistance * config.maxDistance * (config.glassFacetAreaFactor || 0.3);
+  const facets = [];
+  const seen = new Set();
 
-      positions[offset] = x;
-      positions[offset + 1] = y;
-      positions[offset + 2] = z;
-      alphas[index] = packet.alpha * (0.32 + fade * 0.68) * (1 - quiet * 0.52);
+  const addNeighbor = (from, to, connection) => {
+    if (!adjacency.has(from)) adjacency.set(from, []);
+    adjacency.get(from).push({
+      to,
+      proximity: connection.proximity
     });
-
-    positionAttribute.needsUpdate = true;
-    alphaAttribute.needsUpdate = true;
   };
 
-  update(0);
+  connections.forEach((connection) => {
+    const a = particles[connection.from];
+    const b = particles[connection.to];
+    if (!a || !b || a.zone === "speck" || b.zone === "speck") return;
 
-  return { mesh, update };
+    edgeMap.set(connectionKey(connection.from, connection.to), connection);
+    addNeighbor(connection.from, connection.to, connection);
+    addNeighbor(connection.to, connection.from, connection);
+  });
+
+  adjacency.forEach((neighbors, from) => {
+    for (let i = 0; i < neighbors.length - 1; i += 1) {
+      for (let j = i + 1; j < neighbors.length; j += 1) {
+        const first = neighbors[i].to;
+        const second = neighbors[j].to;
+        const closingConnection = edgeMap.get(connectionKey(first, second));
+
+        if (!closingConnection) continue;
+
+        const key = [from, first, second].sort((a, b) => a - b).join(":");
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        const a = particles[from];
+        const b = particles[first];
+        const c = particles[second];
+        const area = triangleArea(a, b, c);
+        if (area < minArea || area > maxArea) continue;
+
+        const centroid = triangleCentroid(a, b, c);
+        if (pointIsTooCentral(centroid.x, centroid.y, width, height)) continue;
+
+        facets.push({
+          points: [from, first, second],
+          centroid,
+          area,
+          strength: (neighbors[i].proximity + neighbors[j].proximity + closingConnection.proximity) / 3
+        });
+      }
+    }
+  });
+
+  return facets
+    .sort((a, b) => (b.strength * Math.sqrt(b.area)) - (a.strength * Math.sqrt(a.area)))
+    .slice(0, maxFacets);
 }
 
-function mountSignalMeshBackground(canvas, profileName = getProfileName()) {
+function traceTriangle(ctx, a, b, c) {
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.lineTo(c.x, c.y);
+  ctx.closePath();
+}
+
+function drawGlassFacets(ctx, particles, connections, config, width, height, intensity, themeColors) {
+  const facets = collectGlassFacets(particles, connections, config, width, height);
+  if (!facets.length) return;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  facets.forEach((facet) => {
+    const [first, second, third] = facet.points;
+    const a = particles[first];
+    const b = particles[second];
+    const c = particles[third];
+    const colors = [a, b, c].map((particle) => themeColors[particle.colorKey] || themeColors.accent);
+    const cyanGlass = blendColors(themeColors.accent, themeColors.data, 0.22);
+    const glassColor = blendColors(averageColors(colors), cyanGlass, 0.72);
+    const highlightColor = blendColors(glassColor, themeColors.node, 0.56);
+    const alpha = clamp(
+      (config.glassFacetAlpha || 0.14) * (0.65 + facet.strength * 0.9) * (1 + intensity * 0.35),
+      0,
+      0.32
+    );
+
+    const fill = ctx.createLinearGradient(a.x, a.y, c.x, c.y);
+    fill.addColorStop(0, colorString(highlightColor, alpha * 0.82));
+    fill.addColorStop(0.48, colorString(glassColor, alpha * 0.55));
+    fill.addColorStop(1, colorString(cyanGlass, alpha * 0.28));
+
+    ctx.shadowBlur = 16 + intensity * 8;
+    ctx.shadowColor = colorString(themeColors.accent, alpha * 1.7);
+    ctx.fillStyle = fill;
+    traceTriangle(ctx, a, b, c);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    const sheen = ctx.createLinearGradient(
+      facet.centroid.x - 18,
+      facet.centroid.y - 18,
+      facet.centroid.x + 42,
+      facet.centroid.y + 28
+    );
+    sheen.addColorStop(0, colorString(themeColors.node, alpha * 0.2));
+    sheen.addColorStop(0.5, colorString(themeColors.node, alpha * 0.08));
+    sheen.addColorStop(1, colorString(glassColor, 0));
+
+    ctx.fillStyle = sheen;
+    traceTriangle(ctx, a, b, c);
+    ctx.fill();
+
+    const edge = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    edge.addColorStop(0, colorString(highlightColor, alpha * 0.9));
+    edge.addColorStop(0.55, colorString(themeColors.node, alpha * 0.72));
+    edge.addColorStop(1, colorString(glassColor, alpha * 0.45));
+
+    ctx.lineWidth = 0.85 + intensity * 0.25;
+    ctx.strokeStyle = edge;
+    traceTriangle(ctx, a, b, c);
+    ctx.stroke();
+
+    const [start, end] = longestTriangleEdge(a, b, c);
+    ctx.lineWidth = 1.35 + intensity * 0.25;
+    ctx.strokeStyle = colorString(highlightColor, alpha * 1.2);
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+function drawConnections(ctx, particles, config, width, height, intensity, themeColors, connections) {
+  ctx.globalCompositeOperation = "lighter";
+
+  connections.forEach((connection) => {
+    const a = particles[connection.from];
+    const b = particles[connection.to];
+    const alpha = connection.alpha;
+    const glowIntensity = config.glowIntensity || 1.0;
+
+    const aColor = themeColors[a.colorKey] || themeColors.accent;
+    const bColor = themeColors[b.colorKey] || themeColors.accent;
+    const midColor = averageColors([aColor, bColor]);
+
+    // Enhanced gradient with midpoint for smoother blending
+    const glow = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    glow.addColorStop(0, colorString(aColor, alpha * 0.28 * glowIntensity));
+    glow.addColorStop(0.5, colorString(midColor, alpha * 0.32 * glowIntensity));
+    glow.addColorStop(1, colorString(bColor, alpha * 0.28 * glowIntensity));
+
+    const line = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    line.addColorStop(0, colorString(aColor, alpha));
+    line.addColorStop(0.5, colorString(midColor, alpha * 1.1));
+    line.addColorStop(1, colorString(bColor, alpha));
+
+    // Outer glow
+    ctx.lineWidth = 5.2 + intensity * 1.2;
+    ctx.strokeStyle = glow;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    // Core line
+    ctx.lineWidth = 1.5 + intensity * 0.3;
+    ctx.strokeStyle = line;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+  });
+}
+
+function drawParticles(ctx, particles, elapsed, intensity, themeColors) {
+  ctx.globalCompositeOperation = "lighter";
+
+  particles.forEach((particle) => {
+    const pulse = 0.85 + Math.sin(elapsed * 0.72 + particle.pulseOffset) * 0.15;
+    const alpha = clamp(particle.alpha * pulse * (1 + intensity * 0.28), 0, 0.98);
+    const haloRadius = particle.radius * (particle.zone === "speck" ? 4.2 : 5.8);
+    const color = themeColors[particle.colorKey] || themeColors.accent;
+    
+    // Multi-layer halo for enhanced glow
+    const halo = ctx.createRadialGradient(
+      particle.x,
+      particle.y,
+      0,
+      particle.x,
+      particle.y,
+      haloRadius
+    );
+
+    halo.addColorStop(0, colorString(color, alpha * 0.65));
+    halo.addColorStop(0.25, colorString(color, alpha * 0.38));
+    halo.addColorStop(0.5, colorString(color, alpha * 0.18));
+    halo.addColorStop(1, colorString(color, 0));
+
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, haloRadius, 0, TWO_PI);
+    ctx.fill();
+
+    // Inner bright core with subtle color tint
+    const coreGradient = ctx.createRadialGradient(
+      particle.x,
+      particle.y,
+      0,
+      particle.x,
+      particle.y,
+      particle.radius * (1 + intensity * 0.15)
+    );
+    
+    coreGradient.addColorStop(0, colorString(themeColors.node, alpha));
+    coreGradient.addColorStop(0.6, colorString(color, alpha * 0.85));
+    coreGradient.addColorStop(1, colorString(color, alpha * 0.4));
+
+    ctx.fillStyle = coreGradient;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, particle.radius * (1 + intensity * 0.15), 0, TWO_PI);
+    ctx.fill();
+  });
+}
+
+function mountPlexusBackground(canvas, profileName = getProfileName()) {
   if (!canvas || !shouldEnableBackground()) return null;
 
   const config = PROFILE_CONFIG[profileName] || PROFILE_CONFIG.desktop;
-  const aspect = window.innerWidth / Math.max(window.innerHeight, 1);
-  const rand = createPrng(profileName === "mobile" ? 4871 : profileName === "compact" ? 8923 : 12037);
-  const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.1, 10);
-  camera.position.z = 3;
+  const ctx = canvas.getContext("2d", { alpha: true });
+  if (!ctx) return null;
 
-  let renderer;
-  try {
-    renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: false,
-      canvas,
-      depth: false,
-      stencil: false,
-      powerPreference: profileName === "mobile" ? "low-power" : "high-performance",
-      failIfMajorPerformanceCaveat: false,
-      preserveDrawingBuffer: false
-    });
-  } catch (error) {
-    console.warn("Signal mesh background could not be initialized.", error);
-    return null;
-  }
-
-  renderer.setClearColor(0x000000, 0);
-
-  const uniforms = {
-    uTime: { value: 0 },
-    uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, config.dpr) },
-    uPrimaryColor: { value: new THREE.Color("#0ea5e9") },
-    uSecondaryColor: { value: new THREE.Color("#a855f7") },
-    uDataColor: { value: new THREE.Color("#10b981") },
-    uPointer: { value: new THREE.Vector2(999.0, 999.0) },
-    uIntensity: { value: 0.0 }
+  const particles = [];
+  const pointer = {
+    active: false,
+    x: POINTER_AWAY,
+    y: POINTER_AWAY
   };
 
-  const nodes = createNodes(config.nodes, aspect, profileName, config, rand);
-  const links = createLinks(nodes, config.links, aspect, profileName, rand);
-  const lineMesh = createLineMesh(nodes, links, uniforms);
-  const nodeMesh = createNodeMesh(nodes, uniforms);
-  const packets = createPackets(nodes, links, config.packets, config, aspect, profileName, uniforms, rand);
-
-  lineMesh.renderOrder = 1;
-  packets.mesh.renderOrder = 2;
-  nodeMesh.renderOrder = 3;
-  scene.add(lineMesh, packets.mesh, nodeMesh);
-
-  const allMaterials = [lineMesh.material, nodeMesh.material, packets.mesh.material];
-
-  const syncTheme = () => {
-    const isDark = document.body.classList.contains("dark-theme");
-    const opacity = isDark ? config.opacity.dark : config.opacity.light;
-    const blending = THREE.AdditiveBlending;
-
-    uniforms.uPrimaryColor.value.copy(readCssColor("--accent-fill", "#0ea5e9"));
-    uniforms.uSecondaryColor.value.copy(readCssColor("--secondary-fill", "#a855f7"));
-    uniforms.uDataColor.value.copy(readCssColor("--data-fill", "#10b981"));
-
-    lineMesh.material.uniforms.uOpacity.value = opacity * 0.5;
-    nodeMesh.material.uniforms.uOpacity.value = opacity * 0.66;
-    packets.mesh.material.uniforms.uOpacity.value = opacity * 0.92;
-
-    allMaterials.forEach((material) => {
-      if (material.blending !== blending) {
-        material.blending = blending;
-        material.needsUpdate = true;
-      }
-    });
-  };
-
-  syncTheme();
-
-  const themeObserver = new MutationObserver(syncTheme);
-  themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class", "style"] });
-
-  const setSize = () => {
-    const width = window.innerWidth;
-    const height = Math.max(window.innerHeight, 1);
-    const nextAspect = width / height;
-
-    camera.left = -nextAspect;
-    camera.right = nextAspect;
-    camera.top = 1;
-    camera.bottom = -1;
-    camera.updateProjectionMatrix();
-
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, config.dpr);
-    uniforms.uPixelRatio.value = pixelRatio;
-    renderer.setPixelRatio(pixelRatio);
-    renderer.setSize(width, height, false);
-  };
-
-  setSize();
-
-  let resizeWait = false;
-  const handleResize = () => {
-    if (resizeWait) return;
-
-    resizeWait = true;
-    window.requestAnimationFrame(() => {
-      setSize();
-      resizeWait = false;
-    });
-  };
-
-  window.addEventListener("resize", handleResize);
-
-  const supportsPointerParallax = profileName !== "mobile" &&
-    window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-
-  let pointerX = 999;
-  let pointerY = 999;
-  let targetPointerX = 999;
-  let targetPointerY = 999;
-
-  const handlePointerMove = (event) => {
-    const nx = (event.clientX / window.innerWidth) * 2 - 1;
-    const ny = -((event.clientY / window.innerHeight) * 2 - 1);
-    
-    if (targetPointerX === 999) {
-      pointerX = nx;
-      pointerY = ny;
-    }
-    
-    targetPointerX = nx;
-    targetPointerY = ny;
-  };
-  
-  const handlePointerLeave = () => {
-    targetPointerX = 999;
-    targetPointerY = 999;
-  };
-
-  if (supportsPointerParallax) {
-    window.addEventListener("pointermove", handlePointerMove, { passive: true });
-    document.body.addEventListener("pointerleave", handlePointerLeave, { passive: true });
-  }
-
-  const clock = new THREE.Clock();
+  let width = 0;
+  let height = 0;
+  let resizeFrame = 0;
   let animationFrame = 0;
   let lastFrameTime = performance.now();
-  let packetTime = 0;
+  let themeColors = readThemeColors();
+
+  const setSize = () => {
+    const nextWidth = window.innerWidth;
+    const nextHeight = Math.max(window.innerHeight, 1);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, config.dpr);
+    const xScale = width > 0 ? nextWidth / width : 1;
+    const yScale = height > 0 ? nextHeight / height : 1;
+
+    width = nextWidth;
+    height = nextHeight;
+
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+    particles.forEach((particle) => {
+      particle.x *= xScale;
+      particle.y *= yScale;
+      particle.homeX *= xScale;
+      particle.homeY *= yScale;
+    });
+
+    reconcileParticles(particles, width, height, config);
+  };
+
+  const handleResize = () => {
+    if (resizeFrame) return;
+
+    resizeFrame = window.requestAnimationFrame(() => {
+      resizeFrame = 0;
+      setSize();
+    });
+  };
+
+  const handlePointerMove = (event) => {
+    pointer.active = true;
+    pointer.x = event.clientX;
+    pointer.y = event.clientY;
+  };
+
+  const handlePointerLeave = () => {
+    pointer.active = false;
+    pointer.x = POINTER_AWAY;
+    pointer.y = POINTER_AWAY;
+  };
+
+  const syncThemeColors = () => {
+    themeColors = readThemeColors();
+  };
 
   const render = (currentTime) => {
     animationFrame = window.requestAnimationFrame(render);
@@ -830,71 +836,45 @@ function mountSignalMeshBackground(canvas, profileName = getProfileName()) {
       return;
     }
 
-    let delta = (currentTime - lastFrameTime) * 0.001;
+    const delta = Math.min((currentTime - lastFrameTime) * 0.001, 0.05);
+    const elapsed = currentTime * 0.001;
     lastFrameTime = currentTime;
-    
-    // Prevent massive jumps if inactive
-    if (delta > 0.1) delta = 0.016;
+    surgeIntensity += (0 - surgeIntensity) * 0.035;
 
-    const elapsed = clock.getElapsedTime();
-    uniforms.uTime.value = elapsed;
-    
-    // Smooth surge intensity
-    uniforms.uIntensity.value += (surgeIntensity - uniforms.uIntensity.value) * 0.1;
-    surgeIntensity *= 0.95;
+    drawBackground(ctx, width, height);
 
-    // Dynamic packet speed based on intensity
-    const surgeMultiplier = 1.0 + uniforms.uIntensity.value * 3.0;
-    packetTime += delta * surgeMultiplier;
-    
-    packets.update(packetTime);
+    particles.forEach((particle) => {
+      updateParticle(particle, delta, elapsed, width, height, pointer, config, surgeIntensity);
+    });
 
-    if (supportsPointerParallax) {
-      pointerX += (targetPointerX - pointerX) * 0.1;
-      pointerY += (targetPointerY - pointerY) * 0.1;
-      
-      uniforms.uPointer.value.x = pointerX === 999 ? 999 : pointerX * aspect;
-      uniforms.uPointer.value.y = pointerY === 999 ? 999 : pointerY;
-      
-      if (pointerX !== 999) {
-        scene.position.x = pointerX * aspect * 0.018;
-        scene.position.y = pointerY * 0.018;
-        scene.rotation.z = pointerX * 0.006;
-        scene.rotation.x = -pointerY * 0.006;
-      }
-    }
-
-    renderer.render(scene, camera);
+    const connections = selectConnections(particles, config, width, height, surgeIntensity);
+    drawGlassFacets(ctx, particles, connections, config, width, height, surgeIntensity, themeColors);
+    drawConnections(ctx, particles, config, width, height, surgeIntensity, themeColors, connections);
+    drawParticles(ctx, particles, elapsed, surgeIntensity, themeColors);
   };
+
+  setSize();
+  window.addEventListener("resize", handleResize, { passive: true });
+
+  const themeObserver = new MutationObserver(syncThemeColors);
+  themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class", "style"] });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
+
+  if (supportsHover.matches && profileName !== "mobile") {
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    document.body.addEventListener("pointerleave", handlePointerLeave, { passive: true });
+  }
 
   animationFrame = window.requestAnimationFrame(render);
 
-  const handleContextLost = (event) => {
-    event.preventDefault();
-    window.cancelAnimationFrame(animationFrame);
-  };
-
-  const handleContextRestored = () => {
-    syncThreeBackground();
-  };
-
-  canvas.addEventListener("webglcontextlost", handleContextLost, false);
-  canvas.addEventListener("webglcontextrestored", handleContextRestored, false);
-
   return () => {
     window.cancelAnimationFrame(animationFrame);
+    if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
     window.removeEventListener("resize", handleResize);
     window.removeEventListener("pointermove", handlePointerMove);
     document.body.removeEventListener("pointerleave", handlePointerLeave);
-    canvas.removeEventListener("webglcontextlost", handleContextLost);
-    canvas.removeEventListener("webglcontextrestored", handleContextRestored);
     themeObserver.disconnect();
-
-    lineMesh.geometry.dispose();
-    nodeMesh.geometry.dispose();
-    packets.mesh.geometry.dispose();
-    allMaterials.forEach((material) => material.dispose());
-    renderer.dispose();
+    ctx.clearRect(0, 0, width, height);
   };
 }
 
@@ -926,7 +906,7 @@ function syncThreeBackgroundImpl() {
 
   if (!destroyBackground || backgroundProfile !== nextProfile) {
     destroyBackground?.();
-    destroyBackground = mountSignalMeshBackground(canvas, nextProfile);
+    destroyBackground = mountPlexusBackground(canvas, nextProfile);
     backgroundProfile = destroyBackground ? nextProfile : null;
     canvas.hidden = !destroyBackground;
   }

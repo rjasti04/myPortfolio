@@ -11,7 +11,7 @@ import { initSkillsCarousel } from "./skills-carousel.js";
 import { initRipple } from "./ripple.js";
 import { initScrollToTop } from "./scroll-to-top.js";
 import { initThemeCustomizer } from "./theme-customizer.js";
-import { initParticles, initSpotlight } from "./particles-config.js";
+import { initParticles } from "./particles-config.js";
 
 // Lazy-load chat module on first interaction
 let chatLoaded = false;
@@ -64,7 +64,6 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const initHeroEffects = () => {
       initParticles('particles-canvas');
-      initSpotlight('about');
     };
 
     if ("requestIdleCallback" in window) {
