@@ -1,3 +1,28 @@
+export function escapeHTML(value) {
+  const div = document.createElement("div");
+  div.textContent = String(value);
+  return div.innerHTML;
+}
+
+export function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.top = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  textarea.remove();
+
+  return copied ? Promise.resolve() : Promise.reject(new Error("Copy command failed"));
+}
+
 export function showToast(message, type = "info") {
   const toastContainer = document.getElementById("toast-container");
   if (!toastContainer) return;
@@ -37,5 +62,46 @@ export function showToast(message, type = "info") {
 
 export function estimateTokens(text) {
   if (!text || text.length === 0) return 0;
-  return Math.ceil(text.length / 4);
+  
+  // More accurate estimation based on GPT tokenization patterns
+  const words = text.trim().split(/\s+/).length;
+  const specialChars = (text.match(/[^\w\s]/g) || []).length;
+  const codeBlocks = (text.match(/```[\s\S]*?```/g) || []).length;
+  const urls = (text.match(/https?:\/\/[^\s]+/g) || []).length;
+  
+  // Rough formula (calibrated against actual tokenizers)
+  const baseTokens = Math.ceil(text.length / 4);
+  const wordBonus = Math.ceil(words * 0.3);
+  const specialBonus = Math.ceil(specialChars * 0.5);
+  const codeBonus = codeBlocks * 50;
+  const urlBonus = urls * 10;
+  
+  return baseTokens + wordBonus + specialBonus + codeBonus + urlBonus;
 }
+
+// Offline detection
+let isOnline = navigator.onLine;
+const onlineCallbacks = [];
+const offlineCallbacks = [];
+
+export function onOnline(callback) {
+  onlineCallbacks.push(callback);
+}
+
+export function onOffline(callback) {
+  offlineCallbacks.push(callback);
+}
+
+export function isNetworkOnline() {
+  return isOnline;
+}
+
+window.addEventListener('online', () => {
+  isOnline = true;
+  onlineCallbacks.forEach(cb => cb());
+});
+
+window.addEventListener('offline', () => {
+  isOnline = false;
+  offlineCallbacks.forEach(cb => cb());
+});

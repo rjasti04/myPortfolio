@@ -13,6 +13,16 @@ export function initSkillsCarousel() {
   const slides = Array.from(track.querySelectorAll(".skill-group"));
   if (!slides.length) return;
 
+  // Wait for next frame to ensure DOM is fully rendered and painted
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      initCarouselLogic(carousel, track, slides);
+    });
+  });
+}
+
+function initCarouselLogic(carousel, track, slides) {
+
   const prevBtn = carousel.querySelector(".skills-carousel-arrow--prev");
   const nextBtn = carousel.querySelector(".skills-carousel-arrow--next");
   const dotsContainer = carousel.querySelector(".skills-carousel-dots");
@@ -43,10 +53,14 @@ export function initSkillsCarousel() {
     const prevI = (activeIdx - 1 + n) % n;
     const nextI = (activeIdx + 1) % n;
     slides.forEach((slide, i) => {
-      slide.classList.remove("is-active", "is-prev", "is-next");
-      if (i === activeIdx) slide.classList.add("is-active");
-      else if (i === prevI) slide.classList.add("is-prev");
-      else if (i === nextI) slide.classList.add("is-next");
+      slide.classList.remove("is-active", "is-prev", "is-next", "active");
+      if (i === activeIdx) {
+        slide.classList.add("is-active", "active");
+      } else if (i === prevI) {
+        slide.classList.add("is-prev");
+      } else if (i === nextI) {
+        slide.classList.add("is-next");
+      }
       slide.setAttribute("aria-hidden", i === activeIdx ? "false" : "true");
     });
     dots.forEach((d, i) => {
@@ -58,7 +72,7 @@ export function initSkillsCarousel() {
 
   function resetClasses() {
     slides.forEach((slide) => {
-      slide.classList.remove("is-active", "is-prev", "is-next");
+      slide.classList.remove("is-active", "is-prev", "is-next", "active");
       slide.removeAttribute("aria-hidden");
     });
     dots.forEach((d) => d.classList.remove("is-active"));
@@ -156,15 +170,26 @@ export function initSkillsCarousel() {
       (entries) => {
         entries.forEach((entry) => {
           visible = entry.isIntersecting;
-          if (visible) startAutoplay();
-          else stopAutoplay();
+          if (visible && isMobile) {
+            // Ensure carousel is initialized when becoming visible
+            if (!carousel.classList.contains("carousel-initialized")) {
+              carousel.classList.add("carousel-initialized");
+              // Force reflow to ensure CSS is applied
+              void carousel.offsetHeight;
+              render();
+            }
+            startAutoplay();
+          } else {
+            stopAutoplay();
+          }
         });
       },
-      { threshold: 0.3 }
+      { threshold: 0.1, rootMargin: "50px" }
     );
     io.observe(carousel);
   } else {
     visible = true;
+    if (isMobile) startAutoplay();
   }
 
   document.addEventListener("visibilitychange", () => {
@@ -202,6 +227,9 @@ export function initSkillsCarousel() {
   }
 
   if (isMobile) {
+    carousel.classList.add("carousel-initialized");
+    // Force reflow to ensure CSS classes are applied before render
+    void carousel.offsetHeight;
     render();
     startAutoplay();
   }

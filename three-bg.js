@@ -1,521 +1,981 @@
-import * as THREE from './js/vendor/three.module.js';
-import { prefersReducedMotion as reducedMotionQuery, compactViewport as compactViewportQuery, mobileDevice } from "./js/config.js";
-let destroyBackground = null;
-let backgroundVariant = null;
-let destroyMobileBackground = null;
+import {
+  prefersReducedMotion as reducedMotionQuery,
+  compactViewport as compactViewportQuery,
+  mobileDevice,
+  supportsHover
+} from "./js/config.js";
 
-let isWebGLAvailable = null;
+let destroyBackground = null;
+let backgroundProfile = null;
 let syncThreeBackgroundTimeout = null;
+let surgeIntensity = 0;
+
+const TWO_PI = Math.PI * 2;
+const POINTER_AWAY = -10000;
+
+const COLOR_KEYS = {
+  left: "secondary",
+  right: "accent",
+  top: "accent",
+  bottom: "secondary",
+  speck: "data"
+};
+
+const COLOR_FALLBACKS = {
+  accent: [14, 165, 233],
+  secondary: [168, 85, 247],
+  data: [16, 185, 129],
+  node: [255, 255, 255]
+};
+
+const PROFILE_CONFIG = {
+  desktop: {
+    minParticles: 150,
+    maxParticles: 180,
+    density: 10500,
+    sideWidth: 0.28,
+    maxDistance: 195,
+    maxLinks: 5,
+    radius: [1.3, 3.2],
+    speed: [2.4, 6.8],
+    dpr: 1.75,
+    lineAlpha: 0.58,
+    repelRadius: 155,
+    repelStrength: 220,
+    homeStrength: 0.06,
+    glowIntensity: 1.0,
+    connectionFalloff: 1.5,
+    glassFacetCount: 24,
+    glassFacetAlpha: 0.16,
+    glassFacetAreaFactor: 0.34
+  },
+  compact: {
+    minParticles: 125,
+    maxParticles: 155,
+    density: 9900,
+    sideWidth: 0.31,
+    maxDistance: 165,
+    maxLinks: 4,
+    radius: [1.1, 2.5],
+    speed: [2.1, 5.8],
+    dpr: 1.5,
+    lineAlpha: 0.50,
+    repelRadius: 135,
+    repelStrength: 200,
+    homeStrength: 0.07,
+    glowIntensity: 0.95,
+    connectionFalloff: 1.45,
+    glassFacetCount: 16,
+    glassFacetAlpha: 0.14,
+    glassFacetAreaFactor: 0.3
+  },
+  mobile: {
+    minParticles: 80,
+    maxParticles: 100,
+    density: 9500,
+    sideWidth: 0.35,
+    maxDistance: 120,
+    maxLinks: 3,
+    radius: [1.0, 2.2],
+    speed: [1.6, 4.8],
+    dpr: 1.3,
+    lineAlpha: 0.42,
+    repelRadius: 0,
+    repelStrength: 0,
+    homeStrength: 0.09,
+    glowIntensity: 0.9,
+    connectionFalloff: 1.4,
+    glassFacetCount: 8,
+    glassFacetAlpha: 0.10,
+    glassFacetAreaFactor: 0.26
+  }
+};
+
+window.triggerWebGlSurge = () => {
+  surgeIntensity = 1;
+};
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function randomBetween(range) {
+  return lerp(range[0], range[1], Math.random());
+}
+
+function colorString(color, alpha) {
+  return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`;
+}
+
+function blendColors(a, b, weight = 0.5) {
+  const t = clamp(weight, 0, 1);
+  return [
+    Math.round(lerp(a[0], b[0], t)),
+    Math.round(lerp(a[1], b[1], t)),
+    Math.round(lerp(a[2], b[2], t))
+  ];
+}
+
+function averageColors(colors) {
+  const total = colors.reduce(
+    (sum, color) => [
+      sum[0] + color[0],
+      sum[1] + color[1],
+      sum[2] + color[2]
+    ],
+    [0, 0, 0]
+  );
+
+  return total.map((channel) => Math.round(channel / colors.length));
+}
+
+function parseHexColor(value) {
+  const hex = value.replace("#", "").trim();
+
+  if (hex.length === 3) {
+    return hex.split("").map((channel) => parseInt(`${channel}${channel}`, 16));
+  }
+
+  if (hex.length >= 6) {
+    return [
+      parseInt(hex.slice(0, 2), 16),
+      parseInt(hex.slice(2, 4), 16),
+      parseInt(hex.slice(4, 6), 16)
+    ];
+  }
+
+  return null;
+}
+
+function parseRgbColor(value) {
+  const match = value.match(/rgba?\(([^)]+)\)/i);
+  if (!match) return null;
+
+  const channels = match[1]
+    .split(",")
+    .slice(0, 3)
+    .map((channel) => Number.parseFloat(channel.trim()));
+
+  if (channels.some((channel) => Number.isNaN(channel))) return null;
+  return channels;
+}
+
+function getColorParser() {
+  if (!getColorParser.context) {
+    getColorParser.context = document.createElement("canvas").getContext("2d");
+  }
+
+  return getColorParser.context;
+}
+
+function parseCssColor(value, fallback) {
+  const parser = getColorParser();
+  if (!parser || !value) return fallback;
+
+  parser.fillStyle = "#000000";
+  parser.fillStyle = value.trim();
+
+  const normalized = parser.fillStyle;
+  if (normalized.startsWith("#")) return parseHexColor(normalized) || fallback;
+  if (normalized.startsWith("rgb")) return parseRgbColor(normalized) || fallback;
+
+  return fallback;
+}
+
+function readThemeColors() {
+  const bodyStyles = getComputedStyle(document.body);
+  const rootStyles = getComputedStyle(document.documentElement);
+  const readVar = (name) =>
+    bodyStyles.getPropertyValue(name).trim() ||
+    rootStyles.getPropertyValue(name).trim();
+
+  return {
+    accent: parseCssColor(readVar("--accent-fill"), COLOR_FALLBACKS.accent),
+    secondary: parseCssColor(readVar("--secondary-fill"), COLOR_FALLBACKS.secondary),
+    data: parseCssColor(readVar("--data-fill"), COLOR_FALLBACKS.data),
+    node: COLOR_FALLBACKS.node
+  };
+}
+
+function getProfileName() {
+  if (mobileDevice.matches || window.innerWidth <= 640) return "mobile";
+  if (compactViewportQuery.matches || window.innerHeight < 720) return "compact";
+  return "desktop";
+}
 
 function shouldEnableBackground() {
   if (reducedMotionQuery.matches) return false;
-  if (mobileDevice.matches) return false;
+  if (window.innerWidth < 320 || window.innerHeight < 420) return false;
+  return Boolean(
+    window.requestAnimationFrame &&
+      typeof document.createElement("canvas").getContext === "function"
+  );
+}
 
-  if (isWebGLAvailable === null) {
-    try {
-      const canvas = document.createElement("canvas");
-      isWebGLAvailable = !!(
-        window.WebGLRenderingContext &&
-        (canvas.getContext("webgl") || canvas.getContext("experimental-webgl"))
-      );
-    } catch (e) {
-      isWebGLAvailable = false;
+function getParticleCount(width, height, config) {
+  const count = Math.round((width * height) / config.density);
+  return clamp(count, config.minParticles, config.maxParticles);
+}
+
+function pickZone() {
+  const roll = Math.random();
+  if (roll < 0.44) return "left";
+  if (roll < 0.88) return "right";
+  if (roll < 0.94) return "top";
+  if (roll < 0.98) return "bottom";
+  return "speck";
+}
+
+function zonePosition(zone, width, height, config) {
+  const sideBand = width * config.sideWidth;
+  const outside = config.maxDistance * 0.35;
+  const verticalPadding = height * 0.05;
+
+  if (zone === "left") {
+    return {
+      x: lerp(-outside * 0.25, sideBand, Math.random() ** 0.9),
+      y: lerp(-verticalPadding, height + verticalPadding, Math.random())
+    };
+  }
+
+  if (zone === "right") {
+    return {
+      x: width - lerp(-outside * 0.25, sideBand, Math.random() ** 0.9),
+      y: lerp(-verticalPadding, height + verticalPadding, Math.random())
+    };
+  }
+
+  if (zone === "top") {
+    const leftSide = Math.random() > 0.5;
+    return {
+      x: leftSide
+        ? lerp(-outside * 0.25, width * 0.38, Math.random())
+        : lerp(width * 0.62, width + outside * 0.25, Math.random()),
+      y: lerp(-outside * 0.8, height * 0.22, Math.random() ** 1.35)
+    };
+  }
+
+  if (zone === "bottom") {
+    const leftSide = Math.random() > 0.5;
+    return {
+      x: leftSide
+        ? lerp(-outside * 0.25, width * 0.32, Math.random())
+        : lerp(width * 0.68, width + outside * 0.25, Math.random()),
+      y: height - lerp(-outside * 0.8, height * 0.2, Math.random() ** 1.45)
+    };
+  }
+
+  return {
+    x: lerp(width * 0.3, width * 0.7, Math.random()),
+    y: lerp(height * 0.2, height * 0.75, Math.random())
+  };
+}
+
+function createParticle(width, height, config) {
+  const zone = pickZone();
+  const position = zonePosition(zone, width, height, config);
+  const angle = zone === "left"
+    ? lerp(-0.5, 0.5, Math.random())
+    : zone === "right"
+      ? Math.PI + lerp(-0.5, 0.5, Math.random())
+      : Math.random() * TWO_PI;
+  const speed = randomBetween(config.speed) * (zone === "speck" ? 0.3 : 1);
+  const colorKey = COLOR_KEYS[zone];
+
+  return {
+    zone,
+    colorKey,
+    x: position.x,
+    y: position.y,
+    homeX: position.x,
+    homeY: position.y,
+    baseSpeed: speed,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    radius: randomBetween(config.radius) * (zone === "speck" ? 0.65 : 1),
+    alpha: zone === "speck" ? lerp(0.16, 0.38, Math.random()) : lerp(0.52, 0.92, Math.random()),
+    phase: Math.random() * TWO_PI,
+    turn: lerp(0.04, 0.15, Math.random()) * (Math.random() > 0.5 ? 1 : -1),
+    pulseOffset: Math.random() * TWO_PI
+  };
+}
+
+function reconcileParticles(particles, width, height, config) {
+  const nextCount = getParticleCount(width, height, config);
+
+  while (particles.length < nextCount) {
+    particles.push(createParticle(width, height, config));
+  }
+
+  if (particles.length > nextCount) {
+    particles.length = nextCount;
+  }
+
+  particles.forEach((particle) => {
+    particle.x = clamp(particle.x, -config.maxDistance, width + config.maxDistance);
+    particle.y = clamp(particle.y, -config.maxDistance, height + config.maxDistance);
+  });
+}
+
+function drawBackground(ctx, width, height) {
+  ctx.globalCompositeOperation = "source-over";
+  ctx.clearRect(0, 0, width, height);
+}
+
+function applyHomeForce(particle, delta, config) {
+  if (particle.zone === "speck") return;
+
+  particle.vx += (particle.homeX - particle.x) * config.homeStrength * delta;
+  particle.vy += (particle.homeY - particle.y) * config.homeStrength * delta * 0.55;
+}
+
+function nudgeAwayFromCenter(particle, delta, width, height) {
+  if (particle.zone === "speck") return;
+
+  const inQuietX = particle.x > width * 0.32 && particle.x < width * 0.68;
+  const inQuietY = particle.y > height * 0.16 && particle.y < height * 0.86;
+
+  if (!inQuietX || !inQuietY) return;
+
+  const direction = particle.zone === "right" ? 1 : -1;
+  particle.vx += direction * width * 0.22 * delta;
+}
+
+function updateParticle(particle, delta, elapsed, width, height, pointer, config, intensity) {
+  const turn = Math.sin(elapsed * particle.turn + particle.phase) * delta * 0.07;
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  const vx = particle.vx * cos - particle.vy * sin;
+  const vy = particle.vx * sin + particle.vy * cos;
+  const speed = Math.hypot(vx, vy) || particle.baseSpeed || 1;
+  const targetSpeed = particle.baseSpeed * (1 + intensity * 0.5);
+
+  particle.vx = (vx / speed) * targetSpeed;
+  particle.vy = (vy / speed) * targetSpeed;
+
+  applyHomeForce(particle, delta, config);
+  nudgeAwayFromCenter(particle, delta, width, height);
+
+  particle.x += particle.vx * delta;
+  particle.y += particle.vy * delta;
+
+  if (pointer.active && config.repelRadius > 0) {
+    const dx = particle.x - pointer.x;
+    const dy = particle.y - pointer.y;
+    const distanceSquared = dx * dx + dy * dy;
+    const radiusSquared = config.repelRadius * config.repelRadius;
+
+    if (distanceSquared < radiusSquared) {
+      const distance = Math.sqrt(distanceSquared) || 1;
+      const force = (1 - distance / config.repelRadius) ** 1.8;
+      const push = force * config.repelStrength * delta;
+
+      particle.x += (dx / distance) * push;
+      particle.y += (dy / distance) * push;
+      
+      // Dampen velocity during repulsion for smoother interaction
+      particle.vx *= 0.92;
+      particle.vy *= 0.92;
     }
   }
 
-  return isWebGLAvailable;
+  const margin = config.maxDistance * 0.6;
+  if (particle.x < -margin || particle.x > width + margin) particle.vx *= -0.98;
+  if (particle.y < -margin || particle.y > height + margin) particle.vy *= -0.98;
+
+  particle.x = clamp(particle.x, -margin, width + margin);
+  particle.y = clamp(particle.y, -margin, height + margin);
 }
 
-function getBackgroundVariant() {
-  return compactViewportQuery.matches ? "compact" : "default";
+function connectionDistanceFor(a, b, config) {
+  if (a.zone === "speck" || b.zone === "speck") return config.maxDistance * 0.5;
+  if (a.zone === b.zone) return config.maxDistance * 1.05;
+  if ((a.zone === "left" && b.zone === "top") || (a.zone === "top" && b.zone === "left")) {
+    return config.maxDistance * 0.82;
+  }
+  if ((a.zone === "right" && b.zone === "top") || (a.zone === "top" && b.zone === "right")) {
+    return config.maxDistance * 0.82;
+  }
+  if ((a.zone === "left" && b.zone === "bottom") || (a.zone === "bottom" && b.zone === "left")) {
+    return config.maxDistance * 0.75;
+  }
+  if ((a.zone === "right" && b.zone === "bottom") || (a.zone === "bottom" && b.zone === "right")) {
+    return config.maxDistance * 0.75;
+  }
+  return config.maxDistance * 0.38;
 }
 
-function mountThreeBackground(canvas, variant = getBackgroundVariant()) {
-  const compact = variant === "compact";
+function midpointIsTooCentral(a, b, width, height) {
+  if (a.zone === "speck" || b.zone === "speck") return false;
 
-  // Don't try to initialize WebGL on very small viewports
-  if (window.innerWidth < 768 || window.innerHeight < 600) {
-    return null;
+  const midX = (a.x + b.x) * 0.5;
+  const midY = (a.y + b.y) * 0.5;
+  return midX > width * 0.32 &&
+    midX < width * 0.68 &&
+    midY > height * 0.14 &&
+    midY < height * 0.86;
+}
+
+function buildSpatialGrid(particles, cellSize) {
+  const grid = new Map();
+  for (let i = 0; i < particles.length; i += 1) {
+    const cx = Math.floor(particles[i].x / cellSize);
+    const cy = Math.floor(particles[i].y / cellSize);
+    const key = cx * 10007 + cy;
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(i);
   }
+  return grid;
+}
 
-  const scene = new THREE.Scene();
+function collectConnections(particles, config, width, height) {
+  const cellSize = config.maxDistance;
+  const grid = buildSpatialGrid(particles, cellSize);
+  const candidates = [];
 
-  // Camera looking down at an angle over the landscape
-  const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 15, 30);
-  camera.lookAt(0, -5, 0);
+  for (let i = 0; i < particles.length; i += 1) {
+    const a = particles[i];
+    const cx = Math.floor(a.x / cellSize);
+    const cy = Math.floor(a.y / cellSize);
 
-  // Ensure the canvas element is actually available
-  if (!canvas) {
-    console.error("Renderer initialization failed: No canvas element provided.");
-    return null;
-  }
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dy = -1; dy <= 1; dy += 1) {
+        const nKey = (cx + dx) * 10007 + (cy + dy);
+        const bucket = grid.get(nKey);
+        if (!bucket) continue;
 
-  let renderer;
-  try {
-    renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: true,
-      canvas: canvas,
-      powerPreference: "high-performance",
-      failIfMajorPerformanceCaveat: false
-    });
-  } catch (error) {
-    console.error("Three.js background could not be initialized.", error);
-    return null;
-  }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, compact ? 1.5 : 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
+        for (const j of bucket) {
+          if (j <= i) continue;
+          const b = particles[j];
+          const maxDist = connectionDistanceFor(a, b, config);
+          const ex = a.x - b.x;
+          const ey = a.y - b.y;
+          const d2 = ex * ex + ey * ey;
 
-  // Ethereal Fluid Topology system (Particle Grid) - OPTIMIZED
-  const columns = compact ? 25 : 30;
-  const rows = compact ? 25 : 30;
-  const spacing = 0.8;
-  const geometry = new THREE.BufferGeometry();
-  
-  const particleCount = columns * rows;
-  const positions = new Float32Array(particleCount * 3);
-  const uvs = new Float32Array(particleCount * 2);
+          if (d2 > maxDist * maxDist) continue;
+          if (midpointIsTooCentral(a, b, width, height)) continue;
 
-  let i = 0;
-  for (let ix = 0; ix < columns; ix++) {
-    for (let iy = 0; iy < rows; iy++) {
-      // Center the grid
-      positions[i * 3] = (ix - columns / 2) * spacing;
-      positions[i * 3 + 1] = 0; // Y is calculated in shader
-      positions[i * 3 + 2] = (iy - rows / 2) * spacing;
-      
-      uvs[i * 2] = ix / columns;
-      uvs[i * 2 + 1] = iy / rows;
-      
-      i++;
-    }
-  }
-
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-
-  const getAccent = () => getComputedStyle(document.body).getPropertyValue("--accent-fill").trim() || "#c02645";
-  
-  // Custom shader for the fluid topology
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      uTime: { value: 0 },
-      uColor: { value: new THREE.Color(getAccent()) },
-      uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
-      uThemeOpacityMultiplier: { value: 1.0 },
-    },
-    vertexShader: `
-      uniform float uTime;
-      uniform float uPixelRatio;
-      
-      varying vec2 vUv;
-      varying float vElevation;
-      
-      void main() {
-        vUv = uv;
-        vec3 pos = position;
-        
-        // Very slow, ambient wave generation using overlapping sines
-        float time = uTime * 0.15;
-        
-        float elevation = sin(pos.x * 0.15 + time) * 1.5;
-        elevation += cos(pos.z * 0.15 + time * 0.8) * 1.5;
-        elevation += sin((pos.x + pos.z) * 0.05 - time * 0.5) * 1.0;
-        
-        // Dampen the edges so it fades into nothingness nicely
-        float distanceToCenter = length(pos.xz);
-        float dampen = smoothstep(50.0, 10.0, distanceToCenter);
-        
-        pos.y = elevation * dampen;
-        vElevation = pos.y;
-        
-        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-        
-        // Size attenuation based on depth and pixel ratio
-        gl_PointSize = (4.0 * uPixelRatio) * (20.0 / -mvPosition.z);
-        gl_Position = projectionMatrix * mvPosition;
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 uColor;
-      uniform float uThemeOpacityMultiplier;
-      
-      varying vec2 vUv;
-      varying float vElevation;
-      
-      void main() {
-        // Soft circular particle shape
-        vec2 xy = gl_PointCoord.xy - vec2(0.5);
-        float ll = length(xy);
-        float alpha = smoothstep(0.5, 0.1, ll);
-        
-        // Blend color based on height (elevation)
-        // Create gradient: deep blue → accent blue → purple → teal
-        float mixRatio = smoothstep(-2.0, 2.0, vElevation);
-        
-        // Deep blue base
-        vec3 deepColor = vec3(uColor.r * 0.3, uColor.g * 0.3, uColor.b * 0.6);
-        
-        // Purple accent for mid-high elevation
-        vec3 purpleAccent = vec3(0.7, 0.4, 0.9);
-        
-        // Teal highlight for peaks
-        vec3 tealHighlight = vec3(0.3, 0.85, 0.75);
-        
-        // Multi-stage gradient
-        vec3 finalColor;
-        if (mixRatio < 0.5) {
-          finalColor = mix(deepColor, uColor, mixRatio * 2.0);
-        } else if (mixRatio < 0.8) {
-          finalColor = mix(uColor, purpleAccent, (mixRatio - 0.5) * 3.33);
-        } else {
-          finalColor = mix(purpleAccent, tealHighlight, (mixRatio - 0.8) * 5.0);
+          candidates.push({ from: i, to: j, distance: Math.sqrt(d2), maxDistance: maxDist });
         }
-        
-        // Add a slight core glow to the particles
-        float core = smoothstep(0.2, 0.0, ll) * 0.4 * mixRatio;
-        finalColor += vec3(core);
-        
-        // Fade out based on distance from center (handled mostly by dampen in vertex, but let's add depth fade)
-        float depthAlpha = alpha * uThemeOpacityMultiplier;
-        
-        if (depthAlpha < 0.01) discard;
-        
-        gl_FragColor = vec4(finalColor, depthAlpha * (0.3 + 0.7 * mixRatio));
       }
-    `,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
+    }
+  }
+
+  return candidates.sort((a, b) => a.distance - b.distance);
+}
+
+function connectionKey(a, b) {
+  return a < b ? `${a}:${b}` : `${b}:${a}`;
+}
+
+function distanceSquared(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
+}
+
+function triangleArea(a, b, c) {
+  return Math.abs(
+    (a.x * (b.y - c.y) +
+      b.x * (c.y - a.y) +
+      c.x * (a.y - b.y)) * 0.5
+  );
+}
+
+function triangleCentroid(a, b, c) {
+  return {
+    x: (a.x + b.x + c.x) / 3,
+    y: (a.y + b.y + c.y) / 3
+  };
+}
+
+function pointIsTooCentral(x, y, width, height) {
+  return x > width * 0.34 &&
+    x < width * 0.66 &&
+    y > height * 0.16 &&
+    y < height * 0.84;
+}
+
+function longestTriangleEdge(a, b, c) {
+  const edges = [
+    [a, b, distanceSquared(a, b)],
+    [b, c, distanceSquared(b, c)],
+    [c, a, distanceSquared(c, a)]
+  ];
+
+  return edges.sort((first, second) => second[2] - first[2])[0];
+}
+
+function selectConnections(particles, config, width, height, intensity) {
+  const linkCounts = new Uint8Array(particles.length);
+  const connections = collectConnections(particles, config, width, height);
+  const selectedConnections = [];
+
+  connections.forEach((connection) => {
+    const a = particles[connection.from];
+    const b = particles[connection.to];
+    const maxLinks = a.zone === "speck" || b.zone === "speck" ? 1 : config.maxLinks;
+
+    if (linkCounts[connection.from] >= maxLinks || linkCounts[connection.to] >= maxLinks) return;
+
+    const proximity = 1 - connection.distance / connection.maxDistance;
+    const falloff = config.connectionFalloff || 1.4;
+    const alpha = clamp(proximity ** falloff * config.lineAlpha * (1 + intensity * 0.45), 0, 0.78);
+
+    selectedConnections.push({
+      ...connection,
+      alpha,
+      proximity
+    });
+
+    linkCounts[connection.from] += 1;
+    linkCounts[connection.to] += 1;
   });
 
-  const particles = new THREE.Points(geometry, material);
-  // Tilt the mesh slightly
-  particles.rotation.x = -Math.PI / 12;
-  scene.add(particles);
+  return selectedConnections;
+}
 
-  const syncTheme = () => {
-    const isDark = document.body.classList.contains("dark-theme");
-    material.uniforms.uColor.value.set(getAccent());
-    material.uniforms.uThemeOpacityMultiplier.value = isDark ? 0.48 : 0.36;
-    
-    // Switch to NormalBlending in light mode so colors are visible against white
-    material.blending = isDark ? THREE.AdditiveBlending : THREE.NormalBlending;
-    material.needsUpdate = true;
-  };
-  syncTheme();
+function collectGlassFacets(particles, connections, config, width, height) {
+  const maxFacets = config.glassFacetCount || 0;
+  if (maxFacets <= 0 || connections.length < 3) return [];
 
-  const themeObserver = new MutationObserver(syncTheme);
-  themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class", "style"] });
+  const adjacency = new Map();
+  const edgeMap = new Map();
+  const minArea = config.glassFacetMinArea || 280;
+  const maxArea = config.maxDistance * config.maxDistance * (config.glassFacetAreaFactor || 0.3);
+  const facets = [];
+  const seen = new Set();
 
-  let isVisible = true;
-  let mouseX = 0;
-  let mouseY = 0;
-  let targetMouseX = 0;
-  let targetMouseY = 0;
-
-  const handleMouseMove = (e) => {
-    targetMouseX = (e.clientX / window.innerWidth) * 2 - 1;
-    targetMouseY = -(e.clientY / window.innerHeight) * 2 + 1;
-  };
-  window.addEventListener("mousemove", handleMouseMove);
-
-  const clock = new THREE.Clock();
-
-  let resizeWait = false;
-  const handleResize = () => {
-    if (resizeWait) return;
-    resizeWait = true;
-    window.requestAnimationFrame(() => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, compact ? 1.5 : 2));
-      material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio, 2);
-      resizeWait = false;
+  const addNeighbor = (from, to, connection) => {
+    if (!adjacency.has(from)) adjacency.set(from, []);
+    adjacency.get(from).push({
+      to,
+      proximity: connection.proximity
     });
   };
-  window.addEventListener("resize", handleResize);
 
-  // FPS monitoring and throttling
-  let animationFrame = 0;
-  let lastFrameTime = 0;
-  const targetFPS = 30;
-  const frameInterval = 1000 / targetFPS;
-  let fpsHistory = [];
-  let qualityLevel = compact ? 1 : 2;
-  let lastQualityCheck = 0;
-  
-  const render = (currentTime) => {
-    animationFrame = window.requestAnimationFrame(render);
-    if (document.hidden || !isVisible) return;
+  connections.forEach((connection) => {
+    const a = particles[connection.from];
+    const b = particles[connection.to];
+    if (!a || !b || a.zone === "speck" || b.zone === "speck") return;
 
-    // Throttle to 30fps
-    const deltaTime = currentTime - lastFrameTime;
-    if (deltaTime < frameInterval) return;
-    
-    lastFrameTime = currentTime - (deltaTime % frameInterval);
+    edgeMap.set(connectionKey(connection.from, connection.to), connection);
+    addNeighbor(connection.from, connection.to, connection);
+    addNeighbor(connection.to, connection.from, connection);
+  });
 
-    const elapsed = clock.getElapsedTime();
-    material.uniforms.uTime.value = elapsed;
+  adjacency.forEach((neighbors, from) => {
+    for (let i = 0; i < neighbors.length - 1; i += 1) {
+      for (let j = i + 1; j < neighbors.length; j += 1) {
+        const first = neighbors[i].to;
+        const second = neighbors[j].to;
+        const closingConnection = edgeMap.get(connectionKey(first, second));
 
-    // FPS monitoring (check every 2 seconds)
-    if (currentTime - lastQualityCheck > 2000) {
-      const fps = 1000 / deltaTime;
-      fpsHistory.push(fps);
-      if (fpsHistory.length > 5) fpsHistory.shift();
-      
-      const avgFPS = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
-      
-      // Auto-reduce quality if FPS drops below 25
-      if (avgFPS < 25 && qualityLevel > 1) {
-        qualityLevel--;
-        material.uniforms.uThemeOpacityMultiplier.value *= 0.8;
+        if (!closingConnection) continue;
+
+        const key = [from, first, second].sort((a, b) => a - b).join(":");
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        const a = particles[from];
+        const b = particles[first];
+        const c = particles[second];
+        const area = triangleArea(a, b, c);
+        if (area < minArea || area > maxArea) continue;
+
+        const centroid = triangleCentroid(a, b, c);
+        if (pointIsTooCentral(centroid.x, centroid.y, width, height)) continue;
+
+        facets.push({
+          points: [from, first, second],
+          centroid,
+          area,
+          strength: (neighbors[i].proximity + neighbors[j].proximity + closingConnection.proximity) / 3
+        });
       }
-      
-      lastQualityCheck = currentTime;
     }
+  });
 
-    // Extremely slow and smooth mouse follow
-    mouseX += (targetMouseX - mouseX) * 0.02;
-    mouseY += (targetMouseY - mouseY) * 0.02;
+  return facets
+    .sort((a, b) => (b.strength * Math.sqrt(b.area)) - (a.strength * Math.sqrt(a.area)))
+    .slice(0, maxFacets);
+}
 
-    // Subtle parallax effect, rotating the entire scene slightly
-    scene.rotation.x = mouseY * 0.05;
-    scene.rotation.y = mouseX * 0.05;
+function traceTriangle(ctx, a, b, c) {
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.lineTo(c.x, c.y);
+  ctx.closePath();
+}
 
-    // Slowly rotate the particle grid for ambient motion (reduced by 50%)
-    particles.rotation.z = elapsed * 0.01;
+function drawGlassFacets(ctx, particles, connections, config, width, height, intensity, themeColors, facetOpacity, delta) {
+  const facets = collectGlassFacets(particles, connections, config, width, height);
 
-    renderer.render(scene, camera);
+  // Temporal smoothing: fade-in rate and fade-out rate per second
+  const fadeIn = 2.2 * delta;   // ~0.037 per frame at 60fps → full in ~27 frames
+  const fadeOut = 1.4 * delta;  // ~0.023 per frame → gone in ~43 frames
+
+  // Mark all existing keys for potential fade-out
+  const activeKeys = new Set();
+
+  // Update opacity for currently visible facets
+  facets.forEach((facet) => {
+    const key = facet.points.slice().sort((a, b) => a - b).join(":");
+    activeKeys.add(key);
+    const prev = facetOpacity.get(key) || 0;
+    facetOpacity.set(key, Math.min(prev + fadeIn, 1));
+  });
+
+  // Fade out facets that are no longer detected
+  for (const [key, opacity] of facetOpacity) {
+    if (!activeKeys.has(key)) {
+      const next = opacity - fadeOut;
+      if (next <= 0.01) {
+        facetOpacity.delete(key);
+      } else {
+        facetOpacity.set(key, next);
+      }
+    }
+  }
+
+  // Build a lookup of current facets by key for drawing fading-out ones
+  const facetByKey = new Map();
+  facets.forEach((facet) => {
+    const key = facet.points.slice().sort((a, b) => a - b).join(":");
+    facetByKey.set(key, facet);
+  });
+
+  if (!facetOpacity.size) return;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  // Draw all facets that have any opacity (active + fading out)
+  for (const [key, opacity] of facetOpacity) {
+    const facet = facetByKey.get(key);
+    if (!facet) continue; // fading-out facet whose particles moved — skip gracefully
+
+    const [first, second, third] = facet.points;
+    const a = particles[first];
+    const b = particles[second];
+    const c = particles[third];
+    if (!a || !b || !c) continue;
+
+    const colors = [a, b, c].map((particle) => themeColors[particle.colorKey] || themeColors.accent);
+    const cyanGlass = blendColors(themeColors.accent, themeColors.data, 0.22);
+    const glassColor = blendColors(averageColors(colors), cyanGlass, 0.72);
+    const highlightColor = blendColors(glassColor, themeColors.node, 0.56);
+    const baseAlpha = clamp(
+      (config.glassFacetAlpha || 0.14) * (0.65 + facet.strength * 0.9) * (1 + intensity * 0.35),
+      0,
+      0.32
+    );
+    const alpha = baseAlpha * opacity;
+
+    const fill = ctx.createLinearGradient(a.x, a.y, c.x, c.y);
+    fill.addColorStop(0, colorString(highlightColor, alpha * 0.82));
+    fill.addColorStop(0.48, colorString(glassColor, alpha * 0.55));
+    fill.addColorStop(1, colorString(cyanGlass, alpha * 0.28));
+
+    ctx.shadowBlur = (16 + intensity * 8) * opacity;
+    ctx.shadowColor = colorString(themeColors.accent, alpha * 1.7);
+    ctx.fillStyle = fill;
+    traceTriangle(ctx, a, b, c);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    const sheen = ctx.createLinearGradient(
+      facet.centroid.x - 18,
+      facet.centroid.y - 18,
+      facet.centroid.x + 42,
+      facet.centroid.y + 28
+    );
+    sheen.addColorStop(0, colorString(themeColors.node, alpha * 0.2));
+    sheen.addColorStop(0.5, colorString(themeColors.node, alpha * 0.08));
+    sheen.addColorStop(1, colorString(glassColor, 0));
+
+    ctx.fillStyle = sheen;
+    traceTriangle(ctx, a, b, c);
+    ctx.fill();
+
+    const edge = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    edge.addColorStop(0, colorString(highlightColor, alpha * 0.9));
+    edge.addColorStop(0.55, colorString(themeColors.node, alpha * 0.72));
+    edge.addColorStop(1, colorString(glassColor, alpha * 0.45));
+
+    ctx.lineWidth = 0.85 + intensity * 0.25;
+    ctx.strokeStyle = edge;
+    traceTriangle(ctx, a, b, c);
+    ctx.stroke();
+
+    const [start, end] = longestTriangleEdge(a, b, c);
+    ctx.lineWidth = 1.35 + intensity * 0.25;
+    ctx.strokeStyle = colorString(highlightColor, alpha * 1.2);
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawConnections(ctx, particles, config, width, height, intensity, themeColors, connections) {
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+
+  connections.forEach((connection) => {
+    const a = particles[connection.from];
+    const b = particles[connection.to];
+    const alpha = connection.alpha;
+    const gi = config.glowIntensity || 1.0;
+
+    const aColor = themeColors[a.colorKey] || themeColors.accent;
+    const bColor = themeColors[b.colorKey] || themeColors.accent;
+    const midColor = averageColors([aColor, bColor]);
+
+    // Soft outer glow — single blended color avoids per-line gradient allocation
+    ctx.lineWidth = 4.0 + intensity * 0.8;
+    ctx.strokeStyle = colorString(midColor, alpha * 0.22 * gi);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    // Core line with gradient
+    const line = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    line.addColorStop(0, colorString(aColor, alpha * 0.92));
+    line.addColorStop(0.5, colorString(midColor, alpha));
+    line.addColorStop(1, colorString(bColor, alpha * 0.92));
+
+    ctx.lineWidth = 1.2 + intensity * 0.25;
+    ctx.strokeStyle = line;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  });
+
+  ctx.lineCap = "butt";
+}
+
+function drawParticles(ctx, particles, elapsed, intensity, themeColors) {
+  ctx.globalCompositeOperation = "lighter";
+
+  particles.forEach((particle) => {
+    // Layered organic pulse: primary + subtle harmonic for living feel
+    const pulse = 0.88
+      + Math.sin(elapsed * 0.55 + particle.pulseOffset) * 0.10
+      + Math.sin(elapsed * 1.3 + particle.pulseOffset * 1.7) * 0.04;
+    const alpha = clamp(particle.alpha * pulse * (1 + intensity * 0.22), 0, 0.96);
+    const r = particle.radius * (1 + intensity * 0.12);
+    const hr = r * (particle.zone === "speck" ? 4.0 : 5.4);
+    const color = themeColors[particle.colorKey] || themeColors.accent;
+    const coreRatio = r / hr;
+
+    // Combined halo + core in a single gradient — halves GPU gradient ops
+    const grad = ctx.createRadialGradient(
+      particle.x, particle.y, 0,
+      particle.x, particle.y, hr
+    );
+
+    // Bright core center (dimmed 50%)
+    grad.addColorStop(0, colorString(themeColors.node, alpha * 0.48));
+    grad.addColorStop(coreRatio * 0.55, colorString(color, alpha * 0.41));
+    grad.addColorStop(coreRatio, colorString(color, alpha * 0.28));
+    // Halo bloom
+    grad.addColorStop(Math.min(coreRatio * 2.2, 0.48), colorString(color, alpha * 0.16));
+    grad.addColorStop(Math.min(coreRatio * 4.0, 0.72), colorString(color, alpha * 0.06));
+    grad.addColorStop(1, colorString(color, 0));
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, hr, 0, TWO_PI);
+    ctx.fill();
+  });
+}
+
+function mountPlexusBackground(canvas, profileName = getProfileName()) {
+  if (!canvas || !shouldEnableBackground()) return null;
+
+  const config = PROFILE_CONFIG[profileName] || PROFILE_CONFIG.desktop;
+  const ctx = canvas.getContext("2d", { alpha: true });
+  if (!ctx) return null;
+
+  const particles = [];
+  const pointer = {
+    active: false,
+    x: POINTER_AWAY,
+    y: POINTER_AWAY
+  };
+  const smoothPointer = {
+    active: false,
+    x: POINTER_AWAY,
+    y: POINTER_AWAY
   };
 
-  render();
+  let width = 0;
+  let height = 0;
+  let resizeFrame = 0;
+  let animationFrame = 0;
+  let lastFrameTime = performance.now();
+  let themeColors = readThemeColors();
+  const facetOpacity = new Map();
+
+  const setSize = () => {
+    const nextWidth = window.innerWidth;
+    const nextHeight = Math.max(window.innerHeight, 1);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, config.dpr);
+    const xScale = width > 0 ? nextWidth / width : 1;
+    const yScale = height > 0 ? nextHeight / height : 1;
+
+    width = nextWidth;
+    height = nextHeight;
+
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+    particles.forEach((particle) => {
+      particle.x *= xScale;
+      particle.y *= yScale;
+      particle.homeX *= xScale;
+      particle.homeY *= yScale;
+    });
+
+    reconcileParticles(particles, width, height, config);
+  };
+
+  const handleResize = () => {
+    if (resizeFrame) return;
+
+    resizeFrame = window.requestAnimationFrame(() => {
+      resizeFrame = 0;
+      setSize();
+    });
+  };
+
+  const handlePointerMove = (event) => {
+    pointer.active = true;
+    pointer.x = event.clientX;
+    pointer.y = event.clientY;
+  };
+
+  const handlePointerLeave = () => {
+    pointer.active = false;
+    pointer.x = POINTER_AWAY;
+    pointer.y = POINTER_AWAY;
+  };
+
+  const syncThemeColors = () => {
+    themeColors = readThemeColors();
+  };
+
+  const render = (currentTime) => {
+    animationFrame = window.requestAnimationFrame(render);
+
+    if (document.hidden) {
+      lastFrameTime = currentTime;
+      return;
+    }
+
+    const delta = Math.min((currentTime - lastFrameTime) * 0.001, 0.05);
+    const elapsed = currentTime * 0.001;
+    lastFrameTime = currentTime;
+    surgeIntensity += (0 - surgeIntensity) * 0.018;
+
+    // Smooth pointer lerp for graceful mouse interaction
+    if (pointer.active) {
+      if (smoothPointer.x < -1000) {
+        smoothPointer.x = pointer.x;
+        smoothPointer.y = pointer.y;
+      } else {
+        smoothPointer.x = lerp(smoothPointer.x, pointer.x, 0.12);
+        smoothPointer.y = lerp(smoothPointer.y, pointer.y, 0.12);
+      }
+      smoothPointer.active = true;
+    } else {
+      smoothPointer.active = false;
+      smoothPointer.x = POINTER_AWAY;
+      smoothPointer.y = POINTER_AWAY;
+    }
+
+    drawBackground(ctx, width, height);
+
+    particles.forEach((particle) => {
+      updateParticle(particle, delta, elapsed, width, height, smoothPointer, config, surgeIntensity);
+    });
+
+    const connections = selectConnections(particles, config, width, height, surgeIntensity);
+    drawGlassFacets(ctx, particles, connections, config, width, height, surgeIntensity, themeColors, facetOpacity, delta);
+    drawConnections(ctx, particles, config, width, height, surgeIntensity, themeColors, connections);
+    drawParticles(ctx, particles, elapsed, surgeIntensity, themeColors);
+  };
+
+  setSize();
+  window.addEventListener("resize", handleResize, { passive: true });
+
+  const themeObserver = new MutationObserver(syncThemeColors);
+  themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class", "style"] });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
+
+  if (supportsHover.matches && profileName !== "mobile") {
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    document.body.addEventListener("pointerleave", handlePointerLeave, { passive: true });
+  }
+
+  animationFrame = window.requestAnimationFrame(render);
 
   return () => {
     window.cancelAnimationFrame(animationFrame);
+    if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
     window.removeEventListener("resize", handleResize);
-    window.removeEventListener("mousemove", handleMouseMove);
+    window.removeEventListener("pointermove", handlePointerMove);
+    document.body.removeEventListener("pointerleave", handlePointerLeave);
     themeObserver.disconnect();
-    renderer.setAnimationLoop(null);
-    geometry.dispose();
-    material.dispose();
-    renderer.dispose();
-  };
-}
-
-/* ─────────────────────────────────────────────────────────────
- * Mobile "Data Stream" background – 2D Canvas
- * Snake-like energy traces crawling on a grid (H/V only).
- * ───────────────────────────────────────────────────────────── */
-function mountMobileBackground() {
-  const canvas = document.createElement('canvas');
-  canvas.id = 'mobile-stream-canvas';
-  canvas.setAttribute('aria-hidden', 'true');
-  Object.assign(canvas.style, {
-    position: 'fixed', top: '0', left: '0',
-    width: '100vw', height: '100vh',
-    zIndex: '-1', pointerEvents: 'none',
-    backgroundColor: 'transparent',
-  });
-  document.body.insertBefore(canvas, document.querySelector('.layout'));
-
-  const ctx = canvas.getContext('2d', { alpha: true });
-  if (!ctx) { canvas.remove(); return null; }
-
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  let w, h;
-  const setSize = () => {
-    w = window.innerWidth; h = window.innerHeight;
-    canvas.width = w * dpr; canvas.height = h * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  };
-  setSize();
-
-  let resizeWait = false;
-  const onResize = () => {
-    if (resizeWait) return; resizeWait = true;
-    requestAnimationFrame(() => { setSize(); resizeWait = false; });
-  };
-  window.addEventListener('resize', onResize);
-
-  const readAccent = () =>
-    getComputedStyle(document.body).getPropertyValue('--accent-fill').trim() || '#c02645';
-  let accent = readAccent();
-  const themeObs = new MutationObserver(() => { accent = readAccent(); });
-  themeObs.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'] });
-
-  const GRID = 20, NUM = 4, SPD = 1.2;
-
-  class Stream {
-    constructor() { this.reset(true); }
-    reset(init = false) {
-      this.x = Math.floor(Math.random() * (w / GRID)) * GRID;
-      this.y = Math.floor(Math.random() * (h / GRID)) * GRID;
-      this.trail = [];
-      this.dir = Math.floor(Math.random() * 4);
-      this.seg = this._rndSeg();
-      this.maxLen = 30 + Math.floor(Math.random() * 40);
-      this.warmup = init ? Math.floor(Math.random() * this.maxLen) : 0;
-    }
-    _rndSeg() { return (3 + Math.floor(Math.random() * 8)) * GRID; }
-    step() {
-      if (this.warmup > 0) { this.warmup--; }
-      const dx = [0, SPD, 0, -SPD][this.dir];
-      const dy = [-SPD, 0, SPD, 0][this.dir];
-      this.x += dx; this.y += dy; this.seg -= SPD;
-      if (this.seg <= 0) {
-        this.x = Math.round(this.x / GRID) * GRID;
-        this.y = Math.round(this.y / GRID) * GRID;
-        this.dir = (this.dir + (Math.random() < 0.5 ? 1 : 3)) % 4;
-        this.seg = this._rndSeg();
-      }
-      this.trail.unshift({ x: this.x, y: this.y });
-      if (this.trail.length > this.maxLen) this.trail.pop();
-      if (this.x < -120 || this.x > w + 120 || this.y < -120 || this.y > h + 120) this.reset();
-    }
-    draw(c, col) {
-      const n = this.trail.length; if (n < 2) return;
-      c.lineCap = 'round'; c.lineJoin = 'round';
-      for (let i = 0; i < n - 1; i++) {
-        const a = this.trail[i], b = this.trail[i + 1];
-        const alpha = Math.pow(1 - i / n, 1.5);
-        c.globalAlpha = alpha;
-
-        c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y);
-
-        if (i === 0) {
-          c.lineWidth = 3;
-          c.strokeStyle = col;
-          c.shadowColor = col;
-          c.shadowBlur = 16;
-          c.shadowOffsetX = 0;
-          c.shadowOffsetY = 0;
-        } else if (i < 4) {
-          c.lineWidth = 2.5;
-          c.strokeStyle = col;
-          c.shadowColor = col;
-          c.shadowBlur = 12;
-        } else {
-          c.lineWidth = 1.8;
-          c.strokeStyle = col;
-          c.shadowColor = col;
-          c.shadowBlur = 6;
-        }
-        c.stroke();
-      }
-      c.shadowBlur = 0;
-      c.shadowOffsetX = 0;
-      c.shadowOffsetY = 0;
-      c.globalAlpha = 1;
-    }
-  }
-
-  const streams = Array.from({ length: NUM }, () => new Stream());
-  
-  // Throttle to 30fps for mobile battery savings
-  let raf = 0;
-  let lastMobileFrame = 0;
-  const mobileFrameInterval = 1000 / 30;
-  
-  const tick = (currentTime) => {
-    raf = requestAnimationFrame(tick);
-    if (document.hidden) return;
-    
-    // Throttle to 30fps
-    const deltaTime = currentTime - lastMobileFrame;
-    if (deltaTime < mobileFrameInterval) return;
-    lastMobileFrame = currentTime - (deltaTime % mobileFrameInterval);
-    
-    ctx.clearRect(0, 0, w, h);
-    
-    // Alternate colors between blue and teal
-    for (let i = 0; i < streams.length; i++) {
-      const streamColor = i % 2 === 0 ? accent : `hsl(160, 84%, 42%)`;
-      streams[i].step();
-      streams[i].draw(ctx, streamColor);
-    }
-  };
-  tick();
-
-
-
-  return () => {
-    cancelAnimationFrame(raf);
-    window.removeEventListener('resize', onResize);
-    themeObs.disconnect();
-    canvas.remove();
+    ctx.clearRect(0, 0, width, height);
   };
 }
 
 function syncThreeBackground() {
-  // Debounce rapid calls to prevent WebGL context issues during resize
   if (syncThreeBackgroundTimeout) {
     clearTimeout(syncThreeBackgroundTimeout);
   }
 
   syncThreeBackgroundTimeout = setTimeout(() => {
     syncThreeBackgroundTimeout = null;
-    _syncThreeBackgroundImpl();
-  }, 300);
+    syncThreeBackgroundImpl();
+  }, 250);
 }
 
-function _syncThreeBackgroundImpl() {
+function syncThreeBackgroundImpl() {
   const canvas = document.getElementById("webgl-canvas");
   if (!canvas) return;
 
-  // Reduced motion: kill everything
-  if (reducedMotionQuery.matches) {
+  if (!shouldEnableBackground()) {
     canvas.hidden = true;
-    if (destroyBackground) { destroyBackground(); destroyBackground = null; }
-    if (destroyMobileBackground) { destroyMobileBackground(); destroyMobileBackground = null; }
-    backgroundVariant = null;
-    return;
-  }
-
-  // Mobile: 2D Data Stream canvas (always mount on mobile, even if small viewport)
-  if (mobileDevice.matches) {
-    canvas.hidden = true;
-    if (destroyBackground) { destroyBackground(); destroyBackground = null; backgroundVariant = null; }
-    if (!destroyMobileBackground) {
-      destroyMobileBackground = mountMobileBackground();
-    }
-    return;
-  }
-
-  // Hide WebGL canvas on very small non-mobile viewports
-  if (window.innerWidth < 768 || window.innerHeight < 600) {
-    canvas.hidden = true;
-    if (destroyBackground) { destroyBackground(); destroyBackground = null; }
-    backgroundVariant = null;
-    return;
-  }
-
-  // Desktop: Three.js WebGL
-  if (destroyMobileBackground) { destroyMobileBackground(); destroyMobileBackground = null; }
-  const variant = getBackgroundVariant();
-  if (shouldEnableBackground()) {
-    canvas.hidden = false;
-    if (!destroyBackground || backgroundVariant !== variant) {
-      destroyBackground?.();
-      destroyBackground = mountThreeBackground(canvas, variant);
-      if (!destroyBackground) {
-        canvas.hidden = true;
-        backgroundVariant = null;
-      } else {
-        backgroundVariant = variant;
-      }
-    }
-    return;
-  }
-
-  canvas.hidden = true;
-  if (destroyBackground) {
-    destroyBackground();
+    destroyBackground?.();
     destroyBackground = null;
+    backgroundProfile = null;
+    return;
   }
-  backgroundVariant = null;
+
+  const nextProfile = getProfileName();
+  canvas.hidden = false;
+
+  if (!destroyBackground || backgroundProfile !== nextProfile) {
+    destroyBackground?.();
+    destroyBackground = mountPlexusBackground(canvas, nextProfile);
+    backgroundProfile = destroyBackground ? nextProfile : null;
+    canvas.hidden = !destroyBackground;
+  }
 }
 
 function bindMediaQueryListener(query, handler) {
@@ -531,7 +991,7 @@ function bindMediaQueryListener(query, handler) {
 
 export function initThreeBackground() {
   syncThreeBackground();
-
+  window.addEventListener("resize", syncThreeBackground, { passive: true });
   bindMediaQueryListener(reducedMotionQuery, syncThreeBackground);
   bindMediaQueryListener(compactViewportQuery, syncThreeBackground);
   bindMediaQueryListener(mobileDevice, syncThreeBackground);

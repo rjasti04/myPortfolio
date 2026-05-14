@@ -1,6 +1,7 @@
 import { prefersDarkScheme, prefersReducedMotion } from "./config.js";
 import { trackEvent } from "./analytics.js";
 import { animateSpring } from "./physics.js";
+import { reapplyCustomTheme } from "./theme-customizer.js";
 
 let themeBtn, themeIcon, themeColorMeta;
 
@@ -12,9 +13,15 @@ export function applyTheme(isDark) {
   if (themeBtn) {
     themeBtn.setAttribute("aria-pressed", String(isDark));
   }
+  
+  if (typeof reapplyCustomTheme === "function") {
+    reapplyCustomTheme(isDark);
+  }
+
   if (themeColorMeta) {
     // Use computed CSS variable instead of hardcoded color
-    const accentColor = getComputedStyle(document.documentElement)
+    // Read from body because customizer applies properties on body
+    const accentColor = getComputedStyle(document.body)
       .getPropertyValue('--accent-fill').trim();
     themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#c02645"));
   }

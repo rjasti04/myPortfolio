@@ -1,4 +1,6 @@
-const CACHE_NAME = 'rj-portfolio-v8';
+const CACHE_NAME = 'rj-portfolio-v12';
+const CACHE_EXPIRATION_DAYS = 7;
+const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 
 const ALLOWED_ORIGINS = new Set([
   'https://fonts.googleapis.com',
@@ -13,11 +15,10 @@ const PRECACHE_URLS = [
   '/index.html',
   '/styles.css',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
+  '/android-chrome-192x192.png',
+  '/android-chrome-512x512.png',
   '/profile-pic-160.webp',
   '/js/app-logic.js',
-  '/three-bg.js',
   '/js/main.js',
   '/js/config.js',
   '/js/navigation.js',
@@ -34,7 +35,10 @@ const PRECACHE_URLS = [
   '/js/activity.js',
   '/js/physics.js',
   '/js/skills-carousel.js',
-  '/js/vendor/three.module.js'
+  '/js/ripple.js',
+  '/js/scroll-to-top.js',
+  '/js/theme-customizer.js',
+  '/js/error-handler.js'
 ];
 
 self.addEventListener('install', event => {
@@ -53,6 +57,24 @@ self.addEventListener('activate', event => {
           .filter(name => name.startsWith('rj-portfolio-') && name !== CACHE_NAME)
           .map(name => caches.delete(name))
       );
+    }).then(() => {
+      // Clean up expired cache entries
+      return caches.open(CACHE_NAME).then(cache => {
+        return cache.keys().then(requests => {
+          const now = Date.now();
+          return Promise.all(
+            requests.map(request => {
+              return cache.match(request).then(response => {
+                if (!response) return;
+                const cachedTime = response.headers.get('sw-cached-time');
+                if (cachedTime && (now - parseInt(cachedTime, 10)) > CACHE_EXPIRATION_MS) {
+                  return cache.delete(request);
+                }
+              });
+            })
+          );
+        });
+      });
     }).then(() => self.clients.claim())
   );
 });
@@ -85,7 +107,14 @@ self.addEventListener('fetch', event => {
 
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseToCache);
+            const headers = new Headers(responseToCache.headers);
+            headers.set('sw-cached-time', Date.now().toString());
+            const modifiedResponse = new Response(responseToCache.body, {
+              status: responseToCache.status,
+              statusText: responseToCache.statusText,
+              headers: headers
+            });
+            cache.put(event.request, modifiedResponse);
           });
           return networkResponse;
         }).catch(() => {
@@ -115,7 +144,14 @@ self.addEventListener('fetch', event => {
         if (networkResponse && networkResponse.status === 200 && event.request.url.startsWith('https://')) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseToCache);
+            const headers = new Headers(responseToCache.headers);
+            headers.set('sw-cached-time', Date.now().toString());
+            const modifiedResponse = new Response(responseToCache.body, {
+              status: responseToCache.status,
+              statusText: responseToCache.statusText,
+              headers: headers
+            });
+            cache.put(event.request, modifiedResponse);
           });
         }
         return networkResponse;

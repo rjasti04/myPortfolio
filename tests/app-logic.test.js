@@ -5,7 +5,7 @@ const {
   filterProjects,
   getValidHashTarget,
   setActiveSection,
-} = require("../app-logic.js");
+} = require("../js/app-logic.js");
 
 test("setActiveSection updates active section and nav aria-current", () => {
   const dom = new JSDOM(`

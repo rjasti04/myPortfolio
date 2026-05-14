@@ -1,7 +1,9 @@
 import { compactViewport, prefersReducedMotion, supportsHover } from "./config.js";
 import { closeModal, openModal } from "./modal.js";
+import { onOnline, onOffline, isNetworkOnline } from "./utils.js";
+import { SwipeHandler } from "./swipe-handler.js";
 
-let hamburger, navMenu, navLinks, sections, connectDropdown, connectToggle, connectMenu, imageModal, imageModalCloseButton, profileTrigger;
+let hamburger, navMenu, navLinks, sections, imageModal, imageModalCloseButton, profileTrigger;
 
 function setMobileMenuState(isOpen) {
   if (!navMenu || !hamburger) return;
@@ -24,16 +26,17 @@ function setMobileMenuState(isOpen) {
   }
 }
 
-function setConnectMenuState(isOpen) {
-  if (!connectDropdown || !connectToggle || !connectMenu) return;
-  connectDropdown.classList.toggle("open", isOpen);
-  connectToggle.setAttribute("aria-expanded", String(isOpen));
-  connectMenu.setAttribute("aria-hidden", String(!isOpen));
+function closeAllDropdowns() {
+  document.querySelectorAll('.header-dropdown.is-open').forEach(dropdown => {
+    dropdown.classList.remove('is-open');
+    dropdown.querySelector('button')?.setAttribute('aria-expanded', 'false');
+    dropdown.querySelector('.header-dropdown-menu')?.setAttribute('aria-hidden', 'true');
+  });
 }
 
 function closeTransientUi() {
   setMobileMenuState(false);
-  setConnectMenuState(false);
+  closeAllDropdowns();
 }
 
 export function setActiveSection(target) {
@@ -67,9 +70,6 @@ export function initNavigation() {
   navMenu = document.getElementById("nav-menu");
   navLinks = Array.from(document.querySelectorAll("nav a[data-target]"));
   sections = Array.from(document.querySelectorAll("main section"));
-  connectDropdown = document.getElementById("connect-dropdown");
-  connectToggle = document.getElementById("connect-toggle");
-  connectMenu = document.getElementById("connect-dropdown-menu");
   imageModal = document.getElementById("image-modal");
   imageModalCloseButton = document.getElementById("image-modal-close");
   profileTrigger = document.getElementById("profile-trigger");
@@ -79,6 +79,9 @@ export function initNavigation() {
       event.stopPropagation();
       const isCurrentlyOpen = navMenu?.classList.contains("show-menu");
       setMobileMenuState(!isCurrentlyOpen);
+      if (!isCurrentlyOpen) {
+        closeAllDropdowns();
+      }
     });
   }
 
@@ -108,15 +111,34 @@ export function initNavigation() {
     });
   });
 
-  connectToggle?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    setConnectMenuState(!connectDropdown.classList.contains("open"));
+  // Generic Dropdown Logic
+  const dropdownToggles = document.querySelectorAll('.header-dropdown > button');
+  dropdownToggles.forEach(toggle => {
+    toggle.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const dropdown = toggle.closest('.header-dropdown');
+      const menu = dropdown.querySelector('.header-dropdown-menu');
+      const isOpen = dropdown.classList.contains('is-open');
+      
+      closeAllDropdowns();
+      setMobileMenuState(false);
+      
+      if (!isOpen) {
+        dropdown.classList.add('is-open');
+        toggle.setAttribute('aria-expanded', 'true');
+        if (menu) menu.setAttribute('aria-hidden', 'false');
+      }
+    });
   });
 
-  connectMenu?.addEventListener("click", (event) => event.stopPropagation());
-
   document.addEventListener("click", (event) => {
-    if (connectDropdown && !connectDropdown.contains(event.target)) setConnectMenuState(false);
+    document.querySelectorAll('.header-dropdown.is-open').forEach(dropdown => {
+      if (!dropdown.contains(event.target)) {
+        dropdown.classList.remove('is-open');
+        dropdown.querySelector('button')?.setAttribute('aria-expanded', 'false');
+        dropdown.querySelector('.header-dropdown-menu')?.setAttribute('aria-hidden', 'true');
+      }
+    });
   });
 
   document.addEventListener("keydown", (event) => {
@@ -143,6 +165,14 @@ export function initNavigation() {
   }
 
   syncSectionWithHash();
+
+  // Initialize mobile bottom navigation
+  initMobileBottomNav();
+
+  // Initialize swipe gestures for mobile
+  if (compactViewport.matches) {
+    initSwipeGestures();
+  }
 
   // Compact header on scroll
   const headerEl = document.getElementById("header");
@@ -172,6 +202,51 @@ export function initNavigation() {
   if (!currentHash || currentHash === "#about") {
     window.scrollTo(0, 0);
   }
+
+  // Offline indicator
+  const offlineBanner = document.createElement('div');
+  offlineBanner.className = 'offline-banner';
+  offlineBanner.setAttribute('role', 'alert');
+  offlineBanner.innerHTML = '<i class="fas fa-wifi" style="text-decoration: line-through;"></i> You are offline';
+  offlineBanner.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-warning);
+    color: var(--bg);
+    padding: 8px 16px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 10000;
+    transform: translateY(-100%);
+    transition: transform var(--motion-base) var(--ease-standard);
+  `;
+  document.body.appendChild(offlineBanner);
+
+  function showOfflineBanner() {
+    offlineBanner.style.transform = 'translateY(0)';
+    // Push header down when banner is visible
+    if (headerEl) {
+      headerEl.style.marginTop = offlineBanner.offsetHeight + 'px';
+    }
+  }
+
+  function hideOfflineBanner() {
+    offlineBanner.style.transform = 'translateY(-100%)';
+    // Reset header position
+    if (headerEl) {
+      headerEl.style.marginTop = '';
+    }
+  }
+
+  if (!isNetworkOnline()) {
+    showOfflineBanner();
+  }
+
+  onOffline(showOfflineBanner);
+  onOnline(hideOfflineBanner);
 
   // Feature 4: Keyboard shortcut hints on nav links
   if (supportsHover.matches) {
@@ -233,4 +308,78 @@ export function initNavigation() {
       if (e.target === overlay) toggleOverlay();
     });
   }
+}
+
+function initMobileBottomNav() {
+  // Create mobile bottom navigation
+  const mobileNav = document.createElement('nav');
+  mobileNav.className = 'mobile-bottom-nav';
+  mobileNav.setAttribute('aria-label', 'Mobile navigation');
+  
+  const navItems = [
+    { target: 'about', icon: 'fa-home', label: 'Home' },
+    { target: 'portfolio', icon: 'fa-briefcase', label: 'Work' },
+    { target: 'ai', icon: 'fa-robot', label: 'AI' },
+    { target: 'contact', icon: 'fa-envelope', label: 'Contact' }
+  ];
+  
+  navItems.forEach(item => {
+    const link = document.createElement('a');
+    link.href = `#${item.target}`;
+    link.dataset.target = item.target;
+    link.innerHTML = `
+      <i class="fas ${item.icon}"></i>
+      <span class="mobile-bottom-nav-label">${item.label}</span>
+    `;
+    
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateToSection(item.target);
+      updateMobileNavActive(item.target);
+    });
+    
+    mobileNav.appendChild(link);
+  });
+  
+  document.body.appendChild(mobileNav);
+  
+  // Set initial active state
+  const currentSection = document.querySelector('main section.active')?.id || 'about';
+  updateMobileNavActive(currentSection);
+}
+
+function updateMobileNavActive(target) {
+  const mobileNav = document.querySelector('.mobile-bottom-nav');
+  if (!mobileNav) return;
+  
+  mobileNav.querySelectorAll('a').forEach(link => {
+    const isActive = link.dataset.target === target;
+    link.classList.toggle('active', isActive);
+  });
+}
+
+function initSwipeGestures() {
+  const sectionOrder = ['about', 'resume', 'portfolio', 'hobbies', 'activity', 'ai', 'contact'];
+  
+  new SwipeHandler({
+    threshold: 75,
+    onSwipeLeft: () => {
+      const currentSection = document.querySelector('main section.active')?.id;
+      const currentIndex = sectionOrder.indexOf(currentSection);
+      if (currentIndex < sectionOrder.length - 1) {
+        const nextSection = sectionOrder[currentIndex + 1];
+        navigateToSection(nextSection);
+        updateMobileNavActive(nextSection);
+      }
+    },
+    onSwipeRight: () => {
+      const currentSection = document.querySelector('main section.active')?.id;
+      const currentIndex = sectionOrder.indexOf(currentSection);
+      if (currentIndex > 0) {
+        const prevSection = sectionOrder[currentIndex - 1];
+        navigateToSection(prevSection);
+        updateMobileNavActive(prevSection);
+      }
+    }
+  });
 }

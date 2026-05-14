@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Any, Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from collections import defaultdict
@@ -20,12 +20,31 @@ import threading
 import boto3
 import orjson
 from botocore.config import Config
+import structlog
+
+# Configure structured logging
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.JSONRenderer()
+    ],
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)
 
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    format="%(message)s",
 )
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -59,7 +78,7 @@ _origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 MAX_BODY_BYTES = _env_int("MAX_BODY_BYTES", 1_048_576)  # 1 MB
 CHAT_MAX_CONCURRENCY = _env_int("CHAT_MAX_CONCURRENCY", 4)
 CHAT_STREAM_QUEUE_SIZE = _env_int("CHAT_STREAM_QUEUE_SIZE", 32)
-BEDROCK_TIMEOUT_SECONDS = _env_int("BEDROCK_TIMEOUT_SECONDS", 60)
+BEDROCK_TIMEOUT_SECONDS = _env_int("BEDROCK_TIMEOUT_SECONDS", 30)
 BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS = _env_int("BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS", 2)
 
 _raw_allowed_models = os.getenv("ALLOWED_MODEL_IDS", "")
@@ -130,6 +149,33 @@ def _client_ip_from_request(request: Request) -> str:
             if not _is_trusted_proxy(candidate):
                 return candidate[:64]
     return direct_ip
+
+# ---------------------------------------------------------------------------
+# Request ID Middleware
+# ---------------------------------------------------------------------------
+
+class RequestIDMiddleware:
+    """Add unique request ID to each request for tracing and logging."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request_id = str(uuid4())
+        scope["request_id"] = request_id
+
+        async def send_with_request_id(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"x-request-id", request_id.encode()))
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_with_request_id)
 
 # ---------------------------------------------------------------------------
 # Rate Limiting Middleware (in-memory, per-IP)
@@ -241,6 +287,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Activity Tracker API", version="1.0.0", lifespan=lifespan)
 
+app.add_middleware(RequestIDMiddleware)
 app.add_middleware(BodySizeLimitMiddleware, max_bytes=MAX_BODY_BYTES)
 app.add_middleware(RateLimitMiddleware, max_requests=60, window_seconds=60)
 
@@ -311,19 +358,34 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 @app.get("/health", summary="Health check endpoint")
-async def health_check():
+async def health_check(request: Request):
     """Verify application and database health."""
+    request_id = getattr(request.scope, "request_id", "unknown")
     try:
         if not hasattr(app.state, "pool"):
+            logger.warning(f"[{request_id}] Health check: pool not ready")
             return JSONResponse(status_code=503, content={"status": "starting up"})
         
         # Check DB connection
         async with app.state.pool.acquire() as conn:
             await conn.execute("SELECT 1")
+            pool_size = app.state.pool.get_size()
+            pool_free = app.state.pool.get_idle_size()
             
-        return {"status": "ok", "db": "connected"}
+        logger.info(
+            "health_check_ok",
+            request_id=request_id,
+            pool_free=pool_free,
+            pool_size=pool_size
+        )
+        return {"status": "ok", "db": "connected", "pool_free": pool_free, "pool_size": pool_size}
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
+        logger.error(
+            "health_check_failed",
+            request_id=request_id,
+            error=str(e),
+            error_type=type(e).__name__
+        )
         return JSONResponse(status_code=503, content={"status": "error", "detail": "Database unavailable"})
 
 # ---------------------------------------------------------------------------
@@ -340,6 +402,7 @@ async def create_session(payload: SessionCreate, request: Request):
     Creates a new row in user_sessions and returns the generated session_id.
     ip_address can be passed explicitly or auto-detected from the request.
     """
+    request_id = getattr(request.scope, "request_id", "unknown")
     # Trust X-Forwarded-For only when the direct client is a configured proxy.
     client_ip = _client_ip_from_request(request)
     ip = client_ip
@@ -356,6 +419,13 @@ async def create_session(payload: SessionCreate, request: Request):
             payload.device_type,
         )
 
+    logger.info(
+        "session_created",
+        request_id=request_id,
+        session_id=str(row['session_id']),
+        device_type=payload.device_type,
+        ip_address=ip[:15] + "..." if len(ip) > 15 else ip
+    )
     return {"session_id": str(row["session_id"]), "started_at": row["started_at"]}
 
 
@@ -516,8 +586,12 @@ async def get_session_events(
     session_id: UUID,
     request: Request,
     limit: int = Query(default=100, ge=1, le=500),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=1_000_000),
 ):
+    # Explicit integer casting for defense-in-depth
+    limit = int(limit)
+    offset = int(offset)
+    
     async with request.app.state.pool.acquire() as conn:
         rows = await conn.fetch(
             """
@@ -571,7 +645,14 @@ def _resolve_model_id(requested_model: Optional[str]) -> str:
 
 @app.post("/chat")
 async def chat_endpoint(payload: ChatRequest, http_request: Request):
+    request_id = getattr(http_request.scope, "request_id", "unknown")
     model_id = _resolve_model_id(payload.model)
+    logger.info(
+        "chat_request",
+        request_id=request_id,
+        model_id=model_id,
+        message_count=len(payload.messages)
+    )
 
     # Build Converse-compatible message list (enforce alternation)
     converse_messages = _ensure_alternating_roles([
@@ -652,9 +733,11 @@ async def chat_endpoint(payload: ChatRequest, http_request: Request):
                     break
                 if isinstance(item, Exception):
                     logger.error(
-                        "Error calling Bedrock model %s",
-                        model_id,
-                        exc_info=(type(item), item, item.__traceback__),
+                        "bedrock_stream_error",
+                        request_id=request_id,
+                        model_id=model_id,
+                        error=str(item),
+                        error_type=type(item).__name__
                     )
                     yield "\n(Error: AI service unavailable)"
                     break
