@@ -3840,10 +3840,10 @@ body.dark-theme .skill-tag {
   cursor: pointer;
   font-size: 18px;
   color: var(--accent-text);
-  min-width: var(--min-touch-target);
-  min-height: var(--min-touch-target);
-  width: var(--min-touch-target);
-  height: var(--min-touch-target);
+  min-width: var(--header-action-size, var(--min-touch-target));
+  min-height: var(--header-action-size, var(--min-touch-target));
+  width: var(--header-action-size, var(--min-touch-target));
+  height: var(--header-action-size, var(--min-touch-target));
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -4052,12 +4052,31 @@ section {
 }
 
 @media (width <=900px) {
+  header {
+    --header-action-size: 38px;
+  }
+
   .js-enabled .noise-overlay.js-only {
     display: none !important;
   }
 
   .js-enabled .webgl-canvas.js-only {
     opacity: 0.78;
+  }
+
+  .header-actions {
+    gap: 2px;
+  }
+
+  .hamburger-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--header-action-size);
+    height: var(--header-action-size);
+    min-width: var(--header-action-size);
+    min-height: var(--header-action-size);
+    padding: 0;
   }
 
   .header-dropdown-menu {
