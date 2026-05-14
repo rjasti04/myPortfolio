@@ -2036,8 +2036,10 @@ body.dark-theme #resume .item {
 
 .contact-form .floating-label-group input,
 .contact-form .floating-label-group textarea {
-  padding-top: 24px;
-  padding-bottom: 8px;
+  min-height: 52px;
+  padding-top: 28px;
+  padding-bottom: 10px;
+  line-height: 1.35;
 }
 
 .floating-label-group .form-label {
@@ -2048,9 +2050,15 @@ body.dark-theme #resume .item {
   transition:
     top var(--motion-base) var(--ease-enter),
     color var(--motion-base) var(--ease-standard),
-    font-size var(--motion-base) var(--ease-standard);
+    font-size var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-enter);
   pointer-events: none;
+  max-width: calc(100% - 56px);
+  overflow: hidden;
   font-size: var(--text-body-sm);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--muted);
   margin: 0;
 }
@@ -2059,11 +2067,16 @@ body.dark-theme #resume .item {
   top: 22px;
 }
 
+.contact-form .floating-label-group .form-label {
+  top: 22px;
+}
+
 .floating-label-group input:focus~.form-label,
 .floating-label-group input:not(:placeholder-shown)~.form-label,
 .floating-label-group textarea:focus~.form-label,
 .floating-label-group textarea:not(:placeholder-shown)~.form-label {
-  top: 14px;
+  top: 8px;
+  transform: none;
   font-size: 11px;
   color: var(--accent-text);
   font-weight: 700;
