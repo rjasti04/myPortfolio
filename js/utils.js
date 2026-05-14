@@ -60,6 +60,33 @@ export function showToast(message, type = "info") {
   }, 3200);
 }
 
+export function debounce(fn, delay = 0) {
+  let timeoutId = null;
+
+  return function debounced(...args) {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      fn.apply(this, args);
+    }, delay);
+  };
+}
+
+export function throttle(fn, interval = 0) {
+  let lastCall = 0;
+
+  return function throttled(...args) {
+    const now = Date.now();
+    if (now - lastCall < interval) return;
+
+    lastCall = now;
+    return fn.apply(this, args);
+  };
+}
+
 export function estimateTokens(text) {
   if (!text || text.length === 0) return 0;
   
@@ -80,7 +107,7 @@ export function estimateTokens(text) {
 }
 
 // Offline detection
-let isOnline = navigator.onLine;
+let isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 const onlineCallbacks = [];
 const offlineCallbacks = [];
 
@@ -96,12 +123,14 @@ export function isNetworkOnline() {
   return isOnline;
 }
 
-window.addEventListener('online', () => {
-  isOnline = true;
-  onlineCallbacks.forEach(cb => cb());
-});
+if (typeof window !== "undefined") {
+  window.addEventListener('online', () => {
+    isOnline = true;
+    onlineCallbacks.forEach(cb => cb());
+  });
 
-window.addEventListener('offline', () => {
-  isOnline = false;
-  offlineCallbacks.forEach(cb => cb());
-});
+  window.addEventListener('offline', () => {
+    isOnline = false;
+    offlineCallbacks.forEach(cb => cb());
+  });
+}

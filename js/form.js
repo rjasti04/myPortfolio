@@ -5,6 +5,9 @@ import { triggerConfetti, confettiPresets } from "./confetti.js";
 
 // Constants
 const SUBMIT_TIMEOUT_MS = 10000;
+const CONTACT_FIELD_SELECTOR = '.floating-label-group input[id], .floating-label-group textarea[id]';
+const CONTACT_FORM_SUBMIT_LABEL = 'Send Message <i class="fas fa-paper-plane"></i>';
+const CONTACT_FORM_SENDING_LABEL = '<i class="fas fa-spinner fa-spin"></i> Sending...';
 
 function setFormStatus(element, message, state = "info") {
   if (!element) return;
@@ -16,6 +19,49 @@ function clearFormStatus(element) {
   if (!element) return;
   element.textContent = "";
   delete element.dataset.state;
+}
+
+function getFieldErrorElement(field) {
+  const errorId = `${field.id}-error`;
+  let errorEl = document.getElementById(errorId);
+  if (!errorEl) {
+    errorEl = document.createElement("span");
+    errorEl.id = errorId;
+    errorEl.className = "form-error-message";
+    errorEl.setAttribute("role", "alert");
+    field.parentElement.appendChild(errorEl);
+  }
+  return errorEl;
+}
+
+function clearFieldError(field, errorEl = getFieldErrorElement(field)) {
+  field.removeAttribute("aria-invalid");
+  field.removeAttribute("aria-describedby");
+  errorEl.textContent = "";
+  delete errorEl.dataset.active;
+}
+
+function showFieldError(field, errorEl = getFieldErrorElement(field)) {
+  field.setAttribute("aria-invalid", "true");
+  field.setAttribute("aria-describedby", errorEl.id);
+  errorEl.textContent = field.validationMessage;
+  errorEl.dataset.active = "true";
+}
+
+function clearAllFieldErrors(form) {
+  form.querySelectorAll(CONTACT_FIELD_SELECTOR).forEach((field) => {
+    clearFieldError(field);
+  });
+}
+
+function setSubmitState(form, submitBtn, isSubmitting) {
+  form.toggleAttribute("aria-busy", isSubmitting);
+  if (!submitBtn) return;
+
+  submitBtn.disabled = isSubmitting;
+  submitBtn.innerHTML = isSubmitting
+    ? CONTACT_FORM_SENDING_LABEL
+    : submitBtn.dataset.defaultLabel || CONTACT_FORM_SUBMIT_LABEL;
 }
 
 function copyEmailToClipboard() {
@@ -53,43 +99,20 @@ export function initContactForm() {
   if (!contactForm || !contactStatus) return;
 
   // Real-time validation feedback with ARIA announcements
-  contactForm.querySelectorAll('input, textarea').forEach(field => {
-    // Create error message element for accessibility
-    const errorId = `${field.id}-error`;
-    let errorEl = document.getElementById(errorId);
-    if (!errorEl) {
-      errorEl = document.createElement('span');
-      errorEl.id = errorId;
-      errorEl.className = 'form-error-message';
-      errorEl.setAttribute('role', 'alert');
-      errorEl.style.display = 'none';
-      errorEl.style.color = 'var(--color-error)';
-      errorEl.style.fontSize = '12px';
-      errorEl.style.marginTop = '4px';
-      field.parentElement.appendChild(errorEl);
-    }
-    
+  contactForm.querySelectorAll(CONTACT_FIELD_SELECTOR).forEach(field => {
+    const errorEl = getFieldErrorElement(field);
+
     field.addEventListener('blur', () => {
       if (field.value && !field.checkValidity()) {
-        field.setAttribute('aria-invalid', 'true');
-        field.setAttribute('aria-describedby', errorId);
-        field.style.borderColor = 'var(--color-error)';
-        errorEl.textContent = field.validationMessage;
-        errorEl.style.display = 'block';
+        showFieldError(field, errorEl);
       } else if (field.value) {
-        field.removeAttribute('aria-invalid');
-        field.removeAttribute('aria-describedby');
-        field.style.borderColor = '';
-        errorEl.style.display = 'none';
+        clearFieldError(field, errorEl);
       }
     });
-    
+
     field.addEventListener('input', () => {
       if (field.hasAttribute('aria-invalid') && field.checkValidity()) {
-        field.removeAttribute('aria-invalid');
-        field.removeAttribute('aria-describedby');
-        field.style.borderColor = '';
-        errorEl.style.display = 'none';
+        clearFieldError(field, errorEl);
       }
     });
   });
@@ -124,21 +147,28 @@ export function initContactForm() {
     const name = contactForm.querySelector("#contact-name")?.value.trim() || "";
     const email = contactForm.querySelector("#contact-email")?.value.trim() || "";
     const message = contactForm.querySelector("#contact-message")?.value.trim() || "";
-    const originalLabel = submitBtn?.innerHTML || "";
-
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    if (submitBtn && !submitBtn.dataset.defaultLabel) {
+      submitBtn.dataset.defaultLabel = submitBtn.innerHTML;
     }
+    setSubmitState(contactForm, submitBtn, true);
 
     try {
-      const response = await fetch(`https://formsubmit.co/ajax/${CONTACT_EMAIL}`, {
-        method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({ _subject: "New portfolio message from rjasti.com", email, message, name }),
-      });
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), SUBMIT_TIMEOUT_MS);
+      let response;
+      try {
+        response = await fetch(`https://formsubmit.co/ajax/${CONTACT_EMAIL}`, {
+          method: "POST",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ _subject: "New portfolio message from rjasti.com", email, message, name }),
+          signal: abortController.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
       if (!response.ok) throw new Error("Request failed");
       contactForm.reset();
+      clearAllFieldErrors(contactForm);
       trackEvent("contact_submission", { success: true, native_fallback: false });
       setFormStatus(contactStatus, "Message sent successfully. Thanks for reaching out.", "success");
       showToast("Message sent successfully.", "success");
@@ -151,9 +181,8 @@ export function initContactForm() {
       trackEvent("contact_submission", { success: false, native_fallback: true });
       submitNatively();
     } finally {
-      if (submitBtn && !nativeFallbackInProgress) {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalLabel;
+      if (!nativeFallbackInProgress) {
+        setSubmitState(contactForm, submitBtn, false);
       }
     }
   });

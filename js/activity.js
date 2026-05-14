@@ -193,6 +193,8 @@ async function _loadActivityImpl(offset) {
 }
 
 function renderTableRows(events, tbody, offset) {
+  tbody.closest('.activity-table-container')?.querySelector('.activity-mobile-cards')?.remove();
+
   // Use DocumentFragment for better performance
   const fragment = document.createDocumentFragment();
   
@@ -254,6 +256,9 @@ function renderTableRows(events, tbody, offset) {
 }
 
 function renderMobileCards(events, container, offset) {
+  const tbody = container.querySelector("tbody");
+  if (tbody) tbody.innerHTML = "";
+
   // Remove existing mobile cards container if it exists
   let mobileContainer = container.querySelector('.activity-mobile-cards');
   if (!mobileContainer) {

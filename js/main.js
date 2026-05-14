@@ -1,3 +1,5 @@
+import { showToast } from "./utils.js";
+
 // Add global unhandled rejection handler
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection:', event.reason);
@@ -18,7 +20,6 @@ import { initAnimations } from "./animations.js";
 import { initTilt } from "./tilt.js";
 import { initTerminal } from "./terminal.js";
 import { initAnalytics } from "./analytics.js";
-import { initActivity } from "./activity.js";
 import { initSkillsCarousel } from "./skills-carousel.js";
 import { initRipple } from "./ripple.js";
 import { initScrollToTop } from "./scroll-to-top.js";
@@ -44,6 +45,25 @@ function loadChatModule() {
   return chatModulePromise;
 }
 
+// Lazy-load activity dashboard when the user opens it
+let activityLoaded = false;
+let activityModulePromise = null;
+
+function loadActivityModule() {
+  if (activityLoaded) return activityModulePromise;
+  activityLoaded = true;
+  activityModulePromise = import("./activity.js").then(module => {
+    module.initActivity();
+    return module;
+  }).catch(err => {
+    activityLoaded = false;
+    activityModulePromise = null;
+    console.warn('Activity module failed to load:', err);
+    return null;
+  });
+  return activityModulePromise;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   initNavigation();
@@ -53,7 +73,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initTilt();
   initTerminal();
   initAnalytics();
-  initActivity();
   initSkillsCarousel();
   initRipple();
   initScrollToTop();
@@ -113,6 +132,31 @@ document.addEventListener("DOMContentLoaded", () => {
     new MutationObserver(ensureChatForActiveAiSection)
       .observe(aiSection, { attributes: true, attributeFilter: ['class'] });
     ensureChatForActiveAiSection();
+  }
+
+  const activitySection = document.getElementById('activity');
+  const loadActivity = () => {
+    void loadActivityModule();
+  };
+
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('[data-target="activity"], a[href="#activity"]')) {
+      loadActivity();
+    }
+  }, { capture: true });
+
+  const ensureActivityForActiveSection = () => {
+    if (activitySection?.classList.contains('active') || window.location.hash === '#activity') {
+      loadActivity();
+    }
+  };
+
+  if (activitySection) {
+    new MutationObserver(ensureActivityForActiveSection)
+      .observe(activitySection, { attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('hashchange', ensureActivityForActiveSection, { passive: true });
+    ensureActivityForActiveSection();
   }
 
   // Defer Three.js background for faster initial paint
