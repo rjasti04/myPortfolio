@@ -14,6 +14,8 @@ function createContactMarkup() {
       <span class="contact-method-value">Click to copy</span>
     </button>
     <form class="contact-form premium-form" id="contact-form">
+      <input type="hidden" name="_subject" value="New portfolio message from rjasti.com" />
+      <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
       <div class="form-group floating-label-group">
         <div class="input-wrapper">
           <input type="text" id="contact-name" name="name" placeholder=" " required />
@@ -124,6 +126,16 @@ test("contact form shows accessible invalid-field feedback", () => {
   assert.equal(email.getAttribute("aria-describedby"), "contact-email-error");
   assert.equal(error.dataset.active, "true");
   assert.ok(error.textContent.length > 0);
+});
+
+test("contact form ignores FormSubmit honeypot during validation setup", () => {
+  const form = resetContactDom();
+  initContactForm();
+
+  const honeypot = form.querySelector('input[name="_honey"]');
+  assert.equal(document.getElementById("-error"), null);
+  assert.equal(honeypot.getAttribute("aria-describedby"), null);
+  assert.equal(form.querySelectorAll(".form-error-message").length, 3);
 });
 
 test("contact form blocks ajax submission while offline", async () => {

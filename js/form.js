@@ -5,7 +5,7 @@ import { triggerConfetti, confettiPresets } from "./confetti.js";
 
 // Constants
 const SUBMIT_TIMEOUT_MS = 10000;
-const CONTACT_FIELD_SELECTOR = 'input:not([type="hidden"]), textarea';
+const CONTACT_FIELD_SELECTOR = '.floating-label-group input[id], .floating-label-group textarea[id]';
 const CONTACT_FORM_SUBMIT_LABEL = 'Send Message <i class="fas fa-paper-plane"></i>';
 const CONTACT_FORM_SENDING_LABEL = '<i class="fas fa-spinner fa-spin"></i> Sending...';
 
