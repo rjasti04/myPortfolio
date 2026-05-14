@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v12';
+const CACHE_NAME = 'rj-portfolio-v13';
 const CACHE_EXPIRATION_DAYS = 7;
 const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -14,17 +14,20 @@ const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/styles.css',
+  '/three-bg.js',
   '/manifest.json',
   '/android-chrome-192x192.png',
   '/android-chrome-512x512.png',
   '/profile-pic-160.webp',
   '/js/app-logic.js',
   '/js/main.js',
+  '/js/theme-bootstrap.js',
   '/js/config.js',
   '/js/navigation.js',
   '/js/theme.js',
   '/js/projects.js',
   '/js/form.js',
+  '/js/confetti.js',
   '/js/animations.js',
   '/js/tilt.js',
   '/js/modal.js',
@@ -34,11 +37,12 @@ const PRECACHE_URLS = [
   '/js/chat.js',
   '/js/activity.js',
   '/js/physics.js',
+  '/js/particles-config.js',
   '/js/skills-carousel.js',
+  '/js/swipe-handler.js',
   '/js/ripple.js',
   '/js/scroll-to-top.js',
-  '/js/theme-customizer.js',
-  '/js/error-handler.js'
+  '/js/theme-customizer.js'
 ];
 
 self.addEventListener('install', event => {

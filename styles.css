@@ -2017,9 +2017,15 @@ body.dark-theme #resume .item {
     transform var(--motion-base) var(--ease-standard);
 }
 
-.contact-submit-btn:hover {
+.contact-submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: none;
+}
+
+.contact-submit-btn:disabled {
+  cursor: progress;
+  opacity: 0.72;
+  transform: none;
 }
 
 
@@ -2028,8 +2034,8 @@ body.dark-theme #resume .item {
   position: relative;
 }
 
-.floating-label-group input,
-.floating-label-group textarea {
+.contact-form .floating-label-group input,
+.contact-form .floating-label-group textarea {
   padding-top: 24px;
   padding-bottom: 8px;
 }
@@ -2100,6 +2106,17 @@ body.dark-theme #resume .item {
   box-shadow: none;
 }
 
+.form-group input:focus-visible,
+.form-group textarea:focus-visible {
+  outline: 3px solid var(--accent-fill);
+  outline-offset: 3px;
+}
+
+.form-group input[aria-invalid="true"],
+.form-group textarea[aria-invalid="true"] {
+  border-color: var(--color-error);
+}
+
 .input-wrapper input:not(:placeholder-shown):valid {
   border-color: var(--color-success);
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23047857' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
@@ -2123,6 +2140,24 @@ body.dark-theme #resume .item {
   transform: translateY(-50%);
   color: var(--muted);
   font-size: var(--text-body-lg);
+}
+
+.contact-form .input-icon {
+  top: 24px;
+}
+
+.form-error-message {
+  display: block;
+  min-height: 16px;
+  margin-top: 5px;
+  color: var(--color-error);
+  font-size: 12px;
+  line-height: 1.25;
+  visibility: hidden;
+}
+
+.form-error-message[data-active="true"] {
+  visibility: visible;
 }
 
 .form-status {
@@ -3503,8 +3538,8 @@ body.dark-theme .skill-tag {
     font-size: 16px;
   }
 
-  .floating-label-group input,
-  .floating-label-group textarea {
+  .contact-form .floating-label-group input,
+  .contact-form .floating-label-group textarea {
     padding-top: 26px;
     padding-bottom: 10px;
   }
@@ -4030,6 +4065,11 @@ section {
   outline: none;
   border-color: var(--accent-fill);
   box-shadow: none;
+}
+
+.form-group textarea:focus-visible {
+  outline: 3px solid var(--accent-fill);
+  outline-offset: 3px;
 }
 
 .article-topic {

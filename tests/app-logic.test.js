@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const { JSDOM } = require("jsdom");
 const {
   filterProjects,
@@ -57,4 +59,12 @@ test("filterProjects matches by filter and search term", () => {
 
   assert.equal(filtered[0].visible, true);
   assert.equal(filtered[1].visible, false);
+});
+
+test("main lazily imports the activity module", () => {
+  const mainSource = fs.readFileSync(path.join(__dirname, "../js/main.js"), "utf8");
+
+  assert.equal(mainSource.includes('from "./activity.js"'), false);
+  assert.equal(mainSource.includes('import("./activity.js")'), true);
+  assert.equal(mainSource.includes("loadActivityModule"), true);
 });

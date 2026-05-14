@@ -214,12 +214,12 @@ export function initChat() {
       aiPageInput.removeAttribute('aria-describedby');
       document.getElementById('token-error')?.remove();
       
-      if (tokens > TOKEN_WARNING_THRESHOLD) {
-        aiTokenCounter.style.color = 'var(--color-warning)';
-        aiTokenCounter.style.fontWeight = '700';
-      } else if (tokens > TOKEN_ERROR_THRESHOLD) {
+      if (tokens > TOKEN_ERROR_THRESHOLD) {
         aiTokenCounter.style.color = 'var(--color-error)';
         aiTokenCounter.style.fontWeight = '800';
+      } else if (tokens > TOKEN_WARNING_THRESHOLD) {
+        aiTokenCounter.style.color = 'var(--color-warning)';
+        aiTokenCounter.style.fontWeight = '700';
       } else {
         aiTokenCounter.style.color = '';
         aiTokenCounter.style.fontWeight = '';

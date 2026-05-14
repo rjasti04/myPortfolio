@@ -123,7 +123,16 @@ bedrock_mgmt = boto3.client(
     config=bedrock_config,
 )
 
-chat_semaphore = asyncio.Semaphore(CHAT_MAX_CONCURRENCY)
+bedrock_semaphore = asyncio.Semaphore(CHAT_MAX_CONCURRENCY)
+
+
+async def _acquire_bedrock_slot(
+    busy_message: str = "AI service is busy. Try again shortly.",
+) -> None:
+    try:
+        await asyncio.wait_for(bedrock_semaphore.acquire(), timeout=0.1)
+    except asyncio.TimeoutError:
+        raise HTTPException(429, busy_message)
 
 
 def _is_trusted_proxy(ip: Optional[str]) -> bool:
@@ -304,7 +313,6 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 class SessionCreate(BaseModel):
-    ip_address: Optional[str] = Field(default=None, max_length=64)
     user_agent: Optional[str] = Field(default=None, max_length=512)
     device_type: Optional[Literal["desktop", "mobile", "tablet", "unknown"]] = None
 
@@ -360,7 +368,7 @@ def _now() -> datetime:
 @app.get("/health", summary="Health check endpoint")
 async def health_check(request: Request):
     """Verify application and database health."""
-    request_id = getattr(request.scope, "request_id", "unknown")
+    request_id = request.scope.get("request_id", "unknown")
     try:
         if not hasattr(app.state, "pool"):
             logger.warning(f"[{request_id}] Health check: pool not ready")
@@ -400,9 +408,9 @@ async def health_check(request: Request):
 async def create_session(payload: SessionCreate, request: Request):
     """
     Creates a new row in user_sessions and returns the generated session_id.
-    ip_address can be passed explicitly or auto-detected from the request.
+    Client IP is auto-detected from the request.
     """
-    request_id = getattr(request.scope, "request_id", "unknown")
+    request_id = request.scope.get("request_id", "unknown")
     # Trust X-Forwarded-For only when the direct client is a configured proxy.
     client_ip = _client_ip_from_request(request)
     ip = client_ip
@@ -645,7 +653,7 @@ def _resolve_model_id(requested_model: Optional[str]) -> str:
 
 @app.post("/chat")
 async def chat_endpoint(payload: ChatRequest, http_request: Request):
-    request_id = getattr(http_request.scope, "request_id", "unknown")
+    request_id = http_request.scope.get("request_id", "unknown")
     model_id = _resolve_model_id(payload.model)
     logger.info(
         "chat_request",
@@ -660,10 +668,7 @@ async def chat_endpoint(payload: ChatRequest, http_request: Request):
         for msg in payload.messages
     ])
 
-    try:
-        await asyncio.wait_for(chat_semaphore.acquire(), timeout=0.1)
-    except asyncio.TimeoutError:
-        raise HTTPException(429, "Chat service is busy. Try again shortly.")
+    await _acquire_bedrock_slot("Chat service is busy. Try again shortly.")
 
     async def generate_response():
         queue: asyncio.Queue = asyncio.Queue(maxsize=CHAT_STREAM_QUEUE_SIZE)
@@ -751,7 +756,7 @@ async def chat_endpoint(payload: ChatRequest, http_request: Request):
                     logger.warning("Bedrock stream worker did not stop promptly")
         finally:
             stop_stream.set()
-            chat_semaphore.release()
+            bedrock_semaphore.release()
 
     return StreamingResponse(
         generate_response(),
@@ -772,6 +777,7 @@ async def chat_summarize_endpoint(payload: ChatRequest):
         for msg in payload.messages
     ])
 
+    await _acquire_bedrock_slot()
     try:
         response = await asyncio.to_thread(
             bedrock_runtime.converse,
@@ -785,6 +791,8 @@ async def chat_summarize_endpoint(payload: ChatRequest):
     except Exception as e:
         logger.exception("Error summarizing chat history: %s", e)
         raise HTTPException(500, "Summarization failed")
+    finally:
+        bedrock_semaphore.release()
 
 
 # ---------------------------------------------------------------------------
@@ -797,6 +805,7 @@ async def chat_summarize_endpoint(payload: ChatRequest):
 )
 async def list_models():
     """Returns Bedrock foundation models available in the configured region."""
+    await _acquire_bedrock_slot("Model listing is busy. Try again shortly.")
     try:
         resp = await asyncio.to_thread(
             bedrock_mgmt.list_foundation_models,
@@ -815,3 +824,5 @@ async def list_models():
     except Exception as e:
         logger.error(f"Error listing Bedrock models: {e}")
         raise HTTPException(500, "Unable to list models")
+    finally:
+        bedrock_semaphore.release()
