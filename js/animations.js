@@ -9,7 +9,7 @@ const TERMINAL_INTRO_STEP_MS = 180;
 const MATRIX_FRAME_MS = 28;
 const MATRIX_ITERATION_STEP = 0.2;
 
-export function initReveals() {
+function initReveals() {
   const revealElements = Array.from(document.querySelectorAll(".reveal"));
   if (revealElements.length === 0) return;
 
@@ -38,7 +38,7 @@ export function initReveals() {
   });
 }
 
-export function initStats() {
+function initStats() {
   const statNumbers = Array.from(document.querySelectorAll(".stat-number[data-target]"));
   if (statNumbers.length === 0) return;
 
@@ -101,7 +101,7 @@ export function initStats() {
   statNumbers.forEach((element) => observer.observe(element));
 }
 
-export function initTerminalIntro() {
+function initTerminalIntro() {
   const terminalChildren = Array.from(document.querySelectorAll(".terminal-body > *:not(.terminal-input-line)"));
   if (mobileDevice.matches || prefersReducedMotion.matches || terminalChildren.length === 0) {
     terminalChildren.forEach((child) => { child.style.opacity = "1"; });
@@ -223,7 +223,7 @@ function initMatrixDecode() {
   });
 }
 
-export function initSpringHovers() {
+function initSpringHovers() {
   if (prefersReducedMotion.matches || !supportsHover.matches) return;
 
   const springConfig = { stiffness: 400, damping: 30 };
@@ -276,7 +276,7 @@ export function initAnimations() {
 }
 
 // Enhanced page transition animations
-export function initPageTransitions() {
+function initPageTransitions() {
   if (prefersReducedMotion.matches) return;
   
   const sections = document.querySelectorAll('main section');
