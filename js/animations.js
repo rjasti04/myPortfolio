@@ -116,7 +116,7 @@ export function initTerminalIntro() {
   });
 }
 
-export function initMatrixDecode() {
+function initMatrixDecode() {
   const element = document.querySelector(".hero-title");
   if (!element || prefersReducedMotion.matches) return;
 
