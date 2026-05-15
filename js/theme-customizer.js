@@ -1,4 +1,4 @@
-export function hexToHsl(hex) {
+function hexToHsl(hex) {
   hex = hex.replace(/^#/, '');
   if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
   let r = parseInt(hex.substring(0, 2), 16) / 255;
@@ -23,7 +23,7 @@ export function hexToHsl(hex) {
   return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
 }
 
-export function getLuminance(r, g, b) {
+function getLuminance(r, g, b) {
   let [rL, gL, bL] = [r, g, b].map(c => {
     c = c / 255;
     return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
@@ -31,7 +31,7 @@ export function getLuminance(r, g, b) {
   return 0.2126 * rL + 0.7152 * gL + 0.0722 * bL;
 }
 
-export function hexToRgb(hex) {
+function hexToRgb(hex) {
   hex = hex.replace(/^#/, '');
   if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
   return [
@@ -41,7 +41,7 @@ export function hexToRgb(hex) {
   ];
 }
 
-export function getContrast(hex1, hex2) {
+function getContrast(hex1, hex2) {
   let rgb1 = hexToRgb(hex1);
   let rgb2 = hexToRgb(hex2);
   let l1 = getLuminance(rgb1[0], rgb1[1], rgb1[2]);
@@ -49,7 +49,7 @@ export function getContrast(hex1, hex2) {
   return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 }
 
-export function generateVariants(primaryHex, isDark) {
+function generateVariants(primaryHex, isDark) {
   const [h, s, l] = hexToHsl(primaryHex);
   
   // Decide best text color against this fill
@@ -72,7 +72,7 @@ export function generateVariants(primaryHex, isDark) {
   };
 }
 
-export function applyPaletteVariables(palette, isDark) {
+function applyPaletteVariables(palette, isDark) {
   if (!palette) return;
   const modeColors = isDark ? palette.dark : palette.light;
   if (!modeColors) return;
@@ -84,7 +84,7 @@ export function applyPaletteVariables(palette, isDark) {
   }
 }
 
-export function clearCustomPalette() {
+function clearCustomPalette() {
   const vars = [
     '--accent-fill', '--accent-text', '--accent-hover', '--accent-soft', '--accent-mild', '--on-accent',
     '--secondary-fill', '--secondary-text',
