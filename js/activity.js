@@ -148,7 +148,9 @@ async function _loadActivityImpl(offset) {
         if (paginationControls) {
           paginationControls.style.display = "flex";
           prevBtn.disabled = false;
+          prevBtn.title = "Previous page";
           nextBtn.disabled = true;
+          nextBtn.title = "No more pages";
           currentOffset = offset;
           const currentPage = Math.floor(currentOffset / PAGE_SIZE) + 1;
           if (pageInfo) pageInfo.textContent = `Page ${currentPage} (End)`;
@@ -169,7 +171,9 @@ async function _loadActivityImpl(offset) {
     if (paginationControls) {
       paginationControls.style.display = "flex";
       prevBtn.disabled = currentOffset === 0;
+      prevBtn.title = currentOffset === 0 ? "No previous pages" : "Previous page";
       nextBtn.disabled = events.length < PAGE_SIZE;
+      nextBtn.title = events.length < PAGE_SIZE ? "No more pages" : "Next page";
 
       const currentPage = Math.floor(currentOffset / PAGE_SIZE) + 1;
       if (pageInfo) pageInfo.textContent = `Page ${currentPage}`;
