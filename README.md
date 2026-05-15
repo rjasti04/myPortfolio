@@ -35,14 +35,23 @@ FastAPI service for activity tracking and Amazon Bedrock-powered chat.
 - PostgreSQL database for the API
 - AWS credentials with Amazon Bedrock access if chat endpoints are enabled
 
-The FastAPI service expects existing `user_sessions` and `user_activity_events`
-tables. Migration SQL is not included in this repository.
+The FastAPI service uses SQLAlchemy ORM and Alembic for database migrations.
 
 ## Install
 
 ```bash
 npm install
 python -m pip install -r server/requirements.txt
+```
+
+### Database Migrations
+
+Apply database migrations to set up the `users`, `user_sessions`, and `user_activity_events` tables:
+
+```bash
+export DATABASE_URL="postgresql+asyncpg://user:password@host:5432/dbname"
+cd server
+alembic upgrade head
 ```
 
 ## Run the Frontend Locally
@@ -88,6 +97,7 @@ Required:
 
 Optional:
 
+- `JWT_SECRET`: Secret key used for signing JSON Web Tokens. Crucial for production security.
 - `ALLOWED_MODEL_IDS`: comma-separated allowlist of Bedrock model IDs
 - `CORS_ORIGINS`: comma-separated browser origins allowed by FastAPI CORS
 - `TRUSTED_PROXY_IPS`: comma-separated proxy IPs/CIDRs trusted for `X-Forwarded-For`
@@ -116,6 +126,14 @@ npm run audit         # Check npm packages for high-severity advisories
 
 ## Backend Endpoints
 
+**Authentication Endpoints:**
+- `POST /auth/register`: Create a new user account
+- `POST /auth/login`: Authenticate and receive JWT access/refresh tokens
+- `POST /auth/refresh`: Obtain a new access token using a refresh token
+- `POST /auth/logout`: Invalidate client-side tokens
+- `GET /auth/me`: Retrieve current user profile
+
+**Activity and Chat Endpoints:**
 - `GET /health`: API and database health check
 - `POST /sessions`: create an activity session
 - `PATCH /sessions/{session_id}/heartbeat`: refresh session activity
@@ -124,9 +142,12 @@ npm run audit         # Check npm packages for high-severity advisories
 - `POST /events`: record one activity event
 - `POST /events/bulk`: record up to 500 activity events
 - `GET /sessions/{session_id}/events`: list events for a session
-- `POST /chat`: stream a Bedrock chat response
-- `POST /chat/summarize`: summarize chat history through Bedrock
+- `POST /chat`: stream a Bedrock chat response (Restricted after 6 messages for anonymous users)
+- `POST /chat/summarize`: summarize chat history through Bedrock (Restricted after 6 messages for anonymous users)
 - `GET /models`: list available Bedrock foundation models
+
+### Authentication Flow
+The application uses stateless JWTs for authentication. Unauthenticated users are allowed to send up to 6 AI chat messages before a login modal triggers. The frontend persists tokens in `localStorage` and silently intercepts expired token errors (HTTP 401) to request a new token via the `/auth/refresh` endpoint seamlessly.
 
 ## Deployment Notes
 
