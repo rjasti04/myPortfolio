@@ -41,6 +41,109 @@ describe('Utils Module', () => {
     });
   });
 
+  describe('copyText', () => {
+    let originalClipboard;
+    let originalExecCommand;
+
+    before(() => {
+      // The JSDOM context is already created in the parent describe block's before hook.
+      // But it is not a secure context by default.
+      // isSecureContext cannot be overridden directly as it's a read-only property in JSDOM,
+      // so we use Object.defineProperty to override it just for these tests.
+      Object.defineProperty(global.window, 'isSecureContext', {
+        value: true,
+        writable: true
+      });
+
+      originalClipboard = global.navigator.clipboard;
+      originalExecCommand = global.document.execCommand;
+    });
+
+    after(() => {
+      if (originalClipboard !== undefined) {
+        global.navigator.clipboard = originalClipboard;
+      } else {
+        delete global.navigator.clipboard;
+      }
+      global.document.execCommand = originalExecCommand;
+      global.window.isSecureContext = false; // Reset mock
+    });
+
+    it('should use navigator.clipboard.writeText when available and in secure context', async () => {
+      let writtenText = null;
+      global.navigator.clipboard = {
+        writeText: (text) => {
+          writtenText = text;
+          return Promise.resolve();
+        }
+      };
+      global.window.isSecureContext = true;
+
+      const { copyText } = await import('../js/utils.js');
+      const textToCopy = 'test clipboard text';
+
+      await copyText(textToCopy);
+      assert.strictEqual(writtenText, textToCopy);
+    });
+
+    it('should fallback to document.execCommand when navigator.clipboard is absent', async () => {
+      delete global.navigator.clipboard;
+      global.window.isSecureContext = true;
+
+      let execCommandCalled = false;
+      global.document.execCommand = (cmd) => {
+        if (cmd === 'copy') {
+          execCommandCalled = true;
+          return true;
+        }
+        return false;
+      };
+
+      const { copyText } = await import('../js/utils.js');
+      const textToCopy = 'test fallback text';
+
+      await copyText(textToCopy);
+      assert.strictEqual(execCommandCalled, true);
+    });
+
+    it('should fallback to document.execCommand when not in secure context', async () => {
+      global.navigator.clipboard = {
+        writeText: () => Promise.resolve()
+      };
+      global.window.isSecureContext = false;
+
+      let execCommandCalled = false;
+      global.document.execCommand = (cmd) => {
+        if (cmd === 'copy') {
+          execCommandCalled = true;
+          return true;
+        }
+        return false;
+      };
+
+      const { copyText } = await import('../js/utils.js');
+      const textToCopy = 'test fallback text secure';
+
+      await copyText(textToCopy);
+      assert.strictEqual(execCommandCalled, true);
+    });
+
+    it('should reject if document.execCommand fails during fallback', async () => {
+      delete global.navigator.clipboard;
+
+      global.document.execCommand = () => false;
+
+      const { copyText } = await import('../js/utils.js');
+
+      try {
+        await copyText('should fail');
+        assert.fail('Expected copyText to reject');
+      } catch (err) {
+        assert.strictEqual(err.message, 'Copy command failed');
+      }
+    });
+  });
+
   describe('estimateTokens', () => {
     it('should estimate tokens for simple text', async () => {
       const { estimateTokens } = await import('../js/utils.js');
@@ -107,6 +210,7 @@ describe('Animation Utils', () => {
   let dom;
   let document;
   let window;
+  let originalPerformance;
 
   before(() => {
     dom = new JSDOM('<!DOCTYPE html><html><body><div id="test"></div></body></html>');
@@ -115,6 +219,7 @@ describe('Animation Utils', () => {
     global.document = document;
     global.window = window;
     global.requestAnimationFrame = (cb) => setTimeout(cb, 16);
+    originalPerformance = global.performance;
     global.performance = { now: () => Date.now() };
   });
 
@@ -122,7 +227,11 @@ describe('Animation Utils', () => {
     delete global.document;
     delete global.window;
     delete global.requestAnimationFrame;
-    delete global.performance;
+    if (originalPerformance !== undefined) {
+      global.performance = originalPerformance;
+    } else {
+      delete global.performance;
+    }
   });
 
   describe('animateCounter', () => {
