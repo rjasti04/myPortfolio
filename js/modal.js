@@ -9,7 +9,7 @@ export function getFocusableElements(container) {
   });
 }
 
-export function handleFocusTrap(event, modal) {
+function handleFocusTrap(event, modal) {
   if (event.key !== "Tab") return;
 
   const focusable = getFocusableElements(modal);
