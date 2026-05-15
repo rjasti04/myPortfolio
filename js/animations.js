@@ -101,7 +101,7 @@ export function initStats() {
   statNumbers.forEach((element) => observer.observe(element));
 }
 
-export function initTerminalIntro() {
+function initTerminalIntro() {
   const terminalChildren = Array.from(document.querySelectorAll(".terminal-body > *:not(.terminal-input-line)"));
   if (mobileDevice.matches || prefersReducedMotion.matches || terminalChildren.length === 0) {
     terminalChildren.forEach((child) => { child.style.opacity = "1"; });
