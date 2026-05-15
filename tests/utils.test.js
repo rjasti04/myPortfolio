@@ -123,6 +123,7 @@ describe('Animation Utils', () => {
     delete global.window;
     delete global.requestAnimationFrame;
     delete global.performance;
+    delete global.performance;
   });
 
   describe('animateCounter', () => {
@@ -155,6 +156,7 @@ describe('Modal Utils', () => {
   let window;
 
   before(() => {
+    global.performance = { now: () => Date.now() };
     dom = new JSDOM(`
       <!DOCTYPE html>
       <html>
