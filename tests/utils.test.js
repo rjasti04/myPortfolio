@@ -101,6 +101,38 @@ describe('Utils Module', () => {
       assert.strictEqual(callCount, 2);
     });
   });
+
+  describe('Network Utils', () => {
+    it('should register and fire online callbacks, and update isNetworkOnline', async () => {
+      const { onOnline, isNetworkOnline } = await import('../js/utils.js');
+
+      let onlineCalled = false;
+      onOnline(() => {
+        onlineCalled = true;
+      });
+
+      // Dispatch online event
+      window.dispatchEvent(new window.Event('online'));
+
+      assert.strictEqual(onlineCalled, true);
+      assert.strictEqual(isNetworkOnline(), true);
+    });
+
+    it('should register and fire offline callbacks, and update isNetworkOnline', async () => {
+      const { onOffline, isNetworkOnline } = await import('../js/utils.js');
+
+      let offlineCalled = false;
+      onOffline(() => {
+        offlineCalled = true;
+      });
+
+      // Dispatch offline event
+      window.dispatchEvent(new window.Event('offline'));
+
+      assert.strictEqual(offlineCalled, true);
+      assert.strictEqual(isNetworkOnline(), false);
+    });
+  });
 });
 
 describe('Animation Utils', () => {
@@ -109,20 +141,23 @@ describe('Animation Utils', () => {
   let window;
 
   before(() => {
+    // Add performance to global space before creating JSDOM to avoid ReferenceError
+    if (typeof global.performance === 'undefined') {
+        global.performance = { now: () => Date.now() };
+    }
     dom = new JSDOM('<!DOCTYPE html><html><body><div id="test"></div></body></html>');
     document = dom.window.document;
     window = dom.window;
     global.document = document;
     global.window = window;
     global.requestAnimationFrame = (cb) => setTimeout(cb, 16);
-    global.performance = { now: () => Date.now() };
   });
 
   after(() => {
     delete global.document;
     delete global.window;
     delete global.requestAnimationFrame;
-    delete global.performance;
+    // Do not delete global.performance if it was native
   });
 
   describe('animateCounter', () => {
@@ -155,6 +190,9 @@ describe('Modal Utils', () => {
   let window;
 
   before(() => {
+    if (typeof global.performance === 'undefined') {
+        global.performance = { now: () => Date.now() };
+    }
     dom = new JSDOM(`
       <!DOCTYPE html>
       <html>
