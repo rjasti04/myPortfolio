@@ -8,6 +8,7 @@ describe('Utils Module', () => {
   let window;
 
   before(() => {
+    global.performance = { now: () => Date.now() };
     dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
     document = dom.window.document;
     window = dom.window;
@@ -109,19 +110,21 @@ describe('Animation Utils', () => {
   let window;
 
   before(() => {
+    global.performance = { now: () => Date.now() };
     dom = new JSDOM('<!DOCTYPE html><html><body><div id="test"></div></body></html>');
     document = dom.window.document;
     window = dom.window;
     global.document = document;
     global.window = window;
     global.requestAnimationFrame = (cb) => setTimeout(cb, 16);
-    global.performance = { now: () => Date.now() };
+
   });
 
   after(() => {
     delete global.document;
     delete global.window;
     delete global.requestAnimationFrame;
+    delete global.performance;
     delete global.performance;
   });
 
@@ -152,9 +155,11 @@ describe('Animation Utils', () => {
 describe('Modal Utils', () => {
   let dom;
   let document;
+
   let window;
 
   before(() => {
+    global.performance = { now: () => Date.now() };
     dom = new JSDOM(`
       <!DOCTYPE html>
       <html>

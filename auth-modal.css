@@ -160,7 +160,8 @@
 .nav-auth-container {
   display: flex;
   align-items: center;
-  margin-right: 0.5rem;
+  margin-right: 0;
+  position: relative;
 }
 
 .nav-auth-btn {
