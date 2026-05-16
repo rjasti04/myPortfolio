@@ -471,10 +471,25 @@ nav a:focus-visible,
 .project-filter:focus-visible,
 .project-details-btn:focus-visible,
 .contact-submit-btn:focus-visible,
-.hamburger-btn:focus-visible {
+.hamburger-btn:focus-visible,
+.chat-toggle-btn:focus-visible,
+.chat-close-btn:focus-visible,
+.chat-send-btn:focus-visible,
+.ai-send-btn:focus-visible,
+.ai-close-btn:focus-visible,
+.btn-clear:focus-visible,
+.close-overlay-btn:focus-visible,
+.code-copy-btn:focus-visible,
+.voice-input-btn:focus-visible,
+.delete-session-btn:focus-visible {
   outline: 3px solid var(--accent-fill);
   outline-offset: 3px;
   transition: outline-offset var(--motion-base) var(--ease-press);
+}
+
+/* Ensure the delete button is visible when focused via keyboard */
+.delete-session-btn:focus-visible {
+  opacity: 1 !important;
 }
 
 @media (prefers-contrast: high) {
@@ -487,7 +502,17 @@ nav a:focus-visible,
   .project-filter:focus-visible,
   .project-details-btn:focus-visible,
   .contact-submit-btn:focus-visible,
-  .hamburger-btn:focus-visible {
+  .hamburger-btn:focus-visible,
+  .chat-toggle-btn:focus-visible,
+  .chat-close-btn:focus-visible,
+  .chat-send-btn:focus-visible,
+  .ai-send-btn:focus-visible,
+  .ai-close-btn:focus-visible,
+  .btn-clear:focus-visible,
+  .close-overlay-btn:focus-visible,
+  .code-copy-btn:focus-visible,
+  .voice-input-btn:focus-visible,
+  .delete-session-btn:focus-visible {
     outline-color: currentColor;
     outline-width: 4px;
   }
