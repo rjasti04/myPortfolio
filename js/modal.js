@@ -1,12 +1,16 @@
-const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const modalFocusReturn = new WeakMap();
 const modalKeydown = new WeakMap();
 
 export function getFocusableElements(container) {
-  return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter((element) => {
-    const isVisible = element.offsetParent !== null || element.getClientRects().length > 0;
-    return isVisible && element.getAttribute("aria-hidden") !== "true";
-  });
+  return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter(
+    (element) => {
+      const isVisible =
+        element.offsetParent !== null || element.getClientRects().length > 0;
+      return isVisible && element.getAttribute("aria-hidden") !== "true";
+    },
+  );
 }
 
 export function handleFocusTrap(event, modal) {
@@ -31,7 +35,12 @@ export function handleFocusTrap(event, modal) {
 
 export function openModal(modal, { initialFocus = null } = {}) {
   if (!modal) return;
-  modalFocusReturn.set(modal, document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  modalFocusReturn.set(
+    modal,
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null,
+  );
   modal.classList.add("active");
   modal.setAttribute("aria-hidden", "false");
 

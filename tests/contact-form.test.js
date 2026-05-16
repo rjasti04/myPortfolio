@@ -149,7 +149,9 @@ test("contact form blocks ajax submission while offline", async () => {
   initContactForm();
 
   window.dispatchEvent(new window.Event("offline"));
-  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  form.dispatchEvent(
+    new window.Event("submit", { bubbles: true, cancelable: true }),
+  );
   await flushPromises();
 
   const status = document.getElementById("contact-status");
@@ -166,12 +168,15 @@ test("contact form exposes loading state and resets after successful ajax submis
   fillValidContactForm();
 
   let resolveFetch;
-  window.fetch = global.fetch = () => new Promise((resolve) => {
-    resolveFetch = () => resolve({ ok: true });
-  });
+  window.fetch = global.fetch = () =>
+    new Promise((resolve) => {
+      resolveFetch = () => resolve({ ok: true });
+    });
   initContactForm();
 
-  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  form.dispatchEvent(
+    new window.Event("submit", { bubbles: true, cancelable: true }),
+  );
   await flushPromises();
 
   const submitBtn = form.querySelector('button[type="submit"]');

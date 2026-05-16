@@ -7,27 +7,27 @@
  * @param {number} duration - Animation duration in ms
  * @param {string} suffix - Optional suffix (e.g., '+', '%')
  */
-export function animateCounter(element, target, duration = 1000, suffix = '') {
+export function animateCounter(element, target, duration = 1000, suffix = "") {
   const start = 0;
   const startTime = performance.now();
-  
+
   const animate = (currentTime) => {
     const elapsed = currentTime - startTime;
     const progress = Math.min(elapsed / duration, 1);
-    
+
     // Easing function (ease-out)
     const easeOut = 1 - Math.pow(1 - progress, 3);
     const current = Math.floor(start + (target - start) * easeOut);
-    
+
     element.textContent = current + suffix;
-    
+
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
       element.textContent = target + suffix;
     }
   };
-  
+
   requestAnimationFrame(animate);
 }
 
@@ -37,22 +37,22 @@ export function animateCounter(element, target, duration = 1000, suffix = '') {
  * @param {number} duration - Duration in ms
  */
 export function fadeIn(element, duration = 300) {
-  element.style.opacity = '0';
-  element.style.display = 'block';
-  
+  element.style.opacity = "0";
+  element.style.display = "block";
+
   let start = null;
-  
+
   const animate = (timestamp) => {
     if (!start) start = timestamp;
     const progress = (timestamp - start) / duration;
-    
+
     element.style.opacity = Math.min(progress, 1);
-    
+
     if (progress < 1) {
       requestAnimationFrame(animate);
     }
   };
-  
+
   requestAnimationFrame(animate);
 }
 
@@ -64,20 +64,20 @@ export function fadeIn(element, duration = 300) {
 export function fadeOut(element, duration = 300) {
   let start = null;
   const initialOpacity = parseFloat(getComputedStyle(element).opacity) || 1;
-  
+
   const animate = (timestamp) => {
     if (!start) start = timestamp;
     const progress = (timestamp - start) / duration;
-    
+
     element.style.opacity = initialOpacity * (1 - Math.min(progress, 1));
-    
+
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
-      element.style.display = 'none';
+      element.style.display = "none";
     }
   };
-  
+
   requestAnimationFrame(animate);
 }
 
@@ -87,27 +87,27 @@ export function fadeOut(element, duration = 300) {
  * @param {number} duration - Duration in ms
  */
 export function slideDown(element, duration = 300) {
-  element.style.display = 'block';
+  element.style.display = "block";
   const height = element.scrollHeight;
-  element.style.height = '0';
-  element.style.overflow = 'hidden';
-  
+  element.style.height = "0";
+  element.style.overflow = "hidden";
+
   let start = null;
-  
+
   const animate = (timestamp) => {
     if (!start) start = timestamp;
     const progress = (timestamp - start) / duration;
-    
-    element.style.height = (height * Math.min(progress, 1)) + 'px';
-    
+
+    element.style.height = height * Math.min(progress, 1) + "px";
+
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
-      element.style.height = '';
-      element.style.overflow = '';
+      element.style.height = "";
+      element.style.overflow = "";
     }
   };
-  
+
   requestAnimationFrame(animate);
 }
 
@@ -118,26 +118,26 @@ export function slideDown(element, duration = 300) {
  */
 export function slideUp(element, duration = 300) {
   const height = element.scrollHeight;
-  element.style.height = height + 'px';
-  element.style.overflow = 'hidden';
-  
+  element.style.height = height + "px";
+  element.style.overflow = "hidden";
+
   let start = null;
-  
+
   const animate = (timestamp) => {
     if (!start) start = timestamp;
     const progress = (timestamp - start) / duration;
-    
-    element.style.height = (height * (1 - Math.min(progress, 1))) + 'px';
-    
+
+    element.style.height = height * (1 - Math.min(progress, 1)) + "px";
+
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
-      element.style.display = 'none';
-      element.style.height = '';
-      element.style.overflow = '';
+      element.style.display = "none";
+      element.style.height = "";
+      element.style.overflow = "";
     }
   };
-  
+
   requestAnimationFrame(animate);
 }
 
@@ -165,14 +165,14 @@ export function parallaxScroll(element, speed = 0.5) {
     const scrolled = window.pageYOffset;
     const offset = element.offsetTop;
     const distance = scrolled - offset;
-    
+
     element.style.transform = `translateY(${distance * speed}px)`;
   };
-  
-  window.addEventListener('scroll', updateParallax, { passive: true });
+
+  window.addEventListener("scroll", updateParallax, { passive: true });
   updateParallax();
-  
-  return () => window.removeEventListener('scroll', updateParallax);
+
+  return () => window.removeEventListener("scroll", updateParallax);
 }
 
 /**
@@ -181,14 +181,16 @@ export function parallaxScroll(element, speed = 0.5) {
  * @param {number} offset - Offset from top in px
  */
 export function smoothScrollTo(target, offset = 0) {
-  const element = typeof target === 'string' ? document.querySelector(target) : target;
+  const element =
+    typeof target === "string" ? document.querySelector(target) : target;
   if (!element) return;
-  
-  const targetPosition = element.getBoundingClientRect().top + window.pageYOffset - offset;
-  
+
+  const targetPosition =
+    element.getBoundingClientRect().top + window.pageYOffset - offset;
+
   window.scrollTo({
     top: targetPosition,
-    behavior: 'smooth'
+    behavior: "smooth",
   });
 }
 
@@ -197,25 +199,25 @@ export function smoothScrollTo(target, offset = 0) {
  * @param {string} selector - Selector for elements to reveal
  * @param {Object} options - IntersectionObserver options
  */
-export function revealOnScroll(selector = '.reveal', options = {}) {
+export function revealOnScroll(selector = ".reveal", options = {}) {
   const defaultOptions = {
     threshold: 0.15,
-    rootMargin: '0px 0px -50px 0px',
-    ...options
+    rootMargin: "0px 0px -50px 0px",
+    ...options,
   };
-  
+
   const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
+    entries.forEach((entry) => {
       if (entry.isIntersecting) {
-        entry.target.classList.add('active');
+        entry.target.classList.add("active");
         observer.unobserve(entry.target);
       }
     });
   }, defaultOptions);
-  
-  document.querySelectorAll(selector).forEach(element => {
+
+  document.querySelectorAll(selector).forEach((element) => {
     observer.observe(element);
   });
-  
+
   return observer;
 }

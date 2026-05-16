@@ -13,7 +13,7 @@ export function applyTheme(isDark) {
   if (themeBtn) {
     themeBtn.setAttribute("aria-pressed", String(isDark));
   }
-  
+
   if (typeof reapplyCustomTheme === "function") {
     reapplyCustomTheme(isDark);
   }
@@ -22,8 +22,12 @@ export function applyTheme(isDark) {
     // Use computed CSS variable instead of hardcoded color
     // Read from body because customizer applies properties on body
     const accentColor = getComputedStyle(document.body)
-      .getPropertyValue('--accent-fill').trim();
-    themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#c02645"));
+      .getPropertyValue("--accent-fill")
+      .trim();
+    themeColorMeta.setAttribute(
+      "content",
+      accentColor || (isDark ? "#0a0a0b" : "#c02645"),
+    );
   }
 }
 
@@ -33,10 +37,12 @@ function spinToggle() {
     from: 0,
     to: 360,
     onUpdate: (deg) => {
-      themeBtn.style.transform = `rotate(${deg}deg) scale(${1 + Math.sin(deg * Math.PI / 180) * 0.15})`;
+      themeBtn.style.transform = `rotate(${deg}deg) scale(${1 + Math.sin((deg * Math.PI) / 180) * 0.15})`;
     },
-    onComplete: () => { themeBtn.style.transform = ""; },
-    config: { stiffness: 300, damping: 20 }
+    onComplete: () => {
+      themeBtn.style.transform = "";
+    },
+    config: { stiffness: 300, damping: 20 },
   });
 }
 

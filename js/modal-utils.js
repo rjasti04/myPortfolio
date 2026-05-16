@@ -15,50 +15,52 @@ const modalStack = [];
  */
 export function openModal(modal, options = {}) {
   if (!modal) return;
-  
+
   const {
     initialFocus = null,
     onClose = null,
     closeOnEscape = true,
-    closeOnBackdrop = true
+    closeOnBackdrop = true,
   } = options;
-  
+
   // Store previous focus
   previousFocus = document.activeElement;
-  
+
   // Add to modal stack
   modalStack.push({ modal, onClose });
   activeModal = modal;
-  
+
   // Show modal
-  modal.classList.add('active');
-  modal.setAttribute('aria-hidden', 'false');
-  modal.removeAttribute('hidden');
-  
+  modal.classList.add("active");
+  modal.setAttribute("aria-hidden", "false");
+  modal.removeAttribute("hidden");
+
   // Trap focus
   trapFocus(modal);
-  
+
   // Focus initial element
   if (initialFocus) {
     setTimeout(() => initialFocus.focus(), 100);
   } else {
-    const firstFocusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const firstFocusable = modal.querySelector(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
     if (firstFocusable) {
       setTimeout(() => firstFocusable.focus(), 100);
     }
   }
-  
+
   // Prevent body scroll
-  document.body.style.overflow = 'hidden';
-  
+  document.body.style.overflow = "hidden";
+
   // ESC key handler
   if (closeOnEscape) {
-    modal.addEventListener('keydown', handleEscapeKey);
+    modal.addEventListener("keydown", handleEscapeKey);
   }
-  
+
   // Backdrop click handler
   if (closeOnBackdrop) {
-    modal.addEventListener('click', handleBackdropClick);
+    modal.addEventListener("click", handleBackdropClick);
   }
 }
 
@@ -69,38 +71,39 @@ export function openModal(modal, options = {}) {
 export function closeModal(modal = null) {
   const targetModal = modal || activeModal;
   if (!targetModal) return;
-  
+
   // Find in stack
-  const stackIndex = modalStack.findIndex(item => item.modal === targetModal);
+  const stackIndex = modalStack.findIndex((item) => item.modal === targetModal);
   if (stackIndex === -1) return;
-  
+
   const { onClose } = modalStack[stackIndex];
-  
+
   // Hide modal
-  targetModal.classList.remove('active');
-  targetModal.setAttribute('aria-hidden', 'true');
-  
+  targetModal.classList.remove("active");
+  targetModal.setAttribute("aria-hidden", "true");
+
   // Remove from stack
   modalStack.splice(stackIndex, 1);
-  
+
   // Update active modal
-  activeModal = modalStack.length > 0 ? modalStack[modalStack.length - 1].modal : null;
-  
+  activeModal =
+    modalStack.length > 0 ? modalStack[modalStack.length - 1].modal : null;
+
   // Restore body scroll if no modals open
   if (modalStack.length === 0) {
-    document.body.style.overflow = '';
+    document.body.style.overflow = "";
   }
-  
+
   // Restore focus
   if (previousFocus && modalStack.length === 0) {
     previousFocus.focus();
     previousFocus = null;
   }
-  
+
   // Remove event listeners
-  targetModal.removeEventListener('keydown', handleEscapeKey);
-  targetModal.removeEventListener('click', handleBackdropClick);
-  
+  targetModal.removeEventListener("keydown", handleEscapeKey);
+  targetModal.removeEventListener("click", handleBackdropClick);
+
   // Call onClose callback
   if (onClose) {
     onClose();
@@ -126,7 +129,7 @@ export function isModalOpen() {
 // Private helper functions
 
 function handleEscapeKey(e) {
-  if (e.key === 'Escape') {
+  if (e.key === "Escape") {
     closeModal(e.currentTarget);
   }
 }
@@ -139,17 +142,17 @@ function handleBackdropClick(e) {
 
 function trapFocus(modal) {
   const focusableElements = modal.querySelectorAll(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
   );
-  
+
   if (focusableElements.length === 0) return;
-  
+
   const firstElement = focusableElements[0];
   const lastElement = focusableElements[focusableElements.length - 1];
-  
+
   const handleTabKey = (e) => {
-    if (e.key !== 'Tab') return;
-    
+    if (e.key !== "Tab") return;
+
     if (e.shiftKey) {
       if (document.activeElement === firstElement) {
         e.preventDefault();
@@ -162,6 +165,6 @@ function trapFocus(modal) {
       }
     }
   };
-  
-  modal.addEventListener('keydown', handleTabKey);
+
+  modal.addEventListener("keydown", handleTabKey);
 }

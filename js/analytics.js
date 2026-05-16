@@ -6,7 +6,7 @@ const QUEUE_FLUSH_THRESHOLD = 10;
 const HEARTBEAT_INTERVAL_MS = 60000;
 const HEARTBEAT_INITIAL_DELAY_MS = 1000;
 const SCROLL_DEBOUNCE_MS = 500;
-const EVENT_QUEUE_STORAGE_KEY = 'rj_event_queue';
+const EVENT_QUEUE_STORAGE_KEY = "rj_event_queue";
 
 let sessionId = null;
 try {
@@ -42,7 +42,7 @@ function loadEventQueue() {
       }
     }
   } catch (e) {
-    console.warn('Failed to load event queue from localStorage:', e);
+    console.warn("Failed to load event queue from localStorage:", e);
   }
 }
 
@@ -51,7 +51,7 @@ function saveEventQueue() {
   try {
     localStorage.setItem(EVENT_QUEUE_STORAGE_KEY, JSON.stringify(eventQueue));
   } catch (e) {
-    console.warn('Failed to save event queue to localStorage:', e);
+    console.warn("Failed to save event queue to localStorage:", e);
   }
 }
 
@@ -68,7 +68,11 @@ function getDeviceType() {
   if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
     return "tablet";
   }
-  if (/Mobile|iP(hone|od)|Android|BlackBerry|IEMobile|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) {
+  if (
+    /Mobile|iP(hone|od)|Android|BlackBerry|IEMobile|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(
+      ua,
+    )
+  ) {
     return "mobile";
   }
   return "desktop";
@@ -78,10 +82,10 @@ let sessionPromise = null;
 
 async function startSession() {
   if (sessionId) return sessionId;
-  
+
   // Return existing promise if session creation in progress
   if (sessionPromise) return sessionPromise;
-  
+
   if (!isApiConfigured()) {
     console.warn("Analytics: API base is not configured; tracking disabled.");
     return null;
@@ -94,8 +98,8 @@ async function startSession() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_agent: navigator.userAgent,
-          device_type: getDeviceType()
-        })
+          device_type: getDeviceType(),
+        }),
       });
 
       if (response.ok) {
@@ -114,7 +118,7 @@ async function startSession() {
       sessionPromise = null;
     }
   })();
-  
+
   return sessionPromise;
 }
 
@@ -128,20 +132,25 @@ export async function ensureSession() {
 
 function startHeartbeat() {
   if (heartbeatInterval) clearInterval(heartbeatInterval);
-  
+
   const ping = async () => {
     if (!sessionId) return;
     try {
-      const response = await apiFetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-      });
-      
+      const response = await apiFetch(
+        `${API_BASE}/sessions/${sessionId}/heartbeat`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+
       if (response.status === 404) {
         // If session is not found, stop heartbeating on this stale ID
         clearInterval(heartbeatInterval);
-        console.warn("Analytics: Session expired or not found. Clearing stale ID and restarting.");
-        
+        console.warn(
+          "Analytics: Session expired or not found. Clearing stale ID and restarting.",
+        );
+
         // The most likely cause is the API's database was cleared or the session expired on the server.
         // We need to forget the old ID and generate a new one so tracking can resume.
         clearSessionId();
@@ -153,7 +162,7 @@ function startHeartbeat() {
   };
 
   heartbeatInterval = setInterval(ping, HEARTBEAT_INTERVAL_MS);
-  
+
   // On resume/reload, trigger a quick verify ping shortly after initialization
   setTimeout(ping, HEARTBEAT_INITIAL_DELAY_MS);
 }
@@ -170,7 +179,7 @@ export function trackEvent(eventType, eventData = {}) {
     session_id: sessionId,
     event_type: eventType,
     page_path: window.location.pathname + window.location.hash,
-    event_data: eventData
+    event_data: eventData,
   };
 
   eventQueue.push(event);
@@ -193,7 +202,7 @@ async function flushEvents() {
     const response = await apiFetch(`${API_BASE}/events/bulk`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ events: eventsToSend })
+      body: JSON.stringify({ events: eventsToSend }),
     });
 
     if (!response.ok) {
@@ -229,7 +238,7 @@ function flushEventsOnUnload() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: payload,
-      keepalive: true
+      keepalive: true,
     }).catch(console.error);
 
     eventQueue.length = 0;
@@ -244,7 +253,7 @@ function flushEventsOnUnload() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: endPayload,
-      keepalive: true
+      keepalive: true,
     }).catch(console.error);
   }
 }
@@ -266,14 +275,18 @@ function attachGlobalListeners() {
           // Immediately ping the heartbeat to revive the session in the backend
           apiFetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" }
-          }).then(res => {
-            if (res.status === 404) {
-               console.warn("Analytics: Session expired during revive. Restarting.");
-               clearSessionId();
-               startSession();
-            }
-          }).catch(err => console.error("Analytics: Revive error", err));
+            headers: { "Content-Type": "application/json" },
+          })
+            .then((res) => {
+              if (res.status === 404) {
+                console.warn(
+                  "Analytics: Session expired during revive. Restarting.",
+                );
+                clearSessionId();
+                startSession();
+              }
+            })
+            .catch((err) => console.error("Analytics: Revive error", err));
         }
       }, 250); // Debounce revive
     }
@@ -292,7 +305,9 @@ function attachGlobalListeners() {
           tag: target.tagName,
           tracked: Boolean(target.dataset.track),
           element_id_present: Boolean(target.id),
-          link_origin: target.href ? new URL(target.href, window.location.href).origin : undefined,
+          link_origin: target.href
+            ? new URL(target.href, window.location.href).origin
+            : undefined,
         });
       }
     };
@@ -307,23 +322,27 @@ function attachGlobalListeners() {
   // Track max scroll depth
   const scrollDepths = new Set();
   let scrollTimeout;
-  window.addEventListener("scroll", () => {
-    if (scrollTimeout) return;
-    scrollTimeout = setTimeout(() => {
-      scrollTimeout = null;
-      const root = document.documentElement;
-      const maxScroll = Math.max(0, root.scrollHeight - root.clientHeight);
-      if (maxScroll === 0) return;
-      
-      const percent = (root.scrollTop / maxScroll) * 100;
-      [25, 50, 75, 90, 100].forEach(depth => {
-        if (percent >= depth && !scrollDepths.has(depth)) {
-          scrollDepths.add(depth);
-          trackEvent("scroll_depth", { percent: depth });
-        }
-      });
-    }, SCROLL_DEBOUNCE_MS);
-  }, { passive: true });
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (scrollTimeout) return;
+      scrollTimeout = setTimeout(() => {
+        scrollTimeout = null;
+        const root = document.documentElement;
+        const maxScroll = Math.max(0, root.scrollHeight - root.clientHeight);
+        if (maxScroll === 0) return;
+
+        const percent = (root.scrollTop / maxScroll) * 100;
+        [25, 50, 75, 90, 100].forEach((depth) => {
+          if (percent >= depth && !scrollDepths.has(depth)) {
+            scrollDepths.add(depth);
+            trackEvent("scroll_depth", { percent: depth });
+          }
+        });
+      }, SCROLL_DEBOUNCE_MS);
+    },
+    { passive: true },
+  );
 }
 
 export function initAnalytics() {

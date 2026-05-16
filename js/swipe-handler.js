@@ -10,26 +10,32 @@ export class SwipeHandler {
     this.allowedTime = options.allowedTime || 500; // Maximum swipe duration
     this.onSwipeLeft = options.onSwipeLeft || (() => {});
     this.onSwipeRight = options.onSwipeRight || (() => {});
-    
+
     this.startX = 0;
     this.startY = 0;
     this.startTime = 0;
     this.distX = 0;
     this.distY = 0;
-    
+
     this.init();
   }
 
   init() {
-    document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
-    document.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: true });
-    document.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
+    document.addEventListener("touchstart", this.handleTouchStart.bind(this), {
+      passive: true,
+    });
+    document.addEventListener("touchmove", this.handleTouchMove.bind(this), {
+      passive: true,
+    });
+    document.addEventListener("touchend", this.handleTouchEnd.bind(this), {
+      passive: true,
+    });
   }
 
   handleTouchStart(e) {
     // Ignore if touching interactive elements
     const target = e.target;
-    if (target.closest('input, textarea, select, button, a, .no-swipe')) {
+    if (target.closest("input, textarea, select, button, a, .no-swipe")) {
       return;
     }
 
@@ -48,7 +54,7 @@ export class SwipeHandler {
 
   handleTouchEnd(e) {
     const target = e.target;
-    if (target.closest('input, textarea, select, button, a, .no-swipe')) {
+    if (target.closest("input, textarea, select, button, a, .no-swipe")) {
       return;
     }
 
@@ -59,7 +65,10 @@ export class SwipeHandler {
 
     // Check if swipe meets criteria
     if (elapsedTime <= this.allowedTime) {
-      if (Math.abs(this.distX) >= this.threshold && Math.abs(this.distY) <= this.restraint) {
+      if (
+        Math.abs(this.distX) >= this.threshold &&
+        Math.abs(this.distY) <= this.restraint
+      ) {
         if (this.distX < 0) {
           // Swipe left
           this.onSwipeLeft();
@@ -72,9 +81,9 @@ export class SwipeHandler {
   }
 
   destroy() {
-    document.removeEventListener('touchstart', this.handleTouchStart);
-    document.removeEventListener('touchmove', this.handleTouchMove);
-    document.removeEventListener('touchend', this.handleTouchEnd);
+    document.removeEventListener("touchstart", this.handleTouchStart);
+    document.removeEventListener("touchmove", this.handleTouchMove);
+    document.removeEventListener("touchend", this.handleTouchEnd);
   }
 }
 
@@ -87,14 +96,24 @@ export class PullToRefresh {
     this.currentY = 0;
     this.pulling = false;
     this.threshold = 80;
-    
+
     this.init();
   }
 
   init() {
-    this.element.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
-    this.element.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
-    this.element.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
+    this.element.addEventListener(
+      "touchstart",
+      this.handleTouchStart.bind(this),
+      { passive: true },
+    );
+    this.element.addEventListener(
+      "touchmove",
+      this.handleTouchMove.bind(this),
+      { passive: false },
+    );
+    this.element.addEventListener("touchend", this.handleTouchEnd.bind(this), {
+      passive: true,
+    });
   }
 
   handleTouchStart(e) {
@@ -112,11 +131,11 @@ export class PullToRefresh {
 
     if (distance > 0 && this.element.scrollTop === 0) {
       e.preventDefault();
-      
+
       // Visual feedback
       const pullDistance = Math.min(distance, this.threshold * 1.5);
       this.element.style.transform = `translateY(${pullDistance * 0.5}px)`;
-      this.element.style.transition = 'none';
+      this.element.style.transition = "none";
     }
   }
 
@@ -124,9 +143,9 @@ export class PullToRefresh {
     if (!this.pulling) return;
 
     const distance = this.currentY - this.startY;
-    
-    this.element.style.transition = 'transform 0.3s ease';
-    this.element.style.transform = '';
+
+    this.element.style.transition = "transform 0.3s ease";
+    this.element.style.transform = "";
 
     if (distance > this.threshold) {
       this.onRefresh();
@@ -138,8 +157,8 @@ export class PullToRefresh {
   }
 
   destroy() {
-    this.element.removeEventListener('touchstart', this.handleTouchStart);
-    this.element.removeEventListener('touchmove', this.handleTouchMove);
-    this.element.removeEventListener('touchend', this.handleTouchEnd);
+    this.element.removeEventListener("touchstart", this.handleTouchStart);
+    this.element.removeEventListener("touchmove", this.handleTouchMove);
+    this.element.removeEventListener("touchend", this.handleTouchEnd);
   }
 }
