@@ -1,0 +1,3 @@
+## 2024-05-16 - DOM-based string escaping is 10x slower than Regex
+**Learning:** `escapeHTML` was using `document.createElement('div')` to escape strings for HTML. This causes synchronous DOM element creation, modifying textContent, and reading innerHTML for every escaped string. This is ~10x slower than a simple Regex replace map and runs synchronously on the main thread, potentially causing frame drops during large renders (like chat history or terminal outputs).
+**Action:** Always prefer regex-based string manipulation over DOM-based trickery for utility functions, especially functions called frequently in a loop like `escapeHTML`.
