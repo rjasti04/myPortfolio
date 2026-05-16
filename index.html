@@ -106,6 +106,7 @@
   <link rel="preload" href="profile-pic-160.webp" as="image" type="image/webp" />
   <link rel="preload" href="styles.css" as="style" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="./auth-modal.css" />
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
     media="print" id="google-fonts-link" />
@@ -903,6 +904,71 @@
 
   </div>
 
+  <!-- Authentication Modal -->
+  <div class="auth-modal-overlay hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+    <div class="auth-modal-content">
+      <button class="auth-modal-close" id="auth-modal-close" aria-label="Close modal">
+        <i class="fas fa-times"></i>
+      </button>
+
+      <div class="auth-modal-tabs">
+        <button class="auth-tab active" data-tab="login">Login</button>
+        <button class="auth-tab" data-tab="register">Register</button>
+      </div>
+
+      <div class="auth-tab-content active" id="auth-tab-login">
+        <h3 id="auth-modal-title">Welcome Back</h3>
+        <p class="auth-modal-subtitle">Log in to unlock unlimited AI chat messages.</p>
+        <form class="auth-form" id="login-form">
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="email" id="login-email" name="email" placeholder=" " required />
+              <label class="form-label" for="login-email">Email</label>
+              <i class="fas fa-envelope input-icon"></i>
+            </div>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="login-password" name="password" placeholder=" " required />
+              <label class="form-label" for="login-password">Password</label>
+              <i class="fas fa-lock input-icon"></i>
+            </div>
+          </div>
+          <div class="auth-error" id="login-error"></div>
+          <button type="submit" class="btn btn-accent auth-submit-btn">
+            Log In <i class="fas fa-sign-in-alt"></i>
+          </button>
+        </form>
+      </div>
+
+      <div class="auth-tab-content" id="auth-tab-register">
+        <h3>Create Account</h3>
+        <p class="auth-modal-subtitle">Register to unlock unlimited AI chat messages.</p>
+        <form class="auth-form" id="register-form">
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="email" id="register-email" name="email" placeholder=" " required />
+              <label class="form-label" for="register-email">Email</label>
+              <i class="fas fa-envelope input-icon"></i>
+            </div>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="register-password" name="password" placeholder=" " minlength="8" required />
+              <label class="form-label" for="register-password">Password</label>
+              <i class="fas fa-lock input-icon"></i>
+            </div>
+            <small class="password-hint">Must be at least 8 characters.</small>
+          </div>
+          <div class="auth-error" id="register-error"></div>
+          <button type="submit" class="btn btn-accent auth-submit-btn">
+            Create Account <i class="fas fa-user-plus"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Keyboard Shortcuts Overlay -->
   <div class="keyboard-overlay" id="keyboard-overlay" aria-hidden="true">
     <div class="keyboard-overlay-content">
@@ -930,6 +996,7 @@
     integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
     crossorigin="anonymous"></script>
   <script src="./js/app-logic.js" defer></script>
+  <script type="module" src="./js/auth-ui.js"></script>
   <script type="module" src="./js/main.js"></script>
 
 </body>

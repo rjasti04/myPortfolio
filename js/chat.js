@@ -1,6 +1,7 @@
 import { API_BASE, apiFetch, ensureSession, isApiConfigured } from "./analytics.js";
 import { prefersReducedMotion } from "./config.js";
 import { copyText, escapeHTML, estimateTokens } from "./utils.js";
+import { authenticatedFetch, getAuthToken, logoutUser } from "./auth.js";
 
 // Constants
 const MAX_SESSIONS = 50;
@@ -235,6 +236,7 @@ export function initChat() {
 
   let isOpen = false;
   let isGenerating = false;
+  const FREE_MESSAGE_LIMIT = 6;
 
   // Persist sessions in localStorage
   const STORAGE_KEY = 'rj_chat_sessions';
@@ -647,6 +649,15 @@ export function initChat() {
 
     const session = getActiveSession();
     
+    // Check if user is unauthenticated and reached limit
+    const userMessageCount = session.messages.filter(m => m.sender === 'user').length;
+    if (!getAuthToken() && userMessageCount > FREE_MESSAGE_LIMIT) {
+      // Show auth modal and abort sending
+      window.dispatchEvent(new Event('request-login-modal'));
+      appendMessage("Please log in to continue chatting with the AI. You have reached the free message limit.", 'bot', { save: false, showCopy: false });
+      return;
+    }
+
     // Summarize old messages if token count gets too high
     const totalTokens = session.messages.reduce((sum, msg) => sum + estimateTokens(msg.text), 0);
     if (totalTokens > SUMMARIZE_TOKEN_THRESHOLD) {
@@ -660,7 +671,7 @@ export function initChat() {
       }));
       
       try {
-        const sumRes = await apiFetch(`${API_BASE}/chat/summarize`, {
+        const sumRes = await authenticatedFetch(`${API_BASE}/chat/summarize`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: summaryPayload })
@@ -687,13 +698,19 @@ export function initChat() {
     }));
 
     try {
-      const response = await apiFetch(apiUrl, {
+      const response = await authenticatedFetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages })
       });
 
-      if (!response.ok) throw new Error('API Error');
+      if (!response.ok) {
+          if (response.status === 401 && !getAuthToken()) {
+              window.dispatchEvent(new Event('request-login-modal'));
+              throw new Error('Please log in to continue.');
+          }
+          throw new Error('API Error');
+      }
 
       // Remove typing indicators
       if (widgetIndicator) widgetIndicator.remove();
