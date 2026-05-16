@@ -4,7 +4,7 @@ const hideTimeouts = new WeakMap();
 
 let projectDetailModal, projectDetailClose, projectDetailIcon, projectDetailTitle, projectDetailDescription, projectDetailStack, projectDetailOutcomes;
 
-export function fillProjectDetails(card) {
+function fillProjectDetails(card) {
   if (!card) return;
   const icon = card.dataset.icon || "fas fa-code";
   const title = card.dataset.title || "";
