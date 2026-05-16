@@ -29,7 +29,7 @@ export class SwipeHandler {
   handleTouchStart(e) {
     // Ignore if touching interactive elements
     const target = e.target;
-    if (target.closest('input, textarea, select, button, a, .no-swipe')) {
+    if (target.closest('input, textarea, select, button, a, .no-swipe, .skills-carousel')) {
       return;
     }
 
@@ -48,7 +48,7 @@ export class SwipeHandler {
 
   handleTouchEnd(e) {
     const target = e.target;
-    if (target.closest('input, textarea, select, button, a, .no-swipe')) {
+    if (target.closest('input, textarea, select, button, a, .no-swipe, .skills-carousel')) {
       return;
     }
 

@@ -2264,13 +2264,14 @@ body.dark-theme #resume .item {
 
 /* Stat Counter */
 .stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: clamp(8px, 1.2vw, 12px);
   margin: 2.5% 0;
 }
 
 .stat-card {
+  flex: 1 1 min(170px, 100%);
   background: linear-gradient(135deg, var(--card-bg) 0%, color-mix(in srgb, var(--accent-soft) 20%, var(--card-bg)) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -2531,12 +2532,13 @@ body.dark-theme #resume .item {
 }
 
 .skills-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: clamp(4px, 1vw, 8px);
 }
 
 .skill-group {
+  flex: 1 1 min(220px, 100%);
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -2705,7 +2707,7 @@ body.dark-theme .skill-tag {
   }
 
   .skills-carousel .skills-grid {
-    display: block;
+    display: grid;
     position: relative;
     overflow: visible;
     padding: 0;
@@ -2722,16 +2724,14 @@ body.dark-theme .skill-tag {
   }
 
   .skills-carousel.carousel-initialized .skills-grid .skill-group {
-    grid-column: 1 !important;
-    grid-row: 1 !important;
+    grid-area: 1 / 1 !important;
     flex: none !important;
     width: 100% !important;
     min-width: 0 !important;
     height: auto !important;
     padding-bottom: 70px !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
+    /* position removed to allow grid stacking */
+    /* position: absolute !important; */
     transform: translateX(110%) !important;
     opacity: 0 !important;
     pointer-events: none !important;
@@ -2767,6 +2767,15 @@ body.dark-theme .skill-tag {
     transform: translateX(0) !important;
     opacity: 1 !important;
     pointer-events: auto !important;
+  }
+
+  .skills-carousel:not(.carousel-initialized) .skills-grid .skill-group {
+    /* Hide all but the first one on initial mobile load to prevent stacking flash */
+    display: none;
+  }
+
+  .skills-carousel:not(.carousel-initialized) .skills-grid .skill-group:first-child {
+    display: block;
   }
 
   .skills-carousel.carousel-initialized .skills-grid .skill-group:hover {
