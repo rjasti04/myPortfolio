@@ -244,9 +244,9 @@
               <div class="customizer-presets">
                 <label class="customizer-presets-label">Terminal Presets</label>
                 <div class="preset-buttons">
-                  <button type="button" class="preset-btn" data-preset="matrix">Matrix</button>
-                  <button type="button" class="preset-btn" data-preset="solarized">Solarized</button>
-                  <button type="button" class="preset-btn" data-preset="dracula">Dracula</button>
+                  <button type="button" class="preset-btn" data-preset="matrix" aria-label="Apply Matrix theme preset">Matrix</button>
+                  <button type="button" class="preset-btn" data-preset="solarized" aria-label="Apply Solarized theme preset">Solarized</button>
+                  <button type="button" class="preset-btn" data-preset="dracula" aria-label="Apply Dracula theme preset">Dracula</button>
                 </div>
               </div>
 
@@ -255,7 +255,7 @@
                   <label for="color-primary">Primary</label>
                   <button type="button" class="color-input-wrapper" id="color-primary" data-color-key="primary"
                     data-color-value="#0ea5e9" style="--selected-color: #0ea5e9;" aria-haspopup="dialog"
-                    aria-expanded="false" aria-controls="theme-color-popover">
+                    aria-expanded="false" aria-controls="theme-color-popover" aria-label="Edit primary color">
                     <span class="color-preview" aria-hidden="true"></span>
                     <span class="color-hex-display" id="hex-primary">#0ea5e9</span>
                   </button>
@@ -264,7 +264,7 @@
                   <label for="color-secondary">Secondary</label>
                   <button type="button" class="color-input-wrapper" id="color-secondary" data-color-key="secondary"
                     data-color-value="#a855f7" style="--selected-color: #a855f7;" aria-haspopup="dialog"
-                    aria-expanded="false" aria-controls="theme-color-popover">
+                    aria-expanded="false" aria-controls="theme-color-popover" aria-label="Edit secondary color">
                     <span class="color-preview" aria-hidden="true"></span>
                     <span class="color-hex-display" id="hex-secondary">#a855f7</span>
                   </button>
@@ -273,7 +273,7 @@
                   <label for="color-accent">Highlight</label>
                   <button type="button" class="color-input-wrapper" id="color-accent" data-color-key="accent"
                     data-color-value="#10b981" style="--selected-color: #10b981;" aria-haspopup="dialog"
-                    aria-expanded="false" aria-controls="theme-color-popover">
+                    aria-expanded="false" aria-controls="theme-color-popover" aria-label="Edit highlight color">
                     <span class="color-preview" aria-hidden="true"></span>
                     <span class="color-hex-display" id="hex-accent">#10b981</span>
                   </button>
@@ -299,8 +299,8 @@
               </div>
 
               <div class="customizer-actions">
-                <button type="button" class="btn btn-outline" id="theme-customizer-reset">Reset</button>
-                <button type="button" class="btn" id="theme-customizer-apply">Apply</button>
+                <button type="button" class="btn btn-outline" id="theme-customizer-reset" aria-label="Reset theme to default">Reset</button>
+                <button type="button" class="btn" id="theme-customizer-apply" aria-label="Apply custom theme">Apply</button>
               </div>
             </div>
           </div>
@@ -677,7 +677,7 @@
         <p class="section-intro">Live view of current session events from FastAPI heartbeat session.</p>
         <div class="activity-controls">
           <div class="activity-pills-group">
-            <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
+            <button id="activity-refresh-btn" class="activity-refresh" type="button" aria-label="Refresh activity data"><i class="fas fa-sync-alt"></i>
               Refresh</button>
             <div class="activity-refresh static session-id-pill">Session: <span id="current-session-id">-</span>
             </div>
@@ -705,10 +705,10 @@
             </tbody>
           </table>
           <div class="activity-pagination activity-pagination-wrapper" id="activity-pagination" style="display: none;">
-            <button id="activity-prev-btn" class="activity-pagination-btn" disabled><i class="fas fa-chevron-left"></i>
+            <button id="activity-prev-btn" class="activity-pagination-btn" disabled aria-label="Previous activity page"><i class="fas fa-chevron-left"></i>
               Prev</button>
             <span id="activity-page-info" class="activity-page-info">Page 1</span>
-            <button id="activity-next-btn" class="activity-pagination-btn" disabled>Next <i
+            <button id="activity-next-btn" class="activity-pagination-btn" disabled aria-label="Next activity page">Next <i
                 class="fas fa-chevron-right"></i></button>
           </div>
         </div>
@@ -788,7 +788,7 @@
 
           <aside class="ai-sidebar" id="ai-sidebar">
             <div class="ai-sidebar-header">
-              <button type="button" class="btn btn-accent new-chat-btn" id="new-chat-btn">
+              <button type="button" class="btn btn-accent new-chat-btn" id="new-chat-btn" aria-label="Start a new chat session">
                 <i class="fas fa-plus"></i> New Chat
               </button>
               <button type="button" class="ai-close-btn" id="sidebar-close-btn" aria-label="Close sidebar">
@@ -799,7 +799,7 @@
               <!-- Chat history injected here -->
             </div>
             <div class="ai-sidebar-footer">
-              <button type="button" class="btn-clear" id="clear-all-btn">
+              <button type="button" class="btn-clear" id="clear-all-btn" aria-label="Clear all chat history">
                 <i class="fas fa-trash-alt"></i> Clear All History
               </button>
             </div>
