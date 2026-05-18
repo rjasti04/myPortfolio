@@ -1,0 +1,4 @@
+## 2024-05-18 - [DOM-based HTML Escaping Omits Quote Escaping]
+**Vulnerability:** The `escapeHTML` and `escapeInfoHTML` functions previously used a DOM-based approach (`textContent` -> `innerHTML`) for escaping strings. This method correctly escapes `<`, `>`, and `&`, but fails to escape quotes (`"` and `'`), leading to an attribute injection XSS vulnerability.
+**Learning:** DOM-based trickery for HTML escaping using `document.createElement("div")` is unsafe for attribute values and can be bypassed. It's also synchronous and can impact performance on the main thread.
+**Prevention:** Always prefer explicit regex-based string manipulation (`.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")`) over DOM-based methods for HTML escaping to ensure all relevant characters (including quotes) are safely encoded.
