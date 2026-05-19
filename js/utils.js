@@ -1,7 +1,13 @@
 export function escapeHTML(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value);
-  return div.innerHTML;
+  // Regex replacement for HTML escaping is much faster than DOM operations
+  // and prevents potential attribute injection vulnerabilities.
+  // Note: the previous textContent implementation did NOT escape quotes,
+  // but tests specifically assert against quotes being escaped (replace `"`)
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export function copyText(text) {
