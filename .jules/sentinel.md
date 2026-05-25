@@ -1,0 +1,4 @@
+## 2024-05-24 - DOM-based HTML Escaping Attribute Injection
+**Vulnerability:** The `escapeHTML` utility function used a DOM-based approach (`textContent` -> `innerHTML`) for escaping HTML strings. This method fails to escape quotes (`"` and `'`), making the application vulnerable to attribute injection XSS when the escaped output is used within HTML attributes.
+**Learning:** Using `document.createElement("div")` and assigning `textContent` to read `innerHTML` is an incomplete escaping mechanism. While it escapes `<` and `>`, it leaves quotes unescaped. Furthermore, synchronous DOM operations block the main thread, leading to potential performance issues.
+**Prevention:** Always use a regex-based string replacement approach to escape HTML entities (`&`, `<`, `>`, `"`, `'`) comprehensively. Avoid DOM-based escaping unless working within a trusted framework context that handles attribute escaping securely.
