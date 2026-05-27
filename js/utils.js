@@ -1,7 +1,14 @@
 export function escapeHTML(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value);
-  return div.innerHTML;
+  return String(value).replace(/[&<>"']/g, (match) => {
+    switch (match) {
+      case '&': return '&amp;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '"': return '&quot;';
+      case "'": return '&#039;';
+      default: return match;
+    }
+  });
 }
 
 export function copyText(text) {

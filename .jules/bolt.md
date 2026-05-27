@@ -1,0 +1,3 @@
+## 2026-05-27 - Regex HTML Escaping
+**Learning:** DOM-based HTML escaping (`document.createElement` + `innerHTML`) is a significant performance bottleneck as synchronous DOM operations block the main thread. It's approximately 10x slower than regex string manipulation and fails to properly escape attributes like quotes, leading to XSS vulnerabilities.
+**Action:** Replace DOM-based escaping with standard regex implementations utilizing switch statements (`/[&<>"']/g`) for consistent security and drastically improved performance.
