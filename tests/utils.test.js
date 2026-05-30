@@ -27,12 +27,21 @@ describe('Utils Module', () => {
       
       assert.strictEqual(
         escapeHTML('<script>alert("xss")</script>'),
-        '&lt;script&gt;alert("xss")&lt;/script&gt;'
+        '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
       );
       
       assert.strictEqual(
         escapeHTML('Hello & goodbye'),
         'Hello &amp; goodbye'
+      );
+    });
+
+    it('should escape quotes to prevent attribute injection', async () => {
+      const { escapeHTML } = await import('../js/utils.js');
+
+      assert.strictEqual(
+        escapeHTML('" onmouseover="alert(\'xss\')"'),
+        '&quot; onmouseover=&quot;alert(&#39;xss&#39;)&quot;'
       );
     });
 
