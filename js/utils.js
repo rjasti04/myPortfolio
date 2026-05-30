@@ -1,7 +1,13 @@
+const htmlEscapes = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+};
+
 export function escapeHTML(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value);
-  return div.innerHTML;
+  return String(value).replace(/[&<>"']/g, (match) => htmlEscapes[match]);
 }
 
 export function copyText(text) {
