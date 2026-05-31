@@ -1,0 +1,3 @@
+## 2024-05-31 - [Optimize HTML Escaping]
+**Learning:** DOM-based HTML escaping (`document.createElement`) is significantly slower than Regex based escaping as it requires synchronous operations that block the main thread. It also fails to properly escape quotes when converting from `textContent` to `innerHTML`.
+**Action:** Always prefer regex-based string manipulation (`.replace()`) over DOM-based trickery for HTML escaping to improve rendering performance.
