@@ -27,7 +27,7 @@ describe('Utils Module', () => {
       
       assert.strictEqual(
         escapeHTML('<script>alert("xss")</script>'),
-        '&lt;script&gt;alert("xss")&lt;/script&gt;'
+        '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
       );
       
       assert.strictEqual(
@@ -39,6 +39,18 @@ describe('Utils Module', () => {
     it('should handle empty strings', async () => {
       const { escapeHTML } = await import('../js/utils.js');
       assert.strictEqual(escapeHTML(''), '');
+    });
+
+    it('should properly escape single and double quotes', async () => {
+      const { escapeHTML } = await import('../js/utils.js');
+      assert.strictEqual(
+        escapeHTML('" onload="alert(1)"'),
+        '&quot; onload=&quot;alert(1)&quot;'
+      );
+      assert.strictEqual(
+        escapeHTML("' onerror='alert(1)'"),
+        '&#39; onerror=&#39;alert(1)&#39;'
+      );
     });
   });
 
