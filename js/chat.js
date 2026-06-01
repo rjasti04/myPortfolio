@@ -297,6 +297,7 @@ export function initChat() {
       deleteBtn.className = 'delete-session-btn';
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
       deleteBtn.title = 'Delete chat';
+      deleteBtn.setAttribute('aria-label', 'Delete chat session');
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (isGenerating) return;
