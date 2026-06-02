@@ -1,7 +1,6 @@
 export function escapeHTML(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value);
-  return div.innerHTML;
+  const matchers = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(value).replace(/[&<>"']/g, m => matchers[m]);
 }
 
 export function copyText(text) {
