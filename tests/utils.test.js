@@ -22,17 +22,22 @@ describe('Utils Module', () => {
   });
 
   describe('escapeHTML', () => {
-    it('should escape HTML special characters', async () => {
+    it('should escape HTML special characters including quotes', async () => {
       const { escapeHTML } = await import('../js/utils.js');
       
       assert.strictEqual(
         escapeHTML('<script>alert("xss")</script>'),
-        '&lt;script&gt;alert("xss")&lt;/script&gt;'
+        '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
       );
       
       assert.strictEqual(
         escapeHTML('Hello & goodbye'),
         'Hello &amp; goodbye'
+      );
+
+      assert.strictEqual(
+        escapeHTML(`'single' and "double" quotes`),
+        `&#39;single&#39; and &quot;double&quot; quotes`
       );
     });
 
