@@ -1,7 +1,15 @@
+// Performance Optimization: Using regex for HTML escaping instead of DOM manipulation (document.createElement)
+// Impact: Prevents main thread blocking and improves performance by avoiding expensive synchronous DOM operations.
 export function escapeHTML(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value);
-  return div.innerHTML;
+  return String(value).replace(/[&<>'"]/g,
+    tag => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    }[tag])
+  );
 }
 
 export function copyText(text) {
