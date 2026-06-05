@@ -1,7 +1,19 @@
+// Fast regex-based HTML escaping. Avoids blocking the main thread with synchronous DOM operations (e.g. document.createElement).
+const htmlEscapes = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+};
+const reUnescapedHtml = /[&<>"']/g;
+const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
+
 export function escapeHTML(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value);
-  return div.innerHTML;
+  const str = String(value);
+  return (str && reHasUnescapedHtml.test(str))
+    ? str.replace(reUnescapedHtml, (chr) => htmlEscapes[chr])
+    : str;
 }
 
 export function copyText(text) {
