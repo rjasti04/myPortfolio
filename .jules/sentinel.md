@@ -1,0 +1,4 @@
+## 2024-05-15 - DOM-based HTML Escaping Fails to Escape Quotes
+**Vulnerability:** XSS vulnerability found in `js/utils.js` `escapeHTML` function due to using DOM trickery (`document.createElement('div'); div.textContent = value; return div.innerHTML;`).
+**Learning:** This approach successfully escapes `<` and `>`, but critically fails to escape quotes (`"` and `'`), making it vulnerable to attribute injection XSS when the output is placed inside HTML attributes. Furthermore, synchronous DOM operations block the main thread and perform poorly compared to simple regex string replacements.
+**Prevention:** Always use regex-based string replacements (or a dedicated sanitization library like DOMPurify) for HTML escaping. Never rely on DOM textContent/innerHTML conversions for security-critical escaping.
