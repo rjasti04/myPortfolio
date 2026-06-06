@@ -38,7 +38,7 @@ if (typeof marked !== 'undefined') {
     const text = typeof token === 'object' ? token.text : arguments[0];
     const escapedText = encodeURIComponent(text);
     const html = originalCode.apply(this, arguments);
-    return html.replace(/^<pre([^>]*)>/i, `<pre$1><button type="button" class="code-copy-btn" data-code="${escapedText}" title="Copy code"><i class="fas fa-copy"></i></button>`);
+    return html.replace(/^<pre([^>]*)>/i, `<pre$1><button type="button" class="code-copy-btn" data-code="${escapedText}" title="Copy code" aria-label="Copy code"><i class="fas fa-copy"></i></button>`);
   };
   marked.use({ renderer });
 
@@ -297,6 +297,7 @@ export function initChat() {
       deleteBtn.className = 'delete-session-btn';
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
       deleteBtn.title = 'Delete chat';
+      deleteBtn.setAttribute('aria-label', 'Delete chat session');
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (isGenerating) return;
@@ -413,6 +414,7 @@ export function initChat() {
     const btn = document.createElement('button');
     btn.className = 'msg-copy-btn';
     btn.title = 'Copy';
+    btn.setAttribute('aria-label', 'Copy message');
     btn.innerHTML = '<i class="fas fa-copy"></i>';
     btn.addEventListener('click', async () => {
       try {
