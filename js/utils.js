@@ -1,7 +1,12 @@
 export function escapeHTML(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value);
-  return div.innerHTML;
+  // Use regex replacing instead of textContent DOM trick to properly escape quotes
+  // for when sanitized text is used inside HTML attributes. Prevents Attribute Injection XSS.
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 export function copyText(text) {

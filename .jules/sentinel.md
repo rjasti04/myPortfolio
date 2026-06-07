@@ -1,0 +1,4 @@
+## 2024-06-07 - Fix Attribute Injection XSS in escapeHTML
+**Vulnerability:** The original `escapeHTML` implementation relied on assigning `textContent` to a `div` element and reading its `innerHTML`. This fails to escape single and double quotes (`'` and `"`), exposing the app to Attribute Injection XSS vulnerabilities when sanitized text is used inside HTML attributes.
+**Learning:** Browser native DOM APIs for escaping text to HTML (via `textContent` assignment) only escape `<` and `&` (and `>`), but leave quotes untouched because they are valid content outside of HTML attribute values.
+**Prevention:** Always use regex-based escaping to replace all HTML control characters (`&`, `<`, `>`, `"`, `'`) when writing a generalized string sanitizer, avoiding synchronous DOM-based parsing techniques which additionally block the main thread.
