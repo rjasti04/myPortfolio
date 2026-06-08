@@ -1,0 +1,4 @@
+## 2025-02-18 - Attribute Injection via DOM-based HTML Escaping
+**Vulnerability:** The custom `escapeHTML` implementation used DOM properties (`div.textContent` to `div.innerHTML`) which escaped `<` and `>` but failed to escape double (`"`) and single (`'`) quotes, leading to potential attribute injection XSS vulnerabilities if the escaped output was ever used within HTML attributes.
+**Learning:** Browser native DOM element text assignment does not escape quotes because they are technically valid inside standard text nodes, making DOM-based tricks insufficient for robust cross-context HTML escaping.
+**Prevention:** Always use regex-based or well-established library functions (like DOMPurify) to escape user input, ensuring that all 5 critical characters (`&`, `<`, `>`, `"`, `'`) are correctly converted to their respective HTML entities.
