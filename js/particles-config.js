@@ -68,14 +68,16 @@ export function initParticles(containerId = 'particles-canvas') {
 
   function connectParticles() {
     const maxDistance = 120;
+    const maxDistanceSq = maxDistance * maxDistance; // Optimize: compare squared distance to avoid Math.sqrt in O(n^2) loop
     
     for (let i = 0; i < particles.length; i++) {
       for (let j = i + 1; j < particles.length; j++) {
         const dx = particles[i].x - particles[j].x;
         const dy = particles[i].y - particles[j].y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const distanceSq = dx * dx + dy * dy;
 
-        if (distance < maxDistance) {
+        if (distanceSq < maxDistanceSq) {
+          const distance = Math.sqrt(distanceSq); // Only calc sqrt if particles are close enough
           const opacity = (1 - distance / maxDistance) * 0.2;
           ctx.strokeStyle = `rgba(14, 165, 233, ${opacity})`;
           ctx.lineWidth = 1;

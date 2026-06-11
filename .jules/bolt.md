@@ -1,0 +1,3 @@
+## 2026-06-11 - Optimization in connectParticles
+**Learning:** Avoid `Math.sqrt` inside tight visual animation loops when dealing with spatial calculations like distance checking. `Math.sqrt` can be a significant bottleneck in $O(n^2)$ loops calculating pair-wise distances.
+**Action:** When comparing distance thresholds, calculate the squared distance ($x^2 + y^2$) and compare it to the squared threshold ($distance^2$) to avoid `Math.sqrt` overhead unless explicitly needed.
