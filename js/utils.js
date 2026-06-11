@@ -1,7 +1,12 @@
 export function escapeHTML(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value);
-  return div.innerHTML;
+  // Security Note: Using regex-based string manipulation over DOM-based trickery
+  // to avoid blocking the main thread and failing to escape quotes.
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 export function copyText(text) {
