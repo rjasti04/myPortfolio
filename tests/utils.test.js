@@ -27,12 +27,17 @@ describe('Utils Module', () => {
       
       assert.strictEqual(
         escapeHTML('<script>alert("xss")</script>'),
-        '&lt;script&gt;alert("xss")&lt;/script&gt;'
+        '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
       );
       
       assert.strictEqual(
         escapeHTML('Hello & goodbye'),
         'Hello &amp; goodbye'
+      );
+
+      assert.strictEqual(
+        escapeHTML('test \'single\''),
+        'test &#39;single&#39;'
       );
     });
 
