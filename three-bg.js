@@ -47,7 +47,8 @@ const PROFILE_CONFIG = {
     connectionFalloff: 1.5,
     glassFacetCount: 24,
     glassFacetAlpha: 0.16,
-    glassFacetAreaFactor: 0.34
+    glassFacetAreaFactor: 0.34,
+    enableShadows: true
   },
   compact: {
     minParticles: 125,
@@ -67,7 +68,8 @@ const PROFILE_CONFIG = {
     connectionFalloff: 1.45,
     glassFacetCount: 16,
     glassFacetAlpha: 0.14,
-    glassFacetAreaFactor: 0.3
+    glassFacetAreaFactor: 0.3,
+    enableShadows: false
   },
   mobile: {
     minParticles: 80,
@@ -87,7 +89,8 @@ const PROFILE_CONFIG = {
     connectionFalloff: 1.4,
     glassFacetCount: 8,
     glassFacetAlpha: 0.10,
-    glassFacetAreaFactor: 0.26
+    glassFacetAreaFactor: 0.26,
+    enableShadows: false
   }
 };
 
@@ -199,6 +202,46 @@ function readThemeColors() {
     data: parseCssColor(readVar("--data-fill"), COLOR_FALLBACKS.data),
     node: COLOR_FALLBACKS.node
   };
+}
+
+const spriteCache = new Map();
+
+function updateSpriteCache(themeColors) {
+  spriteCache.clear();
+  const keys = ["accent", "secondary", "data", "node"];
+  const baseRadius = 32;
+  const size = baseRadius * 2;
+
+  keys.forEach((colorKey) => {
+    const color = themeColors[colorKey] || COLOR_FALLBACKS[colorKey];
+    
+    // Create standard and speck profiles
+    ["standard", "speck"].forEach((profile) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      
+      const isSpeck = profile === "speck";
+      const factor = isSpeck ? 4.0 : 5.4;
+      const coreRatio = 1 / factor;
+      
+      const grad = ctx.createRadialGradient(baseRadius, baseRadius, 0, baseRadius, baseRadius, baseRadius);
+      grad.addColorStop(0, colorString(themeColors.node, 0.48));
+      grad.addColorStop(coreRatio * 0.55, colorString(color, 0.41));
+      grad.addColorStop(coreRatio, colorString(color, 0.28));
+      grad.addColorStop(Math.min(coreRatio * 2.2, 0.48), colorString(color, 0.16));
+      grad.addColorStop(Math.min(coreRatio * 4.0, 0.72), colorString(color, 0.06));
+      grad.addColorStop(1, colorString(color, 0));
+      
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(baseRadius, baseRadius, baseRadius, 0, TWO_PI);
+      ctx.fill();
+      
+      spriteCache.set(`${colorKey}_${profile}`, canvas);
+    });
+  });
 }
 
 function getProfileName() {
@@ -425,7 +468,7 @@ function buildSpatialGrid(particles, cellSize) {
   for (let i = 0; i < particles.length; i += 1) {
     const cx = Math.floor(particles[i].x / cellSize);
     const cy = Math.floor(particles[i].y / cellSize);
-    const key = cx * 10007 + cy;
+    const key = `${cx},${cy}`;
     if (!grid.has(key)) grid.set(key, []);
     grid.get(key).push(i);
   }
@@ -444,7 +487,7 @@ function collectConnections(particles, config, width, height) {
 
     for (let dx = -1; dx <= 1; dx += 1) {
       for (let dy = -1; dy <= 1; dy += 1) {
-        const nKey = (cx + dx) * 10007 + (cy + dy);
+        const nKey = `${cx + dx},${cy + dy}`;
         const bucket = grid.get(nKey);
         if (!bucket) continue;
 
@@ -677,45 +720,32 @@ function drawGlassFacets(ctx, particles, connections, config, width, height, int
     );
     const alpha = baseAlpha * opacity;
 
-    const fill = ctx.createLinearGradient(a.x, a.y, c.x, c.y);
-    fill.addColorStop(0, colorString(highlightColor, alpha * 0.82));
-    fill.addColorStop(0.48, colorString(glassColor, alpha * 0.55));
-    fill.addColorStop(1, colorString(cyanGlass, alpha * 0.28));
+    ctx.fillStyle = colorString(glassColor, alpha * 0.55);
 
-    ctx.shadowBlur = (16 + intensity * 8) * opacity;
-    ctx.shadowColor = colorString(themeColors.accent, alpha * 1.7);
-    ctx.fillStyle = fill;
+    if (config.enableShadows) {
+      ctx.shadowBlur = (16 + intensity * 8) * opacity;
+      ctx.shadowColor = colorString(themeColors.accent, alpha * 1.7);
+    }
+    
     traceTriangle(ctx, a, b, c);
     ctx.fill();
-    ctx.shadowBlur = 0;
+    
+    if (config.enableShadows) {
+      ctx.shadowBlur = 0;
+    }
 
-    const sheen = ctx.createLinearGradient(
-      facet.centroid.x - 18,
-      facet.centroid.y - 18,
-      facet.centroid.x + 42,
-      facet.centroid.y + 28
-    );
-    sheen.addColorStop(0, colorString(themeColors.node, alpha * 0.2));
-    sheen.addColorStop(0.5, colorString(themeColors.node, alpha * 0.08));
-    sheen.addColorStop(1, colorString(glassColor, 0));
-
-    ctx.fillStyle = sheen;
+    ctx.fillStyle = colorString(themeColors.node, alpha * 0.08);
     traceTriangle(ctx, a, b, c);
     ctx.fill();
-
-    const edge = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-    edge.addColorStop(0, colorString(highlightColor, alpha * 0.9));
-    edge.addColorStop(0.55, colorString(themeColors.node, alpha * 0.72));
-    edge.addColorStop(1, colorString(glassColor, alpha * 0.45));
 
     ctx.lineWidth = 0.85 + intensity * 0.25;
-    ctx.strokeStyle = edge;
+    ctx.strokeStyle = colorString(highlightColor, alpha * 0.65);
     traceTriangle(ctx, a, b, c);
     ctx.stroke();
 
     const [start, end] = longestTriangleEdge(a, b, c);
     ctx.lineWidth = 1.35 + intensity * 0.25;
-    ctx.strokeStyle = colorString(highlightColor, alpha * 1.2);
+    ctx.strokeStyle = colorString(highlightColor, alpha * 1.1);
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
@@ -747,14 +777,9 @@ function drawConnections(ctx, particles, config, width, height, intensity, theme
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
 
-    // Core line with gradient
-    const line = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-    line.addColorStop(0, colorString(aColor, alpha * 0.92));
-    line.addColorStop(0.5, colorString(midColor, alpha));
-    line.addColorStop(1, colorString(bColor, alpha * 0.92));
-
+    // Core line with blended solid color instead of linear gradient
     ctx.lineWidth = 1.2 + intensity * 0.25;
-    ctx.strokeStyle = line;
+    ctx.strokeStyle = colorString(midColor, alpha * 0.95);
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
@@ -774,30 +799,24 @@ function drawParticles(ctx, particles, elapsed, intensity, themeColors) {
       + Math.sin(elapsed * 1.3 + particle.pulseOffset * 1.7) * 0.04;
     const alpha = clamp(particle.alpha * pulse * (1 + intensity * 0.22), 0, 0.96);
     const r = particle.radius * (1 + intensity * 0.12);
-    const hr = r * (particle.zone === "speck" ? 4.0 : 5.4);
-    const color = themeColors[particle.colorKey] || themeColors.accent;
-    const coreRatio = r / hr;
+    const isSpeck = particle.zone === "speck";
+    const hr = r * (isSpeck ? 4.0 : 5.4);
+    const spriteKey = `${particle.colorKey}_${isSpeck ? "speck" : "standard"}`;
+    const sprite = spriteCache.get(spriteKey);
 
-    // Combined halo + core in a single gradient — halves GPU gradient ops
-    const grad = ctx.createRadialGradient(
-      particle.x, particle.y, 0,
-      particle.x, particle.y, hr
-    );
-
-    // Bright core center (dimmed 50%)
-    grad.addColorStop(0, colorString(themeColors.node, alpha * 0.48));
-    grad.addColorStop(coreRatio * 0.55, colorString(color, alpha * 0.41));
-    grad.addColorStop(coreRatio, colorString(color, alpha * 0.28));
-    // Halo bloom
-    grad.addColorStop(Math.min(coreRatio * 2.2, 0.48), colorString(color, alpha * 0.16));
-    grad.addColorStop(Math.min(coreRatio * 4.0, 0.72), colorString(color, alpha * 0.06));
-    grad.addColorStop(1, colorString(color, 0));
-
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(particle.x, particle.y, hr, 0, TWO_PI);
-    ctx.fill();
+    if (sprite) {
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(
+        sprite,
+        particle.x - hr,
+        particle.y - hr,
+        hr * 2,
+        hr * 2
+      );
+    }
   });
+
+  ctx.globalAlpha = 1.0;
 }
 
 function mountPlexusBackground(canvas, profileName = getProfileName()) {
@@ -825,6 +844,7 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
   let animationFrame = 0;
   let lastFrameTime = performance.now();
   let themeColors = readThemeColors();
+  updateSpriteCache(themeColors);
   const facetOpacity = new Map();
 
   const setSize = () => {
@@ -876,6 +896,7 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
 
   const syncThemeColors = () => {
     themeColors = readThemeColors();
+    updateSpriteCache(themeColors);
   };
 
   const render = (currentTime) => {

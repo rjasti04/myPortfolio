@@ -417,7 +417,7 @@ body.dark-theme header.scrolled {
   touch-action: manipulation;
 }
 
-nav {
+#nav-menu {
   display: flex;
   gap: 4px;
   background: var(--card-bg);
@@ -427,7 +427,7 @@ nav {
   min-width: 0;
 }
 
-nav a {
+#nav-menu a {
   font-size: var(--text-body-sm);
   font-weight: 600;
   color: var(--muted);
@@ -445,24 +445,24 @@ nav a {
   position: relative;
 }
 
-nav a.active {
+#nav-menu a.active {
   background: var(--accent-fill);
   color: var(--on-accent);
   font-weight: 700;
   box-shadow: none;
 }
 
-nav a:not(.active):hover {
+#nav-menu a:not(.active):hover {
   color: var(--text);
   background: hsl(0, 0%, 11%, 0.05);
   transform: translateY(-1px);
 }
 
-body.dark-theme nav a:not(.active):hover {
+body.dark-theme #nav-menu a:not(.active):hover {
   background: hsl(0, 0%, 98%, 0.10);
 }
 
-nav a:focus-visible,
+#nav-menu a:focus-visible,
 .header-left:focus-visible,
 #theme-toggle:focus-visible,
 #palette-toggle:focus-visible,
@@ -493,7 +493,7 @@ nav a:focus-visible,
 }
 
 @media (prefers-contrast: high) {
-  nav a:focus-visible,
+  #nav-menu a:focus-visible,
   .header-left:focus-visible,
   #theme-toggle:focus-visible,
   #palette-toggle:focus-visible,
@@ -3299,14 +3299,16 @@ body.dark-theme .skill-tag {
   .hamburger-btn {
     display: block;
     padding: 8px;
-    position: static;
-    transform: none;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     z-index: 1100;
     min-width: 48px;
     min-height: 48px;
   }
 
-  nav {
+  #nav-menu {
     display: none;
     flex-direction: column;
     position: fixed;
@@ -3329,11 +3331,11 @@ body.dark-theme .skill-tag {
     transition: opacity var(--motion-medium) var(--ease-standard), transform var(--motion-medium) var(--ease-enter);
   }
 
-  body.dark-theme nav {
+  body.dark-theme #nav-menu {
     background: var(--surface) !important;
   }
 
-  nav.show-menu {
+  #nav-menu.show-menu {
     display: flex !important;
     opacity: 1;
     transform: translateY(0);
@@ -3355,7 +3357,7 @@ body.dark-theme .skill-tag {
     background: rgba(0, 0, 0, 0.7);
   }
 
-  nav a {
+  #nav-menu a {
     width: 100%;
     justify-content: center;
     text-align: center;
@@ -3683,7 +3685,7 @@ body.dark-theme .skill-tag {
     border-width: 2px;
   }
 
-  nav a.active {
+  #nav-menu a.active {
     border: 2px solid var(--on-accent);
   }
 }
