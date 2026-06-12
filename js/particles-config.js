@@ -68,14 +68,19 @@ export function initParticles(containerId = 'particles-canvas') {
 
   function connectParticles() {
     const maxDistance = 120;
+    const maxDistanceSq = maxDistance * maxDistance;
     
     for (let i = 0; i < particles.length; i++) {
       for (let j = i + 1; j < particles.length; j++) {
         const dx = particles[i].x - particles[j].x;
         const dy = particles[i].y - particles[j].y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < maxDistance) {
+        // ⚡ Bolt: Performance optimization
+        // Compare squared distances first to avoid expensive Math.sqrt() in this O(n²) loop
+        const distanceSq = dx * dx + dy * dy;
+
+        if (distanceSq < maxDistanceSq) {
+          const distance = Math.sqrt(distanceSq);
           const opacity = (1 - distance / maxDistance) * 0.2;
           ctx.strokeStyle = `rgba(14, 165, 233, ${opacity})`;
           ctx.lineWidth = 1;
