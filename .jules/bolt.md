@@ -1,0 +1,3 @@
+## 2025-03-01 - Avoid Math.sqrt() in Canvas Animation O(n²) Loops
+**Learning:** In canvas animations, evaluating distances between all particles requires an O(n²) loop. Calling `Math.sqrt()` continuously inside this loop is extremely expensive and can become a severe performance bottleneck.
+**Action:** When comparing distances in animation loops, always compare the squared distance (`dx * dx + dy * dy`) against the squared target distance (`maxDistance * maxDistance`). Only compute `Math.sqrt()` if the particles are within range and the actual distance is needed (e.g., for calculating opacity or stroke width).
