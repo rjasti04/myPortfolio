@@ -196,10 +196,6 @@
       </a>
 
 
-      <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
-        aria-controls="nav-menu" aria-expanded="false">
-        <i class="fas fa-bars"></i>
-      </button>
       <nav id="nav-menu" aria-label="Primary">
         <a href="#about" data-target="about" class="active" aria-current="page">About</a>
         <a href="#resume" data-target="resume">Experience</a>
@@ -300,8 +296,8 @@
               </div>
 
               <div class="customizer-actions">
-                <button type="button" class="btn btn-outline" id="theme-customizer-reset">Reset</button>
-                <button type="button" class="btn" id="theme-customizer-apply">Apply</button>
+                <button type="button" class="btn btn-outline" id="theme-customizer-reset" data-spring-hover>Reset</button>
+                <button type="button" class="btn" id="theme-customizer-apply" data-spring-hover>Apply</button>
               </div>
             </div>
           </div>
@@ -310,6 +306,11 @@
         <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme"
           aria-pressed="false">
           <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+
+        <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
+          aria-controls="nav-menu" aria-expanded="false">
+          <i class="fas fa-bars"></i>
         </button>
       </div>
     </header>
@@ -326,13 +327,10 @@
               real-time analytics for global enterprises.
             </p>
             <div class="hero-buttons">
-              <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="btn">Resume <i
+              <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="btn" data-spring-hover>Resume <i
                   class="fas fa-arrow-down"></i></a>
-              <a href="#ai" data-target="ai" class="nav-cta hero-chat-btn" id="hero-chat-btn" aria-label="Open AI Chat">
-                <i class="fas fa-robot"></i>
-              </a>
-
-
+              <a href="#ai" data-target="ai" class="nav-cta btn hero-chat-btn" id="hero-chat-btn" aria-label="Open AI Chat" data-spring-hover>Ask AI <i
+                  class="fas fa-robot"></i></a>
             </div>
           </div>
           <aside class="terminal-panel" aria-label="Now Building panel">
@@ -772,7 +770,7 @@
                     <label class="form-label" for="contact-message">Message</label>
                   </div>
                 </div>
-                <button type="submit" class="btn contact-submit-btn">Send Message <i
+                <button type="submit" class="btn contact-submit-btn" data-spring-hover>Send Message <i
                     class="fas fa-paper-plane"></i></button>
                 <p id="contact-status" class="form-status" role="status" aria-live="polite"></p>
               </form>
@@ -789,7 +787,7 @@
 
           <aside class="ai-sidebar" id="ai-sidebar">
             <div class="ai-sidebar-header">
-              <button type="button" class="btn btn-accent new-chat-btn" id="new-chat-btn">
+              <button type="button" class="btn btn-accent new-chat-btn" id="new-chat-btn" data-spring-hover>
                 <i class="fas fa-plus"></i> New Chat
               </button>
               <button type="button" class="ai-close-btn" id="sidebar-close-btn" aria-label="Close sidebar">

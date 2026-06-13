@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v13';
+const CACHE_NAME = 'rj-portfolio-v14';
 const CACHE_EXPIRATION_DAYS = 7;
 const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -145,7 +145,7 @@ self.addEventListener('fetch', event => {
         return cachedResponse || new Response('', { status: 400, statusText: 'Bad Request' });
       }
       const fetchPromise = fetch(event.request).then(networkResponse => {
-        if (networkResponse && networkResponse.status === 200 && event.request.url.startsWith('https://')) {
+        if (networkResponse && networkResponse.status === 200 && (event.request.url.startsWith('https://') || url.hostname === 'localhost' || url.hostname === '127.0.0.1')) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
             const headers = new Headers(responseToCache.headers);

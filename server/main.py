@@ -25,6 +25,7 @@ import time
 import logging
 import ipaddress
 import threading
+import random
 
 import boto3
 import orjson
@@ -86,9 +87,9 @@ _origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 MAX_BODY_BYTES = _env_int("MAX_BODY_BYTES", 1_048_576)  # 1 MB
 CHAT_MAX_CONCURRENCY = _env_int("CHAT_MAX_CONCURRENCY", 4)
-CHAT_STREAM_QUEUE_SIZE = _env_int("CHAT_STREAM_QUEUE_SIZE", 32)
+CHAT_STREAM_QUEUE_SIZE = _env_int("CHAT_STREAM_QUEUE_SIZE", 128)
 BEDROCK_TIMEOUT_SECONDS = _env_int("BEDROCK_TIMEOUT_SECONDS", 30)
-BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS = _env_int("BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS", 2)
+BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS = _env_int("BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS", 10)
 
 _raw_allowed_models = os.getenv("ALLOWED_MODEL_IDS", "")
 ALLOWED_MODEL_IDS = {
@@ -219,15 +220,13 @@ class RateLimitMiddleware:
 
         now = time.time()
         window = self.window_seconds
+        
+        # Filter existing hits for this IP
         self._hits[client_ip] = [
             t for t in self._hits[client_ip] if now - t < window
         ]
 
-        # Prune empty entries to prevent unbounded dict growth
-        if not self._hits[client_ip]:
-            del self._hits[client_ip]
-
-        if len(self._hits.get(client_ip, [])) >= self.max_requests:
+        if len(self._hits[client_ip]) >= self.max_requests:
             response = JSONResponse(
                 {"detail": "Rate limit exceeded. Try again later."},
                 status_code=429,
@@ -235,7 +234,17 @@ class RateLimitMiddleware:
             await response(scope, receive, send)
             return
 
+        # Record new hit
         self._hits[client_ip].append(now)
+
+        # Prune empty or expired entries from other IPs to prevent unbounded memory growth
+        # We do a randomized cleanup check (1% of requests) to prevent performance overhead
+        if random.random() < 0.01:
+            for ip in list(self._hits.keys()):
+                self._hits[ip] = [t for t in self._hits[ip] if now - t < window]
+                if not self._hits[ip]:
+                    del self._hits[ip]
+
         await self.app(scope, receive, send)
 
 # ---------------------------------------------------------------------------
@@ -315,7 +324,7 @@ app.add_middleware(
     allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # ---------------------------------------------------------------------------
@@ -807,7 +816,6 @@ async def chat_summarize_endpoint(payload: ChatRequest, current_user: Optional[U
 )
 async def list_models():
     """Returns Bedrock foundation models available in the configured region."""
-    await _acquire_bedrock_slot("Model listing is busy. Try again shortly.")
     try:
         resp = await asyncio.to_thread(
             bedrock_mgmt.list_foundation_models,
@@ -826,5 +834,3 @@ async def list_models():
     except Exception as e:
         logger.error(f"Error listing Bedrock models: {e}")
         raise HTTPException(500, "Unable to list models")
-    finally:
-        bedrock_semaphore.release()

@@ -17,13 +17,18 @@ export class SwipeHandler {
     this.distX = 0;
     this.distY = 0;
     
+    // Cache bound handlers to prevent listener leaks
+    this.boundTouchStart = this.handleTouchStart.bind(this);
+    this.boundTouchMove = this.handleTouchMove.bind(this);
+    this.boundTouchEnd = this.handleTouchEnd.bind(this);
+    
     this.init();
   }
 
   init() {
-    document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
-    document.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: true });
-    document.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
+    document.addEventListener('touchstart', this.boundTouchStart, { passive: true });
+    document.addEventListener('touchmove', this.boundTouchMove, { passive: true });
+    document.addEventListener('touchend', this.boundTouchEnd, { passive: true });
   }
 
   handleTouchStart(e) {
@@ -72,9 +77,9 @@ export class SwipeHandler {
   }
 
   destroy() {
-    document.removeEventListener('touchstart', this.handleTouchStart);
-    document.removeEventListener('touchmove', this.handleTouchMove);
-    document.removeEventListener('touchend', this.handleTouchEnd);
+    document.removeEventListener('touchstart', this.boundTouchStart);
+    document.removeEventListener('touchmove', this.boundTouchMove);
+    document.removeEventListener('touchend', this.boundTouchEnd);
   }
 }
 
@@ -88,13 +93,18 @@ export class PullToRefresh {
     this.pulling = false;
     this.threshold = 80;
     
+    // Cache bound handlers to prevent listener leaks
+    this.boundTouchStart = this.handleTouchStart.bind(this);
+    this.boundTouchMove = this.handleTouchMove.bind(this);
+    this.boundTouchEnd = this.handleTouchEnd.bind(this);
+    
     this.init();
   }
 
   init() {
-    this.element.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
-    this.element.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
-    this.element.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
+    this.element.addEventListener('touchstart', this.boundTouchStart, { passive: true });
+    this.element.addEventListener('touchmove', this.boundTouchMove, { passive: false });
+    this.element.addEventListener('touchend', this.boundTouchEnd, { passive: true });
   }
 
   handleTouchStart(e) {
@@ -125,7 +135,7 @@ export class PullToRefresh {
 
     const distance = this.currentY - this.startY;
     
-    this.element.style.transition = 'transform 0.3s ease';
+    this.element.style.transition = 'transform var(--motion-medium) var(--ease-standard)';
     this.element.style.transform = '';
 
     if (distance > this.threshold) {
@@ -138,8 +148,8 @@ export class PullToRefresh {
   }
 
   destroy() {
-    this.element.removeEventListener('touchstart', this.handleTouchStart);
-    this.element.removeEventListener('touchmove', this.handleTouchMove);
-    this.element.removeEventListener('touchend', this.handleTouchEnd);
+    this.element.removeEventListener('touchstart', this.boundTouchStart);
+    this.element.removeEventListener('touchmove', this.boundTouchMove);
+    this.element.removeEventListener('touchend', this.boundTouchEnd);
   }
 }

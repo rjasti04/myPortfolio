@@ -21,10 +21,21 @@ export function initParticles(containerId = 'particles-canvas') {
   const ctx = canvas.getContext('2d');
   let animationId;
   let particles = [];
+  let accentColor = 'rgba(14, 165, 233, 1)';
+  let frameCount = 0;
+
+  function updateAccentColor() {
+    const style = getComputedStyle(document.body);
+    const accentFill = style.getPropertyValue('--accent-fill').trim();
+    if (accentFill) {
+      accentColor = accentFill;
+    }
+  }
 
   function resize() {
     canvas.width = container.offsetWidth;
     canvas.height = container.offsetHeight;
+    updateAccentColor();
     initParticleArray();
   }
 
@@ -50,7 +61,8 @@ export function initParticles(containerId = 'particles-canvas') {
     }
 
     draw() {
-      ctx.fillStyle = `rgba(14, 165, 233, ${this.opacity})`;
+      ctx.globalAlpha = this.opacity;
+      ctx.fillStyle = accentColor;
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
       ctx.fill();
@@ -68,17 +80,21 @@ export function initParticles(containerId = 'particles-canvas') {
 
   function connectParticles() {
     const maxDistance = 120;
+    const maxDistanceSq = maxDistance * maxDistance;
     
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 1;
+
     for (let i = 0; i < particles.length; i++) {
       for (let j = i + 1; j < particles.length; j++) {
         const dx = particles[i].x - particles[j].x;
         const dy = particles[i].y - particles[j].y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const distSq = dx * dx + dy * dy;
 
-        if (distance < maxDistance) {
+        if (distSq < maxDistanceSq) {
+          const distance = Math.sqrt(distSq);
           const opacity = (1 - distance / maxDistance) * 0.2;
-          ctx.strokeStyle = `rgba(14, 165, 233, ${opacity})`;
-          ctx.lineWidth = 1;
+          ctx.globalAlpha = opacity;
           ctx.beginPath();
           ctx.moveTo(particles[i].x, particles[i].y);
           ctx.lineTo(particles[j].x, particles[j].y);
@@ -86,10 +102,16 @@ export function initParticles(containerId = 'particles-canvas') {
         }
       }
     }
+    ctx.globalAlpha = 1.0;
   }
 
   function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    frameCount++;
+    if (frameCount % 60 === 0) {
+      updateAccentColor();
+    }
 
     particles.forEach(particle => {
       particle.update();

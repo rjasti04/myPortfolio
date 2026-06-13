@@ -575,7 +575,16 @@ export function initChat() {
         dialog.classList.remove('hidden');
         dialog.setAttribute('aria-hidden', 'false');
         toggleBtn.setAttribute('aria-expanded', 'true');
-        setTimeout(() => chatInput && chatInput.focus(), 300);
+        if (prefersReducedMotion.matches) {
+          chatInput?.focus();
+        } else {
+          dialog.addEventListener('transitionend', function focusInput(e) {
+            if (e.propertyName === 'transform') {
+              chatInput?.focus();
+              dialog.removeEventListener('transitionend', focusInput);
+            }
+          });
+        }
         if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
       } else {
         dialog.classList.add('hidden');
