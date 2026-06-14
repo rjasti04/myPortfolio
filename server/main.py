@@ -96,6 +96,11 @@ if not _origins:
         "http://127.0.0.1:5500",
     ]
 
+# Ensure production domains are always allowed to prevent browser CORS block issues on www. vs bare domain
+for domain in ["https://rjasti.com", "https://www.rjasti.com"]:
+    if domain not in _origins:
+        _origins.append(domain)
+
 MAX_BODY_BYTES = _env_int("MAX_BODY_BYTES", 1_048_576)  # 1 MB
 CHAT_MAX_CONCURRENCY = _env_int("CHAT_MAX_CONCURRENCY", 4)
 CHAT_STREAM_QUEUE_SIZE = _env_int("CHAT_STREAM_QUEUE_SIZE", 128)
@@ -334,7 +339,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 

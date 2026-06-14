@@ -10,6 +10,10 @@ function getApiBaseUrl() {
   if (hostname.includes("staging")) {
     return "https://staging-api.rjasti.com/api";
   }
+  // Ensure the API URL matches the site origin (www vs bare domain) to maintain same-origin status if possible
+  if (window.location.origin.includes("www.")) {
+    return "https://www.rjasti.com/api";
+  }
   return defaultProd;
 }
 
