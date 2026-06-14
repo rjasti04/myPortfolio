@@ -13,7 +13,22 @@ function getApiBaseUrl() {
   return defaultProd;
 }
 
-export const API_BASE = getApiBaseUrl();
+export let API_BASE = getApiBaseUrl();
+
+// Dynamic health check to fallback to production API if local backend is down or unreachable
+let healthCheckPromise = null;
+if (API_BASE.includes("localhost")) {
+  healthCheckPromise = fetch(`${API_BASE}/health`, { method: "GET" })
+    .then(res => {
+      if (!res.ok) throw new Error("Local API health check failed");
+    })
+    .catch(err => {
+      console.warn("Local API health check failed, falling back to production API.", err);
+      API_BASE = "https://rjasti.com/api";
+    });
+} else {
+  healthCheckPromise = Promise.resolve();
+}
 
 // Constants
 const MAX_QUEUE_SIZE = 200;
@@ -107,6 +122,7 @@ async function startSession() {
 
   sessionPromise = (async () => {
     try {
+      await healthCheckPromise;
       const response = await apiFetch(`${API_BASE}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

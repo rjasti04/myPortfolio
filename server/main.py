@@ -84,6 +84,17 @@ DEFAULT_MODEL_ID = _required_env("DEFAULT_MODEL_ID")
 
 _raw_origins = os.getenv("CORS_ORIGINS", "")
 _origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+if not _origins:
+    _origins = [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+    ]
 
 MAX_BODY_BYTES = _env_int("MAX_BODY_BYTES", 1_048_576)  # 1 MB
 CHAT_MAX_CONCURRENCY = _env_int("CHAT_MAX_CONCURRENCY", 4)
