@@ -93,7 +93,7 @@ async function startSession() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_agent: navigator.userAgent,
+          user_agent: navigator.userAgent ? navigator.userAgent.slice(0, 500) : null,
           device_type: getDeviceType()
         })
       });

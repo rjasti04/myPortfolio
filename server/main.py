@@ -332,7 +332,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 class SessionCreate(BaseModel):
-    user_agent: Optional[str] = Field(default=None, max_length=512)
+    user_agent: Optional[str] = Field(default=None, max_length=2048)
     device_type: Optional[Literal["desktop", "mobile", "tablet", "unknown"]] = None
 
 class SessionEnd(BaseModel):
@@ -423,9 +423,10 @@ async def create_session(payload: SessionCreate, request: Request, db: AsyncSess
     request_id = request.scope.get("request_id", "unknown")
     client_ip = _client_ip_from_request(request)
 
+    user_agent_truncated = payload.user_agent[:512] if payload.user_agent else None
     session_db = UserSession(
         ip_address=client_ip,
-        user_agent=payload.user_agent,
+        user_agent=user_agent_truncated,
         device_type=payload.device_type
     )
     db.add(session_db)
