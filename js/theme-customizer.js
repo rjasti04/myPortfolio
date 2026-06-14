@@ -455,8 +455,8 @@ export function initThemeCustomizer() {
   });
 
   const themePresets = {
-    matrix: { primary: '#00FF41', secondary: '#008F11', accent: '#03A062' },
-    solarized: { primary: '#268BD2', secondary: '#859900', accent: '#B58900' },
+    matrix: { primary: '#03A062', secondary: '#10B981', accent: '#14B8A6' },
+    solarized: { primary: '#F59E0B', secondary: '#859900', accent: '#B58900' },
     dracula: { primary: '#BD93F9', secondary: '#FF79C6', accent: '#50FA7B' }
   };
 

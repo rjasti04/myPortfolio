@@ -1,0 +1,31 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from server.db.database import get_db
+from server.schemas.auth import UserCreate, UserLogin, Token, UserResponse, RefreshTokenRequest
+from server.services import auth_service
+from server.auth.dependencies import get_current_user
+from server.models.user import User
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
+    return await auth_service.register_user(db, user)
+
+@router.post("/login", response_model=Token)
+async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
+    return await auth_service.authenticate_user(db, user)
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(token_data: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
+    return await auth_service.refresh_user_token(db, token_data)
+
+@router.get("/me", response_model=UserResponse)
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+@router.post("/logout")
+async def logout():
+    # Since we use stateless JWT, logout is primarily handled on the client side
+    # by deleting the tokens. We can return a success message here.
+    return {"message": "Successfully logged out"}

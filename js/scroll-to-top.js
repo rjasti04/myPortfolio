@@ -1,3 +1,5 @@
+import { prefersReducedMotion } from "./config.js";
+
 // Scroll to top button
 export function initScrollToTop() {
   const scrollBtn = document.createElement('button');
@@ -23,7 +25,7 @@ export function initScrollToTop() {
   scrollBtn.addEventListener('click', () => {
     window.scrollTo({
       top: 0,
-      behavior: 'smooth'
+      behavior: prefersReducedMotion.matches ? 'auto' : 'smooth'
     });
   });
 }

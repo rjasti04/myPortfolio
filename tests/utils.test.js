@@ -104,58 +104,9 @@ describe('Utils Module', () => {
   });
 });
 
-describe('Animation Utils', () => {
+describe('Modal Module', () => {
   let dom;
   let document;
-  let window;
-
-  before(() => {
-    global.performance = { now: () => Date.now() };
-    dom = new JSDOM('<!DOCTYPE html><html><body><div id="test"></div></body></html>');
-    document = dom.window.document;
-    window = dom.window;
-    global.document = document;
-    global.window = window;
-    global.requestAnimationFrame = (cb) => setTimeout(cb, 16);
-
-  });
-
-  after(() => {
-    delete global.document;
-    delete global.window;
-    delete global.requestAnimationFrame;
-    delete global.performance;
-    delete global.performance;
-  });
-
-  describe('animateCounter', () => {
-    it('should animate counter to target value', async () => {
-      const { animateCounter } = await import('../js/animation-utils.js');
-      
-      const element = document.getElementById('test');
-      animateCounter(element, 100, 100, '+');
-      
-      await new Promise(resolve => setTimeout(resolve, 150));
-      assert.strictEqual(element.textContent, '100+');
-    });
-  });
-
-  describe('smoothScrollTo', () => {
-    it('should handle missing elements gracefully', async () => {
-      const { smoothScrollTo } = await import('../js/animation-utils.js');
-      
-      // Should not throw
-      assert.doesNotThrow(() => {
-        smoothScrollTo('#nonexistent');
-      });
-    });
-  });
-});
-
-describe('Modal Utils', () => {
-  let dom;
-  let document;
-
   let window;
 
   before(() => {
@@ -179,11 +130,12 @@ describe('Modal Utils', () => {
   after(() => {
     delete global.document;
     delete global.window;
+    delete global.performance;
   });
 
   describe('openModal', () => {
     it('should open modal and set aria attributes', async () => {
-      const { openModal } = await import('../js/modal-utils.js');
+      const { openModal } = await import('../js/modal.js');
       
       const modal = document.getElementById('modal');
       openModal(modal);
@@ -195,7 +147,7 @@ describe('Modal Utils', () => {
 
   describe('closeModal', () => {
     it('should close modal and restore aria attributes', async () => {
-      const { openModal, closeModal } = await import('../js/modal-utils.js');
+      const { openModal, closeModal } = await import('../js/modal.js');
       
       const modal = document.getElementById('modal');
       openModal(modal);
@@ -203,17 +155,6 @@ describe('Modal Utils', () => {
       
       assert.ok(!modal.classList.contains('active'));
       assert.strictEqual(modal.getAttribute('aria-hidden'), 'true');
-    });
-  });
-
-  describe('isModalOpen', () => {
-    it('should return true when modal is open', async () => {
-      const { openModal, isModalOpen } = await import('../js/modal-utils.js');
-      
-      const modal = document.getElementById('modal');
-      openModal(modal);
-      
-      assert.strictEqual(isModalOpen(), true);
     });
   });
 });

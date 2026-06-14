@@ -106,6 +106,7 @@
   <link rel="preload" href="profile-pic-160.webp" as="image" type="image/webp" />
   <link rel="preload" href="styles.css" as="style" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="./auth-modal.css" />
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
     media="print" id="google-fonts-link" />
@@ -195,10 +196,6 @@
       </a>
 
 
-      <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
-        aria-controls="nav-menu" aria-expanded="false">
-        <i class="fas fa-bars"></i>
-      </button>
       <nav id="nav-menu" aria-label="Primary">
         <a href="#about" data-target="about" class="active" aria-current="page">About</a>
         <a href="#resume" data-target="resume">Experience</a>
@@ -299,8 +296,8 @@
               </div>
 
               <div class="customizer-actions">
-                <button type="button" class="btn btn-outline" id="theme-customizer-reset">Reset</button>
-                <button type="button" class="btn" id="theme-customizer-apply">Apply</button>
+                <button type="button" class="btn btn-outline" id="theme-customizer-reset" data-spring-hover>Reset</button>
+                <button type="button" class="btn" id="theme-customizer-apply" data-spring-hover>Apply</button>
               </div>
             </div>
           </div>
@@ -309,6 +306,11 @@
         <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme"
           aria-pressed="false">
           <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+
+        <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
+          aria-controls="nav-menu" aria-expanded="false">
+          <i class="fas fa-bars"></i>
         </button>
       </div>
     </header>
@@ -325,13 +327,10 @@
               real-time analytics for global enterprises.
             </p>
             <div class="hero-buttons">
-              <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="btn">Resume <i
+              <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="btn" data-spring-hover>Resume <i
                   class="fas fa-arrow-down"></i></a>
-              <a href="#ai" data-target="ai" class="nav-cta hero-chat-btn" id="hero-chat-btn" aria-label="Open AI Chat">
-                <i class="fas fa-robot"></i>
-              </a>
-
-
+              <a href="#ai" data-target="ai" class="nav-cta btn hero-chat-btn" id="hero-chat-btn" aria-label="Open AI Chat" data-spring-hover>Ask AI <i
+                  class="fas fa-robot"></i></a>
             </div>
           </div>
           <aside class="terminal-panel" aria-label="Now Building panel">
@@ -771,7 +770,7 @@
                     <label class="form-label" for="contact-message">Message</label>
                   </div>
                 </div>
-                <button type="submit" class="btn contact-submit-btn">Send Message <i
+                <button type="submit" class="btn contact-submit-btn" data-spring-hover>Send Message <i
                     class="fas fa-paper-plane"></i></button>
                 <p id="contact-status" class="form-status" role="status" aria-live="polite"></p>
               </form>
@@ -788,7 +787,7 @@
 
           <aside class="ai-sidebar" id="ai-sidebar">
             <div class="ai-sidebar-header">
-              <button type="button" class="btn btn-accent new-chat-btn" id="new-chat-btn">
+              <button type="button" class="btn btn-accent new-chat-btn" id="new-chat-btn" data-spring-hover>
                 <i class="fas fa-plus"></i> New Chat
               </button>
               <button type="button" class="ai-close-btn" id="sidebar-close-btn" aria-label="Close sidebar">
@@ -903,6 +902,71 @@
 
   </div>
 
+  <!-- Authentication Modal -->
+  <div class="auth-modal-overlay hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+    <div class="auth-modal-content">
+      <button class="auth-modal-close" id="auth-modal-close" aria-label="Close modal">
+        <i class="fas fa-times"></i>
+      </button>
+
+      <div class="auth-modal-tabs">
+        <button class="auth-tab active" data-tab="login">Login</button>
+        <button class="auth-tab" data-tab="register">Register</button>
+      </div>
+
+      <div class="auth-tab-content active" id="auth-tab-login">
+        <h3 id="auth-modal-title">Welcome Back</h3>
+        <p class="auth-modal-subtitle">Log in to unlock unlimited AI chat messages.</p>
+        <form class="auth-form" id="login-form">
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="email" id="login-email" name="email" placeholder=" " required />
+              <label class="form-label" for="login-email">Email</label>
+              <i class="fas fa-envelope input-icon"></i>
+            </div>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="login-password" name="password" placeholder=" " required />
+              <label class="form-label" for="login-password">Password</label>
+              <i class="fas fa-lock input-icon"></i>
+            </div>
+          </div>
+          <div class="auth-error" id="login-error"></div>
+          <button type="submit" class="btn btn-accent auth-submit-btn">
+            Log In <i class="fas fa-sign-in-alt"></i>
+          </button>
+        </form>
+      </div>
+
+      <div class="auth-tab-content" id="auth-tab-register">
+        <h3>Create Account</h3>
+        <p class="auth-modal-subtitle">Register to unlock unlimited AI chat messages.</p>
+        <form class="auth-form" id="register-form">
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="email" id="register-email" name="email" placeholder=" " required />
+              <label class="form-label" for="register-email">Email</label>
+              <i class="fas fa-envelope input-icon"></i>
+            </div>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="register-password" name="password" placeholder=" " minlength="8" required />
+              <label class="form-label" for="register-password">Password</label>
+              <i class="fas fa-lock input-icon"></i>
+            </div>
+            <small class="password-hint">Must be at least 8 characters.</small>
+          </div>
+          <div class="auth-error" id="register-error"></div>
+          <button type="submit" class="btn btn-accent auth-submit-btn">
+            Create Account <i class="fas fa-user-plus"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Keyboard Shortcuts Overlay -->
   <div class="keyboard-overlay" id="keyboard-overlay" aria-hidden="true">
     <div class="keyboard-overlay-content">
@@ -930,6 +994,7 @@
     integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
     crossorigin="anonymous"></script>
   <script src="./js/app-logic.js" defer></script>
+  <script type="module" src="./js/auth-ui.js"></script>
   <script type="module" src="./js/main.js"></script>
 
 </body>

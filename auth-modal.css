@@ -1,0 +1,243 @@
+.auth-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(5px);
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--motion-medium) var(--ease-standard), visibility var(--motion-medium) var(--ease-standard);
+}
+
+.auth-modal-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.auth-modal-content {
+  background-color: var(--surface-bg, #1e1e2e);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  padding: 2rem;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  transform: translateY(0);
+  transition: transform var(--motion-medium) cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid var(--border-color, #3a3b4a);
+}
+
+.auth-modal-overlay.hidden .auth-modal-content {
+  transform: translateY(20px);
+}
+
+.auth-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text-color, #cdd6f4);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard);
+}
+
+.auth-modal-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--accent-color, #89b4fa);
+}
+
+.auth-modal-tabs {
+  display: flex;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color, #3a3b4a);
+  padding-bottom: 0;
+}
+
+.auth-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 0.75rem 0;
+  color: var(--text-muted, #a6adc8);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  transition: color var(--motion-base) var(--ease-standard);
+}
+
+.auth-tab:hover {
+  color: var(--text-color, #cdd6f4);
+}
+
+.auth-tab.active {
+  color: var(--accent-color, #89b4fa);
+}
+
+.auth-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--accent-color, #89b4fa);
+}
+
+.auth-tab-content {
+  display: none;
+  animation: fadeIn var(--motion-medium) var(--ease-enter);
+}
+
+.auth-tab-content.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+  color: var(--text-color, #cdd6f4);
+}
+
+.auth-modal-subtitle {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: var(--text-muted, #a6adc8);
+  font-size: 0.9rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.password-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted, #a6adc8);
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.auth-submit-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+  justify-content: center;
+  padding: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.auth-error {
+  color: var(--error-color, #f38ba8);
+  font-size: 0.85rem;
+  min-height: 1.2rem;
+  margin-top: -0.5rem;
+  display: block;
+}
+
+/* User Profile Dropdown Button (Injected via JS) */
+.nav-auth-container {
+  display: flex;
+  align-items: center;
+  margin-right: 0;
+  position: relative;
+}
+
+.nav-auth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  background-color: rgba(137, 180, 250, 0.1);
+  border: 1px solid transparent;
+  color: var(--text-color, #cdd6f4);
+  transition: border-color var(--motion-base) var(--ease-standard), background-color var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard);
+}
+
+.nav-user-profile:hover {
+  border-color: rgba(137, 180, 250, 0.3);
+  background-color: rgba(137, 180, 250, 0.15);
+}
+
+.nav-user-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--accent-color, #89b4fa);
+  color: var(--bg-color, #11111b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+.nav-user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background-color: var(--surface-bg, #1e1e2e);
+  border: 1px solid var(--border-color, #3a3b4a);
+  border-radius: 8px;
+  min-width: 150px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 0.5rem 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: opacity var(--motion-base) var(--ease-standard), visibility var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard);
+  z-index: 100;
+}
+
+.nav-user-dropdown.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.nav-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text-color, #cdd6f4);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.nav-dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--accent-color, #89b4fa);
+}

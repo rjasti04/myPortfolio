@@ -8,14 +8,24 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from collections import defaultdict
 from concurrent.futures import TimeoutError as FutureTimeoutError
-import asyncpg
 import asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy import update, desc
+from server.db.database import get_db, engine
+from server.models.session import UserSession
+from server.models.event import UserActivityEvent
+from server.routers import auth
+from server.auth.dependencies import get_optional_current_user
+from server.models.user import User
+from fastapi import Depends
 import os
 import json
 import time
 import logging
 import ipaddress
 import threading
+import random
 
 import boto3
 import orjson
@@ -77,9 +87,9 @@ _origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 MAX_BODY_BYTES = _env_int("MAX_BODY_BYTES", 1_048_576)  # 1 MB
 CHAT_MAX_CONCURRENCY = _env_int("CHAT_MAX_CONCURRENCY", 4)
-CHAT_STREAM_QUEUE_SIZE = _env_int("CHAT_STREAM_QUEUE_SIZE", 32)
+CHAT_STREAM_QUEUE_SIZE = _env_int("CHAT_STREAM_QUEUE_SIZE", 128)
 BEDROCK_TIMEOUT_SECONDS = _env_int("BEDROCK_TIMEOUT_SECONDS", 30)
-BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS = _env_int("BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS", 2)
+BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS = _env_int("BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS", 10)
 
 _raw_allowed_models = os.getenv("ALLOWED_MODEL_IDS", "")
 ALLOWED_MODEL_IDS = {
@@ -210,15 +220,13 @@ class RateLimitMiddleware:
 
         now = time.time()
         window = self.window_seconds
+        
+        # Filter existing hits for this IP
         self._hits[client_ip] = [
             t for t in self._hits[client_ip] if now - t < window
         ]
 
-        # Prune empty entries to prevent unbounded dict growth
-        if not self._hits[client_ip]:
-            del self._hits[client_ip]
-
-        if len(self._hits.get(client_ip, [])) >= self.max_requests:
+        if len(self._hits[client_ip]) >= self.max_requests:
             response = JSONResponse(
                 {"detail": "Rate limit exceeded. Try again later."},
                 status_code=429,
@@ -226,7 +234,17 @@ class RateLimitMiddleware:
             await response(scope, receive, send)
             return
 
+        # Record new hit
         self._hits[client_ip].append(now)
+
+        # Prune empty or expired entries from other IPs to prevent unbounded memory growth
+        # We do a randomized cleanup check (1% of requests) to prevent performance overhead
+        if random.random() < 0.01:
+            for ip in list(self._hits.keys()):
+                self._hits[ip] = [t for t in self._hits[ip] if now - t < window]
+                if not self._hits[ip]:
+                    del self._hits[ip]
+
         await self.app(scope, receive, send)
 
 # ---------------------------------------------------------------------------
@@ -290,11 +308,12 @@ class BodySizeLimitMiddleware:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
     yield
-    await app.state.pool.close()
+    await engine.dispose()
 
 app = FastAPI(title="Activity Tracker API", version="1.0.0", lifespan=lifespan)
+
+app.include_router(auth.router)
 
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(BodySizeLimitMiddleware, max_bytes=MAX_BODY_BYTES)
@@ -305,7 +324,7 @@ app.add_middleware(
     allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # ---------------------------------------------------------------------------
@@ -366,27 +385,18 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 @app.get("/health", summary="Health check endpoint")
-async def health_check(request: Request):
+async def health_check(request: Request, db: AsyncSession = Depends(get_db)):
     """Verify application and database health."""
     request_id = request.scope.get("request_id", "unknown")
     try:
-        if not hasattr(app.state, "pool"):
-            logger.warning(f"[{request_id}] Health check: pool not ready")
-            return JSONResponse(status_code=503, content={"status": "starting up"})
-        
         # Check DB connection
-        async with app.state.pool.acquire() as conn:
-            await conn.execute("SELECT 1")
-            pool_size = app.state.pool.get_size()
-            pool_free = app.state.pool.get_idle_size()
+        await db.execute(select(1))
             
         logger.info(
             "health_check_ok",
             request_id=request_id,
-            pool_free=pool_free,
-            pool_size=pool_size
         )
-        return {"status": "ok", "db": "connected", "pool_free": pool_free, "pool_size": pool_size}
+        return {"status": "ok", "db": "connected"}
     except Exception as e:
         logger.error(
             "health_check_failed",
@@ -405,57 +415,47 @@ async def health_check(request: Request):
     status_code=201,
     summary="Start a new session",
 )
-async def create_session(payload: SessionCreate, request: Request):
+async def create_session(payload: SessionCreate, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Creates a new row in user_sessions and returns the generated session_id.
     Client IP is auto-detected from the request.
     """
     request_id = request.scope.get("request_id", "unknown")
-    # Trust X-Forwarded-For only when the direct client is a configured proxy.
     client_ip = _client_ip_from_request(request)
-    ip = client_ip
 
-    async with request.app.state.pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            INSERT INTO user_sessions (ip_address, user_agent, device_type)
-            VALUES ($1, $2, $3)
-            RETURNING session_id, started_at
-            """,
-            ip,
-            payload.user_agent,
-            payload.device_type,
-        )
+    session_db = UserSession(
+        ip_address=client_ip,
+        user_agent=payload.user_agent,
+        device_type=payload.device_type
+    )
+    db.add(session_db)
+    await db.commit()
+    await db.refresh(session_db)
 
     logger.info(
         "session_created",
         request_id=request_id,
-        session_id=str(row['session_id']),
+        session_id=str(session_db.session_id),
         device_type=payload.device_type,
-        ip_address=ip[:15] + "..." if len(ip) > 15 else ip
+        ip_address=client_ip[:15] + "..." if len(client_ip) > 15 else client_ip
     )
-    return {"session_id": str(row["session_id"]), "started_at": row["started_at"]}
+    return {"session_id": str(session_db.session_id), "started_at": session_db.started_at}
 
 
 @app.patch(
     "/sessions/{session_id}/heartbeat",
     summary="Update last_active_at",
 )
-async def session_heartbeat(session_id: UUID, request: Request):
+async def session_heartbeat(session_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
     """Call periodically (e.g. every 60 s) to keep the session alive."""
-    async with request.app.state.pool.acquire() as conn:
-        # Removing `AND is_active = true` so a heartbeat can revive an inactive session
-        result = await conn.execute(
-            """
-            UPDATE user_sessions
-               SET last_active_at = now(),
-                   is_active = true
-             WHERE session_id = $1
-            """,
-            session_id,
-        )
+    result = await db.execute(
+        update(UserSession)
+        .where(UserSession.session_id == session_id)
+        .values(last_active_at=_now(), is_active=True)
+    )
+    await db.commit()
 
-    if result == "UPDATE 0":
+    if result.rowcount == 0:
         raise HTTPException(404, "Session not found")
 
     return {"status": "ok", "last_active_at": _now()}
@@ -465,25 +465,21 @@ async def session_heartbeat(session_id: UUID, request: Request):
     "/sessions/{session_id}/end",
     summary="End a session",
 )
-async def end_session(session_id: UUID, payload: SessionEnd, request: Request):
+async def end_session(session_id: UUID, payload: SessionEnd, request: Request, db: AsyncSession = Depends(get_db)):
     """Marks the session inactive and records ended_at + end_reason."""
-    async with request.app.state.pool.acquire() as conn:
-        # Removing `AND is_active = true` allows multiple repeat "end" calls 
-        # (e.g. from tab visibility toggling) to succeed without throwing 404s.
-        result = await conn.execute(
-            """
-            UPDATE user_sessions
-               SET is_active      = false,
-                   ended_at       = now(),
-                   last_active_at = now(),
-                   end_reason     = $2
-             WHERE session_id = $1
-            """,
-            session_id,
-            payload.end_reason,
+    result = await db.execute(
+        update(UserSession)
+        .where(UserSession.session_id == session_id)
+        .values(
+            is_active=False,
+            ended_at=_now(),
+            last_active_at=_now(),
+            end_reason=payload.end_reason
         )
+    )
+    await db.commit()
 
-    if result == "UPDATE 0":
+    if result.rowcount == 0:
         raise HTTPException(404, "Session not found")
 
     return {"status": "ended", "ended_at": _now()}
@@ -493,22 +489,23 @@ async def end_session(session_id: UUID, payload: SessionEnd, request: Request):
     "/sessions/{session_id}",
     summary="Get session details",
 )
-async def get_session(session_id: UUID, request: Request):
-    async with request.app.state.pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            SELECT session_id, started_at, ended_at, is_active,
-                   device_type, user_agent, last_active_at, end_reason
-              FROM user_sessions
-             WHERE session_id = $1
-            """,
-            session_id,
-        )
+async def get_session(session_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(UserSession).where(UserSession.session_id == session_id))
+    session = result.scalars().first()
 
-    if not row:
+    if not session:
         raise HTTPException(404, "Session not found")
 
-    return dict(row)
+    return {
+        "session_id": session.session_id,
+        "started_at": session.started_at,
+        "ended_at": session.ended_at,
+        "is_active": session.is_active,
+        "device_type": session.device_type,
+        "user_agent": session.user_agent,
+        "last_active_at": session.last_active_at,
+        "end_reason": session.end_reason
+    }
 
 # ---------------------------------------------------------------------------
 # Event endpoints
@@ -519,32 +516,27 @@ async def get_session(session_id: UUID, request: Request):
     status_code=201,
     summary="Record a single activity event",
 )
-async def create_event(payload: EventCreate, request: Request):
+async def create_event(payload: EventCreate, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Inserts one row into user_activity_events.
     The session must exist in user_sessions.
     """
-    async with request.app.state.pool.acquire() as conn:
-        # Verify session exists (optional guard â€” remove if perf-sensitive)
-        exists = await conn.fetchval(
-            "SELECT 1 FROM user_sessions WHERE session_id = $1", payload.session_id
-        )
-        if not exists:
-            raise HTTPException(404, f"session_id {payload.session_id} not found")
+    # Verify session exists
+    session_exists = await db.execute(select(UserSession).where(UserSession.session_id == payload.session_id))
+    if not session_exists.scalars().first():
+        raise HTTPException(404, f"session_id {payload.session_id} not found")
 
-        row = await conn.fetchrow(
-            """
-            INSERT INTO user_activity_events (session_id, event_type, page_path, event_data)
-            VALUES ($1, $2, $3, $4::jsonb)
-            RETURNING event_id, created_at
-            """,
-            payload.session_id,
-            payload.event_type,
-            payload.page_path,
-            orjson.dumps(payload.event_data).decode('utf-8') if payload.event_data is not None else None,
-        )
+    event = UserActivityEvent(
+        session_id=payload.session_id,
+        event_type=payload.event_type,
+        page_path=payload.page_path,
+        event_data=payload.event_data
+    )
+    db.add(event)
+    await db.commit()
+    await db.refresh(event)
 
-    return {"event_id": row["event_id"], "created_at": row["created_at"]}
+    return {"event_id": event.event_id, "created_at": event.created_at}
 
 
 @app.post(
@@ -552,38 +544,34 @@ async def create_event(payload: EventCreate, request: Request):
     status_code=201,
     summary="Record multiple events in one shot",
 )
-async def create_events_bulk(payload: BulkEventCreate, request: Request):
+async def create_events_bulk(payload: BulkEventCreate, request: Request, db: AsyncSession = Depends(get_db)):
     """
-    Inserts up to 500 events in a single transaction using executemany.
-    Useful for batching client-side queued events on page unload.
+    Inserts up to 500 events in a single transaction.
     """
     if not payload.events:
         raise HTTPException(400, "events list is empty")
     if len(payload.events) > 500:
         raise HTTPException(400, "Maximum 500 events per bulk request")
 
-    rows = [
-        (e.session_id, e.event_type, e.page_path, orjson.dumps(e.event_data).decode('utf-8') if e.event_data is not None else None)
+    events = [
+        UserActivityEvent(
+            session_id=e.session_id,
+            event_type=e.event_type,
+            page_path=e.page_path,
+            event_data=e.event_data
+        )
         for e in payload.events
     ]
 
-    async with request.app.state.pool.acquire() as conn:
-        try:
-            async with conn.transaction():
-                await conn.executemany(
-                    """
-                    INSERT INTO user_activity_events (session_id, event_type, page_path, event_data)
-                    VALUES ($1, $2, $3, $4::jsonb)
-                    """,
-                    rows,
-                )
-        except asyncpg.exceptions.ForeignKeyViolationError:
-            raise HTTPException(422, "One or more session IDs not found in database")
-        except Exception:
-            logger.exception("Bulk event insert failed")
-            raise HTTPException(500, "Internal server error")
+    try:
+        db.add_all(events)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.exception("Bulk event insert failed")
+        raise HTTPException(422, "Failed to insert events (possibly invalid session_id)")
 
-    return {"inserted": len(rows)}
+    return {"inserted": len(events)}
 
 
 @app.get(
@@ -593,28 +581,32 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request):
 async def get_session_events(
     session_id: UUID,
     request: Request,
+    db: AsyncSession = Depends(get_db),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0, le=1_000_000),
 ):
-    # Explicit integer casting for defense-in-depth
     limit = int(limit)
     offset = int(offset)
     
-    async with request.app.state.pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT event_id, event_type, page_path, event_data, created_at
-              FROM user_activity_events
-             WHERE session_id = $1
-             ORDER BY created_at DESC
-             LIMIT $2 OFFSET $3
-            """,
-            session_id,
-            limit,
-             offset,
-        )
+    result = await db.execute(
+        select(UserActivityEvent)
+        .where(UserActivityEvent.session_id == session_id)
+        .order_by(desc(UserActivityEvent.created_at))
+        .limit(limit)
+        .offset(offset)
+    )
+    events = result.scalars().all()
 
-    return [dict(r) for r in rows]
+    return [
+        {
+            "event_id": e.event_id,
+            "event_type": e.event_type,
+            "page_path": e.page_path,
+            "event_data": e.event_data,
+            "created_at": e.created_at
+        }
+        for e in events
+    ]
 
 # ---------------------------------------------------------------------------
 # HTTP Chat Endpoint  (Bedrock Converse API – model-agnostic)
@@ -652,8 +644,19 @@ def _resolve_model_id(requested_model: Optional[str]) -> str:
 
 
 @app.post("/chat")
-async def chat_endpoint(payload: ChatRequest, http_request: Request):
+async def chat_endpoint(payload: ChatRequest, http_request: Request, current_user: Optional[User] = Depends(get_optional_current_user)):
     request_id = http_request.scope.get("request_id", "unknown")
+
+    # Restrict unauthenticated users to max 6 messages in the payload
+    # Count messages by the user (not assistant)
+    user_message_count = sum(1 for m in payload.messages if m.role == "user")
+    if not current_user and user_message_count > 6:
+        raise HTTPException(
+            status_code=401,
+            detail="You have reached the maximum number of free messages. Please log in to continue.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     model_id = _resolve_model_id(payload.model)
     logger.info(
         "chat_request",
@@ -769,7 +772,15 @@ async def chat_endpoint(payload: ChatRequest, http_request: Request):
 
 
 @app.post("/chat/summarize")
-async def chat_summarize_endpoint(payload: ChatRequest):
+async def chat_summarize_endpoint(payload: ChatRequest, current_user: Optional[User] = Depends(get_optional_current_user)):
+    user_message_count = sum(1 for m in payload.messages if m.role == "user")
+    if not current_user and user_message_count > 6:
+        raise HTTPException(
+            status_code=401,
+            detail="You have reached the maximum number of free messages. Please log in to continue.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     model_id = _resolve_model_id(payload.model)
 
     converse_messages = _ensure_alternating_roles([
@@ -805,7 +816,6 @@ async def chat_summarize_endpoint(payload: ChatRequest):
 )
 async def list_models():
     """Returns Bedrock foundation models available in the configured region."""
-    await _acquire_bedrock_slot("Model listing is busy. Try again shortly.")
     try:
         resp = await asyncio.to_thread(
             bedrock_mgmt.list_foundation_models,
@@ -824,5 +834,3 @@ async def list_models():
     except Exception as e:
         logger.error(f"Error listing Bedrock models: {e}")
         raise HTTPException(500, "Unable to list models")
-    finally:
-        bedrock_semaphore.release()

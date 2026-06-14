@@ -47,7 +47,8 @@ const PROFILE_CONFIG = {
     connectionFalloff: 1.5,
     glassFacetCount: 24,
     glassFacetAlpha: 0.16,
-    glassFacetAreaFactor: 0.34
+    glassFacetAreaFactor: 0.34,
+    enableShadows: false
   },
   compact: {
     minParticles: 125,
@@ -67,7 +68,8 @@ const PROFILE_CONFIG = {
     connectionFalloff: 1.45,
     glassFacetCount: 16,
     glassFacetAlpha: 0.14,
-    glassFacetAreaFactor: 0.3
+    glassFacetAreaFactor: 0.3,
+    enableShadows: false
   },
   mobile: {
     minParticles: 80,
@@ -87,7 +89,8 @@ const PROFILE_CONFIG = {
     connectionFalloff: 1.4,
     glassFacetCount: 8,
     glassFacetAlpha: 0.10,
-    glassFacetAreaFactor: 0.26
+    glassFacetAreaFactor: 0.26,
+    enableShadows: false
   }
 };
 
@@ -201,6 +204,46 @@ function readThemeColors() {
   };
 }
 
+const spriteCache = new Map();
+
+function updateSpriteCache(themeColors) {
+  spriteCache.clear();
+  const keys = ["accent", "secondary", "data", "node"];
+  const baseRadius = 32;
+  const size = baseRadius * 2;
+
+  keys.forEach((colorKey) => {
+    const color = themeColors[colorKey] || COLOR_FALLBACKS[colorKey];
+    
+    // Create standard and speck profiles
+    ["standard", "speck"].forEach((profile) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      
+      const isSpeck = profile === "speck";
+      const factor = isSpeck ? 4.0 : 5.4;
+      const coreRatio = 1 / factor;
+      
+      const grad = ctx.createRadialGradient(baseRadius, baseRadius, 0, baseRadius, baseRadius, baseRadius);
+      grad.addColorStop(0, colorString(themeColors.node, 0.48));
+      grad.addColorStop(coreRatio * 0.55, colorString(color, 0.41));
+      grad.addColorStop(coreRatio, colorString(color, 0.28));
+      grad.addColorStop(Math.min(coreRatio * 2.2, 0.48), colorString(color, 0.16));
+      grad.addColorStop(Math.min(coreRatio * 4.0, 0.72), colorString(color, 0.06));
+      grad.addColorStop(1, colorString(color, 0));
+      
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(baseRadius, baseRadius, baseRadius, 0, TWO_PI);
+      ctx.fill();
+      
+      spriteCache.set(`${colorKey}_${profile}`, canvas);
+    });
+  });
+}
+
 function getProfileName() {
   if (mobileDevice.matches || window.innerWidth <= 640) return "mobile";
   if (compactViewportQuery.matches || window.innerHeight < 720) return "compact";
@@ -300,7 +343,8 @@ function createParticle(width, height, config) {
     alpha: zone === "speck" ? lerp(0.16, 0.38, Math.random()) : lerp(0.52, 0.92, Math.random()),
     phase: Math.random() * TWO_PI,
     turn: lerp(0.04, 0.15, Math.random()) * (Math.random() > 0.5 ? 1 : -1),
-    pulseOffset: Math.random() * TWO_PI
+    pulseOffset: Math.random() * TWO_PI,
+    isHub: zone !== "speck" && Math.random() < 0.12
   };
 }
 
@@ -360,6 +404,14 @@ function updateParticle(particle, delta, elapsed, width, height, pointer, config
   applyHomeForce(particle, delta, config);
   nudgeAwayFromCenter(particle, delta, width, height);
 
+  // Apply fluid vector flow field influence (organic currents)
+  if (particle.zone !== "speck") {
+    const flowAngle = Math.sin(particle.x * 0.0035 + elapsed * 0.12) * Math.cos(particle.y * 0.0035 - elapsed * 0.12) * TWO_PI;
+    const flowForce = config.speed[0] * 0.14;
+    particle.vx += Math.cos(flowAngle) * flowForce * delta;
+    particle.vy += Math.sin(flowAngle) * flowForce * delta;
+  }
+
   particle.x += particle.vx * delta;
   particle.y += particle.vy * delta;
 
@@ -374,12 +426,18 @@ function updateParticle(particle, delta, elapsed, width, height, pointer, config
       const force = (1 - distance / config.repelRadius) ** 1.8;
       const push = force * config.repelStrength * delta;
 
+      // Primary radial push
       particle.x += (dx / distance) * push;
       particle.y += (dy / distance) * push;
       
+      // Secondary fluid swirl/orbital push
+      const swirlForce = force * config.repelStrength * 0.22 * delta;
+      particle.x += (-dy / distance) * swirlForce;
+      particle.y += (dx / distance) * swirlForce;
+      
       // Dampen velocity during repulsion for smoother interaction
-      particle.vx *= 0.92;
-      particle.vy *= 0.92;
+      particle.vx *= 0.93;
+      particle.vy *= 0.93;
     }
   }
 
@@ -425,7 +483,7 @@ function buildSpatialGrid(particles, cellSize) {
   for (let i = 0; i < particles.length; i += 1) {
     const cx = Math.floor(particles[i].x / cellSize);
     const cy = Math.floor(particles[i].y / cellSize);
-    const key = cx * 10007 + cy;
+    const key = `${cx},${cy}`;
     if (!grid.has(key)) grid.set(key, []);
     grid.get(key).push(i);
   }
@@ -444,7 +502,7 @@ function collectConnections(particles, config, width, height) {
 
     for (let dx = -1; dx <= 1; dx += 1) {
       for (let dy = -1; dy <= 1; dy += 1) {
-        const nKey = (cx + dx) * 10007 + (cy + dy);
+        const nKey = `${cx + dx},${cy + dy}`;
         const bucket = grid.get(nKey);
         if (!bucket) continue;
 
@@ -548,7 +606,6 @@ function collectGlassFacets(particles, connections, config, width, height) {
   const minArea = config.glassFacetMinArea || 280;
   const maxArea = config.maxDistance * config.maxDistance * (config.glassFacetAreaFactor || 0.3);
   const facets = [];
-  const seen = new Set();
 
   const addNeighbor = (from, to, connection) => {
     if (!adjacency.has(from)) adjacency.set(from, []);
@@ -573,13 +630,13 @@ function collectGlassFacets(particles, connections, config, width, height) {
       for (let j = i + 1; j < neighbors.length; j += 1) {
         const first = neighbors[i].to;
         const second = neighbors[j].to;
+
+        // Ensure we only process each triangle once: only when the current node (from)
+        // is the one with the smallest index.
+        if (from >= first || from >= second) continue;
+
         const closingConnection = edgeMap.get(connectionKey(first, second));
-
         if (!closingConnection) continue;
-
-        const key = [from, first, second].sort((a, b) => a - b).join(":");
-        if (seen.has(key)) continue;
-        seen.add(key);
 
         const a = particles[from];
         const b = particles[first];
@@ -677,45 +734,32 @@ function drawGlassFacets(ctx, particles, connections, config, width, height, int
     );
     const alpha = baseAlpha * opacity;
 
-    const fill = ctx.createLinearGradient(a.x, a.y, c.x, c.y);
-    fill.addColorStop(0, colorString(highlightColor, alpha * 0.82));
-    fill.addColorStop(0.48, colorString(glassColor, alpha * 0.55));
-    fill.addColorStop(1, colorString(cyanGlass, alpha * 0.28));
+    ctx.fillStyle = colorString(glassColor, alpha * 0.55);
 
-    ctx.shadowBlur = (16 + intensity * 8) * opacity;
-    ctx.shadowColor = colorString(themeColors.accent, alpha * 1.7);
-    ctx.fillStyle = fill;
+    if (config.enableShadows) {
+      ctx.shadowBlur = (16 + intensity * 8) * opacity;
+      ctx.shadowColor = colorString(themeColors.accent, alpha * 1.7);
+    }
+    
     traceTriangle(ctx, a, b, c);
     ctx.fill();
-    ctx.shadowBlur = 0;
+    
+    if (config.enableShadows) {
+      ctx.shadowBlur = 0;
+    }
 
-    const sheen = ctx.createLinearGradient(
-      facet.centroid.x - 18,
-      facet.centroid.y - 18,
-      facet.centroid.x + 42,
-      facet.centroid.y + 28
-    );
-    sheen.addColorStop(0, colorString(themeColors.node, alpha * 0.2));
-    sheen.addColorStop(0.5, colorString(themeColors.node, alpha * 0.08));
-    sheen.addColorStop(1, colorString(glassColor, 0));
-
-    ctx.fillStyle = sheen;
+    ctx.fillStyle = colorString(themeColors.node, alpha * 0.08);
     traceTriangle(ctx, a, b, c);
     ctx.fill();
-
-    const edge = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-    edge.addColorStop(0, colorString(highlightColor, alpha * 0.9));
-    edge.addColorStop(0.55, colorString(themeColors.node, alpha * 0.72));
-    edge.addColorStop(1, colorString(glassColor, alpha * 0.45));
 
     ctx.lineWidth = 0.85 + intensity * 0.25;
-    ctx.strokeStyle = edge;
+    ctx.strokeStyle = colorString(highlightColor, alpha * 0.65);
     traceTriangle(ctx, a, b, c);
     ctx.stroke();
 
     const [start, end] = longestTriangleEdge(a, b, c);
     ctx.lineWidth = 1.35 + intensity * 0.25;
-    ctx.strokeStyle = colorString(highlightColor, alpha * 1.2);
+    ctx.strokeStyle = colorString(highlightColor, alpha * 1.1);
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
@@ -747,14 +791,9 @@ function drawConnections(ctx, particles, config, width, height, intensity, theme
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
 
-    // Core line with gradient
-    const line = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-    line.addColorStop(0, colorString(aColor, alpha * 0.92));
-    line.addColorStop(0.5, colorString(midColor, alpha));
-    line.addColorStop(1, colorString(bColor, alpha * 0.92));
-
+    // Core line with blended solid color instead of linear gradient
     ctx.lineWidth = 1.2 + intensity * 0.25;
-    ctx.strokeStyle = line;
+    ctx.strokeStyle = colorString(midColor, alpha * 0.95);
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
@@ -774,30 +813,51 @@ function drawParticles(ctx, particles, elapsed, intensity, themeColors) {
       + Math.sin(elapsed * 1.3 + particle.pulseOffset * 1.7) * 0.04;
     const alpha = clamp(particle.alpha * pulse * (1 + intensity * 0.22), 0, 0.96);
     const r = particle.radius * (1 + intensity * 0.12);
-    const hr = r * (particle.zone === "speck" ? 4.0 : 5.4);
-    const color = themeColors[particle.colorKey] || themeColors.accent;
-    const coreRatio = r / hr;
+    const isSpeck = particle.zone === "speck";
+    const hr = r * (isSpeck ? 4.0 : 5.4);
+    const spriteKey = `${particle.colorKey}_${isSpeck ? "speck" : "standard"}`;
+    const sprite = spriteCache.get(spriteKey);
 
-    // Combined halo + core in a single gradient — halves GPU gradient ops
-    const grad = ctx.createRadialGradient(
-      particle.x, particle.y, 0,
-      particle.x, particle.y, hr
-    );
+    if (sprite) {
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(
+        sprite,
+        particle.x - hr,
+        particle.y - hr,
+        hr * 2,
+        hr * 2
+      );
+    }
 
-    // Bright core center (dimmed 50%)
-    grad.addColorStop(0, colorString(themeColors.node, alpha * 0.48));
-    grad.addColorStop(coreRatio * 0.55, colorString(color, alpha * 0.41));
-    grad.addColorStop(coreRatio, colorString(color, alpha * 0.28));
-    // Halo bloom
-    grad.addColorStop(Math.min(coreRatio * 2.2, 0.48), colorString(color, alpha * 0.16));
-    grad.addColorStop(Math.min(coreRatio * 4.0, 0.72), colorString(color, alpha * 0.06));
-    grad.addColorStop(1, colorString(color, 0));
+    // Draw HUD elements for Hub Router nodes
+    if (particle.isHub && !isSpeck && alpha > 0.35) {
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.45;
+      const color = themeColors[particle.colorKey] || themeColors.accent;
+      
+      // Subtle rotating dashed outer circle
+      ctx.strokeStyle = colorString(color, 0.7);
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, r * 3.6, 0, TWO_PI);
+      
+      ctx.translate(particle.x, particle.y);
+      ctx.rotate(elapsed * particle.turn * 0.4);
+      ctx.translate(-particle.x, -particle.y);
+      ctx.stroke();
 
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(particle.x, particle.y, hr, 0, TWO_PI);
-    ctx.fill();
+      // Tiny coordinate label
+      ctx.fillStyle = colorString(themeColors.node, 0.5);
+      ctx.font = "8px monospace";
+      const hexId = `0x${Math.floor(particle.pulseOffset * 100).toString(16).toUpperCase()}`;
+      ctx.fillText(hexId, particle.x + r * 4.5, particle.y + 3);
+      
+      ctx.restore();
+    }
   });
+
+  ctx.globalAlpha = 1.0;
 }
 
 function mountPlexusBackground(canvas, profileName = getProfileName()) {
@@ -825,7 +885,10 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
   let animationFrame = 0;
   let lastFrameTime = performance.now();
   let themeColors = readThemeColors();
+  updateSpriteCache(themeColors);
   const facetOpacity = new Map();
+  const pings = [];
+  const packets = [];
 
   const setSize = () => {
     const nextWidth = window.innerWidth;
@@ -876,6 +939,7 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
 
   const syncThemeColors = () => {
     themeColors = readThemeColors();
+    updateSpriteCache(themeColors);
   };
 
   const render = (currentTime) => {
@@ -913,9 +977,146 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
       updateParticle(particle, delta, elapsed, width, height, smoothPointer, config, surgeIntensity);
     });
 
+    // Update and draw ping waves (affects particle velocities dynamically)
+    for (let i = pings.length - 1; i >= 0; i -= 1) {
+      const ping = pings[i];
+      ping.radius += ping.speed * delta;
+      ping.alpha = clamp(1 - (ping.radius / ping.maxRadius), 0, 1);
+      
+      if (ping.radius >= ping.maxRadius) {
+        pings.splice(i, 1);
+      } else {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = colorString(themeColors.accent, ping.alpha * 0.35);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(ping.x, ping.y, ping.radius, 0, TWO_PI);
+        ctx.stroke();
+        ctx.restore();
+
+        // Push particles intersecting the wave front
+        particles.forEach((p) => {
+          const dx = p.x - ping.x;
+          const dy = p.y - ping.y;
+          const dist = Math.hypot(dx, dy);
+          const distDiff = Math.abs(dist - ping.radius);
+          if (distDiff < 32) {
+            const force = (1 - distDiff / 32) * ping.alpha * 120;
+            const angle = Math.atan2(dy, dx);
+            p.vx += Math.cos(angle) * force * delta;
+            p.vy += Math.sin(angle) * force * delta;
+          }
+        });
+      }
+    }
+
     const connections = selectConnections(particles, config, width, height, surgeIntensity);
     drawGlassFacets(ctx, particles, connections, config, width, height, surgeIntensity, themeColors, facetOpacity, delta);
     drawConnections(ctx, particles, config, width, height, surgeIntensity, themeColors, connections);
+
+    // Draw pointer-to-plexus links (Cursor Connection Hub)
+    if (smoothPointer.active && profileName !== "mobile") {
+      const closest = [];
+      particles.forEach((p, idx) => {
+        if (p.zone === "speck") return;
+        const dist = Math.hypot(p.x - smoothPointer.x, p.y - smoothPointer.y);
+        if (dist < config.repelRadius * 1.4) {
+          closest.push({ index: idx, dist });
+        }
+      });
+      closest.sort((a, b) => a.dist - b.dist);
+      const connectionsToPointer = closest.slice(0, 4);
+
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      connectionsToPointer.forEach((conn) => {
+        const p = particles[conn.index];
+        const proximity = 1 - conn.dist / (config.repelRadius * 1.4);
+        const alpha = proximity * 0.65 * (1 + surgeIntensity * 0.3);
+        const color = themeColors[p.colorKey] || themeColors.accent;
+
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = colorString(color, alpha * 0.18);
+        ctx.beginPath();
+        ctx.moveTo(smoothPointer.x, smoothPointer.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+
+        ctx.lineWidth = 1.0;
+        ctx.strokeStyle = colorString(color, alpha * 0.85);
+        ctx.beginPath();
+        ctx.moveTo(smoothPointer.x, smoothPointer.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    // Spawn and draw packets along connection lines (Dynamic Data Packets)
+    if (connections.length > 0 && Math.random() < 0.045 + surgeIntensity * 0.08) {
+      const maxPackets = profileName === "mobile" ? 10 : 25;
+      if (packets.length < maxPackets) {
+        const conn = connections[Math.floor(Math.random() * connections.length)];
+        const fromNode = particles[conn.from];
+        const toNode = particles[conn.to];
+        if (fromNode && toNode && fromNode.zone !== "speck" && toNode.zone !== "speck") {
+          packets.push({
+            from: conn.from,
+            to: conn.to,
+            progress: 0,
+            speed: randomBetween([0.8, 1.8]) * (1 + surgeIntensity * 0.4),
+            colorKey: fromNode.colorKey,
+            size: lerp(1.2, 2.5, Math.random())
+          });
+        }
+      }
+    }
+
+    for (let i = packets.length - 1; i >= 0; i -= 1) {
+      const packet = packets[i];
+      packet.progress += packet.speed * delta;
+      
+      const a = particles[packet.from];
+      const b = particles[packet.to];
+      
+      if (packet.progress >= 1 || !a || !b) {
+        packets.splice(i, 1);
+        continue;
+      }
+
+      const px = lerp(a.x, b.x, packet.progress);
+      const py = lerp(a.y, b.y, packet.progress);
+      const color = themeColors[packet.colorKey] || themeColors.accent;
+
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      
+      const trailLen = 0.15;
+      const trailProgress = Math.max(0, packet.progress - trailLen);
+      const tx = lerp(a.x, b.x, trailProgress);
+      const ty = lerp(a.y, b.y, trailProgress);
+      
+      const grad = ctx.createLinearGradient(tx, ty, px, py);
+      grad.addColorStop(0, colorString(color, 0));
+      grad.addColorStop(1, colorString(color, 0.85));
+      
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = packet.size * 1.5;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(px, py);
+      ctx.stroke();
+
+      ctx.fillStyle = colorString(themeColors.node, 0.9);
+      ctx.beginPath();
+      ctx.arc(px, py, packet.size, 0, TWO_PI);
+      ctx.fill();
+      
+      ctx.restore();
+    }
+
     drawParticles(ctx, particles, elapsed, surgeIntensity, themeColors);
   };
 
@@ -926,9 +1127,23 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
   themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class", "style"] });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
 
+  const handlePointerDown = (event) => {
+    if (!pointer.active) return;
+    pings.push({
+      x: event.clientX,
+      y: event.clientY,
+      radius: 0,
+      maxRadius: Math.max(width, height) * 0.45,
+      speed: 700 + surgeIntensity * 300,
+      alpha: 1.0
+    });
+    surgeIntensity = Math.min(surgeIntensity + 0.35, 1.2);
+  };
+
   if (supportsHover.matches && profileName !== "mobile") {
     window.addEventListener("pointermove", handlePointerMove, { passive: true });
     document.body.addEventListener("pointerleave", handlePointerLeave, { passive: true });
+    window.addEventListener("pointerdown", handlePointerDown, { passive: true });
   }
 
   animationFrame = window.requestAnimationFrame(render);
@@ -939,6 +1154,7 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
     window.removeEventListener("resize", handleResize);
     window.removeEventListener("pointermove", handlePointerMove);
     document.body.removeEventListener("pointerleave", handlePointerLeave);
+    window.removeEventListener("pointerdown", handlePointerDown);
     themeObserver.disconnect();
     ctx.clearRect(0, 0, width, height);
   };
