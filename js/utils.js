@@ -1,7 +1,19 @@
+const htmlEscapes = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+const reUnescapedHtml = /[&<>"']/g;
+const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
+
 export function escapeHTML(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value);
-  return div.innerHTML;
+  const str = String(value);
+
+  return str && reHasUnescapedHtml.test(str)
+    ? str.replace(reUnescapedHtml, (chr) => htmlEscapes[chr])
+    : str;
 }
 
 export function copyText(text) {
@@ -20,30 +32,32 @@ export function copyText(text) {
   const copied = document.execCommand("copy");
   textarea.remove();
 
-  return copied ? Promise.resolve() : Promise.reject(new Error("Copy command failed"));
+  return copied
+    ? Promise.resolve()
+    : Promise.reject(new Error("Copy command failed"));
 }
 
 export function showToast(message, type = "info") {
   const toastContainer = document.getElementById("toast-container");
   if (!toastContainer) return;
-  
+
   const iconMap = {
-    success: 'fa-check',
-    error: 'fa-exclamation-circle',
-    info: 'fa-info-circle'
+    success: "fa-check",
+    error: "fa-exclamation-circle",
+    info: "fa-info-circle",
   };
-  
+
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
   toast.setAttribute("role", "status");
-  
+
   const icon = document.createElement("span");
   icon.className = `toast-icon`;
   icon.innerHTML = `<i class="fas ${iconMap[type] || iconMap.info}"></i>`;
-  
+
   const textSpan = document.createElement("span");
   textSpan.textContent = message;
-  
+
   toast.appendChild(icon);
   toast.appendChild(textSpan);
   toastContainer.appendChild(toast);
@@ -56,7 +70,9 @@ export function showToast(message, type = "info") {
 
   window.setTimeout(() => {
     toast.classList.remove("toast-show");
-    toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+    toast.addEventListener("transitionend", () => toast.remove(), {
+      once: true,
+    });
   }, 3200);
 }
 
@@ -89,20 +105,20 @@ export function throttle(fn, interval = 0) {
 
 export function estimateTokens(text) {
   if (!text || text.length === 0) return 0;
-  
+
   // More accurate estimation based on GPT tokenization patterns
   const words = text.trim().split(/\s+/).length;
   const specialChars = (text.match(/[^\w\s]/g) || []).length;
   const codeBlocks = (text.match(/```[\s\S]*?```/g) || []).length;
   const urls = (text.match(/https?:\/\/[^\s]+/g) || []).length;
-  
+
   // Rough formula (calibrated against actual tokenizers)
   const baseTokens = Math.ceil(text.length / 4);
   const wordBonus = Math.ceil(words * 0.3);
   const specialBonus = Math.ceil(specialChars * 0.5);
   const codeBonus = codeBlocks * 50;
   const urlBonus = urls * 10;
-  
+
   return baseTokens + wordBonus + specialBonus + codeBonus + urlBonus;
 }
 
@@ -124,13 +140,13 @@ export function isNetworkOnline() {
 }
 
 if (typeof window !== "undefined") {
-  window.addEventListener('online', () => {
+  window.addEventListener("online", () => {
     isOnline = true;
-    onlineCallbacks.forEach(cb => cb());
+    onlineCallbacks.forEach((cb) => cb());
   });
 
-  window.addEventListener('offline', () => {
+  window.addEventListener("offline", () => {
     isOnline = false;
-    offlineCallbacks.forEach(cb => cb());
+    offlineCallbacks.forEach((cb) => cb());
   });
 }
