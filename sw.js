@@ -105,7 +105,7 @@ self.addEventListener('fetch', event => {
         return fetch(event.request).then(networkResponse => {
           // Only cache valid CORS responses from allowlisted origins
           if (!networkResponse || networkResponse.status !== 200 ||
-              networkResponse.type !== 'cors') {
+            networkResponse.type !== 'cors') {
             return networkResponse;
           }
 
