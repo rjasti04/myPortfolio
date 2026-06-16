@@ -14,11 +14,13 @@ describe('Utils Module', () => {
     window = dom.window;
     global.document = document;
     global.window = window;
+    global.HTMLElement = window.HTMLElement;
   });
 
   after(() => {
     delete global.document;
     delete global.window;
+    delete global.HTMLElement;
   });
 
   describe('escapeHTML', () => {
@@ -125,12 +127,14 @@ describe('Modal Module', () => {
     window = dom.window;
     global.document = document;
     global.window = window;
+    global.HTMLElement = window.HTMLElement;
   });
 
   after(() => {
     delete global.document;
     delete global.window;
     delete global.performance;
+    delete global.HTMLElement;
   });
 
   describe('openModal', () => {

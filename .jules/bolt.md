@@ -1,0 +1,3 @@
+## 2025-02-18 - Optimize connectParticles O(N²) Loop
+**Learning:** Pre-sorting a dense array sequentially allows breaking early out of nested loop evaluations, converting an expensive O(N²) calculation to a much faster execution path without needing complex spatial partitioning structures. Using simple 1D bounding box checks before calculating squared distances also removes significant overhead for coordinate computations.
+**Action:** When evaluating massive pairwise interactions such as particles or collisions, always test sorting by an axis combined with early `break` conditionals before implementing a heavy Spatial Hash Grid, as array sorting combined with simple conditional skips is often significantly faster in V8.
