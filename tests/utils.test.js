@@ -14,11 +14,13 @@ describe('Utils Module', () => {
     window = dom.window;
     global.document = document;
     global.window = window;
+    global.HTMLElement = window.HTMLElement;
   });
 
   after(() => {
     delete global.document;
     delete global.window;
+    delete global.HTMLElement;
   });
 
   describe('escapeHTML', () => {
@@ -27,7 +29,7 @@ describe('Utils Module', () => {
       
       assert.strictEqual(
         escapeHTML('<script>alert("xss")</script>'),
-        '&lt;script&gt;alert("xss")&lt;/script&gt;'
+        '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
       );
       
       assert.strictEqual(
@@ -125,11 +127,13 @@ describe('Modal Module', () => {
     window = dom.window;
     global.document = document;
     global.window = window;
+    global.HTMLElement = window.HTMLElement;
   });
 
   after(() => {
     delete global.document;
     delete global.window;
+    delete global.HTMLElement;
     delete global.performance;
   });
 
