@@ -125,12 +125,14 @@ describe('Modal Module', () => {
     window = dom.window;
     global.document = document;
     global.window = window;
+    global.HTMLElement = window.HTMLElement;
   });
 
   after(() => {
     delete global.document;
     delete global.window;
-    delete global.performance;
+    delete global.HTMLElement;
+    // Let performance stay since other modules may use it
   });
 
   describe('openModal', () => {
