@@ -13,11 +13,13 @@ describe('Utils Module', () => {
     document = dom.window.document;
     window = dom.window;
     global.document = document;
+    global.HTMLElement = dom.window.HTMLElement;
     global.window = window;
   });
 
   after(() => {
     delete global.document;
+    delete global.HTMLElement;
     delete global.window;
   });
 
@@ -124,11 +126,13 @@ describe('Modal Module', () => {
     document = dom.window.document;
     window = dom.window;
     global.document = document;
+    global.HTMLElement = dom.window.HTMLElement;
     global.window = window;
   });
 
   after(() => {
     delete global.document;
+    delete global.HTMLElement;
     delete global.window;
     delete global.performance;
   });
