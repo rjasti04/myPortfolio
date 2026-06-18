@@ -4,7 +4,7 @@ export const CONTACT_EMAIL = "inboxtorj@gmail.com";
 
 export const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 export const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
-export const compactViewport = window.matchMedia("(max-width: 900px)");
+export const compactViewport = window.matchMedia("(max-width: 1150px)");
 export const supportsHover = window.matchMedia("(hover: hover) and (pointer: fine)");
 // Phones only: coarse pointer (touch) AND narrow screen (≤768px).
 // iPads are typically 768px+ in portrait; laptops always have a fine pointer.
