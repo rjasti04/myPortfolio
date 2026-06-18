@@ -543,19 +543,18 @@
     /* KNOCKOUT BRACKET STAGE VIEW */
     .bracket-container {
       display: block;
-      overflow-x: auto;
+      overflow-x: hidden;
       padding: 32px 0;
       position: relative;
+      width: 100%;
     }
 
     .bracket-layout {
       display: grid;
-      grid-template-columns: repeat(9, minmax(160px, 180px));
+      grid-template-columns: repeat(9, minmax(0, 1fr));
       gap: 16px;
       align-items: center;
-      justify-content: center;
-      width: max-content;
-      margin: 0 auto;
+      width: 100%;
     }
 
     .bracket-column {
