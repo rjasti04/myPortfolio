@@ -1,19 +1,19 @@
 :root {
-  /* Vibrant Modern Color System - Electric Blue & Cyan */
-  --accent-hue: 200;
-  --accent-fill: hsl(200, 98%, 48%);
-  --accent-text: hsl(200, 98%, 42%);
-  --accent-hover: hsl(200, 98%, 38%);
+  /* Vibrant Modern Color System - Crimson & Gold */
+  --accent-hue: 348;
+  --accent-fill: hsl(348, 66%, 45%);
+  --accent-text: hsl(348, 66%, 38%);
+  --accent-hover: hsl(348, 66%, 34%);
   --accent: var(--accent-fill);
-  --accent-soft: hsl(200, 98%, 48%, 0.12);
-  --accent-mild: hsl(200, 98%, 48%, 0.58);
-  --secondary-fill: hsl(280, 85%, 58%);
-  --secondary-text: hsl(280, 85%, 52%);
-  --data-fill: hsl(160, 84%, 42%);
-  --data-text: hsl(160, 84%, 38%);
+  --accent-soft: hsl(348, 66%, 45%, 0.12);
+  --accent-mild: hsl(348, 66%, 45%, 0.58);
+  --secondary-fill: hsl(44, 80%, 46%);
+  --secondary-text: hsl(44, 80%, 40%);
+  --data-fill: hsl(166, 63%, 49%);
+  --data-text: hsl(166, 63%, 42%);
   --on-accent: #fff;
   --bg: #f8fafb;
-  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, #e0f2fe 35%, #f0f9ff 70%, #faf5ff);
+  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, #fde8ec 35%, #fffaf0 70%, #fdf8f0);
   --text: #0f172a;
   --muted: #3f4b5a;
   --border: hsl(220, 39%, 11%, 0.13);
@@ -21,7 +21,7 @@
   --surface: hsl(0, 0%, 100%, 0.92);
   --surface-soft: hsl(0, 0%, 100%, 0.70);
   --card-bg: var(--surface);
-  --skill-bg: hsl(200, 100%, 98%, 0.80);
+  --skill-bg: hsl(348, 40%, 98%, 0.80);
   --header-height: 72px;
   scroll-padding-top: calc(var(--header-height) + 24px);
   --radius: 20px;
@@ -112,14 +112,14 @@ body.dark-theme {
   --card-bg: var(--surface);
   --skill-bg: hsl(210, 20%, 14%, 0.72);
   --select-bg: #0f1419;
-  /* Vibrant dark theme accent colors - adjusted for vibrancy and button contrast */
-  --accent-fill: hsl(200, 98%, 50%);
-  --accent-text: hsl(200, 98%, 48%);
-  --accent-hover: hsl(200, 98%, 42%);
-  --accent-soft: hsl(200, 98%, 50%, 0.18);
-  --accent-mild: hsl(200, 98%, 50%, 0.58);
-  --secondary-text: hsl(280, 85%, 58%);
-  --data-text: hsl(160, 84%, 46%);
+  /* Vibrant dark theme accent colors - Crimson & Gold */
+  --accent-fill: hsl(348, 66%, 52%);
+  --accent-text: hsl(348, 66%, 58%);
+  --accent-hover: hsl(348, 66%, 44%);
+  --accent-soft: hsl(348, 66%, 52%, 0.18);
+  --accent-mild: hsl(348, 66%, 52%, 0.58);
+  --secondary-text: hsl(44, 80%, 54%);
+  --data-text: hsl(166, 63%, 52%);
   --color-success: #34d399;
   --color-warning: #fbbf24;
   --color-error: #fb7185;
@@ -2517,6 +2517,8 @@ body.dark-theme #resume .item {
   justify-content: center;
   width: 42px;
   height: 42px;
+  aspect-ratio: 1;
+  flex-shrink: 0;
   border-radius: 50%;
   background: transparent;
   border: 2px solid currentColor;
