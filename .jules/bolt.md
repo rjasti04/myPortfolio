@@ -1,0 +1,3 @@
+## 2024-05-24 - Optimize Particle Connections using Spatial Partitioning
+**Learning:** Full O(n²) distance calculations in canvas animations (like connectParticles) cause significant main-thread blocking, particularly on lower-end devices. Pre-sorting particles by a coordinate allows for early loop termination.
+**Action:** Always pre-sort particles by an axis (e.g., X-coordinate) and break early (`if (dx > maxDistance) break;`) to drastically reduce unnecessary distance checks in large N-body simulations. Compare squared distances (`dx*dx + dy*dy <= maxSq`) to bypass expensive `Math.sqrt` calls.
