@@ -31,6 +31,13 @@ export function handleFocusTrap(event, modal) {
 
 export function openModal(modal, { initialFocus = null } = {}) {
   if (!modal) return;
+
+  // Clean up any existing listener to prevent leaks if opened consecutively
+  if (modalKeydown.has(modal)) {
+    document.removeEventListener("keydown", modalKeydown.get(modal));
+    modalKeydown.delete(modal);
+  }
+
   modalFocusReturn.set(modal, document.activeElement instanceof HTMLElement ? document.activeElement : null);
   modal.classList.add("active");
   modal.setAttribute("aria-hidden", "false");

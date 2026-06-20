@@ -6,10 +6,13 @@ from sqlalchemy.pool import NullPool
 
 from server.main import app
 from server.db.database import Base, get_db
+import server.models
 
-DATABASE_URL = "postgresql+asyncpg://jules:jules@localhost:5432/rjwebapp"
+import os
+DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
-engine = create_async_engine(DATABASE_URL, echo=False, poolclass=NullPool)
+from sqlalchemy.pool import StaticPool
+engine = create_async_engine(DATABASE_URL, echo=False, poolclass=StaticPool)
 TestingSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
@@ -27,16 +30,15 @@ app.dependency_overrides[get_db] = override_get_db
 
 import pytest_asyncio
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def setup_db():
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def async_client(setup_db):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
