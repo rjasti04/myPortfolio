@@ -84,6 +84,22 @@ DEFAULT_MODEL_ID = _required_env("DEFAULT_MODEL_ID")
 
 _raw_origins = os.getenv("CORS_ORIGINS", "")
 _origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+if not _origins:
+    _origins = [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+    ]
+
+# Ensure production domains are always allowed to prevent browser CORS block issues on www. vs bare domain
+for domain in ["https://rjasti.com", "https://www.rjasti.com"]:
+    if domain not in _origins:
+        _origins.append(domain)
 
 MAX_BODY_BYTES = _env_int("MAX_BODY_BYTES", 1_048_576)  # 1 MB
 CHAT_MAX_CONCURRENCY = _env_int("CHAT_MAX_CONCURRENCY", 4)
@@ -323,7 +339,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -332,7 +348,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 class SessionCreate(BaseModel):
-    user_agent: Optional[str] = Field(default=None, max_length=512)
+    user_agent: Optional[str] = Field(default=None, max_length=2048)
     device_type: Optional[Literal["desktop", "mobile", "tablet", "unknown"]] = None
 
 class SessionEnd(BaseModel):
@@ -423,9 +439,10 @@ async def create_session(payload: SessionCreate, request: Request, db: AsyncSess
     request_id = request.scope.get("request_id", "unknown")
     client_ip = _client_ip_from_request(request)
 
+    user_agent_truncated = payload.user_agent[:512] if payload.user_agent else None
     session_db = UserSession(
         ip_address=client_ip,
-        user_agent=payload.user_agent,
+        user_agent=user_agent_truncated,
         device_type=payload.device_type
     )
     db.add(session_db)

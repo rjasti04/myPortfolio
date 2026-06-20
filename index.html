@@ -108,8 +108,8 @@
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="./auth-modal.css" />
   <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
-    media="print" id="google-fonts-link" />
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" media="print"
+    id="google-fonts-link" />
   <noscript>
     <link rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" />
@@ -122,7 +122,7 @@
 <body>
   <!-- Skip to main content for keyboard accessibility -->
   <a href="#main-content" class="skip-link">Skip to main content</a>
-  
+
   <!-- Inline theme bootstrap: runs before first paint to prevent white flash.
        Defaults to dark-theme if no preference has been saved. -->
   <script>
@@ -229,14 +229,15 @@
         </div>
 
         <div class="header-dropdown js-only" id="theme-customizer-dropdown">
-          <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme" aria-label="Customize theme"
-            aria-controls="theme-customizer-menu" aria-expanded="false">
+          <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme"
+            aria-label="Customize theme" aria-controls="theme-customizer-menu" aria-expanded="false">
             <i class="fas fa-palette"></i>
           </button>
           <div class="header-dropdown-menu" id="theme-customizer-menu" aria-hidden="true">
             <div class="header-dropdown-container customizer-content">
               <h3 class="customizer-title">Customize Theme</h3>
-              <p class="customizer-description">Choose your colors. We'll automatically generate accessible light and dark variants.</p>
+              <p class="customizer-description">Choose your colors. We'll automatically generate accessible light and
+                dark variants.</p>
 
               <div class="customizer-presets">
                 <label class="customizer-presets-label">Terminal Presets</label>
@@ -289,22 +290,28 @@
                 <div class="color-popover-preview-row">
                   <span class="color-popover-preview" id="color-popover-preview" aria-hidden="true"></span>
                   <label class="color-popover-field" for="color-popover-hex">Hex</label>
-                  <input type="text" class="color-popover-hex" id="color-popover-hex" inputmode="text"
-                    maxlength="7" spellcheck="false" autocomplete="off" />
+                  <input type="text" class="color-popover-hex" id="color-popover-hex" inputmode="text" maxlength="7"
+                    spellcheck="false" autocomplete="off" />
                 </div>
                 <div class="color-popover-swatches" id="color-popover-swatches" aria-label="Preset colors"></div>
               </div>
 
               <div class="customizer-actions">
-                <button type="button" class="btn btn-outline" id="theme-customizer-reset" data-spring-hover>Reset</button>
+                <button type="button" class="btn btn-outline" id="theme-customizer-reset"
+                  data-spring-hover>Reset</button>
                 <button type="button" class="btn" id="theme-customizer-apply" data-spring-hover>Apply</button>
               </div>
             </div>
           </div>
         </div>
 
-        <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme"
-          aria-pressed="false">
+        <a href="worldcup.html" target="_blank" class="header-icon-btn" id="worldcup-link" title="World Cup Predictor"
+          aria-label="Launch 2026 World Cup Bracket Predictor in a new tab">
+          <i class="fas fa-futbol"></i>
+        </a>
+
+        <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme"
+          aria-label="Toggle theme" aria-pressed="false">
           <i class="fas fa-moon" id="theme-icon"></i>
         </button>
 
@@ -327,10 +334,10 @@
               real-time analytics for global enterprises.
             </p>
             <div class="hero-buttons">
-              <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="btn" data-spring-hover>Resume <i
-                  class="fas fa-arrow-down"></i></a>
-              <a href="#ai" data-target="ai" class="nav-cta btn hero-chat-btn" id="hero-chat-btn" aria-label="Open AI Chat" data-spring-hover>Ask AI <i
-                  class="fas fa-robot"></i></a>
+              <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="btn" data-spring-hover>Resume
+                <i class="fas fa-arrow-down"></i></a>
+              <a href="#ai" data-target="ai" class="nav-cta btn hero-chat-btn" id="hero-chat-btn"
+                aria-label="Open AI Chat" data-spring-hover>Ask AI <i class="fas fa-robot"></i></a>
             </div>
           </div>
           <aside class="terminal-panel" aria-label="Now Building panel">
@@ -749,24 +756,24 @@
 
                 <div class="form-group floating-label-group">
                   <div class="input-wrapper">
-                    <input type="text" id="contact-name" name="name" placeholder=" " autocomplete="name" 
-                           aria-label="Your full name" required />
+                    <input type="text" id="contact-name" name="name" placeholder=" " autocomplete="name"
+                      aria-label="Your full name" required />
                     <label class="form-label" for="contact-name">Name</label>
                     <i class="fas fa-user input-icon"></i>
                   </div>
                 </div>
                 <div class="form-group floating-label-group">
                   <div class="input-wrapper">
-                    <input type="email" id="contact-email" name="email" placeholder=" " autocomplete="email" 
-                           aria-label="Your email address" required />
+                    <input type="email" id="contact-email" name="email" placeholder=" " autocomplete="email"
+                      aria-label="Your email address" required />
                     <label class="form-label" for="contact-email">Email</label>
                     <i class="fas fa-envelope input-icon"></i>
                   </div>
                 </div>
                 <div class="form-group floating-label-group">
                   <div class="input-wrapper">
-                    <textarea id="contact-message" name="message" placeholder=" " rows="4" 
-                              aria-label="Your message" required></textarea>
+                    <textarea id="contact-message" name="message" placeholder=" " rows="4" aria-label="Your message"
+                      required></textarea>
                     <label class="form-label" for="contact-message">Message</label>
                   </div>
                 </div>
@@ -903,7 +910,8 @@
   </div>
 
   <!-- Authentication Modal -->
-  <div class="auth-modal-overlay hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+  <div class="auth-modal-overlay hidden" id="auth-modal" role="dialog" aria-modal="true"
+    aria-labelledby="auth-modal-title">
     <div class="auth-modal-content">
       <button class="auth-modal-close" id="auth-modal-close" aria-label="Close modal">
         <i class="fas fa-times"></i>

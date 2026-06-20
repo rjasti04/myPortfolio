@@ -3,12 +3,12 @@ import { showToast } from "./utils.js";
 // Add global unhandled rejection handler
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection:', event.reason);
-  
+
   // Show user-friendly message for critical failures
   if (event.reason?.message?.includes('fetch') || event.reason?.message?.includes('network')) {
     showToast('Network error. Please check your connection.', 'error');
   }
-  
+
   event.preventDefault();
 });
 
@@ -92,7 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
     particlesContainer.style.zIndex = '0';
     heroSection.style.position = 'relative';
     heroSection.insertBefore(particlesContainer, heroSection.firstChild);
-    
+
     const initHeroEffects = () => {
       initParticles('particles-canvas');
     };
@@ -168,7 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const isMobileViewport = window.matchMedia('(pointer: coarse) and (max-width: 768px)').matches;
     const hasGoodHardware = isMobileViewport ? cores >= 4 : cores >= 2;
     const hasEnoughMemory = memory >= 3;
-    
+
     if (!prefersReducedMotion && hasGoodHardware && hasEnoughMemory) {
       import("../three-bg.js").catch(err => {
         console.warn('Three.js background failed to load:', err);
@@ -176,7 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   };
-  
+
   if ("requestIdleCallback" in window) {
     requestIdleCallback(loadThreeBackground);
   } else {
@@ -195,7 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
           // Listen for updates
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
-            
+
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // New service worker available
@@ -234,9 +234,9 @@ function showUpdateNotification() {
     z-index: 10001;
     animation: slideInUp var(--motion-medium) var(--ease-enter);
   `;
-  
+
   document.body.appendChild(updateBanner);
-  
+
   document.getElementById('update-refresh-btn').addEventListener('click', () => {
     window.location.reload();
   });

@@ -1,4 +1,38 @@
-export const API_BASE = "https://rjasti.com/api";
+function getApiBaseUrl() {
+  const defaultProd = "https://rjasti.com/api";
+  if (typeof window === "undefined" || !window.location) {
+    return defaultProd;
+  }
+  const hostname = window.location.hostname;
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") {
+    return "http://localhost:8000";
+  }
+  if (hostname.includes("staging")) {
+    return "https://staging-api.rjasti.com/api";
+  }
+  // Ensure the API URL matches the site origin (www vs bare domain) to maintain same-origin status if possible
+  if (window.location.origin.includes("www.")) {
+    return "https://www.rjasti.com/api";
+  }
+  return defaultProd;
+}
+
+export let API_BASE = getApiBaseUrl();
+
+// Dynamic health check to fallback to production API if local backend is down or unreachable
+let healthCheckPromise = null;
+if (API_BASE.includes("localhost")) {
+  healthCheckPromise = fetch(`${API_BASE}/health`, { method: "GET" })
+    .then(res => {
+      if (!res.ok) throw new Error("Local API health check failed");
+    })
+    .catch(err => {
+      console.warn("Local API health check failed, falling back to production API.", err);
+      API_BASE = "https://rjasti.com/api";
+    });
+} else {
+  healthCheckPromise = Promise.resolve();
+}
 
 // Constants
 const MAX_QUEUE_SIZE = 200;
@@ -60,7 +94,10 @@ export function isApiConfigured() {
 }
 
 export function apiFetch(url, options = {}) {
-  return fetch(url, options);
+  const defaultOptions = {
+    mode: "cors"
+  };
+  return fetch(url, { ...defaultOptions, ...options });
 }
 
 function getDeviceType() {
@@ -89,11 +126,12 @@ async function startSession() {
 
   sessionPromise = (async () => {
     try {
-      const response = await fetch(`${API_BASE}/sessions`, {
+      await healthCheckPromise;
+      const response = await apiFetch(`${API_BASE}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_agent: navigator.userAgent,
+          user_agent: navigator.userAgent ? navigator.userAgent.slice(0, 500) : null,
           device_type: getDeviceType()
         })
       });
@@ -108,7 +146,7 @@ async function startSession() {
       }
       return null;
     } catch (error) {
-      console.error("Analytics: Failed to start session", error);
+      console.warn("Analytics: Session could not be started (likely blocked or offline).", error);
       return null;
     } finally {
       sessionPromise = null;
@@ -123,7 +161,8 @@ export async function ensureSession() {
     return true;
   }
   await startSession();
-  return Boolean(sessionId);
+  // Return true to allow dependent features like AI chat to work even if tracking is blocked
+  return true;
 }
 
 function startHeartbeat() {
@@ -148,7 +187,7 @@ function startHeartbeat() {
         startSession();
       }
     } catch (err) {
-      console.error("Analytics: Heartbeat network failure", err);
+      console.warn("Analytics: Heartbeat network failure (likely blocked or offline).", err);
     }
   };
 
@@ -216,7 +255,7 @@ async function flushEvents() {
       eventQueue.length = MAX_QUEUE_SIZE;
     }
     saveEventQueue();
-    console.error("Analytics: Network error bulk sending events", error);
+    console.warn("Analytics: Network error bulk sending events (likely blocked or offline).", error);
   }
 }
 
@@ -230,7 +269,7 @@ function flushEventsOnUnload() {
       headers: { "Content-Type": "application/json" },
       body: payload,
       keepalive: true
-    }).catch(console.error);
+    }).catch(err => console.warn("Analytics: Failed to bulk send events on unload", err));
 
     eventQueue.length = 0;
     saveEventQueue();
@@ -245,7 +284,7 @@ function flushEventsOnUnload() {
       headers: { "Content-Type": "application/json" },
       body: endPayload,
       keepalive: true
-    }).catch(console.error);
+    }).catch(err => console.warn("Analytics: Failed to end session on unload", err));
   }
 }
 
@@ -273,7 +312,7 @@ function attachGlobalListeners() {
                clearSessionId();
                startSession();
             }
-          }).catch(err => console.error("Analytics: Revive error", err));
+          }).catch(err => console.warn("Analytics: Revive error (likely blocked or offline).", err));
         }
       }, 250); // Debounce revive
     }

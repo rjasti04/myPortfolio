@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from typing import Optional
 from server.db.database import get_db
 from server.models.user import User
 from server.auth.security import verify_token
@@ -49,7 +50,7 @@ async def get_current_user(
 async def get_optional_current_user(
     token: str = Depends(OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)),
     db: AsyncSession = Depends(get_db)
-) -> User | None:
+) -> Optional[User]:
     if not token:
         return None
     try:

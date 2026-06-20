@@ -1,7 +1,7 @@
 import { prefersReducedMotion } from "./config.js";
 
 // Carousel configuration constants
-const MOBILE_QUERY = "(max-width: 500px)";
+const MOBILE_QUERY = "(max-width: 640px)";
 const AUTOPLAY_MS = 4500;
 const SWIPE_THRESHOLD = 40;
 
@@ -200,11 +200,14 @@ function initCarouselLogic(carousel, track, slides) {
   function onMqChange(e) {
     isMobile = e.matches;
     if (isMobile) {
+      carousel.classList.add("carousel-initialized");
+      void carousel.offsetHeight;
       goTo(activeIdx);
       startAutoplay();
     } else {
       stopAutoplay();
       resetClasses();
+      carousel.classList.remove("carousel-initialized");
     }
   }
 

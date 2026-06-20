@@ -7,7 +7,7 @@ let hamburger, navMenu, navLinks, sections, imageModal, imageModalCloseButton, p
 
 function setMobileMenuState(isOpen) {
   if (!navMenu || !hamburger) return;
-  
+
   if (isOpen) {
     navMenu.classList.add("show-menu");
     document.body.style.overflow = 'hidden';
@@ -15,7 +15,7 @@ function setMobileMenuState(isOpen) {
     navMenu.classList.remove("show-menu");
     document.body.style.overflow = '';
   }
-  
+
   hamburger.setAttribute("aria-expanded", String(isOpen));
   document.body.classList.toggle("nav-open", Boolean(isOpen) && compactViewport.matches);
 
@@ -90,7 +90,7 @@ export function initNavigation() {
     if (navMenu?.classList.contains("show-menu")) {
       const isClickInsideMenu = navMenu.contains(event.target);
       const isClickOnHamburger = hamburger?.contains(event.target);
-      
+
       if (!isClickInsideMenu && !isClickOnHamburger) {
         setMobileMenuState(false);
       }
@@ -119,10 +119,10 @@ export function initNavigation() {
       const dropdown = toggle.closest('.header-dropdown');
       const menu = dropdown.querySelector('.header-dropdown-menu');
       const isOpen = dropdown.classList.contains('is-open');
-      
+
       closeAllDropdowns();
       setMobileMenuState(false);
-      
+
       if (!isOpen) {
         dropdown.classList.add('is-open');
         toggle.setAttribute('aria-expanded', 'true');
@@ -182,12 +182,12 @@ export function initNavigation() {
       if (!scrollTicking) {
         requestAnimationFrame(() => {
           headerEl.classList.toggle("scrolled", window.scrollY > 32);
-          
+
           // Update scroll progress bar
           const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
           const scrollProgress = (window.scrollY / scrollHeight) * 100;
           headerEl.style.setProperty('--scroll-progress', `${Math.min(scrollProgress, 100)}%`);
-          
+
           scrollTicking = false;
         });
         scrollTicking = true;
@@ -315,14 +315,14 @@ function initMobileBottomNav() {
   const mobileNav = document.createElement('nav');
   mobileNav.className = 'mobile-bottom-nav';
   mobileNav.setAttribute('aria-label', 'Mobile navigation');
-  
+
   const navItems = [
     { target: 'about', icon: 'fa-home', label: 'Home' },
     { target: 'portfolio', icon: 'fa-briefcase', label: 'Work' },
     { target: 'ai', icon: 'fa-robot', label: 'AI' },
     { target: 'contact', icon: 'fa-envelope', label: 'Contact' }
   ];
-  
+
   navItems.forEach(item => {
     const link = document.createElement('a');
     link.href = `#${item.target}`;
@@ -331,18 +331,18 @@ function initMobileBottomNav() {
       <i class="fas ${item.icon}"></i>
       <span class="mobile-bottom-nav-label">${item.label}</span>
     `;
-    
+
     link.addEventListener('click', (e) => {
       e.preventDefault();
       navigateToSection(item.target);
       updateMobileNavActive(item.target);
     });
-    
+
     mobileNav.appendChild(link);
   });
-  
+
   document.body.appendChild(mobileNav);
-  
+
   // Set initial active state
   const currentSection = document.querySelector('main section.active')?.id || 'about';
   updateMobileNavActive(currentSection);
@@ -351,7 +351,7 @@ function initMobileBottomNav() {
 function updateMobileNavActive(target) {
   const mobileNav = document.querySelector('.mobile-bottom-nav');
   if (!mobileNav) return;
-  
+
   mobileNav.querySelectorAll('a').forEach(link => {
     const isActive = link.dataset.target === target;
     link.classList.toggle('active', isActive);
@@ -360,7 +360,7 @@ function updateMobileNavActive(target) {
 
 function initSwipeGestures() {
   const sectionOrder = ['about', 'resume', 'portfolio', 'hobbies', 'activity', 'ai', 'contact'];
-  
+
   new SwipeHandler({
     threshold: 75,
     onSwipeLeft: () => {

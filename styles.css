@@ -1,19 +1,19 @@
 :root {
-  /* Vibrant Modern Color System - Electric Blue & Cyan */
-  --accent-hue: 200;
-  --accent-fill: hsl(200, 98%, 48%);
-  --accent-text: hsl(200, 98%, 42%);
-  --accent-hover: hsl(200, 98%, 38%);
+  /* Vibrant Modern Color System - Crimson & Gold */
+  --accent-hue: 348;
+  --accent-fill: hsl(348, 66%, 45%);
+  --accent-text: hsl(348, 66%, 38%);
+  --accent-hover: hsl(348, 66%, 34%);
   --accent: var(--accent-fill);
-  --accent-soft: hsl(200, 98%, 48%, 0.12);
-  --accent-mild: hsl(200, 98%, 48%, 0.58);
-  --secondary-fill: hsl(280, 85%, 58%);
-  --secondary-text: hsl(280, 85%, 52%);
-  --data-fill: hsl(160, 84%, 42%);
-  --data-text: hsl(160, 84%, 38%);
+  --accent-soft: hsl(348, 66%, 45%, 0.12);
+  --accent-mild: hsl(348, 66%, 45%, 0.58);
+  --secondary-fill: hsl(44, 80%, 46%);
+  --secondary-text: hsl(44, 80%, 40%);
+  --data-fill: hsl(166, 63%, 49%);
+  --data-text: hsl(166, 63%, 42%);
   --on-accent: #fff;
   --bg: #f8fafb;
-  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, #e0f2fe 35%, #f0f9ff 70%, #faf5ff);
+  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, #fde8ec 35%, #fffaf0 70%, #fdf8f0);
   --text: #0f172a;
   --muted: #3f4b5a;
   --border: hsl(220, 39%, 11%, 0.13);
@@ -21,7 +21,7 @@
   --surface: hsl(0, 0%, 100%, 0.92);
   --surface-soft: hsl(0, 0%, 100%, 0.70);
   --card-bg: var(--surface);
-  --skill-bg: hsl(200, 100%, 98%, 0.80);
+  --skill-bg: hsl(348, 40%, 98%, 0.80);
   --header-height: 72px;
   scroll-padding-top: calc(var(--header-height) + 24px);
   --radius: 20px;
@@ -112,14 +112,14 @@ body.dark-theme {
   --card-bg: var(--surface);
   --skill-bg: hsl(210, 20%, 14%, 0.72);
   --select-bg: #0f1419;
-  /* Vibrant dark theme accent colors - adjusted for vibrancy and button contrast */
-  --accent-fill: hsl(200, 98%, 50%);
-  --accent-text: hsl(200, 98%, 48%);
-  --accent-hover: hsl(200, 98%, 42%);
-  --accent-soft: hsl(200, 98%, 50%, 0.18);
-  --accent-mild: hsl(200, 98%, 50%, 0.58);
-  --secondary-text: hsl(280, 85%, 58%);
-  --data-text: hsl(160, 84%, 46%);
+  /* Vibrant dark theme accent colors - Crimson & Gold */
+  --accent-fill: hsl(348, 66%, 52%);
+  --accent-text: hsl(348, 66%, 58%);
+  --accent-hover: hsl(348, 66%, 44%);
+  --accent-soft: hsl(348, 66%, 52%, 0.18);
+  --accent-mild: hsl(348, 66%, 52%, 0.58);
+  --secondary-text: hsl(44, 80%, 54%);
+  --data-text: hsl(166, 63%, 52%);
   --color-success: #34d399;
   --color-warning: #fbbf24;
   --color-error: #fb7185;
@@ -466,6 +466,7 @@ body.dark-theme #nav-menu a:not(.active):hover {
 .header-left:focus-visible,
 #theme-toggle:focus-visible,
 #palette-toggle:focus-visible,
+#worldcup-link:focus-visible,
 .modal-close:focus-visible,
 .btn:focus-visible,
 .project-filter:focus-visible,
@@ -497,6 +498,7 @@ body.dark-theme #nav-menu a:not(.active):hover {
   .header-left:focus-visible,
   #theme-toggle:focus-visible,
   #palette-toggle:focus-visible,
+  #worldcup-link:focus-visible,
   .modal-close:focus-visible,
   .btn:focus-visible,
   .project-filter:focus-visible,
@@ -922,9 +924,17 @@ main {
 
 .hero-buttons {
   display: flex;
+  flex-wrap: wrap;
+  max-width: 560px;
   align-items: center;
   gap: 16px;
   margin-top: 8px;
+}
+
+.hero-buttons .btn {
+  flex: 1 1 calc(50% - 8px);
+  min-width: 160px;
+  justify-content: center;
 }
 
 .hero-chat-btn {
@@ -2253,7 +2263,7 @@ body.dark-theme #resume .item {
   margin-right: 4px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1150px) {
 
   .header-datetime,
   .header-locweather {
@@ -2261,7 +2271,7 @@ body.dark-theme #resume .item {
   }
 }
 
-@media (hover: none) and (pointer: coarse) and (max-width: 820px) {
+@media (hover: none) and (pointer: coarse) and (max-width: 640px) {
 
   .header-datetime,
   .header-locweather {
@@ -2339,6 +2349,7 @@ body.dark-theme #resume .item {
 .stat-number {
   font-size: 32px;
   font-weight: 800;
+  white-space: nowrap;
   background: linear-gradient(135deg, var(--accent-text), var(--secondary-text));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -2453,13 +2464,18 @@ body.dark-theme #resume .item {
 .hero-buttons .btn {
   color: #fff;
   border-radius: 999px;
-  padding: 10px 10px 10px 32px;
+  padding: 10px 24px;
   gap: 16px;
   background: var(--accent-fill);
   border: none;
   box-shadow: 0 4px 14px var(--accent-soft);
   position: relative;
   overflow: hidden;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Shine effect pseudo-element */
@@ -2501,6 +2517,8 @@ body.dark-theme #resume .item {
   justify-content: center;
   width: 42px;
   height: 42px;
+  aspect-ratio: 1;
+  flex-shrink: 0;
   border-radius: 50%;
   background: transparent;
   border: 2px solid currentColor;
@@ -2667,7 +2685,7 @@ body.dark-theme .skill-tag {
   box-shadow: none;
 }
 
-@media (hover: none) and (pointer: coarse) and (max-width: 820px) {
+@media (hover: none) and (pointer: coarse) and (max-width: 640px) {
   .skills-grid {
     display: flex;
     grid-template-columns: none;
@@ -2709,6 +2727,11 @@ body.dark-theme .skill-tag {
 }
 
 @media (max-width: 500px) {
+  /* Prevent vertical flash of other slides before JS initialization */
+  .skills-carousel:not(.carousel-initialized) .skills-grid .skill-group:not(:first-child) {
+    display: none !important;
+  }
+
   .skills-carousel {
     overflow: hidden;
     border-radius: var(--radius);
@@ -3171,10 +3194,17 @@ body.dark-theme .skill-tag {
 
 .hero-buttons {
   display: flex;
+  flex-wrap: wrap;
+  max-width: 560px;
   gap: 15px;
   align-items: center;
-  flex-wrap: wrap;
   margin-top: 4px;
+}
+
+.hero-buttons .btn {
+  flex: 1 1 calc(50% - 8px);
+  min-width: 160px;
+  justify-content: center;
 }
 
 @media (width >=1280px) {
@@ -3187,23 +3217,8 @@ body.dark-theme .skill-tag {
   }
 }
 
-/* Tablet-specific improvements */
-@media (min-width: 641px) and (max-width: 900px) {
-  .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .skills-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .portfolio-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 /* Landscape tablets can handle more columns */
-@media (min-width: 901px) and (max-width: 1024px) and (orientation: landscape) {
+@media (min-width: 1151px) and (max-width: 1024px) and (orientation: landscape) {
   .portfolio-grid {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -3222,7 +3237,7 @@ body.dark-theme .skill-tag {
 }
 
 /* Mobile Responsive Logic */
-@media (width <=900px) {
+@media (width <=1150px) {
   :root {
     --header-height: 56px;
     scroll-padding-top: calc(var(--header-height) + 28px);
@@ -3391,7 +3406,7 @@ body.dark-theme .skill-tag {
   }
 
   .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     gap: 10px;
   }
 
@@ -3487,6 +3502,21 @@ body.dark-theme .skill-tag {
   .modal-close {
     top: 12px;
     right: 12px;
+  }
+}
+
+/* Tablet-specific improvements */
+@media (min-width: 641px) and (max-width: 1150px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .skills-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .portfolio-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -3900,6 +3930,7 @@ body.dark-theme .skill-tag {
 .header-icon-btn {
   background: none;
   border: none;
+  text-decoration: none;
   cursor: pointer;
   font-size: 18px;
   color: var(--accent-text);
@@ -3920,6 +3951,26 @@ body.dark-theme .skill-tag {
 .header-icon-btn:hover {
   transform: scale(1.08);
   background: var(--accent-soft);
+}
+
+/* Reset anchor decorations specifically for World Cup icon button link */
+#worldcup-link {
+  text-decoration: none !important;
+  border: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  outline: none;
+}
+
+#worldcup-link::after,
+#worldcup-link::before {
+  content: none !important;
+  display: none !important;
+}
+
+#worldcup-link:focus-visible {
+  outline: 3px solid var(--accent-fill);
+  outline-offset: 3px;
 }
 
 .header-dropdown {
@@ -4119,7 +4170,7 @@ section {
   justify-content: center;
 }
 
-@media (width <=900px) {
+@media (width <=1150px) {
   header {
     --header-action-size: 38px;
   }
@@ -5843,7 +5894,7 @@ body.dark-theme .mobile-bottom-nav {
   background: rgba(10, 14, 20, 0.95);
 }
 
-@media (width <=900px) {
+@media (width <=1150px) {
   .mobile-bottom-nav {
     display: flex;
     justify-content: space-around;
@@ -5944,4 +5995,5 @@ body.dark-theme .mobile-bottom-nav {
     margin-left: 0;
   }
 }
+
 

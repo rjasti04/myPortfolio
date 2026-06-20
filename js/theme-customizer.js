@@ -114,9 +114,9 @@ export function initThemeCustomizer() {
   if (!paletteBtn || !customizerDropdown) return;
 
   const defaultColors = {
-    primary: '#0EA5E9',
-    secondary: '#A855F7',
-    accent: '#10B981'
+    primary: '#C02645',
+    secondary: '#D4A017',
+    accent: '#2ECDA7'
   };
 
   const colorLabels = {
@@ -126,8 +126,8 @@ export function initThemeCustomizer() {
   };
 
   const palettePresets = [
-    '#0EA5E9', '#A855F7', '#10B981', '#0F172A', '#EF4444', '#F59E0B',
-    '#14B8A6', '#6366F1', '#EC4899', '#84CC16', '#64748B', '#111827'
+    '#C02645', '#D4A017', '#2ECDA7', '#0EA5E9', '#A855F7', '#6366F1',
+    '#14B8A6', '#EC4899', '#F59E0B', '#84CC16', '#64748B', '#0F172A'
   ];
 
   const colorControls = {
