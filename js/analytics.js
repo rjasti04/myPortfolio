@@ -94,10 +94,19 @@ export function isApiConfigured() {
 }
 
 export function apiFetch(url, options = {}) {
+  const { timeout = 30000, ...fetchOptions } = options;
+
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
   const defaultOptions = {
-    mode: "cors"
+    mode: "cors",
+    signal: controller.signal
   };
-  return fetch(url, { ...defaultOptions, ...options });
+
+  return fetch(url, { ...defaultOptions, ...fetchOptions }).finally(() => {
+    clearTimeout(id);
+  });
 }
 
 function getDeviceType() {
@@ -156,11 +165,18 @@ async function startSession() {
   return sessionPromise;
 }
 
+let sessionInitPromise = null;
+
 export async function ensureSession() {
   if (sessionId) {
     return true;
   }
-  await startSession();
+  if (!sessionInitPromise) {
+    sessionInitPromise = startSession().finally(() => {
+      sessionInitPromise = null;
+    });
+  }
+  await sessionInitPromise;
   // Return true to allow dependent features like AI chat to work even if tracking is blocked
   return true;
 }

@@ -225,6 +225,7 @@ class RateLimitMiddleware:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self._hits: dict[str, list[float]] = defaultdict(list)
+        self._last_cleanup = time.time()
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -237,6 +238,16 @@ class RateLimitMiddleware:
         now = time.time()
         window = self.window_seconds
         
+        # Cleanup periodically to prevent memory leak from abandoned IPs
+        if now - self._last_cleanup > self.window_seconds:
+            # Reconstruct as defaultdict to maintain default semantics
+            new_hits = defaultdict(list)
+            for ip, hits in self._hits.items():
+                if hits and now - hits[-1] < window:
+                    new_hits[ip] = hits
+            self._hits = new_hits
+            self._last_cleanup = now
+
         # Filter existing hits for this IP
         self._hits[client_ip] = [
             t for t in self._hits[client_ip] if now - t < window

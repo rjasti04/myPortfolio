@@ -247,7 +247,11 @@ export function initChat() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       try {
-        sessions = JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        sessions = Array.isArray(parsed) ? parsed.map(session => ({
+          ...session,
+          messages: Array.isArray(session.messages) ? session.messages : []
+        })) : [];
       } catch (e) {
         sessions = [];
       }
@@ -845,6 +849,7 @@ export function initChat() {
   document.addEventListener('click', (e) => {
     const retryBtn = e.target.closest('.retry-btn');
     if (retryBtn) {
+      if (isGenerating) return;
       const retryText = retryBtn.getAttribute('data-retry-text');
       if (retryText) {
         retryBtn.closest('.chat-message')?.remove();
