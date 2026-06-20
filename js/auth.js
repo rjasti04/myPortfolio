@@ -1,7 +1,7 @@
-import { API_BASE } from './analytics.js';
+import { API_BASE } from "./analytics.js";
 
-export const AUTH_TOKEN_KEY = 'rj_access_token';
-export const REFRESH_TOKEN_KEY = 'rj_refresh_token';
+export const AUTH_TOKEN_KEY = "rj_access_token";
+export const REFRESH_TOKEN_KEY = "rj_refresh_token";
 
 export function getAuthToken() {
   return localStorage.getItem(AUTH_TOKEN_KEY);
@@ -20,21 +20,21 @@ export function clearTokens() {
 export async function loginUser(email, password) {
   try {
     const response = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Login failed');
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Login failed");
     }
 
     const data = await response.json();
     setTokens(data.access_token, data.refresh_token);
     return true;
   } catch (err) {
-    console.error('Login error:', err);
+    console.error("Login error:", err);
     throw err;
   }
 }
@@ -42,79 +42,79 @@ export async function loginUser(email, password) {
 export async function registerUser(email, password) {
   try {
     const response = await fetch(`${API_BASE}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Registration failed');
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Registration failed");
     }
 
     // Auto-login after successful registration
     return await loginUser(email, password);
   } catch (err) {
-    console.error('Registration error:', err);
+    console.error("Registration error:", err);
     throw err;
   }
 }
 
 export async function logoutUser() {
-    // Notify server if needed (optional)
-    try {
-        await fetch(`${API_BASE}/auth/logout`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${getAuthToken()}`
-            }
-        });
-    } catch(e) {}
+  // Notify server if needed (optional)
+  try {
+    await fetch(`${API_BASE}/auth/logout`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+    });
+  } catch (e) {}
 
-    clearTokens();
-    // Dispatch event so other parts of the app can update
-    window.dispatchEvent(new Event('auth-changed'));
+  clearTokens();
+  // Dispatch event so other parts of the app can update
+  window.dispatchEvent(new Event("auth-changed"));
 }
 
 export async function authenticatedFetch(url, options = {}) {
   let token = getAuthToken();
   const headers = {
     ...options.headers,
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
   let response = await fetch(url, { ...options, headers });
 
   if (response.status === 401 && token) {
-      // Try refresh
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-      if (refreshToken) {
-          try {
-              const refreshResponse = await fetch(`${API_BASE}/auth/refresh`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ refresh_token: refreshToken })
-              });
+    // Try refresh
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (refreshToken) {
+      try {
+        const refreshResponse = await fetch(`${API_BASE}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
 
-              if (refreshResponse.ok) {
-                  const data = await refreshResponse.json();
-                  setTokens(data.access_token, data.refresh_token);
+        if (refreshResponse.ok) {
+          const data = await refreshResponse.json();
+          setTokens(data.access_token, data.refresh_token);
 
-                  // Retry original request
-                  const newHeaders = {
-                      ...options.headers,
-                      'Authorization': `Bearer ${data.access_token}`
-                  };
-                  return fetch(url, { ...options, headers: newHeaders });
-              }
-          } catch (e) {
-              console.error('Failed to refresh token', e);
-          }
+          // Retry original request
+          const newHeaders = {
+            ...options.headers,
+            Authorization: `Bearer ${data.access_token}`,
+          };
+          return fetch(url, { ...options, headers: newHeaders });
+        }
+      } catch (e) {
+        console.error("Failed to refresh token", e);
       }
+    }
 
-      // If refresh failed or no refresh token, clear tokens
-      clearTokens();
-      window.dispatchEvent(new Event('auth-changed'));
+    // If refresh failed or no refresh token, clear tokens
+    clearTokens();
+    window.dispatchEvent(new Event("auth-changed"));
   }
 
   return response;

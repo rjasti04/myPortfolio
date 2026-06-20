@@ -18,28 +18,37 @@ function initReveals() {
     return;
   }
 
-  const observer = new IntersectionObserver((entries, intersectionObserver) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add("active");
-        intersectionObserver.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.1, rootMargin: "0px 0px -40px 0px" });
+  const observer = new IntersectionObserver(
+    (entries, intersectionObserver) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("active");
+          intersectionObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.1, rootMargin: "0px 0px -40px 0px" },
+  );
 
   revealElements.forEach((element) => observer.observe(element));
 
   // Stagger delays for grid children (stats, skills, project cards)
-  document.querySelectorAll(".stats-grid, .skills-grid, .portfolio-grid, .articles-grid").forEach((grid) => {
-    const children = Array.from(grid.querySelectorAll(".reveal"));
-    children.forEach((child, i) => {
-      child.style.setProperty("--reveal-delay", `${i * REVEAL_STAGGER_MS}ms`);
+  document
+    .querySelectorAll(
+      ".stats-grid, .skills-grid, .portfolio-grid, .articles-grid",
+    )
+    .forEach((grid) => {
+      const children = Array.from(grid.querySelectorAll(".reveal"));
+      children.forEach((child, i) => {
+        child.style.setProperty("--reveal-delay", `${i * REVEAL_STAGGER_MS}ms`);
+      });
     });
-  });
 }
 
 function initStats() {
-  const statNumbers = Array.from(document.querySelectorAll(".stat-number[data-target]"));
+  const statNumbers = Array.from(
+    document.querySelectorAll(".stat-number[data-target]"),
+  );
   if (statNumbers.length === 0) return;
 
   const springPop = (el) => {
@@ -48,9 +57,13 @@ function initStats() {
     animateSpring({
       from: 1.15,
       to: 1,
-      onUpdate: (v) => { el.style.transform = `scale(${v})`; },
-      onComplete: () => { el.style.transform = ""; },
-      config: { stiffness: 400, damping: 18 }
+      onUpdate: (v) => {
+        el.style.transform = `scale(${v})`;
+      },
+      onComplete: () => {
+        el.style.transform = "";
+      },
+      config: { stiffness: 400, damping: 18 },
     });
   };
 
@@ -89,22 +102,33 @@ function initStats() {
     return;
   }
 
-  const observer = new IntersectionObserver((entries, intersectionObserver) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        animateStat(entry.target);
-        intersectionObserver.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.45 });
+  const observer = new IntersectionObserver(
+    (entries, intersectionObserver) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          animateStat(entry.target);
+          intersectionObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.45 },
+  );
 
   statNumbers.forEach((element) => observer.observe(element));
 }
 
 function initTerminalIntro() {
-  const terminalChildren = Array.from(document.querySelectorAll(".terminal-body > *:not(.terminal-input-line)"));
-  if (mobileDevice.matches || prefersReducedMotion.matches || terminalChildren.length === 0) {
-    terminalChildren.forEach((child) => { child.style.opacity = "1"; });
+  const terminalChildren = Array.from(
+    document.querySelectorAll(".terminal-body > *:not(.terminal-input-line)"),
+  );
+  if (
+    mobileDevice.matches ||
+    prefersReducedMotion.matches ||
+    terminalChildren.length === 0
+  ) {
+    terminalChildren.forEach((child) => {
+      child.style.opacity = "1";
+    });
     return;
   }
 
@@ -126,7 +150,7 @@ function initMatrixDecode() {
   // Pre-generate spans
   const letters = originalText.split("");
   element.textContent = "";
-  const spans = letters.map(letter => {
+  const spans = letters.map((letter) => {
     const s = document.createElement("span");
     s.textContent = letter;
     s.dataset.scrambled = "false";
@@ -141,7 +165,9 @@ function initMatrixDecode() {
   const enableGlitch = () => {
     element.classList.add("glitch-active");
     // Release GPU compositing layers after 30s to save memory
-    setTimeout(() => { element.style.willChange = "auto"; }, 3000);
+    setTimeout(() => {
+      element.style.willChange = "auto";
+    }, 30000);
   };
 
   const animateText = (isInitial = false) => {
@@ -165,7 +191,8 @@ function initMatrixDecode() {
               spans[i].dataset.scrambled = "false";
             }
           } else {
-            spans[i].textContent = chars[Math.floor(Math.random() * chars.length)];
+            spans[i].textContent =
+              chars[Math.floor(Math.random() * chars.length)];
             spans[i].style.color = "var(--accent-text)";
             spans[i].dataset.scrambled = "true";
           }
@@ -245,18 +272,27 @@ function initSpringHovers() {
     const btn = e.target.closest("[data-spring-hover]");
     if (btn && !btn.contains(e.relatedTarget)) {
       animateSpring({
-        from: 0, to: -3,
-        onUpdate: (y) => { btn.style.transform = `translateY(${y}px) scale(${1 + Math.abs(y) * 0.01})`; },
-        config: springConfig
+        from: 0,
+        to: -3,
+        onUpdate: (y) => {
+          btn.style.transform = `translateY(${y}px) scale(${1 + Math.abs(y) * 0.01})`;
+        },
+        config: springConfig,
       });
     }
 
     const card = e.target.closest("[data-spring-card-hover]");
     if (card && !card.contains(e.relatedTarget)) {
       animateSpring({
-        from: 0, to: -8,
-        onUpdate: (y) => { card.style.transform = `translateY(${y}px) scale(1.01)`; },
-        config: springConfig
+        from: -3,
+        to: 0,
+        onUpdate: (y) => {
+          btn.style.transform = `translateY(${y}px)`;
+        },
+        onComplete: () => {
+          btn.style.transform = "";
+        },
+        config: springConfig,
       });
     }
   });
@@ -265,20 +301,27 @@ function initSpringHovers() {
     const btn = e.target.closest("[data-spring-hover]");
     if (btn && !btn.contains(e.relatedTarget)) {
       animateSpring({
-        from: -3, to: 0,
-        onUpdate: (y) => { btn.style.transform = `translateY(${y}px)`; },
-        onComplete: () => { btn.style.transform = ""; },
-        config: springConfig
+        from: 0,
+        to: -8,
+        onUpdate: (y) => {
+          card.style.transform = `translateY(${y}px) scale(1.01)`;
+        },
+        config: springConfig,
       });
     }
 
     const card = e.target.closest("[data-spring-card-hover]");
     if (card && !card.contains(e.relatedTarget)) {
       animateSpring({
-        from: -8, to: 0,
-        onUpdate: (y) => { card.style.transform = `translateY(${y}px)`; },
-        onComplete: () => { card.style.transform = ""; },
-        config: springConfig
+        from: -8,
+        to: 0,
+        onUpdate: (y) => {
+          card.style.transform = `translateY(${y}px)`;
+        },
+        onComplete: () => {
+          card.style.transform = "";
+        },
+        config: springConfig,
       });
     }
   });
@@ -296,44 +339,47 @@ export function initAnimations() {
 // Enhanced page transition animations
 function initPageTransitions() {
   if (prefersReducedMotion.matches) return;
-  
-  const sections = document.querySelectorAll('main section');
-  
-  sections.forEach(section => {
+
+  const sections = document.querySelectorAll("main section");
+
+  sections.forEach((section) => {
     // Add transition classes
-    section.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-    
+    section.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+
     // Observe section activation
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'class') {
-          const isActive = section.classList.contains('active');
-          
+        if (mutation.attributeName === "class") {
+          const isActive = section.classList.contains("active");
+
           if (isActive) {
             // Entering animation
-            section.style.opacity = '0';
-            section.style.transform = 'translateY(20px)';
-            
+            section.style.opacity = "0";
+            section.style.transform = "translateY(20px)";
+
             requestAnimationFrame(() => {
               requestAnimationFrame(() => {
-                section.style.opacity = '1';
-                section.style.transform = 'translateY(0)';
+                section.style.opacity = "1";
+                section.style.transform = "translateY(0)";
               });
             });
-            
+
             // Re-trigger reveal animations for elements in this section
-            const reveals = section.querySelectorAll('.reveal');
+            const reveals = section.querySelectorAll(".reveal");
             reveals.forEach((el, index) => {
-              el.classList.remove('active');
-              setTimeout(() => {
-                el.classList.add('active');
-              }, 100 + (index * REVEAL_STAGGER_MS));
+              el.classList.remove("active");
+              setTimeout(
+                () => {
+                  el.classList.add("active");
+                },
+                100 + index * REVEAL_STAGGER_MS,
+              );
             });
           }
         }
       });
     });
-    
+
     observer.observe(section, { attributes: true });
   });
 }

@@ -1,4 +1,9 @@
-import { API_BASE, apiFetch, ensureSession, isApiConfigured } from "./analytics.js";
+import {
+  API_BASE,
+  apiFetch,
+  ensureSession,
+  isApiConfigured,
+} from "./analytics.js";
 import { prefersReducedMotion } from "./config.js";
 import { copyText, escapeHTML, estimateTokens } from "./utils.js";
 import { authenticatedFetch, getAuthToken, logoutUser } from "./auth.js";
@@ -23,64 +28,71 @@ function renderBotHTML(text) {
   if (typeof marked === "undefined") {
     return escapeHTML(text).replace(/\n/g, "<br>");
   }
-  
+
   if (typeof DOMPurify === "undefined") {
     console.error("DOMPurify unavailable - cannot render markdown safely");
     return escapeHTML(text).replace(/\n/g, "<br>");
   }
-  
+
   return DOMPurify.sanitize(marked.parse(text));
 }
 
-if (typeof marked !== 'undefined') {
+if (typeof marked !== "undefined") {
   const renderer = new marked.Renderer();
   const originalCode = renderer.code.bind(renderer);
-  renderer.code = function(token) {
-    const text = typeof token === 'object' ? token.text : arguments[0];
+  renderer.code = function (token) {
+    const text = typeof token === "object" ? token.text : arguments[0];
     const escapedText = encodeURIComponent(text);
     const html = originalCode.apply(this, arguments);
-    return html.replace(/^<pre([^>]*)>/i, `<pre$1><button type="button" class="code-copy-btn" data-code="${escapedText}" title="Copy code"><i class="fas fa-copy"></i></button>`);
+    return html.replace(
+      /^<pre([^>]*)>/i,
+      `<pre$1><button type="button" class="code-copy-btn" data-code="${escapedText}" title="Copy code"><i class="fas fa-copy"></i></button>`,
+    );
   };
   marked.use({ renderer });
 
-  document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.code-copy-btn');
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".code-copy-btn");
     if (btn) {
       try {
-        const code = decodeURIComponent(btn.getAttribute('data-code'));
+        const code = decodeURIComponent(btn.getAttribute("data-code"));
         await copyText(code);
-        const icon = btn.querySelector('i');
+        const icon = btn.querySelector("i");
         if (icon) {
-          icon.className = 'fas fa-check';
-          setTimeout(() => { icon.className = 'fas fa-copy'; }, 1500);
+          icon.className = "fas fa-check";
+          setTimeout(() => {
+            icon.className = "fas fa-copy";
+          }, 1500);
         }
       } catch (err) {
-        console.error('Failed to copy code', err);
+        console.error("Failed to copy code", err);
       }
     }
   });
 }
 export function initChat() {
-  const widget = document.querySelector('.chat-widget');
-  const toggleBtn = document.getElementById('chat-toggle-btn');
-  const dialog = document.getElementById('chat-dialog');
-  const closeBtn = document.getElementById('chat-close-btn');
-  const messagesContainer = document.getElementById('chat-messages');
-  const chatForm = document.getElementById('chat-form');
-  const chatInput = document.getElementById('chat-input');
-  const chatSendBtn = chatForm ? chatForm.querySelector('button[type="submit"]') : null;
+  const widget = document.querySelector(".chat-widget");
+  const toggleBtn = document.getElementById("chat-toggle-btn");
+  const dialog = document.getElementById("chat-dialog");
+  const closeBtn = document.getElementById("chat-close-btn");
+  const messagesContainer = document.getElementById("chat-messages");
+  const chatForm = document.getElementById("chat-form");
+  const chatInput = document.getElementById("chat-input");
+  const chatSendBtn = chatForm
+    ? chatForm.querySelector('button[type="submit"]')
+    : null;
 
-  const aiPageContainer = document.getElementById('ai-page-container');
-  const aiPageMessages = document.getElementById('ai-page-messages');
-  const aiPageForm = document.getElementById('ai-page-form');
-  const aiPageInput = document.getElementById('ai-page-input');
-  const aiPageSendBtn = document.getElementById('ai-page-send-btn');
-  const aiTokenCounter = document.getElementById('ai-token-counter');
-  const aiSidebarHistory = document.getElementById('ai-sidebar-history');
+  const aiPageContainer = document.getElementById("ai-page-container");
+  const aiPageMessages = document.getElementById("ai-page-messages");
+  const aiPageForm = document.getElementById("ai-page-form");
+  const aiPageInput = document.getElementById("ai-page-input");
+  const aiPageSendBtn = document.getElementById("ai-page-send-btn");
+  const aiTokenCounter = document.getElementById("ai-token-counter");
+  const aiSidebarHistory = document.getElementById("ai-sidebar-history");
 
   // Voice input support for mobile
   let recognitionInstance = null;
-  
+
   const cleanupVoiceInput = () => {
     if (recognitionInstance) {
       try {
@@ -94,27 +106,32 @@ export function initChat() {
       recognitionInstance = null;
     }
   };
-  
+
   const initVoiceInput = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
-    
+    if (
+      !("webkitSpeechRecognition" in window) &&
+      !("SpeechRecognition" in window)
+    )
+      return;
+
     // Clean up any existing instance
     cleanupVoiceInput();
-    
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
     recognitionInstance = new SpeechRecognition();
     recognitionInstance.continuous = false;
     recognitionInstance.interimResults = false;
-    recognitionInstance.lang = 'en-US';
-    
+    recognitionInstance.lang = "en-US";
+
     const addVoiceButton = (input, form) => {
       if (!input || !form) return;
-      
-      const voiceBtn = document.createElement('button');
-      voiceBtn.type = 'button';
-      voiceBtn.className = 'voice-input-btn';
+
+      const voiceBtn = document.createElement("button");
+      voiceBtn.type = "button";
+      voiceBtn.className = "voice-input-btn";
       voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-      voiceBtn.title = 'Voice input';
+      voiceBtn.title = "Voice input";
       voiceBtn.style.cssText = `
         background: transparent;
         border: none;
@@ -124,122 +141,123 @@ export function initChat() {
         border-radius: 8px;
         transition: background-color 0.2s ease;
       `;
-      
+
       let isListening = false;
-      
-      voiceBtn.addEventListener('click', () => {
+
+      voiceBtn.addEventListener("click", () => {
         if (isListening) {
           recognitionInstance.stop();
           return;
         }
-        
+
         recognitionInstance.start();
         isListening = true;
         voiceBtn.innerHTML = '<i class="fas fa-stop-circle"></i>';
-        voiceBtn.style.color = 'var(--color-error)';
+        voiceBtn.style.color = "var(--color-error)";
       });
-      
+
       recognitionInstance.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         input.value = transcript;
-        input.dispatchEvent(new Event('input'));
+        input.dispatchEvent(new Event("input"));
         input.focus();
       };
-      
+
       recognitionInstance.onend = () => {
         isListening = false;
         voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-        voiceBtn.style.color = '';
+        voiceBtn.style.color = "";
       };
-      
+
       recognitionInstance.onerror = () => {
         isListening = false;
         voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-        voiceBtn.style.color = '';
+        voiceBtn.style.color = "";
       };
-      
-      const actions = form.querySelector('.ai-input-actions') || form;
+
+      const actions = form.querySelector(".ai-input-actions") || form;
       const sendBtn = form.querySelector('button[type="submit"]');
       if (sendBtn && actions) {
         actions.insertBefore(voiceBtn, sendBtn);
       }
     };
-    
+
     if (aiPageInput && aiPageForm && window.innerWidth <= 768) {
       addVoiceButton(aiPageInput, aiPageForm);
     }
-    
+
     if (chatInput && chatForm && window.innerWidth <= 768) {
       addVoiceButton(chatInput, chatForm);
     }
   };
-  
+
   initVoiceInput();
 
   function updateTokenCounter() {
     if (!aiPageInput || !aiTokenCounter) return;
     const text = aiPageInput.value.trim();
     const tokens = estimateTokens(text);
-    aiTokenCounter.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
-    
+    aiTokenCounter.textContent = `${tokens} token${tokens !== 1 ? "s" : ""}`;
+
     // Disable send button if over limit
     const isOverLimit = tokens > TOKEN_LIMIT;
-    
+
     if (aiPageSendBtn) {
       aiPageSendBtn.disabled = isOverLimit || isGenerating;
-      aiPageSendBtn.title = isOverLimit 
-        ? `Message too long (${tokens}/${TOKEN_LIMIT} tokens)` 
-        : 'Send message';
+      aiPageSendBtn.title = isOverLimit
+        ? `Message too long (${tokens}/${TOKEN_LIMIT} tokens)`
+        : "Send message";
     }
-    
+
     // Visual feedback
     if (isOverLimit) {
-      aiTokenCounter.style.color = 'var(--color-error)';
-      aiTokenCounter.style.fontWeight = '800';
-      aiPageInput.setAttribute('aria-invalid', 'true');
-      aiPageInput.setAttribute('aria-describedby', 'token-error');
-      
+      aiTokenCounter.style.color = "var(--color-error)";
+      aiTokenCounter.style.fontWeight = "800";
+      aiPageInput.setAttribute("aria-invalid", "true");
+      aiPageInput.setAttribute("aria-describedby", "token-error");
+
       // Add error message
-      let errorMsg = document.getElementById('token-error');
+      let errorMsg = document.getElementById("token-error");
       if (!errorMsg) {
-        errorMsg = document.createElement('div');
-        errorMsg.id = 'token-error';
-        errorMsg.className = 'form-error-message';
-        errorMsg.setAttribute('role', 'alert');
-        errorMsg.style.cssText = 'color: var(--color-error); font-size: 12px; margin-top: 4px;';
+        errorMsg = document.createElement("div");
+        errorMsg.id = "token-error";
+        errorMsg.className = "form-error-message";
+        errorMsg.setAttribute("role", "alert");
+        errorMsg.style.cssText =
+          "color: var(--color-error); font-size: 12px; margin-top: 4px;";
         aiPageInput.parentElement.appendChild(errorMsg);
       }
       errorMsg.textContent = `Message exceeds ${TOKEN_LIMIT} token limit. Please shorten your message.`;
     } else {
-      aiPageInput.removeAttribute('aria-invalid');
-      aiPageInput.removeAttribute('aria-describedby');
-      document.getElementById('token-error')?.remove();
-      
+      aiPageInput.removeAttribute("aria-invalid");
+      aiPageInput.removeAttribute("aria-describedby");
+      document.getElementById("token-error")?.remove();
+
       if (tokens > TOKEN_ERROR_THRESHOLD) {
-        aiTokenCounter.style.color = 'var(--color-error)';
-        aiTokenCounter.style.fontWeight = '800';
+        aiTokenCounter.style.color = "var(--color-error)";
+        aiTokenCounter.style.fontWeight = "800";
       } else if (tokens > TOKEN_WARNING_THRESHOLD) {
-        aiTokenCounter.style.color = 'var(--color-warning)';
-        aiTokenCounter.style.fontWeight = '700';
+        aiTokenCounter.style.color = "var(--color-warning)";
+        aiTokenCounter.style.fontWeight = "700";
       } else {
-        aiTokenCounter.style.color = '';
-        aiTokenCounter.style.fontWeight = '';
+        aiTokenCounter.style.color = "";
+        aiTokenCounter.style.fontWeight = "";
       }
     }
   }
-  const newChatBtn = document.getElementById('new-chat-btn');
-  const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
-  const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
-  const aiLayout = document.getElementById('ai-layout');
-  const clearAllBtn = document.getElementById('clear-all-btn');
-  const suggestedPrompts = document.querySelectorAll('.ai-suggestion-card');
+  const newChatBtn = document.getElementById("new-chat-btn");
+  const sidebarOpenBtn = document.getElementById("sidebar-open-btn");
+  const sidebarCloseBtn = document.getElementById("sidebar-close-btn");
+  const aiLayout = document.getElementById("ai-layout");
+  const clearAllBtn = document.getElementById("clear-all-btn");
+  const suggestedPrompts = document.querySelectorAll(".ai-suggestion-card");
 
   let isOpen = false;
   let isGenerating = false;
   const FREE_MESSAGE_LIMIT = 6;
 
   // Persist sessions in localStorage
-  const STORAGE_KEY = 'rj_chat_sessions';
+  const STORAGE_KEY = "rj_chat_sessions";
   let sessions = [];
   let activeSessionId = null;
 
@@ -275,8 +293,8 @@ export function initChat() {
   function createNewSession() {
     const newSession = {
       id: Date.now().toString(),
-      title: 'New Chat',
-      messages: []
+      title: "New Chat",
+      messages: [],
     };
     sessions.unshift(newSession);
     activeSessionId = newSession.id;
@@ -285,38 +303,38 @@ export function initChat() {
   }
 
   function getActiveSession() {
-    return sessions.find(s => s.id === activeSessionId) || sessions[0];
+    return sessions.find((s) => s.id === activeSessionId) || sessions[0];
   }
 
   function renderSidebar() {
     if (!aiSidebarHistory) return;
-    aiSidebarHistory.innerHTML = '';
-    sessions.forEach(session => {
-      const item = document.createElement('div');
-      item.className = `history-item ${session.id === activeSessionId ? 'active' : ''}`;
+    aiSidebarHistory.innerHTML = "";
+    sessions.forEach((session) => {
+      const item = document.createElement("div");
+      item.className = `history-item ${session.id === activeSessionId ? "active" : ""}`;
 
-      const titleSpan = document.createElement('span');
+      const titleSpan = document.createElement("span");
       titleSpan.textContent = session.title;
       item.appendChild(titleSpan);
 
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'delete-session-btn';
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-session-btn";
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-      deleteBtn.title = 'Delete chat';
-      deleteBtn.addEventListener('click', (e) => {
+      deleteBtn.title = "Delete chat";
+      deleteBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         if (isGenerating) return;
         deleteSession(session.id);
       });
       item.appendChild(deleteBtn);
 
-      item.addEventListener('click', () => {
+      item.addEventListener("click", () => {
         if (isGenerating) return;
         activeSessionId = session.id;
         renderSidebar();
         restoreActiveSession();
         if (window.innerWidth <= 768 && aiLayout) {
-          aiLayout.classList.add('sidebar-hidden');
+          aiLayout.classList.add("sidebar-hidden");
         }
       });
       aiSidebarHistory.appendChild(item);
@@ -324,7 +342,7 @@ export function initChat() {
   }
 
   function deleteSession(id) {
-    sessions = sessions.filter(s => s.id !== id);
+    sessions = sessions.filter((s) => s.id !== id);
     if (sessions.length === 0) {
       createNewSession();
       return;
@@ -337,19 +355,19 @@ export function initChat() {
   }
 
   if (newChatBtn) {
-    newChatBtn.addEventListener('click', () => {
+    newChatBtn.addEventListener("click", () => {
       if (!isGenerating) createNewSession();
       if (window.innerWidth <= 768 && aiLayout) {
-        aiLayout.classList.add('sidebar-hidden');
+        aiLayout.classList.add("sidebar-hidden");
       }
     });
   }
 
   // Clear all sessions
   if (clearAllBtn) {
-    clearAllBtn.addEventListener('click', () => {
+    clearAllBtn.addEventListener("click", () => {
       if (isGenerating) return;
-      if (confirm('Delete all chat history? This action cannot be undone.')) {
+      if (confirm("Delete all chat history? This action cannot be undone.")) {
         sessions = [];
         createNewSession();
       }
@@ -357,14 +375,14 @@ export function initChat() {
   }
 
   // Suggested prompt quick actions
-  suggestedPrompts.forEach(btn => {
-    btn.addEventListener('click', () => {
+  suggestedPrompts.forEach((btn) => {
+    btn.addEventListener("click", () => {
       if (isGenerating) return;
-      const prompt = btn.getAttribute('data-prompt');
+      const prompt = btn.getAttribute("data-prompt");
       if (!prompt) return;
       if (aiPageInput) {
-        aiPageInput.value = '';
-        aiPageInput.style.height = 'auto';
+        aiPageInput.value = "";
+        aiPageInput.style.height = "auto";
         updateTokenCounter();
       }
       handleChatSubmit(prompt);
@@ -372,62 +390,64 @@ export function initChat() {
   });
 
   if (sidebarOpenBtn && aiLayout) {
-    sidebarOpenBtn.addEventListener('click', () => {
-      aiLayout.classList.remove('sidebar-hidden');
+    sidebarOpenBtn.addEventListener("click", () => {
+      aiLayout.classList.remove("sidebar-hidden");
       // Save user preference
-      localStorage.setItem('rj_sidebar_hidden', 'false');
+      localStorage.setItem("rj_sidebar_hidden", "false");
     });
   }
 
   if (sidebarCloseBtn && aiLayout) {
-    sidebarCloseBtn.addEventListener('click', () => {
-      aiLayout.classList.add('sidebar-hidden');
+    sidebarCloseBtn.addEventListener("click", () => {
+      aiLayout.classList.add("sidebar-hidden");
       // Save user preference
-      localStorage.setItem('rj_sidebar_hidden', 'true');
+      localStorage.setItem("rj_sidebar_hidden", "true");
     });
   }
 
   // Restore user preference for sidebar state
   if (aiLayout) {
-    const isHidden = localStorage.getItem('rj_sidebar_hidden') !== 'false';
+    const isHidden = localStorage.getItem("rj_sidebar_hidden") !== "false";
     if (isHidden) {
-      aiLayout.classList.add('sidebar-hidden');
+      aiLayout.classList.add("sidebar-hidden");
     } else {
-      aiLayout.classList.remove('sidebar-hidden');
+      aiLayout.classList.remove("sidebar-hidden");
     }
   }
 
   function createMessageActions(getText, isTruncated = false) {
-    const container = document.createElement('div');
-    container.className = 'msg-actions';
+    const container = document.createElement("div");
+    container.className = "msg-actions";
 
     if (isTruncated) {
-      const warnIcon = document.createElement('i');
-      warnIcon.className = 'fas fa-exclamation-triangle warning-icon';
-      warnIcon.title = 'Response truncated due to length limit (2000 tokens).';
-      warnIcon.style.marginRight = '8px';
-      warnIcon.style.cursor = 'help';
+      const warnIcon = document.createElement("i");
+      warnIcon.className = "fas fa-exclamation-triangle warning-icon";
+      warnIcon.title = "Response truncated due to length limit (2000 tokens).";
+      warnIcon.style.marginRight = "8px";
+      warnIcon.style.cursor = "help";
       container.appendChild(warnIcon);
     }
 
-    const tokenSpan = document.createElement('span');
-    tokenSpan.className = 'msg-token-count';
-    const textVal = typeof getText === 'function' ? getText() : getText;
+    const tokenSpan = document.createElement("span");
+    tokenSpan.className = "msg-token-count";
+    const textVal = typeof getText === "function" ? getText() : getText;
     const tokens = estimateTokens(textVal);
-    tokenSpan.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
+    tokenSpan.textContent = `${tokens} token${tokens !== 1 ? "s" : ""}`;
 
-    const btn = document.createElement('button');
-    btn.className = 'msg-copy-btn';
-    btn.title = 'Copy';
+    const btn = document.createElement("button");
+    btn.className = "msg-copy-btn";
+    btn.title = "Copy";
     btn.innerHTML = '<i class="fas fa-copy"></i>';
-    btn.addEventListener('click', async () => {
+    btn.addEventListener("click", async () => {
       try {
-        const textToCopy = typeof getText === 'function' ? getText() : getText;
+        const textToCopy = typeof getText === "function" ? getText() : getText;
         await copyText(textToCopy);
         btn.innerHTML = '<i class="fas fa-check"></i>';
-        setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i>'; }, 1500);
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fas fa-copy"></i>';
+        }, 1500);
       } catch (e) {
-        console.error('Copy failed', e);
+        console.error("Copy failed", e);
       }
     });
 
@@ -436,15 +456,20 @@ export function initChat() {
     return container;
   }
 
-  function appendMessage(text, sender, { save = true, showCopy = save, target = 'all' } = {}) {
-    const isBot = sender === 'bot';
+  function appendMessage(
+    text,
+    sender,
+    { save = true, showCopy = save, target = "all" } = {},
+  ) {
+    const isBot = sender === "bot";
     const htmlContent = isBot ? renderBotHTML(text) : text;
-    const renderWidget = target === 'all' || target === 'widget';
-    const renderAiPage = target === 'all' || target === 'ai';
-    const canRenderHTML = typeof DOMPurify !== "undefined" && typeof marked !== "undefined";
+    const renderWidget = target === "all" || target === "widget";
+    const renderAiPage = target === "all" || target === "ai";
+    const canRenderHTML =
+      typeof DOMPurify !== "undefined" && typeof marked !== "undefined";
 
     if (renderWidget && messagesContainer) {
-      const msgEl = document.createElement('div');
+      const msgEl = document.createElement("div");
       msgEl.className = `chat-message ${sender}`;
       if (isBot && canRenderHTML) {
         msgEl.innerHTML = htmlContent;
@@ -459,10 +484,13 @@ export function initChat() {
     }
 
     if (renderAiPage && aiPageMessages) {
-      if (aiPageContainer && aiPageContainer.classList.contains('empty-state')) {
-        aiPageContainer.classList.remove('empty-state');
+      if (
+        aiPageContainer &&
+        aiPageContainer.classList.contains("empty-state")
+      ) {
+        aiPageContainer.classList.remove("empty-state");
       }
-      const msgEl2 = document.createElement('div');
+      const msgEl2 = document.createElement("div");
       msgEl2.className = `chat-message ${sender}`;
       if (isBot && canRenderHTML) {
         msgEl2.innerHTML = htmlContent;
@@ -479,8 +507,8 @@ export function initChat() {
     if (save) {
       const session = getActiveSession();
       session.messages.push({ text, sender });
-      if (session.messages.length === 1 && sender === 'user') {
-        session.title = text.slice(0, 30) + (text.length > 30 ? '...' : '');
+      if (session.messages.length === 1 && sender === "user") {
+        session.title = text.slice(0, 30) + (text.length > 30 ? "..." : "");
       }
       saveSessions();
     }
@@ -488,53 +516,62 @@ export function initChat() {
   }
 
   function restoreActiveSession() {
-    if (messagesContainer) messagesContainer.innerHTML = '';
-    if (aiPageMessages) aiPageMessages.innerHTML = '';
+    if (messagesContainer) messagesContainer.innerHTML = "";
+    if (aiPageMessages) aiPageMessages.innerHTML = "";
 
     const session = getActiveSession();
     if (session.messages.length === 0) {
-      if (aiPageContainer) aiPageContainer.classList.add('empty-state');
-      appendMessage("Ask anything!", 'bot', { save: false, showCopy: false, target: 'widget' });
+      if (aiPageContainer) aiPageContainer.classList.add("empty-state");
+      appendMessage("Ask anything!", "bot", {
+        save: false,
+        showCopy: false,
+        target: "widget",
+      });
     } else {
-      if (aiPageContainer) aiPageContainer.classList.remove('empty-state');
+      if (aiPageContainer) aiPageContainer.classList.remove("empty-state");
       // Temporarily disable auto-scroll to avoid jumping while rendering
-      session.messages.forEach(msg => appendMessage(msg.text, msg.sender, { save: false, showCopy: true }));
+      session.messages.forEach((msg) =>
+        appendMessage(msg.text, msg.sender, { save: false, showCopy: true }),
+      );
     }
   }
 
   // Auto-resize textarea
   if (aiPageInput) {
-    aiPageInput.addEventListener('input', function () {
-      this.style.height = 'auto';
-      this.style.height = (this.scrollHeight) + 'px';
+    aiPageInput.addEventListener("input", function () {
+      this.style.height = "auto";
+      this.style.height = this.scrollHeight + "px";
       updateTokenCounter();
     });
-    aiPageInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
+    aiPageInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        aiPageForm.dispatchEvent(new Event('submit'));
+        aiPageForm.dispatchEvent(new Event("submit"));
       }
     });
   }
 
   // Widget dragging logic
   if (toggleBtn) {
-    toggleBtn.style.touchAction = 'none';
+    toggleBtn.style.touchAction = "none";
 
     let wasDragged = false;
-    let dragStartX = 0, dragStartY = 0;
-    let initialTranslateX = 0, initialTranslateY = 0;
-    let currentTranslateX = 0, currentTranslateY = 0;
+    let dragStartX = 0,
+      dragStartY = 0;
+    let initialTranslateX = 0,
+      initialTranslateY = 0;
+    let currentTranslateX = 0,
+      currentTranslateY = 0;
 
-    toggleBtn.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
+    toggleBtn.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
 
       wasDragged = false;
       dragStartX = e.clientX;
       dragStartY = e.clientY;
 
       toggleBtn.setPointerCapture(e.pointerId);
-      toggleBtn.style.cursor = 'grabbing';
+      toggleBtn.style.cursor = "grabbing";
 
       const onPointerMove = (moveEvent) => {
         const dx = moveEvent.clientX - dragStartX;
@@ -553,10 +590,10 @@ export function initChat() {
 
       const onPointerUp = (upEvent) => {
         toggleBtn.releasePointerCapture(e.pointerId);
-        toggleBtn.removeEventListener('pointermove', onPointerMove);
-        toggleBtn.removeEventListener('pointerup', onPointerUp);
-        toggleBtn.removeEventListener('pointercancel', onPointerUp);
-        toggleBtn.style.cursor = '';
+        toggleBtn.removeEventListener("pointermove", onPointerMove);
+        toggleBtn.removeEventListener("pointerup", onPointerUp);
+        toggleBtn.removeEventListener("pointercancel", onPointerUp);
+        toggleBtn.style.cursor = "";
 
         if (wasDragged) {
           initialTranslateX = currentTranslateX;
@@ -564,9 +601,9 @@ export function initChat() {
         }
       };
 
-      toggleBtn.addEventListener('pointermove', onPointerMove);
-      toggleBtn.addEventListener('pointerup', onPointerUp);
-      toggleBtn.addEventListener('pointercancel', onPointerUp);
+      toggleBtn.addEventListener("pointermove", onPointerMove);
+      toggleBtn.addEventListener("pointerup", onPointerUp);
+      toggleBtn.addEventListener("pointercancel", onPointerUp);
     });
 
     function toggleChat(e) {
@@ -576,30 +613,31 @@ export function initChat() {
       }
       isOpen = !isOpen;
       if (isOpen) {
-        dialog.classList.remove('hidden');
-        dialog.setAttribute('aria-hidden', 'false');
-        toggleBtn.setAttribute('aria-expanded', 'true');
+        dialog.classList.remove("hidden");
+        dialog.setAttribute("aria-hidden", "false");
+        toggleBtn.setAttribute("aria-expanded", "true");
         if (prefersReducedMotion.matches) {
           chatInput?.focus();
         } else {
-          dialog.addEventListener('transitionend', function focusInput(e) {
-            if (e.propertyName === 'transform') {
+          dialog.addEventListener("transitionend", function focusInput(e) {
+            if (e.propertyName === "transform") {
               chatInput?.focus();
-              dialog.removeEventListener('transitionend', focusInput);
+              dialog.removeEventListener("transitionend", focusInput);
             }
           });
         }
-        if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        if (messagesContainer)
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
       } else {
-        dialog.classList.add('hidden');
-        dialog.setAttribute('aria-hidden', 'true');
-        toggleBtn.setAttribute('aria-expanded', 'false');
+        dialog.classList.add("hidden");
+        dialog.setAttribute("aria-hidden", "true");
+        toggleBtn.setAttribute("aria-expanded", "false");
         if (e && e.currentTarget === closeBtn) toggleBtn.focus();
       }
     }
 
-    toggleBtn.addEventListener('click', toggleChat);
-    if (closeBtn) closeBtn.addEventListener('click', toggleChat);
+    toggleBtn.addEventListener("click", toggleChat);
+    if (closeBtn) closeBtn.addEventListener("click", toggleChat);
   }
 
   function setInputState(disabled) {
@@ -607,41 +645,52 @@ export function initChat() {
     if (aiPageInput) aiPageInput.disabled = disabled;
     if (aiPageSendBtn) {
       aiPageSendBtn.disabled = disabled;
-      aiPageSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
+      aiPageSendBtn.innerHTML = disabled
+        ? '<i class="fas fa-square"></i>'
+        : '<i class="fas fa-arrow-up"></i>';
     }
     if (chatInput) chatInput.disabled = disabled;
     if (chatSendBtn) {
       chatSendBtn.disabled = disabled;
-      chatSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
+      chatSendBtn.innerHTML = disabled
+        ? '<i class="fas fa-square"></i>'
+        : '<i class="fas fa-arrow-up"></i>';
     }
     if (newChatBtn) newChatBtn.disabled = disabled;
   }
 
   function createTypingIndicator() {
-    const indicator = document.createElement('div');
-    indicator.className = 'chat-message bot typing-indicator';
-    indicator.setAttribute('role', 'status');
-    indicator.setAttribute('aria-live', 'polite');
-    indicator.setAttribute('aria-label', 'Assistant is responding');
+    const indicator = document.createElement("div");
+    indicator.className = "chat-message bot typing-indicator";
+    indicator.setAttribute("role", "status");
+    indicator.setAttribute("aria-live", "polite");
+    indicator.setAttribute("aria-label", "Assistant is responding");
     if (prefersReducedMotion.matches) {
-      indicator.textContent = 'Assistant is responding...';
+      indicator.textContent = "Assistant is responding...";
     } else {
-      indicator.innerHTML = '<div class="typing-dot" aria-hidden="true"></div><div class="typing-dot" aria-hidden="true"></div><div class="typing-dot" aria-hidden="true"></div>';
+      indicator.innerHTML =
+        '<div class="typing-dot" aria-hidden="true"></div><div class="typing-dot" aria-hidden="true"></div><div class="typing-dot" aria-hidden="true"></div>';
     }
     return indicator;
   }
 
   async function handleChatSubmit(text) {
     if (!isApiConfigured()) {
-      appendMessage("AI service is not configured.", 'bot', { save: false, showCopy: false });
+      appendMessage("AI service is not configured.", "bot", {
+        save: false,
+        showCopy: false,
+      });
       return;
     }
     if (!(await ensureSession())) {
-      appendMessage("AI service is not available.", 'bot', { save: false, showCopy: false });
+      appendMessage("AI service is not available.", "bot", {
+        save: false,
+        showCopy: false,
+      });
       return;
     }
 
-    appendMessage(text, 'user', { save: true, showCopy: true });
+    appendMessage(text, "user", { save: true, showCopy: true });
     setInputState(true);
 
     let widgetIndicator = null;
@@ -661,42 +710,54 @@ export function initChat() {
     const apiUrl = `${API_BASE}/chat`;
 
     const session = getActiveSession();
-    
+
     // Check if user is unauthenticated and reached limit
-    const userMessageCount = session.messages.filter(m => m.sender === 'user').length;
+    const userMessageCount = session.messages.filter(
+      (m) => m.sender === "user",
+    ).length;
     if (!getAuthToken() && userMessageCount > FREE_MESSAGE_LIMIT) {
       // Show auth modal and abort sending
-      window.dispatchEvent(new Event('request-login-modal'));
-      appendMessage("Please log in to continue chatting with the AI. You have reached the free message limit.", 'bot', { save: false, showCopy: false });
+      window.dispatchEvent(new Event("request-login-modal"));
+      appendMessage(
+        "Please log in to continue chatting with the AI. You have reached the free message limit.",
+        "bot",
+        { save: false, showCopy: false },
+      );
       return;
     }
 
     // Summarize old messages if token count gets too high
-    const totalTokens = session.messages.reduce((sum, msg) => sum + estimateTokens(msg.text), 0);
+    const totalTokens = session.messages.reduce(
+      (sum, msg) => sum + estimateTokens(msg.text),
+      0,
+    );
     if (totalTokens > SUMMARIZE_TOKEN_THRESHOLD) {
       // The current user message is the last entry (just pushed via appendMessage).
       const currentUserMsg = session.messages[session.messages.length - 1];
       // Everything before the current message gets summarized.
-      const messagesToSummarize = session.messages.slice(0, session.messages.length - 1);
-      const summaryPayload = messagesToSummarize.map(h => ({
-        role: h.sender === 'bot' ? 'assistant' : 'user',
-        content: h.text
+      const messagesToSummarize = session.messages.slice(
+        0,
+        session.messages.length - 1,
+      );
+      const summaryPayload = messagesToSummarize.map((h) => ({
+        role: h.sender === "bot" ? "assistant" : "user",
+        content: h.text,
       }));
-      
+
       try {
         const sumRes = await authenticatedFetch(`${API_BASE}/chat/summarize`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: summaryPayload })
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: summaryPayload }),
         });
         if (sumRes.ok) {
           const sumData = await sumRes.json();
           // Rebuild as: user(synthetic) → bot(summary) → user(current)
           // This guarantees strict user/assistant alternation.
           session.messages = [
-            { text: "Summarize our conversation so far.", sender: 'user' },
-            { text: sumData.summary, sender: 'bot' },
-            currentUserMsg
+            { text: "Summarize our conversation so far.", sender: "user" },
+            { text: sumData.summary, sender: "bot" },
+            currentUserMsg,
           ];
           saveSessions();
         }
@@ -705,24 +766,24 @@ export function initChat() {
       }
     }
 
-    const messages = session.messages.map(h => ({
-      role: h.sender === 'bot' ? 'assistant' : 'user',
-      content: h.text
+    const messages = session.messages.map((h) => ({
+      role: h.sender === "bot" ? "assistant" : "user",
+      content: h.text,
     }));
 
     try {
       const response = await authenticatedFetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
       });
 
       if (!response.ok) {
-          if (response.status === 401 && !getAuthToken()) {
-              window.dispatchEvent(new Event('request-login-modal'));
-              throw new Error('Please log in to continue.');
-          }
-          throw new Error('API Error');
+        if (response.status === 401 && !getAuthToken()) {
+          window.dispatchEvent(new Event("request-login-modal"));
+          throw new Error("Please log in to continue.");
+        }
+        throw new Error("API Error");
       }
 
       // Remove typing indicators
@@ -730,23 +791,23 @@ export function initChat() {
       if (aiIndicator) aiIndicator.remove();
 
       const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
+      const decoder = new TextDecoder("utf-8");
 
       let widgetMsgEl = null;
       if (messagesContainer) {
-        widgetMsgEl = document.createElement('div');
-        widgetMsgEl.className = 'chat-message bot streaming';
+        widgetMsgEl = document.createElement("div");
+        widgetMsgEl.className = "chat-message bot streaming";
         messagesContainer.appendChild(widgetMsgEl);
       }
 
       let aiMsgEl = null;
       if (aiPageMessages) {
-        aiMsgEl = document.createElement('div');
-        aiMsgEl.className = 'chat-message bot streaming';
+        aiMsgEl = document.createElement("div");
+        aiMsgEl.className = "chat-message bot streaming";
         aiPageMessages.appendChild(aiMsgEl);
       }
 
-      let botFullText = '';
+      let botFullText = "";
       let parseTimer = null;
 
       const flushParse = () => {
@@ -755,13 +816,23 @@ export function initChat() {
         const html = renderBotHTML(botFullText);
         if (widgetMsgEl) {
           widgetMsgEl.innerHTML = html;
-          const isNearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
-          if (isNearBottom) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          const isNearBottom =
+            messagesContainer.scrollHeight -
+              messagesContainer.scrollTop -
+              messagesContainer.clientHeight <
+            100;
+          if (isNearBottom)
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
         if (aiMsgEl) {
           aiMsgEl.innerHTML = html;
-          const isNearBottom = aiPageMessages.scrollHeight - aiPageMessages.scrollTop - aiPageMessages.clientHeight < 100;
-          if (isNearBottom) aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
+          const isNearBottom =
+            aiPageMessages.scrollHeight -
+              aiPageMessages.scrollTop -
+              aiPageMessages.clientHeight <
+            100;
+          if (isNearBottom)
+            aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
         }
       };
 
@@ -777,8 +848,8 @@ export function initChat() {
           }
         }
       } catch (streamError) {
-        console.error('Stream reading error:', streamError);
-        
+        console.error("Stream reading error:", streamError);
+
         // Gracefully handle partial response
         if (botFullText.length > 0) {
           if (parseTimer) {
@@ -793,36 +864,42 @@ export function initChat() {
       }
 
       // Final flush to ensure all content is rendered
-      if (parseTimer) { clearTimeout(parseTimer); parseTimer = null; }
-      
-      let isTruncated = false;
-      if (botFullText.endsWith('\n[__TRUNCATED__]')) {
-        isTruncated = true;
-        botFullText = botFullText.replace('\n[__TRUNCATED__]', '');
+      if (parseTimer) {
+        clearTimeout(parseTimer);
+        parseTimer = null;
       }
-      
+
+      let isTruncated = false;
+      if (botFullText.endsWith("\n[__TRUNCATED__]")) {
+        isTruncated = true;
+        botFullText = botFullText.replace("\n[__TRUNCATED__]", "");
+      }
+
       flushParse();
 
       if (widgetMsgEl) {
-        widgetMsgEl.classList.remove('streaming');
-        widgetMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
+        widgetMsgEl.classList.remove("streaming");
+        widgetMsgEl.appendChild(
+          createMessageActions(() => botFullText, isTruncated),
+        );
       }
       if (aiMsgEl) {
-        aiMsgEl.classList.remove('streaming');
-        aiMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
+        aiMsgEl.classList.remove("streaming");
+        aiMsgEl.appendChild(
+          createMessageActions(() => botFullText, isTruncated),
+        );
       }
 
-      session.messages.push({ text: botFullText, sender: 'bot' });
+      session.messages.push({ text: botFullText, sender: "bot" });
       saveSessions();
-      
-      // Announce completion to screen readers
-      announceToScreenReader('Response received');
 
+      // Announce completion to screen readers
+      announceToScreenReader("Response received");
     } catch (err) {
-      console.error('Chat API Error:', err);
+      console.error("Chat API Error:", err);
       if (widgetIndicator) widgetIndicator.remove();
       if (aiIndicator) aiIndicator.remove();
-      
+
       // Store the original text for retry
       const retryText = text;
       const errorMsg = `
@@ -834,11 +911,11 @@ export function initChat() {
           </button>
         </div>
       `;
-      appendMessage(errorMsg, 'bot', { save: false, showCopy: false });
+      appendMessage(errorMsg, "bot", { save: false, showCopy: false });
     } finally {
       setInputState(false);
       if (aiPageInput) {
-        aiPageInput.style.height = 'auto'; // Reset height
+        aiPageInput.style.height = "auto"; // Reset height
         aiPageInput.focus();
       }
       if (chatInput && isOpen) chatInput.focus();
@@ -846,37 +923,36 @@ export function initChat() {
   }
 
   // Use event delegation for retry buttons
-  document.addEventListener('click', (e) => {
-    const retryBtn = e.target.closest('.retry-btn');
+  document.addEventListener("click", (e) => {
+    const retryBtn = e.target.closest(".retry-btn");
     if (retryBtn) {
-      if (isGenerating) return;
-      const retryText = retryBtn.getAttribute('data-retry-text');
+      const retryText = retryBtn.getAttribute("data-retry-text");
       if (retryText) {
-        retryBtn.closest('.chat-message')?.remove();
+        retryBtn.closest(".chat-message")?.remove();
         handleChatSubmit(retryText);
       }
     }
   });
 
   if (chatForm) {
-    chatForm.addEventListener('submit', async (e) => {
+    chatForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (isGenerating) return;
       const text = chatInput.value.trim();
       if (!text) return;
-      chatInput.value = '';
+      chatInput.value = "";
       await handleChatSubmit(text);
     });
   }
 
   if (aiPageForm) {
-    aiPageForm.addEventListener('submit', async (e) => {
+    aiPageForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (isGenerating) return;
       const text = aiPageInput.value.trim();
       if (!text) return;
-      aiPageInput.value = '';
-      aiPageInput.style.height = 'auto';
+      aiPageInput.value = "";
+      aiPageInput.style.height = "auto";
       updateTokenCounter();
       await handleChatSubmit(text);
     });
@@ -889,10 +965,10 @@ export function initChat() {
 
 // Screen reader announcements
 function announceToScreenReader(message) {
-  const announcement = document.createElement('div');
-  announcement.setAttribute('role', 'status');
-  announcement.setAttribute('aria-live', 'polite');
-  announcement.className = 'sr-only';
+  const announcement = document.createElement("div");
+  announcement.setAttribute("role", "status");
+  announcement.setAttribute("aria-live", "polite");
+  announcement.className = "sr-only";
   announcement.textContent = message;
   announcement.style.cssText = `
     position: absolute;
@@ -905,9 +981,9 @@ function announceToScreenReader(message) {
     white-space: nowrap;
     border: 0;
   `;
-  
+
   document.body.appendChild(announcement);
-  
+
   setTimeout(() => {
     announcement.remove();
   }, 1000);

@@ -92,7 +92,7 @@ export function initTerminal() {
       if (
         Array.isArray(parsed) &&
         parsed.length <= 100 &&
-        parsed.every(item => typeof item === 'string' && item.length <= 500)
+        parsed.every((item) => typeof item === "string" && item.length <= 500)
       ) {
         commandHistory = parsed;
       }
@@ -108,7 +108,14 @@ export function initTerminal() {
   });
 
   // Animated placeholder: cycles through example commands until the user interacts
-  const placeholderSamples = ["help", "whoami", "skills", "projects", "neofetch", "fortune"];
+  const placeholderSamples = [
+    "help",
+    "whoami",
+    "skills",
+    "projects",
+    "neofetch",
+    "fortune",
+  ];
   const basePlaceholder = "Type 'help' to see commands...";
   let placeholderAnimationId = null;
   let placeholderStopped = false;
@@ -136,7 +143,10 @@ export function initTerminal() {
 
       if (phase === "typing") {
         charIdx++;
-        terminalInput.setAttribute("placeholder", sample.slice(0, charIdx) + "\u2588");
+        terminalInput.setAttribute(
+          "placeholder",
+          sample.slice(0, charIdx) + "\u2588",
+        );
         if (charIdx >= sample.length) {
           phase = "holding";
           delay = 1200;
@@ -147,7 +157,10 @@ export function initTerminal() {
         delay = 500;
       } else if (phase === "erasing") {
         charIdx--;
-        terminalInput.setAttribute("placeholder", sample.slice(0, charIdx) + "\u2588");
+        terminalInput.setAttribute(
+          "placeholder",
+          sample.slice(0, charIdx) + "\u2588",
+        );
         if (charIdx <= 0) {
           phase = "pausing";
           delay = 400;
@@ -167,8 +180,12 @@ export function initTerminal() {
     placeholderAnimationId = setTimeout(tick, 600);
   }
 
-  terminalInput.addEventListener("focus", stopPlaceholderAnimation, { once: true });
-  terminalInput.addEventListener("input", stopPlaceholderAnimation, { once: true });
+  terminalInput.addEventListener("focus", stopPlaceholderAnimation, {
+    once: true,
+  });
+  terminalInput.addEventListener("input", stopPlaceholderAnimation, {
+    once: true,
+  });
   runPlaceholderAnimation();
 
   const commands = {
@@ -235,7 +252,8 @@ export function initTerminal() {
       `;
     },
     cd: (args) => {
-      if (!args.length) return `<p class="terminal-output-text">cd: missing operand. Try 'cd portfolio', 'cd resume', 'cd contact'</p>`;
+      if (!args.length)
+        return `<p class="terminal-output-text">cd: missing operand. Try 'cd portfolio', 'cd resume', 'cd contact'</p>`;
       const target = args[0].toLowerCase();
       if (target === ".." || target === "~") {
         window.location.hash = "about";
@@ -249,7 +267,8 @@ export function initTerminal() {
       return `<p class="terminal-output-text">bash: cd: ${escapeHTML(target)}: No such directory</p>`;
     },
     wget: (args) => {
-      if (!args.length) return `<p class="terminal-output-text">wget: missing URL</p>`;
+      if (!args.length)
+        return `<p class="terminal-output-text">wget: missing URL</p>`;
       const target = args[0].toLowerCase();
       if (target === "resume" || target.includes("pdf")) {
         const a = document.createElement("a");
@@ -264,7 +283,8 @@ export function initTerminal() {
     },
     matrix: () => {
       const panel = document.querySelector(".terminal-panel");
-      if (!panel) return `<p class="terminal-output-text">Error: Terminal panel not found.</p>`;
+      if (!panel)
+        return `<p class="terminal-output-text">Error: Terminal panel not found.</p>`;
       const isMatrix = panel.classList.toggle("matrix-mode");
       if (isMatrix) {
         return `<p class="terminal-output-text">Wake up, Neo... The Matrix has you.</p>`;
@@ -291,7 +311,8 @@ export function initTerminal() {
       return `<p class="terminal-output-text">${new Date().toString()}</p>`;
     },
     calc: (args) => {
-      if (!args.length) return `<p class="terminal-output-text">calc: missing expression. Try 'calc 5 * 10'</p>`;
+      if (!args.length)
+        return `<p class="terminal-output-text">calc: missing expression. Try 'calc 5 * 10'</p>`;
       const expr = args.join(" ");
       if (expr.length > 120) {
         return `<p class="terminal-output-text">calc: expression is too long</p>`;
@@ -334,7 +355,9 @@ export function initTerminal() {
       `;
     },
     cowsay: (args) => {
-      const text = args.length ? escapeHTML(args.join(" ")).substring(0, 40) : "moo";
+      const text = args.length
+        ? escapeHTML(args.join(" ")).substring(0, 40)
+        : "moo";
       const line = "\u2500".repeat(text.length + 2);
       return `<pre class="terminal-output-text" style="line-height:1.4;white-space:pre"> ${line}\n&lt; ${text} &gt;\n ${line}\n        \\   ^__^\n         \\  (oo)\\_______\n            (__)\\       )\\/\\\n                ||----w |\n                ||     ||</pre>`;
     },
@@ -369,7 +392,8 @@ export function initTerminal() {
       return `<pre class="terminal-output-text" style="color:var(--terminal-green);white-space:pre">about/    resume/    portfolio/    hobbies/    contact/</pre>`;
     },
     cat: (args) => {
-      if (!args.length) return `<p class="terminal-output-text">cat: missing file operand</p>`;
+      if (!args.length)
+        return `<p class="terminal-output-text">cat: missing file operand</p>`;
       const file = args[0].toLowerCase().replace(/\.md$/, "");
       if (file === "contact") {
         return `
@@ -405,12 +429,14 @@ export function initTerminal() {
       if (commandHistory.length === 0) {
         return `<p class="terminal-output-text">No commands in history.</p>`;
       }
-      const items = commandHistory.map((cmd, i) => `  ${i + 1}  ${escapeHTML(cmd)}`).join("\n");
+      const items = commandHistory
+        .map((cmd, i) => `  ${i + 1}  ${escapeHTML(cmd)}`)
+        .join("\n");
       return `<pre class="terminal-output-text" style="white-space:pre">${items}</pre>`;
     },
     sudo: () => {
       return `<p class="terminal-line terminal-error">rjasti is not in the sudoers file. This incident will be reported.</p>`;
-    }
+    },
   };
 
   const commandList = Object.keys(commands).concat(["echo"]);
@@ -428,7 +454,7 @@ export function initTerminal() {
         historyIndex = Math.max(0, historyIndex - 1);
         terminalInput.value = commandHistory[historyIndex] || "";
       }
-    } 
+    }
     // History down
     else if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -445,7 +471,7 @@ export function initTerminal() {
       e.preventDefault();
       const current = terminalInput.value.trim().toLowerCase();
       if (current) {
-        const matches = commandList.filter(c => c.startsWith(current));
+        const matches = commandList.filter((c) => c.startsWith(current));
         if (matches.length === 1) {
           terminalInput.value = matches[0] + " ";
         } else if (matches.length > 1) {
@@ -455,13 +481,13 @@ export function initTerminal() {
           commandElement.className = "terminal-line";
           commandElement.innerHTML = `<span class="prompt">$</span> ${escapeHTML(current)}`;
           fragment.appendChild(commandElement);
-          
+
           const resultElement = document.createElement("div");
           resultElement.innerHTML = `<p class="terminal-output-text">${matches.join("  ")}</p>`;
           fragment.appendChild(resultElement);
-          
+
           terminalOutput.appendChild(fragment);
-          
+
           requestAnimationFrame(() => {
             terminalBody.scrollTop = terminalBody.scrollHeight;
           });
@@ -509,16 +535,14 @@ export function initTerminal() {
       if (resultElement.innerHTML) {
         fragment.appendChild(resultElement);
       }
-      
+
       terminalOutput.appendChild(fragment);
 
       terminalInput.value = "";
-      
+
       requestAnimationFrame(() => {
         terminalBody.scrollTop = terminalBody.scrollHeight;
       });
     }
   });
-
-
 }

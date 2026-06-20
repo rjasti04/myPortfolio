@@ -1,1010 +1,1679 @@
 <!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' https://cdn.jsdelivr.net 'sha256-0/PLsWCeqKyS+oiYqnl4MhX8G5Q1tdDiTym+KJh/JJQ=' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-7qJiTE0SDGqsGuUtWq0yY/Ojx48LheZZjk0mLT1uGYM=' 'sha256-j935QdYQwd0URj8l/GbO7dZwocBphcwHOB4WmS4xhoQ=' 'sha256-YLdKYOQHLYbUhx/wZJTRLGJLs+AwpPOxKYHJLNMC/Aw='; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://cdn.jsdelivr.net https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <meta name="author" content="Rajeev Jasti" />
+    <meta name="theme-color" content="hsl(348, 79%, 40%)" />
+    <meta
+      name="description"
+      content="Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines."
+    />
+    <link rel="canonical" href="https://rjasti.com/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="Rajeev Jasti" />
+    <meta
+      property="og:title"
+      content="Rajeev Jasti | Principal Data Engineer"
+    />
+    <meta
+      property="og:description"
+      content="Architecting low-latency distributed systems and massive-scale ETL pipelines."
+    />
+    <meta property="og:image" content="https://rjasti.com/social-preview.png" />
+    <meta
+      property="og:image:secure_url"
+      content="https://rjasti.com/social-preview.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Rajeev Jasti portfolio preview card"
+    />
+    <meta property="og:url" content="https://rjasti.com/" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Rajeev Jasti | Principal Data Engineer"
+    />
+    <meta
+      name="twitter:description"
+      content="Architecting low-latency distributed systems and massive-scale ETL pipelines."
+    />
+    <meta
+      name="twitter:image"
+      content="https://rjasti.com/social-preview.png"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="Rajeev Jasti portfolio preview card"
+    />
+    <title>Rajeev Jasti | Principal Data Engineer</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="shortcut icon" href="favicon.ico" />
 
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' https://cdn.jsdelivr.net 'sha256-0/PLsWCeqKyS+oiYqnl4MhX8G5Q1tdDiTym+KJh/JJQ=' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-7qJiTE0SDGqsGuUtWq0yY/Ojx48LheZZjk0mLT1uGYM=' 'sha256-j935QdYQwd0URj8l/GbO7dZwocBphcwHOB4WmS4xhoQ=' 'sha256-YLdKYOQHLYbUhx/wZJTRLGJLs+AwpPOxKYHJLNMC/Aw='; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://cdn.jsdelivr.net https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-  <meta name="author" content="Rajeev Jasti" />
-  <meta name="theme-color" content="hsl(348, 79%, 40%)" />
-  <meta name="description"
-    content="Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines." />
-  <link rel="canonical" href="https://rjasti.com/" />
-  <meta property="og:locale" content="en_US" />
-  <meta property="og:site_name" content="Rajeev Jasti" />
-  <meta property="og:title" content="Rajeev Jasti | Principal Data Engineer" />
-  <meta property="og:description"
-    content="Architecting low-latency distributed systems and massive-scale ETL pipelines." />
-  <meta property="og:image" content="https://rjasti.com/social-preview.png" />
-  <meta property="og:image:secure_url" content="https://rjasti.com/social-preview.png" />
-  <meta property="og:image:type" content="image/png" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Rajeev Jasti portfolio preview card" />
-  <meta property="og:url" content="https://rjasti.com/" />
-  <meta property="og:type" content="website" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Rajeev Jasti | Principal Data Engineer" />
-  <meta name="twitter:description"
-    content="Architecting low-latency distributed systems and massive-scale ETL pipelines." />
-  <meta name="twitter:image" content="https://rjasti.com/social-preview.png" />
-  <meta name="twitter:image:alt" content="Rajeev Jasti portfolio preview card" />
-  <title>Rajeev Jasti | Principal Data Engineer</title>
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-  <link rel="shortcut icon" href="favicon.ico" />
-
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="RJ Portfolio" />
-  <meta name="format-detection" content="telephone=no" />
-  <link rel="manifest" href="manifest.json" />
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@graph": [
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="RJ Portfolio" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="manifest.json" />
+    <script type="application/ld+json">
       {
-        "@type": "Person",
-        "@id": "https://rjasti.com/#person",
-        "name": "Rajeev Jasti",
-        "jobTitle": "Principal Data Engineer",
-        "description": "Principal Data Engineer specializing in distributed systems, low-latency analytics, and ETL platform design.",
-        "url": "https://rjasti.com/",
-        "image": {
-          "@type": "ImageObject",
-          "url": "https://rjasti.com/profile-pic.jpeg",
-          "width": 725,
-          "height": 1024
-        },
-        "sameAs": [
-          "https://www.linkedin.com/in/rajeev-jasti-326080169",
-          "https://github.com/rjasti04"
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Person",
+            "@id": "https://rjasti.com/#person",
+            "name": "Rajeev Jasti",
+            "jobTitle": "Principal Data Engineer",
+            "description": "Principal Data Engineer specializing in distributed systems, low-latency analytics, and ETL platform design.",
+            "url": "https://rjasti.com/",
+            "image": {
+              "@type": "ImageObject",
+              "url": "https://rjasti.com/profile-pic.jpeg",
+              "width": 725,
+              "height": 1024
+            },
+            "sameAs": [
+              "https://www.linkedin.com/in/rajeev-jasti-326080169",
+              "https://github.com/rjasti04"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://rjasti.com/#website",
+            "url": "https://rjasti.com/",
+            "name": "Rajeev Jasti",
+            "description": "Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines.",
+            "publisher": {
+              "@id": "https://rjasti.com/#person"
+            },
+            "inLanguage": "en-US"
+          },
+          {
+            "@type": "WebPage",
+            "@id": "https://rjasti.com/#webpage",
+            "url": "https://rjasti.com/",
+            "name": "Rajeev Jasti | Principal Data Engineer",
+            "description": "Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines.",
+            "isPartOf": {
+              "@id": "https://rjasti.com/#website"
+            },
+            "about": {
+              "@id": "https://rjasti.com/#person"
+            },
+            "primaryImageOfPage": {
+              "@type": "ImageObject",
+              "url": "https://rjasti.com/social-preview.png",
+              "width": 1200,
+              "height": 630
+            },
+            "inLanguage": "en-US"
+          }
         ]
-      },
-      {
-        "@type": "WebSite",
-        "@id": "https://rjasti.com/#website",
-        "url": "https://rjasti.com/",
-        "name": "Rajeev Jasti",
-        "description": "Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines.",
-        "publisher": {
-          "@id": "https://rjasti.com/#person"
-        },
-        "inLanguage": "en-US"
-      },
-      {
-        "@type": "WebPage",
-        "@id": "https://rjasti.com/#webpage",
-        "url": "https://rjasti.com/",
-        "name": "Rajeev Jasti | Principal Data Engineer",
-        "description": "Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines.",
-        "isPartOf": {
-          "@id": "https://rjasti.com/#website"
-        },
-        "about": {
-          "@id": "https://rjasti.com/#person"
-        },
-        "primaryImageOfPage": {
-          "@type": "ImageObject",
-          "url": "https://rjasti.com/social-preview.png",
-          "width": 1200,
-          "height": 630
-        },
-        "inLanguage": "en-US"
       }
-    ]
-  }
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
-  <link rel="dns-prefetch" href="https://formsubmit.co" />
-  <link rel="dns-prefetch" href="https://get.geojs.io" />
-  <script>
-    document.documentElement.classList.add("js-enabled");
-  </script>
-  <link rel="preload" href="profile-pic-160.webp" as="image" type="image/webp" />
-  <link rel="preload" href="styles.css" as="style" />
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="./auth-modal.css" />
-  <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" media="print"
-    id="google-fonts-link" />
-  <noscript>
-    <link rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" />
-  </noscript>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
-    crossorigin="anonymous" referrerpolicy="no-referrer" />
-</head>
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+    <link rel="dns-prefetch" href="https://formsubmit.co" />
+    <link rel="dns-prefetch" href="https://get.geojs.io" />
+    <script>
+      document.documentElement.classList.add("js-enabled");
+    </script>
+    <link
+      rel="preload"
+      href="profile-pic-160.webp"
+      as="image"
+      type="image/webp"
+    />
+    <link rel="preload" href="styles.css" as="style" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="./auth-modal.css" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+      media="print"
+      id="google-fonts-link"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+      />
+    </noscript>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+  </head>
 
-<body>
-  <!-- Skip to main content for keyboard accessibility -->
-  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <body>
+    <!-- Skip to main content for keyboard accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
 
-  <!-- Inline theme bootstrap: runs before first paint to prevent white flash.
+    <!-- Inline theme bootstrap: runs before first paint to prevent white flash.
        Defaults to dark-theme if no preference has been saved. -->
-  <script>
-    (function () {
-      var saved = localStorage.getItem('theme');
-      if (saved !== 'light') {
-        document.body.classList.add('dark-theme');
-      }
-    }());
-  </script>
-  <script src="js/theme-bootstrap.js"></script>
-  <noscript>
-    <div class="noscript-banner" role="alert">
-      JavaScript is disabled. Core content is still available, but advanced animations and quick actions are turned off.
-    </div>
-  </noscript>
+    <script>
+      (function () {
+        var saved = localStorage.getItem("theme");
+        if (saved !== "light") {
+          document.body.classList.add("dark-theme");
+        }
+      })();
+    </script>
+    <script src="js/theme-bootstrap.js"></script>
+    <noscript>
+      <div class="noscript-banner" role="alert">
+        JavaScript is disabled. Core content is still available, but advanced
+        animations and quick actions are turned off.
+      </div>
+    </noscript>
 
-  <div class="noise-overlay js-only"></div>
-  <canvas id="webgl-canvas" class="webgl-canvas js-only" aria-hidden="true"></canvas>
-  <div class="toast-container js-only" id="toast-container" aria-live="polite" aria-atomic="false"></div>
+    <div class="noise-overlay js-only"></div>
+    <canvas
+      id="webgl-canvas"
+      class="webgl-canvas js-only"
+      aria-hidden="true"
+    ></canvas>
+    <div
+      class="toast-container js-only"
+      id="toast-container"
+      aria-live="polite"
+      aria-atomic="false"
+    ></div>
 
-
-  <div class="image-modal" id="image-modal" role="dialog" aria-modal="true" aria-label="Profile photo"
-    aria-hidden="true">
-    <button type="button" class="modal-close" id="image-modal-close" aria-label="Close profile photo">
-      <i class="fas fa-times"></i>
-    </button>
-    <picture>
-      <source srcset="profile-pic-360.webp 360w, profile-pic.webp 725w" sizes="(max-width: 540px) 90vw, 90vw"
-        type="image/webp" />
-      <img src="profile-pic-360.jpg" srcset="profile-pic-360.jpg 360w, profile-pic.jpeg 725w"
-        sizes="(max-width: 540px) 90vw, 90vw" alt="Rajeev Jasti" class="modal-content" loading="lazy" width="725"
-        height="1024" />
-    </picture>
-  </div>
-
-  <div class="project-detail-modal" id="project-detail-modal" role="dialog" aria-modal="true"
-    aria-labelledby="project-detail-title" aria-hidden="true">
-    <div class="project-detail-content modal-inner" tabindex="-1">
-      <button type="button" class="modal-close" id="project-detail-close" aria-label="Close project details">
+    <div
+      class="image-modal"
+      id="image-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Profile photo"
+      aria-hidden="true"
+    >
+      <button
+        type="button"
+        class="modal-close"
+        id="image-modal-close"
+        aria-label="Close profile photo"
+      >
         <i class="fas fa-times"></i>
       </button>
-      <div class="project-detail-header">
-        <div class="project-detail-icon" id="project-detail-icon"></div>
-        <h3 class="project-detail-title" id="project-detail-title"></h3>
-      </div>
-      <p class="project-detail-description" id="project-detail-description"></p>
-      <div class="project-detail-meta">
-        <div class="project-detail-stack" id="project-detail-stack"></div>
-        <ul class="project-detail-outcomes" id="project-detail-outcomes"></ul>
-      </div>
-      <a href="#contact" data-target="contact" class="btn btn-outline nav-cta project-detail-cta"
-        id="project-detail-cta">
-        Discuss This Project <i class="fas fa-arrow-right"></i>
-      </a>
+      <picture>
+        <source
+          srcset="profile-pic-360.webp 360w, profile-pic.webp 725w"
+          sizes="(max-width: 540px) 90vw, 90vw"
+          type="image/webp"
+        />
+        <img
+          src="profile-pic-360.jpg"
+          srcset="profile-pic-360.jpg 360w, profile-pic.jpeg 725w"
+          sizes="(max-width: 540px) 90vw, 90vw"
+          alt="Rajeev Jasti"
+          class="modal-content"
+          loading="lazy"
+          width="725"
+          height="1024"
+        />
+      </picture>
     </div>
-  </div>
 
-
-
-  <div class="layout">
-    <header id="header">
-      <a href="profile-pic.jpeg" target="_blank" rel="noopener noreferrer" class="header-left" id="profile-trigger"
-        aria-label="Open profile photo">
-        <picture>
-          <source srcset="profile-pic-160.webp 160w, profile-pic-360.webp 360w" sizes="42px" type="image/webp" />
-          <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w" sizes="42px"
-            alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="725" height="1024" />
-        </picture>
-        <div class="logo-text">RJ</div>
-      </a>
-
-
-      <nav id="nav-menu" aria-label="Primary">
-        <a href="#about" data-target="about" class="active" aria-current="page">About</a>
-        <a href="#resume" data-target="resume">Experience</a>
-        <a href="#portfolio" data-target="portfolio">Portfolio</a>
-        <a href="#hobbies" data-target="hobbies">Hobbies</a>
-        <a href="#activity" data-target="activity">Activity</a>
-        <a href="#ai" data-target="ai">AI</a>
-        <a href="#contact" data-target="contact">Contact</a>
-      </nav>
-
-      <div class="header-actions">
-        <div class="header-dropdown js-only" id="connect-dropdown">
-          <button type="button" class="header-icon-btn" id="connect-toggle" aria-label="Open connect menu"
-            aria-controls="connect-dropdown-menu" aria-expanded="false">
-            <i class="fas fa-paper-plane"></i>
-          </button>
-          <div class="header-dropdown-menu" id="connect-dropdown-menu" aria-hidden="true">
-            <div class="header-dropdown-container">
-              <h2 class="connect-title">Connect</h2>
-              <p class="connect-copy">Reach me by email, LinkedIn, GitHub, or resume.</p>
-              <div class="connect-actions">
-                <a href="mailto:inboxtorj@gmail.com" class="connect-link">Email Me</a>
-                <a href="https://www.linkedin.com/in/rajeev-jasti-326080169" target="_blank" rel="noopener noreferrer"
-                  class="connect-link">LinkedIn</a>
-                <a href="https://github.com/rjasti04" target="_blank" rel="noopener noreferrer"
-                  class="connect-link">GitHub</a>
-                <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="connect-link">Resume</a>
-              </div>
-            </div>
-          </div>
+    <div
+      class="project-detail-modal"
+      id="project-detail-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="project-detail-title"
+      aria-hidden="true"
+    >
+      <div class="project-detail-content modal-inner" tabindex="-1">
+        <button
+          type="button"
+          class="modal-close"
+          id="project-detail-close"
+          aria-label="Close project details"
+        >
+          <i class="fas fa-times"></i>
+        </button>
+        <div class="project-detail-header">
+          <div class="project-detail-icon" id="project-detail-icon"></div>
+          <h3 class="project-detail-title" id="project-detail-title"></h3>
         </div>
-
-        <div class="header-dropdown js-only" id="theme-customizer-dropdown">
-          <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme"
-            aria-label="Customize theme" aria-controls="theme-customizer-menu" aria-expanded="false">
-            <i class="fas fa-palette"></i>
-          </button>
-          <div class="header-dropdown-menu" id="theme-customizer-menu" aria-hidden="true">
-            <div class="header-dropdown-container customizer-content">
-              <h3 class="customizer-title">Customize Theme</h3>
-              <p class="customizer-description">Choose your colors. We'll automatically generate accessible light and
-                dark variants.</p>
-
-              <div class="customizer-presets">
-                <label class="customizer-presets-label">Terminal Presets</label>
-                <div class="preset-buttons">
-                  <button type="button" class="preset-btn" data-preset="matrix">Matrix</button>
-                  <button type="button" class="preset-btn" data-preset="solarized">Solarized</button>
-                  <button type="button" class="preset-btn" data-preset="dracula">Dracula</button>
-                </div>
-              </div>
-
-              <div class="customizer-form">
-                <div class="color-picker-group">
-                  <label for="color-primary">Primary</label>
-                  <button type="button" class="color-input-wrapper" id="color-primary" data-color-key="primary"
-                    data-color-value="#0ea5e9" style="--selected-color: #0ea5e9;" aria-haspopup="dialog"
-                    aria-expanded="false" aria-controls="theme-color-popover">
-                    <span class="color-preview" aria-hidden="true"></span>
-                    <span class="color-hex-display" id="hex-primary">#0ea5e9</span>
-                  </button>
-                </div>
-                <div class="color-picker-group">
-                  <label for="color-secondary">Secondary</label>
-                  <button type="button" class="color-input-wrapper" id="color-secondary" data-color-key="secondary"
-                    data-color-value="#a855f7" style="--selected-color: #a855f7;" aria-haspopup="dialog"
-                    aria-expanded="false" aria-controls="theme-color-popover">
-                    <span class="color-preview" aria-hidden="true"></span>
-                    <span class="color-hex-display" id="hex-secondary">#a855f7</span>
-                  </button>
-                </div>
-                <div class="color-picker-group">
-                  <label for="color-accent">Highlight</label>
-                  <button type="button" class="color-input-wrapper" id="color-accent" data-color-key="accent"
-                    data-color-value="#10b981" style="--selected-color: #10b981;" aria-haspopup="dialog"
-                    aria-expanded="false" aria-controls="theme-color-popover">
-                    <span class="color-preview" aria-hidden="true"></span>
-                    <span class="color-hex-display" id="hex-accent">#10b981</span>
-                  </button>
-                </div>
-              </div>
-
-              <div class="custom-color-popover" id="theme-color-popover" role="dialog" aria-modal="false"
-                aria-labelledby="color-popover-title" hidden>
-                <div class="color-popover-header">
-                  <span class="color-popover-title" id="color-popover-title">Primary</span>
-                  <button type="button" class="color-popover-close" id="color-popover-close"
-                    aria-label="Close color editor">
-                    <i class="fas fa-times" aria-hidden="true"></i>
-                  </button>
-                </div>
-                <div class="color-popover-preview-row">
-                  <span class="color-popover-preview" id="color-popover-preview" aria-hidden="true"></span>
-                  <label class="color-popover-field" for="color-popover-hex">Hex</label>
-                  <input type="text" class="color-popover-hex" id="color-popover-hex" inputmode="text" maxlength="7"
-                    spellcheck="false" autocomplete="off" />
-                </div>
-                <div class="color-popover-swatches" id="color-popover-swatches" aria-label="Preset colors"></div>
-              </div>
-
-              <div class="customizer-actions">
-                <button type="button" class="btn btn-outline" id="theme-customizer-reset"
-                  data-spring-hover>Reset</button>
-                <button type="button" class="btn" id="theme-customizer-apply" data-spring-hover>Apply</button>
-              </div>
-            </div>
-          </div>
+        <p
+          class="project-detail-description"
+          id="project-detail-description"
+        ></p>
+        <div class="project-detail-meta">
+          <div class="project-detail-stack" id="project-detail-stack"></div>
+          <ul class="project-detail-outcomes" id="project-detail-outcomes"></ul>
         </div>
+        <a
+          href="#contact"
+          data-target="contact"
+          class="btn btn-outline nav-cta project-detail-cta"
+          id="project-detail-cta"
+        >
+          Discuss This Project <i class="fas fa-arrow-right"></i>
+        </a>
+      </div>
+    </div>
 
-        <a href="worldcup.html" target="_blank" class="header-icon-btn" id="worldcup-link" title="World Cup Predictor"
-          aria-label="Launch 2026 World Cup Bracket Predictor in a new tab">
-          <i class="fas fa-futbol"></i>
+    <div class="layout">
+      <header id="header">
+        <a
+          href="profile-pic.jpeg"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="header-left"
+          id="profile-trigger"
+          aria-label="Open profile photo"
+        >
+          <picture>
+            <source
+              srcset="profile-pic-160.webp 160w, profile-pic-360.webp 360w"
+              sizes="42px"
+              type="image/webp"
+            />
+            <img
+              src="profile-pic-160.jpg"
+              srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w"
+              sizes="42px"
+              alt="Rajeev Jasti"
+              class="profile-pic-small"
+              fetchpriority="high"
+              width="725"
+              height="1024"
+            />
+          </picture>
+          <div class="logo-text">RJ</div>
         </a>
 
-        <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme"
-          aria-label="Toggle theme" aria-pressed="false">
-          <i class="fas fa-moon" id="theme-icon"></i>
-        </button>
+        <nav id="nav-menu" aria-label="Primary">
+          <a
+            href="#about"
+            data-target="about"
+            class="active"
+            aria-current="page"
+            >About</a
+          >
+          <a href="#resume" data-target="resume">Experience</a>
+          <a href="#portfolio" data-target="portfolio">Portfolio</a>
+          <a href="#hobbies" data-target="hobbies">Hobbies</a>
+          <a href="#activity" data-target="activity">Activity</a>
+          <a href="#ai" data-target="ai">AI</a>
+          <a href="#contact" data-target="contact">Contact</a>
+        </nav>
 
-        <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
-          aria-controls="nav-menu" aria-expanded="false">
-          <i class="fas fa-bars"></i>
-        </button>
-      </div>
-    </header>
-
-    <main id="main-content">
-      <section id="about" class="active">
-        <div class="hero">
-          <div class="hero-text">
-            <span class="hero-subtitle">Principal Data Engineer</span>
-            <h1 class="hero-title glitch layers" data-text="Rajeev Jasti"><span>Rajeev Jasti</span></h1>
-            <p class="hero-description">
-              Architecting low-latency distributed systems and massive-scale
-              ETL pipelines. I build the robust infrastructure that powers
-              real-time analytics for global enterprises.
-            </p>
-            <div class="hero-buttons">
-              <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="btn" data-spring-hover>Resume
-                <i class="fas fa-arrow-down"></i></a>
-              <a href="#ai" data-target="ai" class="nav-cta btn hero-chat-btn" id="hero-chat-btn"
-                aria-label="Open AI Chat" data-spring-hover>Ask AI <i class="fas fa-robot"></i></a>
-            </div>
-          </div>
-          <aside class="terminal-panel" aria-label="Now Building panel">
-            <div class="terminal-topbar">
-              <span class="terminal-dot dot-red" aria-hidden="true"></span>
-              <span class="terminal-dot dot-amber" aria-hidden="true"></span>
-              <span class="terminal-dot dot-green" aria-hidden="true"></span>
-              <span class="terminal-title">now-building.sh</span>
-            </div>
-            <div class="terminal-body" id="terminal-body">
-              <div id="terminal-output">
-                <p class="terminal-line"><span class="prompt">$</span> cat current_focus.md</p>
-                <ul class="terminal-list">
-                  <li>Realtime lakehouse observability rollout</li>
-                  <li>Self-serve pipeline templates for domain teams</li>
-                </ul>
-
-                <p class="terminal-line"><span class="prompt">$</span> stack --active</p>
-                <div class="terminal-tags">
-                  <span>Kafka</span>
-                  <span>Spark</span>
-                  <span>Airflow</span>
-                  <span>Snowflake</span>
-                  <span>Terraform</span>
-                  <span>Kubernetes</span>
-                </div>
-
-                <p class="terminal-line"><span class="prompt">$</span> tail -n 3 recent_wins.log</p>
-                <ul class="terminal-list">
-                  <li>[OK] P95 latency down 40%</li>
-                  <li>[OK] Cloud spend down 30%</li>
-                  <li>[OK] Throughput stable at 1M+ events/sec</li>
-                </ul>
-              </div>
-              <div class="terminal-input-line">
-                <span class="prompt">$</span>
-                <input type="text" id="terminal-input" class="terminal-input" autocomplete="off" spellcheck="false"
-                  placeholder="Type 'help' to see commands..." aria-label="Terminal command input" />
-              </div>
-            </div>
-          </aside>
-        </div>
-
-        <div class="stats-grid">
-          <div class="stat-card reveal">
-            <div class="stat-number" data-target="10" data-suffix="+">10+</div>
-            <div class="stat-label">Years Experience</div>
-          </div>
-          <div class="stat-card reveal">
-            <div class="stat-number" data-target="50" data-suffix="+">50+</div>
-            <div class="stat-label">Projects Delivered</div>
-          </div>
-          <div class="stat-card reveal">
-            <div class="stat-number" data-target="1" data-suffix="M+">1M+</div>
-            <div class="stat-label">Events/Second</div>
-          </div>
-          <div class="stat-card reveal">
-            <div class="stat-number" data-target="30" data-suffix="%">30%</div>
-            <div class="stat-label">Cost Reduction</div>
-          </div>
-          <div class="stat-card reveal">
-            <div class="stat-number" data-target="40" data-suffix="%">40%</div>
-            <div class="stat-label">Latency Improvement</div>
-          </div>
-          <div class="stat-card reveal">
-            <div class="stat-number" data-target="99.9" data-suffix="%">99.9%</div>
-            <div class="stat-label">Uptime</div>
-          </div>
-        </div>
-
-        <div class="skills-section">
-          <h2 class="section-title skills-title">Technical Skills</h2>
-          <div class="skills-carousel" data-skills-carousel>
-            <div class="skills-grid">
-              <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-network-wired"></i> Data Processing</h3>
-                <div class="skill-tags">
-                  <span class="skill-tag">Apache Spark</span>
-                  <span class="skill-tag">Kafka</span>
-                  <span class="skill-tag">Apache Airflow</span>
-                  <span class="skill-tag">Apache Flink</span>
-                  <span class="skill-tag">dbt</span>
-                </div>
-              </div>
-              <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-cloud"></i> Cloud &amp; Infrastructure</h3>
-                <div class="skill-tags">
-                  <span class="skill-tag">AWS</span>
-                  <span class="skill-tag">Kubernetes</span>
-                  <span class="skill-tag">Terraform</span>
-                  <span class="skill-tag">Docker</span>
-                  <span class="skill-tag">GCP</span>
-                </div>
-              </div>
-              <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-server"></i> Data Warehouse</h3>
-                <div class="skill-tags">
-                  <span class="skill-tag">Snowflake</span>
-                  <span class="skill-tag">AWS Redshift</span>
-                  <span class="skill-tag">BigQuery</span>
-                  <span class="skill-tag">Delta Lake</span>
-                </div>
-              </div>
-              <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-code"></i> Languages</h3>
-                <div class="skill-tags">
-                  <span class="skill-tag">Python</span>
-                  <span class="skill-tag">SQL</span>
-                  <span class="skill-tag">Scala</span>
-                  <span class="skill-tag">Bash</span>
-                </div>
-              </div>
-              <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-database"></i> Databases</h3>
-                <div class="skill-tags">
-                  <span class="skill-tag">PostgreSQL</span>
-                  <span class="skill-tag">MongoDB</span>
-                  <span class="skill-tag">Redis</span>
-                  <span class="skill-tag">Cassandra</span>
-                </div>
-              </div>
-              <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-chart-line"></i> Observability</h3>
-                <div class="skill-tags">
-                  <span class="skill-tag">Prometheus</span>
-                  <span class="skill-tag">Grafana</span>
-                  <span class="skill-tag">DataDog</span>
-                  <span class="skill-tag">OpenTelemetry</span>
-                </div>
-              </div>
-            </div>
-            <button type="button" class="skills-carousel-arrow skills-carousel-arrow--prev"
-              aria-label="Previous skill group">
-              <i class="fas fa-chevron-left" aria-hidden="true"></i>
+        <div class="header-actions">
+          <div class="header-dropdown js-only" id="connect-dropdown">
+            <button
+              type="button"
+              class="header-icon-btn"
+              id="connect-toggle"
+              aria-label="Open connect menu"
+              aria-controls="connect-dropdown-menu"
+              aria-expanded="false"
+            >
+              <i class="fas fa-paper-plane"></i>
             </button>
-            <button type="button" class="skills-carousel-arrow skills-carousel-arrow--next"
-              aria-label="Next skill group">
-              <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            <div
+              class="header-dropdown-menu"
+              id="connect-dropdown-menu"
+              aria-hidden="true"
+            >
+              <div class="header-dropdown-container">
+                <h2 class="connect-title">Connect</h2>
+                <p class="connect-copy">
+                  Reach me by email, LinkedIn, GitHub, or resume.
+                </p>
+                <div class="connect-actions">
+                  <a href="mailto:inboxtorj@gmail.com" class="connect-link"
+                    >Email Me</a
+                  >
+                  <a
+                    href="https://www.linkedin.com/in/rajeev-jasti-326080169"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="connect-link"
+                    >LinkedIn</a
+                  >
+                  <a
+                    href="https://github.com/rjasti04"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="connect-link"
+                    >GitHub</a
+                  >
+                  <a
+                    href="rajeev_jasti.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="connect-link"
+                    >Resume</a
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="header-dropdown js-only" id="theme-customizer-dropdown">
+            <button
+              type="button"
+              class="header-icon-btn"
+              id="palette-toggle"
+              title="Customize theme"
+              aria-label="Customize theme"
+              aria-controls="theme-customizer-menu"
+              aria-expanded="false"
+            >
+              <i class="fas fa-palette"></i>
             </button>
-            <div class="skills-carousel-dots" role="tablist" aria-label="Skill group navigation"></div>
-          </div>
-        </div>
+            <div
+              class="header-dropdown-menu"
+              id="theme-customizer-menu"
+              aria-hidden="true"
+            >
+              <div class="header-dropdown-container customizer-content">
+                <h3 class="customizer-title">Customize Theme</h3>
+                <p class="customizer-description">
+                  Choose your colors. We'll automatically generate accessible
+                  light and dark variants.
+                </p>
 
-
-      </section>
-
-      <section id="resume">
-        <h2 class="section-title">Experience</h2>
-        <p class="section-intro">Company names are intentionally omitted for confidentiality; scope and outcomes reflect
-          production work.</p>
-
-        <div class="item tilt-card reveal">
-          <div class="item-header">
-            <span class="item-date">2022 &mdash; Present</span>
-            <span class="item-badge">Remote</span>
-          </div>
-          <h3>Principal Data Engineer &bull; Global Enterprise</h3>
-          <p class="item-description">
-            Architected a multi-region data mesh serving 50+ internal teams.
-            Reduced cloud infrastructure costs by 30%.
-          </p>
-          <ul class="item-bullets">
-            <li>Designed and deployed Kafka-to-Snowflake CDC pipelines handling 1M+ events/sec</li>
-            <li>Led migration from monolithic ETL to modular, domain-owned data products</li>
-            <li>Reduced P95 query latency by 40% through Spark optimization and partition tuning</li>
-            <li>Mentored a team of 6 engineers across 3 time zones</li>
-          </ul>
-          <div class="item-tags">
-            <span>Kafka</span><span>Spark</span><span>Snowflake</span><span>Kubernetes</span><span>Terraform</span>
-          </div>
-        </div>
-
-        <div class="item tilt-card reveal">
-          <div class="item-header">
-            <span class="item-date">2019 &mdash; 2022</span>
-            <span class="item-badge">Hybrid</span>
-          </div>
-          <h3>Senior Data Engineer &bull; Data Platform Company</h3>
-          <p class="item-description">
-            Built and owned the company's core data platform, enabling self-serve analytics for 20+ business teams.
-          </p>
-          <ul class="item-bullets">
-            <li>Delivered Airflow-orchestrated ETL pipelines processing 500GB+ nightly</li>
-            <li>Migrated legacy Oracle DWH to Snowflake, cutting storage costs by 40%</li>
-            <li>Implemented data quality framework reducing production incidents by 60%</li>
-          </ul>
-          <div class="item-tags">
-            <span>Airflow</span><span>Snowflake</span><span>Python</span><span>dbt</span><span>AWS</span>
-          </div>
-        </div>
-
-        <div class="item tilt-card reveal">
-          <div class="item-header">
-            <span class="item-date">2016 &mdash; 2019</span>
-            <span class="item-badge">On-site</span>
-          </div>
-          <h3>Data Engineer &bull; Product Analytics Team</h3>
-          <p class="item-description">
-            Developed ETL pipelines and data models supporting product analytics for 5M+ daily active users.
-          </p>
-          <ul class="item-bullets">
-            <li>Built real-time dashboards using Spark Streaming and Kafka</li>
-            <li>Designed dimensional data models in PostgreSQL and Redshift</li>
-            <li>Automated pipeline monitoring, reducing MTTR from hours to minutes</li>
-          </ul>
-          <div class="item-tags">
-            <span>Spark</span><span>Kafka</span><span>PostgreSQL</span><span>Redshift</span><span>Python</span>
-          </div>
-        </div>
-      </section>
-
-      <section id="portfolio">
-        <h2 class="section-title">Projects</h2>
-        <p class="section-intro">Selected platform work focused on reliability, observability, and reusable delivery
-          patterns.</p>
-        <div class="project-toolbar" aria-label="Project filters">
-          <div class="project-filter-group" role="group" aria-label="Filter projects by stack">
-            <button type="button" class="project-filter active" data-filter="all" aria-pressed="true">All</button>
-            <button type="button" class="project-filter" data-filter="kafka" aria-pressed="false">Kafka</button>
-            <button type="button" class="project-filter" data-filter="spark" aria-pressed="false">Spark</button>
-            <button type="button" class="project-filter" data-filter="snowflake" aria-pressed="false">Snowflake</button>
-            <button type="button" class="project-filter" data-filter="airflow" aria-pressed="false">Airflow</button>
-          </div>
-          <label class="project-search-label" for="project-search">Search projects</label>
-          <input type="search" id="project-search" class="project-search"
-            placeholder="Search by project name or technology" />
-        </div>
-        <p class="project-results" id="project-results" role="status" aria-live="polite"></p>
-        <div class="portfolio-grid" id="portfolio-grid">
-          <article class="item tilt-card project-card reveal" data-tags="kafka spark realtime"
-            data-title="Real-time Analytics Platform"
-            data-description="Kafka and Spark streaming pipeline processing 1M events per second with fault-tolerant event ingestion. Deployed on Kubernetes with auto-scaling consumers and end-to-end latency monitoring."
-            data-stack="Kafka,Spark,Python,Kubernetes,Prometheus"
-            data-outcomes="P95 latency reduced by 40%|Handles 1M+ events per second sustainably|99.9% uptime over 18 months"
-            data-icon="fas fa-microchip">
-            <h4>
-              <i class="fas fa-microchip project-icon"></i> Real-time Analytics Platform
-            </h4>
-            <p class="project-description">
-              Kafka and Spark streaming pipeline processing 1M events per second with fault-tolerant event ingestion.
-            </p>
-            <div class="project-card-footer">
-              <div class="project-card-tags">
-                <span>Kafka</span><span>Spark</span><span>Kubernetes</span>
-              </div>
-              <button type="button" class="project-details-btn"
-                aria-label="View details for Real-time Analytics Platform">Details <i
-                  class="fas fa-arrow-right"></i></button>
-            </div>
-          </article>
-
-          <article class="item tilt-card project-card reveal" data-tags="snowflake airflow etl"
-            data-title="Cloud ETL Modernization"
-            data-description="Airflow-orchestrated Snowflake pipelines that reduced nightly batch runtime by 45%. Includes lineage tracking, automated alerting, and self-healing retry logic."
-            data-stack="Airflow,Snowflake,dbt,Python,AWS S3"
-            data-outcomes="45% faster nightly batch runtime|30% cloud cost reduction|Zero data-loss incidents in 2 years"
-            data-icon="fas fa-database">
-            <h4>
-              <i class="fas fa-database project-icon"></i> Cloud ETL Modernization
-            </h4>
-            <p class="project-description">
-              Airflow-orchestrated Snowflake pipelines that reduced nightly batch runtime by 45%.
-            </p>
-            <div class="project-card-footer">
-              <div class="project-card-tags">
-                <span>Airflow</span><span>Snowflake</span><span>dbt</span>
-              </div>
-              <button type="button" class="project-details-btn"
-                aria-label="View details for Cloud ETL Modernization">Details <i
-                  class="fas fa-arrow-right"></i></button>
-            </div>
-          </article>
-
-          <article class="item tilt-card project-card reveal" data-tags="kafka snowflake cdc"
-            data-title="CDC Data Mesh Enablement"
-            data-description="Built Kafka-to-Snowflake CDC templates for domain teams to self-serve compliant datasets. Includes schema registry, automated compatibility testing, and governance controls."
-            data-stack="Kafka,Debezium,Snowflake,Terraform,Schema Registry"
-            data-outcomes="50+ domain teams onboarded|Time-to-first-dataset cut from weeks to days|100% schema compatibility enforced"
-            data-icon="fas fa-network-wired">
-            <h4>
-              <i class="fas fa-network-wired project-icon"></i> CDC Data Mesh Enablement
-            </h4>
-            <p class="project-description">
-              Built Kafka-to-Snowflake CDC templates for domain teams to self-serve compliant datasets.
-            </p>
-            <div class="project-card-footer">
-              <div class="project-card-tags">
-                <span>Kafka</span><span>Snowflake</span><span>CDC</span>
-              </div>
-              <button type="button" class="project-details-btn"
-                aria-label="View details for CDC Data Mesh Enablement">Details <i
-                  class="fas fa-arrow-right"></i></button>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section id="hobbies">
-        <h2 class="section-title">Interests &amp; Hobbies</h2>
-        <p class="section-intro">What I do when I'm not building data pipelines.</p>
-        <div class="articles-grid">
-          <div class="item tilt-card article-card reveal hobby-delay-1">
-            <div class="hobby-icon-wrap"><i class="fas fa-futbol"></i></div>
-            <div class="article-meta">
-              <span class="article-date article-topic">Soccer</span>
-            </div>
-            <h3>Sunday League Striker</h3>
-            <p class="article-excerpt">I play competitively on weekends, always looking to improve my striking and
-              tactical awareness on the pitch.</p>
-          </div>
-          <div class="item tilt-card article-card reveal hobby-delay-2">
-            <div class="hobby-icon-wrap"><i class="fas fa-hot-tub"></i></div>
-            <div class="article-meta">
-              <span class="article-date article-topic">Sauna</span>
-            </div>
-            <h3>The Daily Detox</h3>
-            <p class="article-excerpt">Nothing beats a 20-minute sauna session after a long day of engineering. It is my
-              reset button for recovery and deep thinking.</p>
-          </div>
-          <div class="item tilt-card article-card reveal hobby-delay-3">
-            <div class="hobby-icon-wrap"><i class="fas fa-dumbbell"></i></div>
-            <div class="article-meta">
-              <span class="article-date article-topic">Workout</span>
-            </div>
-            <h3>Strength &amp; Conditioning</h3>
-            <p class="article-excerpt">Lifting heavy and staying mobile. Consistency in the gym translates directly to
-              discipline and focus at the keyboard.</p>
-          </div>
-          <div class="item tilt-card article-card reveal hobby-delay-4">
-            <div class="hobby-icon-wrap"><i class="fas fa-utensils"></i></div>
-            <div class="article-meta">
-              <span class="article-date article-topic">Foodie</span>
-            </div>
-            <h3>Culinary Explorer</h3>
-            <p class="article-excerpt">Always on the hunt for the best local eats, from hidden street food gems to
-              trying my hand at cooking new cuisines at home.</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="activity">
-        <h2 class="section-title">Session Activity</h2>
-        <p class="section-intro">Live view of current session events from FastAPI heartbeat session.</p>
-        <div class="activity-controls">
-          <div class="activity-pills-group">
-            <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
-              Refresh</button>
-            <div class="activity-refresh static session-id-pill">Session: <span id="current-session-id">-</span>
-            </div>
-          </div>
-        </div>
-        <noscript>
-          <div class="noscript-message noscript-message--accent">
-            <i class="fas fa-exclamation-circle noscript-message__icon"></i>
-            <p>JavaScript is required to view live session activity.</p>
-          </div>
-        </noscript>
-        <div class="activity-table-container">
-          <table class="activity-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Type</th>
-                <th>Path</th>
-                <th>Data (Encoded)</th>
-              </tr>
-            </thead>
-            <tbody id="activity-tbody">
-              <!-- Rendered by JS -->
-            </tbody>
-          </table>
-          <div class="activity-pagination activity-pagination-wrapper" id="activity-pagination" style="display: none;">
-            <button id="activity-prev-btn" class="activity-pagination-btn" disabled><i class="fas fa-chevron-left"></i>
-              Prev</button>
-            <span id="activity-page-info" class="activity-page-info">Page 1</span>
-            <button id="activity-next-btn" class="activity-pagination-btn" disabled>Next <i
-                class="fas fa-chevron-right"></i></button>
-          </div>
-        </div>
-      </section>
-
-      <section id="contact">
-        <div class="item contact-section reveal">
-          <div class="contact-layout">
-            <div class="contact-text-content">
-              <h2 class="contact-title">Let&apos;s talk.</h2>
-              <p class="contact-description">Have a project in mind or want to connect? Send me a message, and I'll get
-                back to you soon.</p>
-
-              <div class="contact-methods">
-                <a href="mailto:inboxtorj@gmail.com" class="contact-method-card">
-                  <div class="contact-icon-wrapper"><i class="fas fa-envelope"></i></div>
-                  <div class="contact-method-details">
-                    <span class="contact-method-label">Email Me</span>
-                    <span class="contact-method-value">inboxtorj@gmail.com</span>
+                <div class="customizer-presets">
+                  <label class="customizer-presets-label"
+                    >Terminal Presets</label
+                  >
+                  <div class="preset-buttons">
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-preset="matrix"
+                    >
+                      Matrix
+                    </button>
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-preset="solarized"
+                    >
+                      Solarized
+                    </button>
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-preset="dracula"
+                    >
+                      Dracula
+                    </button>
                   </div>
-                </a>
+                </div>
 
-                <button type="button" class="contact-method-card copy-btn" id="copy-email-btn"
-                  aria-label="Copy email address">
-                  <div class="contact-icon-wrapper"><i class="fas fa-copy"></i></div>
-                  <div class="contact-method-details">
-                    <span class="contact-method-label">Copy Address</span>
-                    <span class="contact-method-value" id="copy-status-text">Click to copy</span>
+                <div class="customizer-form">
+                  <div class="color-picker-group">
+                    <label for="color-primary">Primary</label>
+                    <button
+                      type="button"
+                      class="color-input-wrapper"
+                      id="color-primary"
+                      data-color-key="primary"
+                      data-color-value="#0ea5e9"
+                      style="--selected-color: #0ea5e9"
+                      aria-haspopup="dialog"
+                      aria-expanded="false"
+                      aria-controls="theme-color-popover"
+                    >
+                      <span class="color-preview" aria-hidden="true"></span>
+                      <span class="color-hex-display" id="hex-primary"
+                        >#0ea5e9</span
+                      >
+                    </button>
                   </div>
+                  <div class="color-picker-group">
+                    <label for="color-secondary">Secondary</label>
+                    <button
+                      type="button"
+                      class="color-input-wrapper"
+                      id="color-secondary"
+                      data-color-key="secondary"
+                      data-color-value="#a855f7"
+                      style="--selected-color: #a855f7"
+                      aria-haspopup="dialog"
+                      aria-expanded="false"
+                      aria-controls="theme-color-popover"
+                    >
+                      <span class="color-preview" aria-hidden="true"></span>
+                      <span class="color-hex-display" id="hex-secondary"
+                        >#a855f7</span
+                      >
+                    </button>
+                  </div>
+                  <div class="color-picker-group">
+                    <label for="color-accent">Highlight</label>
+                    <button
+                      type="button"
+                      class="color-input-wrapper"
+                      id="color-accent"
+                      data-color-key="accent"
+                      data-color-value="#10b981"
+                      style="--selected-color: #10b981"
+                      aria-haspopup="dialog"
+                      aria-expanded="false"
+                      aria-controls="theme-color-popover"
+                    >
+                      <span class="color-preview" aria-hidden="true"></span>
+                      <span class="color-hex-display" id="hex-accent"
+                        >#10b981</span
+                      >
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  class="custom-color-popover"
+                  id="theme-color-popover"
+                  role="dialog"
+                  aria-modal="false"
+                  aria-labelledby="color-popover-title"
+                  hidden
+                >
+                  <div class="color-popover-header">
+                    <span class="color-popover-title" id="color-popover-title"
+                      >Primary</span
+                    >
+                    <button
+                      type="button"
+                      class="color-popover-close"
+                      id="color-popover-close"
+                      aria-label="Close color editor"
+                    >
+                      <i class="fas fa-times" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <div class="color-popover-preview-row">
+                    <span
+                      class="color-popover-preview"
+                      id="color-popover-preview"
+                      aria-hidden="true"
+                    ></span>
+                    <label class="color-popover-field" for="color-popover-hex"
+                      >Hex</label
+                    >
+                    <input
+                      type="text"
+                      class="color-popover-hex"
+                      id="color-popover-hex"
+                      inputmode="text"
+                      maxlength="7"
+                      spellcheck="false"
+                      autocomplete="off"
+                    />
+                  </div>
+                  <div
+                    class="color-popover-swatches"
+                    id="color-popover-swatches"
+                    aria-label="Preset colors"
+                  ></div>
+                </div>
+
+                <div class="customizer-actions">
+                  <button
+                    type="button"
+                    class="btn btn-outline"
+                    id="theme-customizer-reset"
+                    data-spring-hover
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    class="btn"
+                    id="theme-customizer-apply"
+                    data-spring-hover
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <a
+            href="worldcup.html"
+            target="_blank"
+            class="header-icon-btn"
+            id="worldcup-link"
+            title="World Cup Predictor"
+            aria-label="Launch 2026 World Cup Bracket Predictor in a new tab"
+          >
+            <i class="fas fa-futbol"></i>
+          </a>
+
+          <button
+            type="button"
+            class="header-icon-btn js-only"
+            id="theme-toggle"
+            title="Toggle theme"
+            aria-label="Toggle theme"
+            aria-pressed="false"
+          >
+            <i class="fas fa-moon" id="theme-icon"></i>
+          </button>
+
+          <button
+            type="button"
+            class="hamburger-btn"
+            id="hamburger-toggle"
+            aria-label="Toggle menu"
+            aria-controls="nav-menu"
+            aria-expanded="false"
+          >
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+      </header>
+
+      <main id="main-content">
+        <section id="about" class="active">
+          <div class="hero">
+            <div class="hero-text">
+              <span class="hero-subtitle">Principal Data Engineer</span>
+              <h1 class="hero-title glitch layers" data-text="Rajeev Jasti">
+                <span>Rajeev Jasti</span>
+              </h1>
+              <p class="hero-description">
+                Architecting low-latency distributed systems and massive-scale
+                ETL pipelines. I build the robust infrastructure that powers
+                real-time analytics for global enterprises.
+              </p>
+              <div class="hero-buttons">
+                <a
+                  href="rajeev_jasti.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="btn"
+                  data-spring-hover
+                  >Resume <i class="fas fa-arrow-down"></i
+                ></a>
+                <a
+                  href="#ai"
+                  data-target="ai"
+                  class="nav-cta btn hero-chat-btn"
+                  id="hero-chat-btn"
+                  aria-label="Open AI Chat"
+                  data-spring-hover
+                  >Ask AI <i class="fas fa-robot"></i
+                ></a>
+              </div>
+            </div>
+            <aside class="terminal-panel" aria-label="Now Building panel">
+              <div class="terminal-topbar">
+                <span class="terminal-dot dot-red" aria-hidden="true"></span>
+                <span class="terminal-dot dot-amber" aria-hidden="true"></span>
+                <span class="terminal-dot dot-green" aria-hidden="true"></span>
+                <span class="terminal-title">now-building.sh</span>
+              </div>
+              <div class="terminal-body" id="terminal-body">
+                <div id="terminal-output">
+                  <p class="terminal-line">
+                    <span class="prompt">$</span> cat current_focus.md
+                  </p>
+                  <ul class="terminal-list">
+                    <li>Realtime lakehouse observability rollout</li>
+                    <li>Self-serve pipeline templates for domain teams</li>
+                  </ul>
+
+                  <p class="terminal-line">
+                    <span class="prompt">$</span> stack --active
+                  </p>
+                  <div class="terminal-tags">
+                    <span>Kafka</span>
+                    <span>Spark</span>
+                    <span>Airflow</span>
+                    <span>Snowflake</span>
+                    <span>Terraform</span>
+                    <span>Kubernetes</span>
+                  </div>
+
+                  <p class="terminal-line">
+                    <span class="prompt">$</span> tail -n 3 recent_wins.log
+                  </p>
+                  <ul class="terminal-list">
+                    <li>[OK] P95 latency down 40%</li>
+                    <li>[OK] Cloud spend down 30%</li>
+                    <li>[OK] Throughput stable at 1M+ events/sec</li>
+                  </ul>
+                </div>
+                <div class="terminal-input-line">
+                  <span class="prompt">$</span>
+                  <input
+                    type="text"
+                    id="terminal-input"
+                    class="terminal-input"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="Type 'help' to see commands..."
+                    aria-label="Terminal command input"
+                  />
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card reveal">
+              <div class="stat-number" data-target="10" data-suffix="+">
+                10+
+              </div>
+              <div class="stat-label">Years Experience</div>
+            </div>
+            <div class="stat-card reveal">
+              <div class="stat-number" data-target="50" data-suffix="+">
+                50+
+              </div>
+              <div class="stat-label">Projects Delivered</div>
+            </div>
+            <div class="stat-card reveal">
+              <div class="stat-number" data-target="1" data-suffix="M+">
+                1M+
+              </div>
+              <div class="stat-label">Events/Second</div>
+            </div>
+            <div class="stat-card reveal">
+              <div class="stat-number" data-target="30" data-suffix="%">
+                30%
+              </div>
+              <div class="stat-label">Cost Reduction</div>
+            </div>
+            <div class="stat-card reveal">
+              <div class="stat-number" data-target="40" data-suffix="%">
+                40%
+              </div>
+              <div class="stat-label">Latency Improvement</div>
+            </div>
+            <div class="stat-card reveal">
+              <div class="stat-number" data-target="99.9" data-suffix="%">
+                99.9%
+              </div>
+              <div class="stat-label">Uptime</div>
+            </div>
+          </div>
+
+          <div class="skills-section">
+            <h2 class="section-title skills-title">Technical Skills</h2>
+            <div class="skills-carousel" data-skills-carousel>
+              <div class="skills-grid">
+                <div class="skill-group reveal">
+                  <h3 class="skill-group-label">
+                    <i class="fas fa-network-wired"></i> Data Processing
+                  </h3>
+                  <div class="skill-tags">
+                    <span class="skill-tag">Apache Spark</span>
+                    <span class="skill-tag">Kafka</span>
+                    <span class="skill-tag">Apache Airflow</span>
+                    <span class="skill-tag">Apache Flink</span>
+                    <span class="skill-tag">dbt</span>
+                  </div>
+                </div>
+                <div class="skill-group reveal">
+                  <h3 class="skill-group-label">
+                    <i class="fas fa-cloud"></i> Cloud &amp; Infrastructure
+                  </h3>
+                  <div class="skill-tags">
+                    <span class="skill-tag">AWS</span>
+                    <span class="skill-tag">Kubernetes</span>
+                    <span class="skill-tag">Terraform</span>
+                    <span class="skill-tag">Docker</span>
+                    <span class="skill-tag">GCP</span>
+                  </div>
+                </div>
+                <div class="skill-group reveal">
+                  <h3 class="skill-group-label">
+                    <i class="fas fa-server"></i> Data Warehouse
+                  </h3>
+                  <div class="skill-tags">
+                    <span class="skill-tag">Snowflake</span>
+                    <span class="skill-tag">AWS Redshift</span>
+                    <span class="skill-tag">BigQuery</span>
+                    <span class="skill-tag">Delta Lake</span>
+                  </div>
+                </div>
+                <div class="skill-group reveal">
+                  <h3 class="skill-group-label">
+                    <i class="fas fa-code"></i> Languages
+                  </h3>
+                  <div class="skill-tags">
+                    <span class="skill-tag">Python</span>
+                    <span class="skill-tag">SQL</span>
+                    <span class="skill-tag">Scala</span>
+                    <span class="skill-tag">Bash</span>
+                  </div>
+                </div>
+                <div class="skill-group reveal">
+                  <h3 class="skill-group-label">
+                    <i class="fas fa-database"></i> Databases
+                  </h3>
+                  <div class="skill-tags">
+                    <span class="skill-tag">PostgreSQL</span>
+                    <span class="skill-tag">MongoDB</span>
+                    <span class="skill-tag">Redis</span>
+                    <span class="skill-tag">Cassandra</span>
+                  </div>
+                </div>
+                <div class="skill-group reveal">
+                  <h3 class="skill-group-label">
+                    <i class="fas fa-chart-line"></i> Observability
+                  </h3>
+                  <div class="skill-tags">
+                    <span class="skill-tag">Prometheus</span>
+                    <span class="skill-tag">Grafana</span>
+                    <span class="skill-tag">DataDog</span>
+                    <span class="skill-tag">OpenTelemetry</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="skills-carousel-arrow skills-carousel-arrow--prev"
+                aria-label="Previous skill group"
+              >
+                <i class="fas fa-chevron-left" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="skills-carousel-arrow skills-carousel-arrow--next"
+                aria-label="Next skill group"
+              >
+                <i class="fas fa-chevron-right" aria-hidden="true"></i>
+              </button>
+              <div
+                class="skills-carousel-dots"
+                role="tablist"
+                aria-label="Skill group navigation"
+              ></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="resume">
+          <h2 class="section-title">Experience</h2>
+          <p class="section-intro">
+            Company names are intentionally omitted for confidentiality; scope
+            and outcomes reflect production work.
+          </p>
+
+          <div class="item tilt-card reveal">
+            <div class="item-header">
+              <span class="item-date">2022 &mdash; Present</span>
+              <span class="item-badge">Remote</span>
+            </div>
+            <h3>Principal Data Engineer &bull; Global Enterprise</h3>
+            <p class="item-description">
+              Architected a multi-region data mesh serving 50+ internal teams.
+              Reduced cloud infrastructure costs by 30%.
+            </p>
+            <ul class="item-bullets">
+              <li>
+                Designed and deployed Kafka-to-Snowflake CDC pipelines handling
+                1M+ events/sec
+              </li>
+              <li>
+                Led migration from monolithic ETL to modular, domain-owned data
+                products
+              </li>
+              <li>
+                Reduced P95 query latency by 40% through Spark optimization and
+                partition tuning
+              </li>
+              <li>Mentored a team of 6 engineers across 3 time zones</li>
+            </ul>
+            <div class="item-tags">
+              <span>Kafka</span><span>Spark</span><span>Snowflake</span
+              ><span>Kubernetes</span><span>Terraform</span>
+            </div>
+          </div>
+
+          <div class="item tilt-card reveal">
+            <div class="item-header">
+              <span class="item-date">2019 &mdash; 2022</span>
+              <span class="item-badge">Hybrid</span>
+            </div>
+            <h3>Senior Data Engineer &bull; Data Platform Company</h3>
+            <p class="item-description">
+              Built and owned the company's core data platform, enabling
+              self-serve analytics for 20+ business teams.
+            </p>
+            <ul class="item-bullets">
+              <li>
+                Delivered Airflow-orchestrated ETL pipelines processing 500GB+
+                nightly
+              </li>
+              <li>
+                Migrated legacy Oracle DWH to Snowflake, cutting storage costs
+                by 40%
+              </li>
+              <li>
+                Implemented data quality framework reducing production incidents
+                by 60%
+              </li>
+            </ul>
+            <div class="item-tags">
+              <span>Airflow</span><span>Snowflake</span><span>Python</span
+              ><span>dbt</span><span>AWS</span>
+            </div>
+          </div>
+
+          <div class="item tilt-card reveal">
+            <div class="item-header">
+              <span class="item-date">2016 &mdash; 2019</span>
+              <span class="item-badge">On-site</span>
+            </div>
+            <h3>Data Engineer &bull; Product Analytics Team</h3>
+            <p class="item-description">
+              Developed ETL pipelines and data models supporting product
+              analytics for 5M+ daily active users.
+            </p>
+            <ul class="item-bullets">
+              <li>
+                Built real-time dashboards using Spark Streaming and Kafka
+              </li>
+              <li>
+                Designed dimensional data models in PostgreSQL and Redshift
+              </li>
+              <li>
+                Automated pipeline monitoring, reducing MTTR from hours to
+                minutes
+              </li>
+            </ul>
+            <div class="item-tags">
+              <span>Spark</span><span>Kafka</span><span>PostgreSQL</span
+              ><span>Redshift</span><span>Python</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="portfolio">
+          <h2 class="section-title">Projects</h2>
+          <p class="section-intro">
+            Selected platform work focused on reliability, observability, and
+            reusable delivery patterns.
+          </p>
+          <div class="project-toolbar" aria-label="Project filters">
+            <div
+              class="project-filter-group"
+              role="group"
+              aria-label="Filter projects by stack"
+            >
+              <button
+                type="button"
+                class="project-filter active"
+                data-filter="all"
+                aria-pressed="true"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                class="project-filter"
+                data-filter="kafka"
+                aria-pressed="false"
+              >
+                Kafka
+              </button>
+              <button
+                type="button"
+                class="project-filter"
+                data-filter="spark"
+                aria-pressed="false"
+              >
+                Spark
+              </button>
+              <button
+                type="button"
+                class="project-filter"
+                data-filter="snowflake"
+                aria-pressed="false"
+              >
+                Snowflake
+              </button>
+              <button
+                type="button"
+                class="project-filter"
+                data-filter="airflow"
+                aria-pressed="false"
+              >
+                Airflow
+              </button>
+            </div>
+            <label class="project-search-label" for="project-search"
+              >Search projects</label
+            >
+            <input
+              type="search"
+              id="project-search"
+              class="project-search"
+              placeholder="Search by project name or technology"
+            />
+          </div>
+          <p
+            class="project-results"
+            id="project-results"
+            role="status"
+            aria-live="polite"
+          ></p>
+          <div class="portfolio-grid" id="portfolio-grid">
+            <article
+              class="item tilt-card project-card reveal"
+              data-tags="kafka spark realtime"
+              data-title="Real-time Analytics Platform"
+              data-description="Kafka and Spark streaming pipeline processing 1M events per second with fault-tolerant event ingestion. Deployed on Kubernetes with auto-scaling consumers and end-to-end latency monitoring."
+              data-stack="Kafka,Spark,Python,Kubernetes,Prometheus"
+              data-outcomes="P95 latency reduced by 40%|Handles 1M+ events per second sustainably|99.9% uptime over 18 months"
+              data-icon="fas fa-microchip"
+            >
+              <h4>
+                <i class="fas fa-microchip project-icon"></i> Real-time
+                Analytics Platform
+              </h4>
+              <p class="project-description">
+                Kafka and Spark streaming pipeline processing 1M events per
+                second with fault-tolerant event ingestion.
+              </p>
+              <div class="project-card-footer">
+                <div class="project-card-tags">
+                  <span>Kafka</span><span>Spark</span><span>Kubernetes</span>
+                </div>
+                <button
+                  type="button"
+                  class="project-details-btn"
+                  aria-label="View details for Real-time Analytics Platform"
+                >
+                  Details <i class="fas fa-arrow-right"></i>
                 </button>
               </div>
+            </article>
+
+            <article
+              class="item tilt-card project-card reveal"
+              data-tags="snowflake airflow etl"
+              data-title="Cloud ETL Modernization"
+              data-description="Airflow-orchestrated Snowflake pipelines that reduced nightly batch runtime by 45%. Includes lineage tracking, automated alerting, and self-healing retry logic."
+              data-stack="Airflow,Snowflake,dbt,Python,AWS S3"
+              data-outcomes="45% faster nightly batch runtime|30% cloud cost reduction|Zero data-loss incidents in 2 years"
+              data-icon="fas fa-database"
+            >
+              <h4>
+                <i class="fas fa-database project-icon"></i> Cloud ETL
+                Modernization
+              </h4>
+              <p class="project-description">
+                Airflow-orchestrated Snowflake pipelines that reduced nightly
+                batch runtime by 45%.
+              </p>
+              <div class="project-card-footer">
+                <div class="project-card-tags">
+                  <span>Airflow</span><span>Snowflake</span><span>dbt</span>
+                </div>
+                <button
+                  type="button"
+                  class="project-details-btn"
+                  aria-label="View details for Cloud ETL Modernization"
+                >
+                  Details <i class="fas fa-arrow-right"></i>
+                </button>
+              </div>
+            </article>
+
+            <article
+              class="item tilt-card project-card reveal"
+              data-tags="kafka snowflake cdc"
+              data-title="CDC Data Mesh Enablement"
+              data-description="Built Kafka-to-Snowflake CDC templates for domain teams to self-serve compliant datasets. Includes schema registry, automated compatibility testing, and governance controls."
+              data-stack="Kafka,Debezium,Snowflake,Terraform,Schema Registry"
+              data-outcomes="50+ domain teams onboarded|Time-to-first-dataset cut from weeks to days|100% schema compatibility enforced"
+              data-icon="fas fa-network-wired"
+            >
+              <h4>
+                <i class="fas fa-network-wired project-icon"></i> CDC Data Mesh
+                Enablement
+              </h4>
+              <p class="project-description">
+                Built Kafka-to-Snowflake CDC templates for domain teams to
+                self-serve compliant datasets.
+              </p>
+              <div class="project-card-footer">
+                <div class="project-card-tags">
+                  <span>Kafka</span><span>Snowflake</span><span>CDC</span>
+                </div>
+                <button
+                  type="button"
+                  class="project-details-btn"
+                  aria-label="View details for CDC Data Mesh Enablement"
+                >
+                  Details <i class="fas fa-arrow-right"></i>
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="hobbies">
+          <h2 class="section-title">Interests &amp; Hobbies</h2>
+          <p class="section-intro">
+            What I do when I'm not building data pipelines.
+          </p>
+          <div class="articles-grid">
+            <div class="item tilt-card article-card reveal hobby-delay-1">
+              <div class="hobby-icon-wrap"><i class="fas fa-futbol"></i></div>
+              <div class="article-meta">
+                <span class="article-date article-topic">Soccer</span>
+              </div>
+              <h3>Sunday League Striker</h3>
+              <p class="article-excerpt">
+                I play competitively on weekends, always looking to improve my
+                striking and tactical awareness on the pitch.
+              </p>
             </div>
-
-            <div class="contact-form-container">
-              <form class="contact-form premium-form" id="contact-form"
-                action="https://formsubmit.co/inboxtorj@gmail.com" method="post" accept-charset="UTF-8">
-                <input type="hidden" name="_subject" value="New portfolio message from rjasti.com" />
-                <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
-
-                <div class="form-group floating-label-group">
-                  <div class="input-wrapper">
-                    <input type="text" id="contact-name" name="name" placeholder=" " autocomplete="name"
-                      aria-label="Your full name" required />
-                    <label class="form-label" for="contact-name">Name</label>
-                    <i class="fas fa-user input-icon"></i>
-                  </div>
-                </div>
-                <div class="form-group floating-label-group">
-                  <div class="input-wrapper">
-                    <input type="email" id="contact-email" name="email" placeholder=" " autocomplete="email"
-                      aria-label="Your email address" required />
-                    <label class="form-label" for="contact-email">Email</label>
-                    <i class="fas fa-envelope input-icon"></i>
-                  </div>
-                </div>
-                <div class="form-group floating-label-group">
-                  <div class="input-wrapper">
-                    <textarea id="contact-message" name="message" placeholder=" " rows="4" aria-label="Your message"
-                      required></textarea>
-                    <label class="form-label" for="contact-message">Message</label>
-                  </div>
-                </div>
-                <button type="submit" class="btn contact-submit-btn" data-spring-hover>Send Message <i
-                    class="fas fa-paper-plane"></i></button>
-                <p id="contact-status" class="form-status" role="status" aria-live="polite"></p>
-              </form>
+            <div class="item tilt-card article-card reveal hobby-delay-2">
+              <div class="hobby-icon-wrap"><i class="fas fa-hot-tub"></i></div>
+              <div class="article-meta">
+                <span class="article-date article-topic">Sauna</span>
+              </div>
+              <h3>The Daily Detox</h3>
+              <p class="article-excerpt">
+                Nothing beats a 20-minute sauna session after a long day of
+                engineering. It is my reset button for recovery and deep
+                thinking.
+              </p>
+            </div>
+            <div class="item tilt-card article-card reveal hobby-delay-3">
+              <div class="hobby-icon-wrap"><i class="fas fa-dumbbell"></i></div>
+              <div class="article-meta">
+                <span class="article-date article-topic">Workout</span>
+              </div>
+              <h3>Strength &amp; Conditioning</h3>
+              <p class="article-excerpt">
+                Lifting heavy and staying mobile. Consistency in the gym
+                translates directly to discipline and focus at the keyboard.
+              </p>
+            </div>
+            <div class="item tilt-card article-card reveal hobby-delay-4">
+              <div class="hobby-icon-wrap"><i class="fas fa-utensils"></i></div>
+              <div class="article-meta">
+                <span class="article-date article-topic">Foodie</span>
+              </div>
+              <h3>Culinary Explorer</h3>
+              <p class="article-excerpt">
+                Always on the hunt for the best local eats, from hidden street
+                food gems to trying my hand at cooking new cuisines at home.
+              </p>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section id="ai">
-        <div class="ai-container sidebar-hidden" id="ai-layout">
-          <button type="button" class="ai-sidebar-toggle" id="sidebar-open-btn" aria-label="Open sidebar">
-            <i class="fas fa-chevron-right"></i>
-          </button>
-
-          <aside class="ai-sidebar" id="ai-sidebar">
-            <div class="ai-sidebar-header">
-              <button type="button" class="btn btn-accent new-chat-btn" id="new-chat-btn" data-spring-hover>
-                <i class="fas fa-plus"></i> New Chat
+        <section id="activity">
+          <h2 class="section-title">Session Activity</h2>
+          <p class="section-intro">
+            Live view of current session events from FastAPI heartbeat session.
+          </p>
+          <div class="activity-controls">
+            <div class="activity-pills-group">
+              <button
+                id="activity-refresh-btn"
+                class="activity-refresh"
+                type="button"
+              >
+                <i class="fas fa-sync-alt"></i> Refresh
               </button>
-              <button type="button" class="ai-close-btn" id="sidebar-close-btn" aria-label="Close sidebar">
-                <i class="fas fa-chevron-left"></i>
+              <div class="activity-refresh static session-id-pill">
+                Session: <span id="current-session-id">-</span>
+              </div>
+            </div>
+          </div>
+          <noscript>
+            <div class="noscript-message noscript-message--accent">
+              <i class="fas fa-exclamation-circle noscript-message__icon"></i>
+              <p>JavaScript is required to view live session activity.</p>
+            </div>
+          </noscript>
+          <div class="activity-table-container">
+            <table class="activity-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Type</th>
+                  <th>Path</th>
+                  <th>Data (Encoded)</th>
+                </tr>
+              </thead>
+              <tbody id="activity-tbody">
+                <!-- Rendered by JS -->
+              </tbody>
+            </table>
+            <div
+              class="activity-pagination activity-pagination-wrapper"
+              id="activity-pagination"
+              style="display: none"
+            >
+              <button
+                id="activity-prev-btn"
+                class="activity-pagination-btn"
+                disabled
+              >
+                <i class="fas fa-chevron-left"></i> Prev
+              </button>
+              <span id="activity-page-info" class="activity-page-info"
+                >Page 1</span
+              >
+              <button
+                id="activity-next-btn"
+                class="activity-pagination-btn"
+                disabled
+              >
+                Next <i class="fas fa-chevron-right"></i>
               </button>
             </div>
-            <div class="ai-sidebar-history" id="ai-sidebar-history">
-              <!-- Chat history injected here -->
-            </div>
-            <div class="ai-sidebar-footer">
-              <button type="button" class="btn-clear" id="clear-all-btn">
-                <i class="fas fa-trash-alt"></i> Clear All History
-              </button>
-            </div>
-          </aside>
+          </div>
+        </section>
 
-          <div class="ai-main empty-state" id="ai-page-container">
-            <div class="ai-content-area">
-              <!-- Empty State View -->
-              <div class="ai-empty-view">
-                <div class="ai-hero-icon"><i class="fas fa-robot"></i></div>
-                <h1 class="ai-heading" id="ai-page-heading">How can I help you?</h1>
-                <p class="ai-subtitle" id="ai-page-subtitle">Powered by Gemma 3 / 12B &mdash; ask me anything.</p>
+        <section id="contact">
+          <div class="item contact-section reveal">
+            <div class="contact-layout">
+              <div class="contact-text-content">
+                <h2 class="contact-title">Let&apos;s talk.</h2>
+                <p class="contact-description">
+                  Have a project in mind or want to connect? Send me a message,
+                  and I'll get back to you soon.
+                </p>
 
-                <div class="ai-suggestions" id="ai-suggested-prompts">
-                  <button type="button" class="ai-suggestion-card"
-                    data-prompt="Explain how Kafka handles fault tolerance">
-                    <i class="fas fa-stream"></i>
-                    <span>Explain how Kafka handles fault tolerance</span>
-                  </button>
-                  <button type="button" class="ai-suggestion-card"
-                    data-prompt="What are best practices for Spark optimization?">
-                    <i class="fas fa-bolt"></i>
-                    <span>What are best practices for Spark optimization?</span>
-                  </button>
-                  <button type="button" class="ai-suggestion-card"
-                    data-prompt="Compare Snowflake vs Redshift for analytics">
-                    <i class="fas fa-database"></i>
-                    <span>Compare Snowflake vs Redshift for analytics</span>
-                  </button>
-                  <button type="button" class="ai-suggestion-card"
-                    data-prompt="How does a data mesh architecture work?">
-                    <i class="fas fa-network-wired"></i>
-                    <span>How does a data mesh architecture work?</span>
+                <div class="contact-methods">
+                  <a
+                    href="mailto:inboxtorj@gmail.com"
+                    class="contact-method-card"
+                  >
+                    <div class="contact-icon-wrapper">
+                      <i class="fas fa-envelope"></i>
+                    </div>
+                    <div class="contact-method-details">
+                      <span class="contact-method-label">Email Me</span>
+                      <span class="contact-method-value"
+                        >inboxtorj@gmail.com</span
+                      >
+                    </div>
+                  </a>
+
+                  <button
+                    type="button"
+                    class="contact-method-card copy-btn"
+                    id="copy-email-btn"
+                    aria-label="Copy email address"
+                  >
+                    <div class="contact-icon-wrapper">
+                      <i class="fas fa-copy"></i>
+                    </div>
+                    <div class="contact-method-details">
+                      <span class="contact-method-label">Copy Address</span>
+                      <span class="contact-method-value" id="copy-status-text"
+                        >Click to copy</span
+                      >
+                    </div>
                   </button>
                 </div>
               </div>
 
-              <!-- Message Display -->
-              <div class="ai-messages" id="ai-page-messages" aria-live="polite"></div>
-            </div>
+              <div class="contact-form-container">
+                <form
+                  class="contact-form premium-form"
+                  id="contact-form"
+                  action="https://formsubmit.co/inboxtorj@gmail.com"
+                  method="post"
+                  accept-charset="UTF-8"
+                >
+                  <input
+                    type="hidden"
+                    name="_subject"
+                    value="New portfolio message from rjasti.com"
+                  />
+                  <input
+                    type="text"
+                    name="_honey"
+                    style="display: none"
+                    tabindex="-1"
+                    autocomplete="off"
+                  />
 
-            <div class="ai-input-container">
-              <form class="ai-input-form" id="ai-page-form">
-                <textarea id="ai-page-input" class="ai-textarea" placeholder="Message AI..." autocomplete="off" rows="1"
-                  aria-label="Message AI assistant" required></textarea>
-                <div class="ai-input-actions">
-                  <span class="ai-tokens" id="ai-token-counter">0 tokens</span>
-                  <button type="submit" class="ai-send-btn" id="ai-page-send-btn" aria-label="Send message">
-                    <i class="fas fa-arrow-up"></i>
+                  <div class="form-group floating-label-group">
+                    <div class="input-wrapper">
+                      <input
+                        type="text"
+                        id="contact-name"
+                        name="name"
+                        placeholder=" "
+                        autocomplete="name"
+                        aria-label="Your full name"
+                        required
+                      />
+                      <label class="form-label" for="contact-name">Name</label>
+                      <i class="fas fa-user input-icon"></i>
+                    </div>
+                  </div>
+                  <div class="form-group floating-label-group">
+                    <div class="input-wrapper">
+                      <input
+                        type="email"
+                        id="contact-email"
+                        name="email"
+                        placeholder=" "
+                        autocomplete="email"
+                        aria-label="Your email address"
+                        required
+                      />
+                      <label class="form-label" for="contact-email"
+                        >Email</label
+                      >
+                      <i class="fas fa-envelope input-icon"></i>
+                    </div>
+                  </div>
+                  <div class="form-group floating-label-group">
+                    <div class="input-wrapper">
+                      <textarea
+                        id="contact-message"
+                        name="message"
+                        placeholder=" "
+                        rows="4"
+                        aria-label="Your message"
+                        required
+                      ></textarea>
+                      <label class="form-label" for="contact-message"
+                        >Message</label
+                      >
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    class="btn contact-submit-btn"
+                    data-spring-hover
+                  >
+                    Send Message <i class="fas fa-paper-plane"></i>
                   </button>
+                  <p
+                    id="contact-status"
+                    class="form-status"
+                    role="status"
+                    aria-live="polite"
+                  ></p>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="ai">
+          <div class="ai-container sidebar-hidden" id="ai-layout">
+            <button
+              type="button"
+              class="ai-sidebar-toggle"
+              id="sidebar-open-btn"
+              aria-label="Open sidebar"
+            >
+              <i class="fas fa-chevron-right"></i>
+            </button>
+
+            <aside class="ai-sidebar" id="ai-sidebar">
+              <div class="ai-sidebar-header">
+                <button
+                  type="button"
+                  class="btn btn-accent new-chat-btn"
+                  id="new-chat-btn"
+                  data-spring-hover
+                >
+                  <i class="fas fa-plus"></i> New Chat
+                </button>
+                <button
+                  type="button"
+                  class="ai-close-btn"
+                  id="sidebar-close-btn"
+                  aria-label="Close sidebar"
+                >
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+              </div>
+              <div class="ai-sidebar-history" id="ai-sidebar-history">
+                <!-- Chat history injected here -->
+              </div>
+              <div class="ai-sidebar-footer">
+                <button type="button" class="btn-clear" id="clear-all-btn">
+                  <i class="fas fa-trash-alt"></i> Clear All History
+                </button>
+              </div>
+            </aside>
+
+            <div class="ai-main empty-state" id="ai-page-container">
+              <div class="ai-content-area">
+                <!-- Empty State View -->
+                <div class="ai-empty-view">
+                  <div class="ai-hero-icon"><i class="fas fa-robot"></i></div>
+                  <h1 class="ai-heading" id="ai-page-heading">
+                    How can I help you?
+                  </h1>
+                  <p class="ai-subtitle" id="ai-page-subtitle">
+                    Powered by Gemma 3 / 12B &mdash; ask me anything.
+                  </p>
+
+                  <div class="ai-suggestions" id="ai-suggested-prompts">
+                    <button
+                      type="button"
+                      class="ai-suggestion-card"
+                      data-prompt="Explain how Kafka handles fault tolerance"
+                    >
+                      <i class="fas fa-stream"></i>
+                      <span>Explain how Kafka handles fault tolerance</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="ai-suggestion-card"
+                      data-prompt="What are best practices for Spark optimization?"
+                    >
+                      <i class="fas fa-bolt"></i>
+                      <span
+                        >What are best practices for Spark optimization?</span
+                      >
+                    </button>
+                    <button
+                      type="button"
+                      class="ai-suggestion-card"
+                      data-prompt="Compare Snowflake vs Redshift for analytics"
+                    >
+                      <i class="fas fa-database"></i>
+                      <span>Compare Snowflake vs Redshift for analytics</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="ai-suggestion-card"
+                      data-prompt="How does a data mesh architecture work?"
+                    >
+                      <i class="fas fa-network-wired"></i>
+                      <span>How does a data mesh architecture work?</span>
+                    </button>
+                  </div>
                 </div>
-              </form>
-              <p class="ai-disclaimer">AI can make mistakes. Check important info.</p>
+
+                <!-- Message Display -->
+                <div
+                  class="ai-messages"
+                  id="ai-page-messages"
+                  aria-live="polite"
+                ></div>
+              </div>
+
+              <div class="ai-input-container">
+                <form class="ai-input-form" id="ai-page-form">
+                  <textarea
+                    id="ai-page-input"
+                    class="ai-textarea"
+                    placeholder="Message AI..."
+                    autocomplete="off"
+                    rows="1"
+                    aria-label="Message AI assistant"
+                    required
+                  ></textarea>
+                  <div class="ai-input-actions">
+                    <span class="ai-tokens" id="ai-token-counter"
+                      >0 tokens</span
+                    >
+                    <button
+                      type="submit"
+                      class="ai-send-btn"
+                      id="ai-page-send-btn"
+                      aria-label="Send message"
+                    >
+                      <i class="fas fa-arrow-up"></i>
+                    </button>
+                  </div>
+                </form>
+                <p class="ai-disclaimer">
+                  AI can make mistakes. Check important info.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <noscript>
-          <div class="noscript-message noscript-message--card">
-            <i class="fas fa-robot noscript-message__icon--large"></i>
-            <h3 class="noscript-message__title">AI Chat requires JavaScript</h3>
-            <p class="noscript-message__copy">Please enable JavaScript to interact with the Bedrock AI model.</p>
-          </div>
-        </noscript>
-      </section>
-
-    </main>
-
-    <!-- Chat Widget -->
-    <div class="chat-widget js-only">
-      <div class="chat-dialog hidden" id="chat-dialog" role="dialog" aria-label="Chat with Assistant"
-        aria-hidden="true">
-        <div class="chat-header">
-          <div class="chat-title-group">
-            <div class="chat-avatar"><i class="fas fa-robot"></i></div>
-            <div class="chat-title">
-              <span class="chat-name">Rajeev's Assistant</span>
-              <span class="chat-status">Online</span>
+          <noscript>
+            <div class="noscript-message noscript-message--card">
+              <i class="fas fa-robot noscript-message__icon--large"></i>
+              <h3 class="noscript-message__title">
+                AI Chat requires JavaScript
+              </h3>
+              <p class="noscript-message__copy">
+                Please enable JavaScript to interact with the Bedrock AI model.
+              </p>
             </div>
+          </noscript>
+        </section>
+      </main>
+
+      <!-- Chat Widget -->
+      <div class="chat-widget js-only">
+        <div
+          class="chat-dialog hidden"
+          id="chat-dialog"
+          role="dialog"
+          aria-label="Chat with Assistant"
+          aria-hidden="true"
+        >
+          <div class="chat-header">
+            <div class="chat-title-group">
+              <div class="chat-avatar"><i class="fas fa-robot"></i></div>
+              <div class="chat-title">
+                <span class="chat-name">Rajeev's Assistant</span>
+                <span class="chat-status">Online</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="chat-close-btn"
+              id="chat-close-btn"
+              aria-label="Close chat"
+            >
+              <i class="fas fa-times"></i>
+            </button>
           </div>
-          <button type="button" class="chat-close-btn" id="chat-close-btn" aria-label="Close chat">
-            <i class="fas fa-times"></i>
-          </button>
+          <div class="chat-messages" id="chat-messages" aria-live="polite">
+            <!-- Messages will be injected here -->
+          </div>
+          <form class="chat-input-area" id="chat-form">
+            <input
+              type="text"
+              id="chat-input"
+              class="chat-input"
+              placeholder="Type your message..."
+              autocomplete="off"
+              aria-label="Type your message to the AI assistant"
+              required
+            />
+            <button
+              type="submit"
+              class="chat-send-btn"
+              aria-label="Send message"
+            >
+              <i class="fas fa-arrow-up"></i>
+            </button>
+          </form>
         </div>
-        <div class="chat-messages" id="chat-messages" aria-live="polite">
-          <!-- Messages will be injected here -->
-        </div>
-        <form class="chat-input-area" id="chat-form">
-          <input type="text" id="chat-input" class="chat-input" placeholder="Type your message..." autocomplete="off"
-            aria-label="Type your message to the AI assistant" required />
-          <button type="submit" class="chat-send-btn" aria-label="Send message">
-            <i class="fas fa-arrow-up"></i>
-          </button>
-        </form>
+        <button
+          type="button"
+          class="chat-toggle-btn"
+          id="chat-toggle-btn"
+          aria-label="Open chat"
+          aria-expanded="false"
+        >
+          <i class="fas fa-robot"></i>
+        </button>
       </div>
-      <button type="button" class="chat-toggle-btn" id="chat-toggle-btn" aria-label="Open chat" aria-expanded="false">
-        <i class="fas fa-robot"></i>
-      </button>
     </div>
 
+    <!-- Authentication Modal -->
+    <div
+      class="auth-modal-overlay hidden"
+      id="auth-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+    >
+      <div class="auth-modal-content">
+        <button
+          class="auth-modal-close"
+          id="auth-modal-close"
+          aria-label="Close modal"
+        >
+          <i class="fas fa-times"></i>
+        </button>
 
-  </div>
+        <div class="auth-modal-tabs">
+          <button class="auth-tab active" data-tab="login">Login</button>
+          <button class="auth-tab" data-tab="register">Register</button>
+        </div>
 
-  <!-- Authentication Modal -->
-  <div class="auth-modal-overlay hidden" id="auth-modal" role="dialog" aria-modal="true"
-    aria-labelledby="auth-modal-title">
-    <div class="auth-modal-content">
-      <button class="auth-modal-close" id="auth-modal-close" aria-label="Close modal">
-        <i class="fas fa-times"></i>
-      </button>
-
-      <div class="auth-modal-tabs">
-        <button class="auth-tab active" data-tab="login">Login</button>
-        <button class="auth-tab" data-tab="register">Register</button>
-      </div>
-
-      <div class="auth-tab-content active" id="auth-tab-login">
-        <h3 id="auth-modal-title">Welcome Back</h3>
-        <p class="auth-modal-subtitle">Log in to unlock unlimited AI chat messages.</p>
-        <form class="auth-form" id="login-form">
-          <div class="form-group floating-label-group">
-            <div class="input-wrapper">
-              <input type="email" id="login-email" name="email" placeholder=" " required />
-              <label class="form-label" for="login-email">Email</label>
-              <i class="fas fa-envelope input-icon"></i>
+        <div class="auth-tab-content active" id="auth-tab-login">
+          <h3 id="auth-modal-title">Welcome Back</h3>
+          <p class="auth-modal-subtitle">
+            Log in to unlock unlimited AI chat messages.
+          </p>
+          <form class="auth-form" id="login-form">
+            <div class="form-group floating-label-group">
+              <div class="input-wrapper">
+                <input
+                  type="email"
+                  id="login-email"
+                  name="email"
+                  placeholder=" "
+                  required
+                />
+                <label class="form-label" for="login-email">Email</label>
+                <i class="fas fa-envelope input-icon"></i>
+              </div>
             </div>
-          </div>
-          <div class="form-group floating-label-group">
-            <div class="input-wrapper">
-              <input type="password" id="login-password" name="password" placeholder=" " required />
-              <label class="form-label" for="login-password">Password</label>
-              <i class="fas fa-lock input-icon"></i>
+            <div class="form-group floating-label-group">
+              <div class="input-wrapper">
+                <input
+                  type="password"
+                  id="login-password"
+                  name="password"
+                  placeholder=" "
+                  required
+                />
+                <label class="form-label" for="login-password">Password</label>
+                <i class="fas fa-lock input-icon"></i>
+              </div>
             </div>
-          </div>
-          <div class="auth-error" id="login-error"></div>
-          <button type="submit" class="btn btn-accent auth-submit-btn">
-            Log In <i class="fas fa-sign-in-alt"></i>
-          </button>
-        </form>
-      </div>
+            <div class="auth-error" id="login-error"></div>
+            <button type="submit" class="btn btn-accent auth-submit-btn">
+              Log In <i class="fas fa-sign-in-alt"></i>
+            </button>
+          </form>
+        </div>
 
-      <div class="auth-tab-content" id="auth-tab-register">
-        <h3>Create Account</h3>
-        <p class="auth-modal-subtitle">Register to unlock unlimited AI chat messages.</p>
-        <form class="auth-form" id="register-form">
-          <div class="form-group floating-label-group">
-            <div class="input-wrapper">
-              <input type="email" id="register-email" name="email" placeholder=" " required />
-              <label class="form-label" for="register-email">Email</label>
-              <i class="fas fa-envelope input-icon"></i>
+        <div class="auth-tab-content" id="auth-tab-register">
+          <h3>Create Account</h3>
+          <p class="auth-modal-subtitle">
+            Register to unlock unlimited AI chat messages.
+          </p>
+          <form class="auth-form" id="register-form">
+            <div class="form-group floating-label-group">
+              <div class="input-wrapper">
+                <input
+                  type="email"
+                  id="register-email"
+                  name="email"
+                  placeholder=" "
+                  required
+                />
+                <label class="form-label" for="register-email">Email</label>
+                <i class="fas fa-envelope input-icon"></i>
+              </div>
             </div>
-          </div>
-          <div class="form-group floating-label-group">
-            <div class="input-wrapper">
-              <input type="password" id="register-password" name="password" placeholder=" " minlength="8" required />
-              <label class="form-label" for="register-password">Password</label>
-              <i class="fas fa-lock input-icon"></i>
+            <div class="form-group floating-label-group">
+              <div class="input-wrapper">
+                <input
+                  type="password"
+                  id="register-password"
+                  name="password"
+                  placeholder=" "
+                  minlength="8"
+                  required
+                />
+                <label class="form-label" for="register-password"
+                  >Password</label
+                >
+                <i class="fas fa-lock input-icon"></i>
+              </div>
+              <small class="password-hint"
+                >Must be at least 8 characters.</small
+              >
             </div>
-            <small class="password-hint">Must be at least 8 characters.</small>
-          </div>
-          <div class="auth-error" id="register-error"></div>
-          <button type="submit" class="btn btn-accent auth-submit-btn">
-            Create Account <i class="fas fa-user-plus"></i>
-          </button>
-        </form>
+            <div class="auth-error" id="register-error"></div>
+            <button type="submit" class="btn btn-accent auth-submit-btn">
+              Create Account <i class="fas fa-user-plus"></i>
+            </button>
+          </form>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Keyboard Shortcuts Overlay -->
-  <div class="keyboard-overlay" id="keyboard-overlay" aria-hidden="true">
-    <div class="keyboard-overlay-content">
-      <button class="close-overlay-btn" id="close-overlay-btn" aria-label="Close shortcuts">
-        <i class="fas fa-times"></i>
-      </button>
-      <h3>Keyboard Shortcuts</h3>
-      <ul class="shortcut-list">
-        <li class="shortcut-item">
-          <span>Navigate to Sections</span>
-          <span class="shortcut-key">1</span> - <span class="shortcut-key">5</span>
-        </li>
-        <li class="shortcut-item">
-          <span>Show this overlay</span>
-          <span class="shortcut-key">?</span>
-        </li>
-      </ul>
+    <!-- Keyboard Shortcuts Overlay -->
+    <div class="keyboard-overlay" id="keyboard-overlay" aria-hidden="true">
+      <div class="keyboard-overlay-content">
+        <button
+          class="close-overlay-btn"
+          id="close-overlay-btn"
+          aria-label="Close shortcuts"
+        >
+          <i class="fas fa-times"></i>
+        </button>
+        <h3>Keyboard Shortcuts</h3>
+        <ul class="shortcut-list">
+          <li class="shortcut-item">
+            <span>Navigate to Sections</span>
+            <span class="shortcut-key">1</span> -
+            <span class="shortcut-key">5</span>
+          </li>
+          <li class="shortcut-item">
+            <span>Show this overlay</span>
+            <span class="shortcut-key">?</span>
+          </li>
+        </ul>
+      </div>
     </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js"
-    integrity="sha384-qSFej5dZNviyoPgYJ5+Xk4bEbX8AYddxAHPuzs1aSgRiXxJ3qmyWNaPsRkpv/+x5"
-    crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"
-    integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
-    crossorigin="anonymous"></script>
-  <script src="./js/app-logic.js" defer></script>
-  <script type="module" src="./js/auth-ui.js"></script>
-  <script type="module" src="./js/main.js"></script>
-
-</body>
-
+    <script
+      src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js"
+      integrity="sha384-qSFej5dZNviyoPgYJ5+Xk4bEbX8AYddxAHPuzs1aSgRiXxJ3qmyWNaPsRkpv/+x5"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"
+      integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
+      crossorigin="anonymous"
+    ></script>
+    <script src="./js/app-logic.js" defer></script>
+    <script type="module" src="./js/auth-ui.js"></script>
+    <script type="module" src="./js/main.js"></script>
+  </body>
 </html>

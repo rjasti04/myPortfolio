@@ -4,7 +4,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.75);
+  background-color: rgb(0 0 0 / 75%);
   backdrop-filter: blur(5px);
   z-index: 10000;
   display: flex;
@@ -12,7 +12,9 @@
   align-items: center;
   opacity: 1;
   visibility: visible;
-  transition: opacity var(--motion-medium) var(--ease-standard), visibility var(--motion-medium) var(--ease-standard);
+  transition:
+    opacity var(--motion-medium) var(--ease-standard),
+    visibility var(--motion-medium) var(--ease-standard);
 }
 
 .auth-modal-overlay.hidden {
@@ -28,9 +30,10 @@
   max-width: 400px;
   padding: 2rem;
   position: relative;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 50%);
   transform: translateY(0);
-  transition: transform var(--motion-medium) cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform var(--motion-medium)
+    cubic-bezier(0.175, 0.885, 0.32, 1.275);
   border: 1px solid var(--border-color, #3a3b4a);
 }
 
@@ -52,11 +55,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard);
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
 }
 
 .auth-modal-close:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgb(255 255 255 / 10%);
   color: var(--accent-color, #89b4fa);
 }
 
@@ -89,7 +94,7 @@
 }
 
 .auth-tab.active::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: -1px;
   left: 0;
@@ -108,8 +113,15 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .auth-modal-content h3 {
@@ -177,15 +189,18 @@
   cursor: pointer;
   padding: 0.3rem 0.8rem;
   border-radius: 20px;
-  background-color: rgba(137, 180, 250, 0.1);
+  background-color: rgb(137 180 250 / 10%);
   border: 1px solid transparent;
   color: var(--text-color, #cdd6f4);
-  transition: border-color var(--motion-base) var(--ease-standard), background-color var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard);
+  transition:
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
 }
 
 .nav-user-profile:hover {
-  border-color: rgba(137, 180, 250, 0.3);
-  background-color: rgba(137, 180, 250, 0.15);
+  border-color: rgb(137 180 250 / 30%);
+  background-color: rgb(137 180 250 / 15%);
 }
 
 .nav-user-icon {
@@ -209,12 +224,15 @@
   border: 1px solid var(--border-color, #3a3b4a);
   border-radius: 8px;
   min-width: 150px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 30%);
   padding: 0.5rem 0;
   opacity: 0;
   visibility: hidden;
   transform: translateY(-10px);
-  transition: opacity var(--motion-base) var(--ease-standard), visibility var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard);
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    visibility var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
   z-index: 100;
 }
 
@@ -238,6 +256,6 @@
 }
 
 .nav-dropdown-item:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgb(255 255 255 / 5%);
   color: var(--accent-color, #89b4fa);
 }

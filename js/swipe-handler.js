@@ -10,31 +10,37 @@ export class SwipeHandler {
     this.allowedTime = options.allowedTime || 500; // Maximum swipe duration
     this.onSwipeLeft = options.onSwipeLeft || (() => {});
     this.onSwipeRight = options.onSwipeRight || (() => {});
-    
+
     this.startX = 0;
     this.startY = 0;
     this.startTime = 0;
     this.distX = 0;
     this.distY = 0;
-    
+
     // Cache bound handlers to prevent listener leaks
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundTouchMove = this.handleTouchMove.bind(this);
     this.boundTouchEnd = this.handleTouchEnd.bind(this);
-    
+
     this.init();
   }
 
   init() {
-    document.addEventListener('touchstart', this.boundTouchStart, { passive: true });
-    document.addEventListener('touchmove', this.boundTouchMove, { passive: true });
-    document.addEventListener('touchend', this.boundTouchEnd, { passive: true });
+    document.addEventListener("touchstart", this.boundTouchStart, {
+      passive: true,
+    });
+    document.addEventListener("touchmove", this.boundTouchMove, {
+      passive: true,
+    });
+    document.addEventListener("touchend", this.boundTouchEnd, {
+      passive: true,
+    });
   }
 
   handleTouchStart(e) {
     // Ignore if touching interactive elements
     const target = e.target;
-    if (target.closest('input, textarea, select, button, a, .no-swipe')) {
+    if (target.closest("input, textarea, select, button, a, .no-swipe")) {
       return;
     }
 
@@ -53,7 +59,7 @@ export class SwipeHandler {
 
   handleTouchEnd(e) {
     const target = e.target;
-    if (target.closest('input, textarea, select, button, a, .no-swipe')) {
+    if (target.closest("input, textarea, select, button, a, .no-swipe")) {
       return;
     }
 
@@ -64,7 +70,10 @@ export class SwipeHandler {
 
     // Check if swipe meets criteria
     if (elapsedTime <= this.allowedTime) {
-      if (Math.abs(this.distX) >= this.threshold && Math.abs(this.distY) <= this.restraint) {
+      if (
+        Math.abs(this.distX) >= this.threshold &&
+        Math.abs(this.distY) <= this.restraint
+      ) {
         if (this.distX < 0) {
           // Swipe left
           this.onSwipeLeft();
@@ -77,9 +86,9 @@ export class SwipeHandler {
   }
 
   destroy() {
-    document.removeEventListener('touchstart', this.boundTouchStart);
-    document.removeEventListener('touchmove', this.boundTouchMove);
-    document.removeEventListener('touchend', this.boundTouchEnd);
+    document.removeEventListener("touchstart", this.boundTouchStart);
+    document.removeEventListener("touchmove", this.boundTouchMove);
+    document.removeEventListener("touchend", this.boundTouchEnd);
   }
 }
 
@@ -92,19 +101,25 @@ export class PullToRefresh {
     this.currentY = 0;
     this.pulling = false;
     this.threshold = 80;
-    
+
     // Cache bound handlers to prevent listener leaks
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundTouchMove = this.handleTouchMove.bind(this);
     this.boundTouchEnd = this.handleTouchEnd.bind(this);
-    
+
     this.init();
   }
 
   init() {
-    this.element.addEventListener('touchstart', this.boundTouchStart, { passive: true });
-    this.element.addEventListener('touchmove', this.boundTouchMove, { passive: false });
-    this.element.addEventListener('touchend', this.boundTouchEnd, { passive: true });
+    this.element.addEventListener("touchstart", this.boundTouchStart, {
+      passive: true,
+    });
+    this.element.addEventListener("touchmove", this.boundTouchMove, {
+      passive: false,
+    });
+    this.element.addEventListener("touchend", this.boundTouchEnd, {
+      passive: true,
+    });
   }
 
   handleTouchStart(e) {
@@ -122,11 +137,11 @@ export class PullToRefresh {
 
     if (distance > 0 && this.element.scrollTop === 0) {
       e.preventDefault();
-      
+
       // Visual feedback
       const pullDistance = Math.min(distance, this.threshold * 1.5);
       this.element.style.transform = `translateY(${pullDistance * 0.5}px)`;
-      this.element.style.transition = 'none';
+      this.element.style.transition = "none";
     }
   }
 
@@ -134,9 +149,10 @@ export class PullToRefresh {
     if (!this.pulling) return;
 
     const distance = this.currentY - this.startY;
-    
-    this.element.style.transition = 'transform var(--motion-medium) var(--ease-standard)';
-    this.element.style.transform = '';
+
+    this.element.style.transition =
+      "transform var(--motion-medium) var(--ease-standard)";
+    this.element.style.transform = "";
 
     if (distance > this.threshold) {
       this.onRefresh();
@@ -148,8 +164,8 @@ export class PullToRefresh {
   }
 
   destroy() {
-    this.element.removeEventListener('touchstart', this.boundTouchStart);
-    this.element.removeEventListener('touchmove', this.boundTouchMove);
-    this.element.removeEventListener('touchend', this.boundTouchEnd);
+    this.element.removeEventListener("touchstart", this.boundTouchStart);
+    this.element.removeEventListener("touchmove", this.boundTouchMove);
+    this.element.removeEventListener("touchend", this.boundTouchEnd);
   }
 }

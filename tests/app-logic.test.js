@@ -26,8 +26,14 @@ test("setActiveSection updates active section and nav aria-current", () => {
 
   setActiveSection("resume", sections, navLinks);
 
-  assert.equal(dom.window.document.getElementById("resume").classList.contains("active"), true);
-  assert.equal(dom.window.document.getElementById("about").classList.contains("active"), false);
+  assert.equal(
+    dom.window.document.getElementById("resume").classList.contains("active"),
+    true,
+  );
+  assert.equal(
+    dom.window.document.getElementById("about").classList.contains("active"),
+    false,
+  );
   assert.equal(navLinks[1].classList.contains("active"), true);
   assert.equal(navLinks[1].getAttribute("aria-current"), "page");
   assert.equal(navLinks[0].classList.contains("active"), false);
@@ -35,7 +41,9 @@ test("setActiveSection updates active section and nav aria-current", () => {
 });
 
 test("getValidHashTarget returns matching section id", () => {
-  const dom = new JSDOM(`<section id="about"></section><section id="contact"></section>`);
+  const dom = new JSDOM(
+    `<section id="about"></section><section id="contact"></section>`,
+  );
   const getById = (id) => dom.window.document.getElementById(id);
 
   assert.equal(getValidHashTarget("#contact", getById), "contact");
@@ -51,8 +59,16 @@ test("getValidHashTarget falls back for unknown hash", () => {
 
 test("filterProjects matches by filter and search term", () => {
   const projects = [
-    { title: "Realtime Lakehouse", tags: "kafka spark realtime", description: "Streaming pipelines" },
-    { title: "Warehouse Modernization", tags: "snowflake airflow etl", description: "Batch processing" },
+    {
+      title: "Realtime Lakehouse",
+      tags: "kafka spark realtime",
+      description: "Streaming pipelines",
+    },
+    {
+      title: "Warehouse Modernization",
+      tags: "snowflake airflow etl",
+      description: "Batch processing",
+    },
   ];
 
   const filtered = filterProjects(projects, "kafka", "real");
@@ -62,7 +78,10 @@ test("filterProjects matches by filter and search term", () => {
 });
 
 test("main lazily imports the activity module", () => {
-  const mainSource = fs.readFileSync(path.join(__dirname, "../js/main.js"), "utf8");
+  const mainSource = fs.readFileSync(
+    path.join(__dirname, "../js/main.js"),
+    "utf8",
+  );
 
   assert.equal(mainSource.includes('from "./activity.js"'), false);
   assert.equal(mainSource.includes('import("./activity.js")'), true);

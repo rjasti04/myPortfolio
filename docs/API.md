@@ -23,6 +23,7 @@ The rjWebApp backend is a FastAPI service that provides activity tracking and AI
 Check API and database health status.
 
 **Response** (200 OK):
+
 ```json
 {
   "status": "ok",
@@ -41,6 +42,7 @@ Check API and database health status.
 Create a new user session for activity tracking.
 
 **Request Body**:
+
 ```json
 {
   "user_agent": "Mozilla/5.0...",
@@ -49,6 +51,7 @@ Create a new user session for activity tracking.
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -83,6 +86,7 @@ Retrieve session details.
 Record a single activity event.
 
 **Constraints**:
+
 - `event_data` must be ≤ 4KB when serialized to JSON
 - `page_path` max length: 256 characters
 
@@ -99,6 +103,7 @@ Record multiple events in a single transaction (up to 500 events).
 List events for a specific session with pagination.
 
 **Query Parameters**:
+
 - `limit` (optional): Number of events to return (1-500, default: 100)
 - `offset` (optional): Number of events to skip (0-1,000,000, default: 0)
 
@@ -111,6 +116,7 @@ List events for a specific session with pagination.
 Stream a chat response from Amazon Bedrock.
 
 **Constraints**:
+
 - `messages`: 1-24 messages
 - Each message `content`: 1-8,000 characters
 - Messages must alternate between user/assistant roles
@@ -141,11 +147,13 @@ List available Amazon Bedrock foundation models in the configured region.
 ## Environment Variables
 
 ### Required
+
 - `DATABASE_URL`: PostgreSQL connection string (asyncpg format)
 - `AWS_REGION`: AWS region for Bedrock (e.g., `us-east-1`)
 - `DEFAULT_MODEL_ID`: Default Bedrock model ID
 
 ### Optional
+
 - `ALLOWED_MODEL_IDS`: Comma-separated allowlist of model IDs
 - `CORS_ORIGINS`: Comma-separated allowed origins
 - `TRUSTED_PROXY_IPS`: Comma-separated proxy IPs/CIDRs
@@ -177,27 +185,27 @@ List available Amazon Bedrock foundation models in the configured region.
 ## Client Example
 
 ```javascript
-import { API_BASE, apiFetch } from './config.js';
+import { API_BASE, apiFetch } from "./config.js";
 
 // Create session
 const session = await apiFetch(`${API_BASE}/sessions`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     user_agent: navigator.userAgent,
-    device_type: 'desktop'
-  })
-}).then(r => r.json());
+    device_type: "desktop",
+  }),
+}).then((r) => r.json());
 
 // Track event
 await apiFetch(`${API_BASE}/events`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     session_id: session.session_id,
-    event_type: 'page_view',
-    page_path: window.location.pathname
-  })
+    event_type: "page_view",
+    page_path: window.location.pathname,
+  }),
 });
 ```
 

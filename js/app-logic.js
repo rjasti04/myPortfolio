@@ -36,11 +36,13 @@
       const tags = (project.tags || "").toLowerCase();
       const title = (project.title || "").toLowerCase();
       const description = (project.description || "").toLowerCase();
-      const passesFilter = normalizedFilter === "all" || tags.includes(normalizedFilter);
-      const passesSearch = !normalizedSearch
-        || tags.includes(normalizedSearch)
-        || title.includes(normalizedSearch)
-        || description.includes(normalizedSearch);
+      const passesFilter =
+        normalizedFilter === "all" || tags.includes(normalizedFilter);
+      const passesSearch =
+        !normalizedSearch ||
+        tags.includes(normalizedSearch) ||
+        title.includes(normalizedSearch) ||
+        description.includes(normalizedSearch);
 
       return { ...project, visible: passesFilter && passesSearch };
     });
