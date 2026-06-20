@@ -1,23 +1,36 @@
-import { compactViewport, prefersReducedMotion, supportsHover } from "./config.js";
+import {
+  compactViewport,
+  prefersReducedMotion,
+  supportsHover,
+} from "./config.js";
 import { closeModal, openModal } from "./modal.js";
 import { onOnline, onOffline, isNetworkOnline } from "./utils.js";
 import { SwipeHandler } from "./swipe-handler.js";
 
-let hamburger, navMenu, navLinks, sections, imageModal, imageModalCloseButton, profileTrigger;
+let hamburger,
+  navMenu,
+  navLinks,
+  sections,
+  imageModal,
+  imageModalCloseButton,
+  profileTrigger;
 
 function setMobileMenuState(isOpen) {
   if (!navMenu || !hamburger) return;
 
   if (isOpen) {
     navMenu.classList.add("show-menu");
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
   } else {
     navMenu.classList.remove("show-menu");
-    document.body.style.overflow = '';
+    document.body.style.overflow = "";
   }
 
   hamburger.setAttribute("aria-expanded", String(isOpen));
-  document.body.classList.toggle("nav-open", Boolean(isOpen) && compactViewport.matches);
+  document.body.classList.toggle(
+    "nav-open",
+    Boolean(isOpen) && compactViewport.matches,
+  );
 
   const icon = hamburger.querySelector("i");
   if (icon) {
@@ -27,10 +40,12 @@ function setMobileMenuState(isOpen) {
 }
 
 function closeAllDropdowns() {
-  document.querySelectorAll('.header-dropdown.is-open').forEach(dropdown => {
-    dropdown.classList.remove('is-open');
-    dropdown.querySelector('button')?.setAttribute('aria-expanded', 'false');
-    dropdown.querySelector('.header-dropdown-menu')?.setAttribute('aria-hidden', 'true');
+  document.querySelectorAll(".header-dropdown.is-open").forEach((dropdown) => {
+    dropdown.classList.remove("is-open");
+    dropdown.querySelector("button")?.setAttribute("aria-expanded", "false");
+    dropdown
+      .querySelector(".header-dropdown-menu")
+      ?.setAttribute("aria-hidden", "true");
   });
 }
 
@@ -53,15 +68,23 @@ export function navigateToSection(target, { updateHash = true } = {}) {
 
   if (updateHash) {
     const nextHash = `#${target}`;
-    if (window.location.hash !== nextHash) history.pushState(null, "", nextHash);
+    if (window.location.hash !== nextHash)
+      history.pushState(null, "", nextHash);
   }
 
-  window.scrollTo({ top: 0, behavior: prefersReducedMotion.matches ? "auto" : "smooth" });
+  window.scrollTo({
+    top: 0,
+    behavior: prefersReducedMotion.matches ? "auto" : "smooth",
+  });
 }
 
 export function syncSectionWithHash(hash = window.location.hash) {
   if (!window.AppLogic?.getValidHashTarget) return;
-  const target = window.AppLogic.getValidHashTarget(hash, (id) => document.getElementById(id), "about");
+  const target = window.AppLogic.getValidHashTarget(
+    hash,
+    (id) => document.getElementById(id),
+    "about",
+  );
   setActiveSection(target);
 }
 
@@ -112,33 +135,41 @@ export function initNavigation() {
   });
 
   // Generic Dropdown Logic
-  const dropdownToggles = document.querySelectorAll('.header-dropdown > button');
-  dropdownToggles.forEach(toggle => {
-    toggle.addEventListener('click', (event) => {
+  const dropdownToggles = document.querySelectorAll(
+    ".header-dropdown > button",
+  );
+  dropdownToggles.forEach((toggle) => {
+    toggle.addEventListener("click", (event) => {
       event.stopPropagation();
-      const dropdown = toggle.closest('.header-dropdown');
-      const menu = dropdown.querySelector('.header-dropdown-menu');
-      const isOpen = dropdown.classList.contains('is-open');
+      const dropdown = toggle.closest(".header-dropdown");
+      const menu = dropdown.querySelector(".header-dropdown-menu");
+      const isOpen = dropdown.classList.contains("is-open");
 
       closeAllDropdowns();
       setMobileMenuState(false);
 
       if (!isOpen) {
-        dropdown.classList.add('is-open');
-        toggle.setAttribute('aria-expanded', 'true');
-        if (menu) menu.setAttribute('aria-hidden', 'false');
+        dropdown.classList.add("is-open");
+        toggle.setAttribute("aria-expanded", "true");
+        if (menu) menu.setAttribute("aria-hidden", "false");
       }
     });
   });
 
   document.addEventListener("click", (event) => {
-    document.querySelectorAll('.header-dropdown.is-open').forEach(dropdown => {
-      if (!dropdown.contains(event.target)) {
-        dropdown.classList.remove('is-open');
-        dropdown.querySelector('button')?.setAttribute('aria-expanded', 'false');
-        dropdown.querySelector('.header-dropdown-menu')?.setAttribute('aria-hidden', 'true');
-      }
-    });
+    document
+      .querySelectorAll(".header-dropdown.is-open")
+      .forEach((dropdown) => {
+        if (!dropdown.contains(event.target)) {
+          dropdown.classList.remove("is-open");
+          dropdown
+            .querySelector("button")
+            ?.setAttribute("aria-expanded", "false");
+          dropdown
+            .querySelector(".header-dropdown-menu")
+            ?.setAttribute("aria-hidden", "true");
+        }
+      });
   });
 
   document.addEventListener("keydown", (event) => {
@@ -147,10 +178,14 @@ export function initNavigation() {
 
   profileTrigger?.addEventListener("click", (event) => {
     event.preventDefault();
-    openModal(imageModal, { initialFocus: imageModalCloseButton || imageModal });
+    openModal(imageModal, {
+      initialFocus: imageModalCloseButton || imageModal,
+    });
   });
 
-  imageModalCloseButton?.addEventListener("click", () => closeModal(imageModal));
+  imageModalCloseButton?.addEventListener("click", () =>
+    closeModal(imageModal),
+  );
   imageModal?.addEventListener("click", (event) => {
     if (event.target === imageModal) closeModal(imageModal);
   });
@@ -184,9 +219,13 @@ export function initNavigation() {
           headerEl.classList.toggle("scrolled", window.scrollY > 32);
 
           // Update scroll progress bar
-          const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+          const scrollHeight =
+            document.documentElement.scrollHeight - window.innerHeight;
           const scrollProgress = (window.scrollY / scrollHeight) * 100;
-          headerEl.style.setProperty('--scroll-progress', `${Math.min(scrollProgress, 100)}%`);
+          headerEl.style.setProperty(
+            "--scroll-progress",
+            `${Math.min(scrollProgress, 100)}%`,
+          );
 
           scrollTicking = false;
         });
@@ -204,10 +243,11 @@ export function initNavigation() {
   }
 
   // Offline indicator
-  const offlineBanner = document.createElement('div');
-  offlineBanner.className = 'offline-banner';
-  offlineBanner.setAttribute('role', 'alert');
-  offlineBanner.innerHTML = '<i class="fas fa-wifi" style="text-decoration: line-through;"></i> You are offline';
+  const offlineBanner = document.createElement("div");
+  offlineBanner.className = "offline-banner";
+  offlineBanner.setAttribute("role", "alert");
+  offlineBanner.innerHTML =
+    '<i class="fas fa-wifi" style="text-decoration: line-through;"></i> You are offline';
   offlineBanner.style.cssText = `
     position: fixed;
     top: 0;
@@ -226,18 +266,18 @@ export function initNavigation() {
   document.body.appendChild(offlineBanner);
 
   function showOfflineBanner() {
-    offlineBanner.style.transform = 'translateY(0)';
+    offlineBanner.style.transform = "translateY(0)";
     // Push header down when banner is visible
     if (headerEl) {
-      headerEl.style.marginTop = offlineBanner.offsetHeight + 'px';
+      headerEl.style.marginTop = offlineBanner.offsetHeight + "px";
     }
   }
 
   function hideOfflineBanner() {
-    offlineBanner.style.transform = 'translateY(-100%)';
+    offlineBanner.style.transform = "translateY(-100%)";
     // Reset header position
     if (headerEl) {
-      headerEl.style.marginTop = '';
+      headerEl.style.marginTop = "";
     }
   }
 
@@ -292,7 +332,12 @@ export function initNavigation() {
       const tag = document.activeElement?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
-      if (event.key === "?" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (
+        event.key === "?" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
         event.preventDefault();
         toggleOverlay();
       }
@@ -312,19 +357,19 @@ export function initNavigation() {
 
 function initMobileBottomNav() {
   // Create mobile bottom navigation
-  const mobileNav = document.createElement('nav');
-  mobileNav.className = 'mobile-bottom-nav';
-  mobileNav.setAttribute('aria-label', 'Mobile navigation');
+  const mobileNav = document.createElement("nav");
+  mobileNav.className = "mobile-bottom-nav";
+  mobileNav.setAttribute("aria-label", "Mobile navigation");
 
   const navItems = [
-    { target: 'about', icon: 'fa-home', label: 'Home' },
-    { target: 'portfolio', icon: 'fa-briefcase', label: 'Work' },
-    { target: 'ai', icon: 'fa-robot', label: 'AI' },
-    { target: 'contact', icon: 'fa-envelope', label: 'Contact' }
+    { target: "about", icon: "fa-home", label: "Home" },
+    { target: "portfolio", icon: "fa-briefcase", label: "Work" },
+    { target: "ai", icon: "fa-robot", label: "AI" },
+    { target: "contact", icon: "fa-envelope", label: "Contact" },
   ];
 
-  navItems.forEach(item => {
-    const link = document.createElement('a');
+  navItems.forEach((item) => {
+    const link = document.createElement("a");
     link.href = `#${item.target}`;
     link.dataset.target = item.target;
     link.innerHTML = `
@@ -332,7 +377,7 @@ function initMobileBottomNav() {
       <span class="mobile-bottom-nav-label">${item.label}</span>
     `;
 
-    link.addEventListener('click', (e) => {
+    link.addEventListener("click", (e) => {
       e.preventDefault();
       navigateToSection(item.target);
       updateMobileNavActive(item.target);
@@ -344,27 +389,36 @@ function initMobileBottomNav() {
   document.body.appendChild(mobileNav);
 
   // Set initial active state
-  const currentSection = document.querySelector('main section.active')?.id || 'about';
+  const currentSection =
+    document.querySelector("main section.active")?.id || "about";
   updateMobileNavActive(currentSection);
 }
 
 function updateMobileNavActive(target) {
-  const mobileNav = document.querySelector('.mobile-bottom-nav');
+  const mobileNav = document.querySelector(".mobile-bottom-nav");
   if (!mobileNav) return;
 
-  mobileNav.querySelectorAll('a').forEach(link => {
+  mobileNav.querySelectorAll("a").forEach((link) => {
     const isActive = link.dataset.target === target;
-    link.classList.toggle('active', isActive);
+    link.classList.toggle("active", isActive);
   });
 }
 
 function initSwipeGestures() {
-  const sectionOrder = ['about', 'resume', 'portfolio', 'hobbies', 'activity', 'ai', 'contact'];
+  const sectionOrder = [
+    "about",
+    "resume",
+    "portfolio",
+    "hobbies",
+    "activity",
+    "ai",
+    "contact",
+  ];
 
   new SwipeHandler({
     threshold: 75,
     onSwipeLeft: () => {
-      const currentSection = document.querySelector('main section.active')?.id;
+      const currentSection = document.querySelector("main section.active")?.id;
       const currentIndex = sectionOrder.indexOf(currentSection);
       if (currentIndex < sectionOrder.length - 1) {
         const nextSection = sectionOrder[currentIndex + 1];
@@ -373,13 +427,13 @@ function initSwipeGestures() {
       }
     },
     onSwipeRight: () => {
-      const currentSection = document.querySelector('main section.active')?.id;
+      const currentSection = document.querySelector("main section.active")?.id;
       const currentIndex = sectionOrder.indexOf(currentSection);
       if (currentIndex > 0) {
         const prevSection = sectionOrder[currentIndex - 1];
         navigateToSection(prevSection);
         updateMobileNavActive(prevSection);
       }
-    }
+    },
   });
 }

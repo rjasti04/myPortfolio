@@ -5,7 +5,7 @@ export function initTilt() {
 
   const cards = document.querySelectorAll(".tilt-card");
 
-  cards.forEach(card => {
+  cards.forEach((card) => {
     let rect = null;
     let frame = 0;
     let pointerX = 0;
@@ -41,11 +41,16 @@ export function initTilt() {
       if (frame) cancelAnimationFrame(frame);
       frame = 0;
       rect = null;
-      card.style.transition = "transform var(--motion-medium) var(--ease-enter)";
+      card.style.transition =
+        "transform var(--motion-medium) var(--ease-enter)";
       card.style.transform = "";
-      card.addEventListener("transitionend", () => {
-        card.style.transition = "";
-      }, { once: true });
+      card.addEventListener(
+        "transitionend",
+        () => {
+          card.style.transition = "";
+        },
+        { once: true },
+      );
     });
   });
 }

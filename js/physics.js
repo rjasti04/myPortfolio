@@ -4,7 +4,13 @@
  */
 
 export class Spring {
-  constructor({ stiffness = 400, damping = 30, mass = 1, restSpeed = 0.01, restDelta = 0.01 } = {}) {
+  constructor({
+    stiffness = 400,
+    damping = 30,
+    mass = 1,
+    restSpeed = 0.01,
+    restDelta = 0.01,
+  } = {}) {
     this.stiffness = stiffness;
     this.damping = damping;
     this.mass = mass;
@@ -26,12 +32,14 @@ export class Spring {
     const newVelocity = velocity + acceleration * dt;
     const newValue = from + newVelocity * dt;
 
-    const isResting = Math.abs(newVelocity) < this.restSpeed && Math.abs(newValue - to) < this.restDelta;
+    const isResting =
+      Math.abs(newVelocity) < this.restSpeed &&
+      Math.abs(newValue - to) < this.restDelta;
 
     return {
       value: isResting ? to : newValue,
       velocity: newVelocity,
-      done: isResting
+      done: isResting,
     };
   }
 }
@@ -57,7 +65,7 @@ export function animateSpring({ from, to, onUpdate, onComplete, config = {} }) {
 
     // Cap dt to avoid explosions on long frame drops
     const cappedDt = Math.min(dt, 0.032);
-    
+
     const result = spring.next(current, to, velocity, cappedDt);
     current = result.value;
     velocity = result.velocity;

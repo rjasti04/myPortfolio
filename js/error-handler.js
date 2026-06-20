@@ -1,9 +1,9 @@
 // Centralized error handling utilities
 
 export class AppError extends Error {
-  constructor(message, code = 'UNKNOWN_ERROR', details = null) {
+  constructor(message, code = "UNKNOWN_ERROR", details = null) {
     super(message);
-    this.name = 'AppError';
+    this.name = "AppError";
     this.code = code;
     this.details = details;
     this.timestamp = new Date().toISOString();
@@ -11,24 +11,28 @@ export class AppError extends Error {
 }
 
 export class NetworkError extends AppError {
-  constructor(message = 'Network request failed', details = null) {
-    super(message, 'NETWORK_ERROR', details);
-    this.name = 'NetworkError';
+  constructor(message = "Network request failed", details = null) {
+    super(message, "NETWORK_ERROR", details);
+    this.name = "NetworkError";
   }
 }
 
 export class APIError extends AppError {
-  constructor(message = 'API request failed', statusCode = 500, details = null) {
-    super(message, 'API_ERROR', details);
-    this.name = 'APIError';
+  constructor(
+    message = "API request failed",
+    statusCode = 500,
+    details = null,
+  ) {
+    super(message, "API_ERROR", details);
+    this.name = "APIError";
     this.statusCode = statusCode;
   }
 }
 
 export class ValidationError extends AppError {
-  constructor(message = 'Validation failed', fields = {}) {
-    super(message, 'VALIDATION_ERROR', fields);
-    this.name = 'ValidationError';
+  constructor(message = "Validation failed", fields = {}) {
+    super(message, "VALIDATION_ERROR", fields);
+    this.name = "ValidationError";
     this.fields = fields;
   }
 }
@@ -43,23 +47,23 @@ export function handleError(error, options = {}) {
   const {
     showToast = true,
     logToConsole = true,
-    fallbackMessage = 'An unexpected error occurred'
+    fallbackMessage = "An unexpected error occurred",
   } = options;
 
   let userMessage = fallbackMessage;
   let logMessage = error.message || fallbackMessage;
 
   if (error instanceof NetworkError) {
-    userMessage = 'Unable to connect. Please check your internet connection.';
+    userMessage = "Unable to connect. Please check your internet connection.";
   } else if (error instanceof APIError) {
     if (error.statusCode === 429) {
-      userMessage = 'Too many requests. Please wait a moment and try again.';
+      userMessage = "Too many requests. Please wait a moment and try again.";
     } else if (error.statusCode === 404) {
-      userMessage = 'The requested resource was not found.';
+      userMessage = "The requested resource was not found.";
     } else if (error.statusCode >= 500) {
-      userMessage = 'Server error. Please try again later.';
+      userMessage = "Server error. Please try again later.";
     } else {
-      userMessage = error.message || 'Request failed. Please try again.';
+      userMessage = error.message || "Request failed. Please try again.";
     }
   } else if (error instanceof ValidationError) {
     userMessage = error.message;
@@ -68,17 +72,19 @@ export function handleError(error, options = {}) {
   }
 
   if (logToConsole) {
-    console.error(`[${error.name || 'Error'}]`, logMessage, error);
+    console.error(`[${error.name || "Error"}]`, logMessage, error);
   }
 
-  if (showToast && typeof window !== 'undefined') {
+  if (showToast && typeof window !== "undefined") {
     // Dynamically import showToast to avoid circular dependencies
-    import('./utils.js').then(({ showToast }) => {
-      showToast(userMessage, 'error');
-    }).catch(() => {
-      // Fallback if toast fails
-      console.warn('Toast notification failed:', userMessage);
-    });
+    import("./utils.js")
+      .then(({ showToast }) => {
+        showToast(userMessage, "error");
+      })
+      .catch(() => {
+        // Fallback if toast fails
+        console.warn("Toast notification failed:", userMessage);
+      });
   }
 
   return userMessage;
@@ -91,7 +97,7 @@ export function handleError(error, options = {}) {
  * @returns {Function} Wrapped function
  */
 export function withErrorHandling(fn, options = {}) {
-  return async function(...args) {
+  return async function (...args) {
     try {
       return await fn.apply(this, args);
     } catch (error) {
@@ -113,7 +119,7 @@ export async function retryWithBackoff(fn, options = {}) {
     initialDelay = 1000,
     maxDelay = 10000,
     backoffFactor = 2,
-    shouldRetry = (error) => error instanceof NetworkError
+    shouldRetry = (error) => error instanceof NetworkError,
   } = options;
 
   let lastError;
@@ -130,7 +136,7 @@ export async function retryWithBackoff(fn, options = {}) {
       }
 
       // Wait before retrying
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
       delay = Math.min(delay * backoffFactor, maxDelay);
     }
   }

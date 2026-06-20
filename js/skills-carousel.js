@@ -22,7 +22,6 @@ export function initSkillsCarousel() {
 }
 
 function initCarouselLogic(carousel, track, slides) {
-
   const prevBtn = carousel.querySelector(".skills-carousel-arrow--prev");
   const nextBtn = carousel.querySelector(".skills-carousel-arrow--next");
   const dotsContainer = carousel.querySelector(".skills-carousel-dots");
@@ -39,7 +38,10 @@ function initCarouselLogic(carousel, track, slides) {
     dot.type = "button";
     dot.className = "skills-carousel-dot";
     dot.setAttribute("role", "tab");
-    dot.setAttribute("aria-label", `Show skill group ${i + 1} of ${slides.length}`);
+    dot.setAttribute(
+      "aria-label",
+      `Show skill group ${i + 1} of ${slides.length}`,
+    );
     dot.addEventListener("click", () => {
       goTo(i);
       restartAutoplay();
@@ -96,7 +98,13 @@ function initCarouselLogic(carousel, track, slides) {
 
   function startAutoplay() {
     stopAutoplay();
-    if (!isMobile || !visible || reduceMotion || carousel.matches(":focus-within")) return;
+    if (
+      !isMobile ||
+      !visible ||
+      reduceMotion ||
+      carousel.matches(":focus-within")
+    )
+      return;
     autoplayTimer = window.setInterval(() => goTo(activeIdx + 1), AUTOPLAY_MS);
   }
 
@@ -130,7 +138,7 @@ function initCarouselLogic(carousel, track, slides) {
       horizontal = false;
       stopAutoplay();
     },
-    { passive: true }
+    { passive: true },
   );
 
   track.addEventListener(
@@ -144,7 +152,7 @@ function initCarouselLogic(carousel, track, slides) {
       }
       deltaX = dx;
     },
-    { passive: true }
+    { passive: true },
   );
 
   track.addEventListener("touchend", () => {
@@ -184,7 +192,7 @@ function initCarouselLogic(carousel, track, slides) {
           }
         });
       },
-      { threshold: 0.1, rootMargin: "50px" }
+      { threshold: 0.1, rootMargin: "50px" },
     );
     io.observe(carousel);
   } else {

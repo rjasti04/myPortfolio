@@ -32,7 +32,8 @@ const copyResetTimers = new WeakMap();
 
 function setCopyButtonState(button, state) {
   const label = button.querySelector(".activity-copy-label");
-  const defaultLabel = button.dataset.defaultLabel || label?.textContent || "Copy";
+  const defaultLabel =
+    button.dataset.defaultLabel || label?.textContent || "Copy";
   button.dataset.defaultLabel = defaultLabel;
   button.dataset.copyState = state;
   if (label) label.textContent = state === "copied" ? "Copied" : "Failed";
@@ -57,7 +58,7 @@ export async function loadActivity(offset = currentOffset) {
   if (activityRefreshTimer) {
     clearTimeout(activityRefreshTimer);
   }
-  
+
   activityRefreshTimer = setTimeout(() => {
     activityRefreshTimer = null;
     _loadActivityImpl(offset);
@@ -78,7 +79,9 @@ async function _loadActivityImpl(offset) {
 
   const sessionIdSpan = document.getElementById("current-session-id");
   if (sessionIdSpan) {
-    const displayId = sessionId ? sessionId.split('-').slice(0, 3).join('-') : "None";
+    const displayId = sessionId
+      ? sessionId.split("-").slice(0, 3).join("-")
+      : "None";
     sessionIdSpan.textContent = displayId;
   }
 
@@ -109,19 +112,21 @@ async function _loadActivityImpl(offset) {
       </div>
     </td></tr>
   `;
-  
+
   // Add loading state to refresh button
-  const refreshBtn = document.getElementById('activity-refresh-btn');
+  const refreshBtn = document.getElementById("activity-refresh-btn");
   if (refreshBtn) {
     refreshBtn.disabled = true;
-    const icon = refreshBtn.querySelector('i');
+    const icon = refreshBtn.querySelector("i");
     if (icon) {
-      icon.className = 'fas fa-circle-notch fa-spin';
+      icon.className = "fas fa-circle-notch fa-spin";
     }
   }
 
   try {
-    const response = await apiFetch(`${API_BASE}/sessions/${sessionId}/events?limit=${PAGE_SIZE}&offset=${offset}`);
+    const response = await apiFetch(
+      `${API_BASE}/sessions/${sessionId}/events?limit=${PAGE_SIZE}&offset=${offset}`,
+    );
     if (!response.ok) {
       if (response.status === 404) {
         tbody.innerHTML = `<tr><td colspan="5" class="activity-message">Session not found or expired.</td></tr>`;
@@ -171,70 +176,79 @@ async function _loadActivityImpl(offset) {
     if (paginationControls) {
       paginationControls.style.display = "flex";
       prevBtn.disabled = currentOffset === 0;
-      prevBtn.title = currentOffset === 0 ? "No previous pages" : "Previous page";
+      prevBtn.title =
+        currentOffset === 0 ? "No previous pages" : "Previous page";
       nextBtn.disabled = events.length < PAGE_SIZE;
       nextBtn.title = events.length < PAGE_SIZE ? "No more pages" : "Next page";
 
       const currentPage = Math.floor(currentOffset / PAGE_SIZE) + 1;
       if (pageInfo) pageInfo.textContent = `Page ${currentPage}`;
     }
-
   } catch (error) {
     console.error("Activity load error", error);
     tbody.innerHTML = `<tr><td colspan="5" class="activity-message">Network error loading activity.</td></tr>`;
     if (paginationControls) paginationControls.style.display = "none";
   } finally {
     // Reset refresh button state
-    const refreshBtn = document.getElementById('activity-refresh-btn');
+    const refreshBtn = document.getElementById("activity-refresh-btn");
     if (refreshBtn) {
       refreshBtn.disabled = false;
-      const icon = refreshBtn.querySelector('i');
+      const icon = refreshBtn.querySelector("i");
       if (icon) {
-        icon.className = 'fas fa-sync-alt';
+        icon.className = "fas fa-sync-alt";
       }
     }
   }
 }
 
 function renderTableRows(events, tbody, offset) {
-  tbody.closest('.activity-table-container')?.querySelector('.activity-mobile-cards')?.remove();
+  tbody
+    .closest(".activity-table-container")
+    ?.querySelector(".activity-mobile-cards")
+    ?.remove();
 
   // Use DocumentFragment for better performance
   const fragment = document.createDocumentFragment();
-  
+
   events.forEach((e, i) => {
     const d = new Date(e.created_at);
     const dateStr = escapeHTML(d.toLocaleDateString());
     const timeStr = escapeHTML(d.toLocaleTimeString());
     const hasData = Boolean(e.event_data);
-    const encodedData = hasData ? encodeBase64Text(JSON.stringify(e.event_data)) : "";
+    const encodedData = hasData
+      ? encodeBase64Text(JSON.stringify(e.event_data))
+      : "";
     const dataJson = hasData ? escapeHTML(formatDecodedJson(encodedData)) : "";
     const detailRowId = `activity-data-${offset}-${i}`;
-    
+
     // Create main row
-    const mainRow = document.createElement('tr');
-    mainRow.className = 'activity-row-enter';
+    const mainRow = document.createElement("tr");
+    mainRow.className = "activity-row-enter";
     mainRow.style.animationDelay = `${i * 50}ms`;
     mainRow.innerHTML = `
       <td>${dateStr}</td>
       <td>${timeStr}</td>
       <td><span class="activity-type-badge">${escapeHTML(e.event_type)}</span></td>
-      <td>${escapeHTML(e.page_path || '-')}</td>
+      <td>${escapeHTML(e.page_path || "-")}</td>
       <td>
-        ${hasData ? `
+        ${
+          hasData
+            ? `
           <button class="activity-data-toggle" type="button" aria-expanded="false" aria-controls="${detailRowId}">
             <span class="activity-data-summary">${escapeHTML(encodedData)}</span>
             <i class="fas fa-chevron-down" aria-hidden="true"></i>
           </button>
-        ` : `<span class="activity-data-empty">-</span>`}
+        `
+            : `<span class="activity-data-empty">-</span>`
+        }
       </td>
     `;
     fragment.appendChild(mainRow);
-    
+
     // Create detail row if has data
     if (hasData) {
-      const detailRow = document.createElement('tr');
-      detailRow.className = 'activity-data-row';
+      const detailRow = document.createElement("tr");
+      detailRow.className = "activity-data-row";
       detailRow.id = detailRowId;
       detailRow.hidden = true;
       detailRow.innerHTML = `
@@ -254,8 +268,8 @@ function renderTableRows(events, tbody, offset) {
       fragment.appendChild(detailRow);
     }
   });
-  
-  tbody.innerHTML = '';
+
+  tbody.innerHTML = "";
   tbody.appendChild(fragment);
 }
 
@@ -264,21 +278,24 @@ function renderMobileCards(events, container, offset) {
   if (tbody) tbody.innerHTML = "";
 
   // Remove existing mobile cards container if it exists
-  let mobileContainer = container.querySelector('.activity-mobile-cards');
+  let mobileContainer = container.querySelector(".activity-mobile-cards");
   if (!mobileContainer) {
-    mobileContainer = document.createElement('div');
-    mobileContainer.className = 'activity-mobile-cards';
+    mobileContainer = document.createElement("div");
+    mobileContainer.className = "activity-mobile-cards";
     container.appendChild(mobileContainer);
   }
 
-  mobileContainer.innerHTML = events.map((e, i) => {
-    const d = new Date(e.created_at);
-    const dateStr = escapeHTML(d.toLocaleDateString());
-    const timeStr = escapeHTML(d.toLocaleTimeString());
-    const hasData = Boolean(e.event_data);
-    const dataPreview = hasData ? escapeHTML(JSON.stringify(e.event_data).substring(0, 50) + '...') : '-';
-    
-    return `
+  mobileContainer.innerHTML = events
+    .map((e, i) => {
+      const d = new Date(e.created_at);
+      const dateStr = escapeHTML(d.toLocaleDateString());
+      const timeStr = escapeHTML(d.toLocaleTimeString());
+      const hasData = Boolean(e.event_data);
+      const dataPreview = hasData
+        ? escapeHTML(JSON.stringify(e.event_data).substring(0, 50) + "...")
+        : "-";
+
+      return `
       <div class="activity-card" style="animation: activityRowFade var(--motion-medium) var(--ease-enter) both; animation-delay: ${i * 50}ms;">
         <div class="activity-card-row">
           <span class="activity-card-label">Date</span>
@@ -294,7 +311,7 @@ function renderMobileCards(events, container, offset) {
         </div>
         <div class="activity-card-row">
           <span class="activity-card-label">Path</span>
-          <span class="activity-card-value"><code>${escapeHTML(e.page_path || '-')}</code></span>
+          <span class="activity-card-value"><code>${escapeHTML(e.page_path || "-")}</code></span>
         </div>
         <div class="activity-card-row">
           <span class="activity-card-label">Data</span>
@@ -302,7 +319,8 @@ function renderMobileCards(events, container, offset) {
         </div>
       </div>
     `;
-  }).join('');
+    })
+    .join("");
 }
 
 export function initActivity() {
@@ -329,7 +347,9 @@ export function initActivity() {
       if (!button) return;
 
       const detailRowId = button.getAttribute("aria-controls");
-      const detailRow = detailRowId ? document.getElementById(detailRowId) : null;
+      const detailRow = detailRowId
+        ? document.getElementById(detailRowId)
+        : null;
       if (!detailRow) return;
 
       const isExpanded = button.getAttribute("aria-expanded") === "true";
@@ -373,7 +393,10 @@ export function initActivity() {
       }
       wasActive = isActive;
     });
-    observer.observe(activitySection, { attributes: true, attributeFilter: ["class"] });
+    observer.observe(activitySection, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
 
     // Initial load if starting on the activity page
     if (wasActive) {
@@ -385,22 +408,31 @@ export function initActivity() {
   if (resizeController) {
     resizeController.abort();
   }
-  
+
   resizeController = new AbortController();
   let resizeTimeout;
   let lastWidth = window.innerWidth;
-  
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-      const newWidth = window.innerWidth;
-      const crossedMobileThreshold = (lastWidth > MOBILE_BREAKPOINT && newWidth <= MOBILE_BREAKPOINT) || (lastWidth <= MOBILE_BREAKPOINT && newWidth > MOBILE_BREAKPOINT);
-      
-      if (crossedMobileThreshold && activitySection?.classList.contains('active')) {
-        loadActivity(currentOffset);
-      }
-      
-      lastWidth = newWidth;
-    }, RESIZE_DEBOUNCE_MS);
-  }, { signal: resizeController.signal, passive: true });
+
+  window.addEventListener(
+    "resize",
+    () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        const newWidth = window.innerWidth;
+        const crossedMobileThreshold =
+          (lastWidth > MOBILE_BREAKPOINT && newWidth <= MOBILE_BREAKPOINT) ||
+          (lastWidth <= MOBILE_BREAKPOINT && newWidth > MOBILE_BREAKPOINT);
+
+        if (
+          crossedMobileThreshold &&
+          activitySection?.classList.contains("active")
+        ) {
+          loadActivity(currentOffset);
+        }
+
+        lastWidth = newWidth;
+      }, RESIZE_DEBOUNCE_MS);
+    },
+    { signal: resizeController.signal, passive: true },
+  );
 }

@@ -3,30 +3,30 @@
  * Lightweight canvas-based floating tech icons/particles
  */
 
-export function initParticles(containerId = 'particles-canvas') {
+export function initParticles(containerId = "particles-canvas") {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  const canvas = document.createElement('canvas');
-  canvas.id = 'particles-canvas-element';
-  canvas.style.position = 'absolute';
-  canvas.style.top = '0';
-  canvas.style.left = '0';
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
-  canvas.style.pointerEvents = 'none';
-  canvas.style.opacity = '0.3';
+  const canvas = document.createElement("canvas");
+  canvas.id = "particles-canvas-element";
+  canvas.style.position = "absolute";
+  canvas.style.top = "0";
+  canvas.style.left = "0";
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+  canvas.style.pointerEvents = "none";
+  canvas.style.opacity = "0.3";
   container.appendChild(canvas);
 
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext("2d");
   let animationId;
   let particles = [];
-  let accentColor = 'rgba(14, 165, 233, 1)';
+  let accentColor = "rgba(14, 165, 233, 1)";
   let frameCount = 0;
 
   function updateAccentColor() {
     const style = getComputedStyle(document.body);
-    const accentFill = style.getPropertyValue('--accent-fill').trim();
+    const accentFill = style.getPropertyValue("--accent-fill").trim();
     if (accentFill) {
       accentColor = accentFill;
     }
@@ -71,8 +71,10 @@ export function initParticles(containerId = 'particles-canvas') {
 
   function initParticleArray() {
     particles = [];
-    const numberOfParticles = Math.floor((canvas.width * canvas.height) / 15000);
-    
+    const numberOfParticles = Math.floor(
+      (canvas.width * canvas.height) / 15000,
+    );
+
     for (let i = 0; i < numberOfParticles; i++) {
       particles.push(new Particle());
     }
@@ -81,7 +83,7 @@ export function initParticles(containerId = 'particles-canvas') {
   function connectParticles() {
     const maxDistance = 120;
     const maxDistanceSq = maxDistance * maxDistance;
-    
+
     ctx.strokeStyle = accentColor;
     ctx.lineWidth = 1;
 
@@ -113,7 +115,7 @@ export function initParticles(containerId = 'particles-canvas') {
       updateAccentColor();
     }
 
-    particles.forEach(particle => {
+    particles.forEach((particle) => {
       particle.update();
       particle.draw();
     });
@@ -126,13 +128,13 @@ export function initParticles(containerId = 'particles-canvas') {
   // Mouse interaction
   let mouse = { x: null, y: null, radius: 100 };
 
-  container.addEventListener('mousemove', (e) => {
+  container.addEventListener("mousemove", (e) => {
     const rect = container.getBoundingClientRect();
     mouse.x = e.clientX - rect.left;
     mouse.y = e.clientY - rect.top;
   });
 
-  container.addEventListener('mouseleave', () => {
+  container.addEventListener("mouseleave", () => {
     mouse.x = null;
     mouse.y = null;
   });
@@ -143,7 +145,7 @@ export function initParticles(containerId = 'particles-canvas') {
 
   // Handle resize
   let resizeTimeout;
-  window.addEventListener('resize', () => {
+  window.addEventListener("resize", () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(resize, 200);
   });

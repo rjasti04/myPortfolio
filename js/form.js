@@ -5,9 +5,12 @@ import { triggerConfetti, confettiPresets } from "./confetti.js";
 
 // Constants
 const SUBMIT_TIMEOUT_MS = 10000;
-const CONTACT_FIELD_SELECTOR = '.floating-label-group input[id], .floating-label-group textarea[id]';
-const CONTACT_FORM_SUBMIT_LABEL = 'Send Message <i class="fas fa-paper-plane"></i>';
-const CONTACT_FORM_SENDING_LABEL = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+const CONTACT_FIELD_SELECTOR =
+  ".floating-label-group input[id], .floating-label-group textarea[id]";
+const CONTACT_FORM_SUBMIT_LABEL =
+  'Send Message <i class="fas fa-paper-plane"></i>';
+const CONTACT_FORM_SENDING_LABEL =
+  '<i class="fas fa-spinner fa-spin"></i> Sending...';
 
 function setFormStatus(element, message, state = "info") {
   if (!element) return;
@@ -66,24 +69,27 @@ function setSubmitState(form, submitBtn, isSubmitting) {
 
 function copyEmailToClipboard() {
   const copyEmailBtn = document.getElementById("copy-email-btn");
-  const statusText = copyEmailBtn?.querySelector('.contact-method-value');
-  const originalText = statusText?.textContent || 'Click to copy';
-  
+  const statusText = copyEmailBtn?.querySelector(".contact-method-value");
+  const originalText = statusText?.textContent || "Click to copy";
+
   copyText(CONTACT_EMAIL)
     .then(() => {
       if (statusText) {
-        statusText.textContent = 'Copied!';
-        statusText.style.color = 'var(--color-success)';
+        statusText.textContent = "Copied!";
+        statusText.style.color = "var(--color-success)";
         setTimeout(() => {
           statusText.textContent = originalText;
-          statusText.style.color = '';
+          statusText.style.color = "";
         }, 2000);
       }
       showToast("Email copied to clipboard.", "success");
       trackEvent("copy_email", { success: true });
     })
     .catch(() => {
-      showToast("Clipboard copy failed. Please copy the email manually.", "error");
+      showToast(
+        "Clipboard copy failed. Please copy the email manually.",
+        "error",
+      );
       trackEvent("copy_email", { success: false, reason: "exception" });
     });
 }
@@ -99,10 +105,10 @@ export function initContactForm() {
   if (!contactForm || !contactStatus) return;
 
   // Real-time validation feedback with ARIA announcements
-  contactForm.querySelectorAll(CONTACT_FIELD_SELECTOR).forEach(field => {
+  contactForm.querySelectorAll(CONTACT_FIELD_SELECTOR).forEach((field) => {
     const errorEl = getFieldErrorElement(field);
 
-    field.addEventListener('blur', () => {
+    field.addEventListener("blur", () => {
       if (field.value && !field.checkValidity()) {
         showFieldError(field, errorEl);
       } else if (field.value) {
@@ -110,8 +116,8 @@ export function initContactForm() {
       }
     });
 
-    field.addEventListener('input', () => {
-      if (field.hasAttribute('aria-invalid') && field.checkValidity()) {
+    field.addEventListener("input", () => {
+      if (field.hasAttribute("aria-invalid") && field.checkValidity()) {
         clearFieldError(field, errorEl);
       }
     });
@@ -138,15 +144,21 @@ export function initContactForm() {
 
     // Check network status
     if (!isNetworkOnline()) {
-      setFormStatus(contactStatus, "You appear to be offline. Please check your connection.", "error");
+      setFormStatus(
+        contactStatus,
+        "You appear to be offline. Please check your connection.",
+        "error",
+      );
       showToast("No internet connection detected.", "error");
       return;
     }
 
     const submitBtn = contactForm.querySelector('button[type="submit"]');
     const name = contactForm.querySelector("#contact-name")?.value.trim() || "";
-    const email = contactForm.querySelector("#contact-email")?.value.trim() || "";
-    const message = contactForm.querySelector("#contact-message")?.value.trim() || "";
+    const email =
+      contactForm.querySelector("#contact-email")?.value.trim() || "";
+    const message =
+      contactForm.querySelector("#contact-message")?.value.trim() || "";
     if (submitBtn && !submitBtn.dataset.defaultLabel) {
       submitBtn.dataset.defaultLabel = submitBtn.innerHTML;
     }
@@ -154,13 +166,24 @@ export function initContactForm() {
 
     try {
       const abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController.abort(), SUBMIT_TIMEOUT_MS);
+      const timeoutId = setTimeout(
+        () => abortController.abort(),
+        SUBMIT_TIMEOUT_MS,
+      );
       let response;
       try {
         response = await fetch(`https://formsubmit.co/ajax/${CONTACT_EMAIL}`, {
           method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({ _subject: "New portfolio message from rjasti.com", email, message, name }),
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            _subject: "New portfolio message from rjasti.com",
+            email,
+            message,
+            name,
+          }),
           signal: abortController.signal,
         });
       } finally {
@@ -169,16 +192,30 @@ export function initContactForm() {
       if (!response.ok) throw new Error("Request failed");
       contactForm.reset();
       clearAllFieldErrors(contactForm);
-      trackEvent("contact_submission", { success: true, native_fallback: false });
-      setFormStatus(contactStatus, "Message sent successfully. Thanks for reaching out.", "success");
+      trackEvent("contact_submission", {
+        success: true,
+        native_fallback: false,
+      });
+      setFormStatus(
+        contactStatus,
+        "Message sent successfully. Thanks for reaching out.",
+        "success",
+      );
       showToast("Message sent successfully.", "success");
-      
+
       // Trigger confetti celebration
       triggerConfetti(confettiPresets.success);
     } catch (error) {
       console.error(error);
-      setFormStatus(contactStatus, "Trying the standard form submission flow...", "info");
-      trackEvent("contact_submission", { success: false, native_fallback: true });
+      setFormStatus(
+        contactStatus,
+        "Trying the standard form submission flow...",
+        "info",
+      );
+      trackEvent("contact_submission", {
+        success: false,
+        native_fallback: true,
+      });
       submitNatively();
     } finally {
       if (!nativeFallbackInProgress) {

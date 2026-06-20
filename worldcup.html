@@ -1,1126 +1,1072 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta
+      name="description"
+      content="Interactive 2026 FIFA World Cup Bracket Predictor. Predict group standings, select third-place wildcards, and simulate the knockout stage all the way to crowning the champion."
+    />
+    <title>2026 World Cup Bracket Predictor</title>
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description"
-    content="Interactive 2026 FIFA World Cup Bracket Predictor. Predict group standings, select third-place wildcards, and simulate the knockout stage all the way to crowning the champion.">
-  <title>2026 World Cup Bracket Predictor</title>
+    <!-- Fonts and Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
 
-  <!-- Fonts and Icons -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-    rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+      /* CSS VARIABLES & SYSTEM DESIGN */
+      :root {
+        /* Dark Theme variables (default) */
+        --bg: hsl(222, 47%, 10%);
+        --surface: hsl(223, 40%, 14%);
+        --surface-card: hsl(223, 30%, 18%);
+        --border: hsl(223, 20%, 26%);
+        --border-glow: rgba(14, 165, 233, 0.15);
+        --text: hsl(210, 40%, 98%);
+        --text-muted: hsl(215, 20%, 65%);
 
-  <style>
-    /* CSS VARIABLES & SYSTEM DESIGN */
-    :root {
-      /* Dark Theme variables (default) */
-      --bg: hsl(222, 47%, 10%);
-      --surface: hsl(223, 40%, 14%);
-      --surface-card: hsl(223, 30%, 18%);
-      --border: hsl(223, 20%, 26%);
-      --border-glow: rgba(14, 165, 233, 0.15);
-      --text: hsl(210, 40%, 98%);
-      --text-muted: hsl(215, 20%, 65%);
+        /* Accent Colors */
+        --primary: hsl(348, 85%, 53%);
+        /* World Cup Ruby Red */
+        --primary-rgb: 235, 35, 75;
+        --secondary: hsl(212, 100%, 50%);
+        /* Football Pitch Blue */
+        --accent-success: #10b981;
+        /* Advance Green */
+        --accent-warning: #f59e0b;
+        /* Wildcard Amber */
+        --accent-danger: #f87171;
+        /* Eliminated Red — boosted for WCAG AA */
 
-      /* Accent Colors */
-      --primary: hsl(348, 85%, 53%);
-      /* World Cup Ruby Red */
-      --primary-rgb: 235, 35, 75;
-      --secondary: hsl(212, 100%, 50%);
-      /* Football Pitch Blue */
-      --accent-success: #10b981;
-      /* Advance Green */
-      --accent-warning: #f59e0b;
-      /* Wildcard Amber */
-      --accent-danger: #f87171;
-      /* Eliminated Red — boosted for WCAG AA */
+        /* Badge Semantic Colors (Dark Mode) */
+        --badge-success-bg: rgba(16, 185, 129, 0.15);
+        --badge-success-text: var(--accent-success);
+        --badge-warning-bg: rgba(245, 158, 11, 0.15);
+        --badge-warning-text: var(--accent-warning);
+        --badge-danger-bg: rgba(239, 68, 68, 0.15);
+        --badge-danger-text: var(--accent-danger);
 
-      /* Badge Semantic Colors (Dark Mode) */
-      --badge-success-bg: rgba(16, 185, 129, 0.15);
-      --badge-success-text: var(--accent-success);
-      --badge-warning-bg: rgba(245, 158, 11, 0.15);
-      --badge-warning-text: var(--accent-warning);
-      --badge-danger-bg: rgba(239, 68, 68, 0.15);
-      --badge-danger-text: var(--accent-danger);
-
-      /* Design Tokens */
-      --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 16px;
-      --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
-      --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
-      --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-
-    body.light-theme {
-      --bg: hsl(210, 20%, 97%);
-      --surface: hsl(0, 0%, 100%);
-      --surface-card: hsl(210, 20%, 92%);
-      --border: hsl(210, 15%, 85%);
-      --border-glow: rgba(235, 35, 75, 0.1);
-      --text: hsl(222, 47%, 12%);
-      --text-muted: hsl(215, 15%, 45%);
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
-      --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.12);
-
-      /* Badge Semantic Colors (Light Mode - WCAG AA High Contrast) */
-      --badge-success-bg: #d1fae5;
-      --badge-success-text: #065f46;
-      --badge-warning-bg: #fef3c7;
-      --badge-warning-text: #92400e;
-      --badge-danger-bg: #fee2e2;
-      --badge-danger-text: #991b1b;
-    }
-
-    /* GLOBAL RESET & BASE STYLES */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    body {
-      font-family: var(--font-family);
-      background-color: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      min-height: 100vh;
-      overflow-x: hidden;
-      transition: background-color 0.3s ease, color 0.3s ease;
-    }
-
-    /* MAIN CONTAINER & APPFRAME */
-    .app-container {
-      max-width: 1600px;
-      margin: 0 auto;
-      padding: 24px 16px 80px 16px;
-    }
-
-    /* PREMIUM APP HEADER */
-    header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      margin-bottom: 32px;
-      padding: 24px;
-      background: radial-gradient(circle at top, rgba(var(--primary-rgb), 0.12), transparent 60%);
-      border-bottom: 1px solid var(--border);
-      position: relative;
-    }
-
-    .header-top {
-      width: 100%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .brand-logo {
-      font-size: 28px;
-      color: var(--primary);
-      text-shadow: 0 0 12px rgba(var(--primary-rgb), 0.4);
-    }
-
-    .brand-title {
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      text-transform: uppercase;
-      background: linear-gradient(135deg, var(--text), var(--primary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .hero-title-section h1 {
-      font-size: 36px;
-      font-weight: 800;
-      letter-spacing: -1px;
-      margin-bottom: 8px;
-      line-height: 1.2;
-    }
-
-    .hero-title-section p {
-      color: var(--text-muted);
-      font-size: 16px;
-      max-width: 600px;
-      margin: 0 auto;
-    }
-
-    /* BUTTONS SYSTEM */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 10px 18px;
-      border-radius: var(--radius-md);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      border: 1px solid transparent;
-      transition: var(--transition-base);
-    }
-
-    .btn-primary {
-      background-color: var(--primary);
-      color: #fff;
-    }
-
-    .btn-primary:hover {
-      background-color: hsl(348, 85%, 45%);
-      box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
-      transform: translateY(-1px);
-    }
-
-    .btn-outline {
-      background-color: transparent;
-      border-color: var(--border);
-      color: var(--text);
-    }
-
-    .btn-outline:hover {
-      background-color: var(--border);
-      border-color: var(--text-muted);
-    }
-
-    .btn-icon-only {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      padding: 0;
-      font-size: 16px;
-    }
-
-    /* TAB NAVIGATION */
-    .navigation-tabs {
-      display: flex;
-      background-color: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 28px;
-      padding: 6px;
-      margin: 0 auto 32px auto;
-      max-width: 600px;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .tab-btn {
-      flex: 1;
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-family: var(--font-family);
-      font-size: 14px;
-      font-weight: 700;
-      padding: 12px 16px;
-      border-radius: 24px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: var(--transition-base);
-    }
-
-    .tab-btn:hover {
-      color: var(--text);
-    }
-
-    .tab-btn.active {
-      background-color: var(--primary);
-      color: #fff;
-      box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
-    }
-
-    /* PANELS (VIEWS) SYSTEM */
-    .view-panel {
-      display: none;
-      animation: fadeIn 0.4s ease-out;
-    }
-
-    .view-panel.active {
-      display: block;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(8px);
+        /* Design Tokens */
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 16px;
+        --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+        --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
+        --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
+        --font-family:
+          "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
       }
 
-      to {
-        opacity: 1;
-        transform: translateY(0);
+      body.light-theme {
+        --bg: hsl(210, 20%, 97%);
+        --surface: hsl(0, 0%, 100%);
+        --surface-card: hsl(210, 20%, 92%);
+        --border: hsl(210, 15%, 85%);
+        --border-glow: rgba(235, 35, 75, 0.1);
+        --text: hsl(222, 47%, 12%);
+        --text-muted: hsl(215, 15%, 45%);
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+        --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.12);
+
+        /* Badge Semantic Colors (Light Mode - WCAG AA High Contrast) */
+        --badge-success-bg: #d1fae5;
+        --badge-success-text: #065f46;
+        --badge-warning-bg: #fef3c7;
+        --badge-warning-text: #92400e;
+        --badge-danger-bg: #fee2e2;
+        --badge-danger-text: #991b1b;
       }
-    }
 
-    /* GRID LAYOUTS */
-    .groups-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 24px;
-    }
+      /* GLOBAL RESET & BASE STYLES */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
 
-    /* CARD COMPONENT */
-    .card {
-      background-color: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 20px;
-      box-shadow: var(--shadow-sm);
-      transition: var(--transition-spring);
-      position: relative;
-    }
+      body {
+        font-family: var(--font-family);
+        background-color: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+        min-height: 100vh;
+        overflow-x: hidden;
+        transition:
+          background-color 0.3s ease,
+          color 0.3s ease;
+      }
 
-    .card:hover {
-      transform: translateY(-4px);
-      border-color: var(--border-glow);
-      box-shadow: var(--shadow-md);
-    }
+      /* MAIN CONTAINER & APPFRAME */
+      .app-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 24px 16px 80px 16px;
+      }
 
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 12px;
-    }
-
-    .card-title {
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      color: var(--primary);
-    }
-
-    .card-subtitle {
-      font-size: 12px;
-      color: var(--text-muted);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    /* DRAG-AND-DROP TEAM ITEMS */
-    .team-list {
-      list-style-type: none;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .team-item {
-      display: flex;
-      align-items: center;
-      background-color: var(--surface-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 10px 14px;
-      cursor: grab;
-      user-select: none;
-      transition: var(--transition-base);
-      position: relative;
-    }
-
-    .team-item:active {
-      cursor: grabbing;
-    }
-
-    .team-item.dragging {
-      opacity: 0.4;
-      background-color: var(--border);
-      border-style: dashed;
-    }
-
-    .team-item.drag-over-top {
-      border-top: 2px solid var(--primary);
-    }
-
-    .team-item.drag-over-bottom {
-      border-bottom: 2px solid var(--primary);
-    }
-
-    .rank-num {
-      width: 24px;
-      height: 24px;
-      background-color: var(--surface);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 700;
-      margin-right: 8px;
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      transition: var(--transition-base);
-    }
-
-    .rank-1 .rank-num,
-    .rank-2 .rank-num {
-      background-color: rgba(16, 185, 129, 0.15);
-      border-color: var(--accent-success);
-      color: var(--accent-success);
-    }
-
-    .rank-3 .rank-num {
-      background-color: rgba(245, 158, 11, 0.15);
-      border-color: var(--accent-warning);
-      color: var(--accent-warning);
-    }
-
-    .rank-4 .rank-num {
-      background-color: rgba(239, 68, 68, 0.1);
-      border-color: var(--accent-danger);
-      color: var(--accent-danger);
-    }
-
-    .team-flag {
-      width: 24px;
-      height: 16px;
-      object-fit: cover;
-      border-radius: 2px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-      margin-right: 8px;
-    }
-
-    .team-name {
-      font-size: 14px;
-      font-weight: 600;
-      flex-grow: 1;
-      min-width: 0;
-    }
-
-    /* REORDER CONTROLS */
-    .reorder-controls {
-      display: none; /* Hidden on desktop */
-    }
-
-    .reorder-btn {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer !important;
-      font-size: 12px;
-      padding: 2px;
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: var(--transition-base);
-      position: relative;
-    }
-
-    .reorder-btn:hover {
-      color: var(--text);
-    }
-
-    .drag-handle {
-      color: var(--text-muted);
-      font-size: 14px;
-      padding: 4px;
-      cursor: grab;
-      display: block; /* Visible on desktop */
-    }
-
-    .drag-handle:active {
-      cursor: grabbing;
-    }
-
-    /* STATUS BADGES */
-    .status-badge {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      padding: 2px 6px;
-      border-radius: 12px;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-      cursor: default;
-    }
-
-    .status-badge.advances {
-      background-color: var(--badge-success-bg);
-      color: var(--badge-success-text);
-    }
-
-    .status-badge.wildcard {
-      background-color: var(--badge-warning-bg);
-      color: var(--badge-warning-text);
-    }
-
-    .status-badge.eliminated {
-      background-color: var(--badge-danger-bg);
-      color: var(--badge-danger-text);
-    }
-
-    @media (max-width: 768px) {
-      .reorder-controls {
-        display: flex; /* Visible on mobile */
+      /* PREMIUM APP HEADER */
+      header {
+        display: flex;
         flex-direction: column;
-        gap: 4px;
-        margin-right: 12px;
+        align-items: center;
+        text-align: center;
+        margin-bottom: 32px;
+        padding: 24px;
+        background: radial-gradient(
+          circle at top,
+          rgba(var(--primary-rgb), 0.12),
+          transparent 60%
+        );
+        border-bottom: 1px solid var(--border);
+        position: relative;
       }
 
-      .reorder-btn {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        width: 28px;
-        height: 24px;
-        font-size: 11px;
+      .header-top {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
       }
 
-      .reorder-btn:hover {
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand-logo {
+        font-size: 28px;
+        color: var(--primary);
+        text-shadow: 0 0 12px rgba(var(--primary-rgb), 0.4);
+      }
+
+      .brand-title {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        text-transform: uppercase;
+        background: linear-gradient(135deg, var(--text), var(--primary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .hero-title-section h1 {
+        font-size: 36px;
+        font-weight: 800;
+        letter-spacing: -1px;
+        margin-bottom: 8px;
+        line-height: 1.2;
+      }
+
+      .hero-title-section p {
+        color: var(--text-muted);
+        font-size: 16px;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      /* BUTTONS SYSTEM */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: var(--radius-md);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: var(--transition-base);
+      }
+
+      .btn-primary {
+        background-color: var(--primary);
+        color: #fff;
+      }
+
+      .btn-primary:hover {
+        background-color: hsl(348, 85%, 45%);
+        box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+        transform: translateY(-1px);
+      }
+
+      .btn-outline {
+        background-color: transparent;
+        border-color: var(--border);
+        color: var(--text);
+      }
+
+      .btn-outline:hover {
         background-color: var(--border);
         border-color: var(--text-muted);
       }
 
-      .reorder-btn::after {
-        content: '';
-        position: absolute;
-        top: -10px;
-        bottom: -10px;
-        left: -8px;
-        right: -8px;
-        z-index: 10;
-      }
-
-      .drag-handle {
-        display: none; /* Hidden on mobile */
-      }
-
-      .rank-num {
-        margin-right: 12px;
-      }
-
-      .team-flag {
-        margin-right: 12px;
-      }
-
-      .status-badge {
-        font-size: 11px;
-        padding: 2px 8px;
-      }
-    }
-
-    /* WILDCARDS VIEW */
-    .wildcard-intro {
-      max-width: 800px;
-      margin: 0 auto 32px auto;
-      text-align: center;
-    }
-
-    .wildcard-intro h2 {
-      font-size: 24px;
-      font-weight: 800;
-      margin-bottom: 8px;
-    }
-
-    .wildcard-counter {
-      display: inline-block;
-      padding: 6px 16px;
-      border-radius: 20px;
-      background-color: rgba(var(--primary-rgb), 0.1);
-      border: 1px solid var(--primary);
-      color: var(--primary);
-      font-weight: 700;
-      font-size: 14px;
-      margin-top: 12px;
-    }
-
-    .wildcard-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
-      margin-top: 24px;
-    }
-
-    .wildcard-card {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      background-color: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      transition: var(--transition-base);
-    }
-
-    .wildcard-card:hover {
-      border-color: var(--accent-warning);
-      background-color: var(--surface-card);
-    }
-
-    .wildcard-card.selected {
-      border-color: var(--accent-warning);
-      background-color: rgba(245, 158, 11, 0.05);
-      box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
-    }
-
-    .wildcard-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .wildcard-group-tag {
-      font-size: 11px;
-      font-weight: 800;
-      background-color: var(--surface-card);
-      border: 1px solid var(--border);
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-    }
-
-    .wildcard-card.selected .wildcard-group-tag {
-      border-color: var(--accent-warning);
-      color: var(--accent-warning);
-      background-color: rgba(245, 158, 11, 0.15);
-    }
-
-    .wildcard-checkbox {
-      width: 20px;
-      height: 20px;
-      border-radius: 4px;
-      border: 2px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: var(--transition-base);
-      color: transparent;
-      font-size: 11px;
-    }
-
-    .wildcard-card.selected .wildcard-checkbox {
-      background-color: var(--accent-warning);
-      border-color: var(--accent-warning);
-      color: #fff;
-    }
-
-    /* KNOCKOUT BRACKET STAGE VIEW */
-    .bracket-container {
-      display: block;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      padding: 32px 16px;
-      position: relative;
-      width: 100%;
-      background:
-        linear-gradient(to right, var(--bg) 30%, rgba(var(--primary-rgb), 0)),
-        linear-gradient(to right, rgba(var(--primary-rgb), 0), var(--bg) 70%) 100% 0,
-        radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0)),
-        radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0)) 100% 0;
-      background-repeat: no-repeat;
-      background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
-      background-attachment: local, local, scroll, scroll;
-    }
-
-    .bracket-layout {
-      display: grid;
-      grid-template-columns: repeat(9, minmax(0, 1fr));
-      gap: 16px;
-      align-items: center;
-      width: 100%;
-      min-width: 1400px;
-    }
-
-    .bracket-column {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-around;
-      height: 960px;
-      /* Base container height for desktop spacing alignment */
-      position: relative;
-    }
-
-    /* MATCH CARD STYLE */
-    .match-card {
-      background-color: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      overflow: hidden;
-      box-shadow: var(--shadow-sm);
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      position: relative;
-      transition: var(--transition-base);
-      z-index: 5;
-    }
-
-    .match-card:hover {
-      border-color: var(--text-muted);
-      box-shadow: var(--shadow-md);
-      transform: scale(1.02);
-    }
-
-    .match-info-label {
-      font-size: 11px;
-      color: var(--text-muted);
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 4px 10px;
-      background-color: rgba(0, 0, 0, 0.05);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .match-team {
-      display: flex;
-      align-items: center;
-      padding: 8px 12px;
-      cursor: pointer;
-      transition: var(--transition-base);
-      background-color: var(--surface);
-      position: relative;
-    }
-
-    .match-team:first-of-type {
-      border-bottom: 1px solid var(--border);
-    }
-
-    .match-team:not(.placeholder):hover {
-      background-color: var(--surface-card);
-      filter: brightness(1.08);
-      border-color: var(--primary);
-    }
-
-    .match-team.winner {
-      background-color: rgba(var(--primary-rgb), 0.08);
-      color: var(--text);
-      font-weight: 700;
-    }
-
-    .match-team.winner::after {
-      content: '\f058';
-      font-family: 'Font Awesome 6 Free';
-      font-weight: 900;
-      position: absolute;
-      right: 12px;
-      color: var(--primary);
-      font-size: 14px;
-    }
-
-    .match-team:not(.winner):not(.placeholder):hover::after {
-      content: '\f054';
-      font-family: 'Font Awesome 6 Free';
-      font-weight: 900;
-      position: absolute;
-      right: 12px;
-      color: var(--primary);
-      font-size: 11px;
-      opacity: 0.6;
-      animation: hoverSlide 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-    }
-
-    @keyframes hoverSlide {
-      from {
-        transform: translateX(-4px);
-        opacity: 0;
-      }
-
-      to {
-        transform: translateX(0);
-        opacity: 0.6;
-      }
-    }
-
-    .match-team.placeholder {
-      color: var(--text-muted);
-      font-style: italic;
-      font-size: 12px;
-      cursor: not-allowed;
-    }
-
-    .match-team.placeholder:hover {
-      background-color: var(--surface);
-    }
-
-    .match-team-flag {
-      width: 18px;
-      height: 12px;
-      object-fit: cover;
-      margin-right: 8px;
-      border-radius: 1px;
-    }
-
-    .match-team-name {
-      font-size: 12px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 140px;
-    }
-
-    /* PATH CONNECTOR LINES (SVG Overlay or CSS border logic)
-       We will use CSS border spacing connectors for simple alignment. */
-
-    /* ROUND TABS FOR MOBILE BRACKET */
-    .mobile-bracket-tabs {
-      display: none;
-      background-color: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 4px;
-      margin-bottom: 24px;
-      overflow-x: auto;
-      white-space: nowrap;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-      mask-image: linear-gradient(to right, black 85%, transparent 100%);
-      -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
-    }
-
-    .mobile-bracket-tabs::-webkit-scrollbar {
-      display: none;
-    }
-
-    .mobile-tab-btn {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-family: var(--font-family);
-      font-size: 12px;
-      font-weight: 700;
-      padding: 8px 16px;
-      border-radius: 16px;
-      cursor: pointer;
-      display: inline-block;
-    }
-
-    .mobile-tab-btn.active {
-      background-color: var(--primary);
-      color: #fff;
-    }
-
-    /* CENTER PODIUM PANEL */
-    .podium-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-      width: 100%;
-    }
-
-    .podium-card {
-      background: linear-gradient(135deg, var(--surface), var(--surface-card));
-      border: 2px solid var(--primary);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      text-align: center;
-      width: 220px;
-      box-shadow: 0 0 24px rgba(var(--primary-rgb), 0.15);
-      position: relative;
-    }
-
-    .podium-card::before {
-      content: '';
-      position: absolute;
-      top: -2px;
-      left: -2px;
-      right: -2px;
-      bottom: -2px;
-      border-radius: var(--radius-lg);
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      z-index: -1;
-      margin: -1px;
-    }
-
-    .podium-title {
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--primary);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 16px;
-    }
-
-    .podium-place {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .podium-place:last-of-type {
-      margin-bottom: 0;
-      padding-bottom: 0;
-      border-bottom: none;
-    }
-
-    .medal {
-      font-size: 24px;
-      margin-bottom: 4px;
-      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-    }
-
-    .medal-gold {
-      color: #ffd700;
-    }
-
-    .medal-silver {
-      color: #c0c0c0;
-    }
-
-    .medal-bronze {
-      color: #cd7f32;
-    }
-
-    .podium-team {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      font-weight: 700;
-    }
-
-    .podium-team-flag {
-      width: 20px;
-      height: 14px;
-      object-fit: cover;
-      border-radius: 1px;
-    }
-
-    .podium-place-label {
-      font-size: 12px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      font-weight: 600;
-      margin-top: 2px;
-    }
-
-    .podium-empty {
-      font-style: italic;
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    /* CONFETTI CANVAS */
-    #celebration-canvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 9999;
-      display: none;
-    }
-
-    /* CUSTOM NOTIFICATIONS (TOASTS) */
-    .toast-container {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      z-index: 10000;
-    }
-
-    .toast {
-      background-color: var(--surface);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-left: 4px solid var(--primary);
-      padding: 12px 20px;
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-lg);
-      font-size: 13px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-      max-width: 320px;
-    }
-
-    .toast-success {
-      border-left-color: var(--accent-success);
-    }
-
-    .toast-warning {
-      border-left-color: var(--accent-warning);
-    }
-
-    @keyframes slideIn {
-      from {
-        transform: translateX(100%) translateY(0);
-        opacity: 0;
-      }
-
-      to {
-        transform: translateX(0) translateY(0);
-        opacity: 1;
-      }
-    }
-
-    .toast.fade-out {
-      animation: fadeOut 0.4s ease-out forwards;
-    }
-
-    @keyframes fadeOut {
-      from {
-        opacity: 1;
-        transform: scale(1);
-      }
-
-      to {
-        opacity: 0;
-        transform: scale(0.9);
-      }
-    }
-
-    /* FOOTER & ACCESSIBILITY ACCENTS */
-    footer {
-      text-align: center;
-      margin-top: 60px;
-      color: var(--text-muted);
-      font-size: 12px;
-      border-top: 1px solid var(--border);
-      padding-top: 24px;
-    }
-
-    footer a {
-      color: var(--primary);
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    footer a:hover {
-      text-decoration: underline;
-    }
-
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      border: 0;
-    }
-
-    /* ACCESSIBLE FOCUS INDICATOR */
-    button:focus-visible,
-    .team-item:focus-visible,
-    .match-team:focus-visible,
-    .wildcard-card:focus-visible {
-      outline: 3px solid var(--primary);
-      outline-offset: 2px;
-    }
-
-    /* MOBILE RESPONSIVE STYLES */
-    @media (max-width: 1200px) {
-      .bracket-layout {
-        display: none;
-        /* Hide desktop layout on medium/small screens and show mobile round navigation */
-      }
-
-      .mobile-bracket-tabs {
-        display: flex;
-        gap: 6px;
-      }
-
-      .mobile-bracket-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 16px;
-        animation: fadeIn 0.3s ease-out;
-      }
-
-      .mobile-bracket-list .match-card {
-        height: max-content;
-      }
-
-      .mobile-podium-view {
-        display: flex;
-        justify-content: center;
-        width: 100%;
-        padding: 24px 0;
-      }
-    }
-
-    @media (min-width: 1201px) {
-
-      .mobile-bracket-list,
-      .mobile-podium-view {
-        display: none !important;
-      }
-    }
-
-    @media (max-width: 768px) {
-      header {
-        padding: 16px;
-      }
-
-      .brand-title {
+      .btn-icon-only {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        padding: 0;
         font-size: 16px;
       }
 
-      .brand-logo {
-        font-size: 22px;
-      }
-
-      .hero-title-section h1 {
-        font-size: 26px;
-      }
-
-      .hero-title-section p {
-        font-size: 14px;
-      }
-
+      /* TAB NAVIGATION */
       .navigation-tabs {
-        flex-direction: row;
-        border-radius: 20px;
-        padding: 4px;
+        display: flex;
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 28px;
+        padding: 6px;
+        margin: 0 auto 32px auto;
+        max-width: 600px;
+        box-shadow: var(--shadow-sm);
       }
 
       .tab-btn {
-        padding: 10px 12px;
-        font-size: 12px;
-        min-height: 44px;
+        flex: 1;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-family: var(--font-family);
+        font-size: 14px;
+        font-weight: 700;
+        padding: 12px 16px;
+        border-radius: 24px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: var(--transition-base);
       }
 
-      .sr-only-mobile {
+      .tab-btn:hover {
+        color: var(--text);
+      }
+
+      .tab-btn.active {
+        background-color: var(--primary);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
+      }
+
+      /* PANELS (VIEWS) SYSTEM */
+      .view-panel {
+        display: none;
+        animation: fadeIn 0.4s ease-out;
+      }
+
+      .view-panel.active {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* GRID LAYOUTS */
+      .groups-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 24px;
+      }
+
+      /* CARD COMPONENT */
+      .card {
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 20px;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition-spring);
+        position: relative;
+      }
+
+      .card:hover {
+        transform: translateY(-4px);
+        border-color: var(--border-glow);
+        box-shadow: var(--shadow-md);
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 12px;
+      }
+
+      .card-title {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        color: var(--primary);
+      }
+
+      .card-subtitle {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      /* DRAG-AND-DROP TEAM ITEMS */
+      .team-list {
+        list-style-type: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .team-item {
+        display: flex;
+        align-items: center;
+        background-color: var(--surface-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px 14px;
+        cursor: grab;
+        user-select: none;
+        transition: var(--transition-base);
+        position: relative;
+      }
+
+      .team-item:active {
+        cursor: grabbing;
+      }
+
+      .team-item.dragging {
+        opacity: 0.4;
+        background-color: var(--border);
+        border-style: dashed;
+      }
+
+      .team-item.drag-over-top {
+        border-top: 2px solid var(--primary);
+      }
+
+      .team-item.drag-over-bottom {
+        border-bottom: 2px solid var(--primary);
+      }
+
+      .rank-num {
+        width: 24px;
+        height: 24px;
+        background-color: var(--surface);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        margin-right: 8px;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        transition: var(--transition-base);
+      }
+
+      .rank-1 .rank-num,
+      .rank-2 .rank-num {
+        background-color: rgba(16, 185, 129, 0.15);
+        border-color: var(--accent-success);
+        color: var(--accent-success);
+      }
+
+      .rank-3 .rank-num {
+        background-color: rgba(245, 158, 11, 0.15);
+        border-color: var(--accent-warning);
+        color: var(--accent-warning);
+      }
+
+      .rank-4 .rank-num {
+        background-color: rgba(239, 68, 68, 0.1);
+        border-color: var(--accent-danger);
+        color: var(--accent-danger);
+      }
+
+      .team-flag {
+        width: 24px;
+        height: 16px;
+        object-fit: cover;
+        border-radius: 2px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+        margin-right: 8px;
+      }
+
+      .team-name {
+        font-size: 14px;
+        font-weight: 600;
+        flex-grow: 1;
+        min-width: 0;
+      }
+
+      /* REORDER CONTROLS */
+      .reorder-controls {
+        display: none; /* Hidden on desktop */
+      }
+
+      .reorder-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer !important;
+        font-size: 12px;
+        padding: 2px;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition-base);
+        position: relative;
+      }
+
+      .reorder-btn:hover {
+        color: var(--text);
+      }
+
+      .drag-handle {
+        color: var(--text-muted);
+        font-size: 14px;
+        padding: 4px;
+        cursor: grab;
+        display: block; /* Visible on desktop */
+      }
+
+      .drag-handle:active {
+        cursor: grabbing;
+      }
+
+      /* STATUS BADGES */
+      .status-badge {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 2px 6px;
+        border-radius: 12px;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        cursor: default;
+      }
+
+      .status-badge.advances {
+        background-color: var(--badge-success-bg);
+        color: var(--badge-success-text);
+      }
+
+      .status-badge.wildcard {
+        background-color: var(--badge-warning-bg);
+        color: var(--badge-warning-text);
+      }
+
+      .status-badge.eliminated {
+        background-color: var(--badge-danger-bg);
+        color: var(--badge-danger-text);
+      }
+
+      @media (max-width: 768px) {
+        .reorder-controls {
+          display: flex; /* Visible on mobile */
+          flex-direction: column;
+          gap: 4px;
+          margin-right: 12px;
+        }
+
+        .reorder-btn {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 4px;
+          width: 28px;
+          height: 24px;
+          font-size: 11px;
+        }
+
+        .reorder-btn:hover {
+          background-color: var(--border);
+          border-color: var(--text-muted);
+        }
+
+        .reorder-btn::after {
+          content: "";
+          position: absolute;
+          top: -10px;
+          bottom: -10px;
+          left: -8px;
+          right: -8px;
+          z-index: 10;
+        }
+
+        .drag-handle {
+          display: none; /* Hidden on mobile */
+        }
+
+        .rank-num {
+          margin-right: 12px;
+        }
+
+        .team-flag {
+          margin-right: 12px;
+        }
+
+        .status-badge {
+          font-size: 11px;
+          padding: 2px 8px;
+        }
+      }
+
+      /* WILDCARDS VIEW */
+      .wildcard-intro {
+        max-width: 800px;
+        margin: 0 auto 32px auto;
+        text-align: center;
+      }
+
+      .wildcard-intro h2 {
+        font-size: 24px;
+        font-weight: 800;
+        margin-bottom: 8px;
+      }
+
+      .wildcard-counter {
+        display: inline-block;
+        padding: 6px 16px;
+        border-radius: 20px;
+        background-color: rgba(var(--primary-rgb), 0.1);
+        border: 1px solid var(--primary);
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 14px;
+        margin-top: 12px;
+      }
+
+      .wildcard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+        margin-top: 24px;
+      }
+
+      .wildcard-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: var(--transition-base);
+      }
+
+      .wildcard-card:hover {
+        border-color: var(--accent-warning);
+        background-color: var(--surface-card);
+      }
+
+      .wildcard-card.selected {
+        border-color: var(--accent-warning);
+        background-color: rgba(245, 158, 11, 0.05);
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+      }
+
+      .wildcard-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .wildcard-group-tag {
+        font-size: 11px;
+        font-weight: 800;
+        background-color: var(--surface-card);
+        border: 1px solid var(--border);
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+      }
+
+      .wildcard-card.selected .wildcard-group-tag {
+        border-color: var(--accent-warning);
+        color: var(--accent-warning);
+        background-color: rgba(245, 158, 11, 0.15);
+      }
+
+      .wildcard-checkbox {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        border: 2px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition-base);
+        color: transparent;
+        font-size: 11px;
+      }
+
+      .wildcard-card.selected .wildcard-checkbox {
+        background-color: var(--accent-warning);
+        border-color: var(--accent-warning);
+        color: #fff;
+      }
+
+      /* KNOCKOUT BRACKET STAGE VIEW */
+      .bracket-container {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 32px 16px;
+        position: relative;
+        width: 100%;
+        background:
+          linear-gradient(to right, var(--bg) 30%, rgba(var(--primary-rgb), 0)),
+          linear-gradient(to right, rgba(var(--primary-rgb), 0), var(--bg) 70%)
+            100% 0,
+          radial-gradient(
+            farthest-side at 0 50%,
+            rgba(0, 0, 0, 0.4),
+            rgba(0, 0, 0, 0)
+          ),
+          radial-gradient(
+              farthest-side at 100% 50%,
+              rgba(0, 0, 0, 0.4),
+              rgba(0, 0, 0, 0)
+            )
+            100% 0;
+        background-repeat: no-repeat;
+        background-size:
+          40px 100%,
+          40px 100%,
+          14px 100%,
+          14px 100%;
+        background-attachment: local, local, scroll, scroll;
+      }
+
+      .bracket-layout {
+        display: grid;
+        grid-template-columns: repeat(9, minmax(0, 1fr));
+        gap: 16px;
+        align-items: center;
+        width: 100%;
+        min-width: 1400px;
+      }
+
+      .bracket-column {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        height: 960px;
+        /* Base container height for desktop spacing alignment */
+        position: relative;
+      }
+
+      /* MATCH CARD STYLE */
+      .match-card {
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        position: relative;
+        transition: var(--transition-base);
+        z-index: 5;
+      }
+
+      .match-card:hover {
+        border-color: var(--text-muted);
+        box-shadow: var(--shadow-md);
+        transform: scale(1.02);
+      }
+
+      .match-info-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 4px 10px;
+        background-color: rgba(0, 0, 0, 0.05);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .match-team {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: var(--transition-base);
+        background-color: var(--surface);
+        position: relative;
+      }
+
+      .match-team:first-of-type {
+        border-bottom: 1px solid var(--border);
+      }
+
+      .match-team:not(.placeholder):hover {
+        background-color: var(--surface-card);
+        filter: brightness(1.08);
+        border-color: var(--primary);
+      }
+
+      .match-team.winner {
+        background-color: rgba(var(--primary-rgb), 0.08);
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      .match-team.winner::after {
+        content: "\f058";
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        position: absolute;
+        right: 12px;
+        color: var(--primary);
+        font-size: 14px;
+      }
+
+      .match-team:not(.winner):not(.placeholder):hover::after {
+        content: "\f054";
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        position: absolute;
+        right: 12px;
+        color: var(--primary);
+        font-size: 11px;
+        opacity: 0.6;
+        animation: hoverSlide 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      }
+
+      @keyframes hoverSlide {
+        from {
+          transform: translateX(-4px);
+          opacity: 0;
+        }
+
+        to {
+          transform: translateX(0);
+          opacity: 0.6;
+        }
+      }
+
+      .match-team.placeholder {
+        color: var(--text-muted);
+        font-style: italic;
+        font-size: 12px;
+        cursor: not-allowed;
+      }
+
+      .match-team.placeholder:hover {
+        background-color: var(--surface);
+      }
+
+      .match-team-flag {
+        width: 18px;
+        height: 12px;
+        object-fit: cover;
+        margin-right: 8px;
+        border-radius: 1px;
+      }
+
+      .match-team-name {
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 140px;
+      }
+
+      /* PATH CONNECTOR LINES (SVG Overlay or CSS border logic)
+       We will use CSS border spacing connectors for simple alignment. */
+
+      /* ROUND TABS FOR MOBILE BRACKET */
+      .mobile-bracket-tabs {
+        display: none;
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 4px;
+        margin-bottom: 24px;
+        overflow-x: auto;
+        white-space: nowrap;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        mask-image: linear-gradient(to right, black 85%, transparent 100%);
+        -webkit-mask-image: linear-gradient(
+          to right,
+          black 85%,
+          transparent 100%
+        );
+      }
+
+      .mobile-bracket-tabs::-webkit-scrollbar {
+        display: none;
+      }
+
+      .mobile-tab-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-family: var(--font-family);
+        font-size: 12px;
+        font-weight: 700;
+        padding: 8px 16px;
+        border-radius: 16px;
+        cursor: pointer;
+        display: inline-block;
+      }
+
+      .mobile-tab-btn.active {
+        background-color: var(--primary);
+        color: #fff;
+      }
+
+      /* CENTER PODIUM PANEL */
+      .podium-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        width: 100%;
+      }
+
+      .podium-card {
+        background: linear-gradient(
+          135deg,
+          var(--surface),
+          var(--surface-card)
+        );
+        border: 2px solid var(--primary);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        text-align: center;
+        width: 220px;
+        box-shadow: 0 0 24px rgba(var(--primary-rgb), 0.15);
+        position: relative;
+      }
+
+      .podium-card::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        border-radius: var(--radius-lg);
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        z-index: -1;
+        margin: -1px;
+      }
+
+      .podium-title {
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--primary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 16px;
+      }
+
+      .podium-place {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .podium-place:last-of-type {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+
+      .medal {
+        font-size: 24px;
+        margin-bottom: 4px;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+      }
+
+      .medal-gold {
+        color: #ffd700;
+      }
+
+      .medal-silver {
+        color: #c0c0c0;
+      }
+
+      .medal-bronze {
+        color: #cd7f32;
+      }
+
+      .podium-team {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .podium-team-flag {
+        width: 20px;
+        height: 14px;
+        object-fit: cover;
+        border-radius: 1px;
+      }
+
+      .podium-place-label {
+        font-size: 12px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-top: 2px;
+      }
+
+      .podium-empty {
+        font-style: italic;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      /* CONFETTI CANVAS */
+      #celebration-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+        display: none;
+      }
+
+      /* CUSTOM NOTIFICATIONS (TOASTS) */
+      .toast-container {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 10000;
+      }
+
+      .toast {
+        background-color: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--primary);
+        padding: 12px 20px;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        max-width: 320px;
+      }
+
+      .toast-success {
+        border-left-color: var(--accent-success);
+      }
+
+      .toast-warning {
+        border-left-color: var(--accent-warning);
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%) translateY(0);
+          opacity: 0;
+        }
+
+        to {
+          transform: translateX(0) translateY(0);
+          opacity: 1;
+        }
+      }
+
+      .toast.fade-out {
+        animation: fadeOut 0.4s ease-out forwards;
+      }
+
+      @keyframes fadeOut {
+        from {
+          opacity: 1;
+          transform: scale(1);
+        }
+
+        to {
+          opacity: 0;
+          transform: scale(0.9);
+        }
+      }
+
+      /* FOOTER & ACCESSIBILITY ACCENTS */
+      footer {
+        text-align: center;
+        margin-top: 60px;
+        color: var(--text-muted);
+        font-size: 12px;
+        border-top: 1px solid var(--border);
+        padding-top: 24px;
+      }
+
+      footer a {
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      footer a:hover {
+        text-decoration: underline;
+      }
+
+      .sr-only {
         position: absolute;
         width: 1px;
         height: 1px;
@@ -1130,473 +1076,660 @@
         clip: rect(0, 0, 0, 0);
         border: 0;
       }
-    }
-  </style>
-</head>
 
-<body>
-
-  <!-- APP CONTENT GRID -->
-  <div class="app-container">
-
-    <!-- HEADER -->
-    <header>
-      <div class="header-top">
-        <div class="brand">
-          <i class="fas fa-trophy brand-logo"></i>
-          <span class="brand-title">FIFA 26</span>
-        </div>
-        <div class="header-actions">
-          <button id="theme-toggle-btn" class="btn btn-outline btn-icon-only" aria-label="Toggle theme"
-            title="Toggle Light/Dark Theme">
-            <i class="fas fa-moon"></i>
-          </button>
-          <button id="reset-btn" class="btn btn-outline" aria-label="Reset Bracket predictions">
-            <i class="fas fa-rotate-left"></i> <span class="sr-only-mobile">Reset</span>
-          </button>
-          <button id="share-btn" class="btn btn-outline" aria-label="Copy share link for predictions">
-            <i class="fas fa-share-nodes"></i> <span class="sr-only-mobile">Share</span>
-          </button>
-          <button id="download-btn" class="btn btn-primary" aria-label="Download prediction summary">
-            <i class="fas fa-download"></i> <span class="sr-only-mobile">Export</span>
-          </button>
-        </div>
-      </div>
-      <div class="hero-title-section">
-        <h1>2026 WORLD CUP BRACKET</h1>
-        <p>Predict the Group Stages, advance the best third-place wildcard teams, and simulate the knockout stage to
-          crown your world champion.</p>
-      </div>
-    </header>
-
-    <!-- NAVIGATION TABS -->
-    <nav class="navigation-tabs" aria-label="Prediction stages">
-      <button class="tab-btn active" data-tab="group-stage-tab">
-        <i class="fas fa-cubes"></i> <span>Group Stage</span>
-      </button>
-      <button class="tab-btn" data-tab="wildcards-tab">
-        <i class="fas fa-ticket"></i> <span>3rd Place Wildcards</span>
-      </button>
-      <button class="tab-btn" data-tab="knockout-tab">
-        <i class="fas fa-diagram-project"></i> <span>Knockout Bracket</span>
-      </button>
-    </nav>
-
-    <!-- SECTION 1: GROUP STAGE PREDICTOR -->
-    <main id="main-content">
-
-      <section id="group-stage-tab" class="view-panel active" aria-labelledby="group-stage-title">
-        <h2 id="group-stage-title" class="sr-only">Group Stage Predictor</h2>
-        <div class="groups-grid" id="groups-container">
-          <!-- Rendered dynamically via JS -->
-        </div>
-      </section>
-
-      <!-- SECTION 2: WILDCARDS SELECTOR -->
-      <section id="wildcards-tab" class="view-panel" aria-labelledby="wildcards-title">
-        <div class="wildcard-intro">
-          <h2 id="wildcards-title">Third-Place Team Advancement</h2>
-          <p>Under the 48-team format, the 12 third-place finishers are ranked. Choose exactly 8 teams from these 12
-            third-place finishers to advance to the Round of 32.</p>
-          <div class="wildcard-counter" id="wildcard-counter-label" aria-live="polite">Selected: 8 of 12</div>
-        </div>
-
-        <div class="wildcard-grid" id="wildcards-container">
-          <!-- Rendered dynamically via JS -->
-        </div>
-      </section>
-
-      <!-- SECTION 3: KNOCKOUT STAGE BRACKET -->
-      <section id="knockout-tab" class="view-panel" aria-labelledby="knockout-title">
-        <h2 id="knockout-title" class="sr-only">Knockout Stage Progression</h2>
-
-        <!-- Mobile Bracket Rounds selector -->
-        <nav class="mobile-bracket-tabs" aria-label="Knockout rounds selection">
-          <button class="mobile-tab-btn active" data-round="r32">Round of 32</button>
-          <button class="mobile-tab-btn" data-round="r16">Round of 16</button>
-          <button class="mobile-tab-btn" data-round="qf">Quarterfinals</button>
-          <button class="mobile-tab-btn" data-round="sf">Semifinals</button>
-          <button class="mobile-tab-btn" data-round="finals">Finals & Podium</button>
-        </nav>
-
-        <!-- Mobile Bracket list container -->
-        <div class="mobile-bracket-list" id="mobile-bracket-list-container">
-          <!-- Rendered dynamically via JS -->
-        </div>
-
-        <div class="mobile-podium-view" id="mobile-podium-container">
-          <!-- Rendered dynamically via JS -->
-        </div>
-
-        <!-- Desktop Double-Sided tree view -->
-        <div class="bracket-container" id="desktop-bracket-container">
-          <div class="bracket-layout" id="desktop-bracket-layout">
-
-            <!-- Left R32 (Matches 1-8) -->
-            <div class="bracket-column">
-              <div class="bracket-column-title sr-only">Round of 32 (Left)</div>
-              <div id="d-r32-1"></div>
-              <div id="d-r32-2"></div>
-              <div id="d-r32-3"></div>
-              <div id="d-r32-4"></div>
-              <div id="d-r32-5"></div>
-              <div id="d-r32-6"></div>
-              <div id="d-r32-7"></div>
-              <div id="d-r32-8"></div>
-            </div>
-
-            <!-- Left R16 (Matches 1-4) -->
-            <div class="bracket-column">
-              <div class="bracket-column-title sr-only">Round of 16 (Left)</div>
-              <div id="d-r16-1"></div>
-              <div id="d-r16-2"></div>
-              <div id="d-r16-3"></div>
-              <div id="d-r16-4"></div>
-            </div>
-
-            <!-- Left QF (Matches 1-2) -->
-            <div class="bracket-column">
-              <div class="bracket-column-title sr-only">Quarterfinals (Left)</div>
-              <div id="d-qf-1"></div>
-              <div id="d-qf-2"></div>
-            </div>
-
-            <!-- Left SF (Match 1) -->
-            <div class="bracket-column">
-              <div class="bracket-column-title sr-only">Semifinals (Left)</div>
-              <div id="d-sf-1"></div>
-            </div>
-
-            <!-- Center (Final, 3rd Place, Podium) -->
-            <div class="bracket-column" style="justify-content: center; gap: 32px;">
-              <div class="bracket-column-title sr-only">Finals</div>
-
-              <!-- Grand Final Match -->
-              <div id="d-final"></div>
-
-              <!-- 3rd Place Match -->
-              <div id="d-third-place"></div>
-
-              <!-- Podium Display -->
-              <div class="podium-container" id="d-podium">
-                <!-- Rendered dynamically -->
-              </div>
-            </div>
-
-            <!-- Right SF (Match 2) -->
-            <div class="bracket-column">
-              <div class="bracket-column-title sr-only">Semifinals (Right)</div>
-              <div id="d-sf-2"></div>
-            </div>
-
-            <!-- Right QF (Matches 3-4) -->
-            <div class="bracket-column">
-              <div class="bracket-column-title sr-only">Quarterfinals (Right)</div>
-              <div id="d-qf-3"></div>
-              <div id="d-qf-4"></div>
-            </div>
-
-            <!-- Right R16 (Matches 5-8) -->
-            <div class="bracket-column">
-              <div class="bracket-column-title sr-only">Round of 16 (Right)</div>
-              <div id="d-r16-5"></div>
-              <div id="d-r16-6"></div>
-              <div id="d-r16-7"></div>
-              <div id="d-r16-8"></div>
-            </div>
-
-            <!-- Right R32 (Matches 9-16) -->
-            <div class="bracket-column">
-              <div class="bracket-column-title sr-only">Round of 32 (Right)</div>
-              <div id="d-r32-9"></div>
-              <div id="d-r32-10"></div>
-              <div id="d-r32-11"></div>
-              <div id="d-r32-12"></div>
-              <div id="d-r32-13"></div>
-              <div id="d-r32-14"></div>
-              <div id="d-r32-15"></div>
-              <div id="d-r32-16"></div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-    </main>
-
-    <!-- FOOTER -->
-    <footer>
-      <p>&copy; 2026 World Cup Bracket Predictor. Built by <a href="https://rjasti.com" target="_blank"
-          rel="noopener noreferrer">Rajeev Jasti</a>.</p>
-      <p style="margin-top: 6px; font-size: 11px;">Flag CDN courtesy of <a href="https://flagcdn.com/" target="_blank"
-          rel="noopener noreferrer">FlagCDN</a>. State is saved automatically to your browser session.</p>
-    </footer>
-  </div>
-
-  <!-- TOAST NOTIFICATION CONTAINER -->
-  <div class="toast-container" id="toast-container" aria-live="polite"></div>
-
-  <!-- CELEBRATION CONFETTI CANVAS -->
-  <canvas id="celebration-canvas"></canvas>
-
-  <!-- BUSINESS LOGIC & SCRIPT ENGINE -->
-  <script>
-    // INITIAL SYSTEM DATA
-    const INITIAL_GROUPS = {
-      A: [
-        { name: "Mexico", code: "mx" },
-        { name: "South Africa", code: "za" },
-        { name: "South Korea", code: "kr" },
-        { name: "Czechia", code: "cz" }
-      ],
-      B: [
-        { name: "Canada", code: "ca" },
-        { name: "Switzerland", code: "ch" },
-        { name: "Qatar", code: "qa" },
-        { name: "Bosnia & Herzegovina", code: "ba" }
-      ],
-      C: [
-        { name: "Brazil", code: "br" },
-        { name: "Morocco", code: "ma" },
-        { name: "Haiti", code: "ht" },
-        { name: "Scotland", code: "gb-sct" }
-      ],
-      D: [
-        { name: "United States", code: "us" },
-        { name: "Paraguay", code: "py" },
-        { name: "Australia", code: "au" },
-        { name: "Türkiye", code: "tr" }
-      ],
-      E: [
-        { name: "Germany", code: "de" },
-        { name: "Curaçao", code: "cw" },
-        { name: "Côte d'Ivoire", code: "ci" },
-        { name: "Ecuador", code: "ec" }
-      ],
-      F: [
-        { name: "Netherlands", code: "nl" },
-        { name: "Japan", code: "jp" },
-        { name: "Tunisia", code: "tn" },
-        { name: "Sweden", code: "se" }
-      ],
-      G: [
-        { name: "Belgium", code: "be" },
-        { name: "Egypt", code: "eg" },
-        { name: "Iran", code: "ir" },
-        { name: "New Zealand", code: "nz" }
-      ],
-      H: [
-        { name: "Spain", code: "es" },
-        { name: "Cabo Verde", code: "cv" },
-        { name: "Saudi Arabia", code: "sa" },
-        { name: "Uruguay", code: "uy" }
-      ],
-      I: [
-        { name: "France", code: "fr" },
-        { name: "Senegal", code: "sn" },
-        { name: "Norway", code: "no" },
-        { name: "Iraq", code: "iq" }
-      ],
-      J: [
-        { name: "Argentina", code: "ar" },
-        { name: "Algeria", code: "dz" },
-        { name: "Austria", code: "at" },
-        { name: "Jordan", code: "jo" }
-      ],
-      K: [
-        { name: "Portugal", code: "pt" },
-        { name: "Uzbekistan", code: "uz" },
-        { name: "Colombia", code: "co" },
-        { name: "DR Congo", code: "cd" }
-      ],
-      L: [
-        { name: "England", code: "gb-eng" },
-        { name: "Croatia", code: "hr" },
-        { name: "Ghana", code: "gh" },
-        { name: "Panama", code: "pa" }
-      ]
-    };
-
-    // SYSTEM STATE
-    let state = {
-      groups: {},       // Keyed by Group Letter -> Array of 4 team objects
-      wildcards: [],    // Selected Group Letters representing advancing third-place teams (exactly 8)
-      bracketWinner: {} // Keyed by Match ID -> Winning Team Object
-    };
-
-    // MATCH DIRECTORY DEFINITION (MATCH RELATIONSHIP MAP)
-    // Feeds matches to the next rounds. Represents parent nodes in the tournament tree.
-    const MATCH_FLOW = {
-      // Round of 32 -> Round of 16
-      "r32-1": { parent: "r16-1", slot: "team1" },
-      "r32-2": { parent: "r16-1", slot: "team2" },
-      "r32-3": { parent: "r16-2", slot: "team1" },
-      "r32-4": { parent: "r16-2", slot: "team2" },
-      "r32-5": { parent: "r16-3", slot: "team1" },
-      "r32-6": { parent: "r16-3", slot: "team2" },
-      "r32-7": { parent: "r16-4", slot: "team1" },
-      "r32-8": { parent: "r16-4", slot: "team2" },
-      "r32-9": { parent: "r16-5", slot: "team1" },
-      "r32-10": { parent: "r16-5", slot: "team2" },
-      "r32-11": { parent: "r16-6", slot: "team1" },
-      "r32-12": { parent: "r16-6", slot: "team2" },
-      "r32-13": { parent: "r16-7", slot: "team1" },
-      "r32-14": { parent: "r16-7", slot: "team2" },
-      "r32-15": { parent: "r16-8", slot: "team1" },
-      "r32-16": { parent: "r16-8", slot: "team2" },
-
-      // Round of 16 -> Quarterfinals
-      "r16-1": { parent: "qf-1", slot: "team1" },
-      "r16-2": { parent: "qf-1", slot: "team2" },
-      "r16-3": { parent: "qf-2", slot: "team1" },
-      "r16-4": { parent: "qf-2", slot: "team2" },
-      "r16-5": { parent: "qf-3", slot: "team1" },
-      "r16-6": { parent: "qf-3", slot: "team2" },
-      "r16-7": { parent: "qf-4", slot: "team1" },
-      "r16-8": { parent: "qf-4", slot: "team2" },
-
-      // Quarterfinals -> Semifinals
-      "qf-1": { parent: "sf-1", slot: "team1" },
-      "qf-2": { parent: "sf-1", slot: "team2" },
-      "qf-3": { parent: "sf-2", slot: "team1" },
-      "qf-4": { parent: "sf-2", slot: "team2" },
-
-      // Semifinals -> Grand Final & 3rd Place
-      // Semifinals feed winners to Grand Final, and losers to the 3rd Place Match
-      "sf-1": { parent: "final", slot: "team1", loserParent: "third-place", loserSlot: "team1" },
-      "sf-2": { parent: "final", slot: "team2", loserParent: "third-place", loserSlot: "team2" }
-    };
-
-    // Helper: Return clean flag URL from CDN or fallback
-    function getFlagUrl(code) {
-      if (!code) return "";
-      return `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
-    }
-
-    // Dynamic toast notification generator
-    function showToast(message, type = "normal") {
-      const container = document.getElementById("toast-container");
-      const toast = document.createElement("div");
-      toast.className = `toast toast-${type}`;
-
-      let icon = '<i class="fas fa-info-circle"></i>';
-      if (type === "success") icon = '<i class="fas fa-circle-check"></i>';
-      if (type === "warning") icon = '<i class="fas fa-circle-exclamation"></i>';
-
-      toast.innerHTML = `${icon} <span>${message}</span>`;
-      container.appendChild(toast);
-
-      setTimeout(() => {
-        toast.classList.add("fade-out");
-        toast.addEventListener("animationend", () => {
-          toast.remove();
-        });
-      }, 3000);
-    }
-
-    // INITIALIZATION & RESET ROUTINES
-    function initSystem() {
-      // 1. Theme Configuration
-      const savedTheme = localStorage.getItem("predictor-theme") || "dark";
-      if (savedTheme === "light") {
-        document.body.classList.add("light-theme");
-        document.querySelector("#theme-toggle-btn i").className = "fas fa-sun";
+      /* ACCESSIBLE FOCUS INDICATOR */
+      button:focus-visible,
+      .team-item:focus-visible,
+      .match-team:focus-visible,
+      .wildcard-card:focus-visible {
+        outline: 3px solid var(--primary);
+        outline-offset: 2px;
       }
 
-      // 2. Load State from LocalStorage or Defaults
-      const loaded = loadStateFromLocalStorage();
-      if (!loaded) {
-        // First check URL query parameter
-        const urlLoaded = loadStateFromUrl();
-        if (!urlLoaded) {
-          resetToDefaults(false);
+      /* MOBILE RESPONSIVE STYLES */
+      @media (max-width: 1200px) {
+        .bracket-layout {
+          display: none;
+          /* Hide desktop layout on medium/small screens and show mobile round navigation */
+        }
+
+        .mobile-bracket-tabs {
+          display: flex;
+          gap: 6px;
+        }
+
+        .mobile-bracket-list {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 16px;
+          animation: fadeIn 0.3s ease-out;
+        }
+
+        .mobile-bracket-list .match-card {
+          height: max-content;
+        }
+
+        .mobile-podium-view {
+          display: flex;
+          justify-content: center;
+          width: 100%;
+          padding: 24px 0;
         }
       }
 
-      // 3. Setup UI Interaction Listeners
-      setupThemeToggle();
-      setupTabs();
-      setupUtilityButtons();
-      setupDragDropListeners();
-
-      // 4. Trigger Layout Renders
-      renderAllViews();
-    }
-
-    function resetToDefaults(showFeedback = true) {
-      // Deep clone initial static teams
-      state.groups = JSON.parse(JSON.stringify(INITIAL_GROUPS));
-
-      // Default: Top 8 Groups advance their third place
-      state.wildcards = ["A", "B", "C", "D", "E", "F", "G", "H"];
-
-      // Clear match predictions
-      state.bracketWinner = {};
-
-      saveStateToLocalStorage();
-
-      if (showFeedback) {
-        // Clean URL params if any
-        window.history.replaceState({}, document.title, window.location.pathname);
-        renderAllViews();
-        showToast("Predictions cleared successfully!", "success");
+      @media (min-width: 1201px) {
+        .mobile-bracket-list,
+        .mobile-podium-view {
+          display: none !important;
+        }
       }
-    }
 
-    // VIEW RENDER COORDINATOR
-    function renderAllViews() {
-      renderGroupStage();
-      renderWildcardsView();
-      renderKnockoutBracket();
-    }
+      @media (max-width: 768px) {
+        header {
+          padding: 16px;
+        }
 
-    // MODULE 1: GROUP STAGE RENDER & INTERACTION
-    function renderGroupStage() {
-      const container = document.getElementById("groups-container");
-      container.innerHTML = "";
+        .brand-title {
+          font-size: 16px;
+        }
 
-      Object.keys(state.groups).forEach(groupLetter => {
-        const groupTeams = state.groups[groupLetter];
+        .brand-logo {
+          font-size: 22px;
+        }
 
-        const card = document.createElement("div");
-        card.className = "card";
-        card.setAttribute("data-group", groupLetter);
+        .hero-title-section h1 {
+          font-size: 26px;
+        }
 
-        // Header element
-        const header = document.createElement("div");
-        header.className = "card-header";
-        header.innerHTML = `
+        .hero-title-section p {
+          font-size: 14px;
+        }
+
+        .navigation-tabs {
+          flex-direction: row;
+          border-radius: 20px;
+          padding: 4px;
+        }
+
+        .tab-btn {
+          padding: 10px 12px;
+          font-size: 12px;
+          min-height: 44px;
+        }
+
+        .sr-only-mobile {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          border: 0;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- APP CONTENT GRID -->
+    <div class="app-container">
+      <!-- HEADER -->
+      <header>
+        <div class="header-top">
+          <div class="brand">
+            <i class="fas fa-trophy brand-logo"></i>
+            <span class="brand-title">FIFA 26</span>
+          </div>
+          <div class="header-actions">
+            <button
+              id="theme-toggle-btn"
+              class="btn btn-outline btn-icon-only"
+              aria-label="Toggle theme"
+              title="Toggle Light/Dark Theme"
+            >
+              <i class="fas fa-moon"></i>
+            </button>
+            <button
+              id="reset-btn"
+              class="btn btn-outline"
+              aria-label="Reset Bracket predictions"
+            >
+              <i class="fas fa-rotate-left"></i>
+              <span class="sr-only-mobile">Reset</span>
+            </button>
+            <button
+              id="share-btn"
+              class="btn btn-outline"
+              aria-label="Copy share link for predictions"
+            >
+              <i class="fas fa-share-nodes"></i>
+              <span class="sr-only-mobile">Share</span>
+            </button>
+            <button
+              id="download-btn"
+              class="btn btn-primary"
+              aria-label="Download prediction summary"
+            >
+              <i class="fas fa-download"></i>
+              <span class="sr-only-mobile">Export</span>
+            </button>
+          </div>
+        </div>
+        <div class="hero-title-section">
+          <h1>2026 WORLD CUP BRACKET</h1>
+          <p>
+            Predict the Group Stages, advance the best third-place wildcard
+            teams, and simulate the knockout stage to crown your world champion.
+          </p>
+        </div>
+      </header>
+
+      <!-- NAVIGATION TABS -->
+      <nav class="navigation-tabs" aria-label="Prediction stages">
+        <button class="tab-btn active" data-tab="group-stage-tab">
+          <i class="fas fa-cubes"></i> <span>Group Stage</span>
+        </button>
+        <button class="tab-btn" data-tab="wildcards-tab">
+          <i class="fas fa-ticket"></i> <span>3rd Place Wildcards</span>
+        </button>
+        <button class="tab-btn" data-tab="knockout-tab">
+          <i class="fas fa-diagram-project"></i> <span>Knockout Bracket</span>
+        </button>
+      </nav>
+
+      <!-- SECTION 1: GROUP STAGE PREDICTOR -->
+      <main id="main-content">
+        <section
+          id="group-stage-tab"
+          class="view-panel active"
+          aria-labelledby="group-stage-title"
+        >
+          <h2 id="group-stage-title" class="sr-only">Group Stage Predictor</h2>
+          <div class="groups-grid" id="groups-container">
+            <!-- Rendered dynamically via JS -->
+          </div>
+        </section>
+
+        <!-- SECTION 2: WILDCARDS SELECTOR -->
+        <section
+          id="wildcards-tab"
+          class="view-panel"
+          aria-labelledby="wildcards-title"
+        >
+          <div class="wildcard-intro">
+            <h2 id="wildcards-title">Third-Place Team Advancement</h2>
+            <p>
+              Under the 48-team format, the 12 third-place finishers are ranked.
+              Choose exactly 8 teams from these 12 third-place finishers to
+              advance to the Round of 32.
+            </p>
+            <div
+              class="wildcard-counter"
+              id="wildcard-counter-label"
+              aria-live="polite"
+            >
+              Selected: 8 of 12
+            </div>
+          </div>
+
+          <div class="wildcard-grid" id="wildcards-container">
+            <!-- Rendered dynamically via JS -->
+          </div>
+        </section>
+
+        <!-- SECTION 3: KNOCKOUT STAGE BRACKET -->
+        <section
+          id="knockout-tab"
+          class="view-panel"
+          aria-labelledby="knockout-title"
+        >
+          <h2 id="knockout-title" class="sr-only">
+            Knockout Stage Progression
+          </h2>
+
+          <!-- Mobile Bracket Rounds selector -->
+          <nav
+            class="mobile-bracket-tabs"
+            aria-label="Knockout rounds selection"
+          >
+            <button class="mobile-tab-btn active" data-round="r32">
+              Round of 32
+            </button>
+            <button class="mobile-tab-btn" data-round="r16">Round of 16</button>
+            <button class="mobile-tab-btn" data-round="qf">
+              Quarterfinals
+            </button>
+            <button class="mobile-tab-btn" data-round="sf">Semifinals</button>
+            <button class="mobile-tab-btn" data-round="finals">
+              Finals & Podium
+            </button>
+          </nav>
+
+          <!-- Mobile Bracket list container -->
+          <div class="mobile-bracket-list" id="mobile-bracket-list-container">
+            <!-- Rendered dynamically via JS -->
+          </div>
+
+          <div class="mobile-podium-view" id="mobile-podium-container">
+            <!-- Rendered dynamically via JS -->
+          </div>
+
+          <!-- Desktop Double-Sided tree view -->
+          <div class="bracket-container" id="desktop-bracket-container">
+            <div class="bracket-layout" id="desktop-bracket-layout">
+              <!-- Left R32 (Matches 1-8) -->
+              <div class="bracket-column">
+                <div class="bracket-column-title sr-only">
+                  Round of 32 (Left)
+                </div>
+                <div id="d-r32-1"></div>
+                <div id="d-r32-2"></div>
+                <div id="d-r32-3"></div>
+                <div id="d-r32-4"></div>
+                <div id="d-r32-5"></div>
+                <div id="d-r32-6"></div>
+                <div id="d-r32-7"></div>
+                <div id="d-r32-8"></div>
+              </div>
+
+              <!-- Left R16 (Matches 1-4) -->
+              <div class="bracket-column">
+                <div class="bracket-column-title sr-only">
+                  Round of 16 (Left)
+                </div>
+                <div id="d-r16-1"></div>
+                <div id="d-r16-2"></div>
+                <div id="d-r16-3"></div>
+                <div id="d-r16-4"></div>
+              </div>
+
+              <!-- Left QF (Matches 1-2) -->
+              <div class="bracket-column">
+                <div class="bracket-column-title sr-only">
+                  Quarterfinals (Left)
+                </div>
+                <div id="d-qf-1"></div>
+                <div id="d-qf-2"></div>
+              </div>
+
+              <!-- Left SF (Match 1) -->
+              <div class="bracket-column">
+                <div class="bracket-column-title sr-only">
+                  Semifinals (Left)
+                </div>
+                <div id="d-sf-1"></div>
+              </div>
+
+              <!-- Center (Final, 3rd Place, Podium) -->
+              <div
+                class="bracket-column"
+                style="justify-content: center; gap: 32px"
+              >
+                <div class="bracket-column-title sr-only">Finals</div>
+
+                <!-- Grand Final Match -->
+                <div id="d-final"></div>
+
+                <!-- 3rd Place Match -->
+                <div id="d-third-place"></div>
+
+                <!-- Podium Display -->
+                <div class="podium-container" id="d-podium">
+                  <!-- Rendered dynamically -->
+                </div>
+              </div>
+
+              <!-- Right SF (Match 2) -->
+              <div class="bracket-column">
+                <div class="bracket-column-title sr-only">
+                  Semifinals (Right)
+                </div>
+                <div id="d-sf-2"></div>
+              </div>
+
+              <!-- Right QF (Matches 3-4) -->
+              <div class="bracket-column">
+                <div class="bracket-column-title sr-only">
+                  Quarterfinals (Right)
+                </div>
+                <div id="d-qf-3"></div>
+                <div id="d-qf-4"></div>
+              </div>
+
+              <!-- Right R16 (Matches 5-8) -->
+              <div class="bracket-column">
+                <div class="bracket-column-title sr-only">
+                  Round of 16 (Right)
+                </div>
+                <div id="d-r16-5"></div>
+                <div id="d-r16-6"></div>
+                <div id="d-r16-7"></div>
+                <div id="d-r16-8"></div>
+              </div>
+
+              <!-- Right R32 (Matches 9-16) -->
+              <div class="bracket-column">
+                <div class="bracket-column-title sr-only">
+                  Round of 32 (Right)
+                </div>
+                <div id="d-r32-9"></div>
+                <div id="d-r32-10"></div>
+                <div id="d-r32-11"></div>
+                <div id="d-r32-12"></div>
+                <div id="d-r32-13"></div>
+                <div id="d-r32-14"></div>
+                <div id="d-r32-15"></div>
+                <div id="d-r32-16"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- FOOTER -->
+      <footer>
+        <p>
+          &copy; 2026 World Cup Bracket Predictor. Built by
+          <a href="https://rjasti.com" target="_blank" rel="noopener noreferrer"
+            >Rajeev Jasti</a
+          >.
+        </p>
+        <p style="margin-top: 6px; font-size: 11px">
+          Flag CDN courtesy of
+          <a
+            href="https://flagcdn.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >FlagCDN</a
+          >. State is saved automatically to your browser session.
+        </p>
+      </footer>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+    <!-- CELEBRATION CONFETTI CANVAS -->
+    <canvas id="celebration-canvas"></canvas>
+
+    <!-- BUSINESS LOGIC & SCRIPT ENGINE -->
+    <script>
+      // INITIAL SYSTEM DATA
+      const INITIAL_GROUPS = {
+        A: [
+          { name: "Mexico", code: "mx" },
+          { name: "South Africa", code: "za" },
+          { name: "South Korea", code: "kr" },
+          { name: "Czechia", code: "cz" },
+        ],
+        B: [
+          { name: "Canada", code: "ca" },
+          { name: "Switzerland", code: "ch" },
+          { name: "Qatar", code: "qa" },
+          { name: "Bosnia & Herzegovina", code: "ba" },
+        ],
+        C: [
+          { name: "Brazil", code: "br" },
+          { name: "Morocco", code: "ma" },
+          { name: "Haiti", code: "ht" },
+          { name: "Scotland", code: "gb-sct" },
+        ],
+        D: [
+          { name: "United States", code: "us" },
+          { name: "Paraguay", code: "py" },
+          { name: "Australia", code: "au" },
+          { name: "Türkiye", code: "tr" },
+        ],
+        E: [
+          { name: "Germany", code: "de" },
+          { name: "Curaçao", code: "cw" },
+          { name: "Côte d'Ivoire", code: "ci" },
+          { name: "Ecuador", code: "ec" },
+        ],
+        F: [
+          { name: "Netherlands", code: "nl" },
+          { name: "Japan", code: "jp" },
+          { name: "Tunisia", code: "tn" },
+          { name: "Sweden", code: "se" },
+        ],
+        G: [
+          { name: "Belgium", code: "be" },
+          { name: "Egypt", code: "eg" },
+          { name: "Iran", code: "ir" },
+          { name: "New Zealand", code: "nz" },
+        ],
+        H: [
+          { name: "Spain", code: "es" },
+          { name: "Cabo Verde", code: "cv" },
+          { name: "Saudi Arabia", code: "sa" },
+          { name: "Uruguay", code: "uy" },
+        ],
+        I: [
+          { name: "France", code: "fr" },
+          { name: "Senegal", code: "sn" },
+          { name: "Norway", code: "no" },
+          { name: "Iraq", code: "iq" },
+        ],
+        J: [
+          { name: "Argentina", code: "ar" },
+          { name: "Algeria", code: "dz" },
+          { name: "Austria", code: "at" },
+          { name: "Jordan", code: "jo" },
+        ],
+        K: [
+          { name: "Portugal", code: "pt" },
+          { name: "Uzbekistan", code: "uz" },
+          { name: "Colombia", code: "co" },
+          { name: "DR Congo", code: "cd" },
+        ],
+        L: [
+          { name: "England", code: "gb-eng" },
+          { name: "Croatia", code: "hr" },
+          { name: "Ghana", code: "gh" },
+          { name: "Panama", code: "pa" },
+        ],
+      };
+
+      // SYSTEM STATE
+      let state = {
+        groups: {}, // Keyed by Group Letter -> Array of 4 team objects
+        wildcards: [], // Selected Group Letters representing advancing third-place teams (exactly 8)
+        bracketWinner: {}, // Keyed by Match ID -> Winning Team Object
+      };
+
+      // MATCH DIRECTORY DEFINITION (MATCH RELATIONSHIP MAP)
+      // Feeds matches to the next rounds. Represents parent nodes in the tournament tree.
+      const MATCH_FLOW = {
+        // Round of 32 -> Round of 16
+        "r32-1": { parent: "r16-1", slot: "team1" },
+        "r32-2": { parent: "r16-1", slot: "team2" },
+        "r32-3": { parent: "r16-2", slot: "team1" },
+        "r32-4": { parent: "r16-2", slot: "team2" },
+        "r32-5": { parent: "r16-3", slot: "team1" },
+        "r32-6": { parent: "r16-3", slot: "team2" },
+        "r32-7": { parent: "r16-4", slot: "team1" },
+        "r32-8": { parent: "r16-4", slot: "team2" },
+        "r32-9": { parent: "r16-5", slot: "team1" },
+        "r32-10": { parent: "r16-5", slot: "team2" },
+        "r32-11": { parent: "r16-6", slot: "team1" },
+        "r32-12": { parent: "r16-6", slot: "team2" },
+        "r32-13": { parent: "r16-7", slot: "team1" },
+        "r32-14": { parent: "r16-7", slot: "team2" },
+        "r32-15": { parent: "r16-8", slot: "team1" },
+        "r32-16": { parent: "r16-8", slot: "team2" },
+
+        // Round of 16 -> Quarterfinals
+        "r16-1": { parent: "qf-1", slot: "team1" },
+        "r16-2": { parent: "qf-1", slot: "team2" },
+        "r16-3": { parent: "qf-2", slot: "team1" },
+        "r16-4": { parent: "qf-2", slot: "team2" },
+        "r16-5": { parent: "qf-3", slot: "team1" },
+        "r16-6": { parent: "qf-3", slot: "team2" },
+        "r16-7": { parent: "qf-4", slot: "team1" },
+        "r16-8": { parent: "qf-4", slot: "team2" },
+
+        // Quarterfinals -> Semifinals
+        "qf-1": { parent: "sf-1", slot: "team1" },
+        "qf-2": { parent: "sf-1", slot: "team2" },
+        "qf-3": { parent: "sf-2", slot: "team1" },
+        "qf-4": { parent: "sf-2", slot: "team2" },
+
+        // Semifinals -> Grand Final & 3rd Place
+        // Semifinals feed winners to Grand Final, and losers to the 3rd Place Match
+        "sf-1": {
+          parent: "final",
+          slot: "team1",
+          loserParent: "third-place",
+          loserSlot: "team1",
+        },
+        "sf-2": {
+          parent: "final",
+          slot: "team2",
+          loserParent: "third-place",
+          loserSlot: "team2",
+        },
+      };
+
+      // Helper: Return clean flag URL from CDN or fallback
+      function getFlagUrl(code) {
+        if (!code) return "";
+        return `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
+      }
+
+      // Dynamic toast notification generator
+      function showToast(message, type = "normal") {
+        const container = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        toast.className = `toast toast-${type}`;
+
+        let icon = '<i class="fas fa-info-circle"></i>';
+        if (type === "success") icon = '<i class="fas fa-circle-check"></i>';
+        if (type === "warning")
+          icon = '<i class="fas fa-circle-exclamation"></i>';
+
+        toast.innerHTML = `${icon} <span>${message}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.classList.add("fade-out");
+          toast.addEventListener("animationend", () => {
+            toast.remove();
+          });
+        }, 3000);
+      }
+
+      // INITIALIZATION & RESET ROUTINES
+      function initSystem() {
+        // 1. Theme Configuration
+        const savedTheme = localStorage.getItem("predictor-theme") || "dark";
+        if (savedTheme === "light") {
+          document.body.classList.add("light-theme");
+          document.querySelector("#theme-toggle-btn i").className =
+            "fas fa-sun";
+        }
+
+        // 2. Load State from LocalStorage or Defaults
+        const loaded = loadStateFromLocalStorage();
+        if (!loaded) {
+          // First check URL query parameter
+          const urlLoaded = loadStateFromUrl();
+          if (!urlLoaded) {
+            resetToDefaults(false);
+          }
+        }
+
+        // 3. Setup UI Interaction Listeners
+        setupThemeToggle();
+        setupTabs();
+        setupUtilityButtons();
+        setupDragDropListeners();
+
+        // 4. Trigger Layout Renders
+        renderAllViews();
+      }
+
+      function resetToDefaults(showFeedback = true) {
+        // Deep clone initial static teams
+        state.groups = JSON.parse(JSON.stringify(INITIAL_GROUPS));
+
+        // Default: Top 8 Groups advance their third place
+        state.wildcards = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
+        // Clear match predictions
+        state.bracketWinner = {};
+
+        saveStateToLocalStorage();
+
+        if (showFeedback) {
+          // Clean URL params if any
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
+          renderAllViews();
+          showToast("Predictions cleared successfully!", "success");
+        }
+      }
+
+      // VIEW RENDER COORDINATOR
+      function renderAllViews() {
+        renderGroupStage();
+        renderWildcardsView();
+        renderKnockoutBracket();
+      }
+
+      // MODULE 1: GROUP STAGE RENDER & INTERACTION
+      function renderGroupStage() {
+        const container = document.getElementById("groups-container");
+        container.innerHTML = "";
+
+        Object.keys(state.groups).forEach((groupLetter) => {
+          const groupTeams = state.groups[groupLetter];
+
+          const card = document.createElement("div");
+          card.className = "card";
+          card.setAttribute("data-group", groupLetter);
+
+          // Header element
+          const header = document.createElement("div");
+          header.className = "card-header";
+          header.innerHTML = `
           <h3 class="card-title">Group ${groupLetter}</h3>
           <span class="card-subtitle">2026 Standing</span>
         `;
-        card.appendChild(header);
+          card.appendChild(header);
 
-        // Team list
-        const ul = document.createElement("ul");
-        ul.className = "team-list";
-        ul.setAttribute("data-group", groupLetter);
+          // Team list
+          const ul = document.createElement("ul");
+          ul.className = "team-list";
+          ul.setAttribute("data-group", groupLetter);
 
-        groupTeams.forEach((team, index) => {
-          const rank = index + 1;
-          const li = document.createElement("li");
-          li.className = `team-item rank-${rank}`;
-          li.setAttribute("draggable", "true");
-          li.setAttribute("data-index", index);
-          li.setAttribute("tabindex", "0");
-          li.setAttribute("aria-label", `${team.name} in Group ${groupLetter}, ranked position ${rank}`);
+          groupTeams.forEach((team, index) => {
+            const rank = index + 1;
+            const li = document.createElement("li");
+            li.className = `team-item rank-${rank}`;
+            li.setAttribute("draggable", "true");
+            li.setAttribute("data-index", index);
+            li.setAttribute("tabindex", "0");
+            li.setAttribute(
+              "aria-label",
+              `${team.name} in Group ${groupLetter}, ranked position ${rank}`,
+            );
 
-          // Status determination
-          let statusText = "Eliminated";
-          let badgeClass = "eliminated";
-          if (rank <= 2) {
-            statusText = "Advances";
-            badgeClass = "advances";
-          } else if (rank === 3) {
-            statusText = "May Advance";
-            badgeClass = "wildcard";
-          }
+            // Status determination
+            let statusText = "Eliminated";
+            let badgeClass = "eliminated";
+            if (rank <= 2) {
+              statusText = "Advances";
+              badgeClass = "advances";
+            } else if (rank === 3) {
+              statusText = "May Advance";
+              badgeClass = "wildcard";
+            }
 
-          li.innerHTML = `
+            li.innerHTML = `
             <div class="reorder-controls">
               <button class="reorder-btn reorder-up" data-dir="up" aria-label="Move team up" title="Move team up"><i class="fas fa-chevron-up"></i></button>
               <button class="reorder-btn reorder-down" data-dir="down" aria-label="Move team down" title="Move team down"><i class="fas fa-chevron-down"></i></button>
@@ -1608,164 +1741,175 @@
             <i class="fas fa-grip-vertical drag-handle" title="Drag to reorder" aria-hidden="true"></i>
           `;
 
-          // Button click events for keyboard/mobile arrow reordering
-          li.querySelector(".reorder-up").addEventListener("click", (e) => {
-            e.stopPropagation();
-            moveTeam(groupLetter, index, index - 1);
-          });
-          li.querySelector(".reorder-down").addEventListener("click", (e) => {
-            e.stopPropagation();
-            moveTeam(groupLetter, index, index + 1);
-          });
-
-          // Keyboard accessibility reordering (arrow keys on list item focus)
-          li.addEventListener("keydown", (e) => {
-            if (e.key === "ArrowUp") {
-              e.preventDefault();
+            // Button click events for keyboard/mobile arrow reordering
+            li.querySelector(".reorder-up").addEventListener("click", (e) => {
+              e.stopPropagation();
               moveTeam(groupLetter, index, index - 1);
-            } else if (e.key === "ArrowDown") {
-              e.preventDefault();
+            });
+            li.querySelector(".reorder-down").addEventListener("click", (e) => {
+              e.stopPropagation();
               moveTeam(groupLetter, index, index + 1);
-            }
+            });
+
+            // Keyboard accessibility reordering (arrow keys on list item focus)
+            li.addEventListener("keydown", (e) => {
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                moveTeam(groupLetter, index, index - 1);
+              } else if (e.key === "ArrowDown") {
+                e.preventDefault();
+                moveTeam(groupLetter, index, index + 1);
+              }
+            });
+
+            ul.appendChild(li);
           });
 
-          ul.appendChild(li);
+          card.appendChild(ul);
+          container.appendChild(card);
         });
-
-        card.appendChild(ul);
-        container.appendChild(card);
-      });
-    }
-
-    // Reorder logic for moving a team within a group array
-    function moveTeam(groupLetter, fromIndex, toIndex) {
-      if (toIndex < 0 || toIndex > 3) return; // Out of bounds check
-
-      const list = state.groups[groupLetter];
-      const movedItem = list.splice(fromIndex, 1)[0];
-      list.splice(toIndex, 0, movedItem);
-
-      // Validate downstream knockout bracket
-      validateKnockoutTree();
-
-      // Save state and re-render
-      saveStateToLocalStorage();
-      renderGroupStage();
-      renderWildcardsView();
-      renderKnockoutBracket();
-    }
-
-    // Setup HTML5 Drag and Drop listeners
-    let dragSrcElement = null;
-    let dragSrcGroup = null;
-    let dragSrcIndex = null;
-
-    function setupDragDropListeners() {
-      const container = document.getElementById("groups-container");
-
-      container.addEventListener("dragstart", (e) => {
-        const item = e.target.closest(".team-item");
-        if (!item) return;
-
-        dragSrcElement = item;
-        dragSrcGroup = item.closest(".team-list").getAttribute("data-group");
-        dragSrcIndex = parseInt(item.getAttribute("data-index"));
-
-        item.classList.add("dragging");
-        e.dataTransfer.effectAllowed = "move";
-        // Required for Firefox compatibility
-        e.dataTransfer.setData("text/plain", dragSrcIndex);
-      });
-
-      container.addEventListener("dragend", (e) => {
-        const item = e.target.closest(".team-item");
-        if (item) item.classList.remove("dragging");
-
-        // Remove drag-over indicators
-        document.querySelectorAll(".team-item").forEach(el => {
-          el.classList.remove("drag-over-top", "drag-over-bottom");
-        });
-      });
-
-      container.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        const item = e.target.closest(".team-item");
-        if (!item) return;
-
-        const targetGroup = item.closest(".team-list").getAttribute("data-group");
-        if (targetGroup !== dragSrcGroup) return; // Only allow drag-and-drop within the same group
-
-        const rect = item.getBoundingClientRect();
-        const relativeY = e.clientY - rect.top;
-        const halfHeight = rect.height / 2;
-
-        document.querySelectorAll(".team-item").forEach(el => el.classList.remove("drag-over-top", "drag-over-bottom"));
-
-        if (relativeY < halfHeight) {
-          item.classList.add("drag-over-top");
-        } else {
-          item.classList.add("drag-over-bottom");
-        }
-      });
-
-      container.addEventListener("drop", (e) => {
-        e.preventDefault();
-        const item = e.target.closest(".team-item");
-        if (!item) return;
-
-        const targetGroup = item.closest(".team-list").getAttribute("data-group");
-        if (targetGroup !== dragSrcGroup) return;
-
-        const targetIndex = parseInt(item.getAttribute("data-index"));
-        if (targetIndex === dragSrcIndex) return;
-
-        const rect = item.getBoundingClientRect();
-        const relativeY = e.clientY - rect.top;
-        const halfHeight = rect.height / 2;
-
-        let finalIndex = targetIndex;
-        // If dragging down and dropping on the top half of target, shift target up
-        // If dragging up and dropping on the bottom half of target, shift target down
-        if (dragSrcIndex < targetIndex && relativeY < halfHeight) {
-          finalIndex = targetIndex - 1;
-        } else if (dragSrcIndex > targetIndex && relativeY > halfHeight) {
-          finalIndex = targetIndex + 1;
-        }
-
-        moveTeam(dragSrcGroup, dragSrcIndex, finalIndex);
-      });
-    }
-
-    // MODULE 2: WILDCARDS ADVANCEMENT STAGE
-    function renderWildcardsView() {
-      const container = document.getElementById("wildcards-container");
-      container.innerHTML = "";
-
-      const counterLabel = document.getElementById("wildcard-counter-label");
-      counterLabel.textContent = `Selected: ${state.wildcards.length} of 8`;
-
-      if (state.wildcards.length === 8) {
-        counterLabel.style.backgroundColor = "rgba(16, 185, 129, 0.15)";
-        counterLabel.style.borderColor = "var(--accent-success)";
-        counterLabel.style.color = "var(--accent-success)";
-      } else {
-        counterLabel.style.backgroundColor = "rgba(245, 158, 11, 0.15)";
-        counterLabel.style.borderColor = "var(--accent-warning)";
-        counterLabel.style.color = "var(--accent-warning)";
       }
 
-      // Generate wildcard checklist card for each of the 12 third-place teams
-      Object.keys(state.groups).forEach(groupLetter => {
-        const thirdPlaceTeam = state.groups[groupLetter][2]; // 3rd position in group (index 2)
-        const isSelected = state.wildcards.includes(groupLetter);
+      // Reorder logic for moving a team within a group array
+      function moveTeam(groupLetter, fromIndex, toIndex) {
+        if (toIndex < 0 || toIndex > 3) return; // Out of bounds check
 
-        const card = document.createElement("div");
-        card.className = `wildcard-card ${isSelected ? "selected" : ""}`;
-        card.setAttribute("data-group", groupLetter);
-        card.setAttribute("tabindex", "0");
-        card.setAttribute("aria-label", `Advance third place team ${thirdPlaceTeam.name} from Group ${groupLetter}. Currently ${isSelected ? "selected" : "not selected"}.`);
+        const list = state.groups[groupLetter];
+        const movedItem = list.splice(fromIndex, 1)[0];
+        list.splice(toIndex, 0, movedItem);
 
-        card.innerHTML = `
+        // Validate downstream knockout bracket
+        validateKnockoutTree();
+
+        // Save state and re-render
+        saveStateToLocalStorage();
+        renderGroupStage();
+        renderWildcardsView();
+        renderKnockoutBracket();
+      }
+
+      // Setup HTML5 Drag and Drop listeners
+      let dragSrcElement = null;
+      let dragSrcGroup = null;
+      let dragSrcIndex = null;
+
+      function setupDragDropListeners() {
+        const container = document.getElementById("groups-container");
+
+        container.addEventListener("dragstart", (e) => {
+          const item = e.target.closest(".team-item");
+          if (!item) return;
+
+          dragSrcElement = item;
+          dragSrcGroup = item.closest(".team-list").getAttribute("data-group");
+          dragSrcIndex = parseInt(item.getAttribute("data-index"));
+
+          item.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+          // Required for Firefox compatibility
+          e.dataTransfer.setData("text/plain", dragSrcIndex);
+        });
+
+        container.addEventListener("dragend", (e) => {
+          const item = e.target.closest(".team-item");
+          if (item) item.classList.remove("dragging");
+
+          // Remove drag-over indicators
+          document.querySelectorAll(".team-item").forEach((el) => {
+            el.classList.remove("drag-over-top", "drag-over-bottom");
+          });
+        });
+
+        container.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          const item = e.target.closest(".team-item");
+          if (!item) return;
+
+          const targetGroup = item
+            .closest(".team-list")
+            .getAttribute("data-group");
+          if (targetGroup !== dragSrcGroup) return; // Only allow drag-and-drop within the same group
+
+          const rect = item.getBoundingClientRect();
+          const relativeY = e.clientY - rect.top;
+          const halfHeight = rect.height / 2;
+
+          document
+            .querySelectorAll(".team-item")
+            .forEach((el) =>
+              el.classList.remove("drag-over-top", "drag-over-bottom"),
+            );
+
+          if (relativeY < halfHeight) {
+            item.classList.add("drag-over-top");
+          } else {
+            item.classList.add("drag-over-bottom");
+          }
+        });
+
+        container.addEventListener("drop", (e) => {
+          e.preventDefault();
+          const item = e.target.closest(".team-item");
+          if (!item) return;
+
+          const targetGroup = item
+            .closest(".team-list")
+            .getAttribute("data-group");
+          if (targetGroup !== dragSrcGroup) return;
+
+          const targetIndex = parseInt(item.getAttribute("data-index"));
+          if (targetIndex === dragSrcIndex) return;
+
+          const rect = item.getBoundingClientRect();
+          const relativeY = e.clientY - rect.top;
+          const halfHeight = rect.height / 2;
+
+          let finalIndex = targetIndex;
+          // If dragging down and dropping on the top half of target, shift target up
+          // If dragging up and dropping on the bottom half of target, shift target down
+          if (dragSrcIndex < targetIndex && relativeY < halfHeight) {
+            finalIndex = targetIndex - 1;
+          } else if (dragSrcIndex > targetIndex && relativeY > halfHeight) {
+            finalIndex = targetIndex + 1;
+          }
+
+          moveTeam(dragSrcGroup, dragSrcIndex, finalIndex);
+        });
+      }
+
+      // MODULE 2: WILDCARDS ADVANCEMENT STAGE
+      function renderWildcardsView() {
+        const container = document.getElementById("wildcards-container");
+        container.innerHTML = "";
+
+        const counterLabel = document.getElementById("wildcard-counter-label");
+        counterLabel.textContent = `Selected: ${state.wildcards.length} of 8`;
+
+        if (state.wildcards.length === 8) {
+          counterLabel.style.backgroundColor = "rgba(16, 185, 129, 0.15)";
+          counterLabel.style.borderColor = "var(--accent-success)";
+          counterLabel.style.color = "var(--accent-success)";
+        } else {
+          counterLabel.style.backgroundColor = "rgba(245, 158, 11, 0.15)";
+          counterLabel.style.borderColor = "var(--accent-warning)";
+          counterLabel.style.color = "var(--accent-warning)";
+        }
+
+        // Generate wildcard checklist card for each of the 12 third-place teams
+        Object.keys(state.groups).forEach((groupLetter) => {
+          const thirdPlaceTeam = state.groups[groupLetter][2]; // 3rd position in group (index 2)
+          const isSelected = state.wildcards.includes(groupLetter);
+
+          const card = document.createElement("div");
+          card.className = `wildcard-card ${isSelected ? "selected" : ""}`;
+          card.setAttribute("data-group", groupLetter);
+          card.setAttribute("tabindex", "0");
+          card.setAttribute(
+            "aria-label",
+            `Advance third place team ${thirdPlaceTeam.name} from Group ${groupLetter}. Currently ${isSelected ? "selected" : "not selected"}.`,
+          );
+
+          card.innerHTML = `
           <div class="wildcard-info">
             <span class="wildcard-group-tag">3${groupLetter}</span>
             <img class="team-flag" src="${getFlagUrl(thirdPlaceTeam.code)}" alt="" onerror="this.style.display='none'">
@@ -1776,357 +1920,445 @@
           </div>
         `;
 
-        // Click interaction
-        card.addEventListener("click", () => toggleWildcard(groupLetter));
-        card.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            toggleWildcard(groupLetter);
-          }
+          // Click interaction
+          card.addEventListener("click", () => toggleWildcard(groupLetter));
+          card.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              toggleWildcard(groupLetter);
+            }
+          });
+
+          container.appendChild(card);
         });
-
-        container.appendChild(card);
-      });
-    }
-
-    function toggleWildcard(groupLetter) {
-      const index = state.wildcards.indexOf(groupLetter);
-
-      if (index > -1) {
-        // Remove selection
-        state.wildcards.splice(index, 1);
-      } else {
-        // Enforce 8 teams limit
-        if (state.wildcards.length >= 8) {
-          showToast("Maximum 8 wildcard teams allowed. Please deselect another team first.", "warning");
-          return;
-        }
-        state.wildcards.push(groupLetter);
-        // Sort for neat slot order mapping
-        state.wildcards.sort();
       }
 
-      // Re-validate bracket
-      validateKnockoutTree();
+      function toggleWildcard(groupLetter) {
+        const index = state.wildcards.indexOf(groupLetter);
 
-      saveStateToLocalStorage();
-      renderWildcardsView();
-      renderKnockoutBracket();
-    }
+        if (index > -1) {
+          // Remove selection
+          state.wildcards.splice(index, 1);
+        } else {
+          // Enforce 8 teams limit
+          if (state.wildcards.length >= 8) {
+            showToast(
+              "Maximum 8 wildcard teams allowed. Please deselect another team first.",
+              "warning",
+            );
+            return;
+          }
+          state.wildcards.push(groupLetter);
+          // Sort for neat slot order mapping
+          state.wildcards.sort();
+        }
 
-    // MODULE 3: KNOCKOUT BRACKET STAGE & CALCULATION ENGINE
+        // Re-validate bracket
+        validateKnockoutTree();
 
-    // Resolve matches participants tree based on group stage standings and wildcard selections
-    function calculateMatchesData() {
-      // 1. Extract Group Standings winners/runners/thirds
-      const winners = {};
-      const runners = {};
-      const thirds = {};
+        saveStateToLocalStorage();
+        renderWildcardsView();
+        renderKnockoutBracket();
+      }
 
-      Object.keys(state.groups).forEach(g => {
-        winners[g] = state.groups[g][0];
-        runners[g] = state.groups[g][1];
-        thirds[g] = state.groups[g][2];
-      });
+      // MODULE 3: KNOCKOUT BRACKET STAGE & CALCULATION ENGINE
 
-      // 2. Map the 8 wildcards to R32 wildcard slots sorted alphabetically by group letter
-      const wcTeams = state.wildcards.map(g => thirds[g]);
+      // Resolve matches participants tree based on group stage standings and wildcard selections
+      function calculateMatchesData() {
+        // 1. Extract Group Standings winners/runners/thirds
+        const winners = {};
+        const runners = {};
+        const thirds = {};
 
-      // Matchups initialization dictionary
-      const matches = {};
+        Object.keys(state.groups).forEach((g) => {
+          winners[g] = state.groups[g][0];
+          runners[g] = state.groups[g][1];
+          thirds[g] = state.groups[g][2];
+        });
 
-      // Match 1: Runner-up A vs Runner-up B
-      matches["r32-1"] = { team1: runners["A"], team2: runners["B"] };
+        // 2. Map the 8 wildcards to R32 wildcard slots sorted alphabetically by group letter
+        const wcTeams = state.wildcards.map((g) => thirds[g]);
 
-      // Match 2: Winner E vs Wildcard 1
-      matches["r32-2"] = { team1: winners["E"], team2: wcTeams[0] || null };
+        // Matchups initialization dictionary
+        const matches = {};
 
-      // Match 3: Winner F vs Runner-up C
-      matches["r32-3"] = { team1: winners["F"], team2: runners["C"] };
+        // Match 1: Runner-up A vs Runner-up B
+        matches["r32-1"] = { team1: runners["A"], team2: runners["B"] };
 
-      // Match 4: Winner C vs Runner-up F
-      matches["r32-4"] = { team1: winners["C"], team2: runners["F"] };
+        // Match 2: Winner E vs Wildcard 1
+        matches["r32-2"] = { team1: winners["E"], team2: wcTeams[0] || null };
 
-      // Match 5: Winner I vs Wildcard 2
-      matches["r32-5"] = { team1: winners["I"], team2: wcTeams[1] || null };
+        // Match 3: Winner F vs Runner-up C
+        matches["r32-3"] = { team1: winners["F"], team2: runners["C"] };
 
-      // Match 6: Runner-up E vs Runner-up I
-      matches["r32-6"] = { team1: runners["E"], team2: runners["I"] };
+        // Match 4: Winner C vs Runner-up F
+        matches["r32-4"] = { team1: winners["C"], team2: runners["F"] };
 
-      // Match 7: Winner A vs Wildcard 3
-      matches["r32-7"] = { team1: winners["A"], team2: wcTeams[2] || null };
+        // Match 5: Winner I vs Wildcard 2
+        matches["r32-5"] = { team1: winners["I"], team2: wcTeams[1] || null };
 
-      // Match 8: Winner L vs Wildcard 4
-      matches["r32-8"] = { team1: winners["L"], team2: wcTeams[3] || null };
+        // Match 6: Runner-up E vs Runner-up I
+        matches["r32-6"] = { team1: runners["E"], team2: runners["I"] };
 
-      // Match 9: Winner D vs Wildcard 5
-      matches["r32-9"] = { team1: winners["D"], team2: wcTeams[4] || null };
+        // Match 7: Winner A vs Wildcard 3
+        matches["r32-7"] = { team1: winners["A"], team2: wcTeams[2] || null };
 
-      // Match 10: Winner G vs Wildcard 6
-      matches["r32-10"] = { team1: winners["G"], team2: wcTeams[5] || null };
+        // Match 8: Winner L vs Wildcard 4
+        matches["r32-8"] = { team1: winners["L"], team2: wcTeams[3] || null };
 
-      // Match 11: Runner-up K vs Runner-up L
-      matches["r32-11"] = { team1: runners["K"], team2: runners["L"] };
+        // Match 9: Winner D vs Wildcard 5
+        matches["r32-9"] = { team1: winners["D"], team2: wcTeams[4] || null };
 
-      // Match 12: Winner H vs Runner-up J
-      matches["r32-12"] = { team1: winners["H"], team2: runners["J"] };
+        // Match 10: Winner G vs Wildcard 6
+        matches["r32-10"] = { team1: winners["G"], team2: wcTeams[5] || null };
 
-      // Match 13: Winner B vs Wildcard 7
-      matches["r32-13"] = { team1: winners["B"], team2: wcTeams[6] || null };
+        // Match 11: Runner-up K vs Runner-up L
+        matches["r32-11"] = { team1: runners["K"], team2: runners["L"] };
 
-      // Match 14: Winner J vs Runner-up H
-      matches["r32-14"] = { team1: winners["J"], team2: runners["H"] };
+        // Match 12: Winner H vs Runner-up J
+        matches["r32-12"] = { team1: winners["H"], team2: runners["J"] };
 
-      // Match 15: Winner K vs Wildcard 8
-      matches["r32-15"] = { team1: winners["K"], team2: wcTeams[7] || null };
+        // Match 13: Winner B vs Wildcard 7
+        matches["r32-13"] = { team1: winners["B"], team2: wcTeams[6] || null };
 
-      // Match 16: Runner-up D vs Runner-up G
-      matches["r32-16"] = { team1: runners["D"], team2: runners["G"] };
+        // Match 14: Winner J vs Runner-up H
+        matches["r32-14"] = { team1: winners["J"], team2: runners["H"] };
 
-      // Helper function to resolve winner name reference
-      const getWinner = (matchId) => {
-        const wName = state.bracketWinner[matchId];
-        if (!wName) return null;
+        // Match 15: Winner K vs Wildcard 8
+        matches["r32-15"] = { team1: winners["K"], team2: wcTeams[7] || null };
 
-        const m = matches[matchId];
-        if (m.team1 && m.team1.name === wName) return m.team1;
-        if (m.team2 && m.team2.name === wName) return m.team2;
-        return null;
-      };
+        // Match 16: Runner-up D vs Runner-up G
+        matches["r32-16"] = { team1: runners["D"], team2: runners["G"] };
 
-      const getLoser = (matchId) => {
-        const winner = getWinner(matchId);
-        if (!winner) return null;
+        // Helper function to resolve winner name reference
+        const getWinner = (matchId) => {
+          const wName = state.bracketWinner[matchId];
+          if (!wName) return null;
 
-        const m = matches[matchId];
-        if (m.team1 && m.team1.name !== winner.name) return m.team1;
-        if (m.team2 && m.team2.name !== winner.name) return m.team2;
-        return null;
-      };
+          const m = matches[matchId];
+          if (m.team1 && m.team1.name === wName) return m.team1;
+          if (m.team2 && m.team2.name === wName) return m.team2;
+          return null;
+        };
 
-      // 3. Resolve Round of 16 Matches
-      matches["r16-1"] = { team1: getWinner("r32-1"), team2: getWinner("r32-2") };
-      matches["r16-2"] = { team1: getWinner("r32-3"), team2: getWinner("r32-4") };
-      matches["r16-3"] = { team1: getWinner("r32-5"), team2: getWinner("r32-6") };
-      matches["r16-4"] = { team1: getWinner("r32-7"), team2: getWinner("r32-8") };
-      matches["r16-5"] = { team1: getWinner("r32-9"), team2: getWinner("r32-10") };
-      matches["r16-6"] = { team1: getWinner("r32-11"), team2: getWinner("r32-12") };
-      matches["r16-7"] = { team1: getWinner("r32-13"), team2: getWinner("r32-14") };
-      matches["r16-8"] = { team1: getWinner("r32-15"), team2: getWinner("r32-16") };
+        const getLoser = (matchId) => {
+          const winner = getWinner(matchId);
+          if (!winner) return null;
 
-      // 4. Resolve Quarterfinal Matches
-      matches["qf-1"] = { team1: getWinner("r16-1"), team2: getWinner("r16-2") };
-      matches["qf-2"] = { team1: getWinner("r16-3"), team2: getWinner("r16-4") };
-      matches["qf-3"] = { team1: getWinner("r16-5"), team2: getWinner("r16-6") };
-      matches["qf-4"] = { team1: getWinner("r16-7"), team2: getWinner("r16-8") };
+          const m = matches[matchId];
+          if (m.team1 && m.team1.name !== winner.name) return m.team1;
+          if (m.team2 && m.team2.name !== winner.name) return m.team2;
+          return null;
+        };
 
-      // 5. Resolve Semifinal Matches
-      matches["sf-1"] = { team1: getWinner("qf-1"), team2: getWinner("qf-2") };
-      matches["sf-2"] = { team1: getWinner("qf-3"), team2: getWinner("qf-4") };
+        // 3. Resolve Round of 16 Matches
+        matches["r16-1"] = {
+          team1: getWinner("r32-1"),
+          team2: getWinner("r32-2"),
+        };
+        matches["r16-2"] = {
+          team1: getWinner("r32-3"),
+          team2: getWinner("r32-4"),
+        };
+        matches["r16-3"] = {
+          team1: getWinner("r32-5"),
+          team2: getWinner("r32-6"),
+        };
+        matches["r16-4"] = {
+          team1: getWinner("r32-7"),
+          team2: getWinner("r32-8"),
+        };
+        matches["r16-5"] = {
+          team1: getWinner("r32-9"),
+          team2: getWinner("r32-10"),
+        };
+        matches["r16-6"] = {
+          team1: getWinner("r32-11"),
+          team2: getWinner("r32-12"),
+        };
+        matches["r16-7"] = {
+          team1: getWinner("r32-13"),
+          team2: getWinner("r32-14"),
+        };
+        matches["r16-8"] = {
+          team1: getWinner("r32-15"),
+          team2: getWinner("r32-16"),
+        };
 
-      // 6. Resolve Finals & 3rd Place Match
-      matches["final"] = { team1: getWinner("sf-1"), team2: getWinner("sf-2") };
-      matches["third-place"] = { team1: getLoser("sf-1"), team2: getLoser("sf-2") };
+        // 4. Resolve Quarterfinal Matches
+        matches["qf-1"] = {
+          team1: getWinner("r16-1"),
+          team2: getWinner("r16-2"),
+        };
+        matches["qf-2"] = {
+          team1: getWinner("r16-3"),
+          team2: getWinner("r16-4"),
+        };
+        matches["qf-3"] = {
+          team1: getWinner("r16-5"),
+          team2: getWinner("r16-6"),
+        };
+        matches["qf-4"] = {
+          team1: getWinner("r16-7"),
+          team2: getWinner("r16-8"),
+        };
 
-      return matches;
-    }
+        // 5. Resolve Semifinal Matches
+        matches["sf-1"] = {
+          team1: getWinner("qf-1"),
+          team2: getWinner("qf-2"),
+        };
+        matches["sf-2"] = {
+          team1: getWinner("qf-3"),
+          team2: getWinner("qf-4"),
+        };
 
-    // Cascade clear downstream choices if parents change
-    function validateKnockoutTree() {
-      // Re-run progression calculation layer by layer to trace and prune invalid winners.
-      let invalidFound = true;
-      while (invalidFound) {
-        invalidFound = false;
+        // 6. Resolve Finals & 3rd Place Match
+        matches["final"] = {
+          team1: getWinner("sf-1"),
+          team2: getWinner("sf-2"),
+        };
+        matches["third-place"] = {
+          team1: getLoser("sf-1"),
+          team2: getLoser("sf-2"),
+        };
+
+        return matches;
+      }
+
+      // Cascade clear downstream choices if parents change
+      function validateKnockoutTree() {
+        // Re-run progression calculation layer by layer to trace and prune invalid winners.
+        let invalidFound = true;
+        while (invalidFound) {
+          invalidFound = false;
+          const matches = calculateMatchesData();
+
+          // Loop match IDs and check if a winner exists in state that is no longer one of the active participants
+          Object.keys(state.bracketWinner).forEach((mId) => {
+            const matchParticipants = matches[mId];
+            const storedWinnerName = state.bracketWinner[mId];
+
+            let isValid = false;
+            if (matchParticipants) {
+              if (
+                matchParticipants.team1 &&
+                matchParticipants.team1.name === storedWinnerName
+              )
+                isValid = true;
+              if (
+                matchParticipants.team2 &&
+                matchParticipants.team2.name === storedWinnerName
+              )
+                isValid = true;
+            }
+
+            if (!isValid) {
+              delete state.bracketWinner[mId];
+              invalidFound = true; // Loop again to cascade clear grandchildren
+            }
+          });
+        }
+      }
+
+      // Advance match winner
+      function advanceWinner(matchId, winningTeam) {
+        if (!winningTeam || !winningTeam.name) return;
+
+        const previousWinner = state.bracketWinner[matchId];
+
+        // Update winner
+        state.bracketWinner[matchId] = winningTeam.name;
+
+        // Clear downstream matches if winner changed
+        if (previousWinner && previousWinner !== winningTeam.name) {
+          validateKnockoutTree();
+        }
+
+        // Check if Champion was crowned
+        if (matchId === "final") {
+          triggerGoldPodiumCelebration();
+        }
+
+        saveStateToLocalStorage();
+        renderKnockoutBracket();
+      }
+
+      // RENDERING THE BRACKET VIEWS
+      function renderKnockoutBracket() {
         const matches = calculateMatchesData();
 
-        // Loop match IDs and check if a winner exists in state that is no longer one of the active participants
-        Object.keys(state.bracketWinner).forEach(mId => {
-          const matchParticipants = matches[mId];
-          const storedWinnerName = state.bracketWinner[mId];
+        // 1. Render Desktop Layout
+        renderDesktopColumnMatches(matches);
+        renderDesktopPodium(matches);
 
-          let isValid = false;
-          if (matchParticipants) {
-            if (matchParticipants.team1 && matchParticipants.team1.name === storedWinnerName) isValid = true;
-            if (matchParticipants.team2 && matchParticipants.team2.name === storedWinnerName) isValid = true;
-          }
+        // 2. Render Mobile View
+        renderMobileBracketView(matches);
+      }
 
-          if (!isValid) {
-            delete state.bracketWinner[mId];
-            invalidFound = true; // Loop again to cascade clear grandchildren
-          }
+      // Render individual Match Cards inside their designated Desktop grid slots
+      function renderDesktopColumnMatches(matches) {
+        Object.keys(matches).forEach((matchId) => {
+          // Desktop elements are prefixed with d-
+          const wrapper = document.getElementById(`d-${matchId}`);
+          if (!wrapper) return;
+
+          wrapper.innerHTML = "";
+          wrapper.appendChild(createMatchCardHtml(matchId, matches[matchId]));
         });
       }
-    }
 
-    // Advance match winner
-    function advanceWinner(matchId, winningTeam) {
-      if (!winningTeam || !winningTeam.name) return;
+      function createMatchCardHtml(matchId, matchData) {
+        const card = document.createElement("div");
+        card.className = "match-card";
 
-      const previousWinner = state.bracketWinner[matchId];
+        const label = matchId.toUpperCase().replace("-", " ");
+        const matchLabelText = getFriendlyMatchLabel(matchId);
 
-      // Update winner
-      state.bracketWinner[matchId] = winningTeam.name;
+        const header = document.createElement("div");
+        header.className = "match-info-label";
+        header.innerHTML = `<span>${label}</span><span>${matchLabelText}</span>`;
+        card.appendChild(header);
 
-      // Clear downstream matches if winner changed
-      if (previousWinner && previousWinner !== winningTeam.name) {
-        validateKnockoutTree();
-      }
+        const renderTeamRow = (team, isTeam2 = false) => {
+          const row = document.createElement("div");
 
-      // Check if Champion was crowned
-      if (matchId === "final") {
-        triggerGoldPodiumCelebration();
-      }
+          if (!team) {
+            row.className = "match-team placeholder";
+            row.textContent = getPlaceholderName(matchId, isTeam2);
+            return row;
+          }
 
-      saveStateToLocalStorage();
-      renderKnockoutBracket();
-    }
+          const isWinner = state.bracketWinner[matchId] === team.name;
+          row.className = `match-team ${isWinner ? "winner" : ""}`;
+          row.setAttribute("tabindex", "0");
+          row.setAttribute(
+            "aria-label",
+            `Match ${label}: Select ${team.name} to advance`,
+          );
 
-    // RENDERING THE BRACKET VIEWS
-    function renderKnockoutBracket() {
-      const matches = calculateMatchesData();
-
-      // 1. Render Desktop Layout
-      renderDesktopColumnMatches(matches);
-      renderDesktopPodium(matches);
-
-      // 2. Render Mobile View
-      renderMobileBracketView(matches);
-    }
-
-    // Render individual Match Cards inside their designated Desktop grid slots
-    function renderDesktopColumnMatches(matches) {
-      Object.keys(matches).forEach(matchId => {
-        // Desktop elements are prefixed with d-
-        const wrapper = document.getElementById(`d-${matchId}`);
-        if (!wrapper) return;
-
-        wrapper.innerHTML = "";
-        wrapper.appendChild(createMatchCardHtml(matchId, matches[matchId]));
-      });
-    }
-
-    function createMatchCardHtml(matchId, matchData) {
-      const card = document.createElement("div");
-      card.className = "match-card";
-
-      const label = matchId.toUpperCase().replace("-", " ");
-      const matchLabelText = getFriendlyMatchLabel(matchId);
-
-      const header = document.createElement("div");
-      header.className = "match-info-label";
-      header.innerHTML = `<span>${label}</span><span>${matchLabelText}</span>`;
-      card.appendChild(header);
-
-      const renderTeamRow = (team, isTeam2 = false) => {
-        const row = document.createElement("div");
-
-        if (!team) {
-          row.className = "match-team placeholder";
-          row.textContent = getPlaceholderName(matchId, isTeam2);
-          return row;
-        }
-
-        const isWinner = state.bracketWinner[matchId] === team.name;
-        row.className = `match-team ${isWinner ? "winner" : ""}`;
-        row.setAttribute("tabindex", "0");
-        row.setAttribute("aria-label", `Match ${label}: Select ${team.name} to advance`);
-
-        row.innerHTML = `
+          row.innerHTML = `
           <img class="match-team-flag" src="${getFlagUrl(team.code)}" alt="" onerror="this.style.display='none'">
           <span class="match-team-name">${team.name}</span>
         `;
 
-        row.addEventListener("click", () => advanceWinner(matchId, team));
-        row.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            advanceWinner(matchId, team);
+          row.addEventListener("click", () => advanceWinner(matchId, team));
+          row.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              advanceWinner(matchId, team);
+            }
+          });
+
+          return row;
+        };
+
+        card.appendChild(renderTeamRow(matchData.team1, false));
+        card.appendChild(renderTeamRow(matchData.team2, true));
+
+        return card;
+      }
+
+      // Friendly labels detailing placement rules
+      function getFriendlyMatchLabel(matchId) {
+        const labels = {
+          "r32-1": "2A vs 2B",
+          "r32-2": "1E vs 3WC1",
+          "r32-3": "1F vs 2C",
+          "r32-4": "1C vs 2F",
+          "r32-5": "1I vs 3WC2",
+          "r32-6": "2E vs 2I",
+          "r32-7": "1A vs 3WC3",
+          "r32-8": "1L vs 3WC4",
+          "r32-9": "1D vs 3WC5",
+          "r32-10": "1G vs 3WC6",
+          "r32-11": "2K vs 2L",
+          "r32-12": "1H vs 2J",
+          "r32-13": "1B vs 3WC7",
+          "r32-14": "1J vs 2H",
+          "r32-15": "1K vs 3WC8",
+          "r32-16": "2D vs 2G",
+          "r16-1": "M73 vs M74",
+          "r16-2": "M75 vs M76",
+          "r16-3": "M77 vs M78",
+          "r16-4": "M79 vs M80",
+          "r16-5": "M81 vs M82",
+          "r16-6": "M83 vs M84",
+          "r16-7": "M85 vs M86",
+          "r16-8": "M87 vs M88",
+        };
+        return labels[matchId] || "";
+      }
+
+      function getPlaceholderName(matchId, isTeam2) {
+        if (matchId.startsWith("r32-")) {
+          // Third place wildcard placeholders
+          if (isTeam2) {
+            const wIds = {
+              "r32-2": "Wildcard 1",
+              "r32-5": "Wildcard 2",
+              "r32-7": "Wildcard 3",
+              "r32-8": "Wildcard 4",
+              "r32-9": "Wildcard 5",
+              "r32-10": "Wildcard 6",
+              "r32-13": "Wildcard 7",
+              "r32-15": "Wildcard 8",
+            };
+            return wIds[matchId] || "3rd Group C/D/F...";
           }
-        });
-
-        return row;
-      };
-
-      card.appendChild(renderTeamRow(matchData.team1, false));
-      card.appendChild(renderTeamRow(matchData.team2, true));
-
-      return card;
-    }
-
-    // Friendly labels detailing placement rules
-    function getFriendlyMatchLabel(matchId) {
-      const labels = {
-        "r32-1": "2A vs 2B", "r32-2": "1E vs 3WC1", "r32-3": "1F vs 2C", "r32-4": "1C vs 2F",
-        "r32-5": "1I vs 3WC2", "r32-6": "2E vs 2I", "r32-7": "1A vs 3WC3", "r32-8": "1L vs 3WC4",
-        "r32-9": "1D vs 3WC5", "r32-10": "1G vs 3WC6", "r32-11": "2K vs 2L", "r32-12": "1H vs 2J",
-        "r32-13": "1B vs 3WC7", "r32-14": "1J vs 2H", "r32-15": "1K vs 3WC8", "r32-16": "2D vs 2G",
-        "r16-1": "M73 vs M74", "r16-2": "M75 vs M76", "r16-3": "M77 vs M78", "r16-4": "M79 vs M80",
-        "r16-5": "M81 vs M82", "r16-6": "M83 vs M84", "r16-7": "M85 vs M86", "r16-8": "M87 vs M88"
-      };
-      return labels[matchId] || "";
-    }
-
-    function getPlaceholderName(matchId, isTeam2) {
-      if (matchId.startsWith("r32-")) {
-        // Third place wildcard placeholders
-        if (isTeam2) {
-          const wIds = {
-            "r32-2": "Wildcard 1", "r32-5": "Wildcard 2", "r32-7": "Wildcard 3", "r32-8": "Wildcard 4",
-            "r32-9": "Wildcard 5", "r32-10": "Wildcard 6", "r32-13": "Wildcard 7", "r32-15": "Wildcard 8"
-          };
-          return wIds[matchId] || "3rd Group C/D/F...";
+          return "Group Runner-up";
         }
-        return "Group Runner-up";
+
+        // Downstream match dependencies
+        if (matchId.startsWith("r16-")) {
+          const base = parseInt(matchId.split("-")[1]);
+          const m1 = (base - 1) * 2 + 1;
+          const m2 = m1 + 1;
+          return isTeam2 ? `Winner R32 Match ${m2}` : `Winner R32 Match ${m1}`;
+        }
+        if (matchId.startsWith("qf-")) {
+          const base = parseInt(matchId.split("-")[1]);
+          const m1 = (base - 1) * 2 + 1;
+          const m2 = m1 + 1;
+          return isTeam2 ? `Winner R16 Match ${m2}` : `Winner R16 Match ${m1}`;
+        }
+        if (matchId.startsWith("sf-")) {
+          const base = parseInt(matchId.split("-")[1]);
+          const m1 = (base - 1) * 2 + 1;
+          const m2 = m1 + 1;
+          return isTeam2 ? `Winner QF ${m2}` : `Winner QF ${m1}`;
+        }
+        if (matchId === "final") {
+          return isTeam2 ? "Winner Semifinal 2" : "Winner Semifinal 1";
+        }
+        if (matchId === "third-place") {
+          return isTeam2 ? "Loser Semifinal 2" : "Loser Semifinal 1";
+        }
+        return "Undecided Team";
       }
 
-      // Downstream match dependencies
-      if (matchId.startsWith("r16-")) {
-        const base = parseInt(matchId.split("-")[1]);
-        const m1 = (base - 1) * 2 + 1;
-        const m2 = m1 + 1;
-        return isTeam2 ? `Winner R32 Match ${m2}` : `Winner R32 Match ${m1}`;
+      // RENDER CHAMPION PODIUM
+      function renderDesktopPodium(matches) {
+        const container = document.getElementById("d-podium");
+        container.innerHTML = "";
+
+        const goldTeam = getMatchWinner(matches, "final");
+        const silverTeam = getMatchLoser(matches, "final");
+        const bronzeTeam = getMatchWinner(matches, "third-place");
+
+        container.appendChild(
+          createPodiumCardHtml(goldTeam, silverTeam, bronzeTeam),
+        );
       }
-      if (matchId.startsWith("qf-")) {
-        const base = parseInt(matchId.split("-")[1]);
-        const m1 = (base - 1) * 2 + 1;
-        const m2 = m1 + 1;
-        return isTeam2 ? `Winner R16 Match ${m2}` : `Winner R16 Match ${m1}`;
-      }
-      if (matchId.startsWith("sf-")) {
-        const base = parseInt(matchId.split("-")[1]);
-        const m1 = (base - 1) * 2 + 1;
-        const m2 = m1 + 1;
-        return isTeam2 ? `Winner QF ${m2}` : `Winner QF ${m1}`;
-      }
-      if (matchId === "final") {
-        return isTeam2 ? "Winner Semifinal 2" : "Winner Semifinal 1";
-      }
-      if (matchId === "third-place") {
-        return isTeam2 ? "Loser Semifinal 2" : "Loser Semifinal 1";
-      }
-      return "Undecided Team";
-    }
 
-    // RENDER CHAMPION PODIUM
-    function renderDesktopPodium(matches) {
-      const container = document.getElementById("d-podium");
-      container.innerHTML = "";
+      function createPodiumCardHtml(gold, silver, bronze) {
+        const card = document.createElement("div");
+        card.className = "podium-card";
 
-      const goldTeam = getMatchWinner(matches, "final");
-      const silverTeam = getMatchLoser(matches, "final");
-      const bronzeTeam = getMatchWinner(matches, "third-place");
+        let html = `<h4 class="podium-title"><i class="fas fa-medal"></i> Final Podium</h4>`;
 
-      container.appendChild(createPodiumCardHtml(goldTeam, silverTeam, bronzeTeam));
-    }
-
-    function createPodiumCardHtml(gold, silver, bronze) {
-      const card = document.createElement("div");
-      card.className = "podium-card";
-
-      let html = `<h4 class="podium-title"><i class="fas fa-medal"></i> Final Podium</h4>`;
-
-      // Gold
-      html += `
+        // Gold
+        html += `
         <div class="podium-place">
           <span class="medal medal-gold"><i class="fas fa-crown"></i></span>
           <div class="podium-team">
@@ -2136,8 +2368,8 @@
         </div>
       `;
 
-      // Silver
-      html += `
+        // Silver
+        html += `
         <div class="podium-place">
           <span class="medal medal-silver"><i class="fas fa-award"></i></span>
           <div class="podium-team">
@@ -2147,8 +2379,8 @@
         </div>
       `;
 
-      // Bronze
-      html += `
+        // Bronze
+        html += `
         <div class="podium-place">
           <span class="medal medal-bronze"><i class="fas fa-award"></i></span>
           <div class="podium-team">
@@ -2158,458 +2390,556 @@
         </div>
       `;
 
-      card.innerHTML = html;
-      return card;
-    }
-
-    // Helper functions for match results
-    function getMatchWinner(matches, matchId) {
-      const winnerName = state.bracketWinner[matchId];
-      if (!winnerName) return null;
-
-      const m = matches[matchId];
-      if (m && m.team1 && m.team1.name === winnerName) return m.team1;
-      if (m && m.team2 && m.team2.name === winnerName) return m.team2;
-      return null;
-    }
-
-    function getMatchLoser(matches, matchId) {
-      const winner = getMatchWinner(matches, matchId);
-      if (!winner) return null;
-
-      const m = matches[matchId];
-      if (m && m.team1 && m.team1.name !== winner.name) return m.team1;
-      if (m && m.team2 && m.team2.name !== winner.name) return m.team2;
-      return null;
-    }
-
-    // MOBILE VIEW MANAGER
-    let activeMobileRound = "r32";
-
-    function renderMobileBracketView(matches) {
-      const listContainer = document.getElementById("mobile-bracket-list-container");
-      const podiumContainer = document.getElementById("mobile-podium-container");
-
-      listContainer.innerHTML = "";
-      podiumContainer.innerHTML = "";
-      listContainer.style.display = "grid";
-      podiumContainer.style.display = "none";
-
-      if (activeMobileRound === "finals") {
-        listContainer.style.display = "none";
-        podiumContainer.style.display = "flex";
-
-        // Render final match card, 3rd place match card, and podium card stacked
-        const wrapper = document.createElement("div");
-        wrapper.className = "podium-container";
-        wrapper.style.gap = "24px";
-
-        const finalTitle = document.createElement("h3");
-        finalTitle.textContent = "Grand Final";
-        finalTitle.style.fontSize = "16px";
-        finalTitle.style.textTransform = "uppercase";
-        wrapper.appendChild(finalTitle);
-        wrapper.appendChild(createMatchCardHtml("final", matches["final"]));
-
-        const thirdTitle = document.createElement("h3");
-        thirdTitle.textContent = "Third Place Playoff";
-        thirdTitle.style.fontSize = "16px";
-        thirdTitle.style.textTransform = "uppercase";
-        thirdTitle.style.marginTop = "16px";
-        wrapper.appendChild(thirdTitle);
-        wrapper.appendChild(createMatchCardHtml("third-place", matches["third-place"]));
-
-        const goldTeam = getMatchWinner(matches, "final");
-        const silverTeam = getMatchLoser(matches, "final");
-        const bronzeTeam = getMatchWinner(matches, "third-place");
-        const podiumCard = createPodiumCardHtml(goldTeam, silverTeam, bronzeTeam);
-        podiumCard.style.marginTop = "24px";
-        wrapper.appendChild(podiumCard);
-
-        podiumContainer.appendChild(wrapper);
-        return;
+        card.innerHTML = html;
+        return card;
       }
 
-      // Filter matches by round ID
-      const filteredMatchesKeys = Object.keys(matches).filter(k => {
-        if (activeMobileRound === "r32") return k.startsWith("r32-");
-        if (activeMobileRound === "r16") return k.startsWith("r16-");
-        if (activeMobileRound === "qf") return k.startsWith("qf-");
-        if (activeMobileRound === "sf") return k.startsWith("sf-");
-        return false;
-      });
+      // Helper functions for match results
+      function getMatchWinner(matches, matchId) {
+        const winnerName = state.bracketWinner[matchId];
+        if (!winnerName) return null;
 
-      filteredMatchesKeys.forEach(matchId => {
-        listContainer.appendChild(createMatchCardHtml(matchId, matches[matchId]));
-      });
-    }
-
-    // MODULE 4: SESSION OPERATIONS (LOCALSTORAGE, SHARING, EXPORTS)
-
-    // Save to LocalStorage
-    function saveStateToLocalStorage() {
-      localStorage.setItem("predictor-state", serializeState());
-    }
-
-    // Load from LocalStorage
-    function loadStateFromLocalStorage() {
-      const saved = localStorage.getItem("predictor-state");
-      if (saved) {
-        return deserializeState(saved);
-      }
-      return false;
-    }
-
-    // CUSTOM SERIALIZATION COMPRESSION (Compact URL safe format)
-    function serializeState() {
-      // 1. Group Standings permutation matrix (48 characters)
-      let groupPerms = "";
-      Object.keys(state.groups).forEach(gLetter => {
-        const currentOrder = state.groups[gLetter];
-        const defaultOrder = INITIAL_GROUPS[gLetter];
-
-        currentOrder.forEach(team => {
-          const origIndex = defaultOrder.findIndex(t => t.name === team.name);
-          groupPerms += origIndex.toString();
-        });
-      });
-
-      // 2. Wildcard bits (12 characters, e.g. 111111110000)
-      let wildcardBits = "";
-      Object.keys(INITIAL_GROUPS).forEach(gLetter => {
-        wildcardBits += state.wildcards.includes(gLetter) ? "1" : "0";
-      });
-
-      // 3. Bracket bits (32 characters, 0 = team1, 1 = team2, x = undecided)
-      let bracketBits = "";
-      const matches = calculateMatchesData();
-      const matchIds = [
-        "r32-1", "r32-2", "r32-3", "r32-4", "r32-5", "r32-6", "r32-7", "r32-8",
-        "r32-9", "r32-10", "r32-11", "r32-12", "r32-13", "r32-14", "r32-15", "r32-16",
-        "r16-1", "r16-2", "r16-3", "r16-4", "r16-5", "r16-6", "r16-7", "r16-8",
-        "qf-1", "qf-2", "qf-3", "qf-4",
-        "sf-1", "sf-2",
-        "final", "third-place"
-      ];
-
-      matchIds.forEach(mId => {
-        const winnerName = state.bracketWinner[mId];
-        if (!winnerName) {
-          bracketBits += "x";
-        } else {
-          const mData = matches[mId];
-          if (mData && mData.team1 && mData.team1.name === winnerName) {
-            bracketBits += "0";
-          } else if (mData && mData.team2 && mData.team2.name === winnerName) {
-            bracketBits += "1";
-          } else {
-            bracketBits += "x";
-          }
-        }
-      });
-
-      return `${groupPerms}-${wildcardBits}-${bracketBits}`;
-    }
-
-    function deserializeState(serialStr) {
-      try {
-        const parts = serialStr.split("-");
-        if (parts.length !== 3) return false;
-
-        const [groupPerms, wildcardBits, bracketBits] = parts;
-        if (groupPerms.length !== 48 || wildcardBits.length !== 12 || bracketBits.length !== 32) return false;
-
-        // 1. Rebuild group orders
-        const keys = Object.keys(INITIAL_GROUPS);
-        state.groups = {};
-        for (let i = 0; i < 12; i++) {
-          const groupLetter = keys[i];
-          const defaultList = INITIAL_GROUPS[groupLetter];
-          const indicesStr = groupPerms.substring(i * 4, i * 4 + 4);
-
-          state.groups[groupLetter] = [];
-          for (let j = 0; j < 4; j++) {
-            const indexVal = parseInt(indicesStr[j]);
-            if (isNaN(indexVal) || indexVal < 0 || indexVal > 3) return false;
-            state.groups[groupLetter].push(JSON.parse(JSON.stringify(defaultList[indexVal])));
-          }
-        }
-
-        // 2. Rebuild wildcards array
-        state.wildcards = [];
-        for (let i = 0; i < 12; i++) {
-          if (wildcardBits[i] === "1") {
-            state.wildcards.push(keys[i]);
-          }
-        }
-
-        // 3. Rebuild bracket winners (Requires running calculateMatchesData in loop)
-        state.bracketWinner = {};
-        const matchIds = [
-          "r32-1", "r32-2", "r32-3", "r32-4", "r32-5", "r32-6", "r32-7", "r32-8",
-          "r32-9", "r32-10", "r32-11", "r32-12", "r32-13", "r32-14", "r32-15", "r32-16",
-          "r16-1", "r16-2", "r16-3", "r16-4", "r16-5", "r16-6", "r16-7", "r16-8",
-          "qf-1", "qf-2", "qf-3", "qf-4",
-          "sf-1", "sf-2",
-          "final", "third-place"
-        ];
-
-        // Resolve winners layer by layer
-        for (let i = 0; i < 32; i++) {
-          const mId = matchIds[i];
-          const bitVal = bracketBits[i];
-
-          if (bitVal !== "x") {
-            const matches = calculateMatchesData();
-            const mData = matches[mId];
-
-            if (bitVal === "0" && mData && mData.team1) {
-              state.bracketWinner[mId] = mData.team1.name;
-            } else if (bitVal === "1" && mData && mData.team2) {
-              state.bracketWinner[mId] = mData.team2.name;
-            }
-          }
-        }
-
-        return true;
-      } catch (err) {
-        console.error("Failed parsing state:", err);
-        return false;
-      }
-    }
-
-    // Load from URL parameter ?s=
-    function loadStateFromUrl() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const serialStr = urlParams.get("s");
-      if (serialStr) {
-        const success = deserializeState(serialStr);
-        if (success) {
-          saveStateToLocalStorage();
-          return true;
-        }
-      }
-      return false;
-    }
-
-    // TEXT & JSON EXPORT GENERATOR
-    function exportPredictions() {
-      const matches = calculateMatchesData();
-
-      const gold = getMatchWinner(matches, "final");
-      const silver = getMatchLoser(matches, "final");
-      const bronze = getMatchWinner(matches, "third-place");
-
-      let doc = "=========================================\n";
-      doc += "  2026 FIFA WORLD CUP BRACKET PREDICTIONS\n";
-      doc += "=========================================\n\n";
-
-      doc += "--- GROUP STAGE RESULTS ---\n";
-      Object.keys(state.groups).forEach(g => {
-        doc += `Group ${g}: 1. ${state.groups[g][0].name} | 2. ${state.groups[g][1].name} | 3. ${state.groups[g][2].name} | 4. ${state.groups[g][3].name}\n`;
-      });
-      doc += "\n";
-
-      doc += "--- SELECTED WILDCARDS (BEST 3RD PLACE) ---\n";
-      doc += state.wildcards.map(g => `${state.groups[g][2].name} (Gp ${g})`).join(", ") + "\n\n";
-
-      const getMatchSummary = (mId) => {
-        const m = matches[mId];
-        const winner = state.bracketWinner[mId];
-        const t1 = m.team1 ? m.team1.name : "?";
-        const t2 = m.team2 ? m.team2.name : "?";
-        return `${t1} vs ${t2} --> Winner: ${winner || "Undecided"}`;
-      };
-
-      doc += "--- KNOCKOUT MATCHES ---\n";
-      doc += "Round of 32:\n";
-      for (let i = 1; i <= 16; i++) doc += `  Match ${i}: ${getMatchSummary("r32-" + i)}\n`;
-
-      doc += "\nRound of 16:\n";
-      for (let i = 1; i <= 8; i++) doc += `  Match ${i}: ${getMatchSummary("r16-" + i)}\n`;
-
-      doc += "\nQuarterfinals:\n";
-      for (let i = 1; i <= 4; i++) doc += `  QF ${i}: ${getMatchSummary("qf-" + i)}\n`;
-
-      doc += "\nSemifinals:\n";
-      doc += `  Semifinal 1: ${getMatchSummary("sf-1")}\n`;
-      doc += `  Semifinal 2: ${getMatchSummary("sf-2")}\n`;
-
-      doc += "\nFinals:\n";
-      doc += `  Grand Final: ${getMatchSummary("final")}\n`;
-      doc += `  Third Place: ${getMatchSummary("third-place")}\n\n`;
-
-      doc += "--- FINAL PODIUM ---\n";
-      doc += `🥇 CHAMPION: ${gold ? gold.name : "Undecided"}\n`;
-      doc += `🥈 RUNNER-UP: ${silver ? silver.name : "Undecided"}\n`;
-      doc += `🥉 3RD PLACE: ${bronze ? bronze.name : "Undecided"}\n\n`;
-      doc += "Generated at: " + new Date().toLocaleString() + "\n";
-      doc += "Share Link: " + createShareableUrl() + "\n";
-
-      // Download file attachment
-      const blob = new Blob([doc], { type: "text/plain;charset=utf-8" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `RJ_WorldCup_Predictor_${Date.now()}.txt`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      showToast("Predictions summary downloaded!", "success");
-    }
-
-    function createShareableUrl() {
-      const serial = serializeState();
-      return `${window.location.origin}${window.location.pathname}?s=${serial}`;
-    }
-
-    // MODULE 5: VISUAL POLISH & CONFETTI CELEBRATION
-
-    // Canvas-based particles confetti
-    function triggerGoldPodiumCelebration() {
-      const canvas = document.getElementById("celebration-canvas");
-      canvas.style.display = "block";
-      const ctx = canvas.getContext("2d");
-
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-
-      const colors = ["#ffd700", "#ffffff", "#c0c0c0", "#eb234b", "#1e90ff", "#32cd32"];
-      const particles = [];
-
-      for (let i = 0; i < 150; i++) {
-        particles.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height - canvas.height,
-          size: Math.random() * 8 + 6,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          vx: Math.random() * 4 - 2,
-          vy: Math.random() * 5 + 4,
-          rotation: Math.random() * 360,
-          rotationSpeed: Math.random() * 4 - 2
-        });
+        const m = matches[matchId];
+        if (m && m.team1 && m.team1.name === winnerName) return m.team1;
+        if (m && m.team2 && m.team2.name === winnerName) return m.team2;
+        return null;
       }
 
-      let duration = 120; // ~2 seconds animation loop
-      function frame() {
-        if (duration <= 0) {
-          canvas.style.display = "none";
+      function getMatchLoser(matches, matchId) {
+        const winner = getMatchWinner(matches, matchId);
+        if (!winner) return null;
+
+        const m = matches[matchId];
+        if (m && m.team1 && m.team1.name !== winner.name) return m.team1;
+        if (m && m.team2 && m.team2.name !== winner.name) return m.team2;
+        return null;
+      }
+
+      // MOBILE VIEW MANAGER
+      let activeMobileRound = "r32";
+
+      function renderMobileBracketView(matches) {
+        const listContainer = document.getElementById(
+          "mobile-bracket-list-container",
+        );
+        const podiumContainer = document.getElementById(
+          "mobile-podium-container",
+        );
+
+        listContainer.innerHTML = "";
+        podiumContainer.innerHTML = "";
+        listContainer.style.display = "grid";
+        podiumContainer.style.display = "none";
+
+        if (activeMobileRound === "finals") {
+          listContainer.style.display = "none";
+          podiumContainer.style.display = "flex";
+
+          // Render final match card, 3rd place match card, and podium card stacked
+          const wrapper = document.createElement("div");
+          wrapper.className = "podium-container";
+          wrapper.style.gap = "24px";
+
+          const finalTitle = document.createElement("h3");
+          finalTitle.textContent = "Grand Final";
+          finalTitle.style.fontSize = "16px";
+          finalTitle.style.textTransform = "uppercase";
+          wrapper.appendChild(finalTitle);
+          wrapper.appendChild(createMatchCardHtml("final", matches["final"]));
+
+          const thirdTitle = document.createElement("h3");
+          thirdTitle.textContent = "Third Place Playoff";
+          thirdTitle.style.fontSize = "16px";
+          thirdTitle.style.textTransform = "uppercase";
+          thirdTitle.style.marginTop = "16px";
+          wrapper.appendChild(thirdTitle);
+          wrapper.appendChild(
+            createMatchCardHtml("third-place", matches["third-place"]),
+          );
+
+          const goldTeam = getMatchWinner(matches, "final");
+          const silverTeam = getMatchLoser(matches, "final");
+          const bronzeTeam = getMatchWinner(matches, "third-place");
+          const podiumCard = createPodiumCardHtml(
+            goldTeam,
+            silverTeam,
+            bronzeTeam,
+          );
+          podiumCard.style.marginTop = "24px";
+          wrapper.appendChild(podiumCard);
+
+          podiumContainer.appendChild(wrapper);
           return;
         }
-        duration--;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        particles.forEach(p => {
-          p.y += p.vy;
-          p.x += p.vx;
-          p.rotation += p.rotationSpeed;
-
-          ctx.save();
-          ctx.translate(p.x, p.y);
-          ctx.rotate((p.rotation * Math.PI) / 180);
-          ctx.fillStyle = p.color;
-          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size / 2);
-          ctx.restore();
+        // Filter matches by round ID
+        const filteredMatchesKeys = Object.keys(matches).filter((k) => {
+          if (activeMobileRound === "r32") return k.startsWith("r32-");
+          if (activeMobileRound === "r16") return k.startsWith("r16-");
+          if (activeMobileRound === "qf") return k.startsWith("qf-");
+          if (activeMobileRound === "sf") return k.startsWith("sf-");
+          return false;
         });
 
-        requestAnimationFrame(frame);
+        filteredMatchesKeys.forEach((matchId) => {
+          listContainer.appendChild(
+            createMatchCardHtml(matchId, matches[matchId]),
+          );
+        });
       }
-      frame();
-      showToast("🏆 Congratulations! Champion crowned!", "success");
-    }
 
-    // SETUP UI EVENT LISTENERS
-    function setupThemeToggle() {
-      const btn = document.getElementById("theme-toggle-btn");
-      btn.addEventListener("click", () => {
-        const isDark = !document.body.classList.contains("light-theme");
+      // MODULE 4: SESSION OPERATIONS (LOCALSTORAGE, SHARING, EXPORTS)
 
-        if (isDark) {
-          document.body.classList.add("light-theme");
-          btn.querySelector("i").className = "fas fa-sun";
-          localStorage.setItem("predictor-theme", "light");
-          showToast("Light mode enabled", "normal");
-        } else {
-          document.body.classList.remove("light-theme");
-          btn.querySelector("i").className = "fas fa-moon";
-          localStorage.setItem("predictor-theme", "dark");
-          showToast("Dark mode enabled", "normal");
+      // Save to LocalStorage
+      function saveStateToLocalStorage() {
+        localStorage.setItem("predictor-state", serializeState());
+      }
+
+      // Load from LocalStorage
+      function loadStateFromLocalStorage() {
+        const saved = localStorage.getItem("predictor-state");
+        if (saved) {
+          return deserializeState(saved);
         }
-      });
-    }
+        return false;
+      }
 
-    function setupTabs() {
-      const tabBtns = document.querySelectorAll(".tab-btn");
-      const panels = document.querySelectorAll(".view-panel");
+      // CUSTOM SERIALIZATION COMPRESSION (Compact URL safe format)
+      function serializeState() {
+        // 1. Group Standings permutation matrix (48 characters)
+        let groupPerms = "";
+        Object.keys(state.groups).forEach((gLetter) => {
+          const currentOrder = state.groups[gLetter];
+          const defaultOrder = INITIAL_GROUPS[gLetter];
 
-      tabBtns.forEach(btn => {
-        btn.addEventListener("click", () => {
-          tabBtns.forEach(b => b.classList.remove("active"));
-          panels.forEach(p => p.classList.remove("active"));
-
-          btn.classList.add("active");
-          const targetTabId = btn.getAttribute("data-tab");
-          document.getElementById(targetTabId).classList.add("active");
+          currentOrder.forEach((team) => {
+            const origIndex = defaultOrder.findIndex(
+              (t) => t.name === team.name,
+            );
+            groupPerms += origIndex.toString();
+          });
         });
-      });
 
-      // Mobile bracket sub-tabs
-      const mobBtns = document.querySelectorAll(".mobile-tab-btn");
-      mobBtns.forEach(btn => {
-        btn.addEventListener("click", () => {
-          mobBtns.forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
-          activeMobileRound = btn.getAttribute("data-round");
-
-          const matches = calculateMatchesData();
-          renderMobileBracketView(matches);
+        // 2. Wildcard bits (12 characters, e.g. 111111110000)
+        let wildcardBits = "";
+        Object.keys(INITIAL_GROUPS).forEach((gLetter) => {
+          wildcardBits += state.wildcards.includes(gLetter) ? "1" : "0";
         });
-      });
-    }
 
-    function setupUtilityButtons() {
-      // 1. Reset
-      document.getElementById("reset-btn").addEventListener("click", () => {
-        if (confirm("Are you sure you want to reset all bracket predictions? This cannot be undone.")) {
-          resetToDefaults(true);
-        }
-      });
+        // 3. Bracket bits (32 characters, 0 = team1, 1 = team2, x = undecided)
+        let bracketBits = "";
+        const matches = calculateMatchesData();
+        const matchIds = [
+          "r32-1",
+          "r32-2",
+          "r32-3",
+          "r32-4",
+          "r32-5",
+          "r32-6",
+          "r32-7",
+          "r32-8",
+          "r32-9",
+          "r32-10",
+          "r32-11",
+          "r32-12",
+          "r32-13",
+          "r32-14",
+          "r32-15",
+          "r32-16",
+          "r16-1",
+          "r16-2",
+          "r16-3",
+          "r16-4",
+          "r16-5",
+          "r16-6",
+          "r16-7",
+          "r16-8",
+          "qf-1",
+          "qf-2",
+          "qf-3",
+          "qf-4",
+          "sf-1",
+          "sf-2",
+          "final",
+          "third-place",
+        ];
 
-      // 2. Share
-      document.getElementById("share-btn").addEventListener("click", () => {
-        const shareUrl = createShareableUrl();
+        matchIds.forEach((mId) => {
+          const winnerName = state.bracketWinner[mId];
+          if (!winnerName) {
+            bracketBits += "x";
+          } else {
+            const mData = matches[mId];
+            if (mData && mData.team1 && mData.team1.name === winnerName) {
+              bracketBits += "0";
+            } else if (
+              mData &&
+              mData.team2 &&
+              mData.team2.name === winnerName
+            ) {
+              bracketBits += "1";
+            } else {
+              bracketBits += "x";
+            }
+          }
+        });
 
-        // Try clipboard copy
-        if (navigator.clipboard) {
-          navigator.clipboard.writeText(shareUrl)
-            .then(() => showToast("Shareable link copied to clipboard!", "success"))
-            .catch(() => fallbackCopy(shareUrl));
-        } else {
-          fallbackCopy(shareUrl);
-        }
-      });
+        return `${groupPerms}-${wildcardBits}-${bracketBits}`;
+      }
 
-      function fallbackCopy(text) {
-        const input = document.createElement("input");
-        input.value = text;
-        document.body.appendChild(input);
-        input.select();
+      function deserializeState(serialStr) {
         try {
-          document.execCommand("copy");
-          showToast("Shareable link copied to clipboard!", "success");
+          const parts = serialStr.split("-");
+          if (parts.length !== 3) return false;
+
+          const [groupPerms, wildcardBits, bracketBits] = parts;
+          if (
+            groupPerms.length !== 48 ||
+            wildcardBits.length !== 12 ||
+            bracketBits.length !== 32
+          )
+            return false;
+
+          // 1. Rebuild group orders
+          const keys = Object.keys(INITIAL_GROUPS);
+          state.groups = {};
+          for (let i = 0; i < 12; i++) {
+            const groupLetter = keys[i];
+            const defaultList = INITIAL_GROUPS[groupLetter];
+            const indicesStr = groupPerms.substring(i * 4, i * 4 + 4);
+
+            state.groups[groupLetter] = [];
+            for (let j = 0; j < 4; j++) {
+              const indexVal = parseInt(indicesStr[j]);
+              if (isNaN(indexVal) || indexVal < 0 || indexVal > 3) return false;
+              state.groups[groupLetter].push(
+                JSON.parse(JSON.stringify(defaultList[indexVal])),
+              );
+            }
+          }
+
+          // 2. Rebuild wildcards array
+          state.wildcards = [];
+          for (let i = 0; i < 12; i++) {
+            if (wildcardBits[i] === "1") {
+              state.wildcards.push(keys[i]);
+            }
+          }
+
+          // 3. Rebuild bracket winners (Requires running calculateMatchesData in loop)
+          state.bracketWinner = {};
+          const matchIds = [
+            "r32-1",
+            "r32-2",
+            "r32-3",
+            "r32-4",
+            "r32-5",
+            "r32-6",
+            "r32-7",
+            "r32-8",
+            "r32-9",
+            "r32-10",
+            "r32-11",
+            "r32-12",
+            "r32-13",
+            "r32-14",
+            "r32-15",
+            "r32-16",
+            "r16-1",
+            "r16-2",
+            "r16-3",
+            "r16-4",
+            "r16-5",
+            "r16-6",
+            "r16-7",
+            "r16-8",
+            "qf-1",
+            "qf-2",
+            "qf-3",
+            "qf-4",
+            "sf-1",
+            "sf-2",
+            "final",
+            "third-place",
+          ];
+
+          // Resolve winners layer by layer
+          for (let i = 0; i < 32; i++) {
+            const mId = matchIds[i];
+            const bitVal = bracketBits[i];
+
+            if (bitVal !== "x") {
+              const matches = calculateMatchesData();
+              const mData = matches[mId];
+
+              if (bitVal === "0" && mData && mData.team1) {
+                state.bracketWinner[mId] = mData.team1.name;
+              } else if (bitVal === "1" && mData && mData.team2) {
+                state.bracketWinner[mId] = mData.team2.name;
+              }
+            }
+          }
+
+          return true;
         } catch (err) {
-          alert("Link to share: " + text);
+          console.error("Failed parsing state:", err);
+          return false;
         }
-        document.body.removeChild(input);
       }
 
-      // 3. Export
-      document.getElementById("download-btn").addEventListener("click", exportPredictions);
-    }
+      // Load from URL parameter ?s=
+      function loadStateFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const serialStr = urlParams.get("s");
+        if (serialStr) {
+          const success = deserializeState(serialStr);
+          if (success) {
+            saveStateToLocalStorage();
+            return true;
+          }
+        }
+        return false;
+      }
 
-    // TRIGGER INITIAL RUN
-    window.addEventListener("DOMContentLoaded", initSystem);
-  </script>
-</body>
+      // TEXT & JSON EXPORT GENERATOR
+      function exportPredictions() {
+        const matches = calculateMatchesData();
 
+        const gold = getMatchWinner(matches, "final");
+        const silver = getMatchLoser(matches, "final");
+        const bronze = getMatchWinner(matches, "third-place");
+
+        let doc = "=========================================\n";
+        doc += "  2026 FIFA WORLD CUP BRACKET PREDICTIONS\n";
+        doc += "=========================================\n\n";
+
+        doc += "--- GROUP STAGE RESULTS ---\n";
+        Object.keys(state.groups).forEach((g) => {
+          doc += `Group ${g}: 1. ${state.groups[g][0].name} | 2. ${state.groups[g][1].name} | 3. ${state.groups[g][2].name} | 4. ${state.groups[g][3].name}\n`;
+        });
+        doc += "\n";
+
+        doc += "--- SELECTED WILDCARDS (BEST 3RD PLACE) ---\n";
+        doc +=
+          state.wildcards
+            .map((g) => `${state.groups[g][2].name} (Gp ${g})`)
+            .join(", ") + "\n\n";
+
+        const getMatchSummary = (mId) => {
+          const m = matches[mId];
+          const winner = state.bracketWinner[mId];
+          const t1 = m.team1 ? m.team1.name : "?";
+          const t2 = m.team2 ? m.team2.name : "?";
+          return `${t1} vs ${t2} --> Winner: ${winner || "Undecided"}`;
+        };
+
+        doc += "--- KNOCKOUT MATCHES ---\n";
+        doc += "Round of 32:\n";
+        for (let i = 1; i <= 16; i++)
+          doc += `  Match ${i}: ${getMatchSummary("r32-" + i)}\n`;
+
+        doc += "\nRound of 16:\n";
+        for (let i = 1; i <= 8; i++)
+          doc += `  Match ${i}: ${getMatchSummary("r16-" + i)}\n`;
+
+        doc += "\nQuarterfinals:\n";
+        for (let i = 1; i <= 4; i++)
+          doc += `  QF ${i}: ${getMatchSummary("qf-" + i)}\n`;
+
+        doc += "\nSemifinals:\n";
+        doc += `  Semifinal 1: ${getMatchSummary("sf-1")}\n`;
+        doc += `  Semifinal 2: ${getMatchSummary("sf-2")}\n`;
+
+        doc += "\nFinals:\n";
+        doc += `  Grand Final: ${getMatchSummary("final")}\n`;
+        doc += `  Third Place: ${getMatchSummary("third-place")}\n\n`;
+
+        doc += "--- FINAL PODIUM ---\n";
+        doc += `🥇 CHAMPION: ${gold ? gold.name : "Undecided"}\n`;
+        doc += `🥈 RUNNER-UP: ${silver ? silver.name : "Undecided"}\n`;
+        doc += `🥉 3RD PLACE: ${bronze ? bronze.name : "Undecided"}\n\n`;
+        doc += "Generated at: " + new Date().toLocaleString() + "\n";
+        doc += "Share Link: " + createShareableUrl() + "\n";
+
+        // Download file attachment
+        const blob = new Blob([doc], { type: "text/plain;charset=utf-8" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `RJ_WorldCup_Predictor_${Date.now()}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showToast("Predictions summary downloaded!", "success");
+      }
+
+      function createShareableUrl() {
+        const serial = serializeState();
+        return `${window.location.origin}${window.location.pathname}?s=${serial}`;
+      }
+
+      // MODULE 5: VISUAL POLISH & CONFETTI CELEBRATION
+
+      // Canvas-based particles confetti
+      function triggerGoldPodiumCelebration() {
+        const canvas = document.getElementById("celebration-canvas");
+        canvas.style.display = "block";
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const colors = [
+          "#ffd700",
+          "#ffffff",
+          "#c0c0c0",
+          "#eb234b",
+          "#1e90ff",
+          "#32cd32",
+        ];
+        const particles = [];
+
+        for (let i = 0; i < 150; i++) {
+          particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height - canvas.height,
+            size: Math.random() * 8 + 6,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            vx: Math.random() * 4 - 2,
+            vy: Math.random() * 5 + 4,
+            rotation: Math.random() * 360,
+            rotationSpeed: Math.random() * 4 - 2,
+          });
+        }
+
+        let duration = 120; // ~2 seconds animation loop
+        function frame() {
+          if (duration <= 0) {
+            canvas.style.display = "none";
+            return;
+          }
+          duration--;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          particles.forEach((p) => {
+            p.y += p.vy;
+            p.x += p.vx;
+            p.rotation += p.rotationSpeed;
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rotation * Math.PI) / 180);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size / 2);
+            ctx.restore();
+          });
+
+          requestAnimationFrame(frame);
+        }
+        frame();
+        showToast("🏆 Congratulations! Champion crowned!", "success");
+      }
+
+      // SETUP UI EVENT LISTENERS
+      function setupThemeToggle() {
+        const btn = document.getElementById("theme-toggle-btn");
+        btn.addEventListener("click", () => {
+          const isDark = !document.body.classList.contains("light-theme");
+
+          if (isDark) {
+            document.body.classList.add("light-theme");
+            btn.querySelector("i").className = "fas fa-sun";
+            localStorage.setItem("predictor-theme", "light");
+            showToast("Light mode enabled", "normal");
+          } else {
+            document.body.classList.remove("light-theme");
+            btn.querySelector("i").className = "fas fa-moon";
+            localStorage.setItem("predictor-theme", "dark");
+            showToast("Dark mode enabled", "normal");
+          }
+        });
+      }
+
+      function setupTabs() {
+        const tabBtns = document.querySelectorAll(".tab-btn");
+        const panels = document.querySelectorAll(".view-panel");
+
+        tabBtns.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            tabBtns.forEach((b) => b.classList.remove("active"));
+            panels.forEach((p) => p.classList.remove("active"));
+
+            btn.classList.add("active");
+            const targetTabId = btn.getAttribute("data-tab");
+            document.getElementById(targetTabId).classList.add("active");
+          });
+        });
+
+        // Mobile bracket sub-tabs
+        const mobBtns = document.querySelectorAll(".mobile-tab-btn");
+        mobBtns.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            mobBtns.forEach((b) => b.classList.remove("active"));
+            btn.classList.add("active");
+            activeMobileRound = btn.getAttribute("data-round");
+
+            const matches = calculateMatchesData();
+            renderMobileBracketView(matches);
+          });
+        });
+      }
+
+      function setupUtilityButtons() {
+        // 1. Reset
+        document.getElementById("reset-btn").addEventListener("click", () => {
+          if (
+            confirm(
+              "Are you sure you want to reset all bracket predictions? This cannot be undone.",
+            )
+          ) {
+            resetToDefaults(true);
+          }
+        });
+
+        // 2. Share
+        document.getElementById("share-btn").addEventListener("click", () => {
+          const shareUrl = createShareableUrl();
+
+          // Try clipboard copy
+          if (navigator.clipboard) {
+            navigator.clipboard
+              .writeText(shareUrl)
+              .then(() =>
+                showToast("Shareable link copied to clipboard!", "success"),
+              )
+              .catch(() => fallbackCopy(shareUrl));
+          } else {
+            fallbackCopy(shareUrl);
+          }
+        });
+
+        function fallbackCopy(text) {
+          const input = document.createElement("input");
+          input.value = text;
+          document.body.appendChild(input);
+          input.select();
+          try {
+            document.execCommand("copy");
+            showToast("Shareable link copied to clipboard!", "success");
+          } catch (err) {
+            alert("Link to share: " + text);
+          }
+          document.body.removeChild(input);
+        }
+
+        // 3. Export
+        document
+          .getElementById("download-btn")
+          .addEventListener("click", exportPredictions);
+      }
+
+      // TRIGGER INITIAL RUN
+      window.addEventListener("DOMContentLoaded", initSystem);
+    </script>
+  </body>
 </html>
