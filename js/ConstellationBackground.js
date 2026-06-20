@@ -12,7 +12,7 @@ export class ConstellationBackground {
     );
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.nodes = [];
-    this.lines = [];
+    this.logicalLines = [];
     this.dataPackets = [];
     this.mouse = new THREE.Vector2();
     this.raycaster = new THREE.Raycaster();
@@ -84,6 +84,12 @@ export class ConstellationBackground {
         }
       }
     }
+
+    const positions = new Float32Array(this.logicalLines.length * 6);
+    this.lineGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    this.lineSegments = new THREE.LineSegments(this.lineGeometry, this.lineMaterial);
+    this.scene.add(this.lineSegments);
   }
 
   createDataPackets(count) {
@@ -95,9 +101,9 @@ export class ConstellationBackground {
     });
 
     for (let i = 0; i < count; i++) {
-      if (this.lines.length === 0) break;
+      if (this.logicalLines.length === 0) break;
       const mesh = new THREE.Mesh(geometry, material.clone());
-      const line = this.lines[Math.floor(Math.random() * this.lines.length)];
+      const line = this.logicalLines[Math.floor(Math.random() * this.logicalLines.length)];
       mesh.userData.line = line;
       mesh.userData.progress = Math.random();
       mesh.userData.speed = 0.002 + Math.random() * 0.003;
@@ -133,16 +139,20 @@ export class ConstellationBackground {
   }
 
   updateConnections() {
-    for (const line of this.lines) {
-      const positions = line.geometry.attributes.position.array;
-      positions[0] = line.userData.nodeA.position.x;
-      positions[1] = line.userData.nodeA.position.y;
-      positions[2] = line.userData.nodeA.position.z;
-      positions[3] = line.userData.nodeB.position.x;
-      positions[4] = line.userData.nodeB.position.y;
-      positions[5] = line.userData.nodeB.position.z;
-      line.geometry.attributes.position.needsUpdate = true;
+    const positions = this.lineGeometry.attributes.position.array;
+
+    let idx = 0;
+    for (const line of this.logicalLines) {
+      positions[idx++] = line.nodeA.position.x;
+      positions[idx++] = line.nodeA.position.y;
+      positions[idx++] = line.nodeA.position.z;
+
+      positions[idx++] = line.nodeB.position.x;
+      positions[idx++] = line.nodeB.position.y;
+      positions[idx++] = line.nodeB.position.z;
     }
+
+    this.lineGeometry.attributes.position.needsUpdate = true;
   }
 
   updateDataPackets() {

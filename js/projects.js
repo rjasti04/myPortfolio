@@ -90,10 +90,10 @@ export function filterProjects() {
           visible: activeFilter === "all" || p.tags.includes(activeFilter),
         }));
 
+    // Batch DOM updates in a single animation frame to avoid excessive rAF scheduling
     const visibleCount = filteredProjects.reduce((count, project) => {
       if (project.visible) {
         project.card.hidden = false;
-        requestAnimationFrame(() => project.card.classList.remove("fade-out"));
       } else {
         project.card.classList.add("fade-out");
         clearTimeout(hideTimeouts.get(project.card));

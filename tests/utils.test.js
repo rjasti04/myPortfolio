@@ -123,6 +123,7 @@ describe("Modal Module", () => {
     window = dom.window;
     global.document = document;
     global.window = window;
+    global.HTMLElement = window.HTMLElement;
   });
 
   after(() => {

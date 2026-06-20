@@ -265,7 +265,11 @@ export function initChat() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       try {
-        sessions = JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        sessions = Array.isArray(parsed) ? parsed.map(session => ({
+          ...session,
+          messages: Array.isArray(session.messages) ? session.messages : []
+        })) : [];
       } catch (e) {
         sessions = [];
       }

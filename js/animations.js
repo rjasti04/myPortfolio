@@ -220,19 +220,31 @@ function initMatrixDecode() {
 
   const startAnimation = () => {
     // Only set fixed widths if fonts are loaded and we get non-zero widths
+
+    // Pure read phase: collect widths first to avoid layout thrashing
+    // First iteration: clear explicit widths (pure write)
+    spans.forEach((s, i) => {
+      if (letters[i] !== " ") s.style.width = "";
+    });
+
+    // Second iteration: collect layout widths (pure read)
+    const widths = spans.map((s, i) => {
+      if (letters[i] === " ") return 0;
+      return s.getBoundingClientRect().width;
+    });
+
+    // Pure write phase: apply styles all at once
     spans.forEach((s, i) => {
       if (letters[i] === " ") {
         s.dataset.scrambled = "false";
         return;
       }
-      // Reset width before measuring if this is a re-run
-      s.style.width = "";
-      const w = s.getBoundingClientRect().width;
-      if (w > 0) {
-        s.style.cssText = `display: inline-block; width: ${w}px; text-align: center;`;
+      if (widths[i] > 0) {
+        s.style.cssText = `display: inline-block; width: ${widths[i]}px; text-align: center;`;
         s.dataset.scrambled = "false";
       }
     });
+
     animateText(true);
   };
 
@@ -255,9 +267,10 @@ function initSpringHovers() {
 
   const springConfig = { stiffness: 400, damping: 30 };
 
-  // Optional spring hover for explicitly marked elements. Default controls use CSS motion tokens.
-  document.querySelectorAll("[data-spring-hover]").forEach((btn) => {
-    btn.addEventListener("mouseenter", () => {
+  // Centralized event delegation for spring hovers
+  document.body.addEventListener("mouseover", (e) => {
+    const btn = e.target.closest("[data-spring-hover]");
+    if (btn && !btn.contains(e.relatedTarget)) {
       animateSpring({
         from: 0,
         to: -3,
@@ -266,8 +279,10 @@ function initSpringHovers() {
         },
         config: springConfig,
       });
-    });
-    btn.addEventListener("mouseleave", () => {
+    }
+
+    const card = e.target.closest("[data-spring-card-hover]");
+    if (card && !card.contains(e.relatedTarget)) {
       animateSpring({
         from: -3,
         to: 0,
@@ -279,11 +294,12 @@ function initSpringHovers() {
         },
         config: springConfig,
       });
-    });
+    }
   });
 
-  document.querySelectorAll("[data-spring-card-hover]").forEach((card) => {
-    card.addEventListener("mouseenter", () => {
+  document.body.addEventListener("mouseout", (e) => {
+    const btn = e.target.closest("[data-spring-hover]");
+    if (btn && !btn.contains(e.relatedTarget)) {
       animateSpring({
         from: 0,
         to: -8,
@@ -292,8 +308,10 @@ function initSpringHovers() {
         },
         config: springConfig,
       });
-    });
-    card.addEventListener("mouseleave", () => {
+    }
+
+    const card = e.target.closest("[data-spring-card-hover]");
+    if (card && !card.contains(e.relatedTarget)) {
       animateSpring({
         from: -8,
         to: 0,
@@ -305,7 +323,7 @@ function initSpringHovers() {
         },
         config: springConfig,
       });
-    });
+    }
   });
 }
 
