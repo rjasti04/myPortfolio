@@ -71,7 +71,9 @@ export function initParticles(containerId = 'particles-canvas') {
 
   function initParticleArray() {
     particles = [];
-    const numberOfParticles = Math.floor((canvas.width * canvas.height) / 15000);
+    // Enforce a hard cap to prevent O(n^2) loop from thrashing the CPU on large screens
+    let numberOfParticles = Math.floor((canvas.width * canvas.height) / 15000);
+    if (numberOfParticles > 80) numberOfParticles = 80;
     
     for (let i = 0; i < numberOfParticles; i++) {
       particles.push(new Particle());

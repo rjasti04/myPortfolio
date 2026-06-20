@@ -7,7 +7,7 @@ export class ConstellationBackground {
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.nodes = [];
-    this.lines = [];
+    this.logicalLines = [];
     this.dataPackets = [];
     this.mouse = new THREE.Vector2();
     this.raycaster = new THREE.Raycaster();
@@ -57,7 +57,8 @@ export class ConstellationBackground {
   }
 
   createConnections() {
-    const lineMaterial = new THREE.LineBasicMaterial({ 
+    this.lineGeometry = new THREE.BufferGeometry();
+    this.lineMaterial = new THREE.LineBasicMaterial({
       color: 0x00ffff, 
       transparent: true, 
       opacity: 0.3 
@@ -67,18 +68,16 @@ export class ConstellationBackground {
       for (let j = i + 1; j < this.nodes.length; j++) {
         const dist = this.nodes[i].position.distanceTo(this.nodes[j].position);
         if (dist < 15) {
-          const geometry = new THREE.BufferGeometry().setFromPoints([
-            this.nodes[i].position,
-            this.nodes[j].position
-          ]);
-          const line = new THREE.Line(geometry, lineMaterial.clone());
-          line.userData.nodeA = this.nodes[i];
-          line.userData.nodeB = this.nodes[j];
-          this.scene.add(line);
-          this.lines.push(line);
+          this.logicalLines.push({ nodeA: this.nodes[i], nodeB: this.nodes[j] });
         }
       }
     }
+
+    const positions = new Float32Array(this.logicalLines.length * 6);
+    this.lineGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    this.lineSegments = new THREE.LineSegments(this.lineGeometry, this.lineMaterial);
+    this.scene.add(this.lineSegments);
   }
 
   createDataPackets(count) {
@@ -90,9 +89,9 @@ export class ConstellationBackground {
     });
     
     for (let i = 0; i < count; i++) {
-      if (this.lines.length === 0) break;
+      if (this.logicalLines.length === 0) break;
       const mesh = new THREE.Mesh(geometry, material.clone());
-      const line = this.lines[Math.floor(Math.random() * this.lines.length)];
+      const line = this.logicalLines[Math.floor(Math.random() * this.logicalLines.length)];
       mesh.userData.line = line;
       mesh.userData.progress = Math.random();
       mesh.userData.speed = 0.002 + Math.random() * 0.003;
@@ -124,16 +123,20 @@ export class ConstellationBackground {
   }
 
   updateConnections() {
-    for (const line of this.lines) {
-      const positions = line.geometry.attributes.position.array;
-      positions[0] = line.userData.nodeA.position.x;
-      positions[1] = line.userData.nodeA.position.y;
-      positions[2] = line.userData.nodeA.position.z;
-      positions[3] = line.userData.nodeB.position.x;
-      positions[4] = line.userData.nodeB.position.y;
-      positions[5] = line.userData.nodeB.position.z;
-      line.geometry.attributes.position.needsUpdate = true;
+    const positions = this.lineGeometry.attributes.position.array;
+
+    let idx = 0;
+    for (const line of this.logicalLines) {
+      positions[idx++] = line.nodeA.position.x;
+      positions[idx++] = line.nodeA.position.y;
+      positions[idx++] = line.nodeA.position.z;
+
+      positions[idx++] = line.nodeB.position.x;
+      positions[idx++] = line.nodeB.position.y;
+      positions[idx++] = line.nodeB.position.z;
     }
+
+    this.lineGeometry.attributes.position.needsUpdate = true;
   }
 
   updateDataPackets() {
@@ -142,12 +145,12 @@ export class ConstellationBackground {
       
       if (packet.userData.progress >= 1) {
         packet.userData.progress = 0;
-        packet.userData.line = this.lines[Math.floor(Math.random() * this.lines.length)];
+        packet.userData.line = this.logicalLines[Math.floor(Math.random() * this.logicalLines.length)];
       }
       
       const line = packet.userData.line;
-      const start = line.userData.nodeA.position;
-      const end = line.userData.nodeB.position;
+      const start = line.nodeA.position;
+      const end = line.nodeB.position;
       
       packet.position.lerpVectors(start, end, packet.userData.progress);
     }
@@ -165,8 +168,8 @@ export class ConstellationBackground {
       );
     }
     
-    for (const line of this.lines) {
-      line.material.opacity = 0.3 * intensity;
+    if (this.lineSegments) {
+      this.lineSegments.material.opacity = 0.3 * intensity;
     }
   }
 
