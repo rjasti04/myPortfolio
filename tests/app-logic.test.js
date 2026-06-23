@@ -1,13 +1,25 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
-const { JSDOM } = require("jsdom");
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { JSDOM } from "jsdom";
+
+const appLogicUrl = new URL("../js/app-logic.js", import.meta.url);
+const appLogicCode = fs.readFileSync(appLogicUrl, "utf8");
+
+function evaluateAppLogic() {
+  const dom = new JSDOM(`<!DOCTYPE html><html><head></head><body></body></html>`, {
+    runScripts: "dangerously"
+  });
+  dom.window.eval(appLogicCode);
+  return dom.window.AppLogic;
+}
+
 const {
   filterProjects,
   getValidHashTarget,
   setActiveSection,
-} = require("../js/app-logic.js");
+} = evaluateAppLogic();
 
 test("setActiveSection updates active section and nav aria-current", () => {
   const dom = new JSDOM(`
@@ -78,10 +90,8 @@ test("filterProjects matches by filter and search term", () => {
 });
 
 test("main lazily imports the activity module", () => {
-  const mainSource = fs.readFileSync(
-    path.join(__dirname, "../js/main.js"),
-    "utf8",
-  );
+  const fileUrl = new URL("../js/main.js", import.meta.url);
+  const mainSource = fs.readFileSync(fileUrl, "utf8");
 
   assert.equal(mainSource.includes('from "./activity.js"'), false);
   assert.equal(mainSource.includes('import("./activity.js")'), true);

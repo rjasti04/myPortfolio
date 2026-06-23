@@ -86,9 +86,15 @@ export class ConstellationBackground {
     }
 
     const positions = new Float32Array(this.logicalLines.length * 6);
-    this.lineGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    this.lineGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(positions, 3),
+    );
 
-    this.lineSegments = new THREE.LineSegments(this.lineGeometry, this.lineMaterial);
+    this.lineSegments = new THREE.LineSegments(
+      this.lineGeometry,
+      this.lineMaterial,
+    );
     this.scene.add(this.lineSegments);
   }
 
@@ -103,7 +109,8 @@ export class ConstellationBackground {
     for (let i = 0; i < count; i++) {
       if (this.logicalLines.length === 0) break;
       const mesh = new THREE.Mesh(geometry, material.clone());
-      const line = this.logicalLines[Math.floor(Math.random() * this.logicalLines.length)];
+      const line =
+        this.logicalLines[Math.floor(Math.random() * this.logicalLines.length)];
       mesh.userData.line = line;
       mesh.userData.progress = Math.random();
       mesh.userData.speed = 0.002 + Math.random() * 0.003;

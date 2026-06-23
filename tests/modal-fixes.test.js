@@ -1,9 +1,9 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert';
-import { JSDOM } from 'jsdom';
+import { describe, it } from "node:test";
+import assert from "node:assert";
+import { JSDOM } from "jsdom";
 
-describe('Modal Fixes Module', () => {
-  it('should not leak keydown listeners when opened multiple times', async () => {
+describe("Modal Fixes Module", () => {
+  it("should not leak keydown listeners when opened multiple times", async () => {
     const dom = new JSDOM(`
       <!DOCTYPE html>
       <html>
@@ -18,19 +18,19 @@ describe('Modal Fixes Module', () => {
 
     global.document = {
       addEventListener: (evt) => {
-        if (evt === 'keydown') addedCount++;
+        if (evt === "keydown") addedCount++;
       },
       removeEventListener: (evt) => {
-        if (evt === 'keydown') removedCount++;
+        if (evt === "keydown") removedCount++;
       },
-      activeElement: dom.window.document.body
+      activeElement: dom.window.document.body,
     };
 
     global.window = dom.window;
     global.HTMLElement = dom.window.HTMLElement;
 
-    const { openModal } = await import('../js/modal.js');
-    const modalEl = dom.window.document.getElementById('modal');
+    const { openModal } = await import("../js/modal.js");
+    const modalEl = dom.window.document.getElementById("modal");
 
     openModal(modalEl);
     assert.strictEqual(addedCount, 1);

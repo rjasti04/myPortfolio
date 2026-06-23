@@ -44,6 +44,11 @@ export function openModal(modal, { initialFocus = null } = {}) {
   modal.classList.add("active");
   modal.setAttribute("aria-hidden", "false");
 
+  const existingHandler = modalKeydown.get(modal);
+  if (existingHandler) {
+    document.removeEventListener("keydown", existingHandler);
+  }
+
   const onKeydown = (event) => {
     if (event.key === "Escape") {
       event.preventDefault();

@@ -266,10 +266,12 @@ export function initChat() {
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
-        sessions = Array.isArray(parsed) ? parsed.map(session => ({
-          ...session,
-          messages: Array.isArray(session.messages) ? session.messages : []
-        })) : [];
+        sessions = Array.isArray(parsed)
+          ? parsed.map((session) => ({
+              ...session,
+              messages: Array.isArray(session.messages) ? session.messages : [],
+            }))
+          : [];
       } catch (e) {
         sessions = [];
       }

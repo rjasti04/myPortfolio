@@ -108,6 +108,7 @@ export function apiFetch(url, options = {}) {
 
   const defaultOptions = {
     mode: "cors",
+    signal: controller.signal,
   };
 
   return fetch(url, { ...defaultOptions, ...fetchOptions }).finally(() => {
