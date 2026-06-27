@@ -253,6 +253,9 @@ export function initNavigation() {
     navLinks.forEach((link, index) => {
       const kbd = document.createElement("kbd");
       kbd.className = "nav-shortcut";
+      // BUG FIX ROOT CAUSE: Guide numbers inside kbd tag are announced by screen readers, creating audio noise
+      // (e.g. "About one, link"). We set aria-hidden="true" so screen readers ignore the helper number.
+      kbd.setAttribute("aria-hidden", "true");
       kbd.textContent = String(index + 1);
       link.appendChild(kbd);
     });

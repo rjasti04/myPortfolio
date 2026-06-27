@@ -290,9 +290,15 @@ function flushEventsOnUnload() {
 
 // Store global click handler reference to prevent duplicates
 let globalClickHandler = null;
+// BUG FIX ROOT CAUSE: Repeated calls to initAnalytics would register duplicate event listeners 
+// on window/document, leading to event listener duplication. We now check this flag to attach once.
+let globalListenersAttached = false;
 
 // Set up event listeners for global behaviors
 function attachGlobalListeners() {
+  if (globalListenersAttached) return;
+  globalListenersAttached = true;
+
   // Flush on tab hide/close, revive on show
   let visibilityTimeout;
   window.addEventListener("visibilitychange", () => {

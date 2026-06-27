@@ -79,36 +79,22 @@ export function initChat() {
   const aiSidebarHistory = document.getElementById('ai-sidebar-history');
 
   // Voice input support for mobile
-  let recognitionInstance = null;
-  
-  const cleanupVoiceInput = () => {
-    if (recognitionInstance) {
-      try {
-        recognitionInstance.stop();
-      } catch (e) {
-        // Ignore if already stopped
-      }
-      recognitionInstance.onresult = null;
-      recognitionInstance.onend = null;
-      recognitionInstance.onerror = null;
-      recognitionInstance = null;
-    }
-  };
-  
+  // BUG FIX ROOT CAUSE: SpeechRecognition was using a shared singleton 'recognitionInstance'.
+  // This caused both voice buttons to share/override the onresult callback, routing transcripts 
+  // to the wrong text inputs. We now instantiate a local SpeechRecognition inside addVoiceButton 
+  // for separate lifecycle tracking.
   const initVoiceInput = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
     
-    // Clean up any existing instance
-    cleanupVoiceInput();
-    
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognitionInstance = new SpeechRecognition();
-    recognitionInstance.continuous = false;
-    recognitionInstance.interimResults = false;
-    recognitionInstance.lang = 'en-US';
     
     const addVoiceButton = (input, form) => {
       if (!input || !form) return;
+      
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
       
       const voiceBtn = document.createElement('button');
       voiceBtn.type = 'button';
@@ -129,30 +115,30 @@ export function initChat() {
       
       voiceBtn.addEventListener('click', () => {
         if (isListening) {
-          recognitionInstance.stop();
+          recognition.stop();
           return;
         }
         
-        recognitionInstance.start();
+        recognition.start();
         isListening = true;
         voiceBtn.innerHTML = '<i class="fas fa-stop-circle"></i>';
         voiceBtn.style.color = 'var(--color-error)';
       });
       
-      recognitionInstance.onresult = (event) => {
+      recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         input.value = transcript;
         input.dispatchEvent(new Event('input'));
         input.focus();
       };
       
-      recognitionInstance.onend = () => {
+      recognition.onend = () => {
         isListening = false;
         voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
         voiceBtn.style.color = '';
       };
       
-      recognitionInstance.onerror = () => {
+      recognition.onerror = () => {
         isListening = false;
         voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
         voiceBtn.style.color = '';
@@ -367,6 +353,29 @@ export function initChat() {
     });
   });
 
+  // Widget suggested prompt quick actions
+  const widgetSuggestedChips = document.querySelectorAll('.widget-chip');
+  widgetSuggestedChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      if (isGenerating) return;
+      const prompt = chip.getAttribute('data-prompt');
+      if (!prompt) return;
+      const chatInput = document.getElementById('chat-input');
+      if (chatInput) {
+        chatInput.value = '';
+      }
+      handleChatSubmit(prompt);
+    });
+  });
+
+  // Widget Header New Chat Action
+  const widgetNewChatBtn = document.getElementById('widget-new-chat-btn');
+  if (widgetNewChatBtn) {
+    widgetNewChatBtn.addEventListener('click', () => {
+      if (!isGenerating) createNewSession();
+    });
+  }
+
   if (sidebarOpenBtn && aiLayout) {
     sidebarOpenBtn.addEventListener('click', () => {
       aiLayout.classList.remove('sidebar-hidden');
@@ -483,6 +492,17 @@ export function initChat() {
     return { showCopy };
   }
 
+  function updateSuggestionChipsVisibility() {
+    const chipsContainer = document.getElementById('widget-suggestion-chips');
+    if (!chipsContainer) return;
+    const session = getActiveSession();
+    if (session && session.messages.length === 0) {
+      chipsContainer.classList.remove('hidden');
+    } else {
+      chipsContainer.classList.add('hidden');
+    }
+  }
+
   function restoreActiveSession() {
     if (messagesContainer) messagesContainer.innerHTML = '';
     if (aiPageMessages) aiPageMessages.innerHTML = '';
@@ -496,6 +516,7 @@ export function initChat() {
       // Temporarily disable auto-scroll to avoid jumping while rendering
       session.messages.forEach(msg => appendMessage(msg.text, msg.sender, { save: false, showCopy: true }));
     }
+    updateSuggestionChipsVisibility();
   }
 
   // Auto-resize textarea
@@ -619,11 +640,66 @@ export function initChat() {
     indicator.setAttribute('role', 'status');
     indicator.setAttribute('aria-live', 'polite');
     indicator.setAttribute('aria-label', 'Assistant is responding');
+    
     if (prefersReducedMotion.matches) {
       indicator.textContent = 'Assistant is responding...';
-    } else {
-      indicator.innerHTML = '<div class="typing-dot" aria-hidden="true"></div><div class="typing-dot" aria-hidden="true"></div><div class="typing-dot" aria-hidden="true"></div>';
+      return indicator;
     }
+
+    indicator.innerHTML = `
+      <div class="thinking-container">
+        <div class="thinking-header">
+          <i class="fas fa-cog fa-spin" aria-hidden="true"></i> Processing request...
+        </div>
+        <ul class="thinking-steps">
+          <li class="thinking-step active" id="thinking-step-0">
+            <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Initializing context
+          </li>
+          <li class="thinking-step" id="thinking-step-1">
+            <i class="far fa-circle" aria-hidden="true"></i> Fetching profile data
+          </li>
+          <li class="thinking-step" id="thinking-step-2">
+            <i class="far fa-circle" aria-hidden="true"></i> Querying Bedrock LLM
+          </li>
+        </ul>
+      </div>
+    `;
+
+    const steps = [
+      { id: 'thinking-step-0', activeIcon: 'fas fa-circle-notch fa-spin', doneIcon: 'fas fa-check-circle' },
+      { id: 'thinking-step-1', activeIcon: 'fas fa-circle-notch fa-spin', doneIcon: 'fas fa-check-circle' },
+      { id: 'thinking-step-2', activeIcon: 'fas fa-cog fa-spin', doneIcon: 'fas fa-check-circle' }
+    ];
+
+    let currentStep = 0;
+    const interval = setInterval(() => {
+      const currentEl = indicator.querySelector(`#${steps[currentStep].id}`);
+      if (currentEl) {
+        currentEl.className = 'thinking-step completed';
+        const icon = currentEl.querySelector('i');
+        if (icon) icon.className = steps[currentStep].doneIcon;
+      }
+
+      currentStep++;
+      if (currentStep >= steps.length) {
+        clearInterval(interval);
+        return;
+      }
+
+      const nextEl = indicator.querySelector(`#${steps[currentStep].id}`);
+      if (nextEl) {
+        nextEl.className = 'thinking-step active';
+        const icon = nextEl.querySelector('i');
+        if (icon) icon.className = steps[currentStep].activeIcon;
+      }
+    }, 700);
+
+    const originalRemove = indicator.remove.bind(indicator);
+    indicator.remove = () => {
+      clearInterval(interval);
+      originalRemove();
+    };
+
     return indicator;
   }
 
@@ -636,6 +712,9 @@ export function initChat() {
       appendMessage("AI service is not available.", 'bot', { save: false, showCopy: false });
       return;
     }
+
+    const chipsContainer = document.getElementById('widget-suggestion-chips');
+    if (chipsContainer) chipsContainer.classList.add('hidden');
 
     appendMessage(text, 'user', { save: true, showCopy: true });
     setInputState(true);

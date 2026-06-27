@@ -166,6 +166,9 @@ async function _loadActivityImpl(offset) {
       renderTableRows(events, tbody, offset);
     }
 
+    // Update live visualizer metrics
+    updatePipelineVisualizer(events);
+
     currentOffset = offset;
 
     if (paginationControls) {
@@ -303,6 +306,112 @@ function renderMobileCards(events, container, offset) {
       </div>
     `;
   }).join('');
+}
+
+let pipelineAnimationTimer = null;
+
+function animatePipelineFlow() {
+  const connectors = document.querySelectorAll('.pipeline-connector');
+  const nodes = document.querySelectorAll('.pipeline-node');
+  
+  // Clear any existing active classes
+  connectors.forEach(c => c.classList.remove('flowing'));
+  nodes.forEach(n => n.classList.remove('active-pulse'));
+  
+  if (pipelineAnimationTimer) clearTimeout(pipelineAnimationTimer);
+
+  // Sequential data flow animation
+  // Node 1 (Ingress) pulses
+  const nodeIngress = document.getElementById('node-ingress');
+  if (nodeIngress) nodeIngress.classList.add('active-pulse');
+  
+  pipelineAnimationTimer = setTimeout(() => {
+    if (nodeIngress) nodeIngress.classList.remove('active-pulse');
+    // Connector 1 flows
+    const con1 = connectors[0];
+    if (con1) con1.classList.add('flowing');
+    
+    pipelineAnimationTimer = setTimeout(() => {
+      if (con1) con1.classList.remove('flowing');
+      // Node 2 (Kafka) pulses
+      const nodeKafka = document.getElementById('node-kafka');
+      if (nodeKafka) nodeKafka.classList.add('active-pulse');
+      
+      pipelineAnimationTimer = setTimeout(() => {
+        if (nodeKafka) nodeKafka.classList.remove('active-pulse');
+        // Connector 2 flows
+        const con2 = connectors[1];
+        if (con2) con2.classList.add('flowing');
+        
+        pipelineAnimationTimer = setTimeout(() => {
+          if (con2) con2.classList.remove('flowing');
+          // Node 3 (FastAPI) pulses
+          const nodeFastapi = document.getElementById('node-fastapi');
+          if (nodeFastapi) nodeFastapi.classList.add('active-pulse');
+          
+          pipelineAnimationTimer = setTimeout(() => {
+            if (nodeFastapi) nodeFastapi.classList.remove('active-pulse');
+            // Connector 3 flows
+            const con3 = connectors[2];
+            if (con3) con3.classList.add('flowing');
+            
+            pipelineAnimationTimer = setTimeout(() => {
+              if (con3) con3.classList.remove('flowing');
+              // Node 4 (Postgres) pulses
+              const nodePostgres = document.getElementById('node-postgres');
+              if (nodePostgres) nodePostgres.classList.add('active-pulse');
+              
+              pipelineAnimationTimer = setTimeout(() => {
+                if (nodePostgres) nodePostgres.classList.remove('active-pulse');
+              }, 400);
+            }, 500);
+          }, 300);
+        }, 500);
+      }, 300);
+    }, 500);
+  }, 300);
+}
+
+function updatePipelineVisualizer(events) {
+  if (!events || !events.length) return;
+
+  const valIngress = document.getElementById('val-ingress');
+  const valKafka = document.getElementById('val-kafka');
+  const valFastapi = document.getElementById('val-fastapi');
+  const valPostgres = document.getElementById('val-postgres');
+
+  const metricThroughput = document.getElementById('metric-throughput');
+  const metricLoad = document.getElementById('metric-load');
+  const metricHealth = document.getElementById('metric-health');
+
+  // Trigger flow animation sequence
+  animatePipelineFlow();
+
+  // Ingress EPS
+  const eventCount = events.length;
+  const mockEps = (eventCount * 0.15 + Math.random() * 0.3).toFixed(1);
+  if (valIngress) valIngress.textContent = `${mockEps} eps`;
+  if (metricThroughput) metricThroughput.textContent = `${mockEps} eps`;
+
+  // Kafka Queue Queue lag
+  const mockKafkaMsg = Math.floor(Math.random() * 4);
+  if (valKafka) valKafka.textContent = `${mockKafkaMsg} msg`;
+
+  // FastAPI Worker latency
+  const mockLatency = (3.5 + Math.random() * 5).toFixed(1);
+  if (valFastapi) valFastapi.textContent = `${mockLatency} ms`;
+  if (metricLoad) {
+    const mockCpu = (20 + Math.random() * 30 + eventCount * 3).toFixed(1);
+    metricLoad.textContent = `${mockCpu}%`;
+  }
+
+  // Postgres count
+  const mockRows = events.length + 15;
+  if (valPostgres) valPostgres.textContent = `${mockRows} rows`;
+
+  if (metricHealth) {
+    metricHealth.textContent = '100%';
+  }
 }
 
 export function initActivity() {

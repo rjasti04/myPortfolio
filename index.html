@@ -190,7 +190,7 @@
         <picture>
           <source srcset="profile-pic-160.webp 160w, profile-pic-360.webp 360w" sizes="42px" type="image/webp" />
           <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w" sizes="42px"
-            alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="725" height="1024" />
+            alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="40" height="40" />
         </picture>
         <div class="logo-text">RJ</div>
       </a>
@@ -340,7 +340,7 @@
                 aria-label="Open AI Chat" data-spring-hover>Ask AI <i class="fas fa-robot"></i></a>
             </div>
           </div>
-          <aside class="terminal-panel" aria-label="Now Building panel">
+          <aside class="terminal-panel no-swipe" aria-label="Now Building panel">
             <div class="terminal-topbar">
               <span class="terminal-dot dot-red" aria-hidden="true"></span>
               <span class="terminal-dot dot-amber" aria-hidden="true"></span>
@@ -410,7 +410,7 @@
 
         <div class="skills-section">
           <h2 class="section-title skills-title">Technical Skills</h2>
-          <div class="skills-carousel" data-skills-carousel>
+          <div class="skills-carousel no-swipe" data-skills-carousel>
             <div class="skills-grid">
               <div class="skill-group reveal">
                 <h3 class="skill-group-label"><i class="fas fa-network-wired"></i> Data Processing</h3>
@@ -681,6 +681,70 @@
       <section id="activity">
         <h2 class="section-title">Session Activity</h2>
         <p class="section-intro">Live view of current session events from FastAPI heartbeat session.</p>
+        <div class="pipeline-monitor" id="pipeline-monitor">
+          <div class="pipeline-card">
+            <div class="pipeline-card-header">
+              <h3 class="pipeline-card-title"><i class="fas fa-network-wired"></i> Live ETL Pipeline Stream</h3>
+              <span class="pipeline-status-badge"><span class="pulse-dot"></span> Streaming</span>
+            </div>
+            <div class="pipeline-flow">
+              <div class="pipeline-node" id="node-ingress">
+                <div class="node-icon"><i class="fas fa-mouse-pointer"></i></div>
+                <div class="node-details">
+                  <span class="node-name">Ingress</span>
+                  <span class="node-value" id="val-ingress">0 eps</span>
+                </div>
+              </div>
+              <div class="pipeline-connector">
+                <div class="connector-line"></div>
+                <div class="connector-pulse"></div>
+              </div>
+              <div class="pipeline-node" id="node-kafka">
+                <div class="node-icon"><i class="fas fa-exchange-alt"></i></div>
+                <div class="node-details">
+                  <span class="node-name">Kafka Queue</span>
+                  <span class="node-value" id="val-kafka">0 msg</span>
+                </div>
+              </div>
+              <div class="pipeline-connector">
+                <div class="connector-line"></div>
+                <div class="connector-pulse"></div>
+              </div>
+              <div class="pipeline-node" id="node-fastapi">
+                <div class="node-icon"><i class="fas fa-server"></i></div>
+                <div class="node-details">
+                  <span class="node-name">FastAPI Worker</span>
+                  <span class="node-value" id="val-fastapi">0 ms</span>
+                </div>
+              </div>
+              <div class="pipeline-connector">
+                <div class="connector-line"></div>
+                <div class="connector-pulse"></div>
+              </div>
+              <div class="pipeline-node" id="node-postgres">
+                <div class="node-icon"><i class="fas fa-database"></i></div>
+                <div class="node-details">
+                  <span class="node-name">PostgreSQL</span>
+                  <span class="node-value" id="val-postgres">0 rows</span>
+                </div>
+              </div>
+            </div>
+            <div class="pipeline-stats">
+              <div class="pipeline-stat-box">
+                <span class="pipeline-stat-label">Throughput</span>
+                <span class="pipeline-stat-val" id="metric-throughput">0.0 eps</span>
+              </div>
+              <div class="pipeline-stat-box">
+                <span class="pipeline-stat-label">Worker Load</span>
+                <span class="pipeline-stat-val" id="metric-load">0.0%</span>
+              </div>
+              <div class="pipeline-stat-box">
+                <span class="pipeline-stat-label">Pipeline Health</span>
+                <span class="pipeline-stat-val" id="metric-health">100%</span>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="activity-controls">
           <div class="activity-pills-group">
             <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
@@ -886,12 +950,23 @@
               <span class="chat-status">Online</span>
             </div>
           </div>
-          <button type="button" class="chat-close-btn" id="chat-close-btn" aria-label="Close chat">
-            <i class="fas fa-times"></i>
-          </button>
+          <div class="chat-header-actions">
+            <button type="button" class="chat-header-btn" id="widget-new-chat-btn" title="New Chat" aria-label="New chat">
+              <i class="fas fa-plus"></i>
+            </button>
+            <button type="button" class="chat-close-btn" id="chat-close-btn" aria-label="Close chat">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
         </div>
         <div class="chat-messages" id="chat-messages" aria-live="polite">
           <!-- Messages will be injected here -->
+        </div>
+        <div class="chat-suggestion-chips" id="widget-suggestion-chips">
+          <button type="button" class="widget-chip" data-prompt="What is Rajeev's technical stack?">Stack</button>
+          <button type="button" class="widget-chip" data-prompt="Show me Rajeev's core projects.">Projects</button>
+          <button type="button" class="widget-chip" data-prompt="Tell me about Rajeev's experience.">Experience</button>
+          <button type="button" class="widget-chip" data-prompt="How can I contact Rajeev?">Contact</button>
         </div>
         <form class="chat-input-area" id="chat-form">
           <input type="text" id="chat-input" class="chat-input" placeholder="Type your message..." autocomplete="off"
