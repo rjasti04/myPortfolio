@@ -324,7 +324,17 @@ class BodySizeLimitMiddleware:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Start background Kafka consumer and flusher tasks
+    from server.services.kafka_stream import run_kafka_consumer, periodic_flusher
+    consumer_task = asyncio.create_task(run_kafka_consumer())
+    flusher_task = asyncio.create_task(periodic_flusher())
+    
     yield
+    
+    # Clean up background tasks on shutdown
+    consumer_task.cancel()
+    flusher_task.cancel()
+    await asyncio.gather(consumer_task, flusher_task, return_exceptions=True)
     await engine.dispose()
 
 app = FastAPI(title="Activity Tracker API", version="1.0.0", lifespan=lifespan)
@@ -553,6 +563,16 @@ async def create_event(payload: EventCreate, request: Request, db: AsyncSession 
     await db.commit()
     await db.refresh(event)
 
+    # Broadcast event to any active SSE streams
+    from server.services.kafka_stream import broadcast_event
+    asyncio.create_task(broadcast_event(payload.session_id, {
+        "session_id": payload.session_id,
+        "event_type": payload.event_type,
+        "page_path": payload.page_path,
+        "event_data": payload.event_data,
+        "created_at": event.created_at
+    }))
+
     return {"event_id": event.event_id, "created_at": event.created_at}
 
 
@@ -583,12 +603,62 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
     try:
         db.add_all(events)
         await db.commit()
+        
+        # Broadcast all inserted events to active streams
+        from server.services.kafka_stream import broadcast_event
+        for e in events:
+            asyncio.create_task(broadcast_event(e.session_id, {
+                "session_id": e.session_id,
+                "event_type": e.event_type,
+                "page_path": e.page_path,
+                "event_data": e.event_data,
+                "created_at": e.created_at or _now()
+            }))
     except Exception as e:
         await db.rollback()
         logger.exception("Bulk event insert failed")
         raise HTTPException(422, "Failed to insert events (possibly invalid session_id)")
 
     return {"inserted": len(events)}
+
+
+@app.get(
+    "/sessions/{session_id}/stream",
+    summary="Stream live activity events for a session via SSE",
+)
+async def stream_session_events(session_id: UUID, request: Request):
+    """
+    Exposes an SSE stream endpoint that relays real-time event updates to the client dashboard.
+    Registers a stream queue for the session_id.
+    """
+    from server.services.kafka_stream import register_stream, unregister_stream
+    
+    client_queue = await register_stream(session_id)
+    
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                
+                try:
+                    event_dict = await asyncio.wait_for(client_queue.get(), timeout=2.0)
+                    yield f"data: {json.dumps(event_dict)}\n\n"
+                except asyncio.TimeoutError:
+                    # Keep-alive heartbeat comment
+                    yield ": keep-alive\n\n"
+        finally:
+            unregister_stream(session_id, client_queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        }
+    )
 
 
 @app.get(

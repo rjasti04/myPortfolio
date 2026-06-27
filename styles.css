@@ -5094,14 +5094,24 @@ nav a:hover .nav-shortcut {
 
   .activity-pills-group {
     width: 100%;
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
   }
 
   .activity-refresh {
+    flex: 1;
     justify-content: center;
     padding: 10px 16px;
     font-size: var(--text-body-xs);
+  }
+
+  .session-id-pill {
+    flex: 1.2;
+    justify-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .activity-table-container {
@@ -5124,42 +5134,127 @@ nav a:hover .nav-shortcut {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 16px;
+    padding: 14px 16px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
 
-  .activity-card-row {
+  .activity-card-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
-    font-size: var(--text-body-xs);
+    align-items: center;
+    border-bottom: 1px dashed var(--border);
+    padding-bottom: 10px;
+    margin-bottom: 2px;
   }
 
-  .activity-card-label {
+  .activity-card-time {
+    font-size: 11px;
     color: var(--muted);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+
+  .activity-card-time i {
+    color: var(--accent-fill);
+    margin-right: 4px;
+  }
+
+  .activity-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .activity-card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .activity-card-date {
     font-size: 11px;
-    min-width: 60px;
+    color: var(--muted);
+    font-weight: 600;
   }
 
-  .activity-card-value {
-    color: var(--text);
-    flex: 1;
-    text-align: right;
-    word-break: break-word;
+  .activity-card-date i {
+    color: var(--accent-fill);
+    margin-right: 4px;
   }
 
-  .activity-card-value code {
+  .activity-card-path {
+    font-size: 11px;
+  }
+
+  .activity-card-path code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 11px;
     background: var(--accent-soft);
+    color: var(--accent-text);
     padding: 2px 6px;
     border-radius: 4px;
+  }
+
+  .activity-card-data-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .activity-mobile-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--skill-bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--motion-base) var(--ease-standard);
+  }
+
+  .activity-mobile-toggle:hover,
+  .activity-mobile-toggle:focus-visible {
+    border-color: var(--accent-fill);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+
+  .activity-mobile-toggle i {
+    font-size: 10px;
+    transition: transform var(--motion-base) var(--ease-standard);
+  }
+
+  .activity-mobile-toggle[aria-expanded="true"] i {
+    transform: rotate(180deg);
+  }
+
+  .activity-mobile-data-panel {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .activity-mobile-data-panel .activity-data-panel {
+    border: none;
+    border-radius: 0;
+  }
+
+  .activity-card-data-empty {
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+    text-align: center;
+    display: block;
+    padding: 8px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
   }
 
   .activity-pagination-wrapper {
@@ -5317,7 +5412,7 @@ body.dark-theme .pipeline-status-badge {
   font-size: 13px;
   font-weight: 800;
   color: var(--text);
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .pipeline-connector {
@@ -5405,7 +5500,7 @@ body.dark-theme .pipeline-stat-box {
   font-size: 18px;
   font-weight: 800;
   color: var(--text);
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 /* Responsive Visualizer */
@@ -5466,10 +5561,107 @@ body.dark-theme .pipeline-stat-box {
   .pipeline-card {
     padding: 16px;
   }
+
+  /* Compact Timeline Visualizer Flow */
+  .pipeline-flow {
+    flex-direction: column;
+    gap: 0;
+    align-items: stretch;
+    position: relative;
+    padding-left: 20px;
+    margin: 8px 0;
+  }
+
+  .pipeline-flow::before {
+    content: '';
+    position: absolute;
+    top: 16px;
+    bottom: 16px;
+    left: 36px; /* Centered with 32px node-icon + 20px padding-left */
+    width: 2px;
+    background: var(--border);
+    z-index: 1;
+  }
+
+  .pipeline-flow .pipeline-connector {
+    display: none;
+  }
+
+  .pipeline-node {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: transparent;
+    border: none;
+    padding: 12px 0;
+    width: 100%;
+    box-shadow: none !important;
+    transform: none !important;
+    z-index: 2;
+  }
+
+  .pipeline-node.active-pulse .node-icon {
+    box-shadow: 0 0 12px var(--accent-fill);
+    background: var(--accent-fill);
+    color: var(--on-accent);
+  }
+
+  .node-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+    border-radius: 50%;
+    z-index: 2;
+    border: 2px solid var(--card-bg);
+  }
+
+  .node-details {
+    flex: 1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  .pipeline-node:last-child .node-details {
+    border-bottom: none;
+  }
+
+  .node-name {
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  .node-value {
+    font-size: 12px;
+    color: var(--accent-text);
+    background: var(--accent-soft);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+  }
   
   .pipeline-stats {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+
+  .pipeline-stat-box {
+    padding: 6px 4px;
+    border-radius: 8px;
+    gap: 2px;
+  }
+
+  .pipeline-stat-label {
+    font-size: 9px;
+    letter-spacing: 0.1px;
+  }
+
+  .pipeline-stat-val {
+    font-size: 13px;
   }
 }
 
@@ -6440,11 +6632,26 @@ body.dark-theme .mobile-bottom-nav {
     border-radius: 999px;
   }
 
+
   .hero-buttons .btn i {
     width: 30px;
     height: 30px;
     margin-left: 0;
   }
+}
+
+/* ── Live ETL Pulse Dot Colors ── */
+.pulse-dot.active-green {
+  background-color: var(--color-success-fill, #10b981) !important;
+  box-shadow: 0 0 8px var(--color-success-fill, #10b981);
+}
+.pulse-dot.active-orange {
+  background-color: var(--color-warning-fill, #f59e0b) !important;
+  box-shadow: 0 0 8px var(--color-warning-fill, #f59e0b);
+}
+.pulse-dot.active-red {
+  background-color: var(--color-error-fill, #ef4444) !important;
+  box-shadow: 0 0 8px var(--color-error-fill, #ef4444);
 }
 
 

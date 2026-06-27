@@ -51,6 +51,8 @@ function setCopyButtonState(button, state) {
 let currentOffset = 0;
 let activityRefreshTimer = null;
 let resizeController = null;
+let activityStreamSource = null;
+let loadedEvents = [];
 
 export async function loadActivity(offset = currentOffset) {
   // Debounce rapid refresh calls
@@ -159,15 +161,17 @@ async function _loadActivityImpl(offset) {
       return;
     }
 
+    loadedEvents = events;
+
     // Render mobile cards or table rows based on viewport
     if (isMobile) {
-      renderMobileCards(events, tableContainer, offset);
+      renderMobileCards(loadedEvents, tableContainer, offset);
     } else {
-      renderTableRows(events, tbody, offset);
+      renderTableRows(loadedEvents, tbody, offset);
     }
 
     // Update live visualizer metrics
-    updatePipelineVisualizer(events);
+    updatePipelineVisualizer(loadedEvents);
 
     currentOffset = offset;
 
@@ -279,29 +283,45 @@ function renderMobileCards(events, container, offset) {
     const dateStr = escapeHTML(d.toLocaleDateString());
     const timeStr = escapeHTML(d.toLocaleTimeString());
     const hasData = Boolean(e.event_data);
-    const dataPreview = hasData ? escapeHTML(JSON.stringify(e.event_data).substring(0, 50) + '...') : '-';
-    
+    const encodedData = hasData ? encodeBase64Text(JSON.stringify(e.event_data)) : "";
+    const dataJson = hasData ? escapeHTML(formatDecodedJson(encodedData)) : "";
+    const detailPanelId = `activity-mobile-data-${offset}-${i}`;
+
     return `
       <div class="activity-card" style="animation: activityRowFade var(--motion-medium) var(--ease-enter) both; animation-delay: ${i * 50}ms;">
-        <div class="activity-card-row">
-          <span class="activity-card-label">Date</span>
-          <span class="activity-card-value">${dateStr}</span>
+        <div class="activity-card-header">
+          <span class="activity-type-badge">${escapeHTML(e.event_type)}</span>
+          <span class="activity-card-time"><i class="far fa-clock"></i> ${timeStr}</span>
         </div>
-        <div class="activity-card-row">
-          <span class="activity-card-label">Time</span>
-          <span class="activity-card-value">${timeStr}</span>
-        </div>
-        <div class="activity-card-row">
-          <span class="activity-card-label">Type</span>
-          <span class="activity-card-value"><span class="activity-type-badge">${escapeHTML(e.event_type)}</span></span>
-        </div>
-        <div class="activity-card-row">
-          <span class="activity-card-label">Path</span>
-          <span class="activity-card-value"><code>${escapeHTML(e.page_path || '-')}</code></span>
-        </div>
-        <div class="activity-card-row">
-          <span class="activity-card-label">Data</span>
-          <span class="activity-card-value"><code>${dataPreview}</code></span>
+        <div class="activity-card-body">
+          <div class="activity-card-meta">
+            <span class="activity-card-date"><i class="far fa-calendar"></i> ${dateStr}</span>
+            <span class="activity-card-path"><code>${escapeHTML(e.page_path || '-')}</code></span>
+          </div>
+          ${hasData ? `
+            <div class="activity-card-data-section">
+              <button class="activity-mobile-toggle" type="button" aria-expanded="false" aria-controls="${detailPanelId}">
+                <span>View Event Data</span>
+                <i class="fas fa-chevron-down" aria-hidden="true"></i>
+              </button>
+              <div id="${detailPanelId}" class="activity-mobile-data-panel" hidden>
+                <div class="activity-data-panel">
+                  <div class="activity-data-toolbar">
+                    <span class="activity-data-label">Decoded JSON</span>
+                    <button class="activity-copy-json" type="button" aria-label="Copy activity JSON">
+                      <i class="fas fa-copy" aria-hidden="true"></i>
+                      <span class="activity-copy-label">Copy</span>
+                    </button>
+                  </div>
+                  <pre class="activity-data-pre">${dataJson}</pre>
+                </div>
+              </div>
+            </div>
+          ` : `
+            <div class="activity-card-data-section empty">
+              <span class="activity-card-data-empty">No dynamic data payload</span>
+            </div>
+          `}
         </div>
       </div>
     `;
@@ -415,13 +435,13 @@ function updatePipelineVisualizer(events) {
 }
 
 export function initActivity() {
-  const tbody = document.getElementById("activity-tbody");
-  if (tbody) {
-    tbody.addEventListener("click", async (event) => {
+  const tableContainer = document.querySelector(".activity-table-container");
+  if (tableContainer) {
+    tableContainer.addEventListener("click", async (event) => {
       const copyButton = event.target.closest(".activity-copy-json");
       if (copyButton) {
-        const detailRow = copyButton.closest(".activity-data-row");
-        const jsonBlock = detailRow?.querySelector(".activity-data-pre");
+        const panel = copyButton.closest(".activity-data-panel");
+        const jsonBlock = panel?.querySelector(".activity-data-pre");
         if (!jsonBlock) return;
 
         try {
@@ -434,7 +454,7 @@ export function initActivity() {
         return;
       }
 
-      const button = event.target.closest(".activity-data-toggle");
+      const button = event.target.closest(".activity-data-toggle") || event.target.closest(".activity-mobile-toggle");
       if (!button) return;
 
       const detailRowId = button.getAttribute("aria-controls");
@@ -479,6 +499,9 @@ export function initActivity() {
       if (isActive && !wasActive) {
         currentOffset = 0;
         loadActivity(0);
+        startActivityStream();
+      } else if (!isActive && wasActive) {
+        stopActivityStream();
       }
       wasActive = isActive;
     });
@@ -487,6 +510,7 @@ export function initActivity() {
     // Initial load if starting on the activity page
     if (wasActive) {
       loadActivity();
+      startActivityStream();
     }
   }
 
@@ -513,3 +537,101 @@ export function initActivity() {
     }, RESIZE_DEBOUNCE_MS);
   }, { signal: resizeController.signal, passive: true });
 }
+
+// ── Real-Time Streaming Controllers ──
+
+function startActivityStream() {
+  if (activityStreamSource) {
+    return; // Stream already active
+  }
+
+  const sessionId = sessionStorage.getItem("rj_session_id");
+  if (!sessionId || !isApiConfigured()) {
+    updateStreamingStatus("disconnected");
+    return;
+  }
+
+  const streamUrl = `${API_BASE}/sessions/${sessionId}/stream`;
+  console.log("Connecting to activity stream:", streamUrl);
+  updateStreamingStatus("connecting");
+
+  activityStreamSource = new EventSource(streamUrl);
+
+  activityStreamSource.onopen = () => {
+    console.log("Activity stream connection established");
+    updateStreamingStatus("connected");
+  };
+
+  activityStreamSource.onmessage = (event) => {
+    try {
+      const eventData = JSON.parse(event.data);
+      handleIncomingStreamEvent(eventData);
+    } catch (err) {
+      console.error("Error parsing activity stream data:", err);
+    }
+  };
+
+  activityStreamSource.onerror = (err) => {
+    console.warn("Activity stream connection lost, reconnecting...", err);
+    updateStreamingStatus("connecting");
+  };
+}
+
+function stopActivityStream() {
+  if (activityStreamSource) {
+    console.log("Closing activity stream connection");
+    activityStreamSource.close();
+    activityStreamSource = null;
+  }
+  updateStreamingStatus("disconnected");
+}
+
+function updateStreamingStatus(status) {
+  const statusBadge = document.querySelector(".pipeline-status-badge");
+  if (!statusBadge) return;
+
+  if (status === "connected") {
+    statusBadge.className = "pipeline-status-badge connected";
+    statusBadge.innerHTML = `<span class="pulse-dot active-green"></span> Streaming`;
+  } else if (status === "connecting") {
+    statusBadge.className = "pipeline-status-badge connecting";
+    statusBadge.innerHTML = `<span class="pulse-dot active-orange"></span> Connecting`;
+  } else {
+    statusBadge.className = "pipeline-status-badge disconnected";
+    statusBadge.innerHTML = `<span class="pulse-dot active-red"></span> Offline`;
+  }
+}
+
+function handleIncomingStreamEvent(eventData) {
+  const currentSessionId = sessionStorage.getItem("rj_session_id");
+  if (!currentSessionId || eventData.session_id !== currentSessionId) {
+    return;
+  }
+
+  // Prepend event data only if viewing the first page of activity events
+  if (currentOffset === 0) {
+    // Avoid double-prepending if the event already got added
+    const exists = loadedEvents.some(e => e.event_id === eventData.event_id && eventData.event_id !== undefined);
+    if (!exists) {
+      loadedEvents.unshift(eventData);
+      if (loadedEvents.length > PAGE_SIZE) {
+        loadedEvents.pop();
+      }
+
+      const tbody = document.getElementById("activity-tbody");
+      const tableContainer = document.querySelector(".activity-table-container");
+      if (tbody && tableContainer) {
+        const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+        if (isMobile) {
+          renderMobileCards(loadedEvents, tableContainer, currentOffset);
+        } else {
+          renderTableRows(loadedEvents, tbody, currentOffset);
+        }
+      }
+    }
+  }
+
+  // Animate the pipeline flow visualizer and update dashboard metrics
+  updatePipelineVisualizer([eventData]);
+}
+
