@@ -9,7 +9,7 @@ export function triggerConfetti(options = {}) {
     particleCount = 150,
     spread = 70,
     origin = { x: 0.5, y: 0.5 },
-    colors = ['#0ea5e9', '#a855f7', '#10b981', '#f59e0b', '#ef4444']
+    colors = ['var(--accent-fill)', 'var(--secondary-fill)', 'var(--data-fill)']
   } = options;
 
   const canvas = document.createElement('canvas');
@@ -42,10 +42,27 @@ export function triggerConfetti(options = {}) {
       rotation: Math.random() * 360,
       rotationSpeed: (Math.random() - 0.5) * 10,
       size: 8 + Math.random() * 8,
-      color: colors[Math.floor(Math.random() * colors.length)],
+      colorIndex: Math.floor(Math.random() * colors.length),
       gravity: 0.3 + Math.random() * 0.2,
       friction: 0.98,
       opacity: 1
+    });
+  }
+
+  function getResolvedColors() {
+    const bodyStyles = getComputedStyle(document.body);
+    const rootStyles = getComputedStyle(document.documentElement);
+    return colors.map(color => {
+      if (typeof color === 'string' && color.startsWith('var(')) {
+        const match = color.match(/var\(([^)]+)\)/);
+        if (match) {
+          const varName = match[1].trim();
+          return bodyStyles.getPropertyValue(varName).trim() ||
+                 rootStyles.getPropertyValue(varName).trim() ||
+                 '#ef4444';
+        }
+      }
+      return color;
     });
   }
 
@@ -58,6 +75,8 @@ export function triggerConfetti(options = {}) {
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const currentColors = getResolvedColors();
 
     particles.forEach(p => {
       // Update physics
@@ -78,7 +97,7 @@ export function triggerConfetti(options = {}) {
       ctx.translate(p.x, p.y);
       ctx.rotate(p.rotation * Math.PI / 180);
       ctx.globalAlpha = p.opacity;
-      ctx.fillStyle = p.color;
+      ctx.fillStyle = currentColors[p.colorIndex] || currentColors[0] || '#ef4444';
       
       // Draw rectangle confetti
       ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size / 2);
@@ -104,7 +123,7 @@ export const confettiPresets = {
     particleCount: 100,
     spread: 60,
     origin: { x: 0.5, y: 0.5 },
-    colors: ['#10b981', '#34d399', '#6ee7b7']
+    colors: ['var(--accent-fill)', 'var(--secondary-fill)', 'var(--data-fill)']
   },
   
   fireworks: {
