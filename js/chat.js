@@ -78,50 +78,37 @@ export function initChat() {
   const aiTokenCounter = document.getElementById('ai-token-counter');
   const aiSidebarHistory = document.getElementById('ai-sidebar-history');
 
-  // Voice input support for mobile
+  // Voice input support for mobile & desktop
   // BUG FIX ROOT CAUSE: SpeechRecognition was using a shared singleton 'recognitionInstance'.
   // This caused both voice buttons to share/override the onresult callback, routing transcripts 
-  // to the wrong text inputs. We now instantiate a local SpeechRecognition inside addVoiceButton 
+  // to the wrong text inputs. We now instantiate a local SpeechRecognition inside each block
   // for separate lifecycle tracking.
   const initVoiceInput = () => {
     const aiPageMicBtn = document.getElementById('ai-page-mic-btn');
+    const chatMicBtn = document.getElementById('chat-mic-btn');
     const hasSpeechSupport = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
     
     if (!hasSpeechSupport) {
       if (aiPageMicBtn) {
         aiPageMicBtn.style.display = 'none';
       }
+      if (chatMicBtn) {
+        chatMicBtn.style.display = 'none';
+      }
       return;
     }
     
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    const addVoiceButton = (input, form) => {
-      if (!input || !form) return;
-      
+    if (chatMicBtn && chatInput) {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
       
-      const voiceBtn = document.createElement('button');
-      voiceBtn.type = 'button';
-      voiceBtn.className = 'voice-input-btn';
-      voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-      voiceBtn.title = 'Voice input';
-      voiceBtn.style.cssText = `
-        background: transparent;
-        border: none;
-        color: var(--accent-text);
-        cursor: pointer;
-        padding: 8px;
-        border-radius: 8px;
-        transition: background-color 0.2s ease;
-      `;
-      
       let isListening = false;
       
-      voiceBtn.addEventListener('click', () => {
+      chatMicBtn.addEventListener('click', () => {
         if (isListening) {
           recognition.stop();
           return;
@@ -129,38 +116,28 @@ export function initChat() {
         
         recognition.start();
         isListening = true;
-        voiceBtn.innerHTML = '<i class="fas fa-stop-circle"></i>';
-        voiceBtn.style.color = 'var(--color-error)';
+        chatMicBtn.innerHTML = '<i class="fas fa-stop-circle"></i>';
+        chatMicBtn.classList.add('listening');
       });
       
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        input.value = transcript;
-        input.dispatchEvent(new Event('input'));
-        input.focus();
+        chatInput.value = transcript;
+        chatInput.dispatchEvent(new Event('input'));
+        chatInput.focus();
       };
       
       recognition.onend = () => {
         isListening = false;
-        voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-        voiceBtn.style.color = '';
+        chatMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+        chatMicBtn.classList.remove('listening');
       };
       
       recognition.onerror = () => {
         isListening = false;
-        voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-        voiceBtn.style.color = '';
+        chatMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+        chatMicBtn.classList.remove('listening');
       };
-      
-      const actions = form.querySelector('.ai-input-actions') || form;
-      const sendBtn = form.querySelector('button[type="submit"]');
-      if (sendBtn && actions) {
-        actions.insertBefore(voiceBtn, sendBtn);
-      }
-    };
-    
-    if (chatInput && chatForm && window.innerWidth <= 768) {
-      addVoiceButton(chatInput, chatForm);
     }
 
     if (aiPageMicBtn && aiPageInput) {

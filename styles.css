@@ -4559,7 +4559,10 @@ section {
   border: 1px solid var(--control-border);
   background: var(--bg);
   color: var(--text);
-  font
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--motion-base) var(--ease-standard);
+}
 
 /* Update notification banner */
 .update-banner {
@@ -4591,31 +4594,37 @@ section {
     opacity: 1;
     transform: translateY(0);
   }
-}-family: inherit;
-  outline: none;
-  transition: border-color var(--motion-base) var(--ease-standard);
 }
 
 .chat-input:focus {
   border-color: var(--accent-fill);
 }
 
-.chat-send-btn {
+.chat-send-btn,
+.chat-mic-btn {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   background: var(--accent-fill);
-  color: var(--on-accent);
+  color: var(--on-accent) !important;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color var(--motion-base) var(--ease-standard);
+  transition: background-color var(--motion-base) var(--ease-standard),
+              transform var(--motion-base) var(--ease-standard);
+  flex-shrink: 0;
 }
 
-.chat-send-btn:hover {
+.chat-send-btn:hover,
+.chat-mic-btn:hover {
   background: var(--accent-hover);
+}
+
+.chat-mic-btn.listening {
+  background: var(--color-error, #ff4d4d) !important;
+  color: #fff !important;
 }
 
 .chat-send-btn:disabled {
