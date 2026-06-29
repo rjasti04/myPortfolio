@@ -397,20 +397,6 @@ export function initChat() {
     });
   });
 
-  // Widget suggested prompt quick actions
-  const widgetSuggestedChips = document.querySelectorAll('.widget-chip');
-  widgetSuggestedChips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      if (isGenerating) return;
-      const prompt = chip.getAttribute('data-prompt');
-      if (!prompt) return;
-      const chatInput = document.getElementById('chat-input');
-      if (chatInput) {
-        chatInput.value = '';
-      }
-      handleChatSubmit(prompt);
-    });
-  });
 
   // Widget Header New Chat Action
   const widgetNewChatBtn = document.getElementById('widget-new-chat-btn');
@@ -536,17 +522,6 @@ export function initChat() {
     return { showCopy };
   }
 
-  function updateSuggestionChipsVisibility() {
-    const chipsContainer = document.getElementById('widget-suggestion-chips');
-    if (!chipsContainer) return;
-    const session = getActiveSession();
-    if (session && session.messages.length === 0) {
-      chipsContainer.classList.remove('hidden');
-    } else {
-      chipsContainer.classList.add('hidden');
-    }
-  }
-
   function restoreActiveSession() {
     if (messagesContainer) messagesContainer.innerHTML = '';
     if (aiPageMessages) aiPageMessages.innerHTML = '';
@@ -560,7 +535,6 @@ export function initChat() {
       // Temporarily disable auto-scroll to avoid jumping while rendering
       session.messages.forEach(msg => appendMessage(msg.text, msg.sender, { save: false, showCopy: true }));
     }
-    updateSuggestionChipsVisibility();
   }
 
   // Auto-resize textarea
@@ -757,8 +731,6 @@ export function initChat() {
       return;
     }
 
-    const chipsContainer = document.getElementById('widget-suggestion-chips');
-    if (chipsContainer) chipsContainer.classList.add('hidden');
 
     appendMessage(text, 'user', { save: true, showCopy: true });
     setInputState(true);

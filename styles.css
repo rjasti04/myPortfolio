@@ -4401,64 +4401,6 @@ section {
   color: var(--accent-text);
 }
 
-.chat-suggestion-chips {
-  display: flex;
-  gap: 8px;
-  padding: 10px 15px;
-  overflow-x: auto;
-  white-space: nowrap;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  border-top: 1px solid var(--border);
-  background: hsl(0, 0%, 0%, 0.005);
-  transition: opacity var(--motion-base) var(--ease-standard), max-height var(--motion-base) var(--ease-standard), padding var(--motion-base) var(--ease-standard);
-  max-height: 50px;
-}
-
-body.dark-theme .chat-suggestion-chips {
-  background: hsl(0, 0%, 100%, 0.005);
-}
-
-.chat-suggestion-chips.hidden {
-  opacity: 0;
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-top: none;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.chat-suggestion-chips::-webkit-scrollbar {
-  display: none;
-}
-
-.widget-chip {
-  background: var(--skill-bg);
-  border: 1px solid var(--border);
-  color: var(--accent-text);
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background-color var(--motion-base) var(--ease-standard),
-    border-color var(--motion-base) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard);
-  font-family: inherit;
-  flex-shrink: 0;
-}
-
-.widget-chip:hover {
-  border-color: var(--accent-fill);
-  background: var(--accent-soft);
-  transform: translateY(-1px);
-}
-
-.widget-chip:active {
-  transform: translateY(0);
-}
 
 .chat-messages {
   flex: 1;
