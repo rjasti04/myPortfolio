@@ -6165,7 +6165,8 @@ body.dark-theme .ai-input-container {
   white-space: nowrap;
 }
 
-.ai-send-btn {
+.ai-send-btn,
+.ai-mic-btn {
   width: 36px;
   height: 36px;
   background: var(--accent-fill);
@@ -6184,14 +6185,21 @@ body.dark-theme .ai-input-container {
   flex-shrink: 0;
 }
 
-.ai-send-btn:hover:not(:disabled) {
+.ai-send-btn:hover:not(:disabled),
+.ai-mic-btn:hover:not(:disabled) {
   transform: scale(1.08);
   background: var(--accent-hover);
 }
 
-.ai-send-btn:disabled {
+.ai-send-btn:disabled,
+.ai-mic-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.ai-mic-btn.listening {
+  background: var(--color-error);
+  color: #fff;
 }
 
 .ai-disclaimer {

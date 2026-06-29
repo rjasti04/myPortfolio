@@ -84,7 +84,15 @@ export function initChat() {
   // to the wrong text inputs. We now instantiate a local SpeechRecognition inside addVoiceButton 
   // for separate lifecycle tracking.
   const initVoiceInput = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
+    const aiPageMicBtn = document.getElementById('ai-page-mic-btn');
+    const hasSpeechSupport = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+    
+    if (!hasSpeechSupport) {
+      if (aiPageMicBtn) {
+        aiPageMicBtn.style.display = 'none';
+      }
+      return;
+    }
     
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
@@ -151,12 +159,48 @@ export function initChat() {
       }
     };
     
-    if (aiPageInput && aiPageForm && window.innerWidth <= 768) {
-      addVoiceButton(aiPageInput, aiPageForm);
-    }
-    
     if (chatInput && chatForm && window.innerWidth <= 768) {
       addVoiceButton(chatInput, chatForm);
+    }
+
+    if (aiPageMicBtn && aiPageInput) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+      
+      let isListening = false;
+      
+      aiPageMicBtn.addEventListener('click', () => {
+        if (isListening) {
+          recognition.stop();
+          return;
+        }
+        
+        recognition.start();
+        isListening = true;
+        aiPageMicBtn.innerHTML = '<i class="fas fa-stop-circle"></i>';
+        aiPageMicBtn.classList.add('listening');
+      });
+      
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        aiPageInput.value = transcript;
+        aiPageInput.dispatchEvent(new Event('input'));
+        aiPageInput.focus();
+      };
+      
+      recognition.onend = () => {
+        isListening = false;
+        aiPageMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+        aiPageMicBtn.classList.remove('listening');
+      };
+      
+      recognition.onerror = () => {
+        isListening = false;
+        aiPageMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+        aiPageMicBtn.classList.remove('listening');
+      };
     }
   };
   
