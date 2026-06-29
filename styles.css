@@ -1905,8 +1905,7 @@ body.dark-theme #resume .item {
 @media (min-width: 641px) {
   .contact-text-content {
     height: 100%;
-    justify-content: space-between;
-    gap: 24px;
+    justify-content: flex-start;
   }
 }
 
