@@ -32,6 +32,23 @@ export function initAuthUI() {
     const pwStrengthBar = document.getElementById('pw-strength-bar');
     const pwStrengthText = document.getElementById('pw-strength-text');
 
+    // Helper to reset password visibility state
+    function resetPasswordVisibility() {
+        const toggleBtns = document.querySelectorAll('.password-toggle-btn');
+        toggleBtns.forEach(btn => {
+            const targetId = btn.getAttribute('data-toggle-target');
+            const input = document.getElementById(targetId);
+            if (input && input.type === 'text') {
+                input.type = 'password';
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas fa-eye';
+                }
+                btn.setAttribute('aria-label', 'Show password');
+            }
+        });
+    }
+
     // Show modal via custom event
     window.addEventListener('request-login-modal', () => {
         modal.classList.remove('hidden');
@@ -41,17 +58,20 @@ export function initAuthUI() {
     // Close modal
     closeBtn.addEventListener('click', () => {
         modal.classList.add('hidden');
+        resetPasswordVisibility();
     });
 
     // Close on click outside
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.classList.add('hidden');
+            resetPasswordVisibility();
         }
     });
 
     // Tab switching
     function switchTab(tabId) {
+        resetPasswordVisibility();
         tabs.forEach(t => t.classList.remove('active'));
         tabContents.forEach(c => c.classList.remove('active'));
 
@@ -93,6 +113,28 @@ export function initAuthUI() {
             switchTab('login');
         });
     }
+
+    // Setup Password Visibility Toggle
+    const passwordToggleBtns = document.querySelectorAll('.password-toggle-btn');
+    passwordToggleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-toggle-target');
+            const input = document.getElementById(targetId);
+            if (!input) return;
+
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+
+            // Toggle eye icon class
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+            }
+
+            // Update screen reader accessibility attributes
+            btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+        });
+    });
 
     // Real-time Password Validation for Registration
     function updatePasswordValidation() {

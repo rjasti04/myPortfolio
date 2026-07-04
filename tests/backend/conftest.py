@@ -5,11 +5,16 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool
 
 from server.main import app
+import os
 from server.db.database import Base, get_db
 
-DATABASE_URL = "postgresql+asyncpg://jules:jules@localhost:5432/rjwebapp"
+DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
-engine = create_async_engine(DATABASE_URL, echo=False, poolclass=NullPool)
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_async_engine(DATABASE_URL, echo=False)
+else:
+    engine = create_async_engine(DATABASE_URL, echo=False, poolclass=NullPool)
+
 TestingSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,

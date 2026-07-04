@@ -22,7 +22,7 @@
 }
 
 .auth-modal-content {
-  background-color: var(--surface-bg, #1e1e2e);
+  background-color: var(--card-bg, #1e1e2e);
   border-radius: 12px;
   width: 90%;
   max-width: 400px;
@@ -31,7 +31,8 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   transform: translateY(0);
   transition: transform var(--motion-medium) cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  border: 1px solid var(--border-color, #3a3b4a);
+  border: 1px solid var(--border, #3a3b4a);
+  color: var(--text, #cdd6f4);
 }
 
 .auth-modal-overlay.hidden .auth-modal-content {
@@ -44,7 +45,7 @@
   right: 1rem;
   background: transparent;
   border: none;
-  color: var(--text-color, #cdd6f4);
+  color: var(--text, #cdd6f4);
   font-size: 1.25rem;
   cursor: pointer;
   padding: 0.5rem;
@@ -56,8 +57,8 @@
 }
 
 .auth-modal-close:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: var(--accent-color, #89b4fa);
+  background-color: var(--accent-soft, rgba(255, 255, 255, 0.1));
+  color: var(--accent-fill, #89b4fa);
 }
 
 .auth-modal-tabs {
@@ -72,7 +73,7 @@
   background: transparent;
   border: none;
   padding: 0.75rem 0;
-  color: var(--text-muted, #a6adc8);
+  color: var(--muted, #a6adc8);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -81,11 +82,11 @@
 }
 
 .auth-tab:hover {
-  color: var(--text-color, #cdd6f4);
+  color: var(--text, #cdd6f4);
 }
 
 .auth-tab.active {
-  color: var(--accent-color, #89b4fa);
+  color: var(--accent-fill, #89b4fa);
 }
 
 .auth-tab.active::after {
@@ -95,7 +96,7 @@
   left: 0;
   width: 100%;
   height: 2px;
-  background-color: var(--accent-color, #89b4fa);
+  background-color: var(--accent-fill, #89b4fa);
 }
 
 .auth-tab-content {
@@ -122,13 +123,13 @@
   margin-top: 0;
   margin-bottom: 0.5rem;
   font-size: 1.5rem;
-  color: var(--text-color, #cdd6f4);
+  color: var(--text, #cdd6f4);
 }
 
 .auth-modal-subtitle {
   margin-top: 0;
   margin-bottom: 1.5rem;
-  color: var(--text-muted, #a6adc8);
+  color: var(--muted, #a6adc8);
   font-size: 0.9rem;
 }
 
@@ -155,7 +156,7 @@
 }
 
 .auth-error {
-  color: var(--error-color, #f38ba8);
+  color: var(--color-error, #f38ba8);
   font-size: 0.85rem;
   min-height: 1.2rem;
   margin-top: -0.5rem;
@@ -183,9 +184,9 @@
   cursor: pointer;
   padding: 0.3rem 0.8rem;
   border-radius: 20px;
-  background-color: rgba(137, 180, 250, 0.1);
+  background-color: var(--accent-soft, rgba(137, 180, 250, 0.1));
   border: 1px solid transparent;
-  color: var(--text-color, #cdd6f4);
+  color: var(--text, #cdd6f4);
   transition: border-color var(--motion-base) var(--ease-standard), background-color var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard);
 }
 
@@ -211,8 +212,8 @@
   top: 100%;
   right: 0;
   margin-top: 0.5rem;
-  background-color: var(--surface-bg, #1e1e2e);
-  border: 1px solid var(--border-color, #3a3b4a);
+  background-color: var(--card-bg, #1e1e2e);
+  border: 1px solid var(--border, #3a3b4a);
   border-radius: 8px;
   min-width: 150px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -237,7 +238,7 @@
   padding: 0.5rem 1rem;
   background: transparent;
   border: none;
-  color: var(--text-color, #cdd6f4);
+  color: var(--text, #cdd6f4);
   cursor: pointer;
   font-size: 0.9rem;
   transition: background-color 0.2s;
@@ -245,7 +246,7 @@
 
 .nav-dropdown-item:hover {
   background-color: rgba(255, 255, 255, 0.05);
-  color: var(--accent-color, #89b4fa);
+  color: var(--accent-fill, #89b4fa);
 }
 
 /* --- Auth Modal Enhancement Styles --- */
@@ -264,8 +265,8 @@
   width: 100%;
   min-height: 52px;
   padding: 24px 40px 8px 14px;
-  background-color: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+  background-color: var(--bg, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--control-border, rgba(255, 255, 255, 0.15));
   border-radius: 8px;
   color: var(--text, #cdd6f4);
   font-size: 0.95rem;
@@ -290,7 +291,7 @@
     color var(--motion-base, 180ms) var(--ease-standard), 
     transform var(--motion-base, 180ms) var(--ease-enter);
   pointer-events: none;
-  color: var(--text-muted, #a6adc8);
+  color: var(--muted, #a6adc8);
   font-size: var(--text-body-sm, 14px);
   margin: 0;
   max-width: calc(100% - 56px);
@@ -316,7 +317,7 @@
 
 .forgot-password-link {
   font-size: 0.8rem;
-  color: var(--text-muted, #a6adc8);
+  color: var(--muted, #a6adc8);
   text-decoration: none;
   transition: color var(--motion-base, 180ms) var(--ease-standard);
   font-weight: 500;
@@ -335,7 +336,7 @@
 .back-to-login-btn {
   background: transparent;
   border: none;
-  color: var(--text-muted, #a6adc8);
+  color: var(--muted, #a6adc8);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -385,7 +386,7 @@
 .password-strength-text {
   font-size: 0.75rem;
   margin-top: 4px;
-  color: var(--text-muted, #a6adc8);
+  color: var(--muted, #a6adc8);
   font-weight: 600;
   text-align: right;
 }
@@ -402,7 +403,7 @@
 
 .checklist-item {
   font-size: 0.75rem;
-  color: var(--text-muted, #a6adc8);
+  color: var(--muted, #a6adc8);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -447,4 +448,46 @@
 
 .confirm-password-match-text.invalid {
   color: var(--color-error, #fb7185);
+}
+
+/* Password Visibility Toggle Styles */
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--muted, #a6adc8);
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  height: 20px;
+  width: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: color var(--motion-base, 180ms) var(--ease-standard), transform var(--motion-fast, 120ms) var(--ease-standard);
+}
+
+.password-toggle-btn:hover {
+  color: var(--accent-fill, #89b4fa);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.password-toggle-btn:focus-visible {
+  outline: 2px solid var(--accent-fill, #89b4fa);
+}
+
+/* Disable native validation background icons (check/cross) for password inputs (both password and text toggled states) */
+.input-wrapper #login-password:not(:placeholder-shown):valid,
+.input-wrapper #login-password:not(:placeholder-shown):invalid,
+.input-wrapper #register-password:not(:placeholder-shown):valid,
+.input-wrapper #register-password:not(:placeholder-shown):invalid,
+.input-wrapper #register-confirm-password:not(:placeholder-shown):valid,
+.input-wrapper #register-confirm-password:not(:placeholder-shown):invalid {
+  background-image: none !important;
 }

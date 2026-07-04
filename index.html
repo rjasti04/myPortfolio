@@ -1013,7 +1013,9 @@
             <div class="input-wrapper">
               <input type="password" id="login-password" name="password" placeholder=" " required />
               <label class="form-label" for="login-password">Password</label>
-              <i class="fas fa-lock input-icon"></i>
+              <button type="button" class="password-toggle-btn" aria-label="Show password" data-toggle-target="login-password">
+                <i class="fas fa-eye"></i>
+              </button>
             </div>
             <div class="forgot-password-link-wrapper">
               <a href="#" class="forgot-password-link" id="forgot-password-trigger">Forgot Password?</a>
@@ -1041,7 +1043,9 @@
             <div class="input-wrapper">
               <input type="password" id="register-password" name="password" placeholder=" " required />
               <label class="form-label" for="register-password">Password</label>
-              <i class="fas fa-lock input-icon"></i>
+              <button type="button" class="password-toggle-btn" aria-label="Show password" data-toggle-target="register-password">
+                <i class="fas fa-eye"></i>
+              </button>
             </div>
             <div class="password-strength-meter-container">
               <div class="password-strength-meter" id="pw-strength-bar"></div>
@@ -1066,7 +1070,9 @@
             <div class="input-wrapper">
               <input type="password" id="register-confirm-password" name="confirm-password" placeholder=" " required />
               <label class="form-label" for="register-confirm-password">Confirm Password</label>
-              <i class="fas fa-lock input-icon"></i>
+              <button type="button" class="password-toggle-btn" aria-label="Show password" data-toggle-target="register-confirm-password">
+                <i class="fas fa-eye"></i>
+              </button>
             </div>
             <div class="confirm-password-match-text" id="confirm-match-text"></div>
           </div>

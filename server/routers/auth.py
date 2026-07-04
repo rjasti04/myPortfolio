@@ -25,7 +25,9 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 @router.post("/logout")
-async def logout():
-    # Since we use stateless JWT, logout is primarily handled on the client side
-    # by deleting the tokens. We can return a success message here.
+async def logout(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    await auth_service.revoke_user_tokens(db, current_user.id)
     return {"message": "Successfully logged out"}

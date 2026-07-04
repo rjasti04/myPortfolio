@@ -29,6 +29,8 @@ async def get_current_user(
             user_id = uuid.UUID(user_id_str)
         except ValueError:
             raise HTTPException(status_code=401, detail="Invalid user ID format")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("jwt_validation_error", error=str(e))
         raise HTTPException(

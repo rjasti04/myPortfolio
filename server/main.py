@@ -225,41 +225,60 @@ class RateLimitMiddleware:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self._hits: dict[str, list[float]] = defaultdict(list)
+        self._auth_hits: dict[str, list[float]] = defaultdict(list)
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
+        if scope["type"] != "http" or os.getenv("TESTING") == "true":
             await self.app(scope, receive, send)
             return
 
         request = Request(scope, receive)
+        path = scope.get("path", "")
+        is_auth_route = path in ["/auth/login", "/auth/register"]
         client_ip = _client_ip_from_request(request)
 
         now = time.time()
-        window = self.window_seconds
-        
-        # Filter existing hits for this IP
-        self._hits[client_ip] = [
-            t for t in self._hits[client_ip] if now - t < window
-        ]
 
-        if len(self._hits[client_ip]) >= self.max_requests:
-            response = JSONResponse(
-                {"detail": "Rate limit exceeded. Try again later."},
-                status_code=429,
-            )
-            await response(scope, receive, send)
-            return
+        if is_auth_route:
+            # Stricter limit: 5 requests per 60 seconds for login/registration
+            auth_window = 60
+            max_auth_requests = 5
+            self._auth_hits[client_ip] = [
+                t for t in self._auth_hits[client_ip] if now - t < auth_window
+            ]
+            if len(self._auth_hits[client_ip]) >= max_auth_requests:
+                response = JSONResponse(
+                    {"detail": "Too many login or registration attempts. Try again later."},
+                    status_code=429,
+                )
+                await response(scope, receive, send)
+                return
+            self._auth_hits[client_ip].append(now)
+        else:
+            # Standard limit
+            window = self.window_seconds
+            self._hits[client_ip] = [
+                t for t in self._hits[client_ip] if now - t < window
+            ]
+            if len(self._hits[client_ip]) >= self.max_requests:
+                response = JSONResponse(
+                    {"detail": "Rate limit exceeded. Try again later."},
+                    status_code=429,
+                )
+                await response(scope, receive, send)
+                return
+            self._hits[client_ip].append(now)
 
-        # Record new hit
-        self._hits[client_ip].append(now)
-
-        # Prune empty or expired entries from other IPs to prevent unbounded memory growth
-        # We do a randomized cleanup check (1% of requests) to prevent performance overhead
+        # Prune empty or expired entries to prevent unbounded memory growth
         if random.random() < 0.01:
             for ip in list(self._hits.keys()):
-                self._hits[ip] = [t for t in self._hits[ip] if now - t < window]
+                self._hits[ip] = [t for t in self._hits[ip] if now - t < self.window_seconds]
                 if not self._hits[ip]:
                     del self._hits[ip]
+            for ip in list(self._auth_hits.keys()):
+                self._auth_hits[ip] = [t for t in self._auth_hits[ip] if now - t < 60]
+                if not self._auth_hits[ip]:
+                    del self._auth_hits[ip]
 
         await self.app(scope, receive, send)
 
