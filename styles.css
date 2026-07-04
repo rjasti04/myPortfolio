@@ -2488,6 +2488,23 @@ body.dark-theme #resume .item {
   transform: translateY(0) scale(0.98);
 }
 
+.btn.btn-accent {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+
+.btn.btn-accent:hover {
+  background: var(--accent-hover);
+}
+
+.btn.btn-accent:disabled {
+  background: var(--accent-soft) !important;
+  color: var(--text-muted) !important;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 .btn.btn-outline {
   background: transparent;
   color: var(--accent-text);

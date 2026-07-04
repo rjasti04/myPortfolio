@@ -1015,6 +1015,9 @@
               <label class="form-label" for="login-password">Password</label>
               <i class="fas fa-lock input-icon"></i>
             </div>
+            <div class="forgot-password-link-wrapper">
+              <a href="#" class="forgot-password-link" id="forgot-password-trigger">Forgot Password?</a>
+            </div>
           </div>
           <div class="auth-error" id="login-error"></div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
@@ -1036,16 +1039,65 @@
           </div>
           <div class="form-group floating-label-group">
             <div class="input-wrapper">
-              <input type="password" id="register-password" name="password" placeholder=" " minlength="8" required />
+              <input type="password" id="register-password" name="password" placeholder=" " required />
               <label class="form-label" for="register-password">Password</label>
               <i class="fas fa-lock input-icon"></i>
             </div>
-            <small class="password-hint">Must be at least 8 characters.</small>
+            <div class="password-strength-meter-container">
+              <div class="password-strength-meter" id="pw-strength-bar"></div>
+            </div>
+            <div class="password-strength-text" id="pw-strength-text">Strength: Weak</div>
+            <ul class="password-checklist" id="pw-checklist">
+              <li class="checklist-item" id="req-length">
+                <i class="far fa-circle"></i> Min 8 characters
+              </li>
+              <li class="checklist-item" id="req-upper">
+                <i class="far fa-circle"></i> At least 1 uppercase letter
+              </li>
+              <li class="checklist-item" id="req-number">
+                <i class="far fa-circle"></i> At least 1 number
+              </li>
+              <li class="checklist-item" id="req-special">
+                <i class="far fa-circle"></i> At least 1 special character
+              </li>
+            </ul>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="register-confirm-password" name="confirm-password" placeholder=" " required />
+              <label class="form-label" for="register-confirm-password">Confirm Password</label>
+              <i class="fas fa-lock input-icon"></i>
+            </div>
+            <div class="confirm-password-match-text" id="confirm-match-text"></div>
           </div>
           <div class="auth-error" id="register-error"></div>
-          <button type="submit" class="btn btn-accent auth-submit-btn">
+          <button type="submit" class="btn btn-accent auth-submit-btn" id="register-submit-btn" disabled>
             Create Account <i class="fas fa-user-plus"></i>
           </button>
+        </form>
+      </div>
+
+      <div class="auth-tab-content" id="auth-tab-forgot">
+        <h3>Reset Password</h3>
+        <p class="auth-modal-subtitle">Enter your email and we'll send you a link to reset your password.</p>
+        <form class="auth-form" id="forgot-form">
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="email" id="forgot-email" name="email" placeholder=" " required />
+              <label class="form-label" for="forgot-email">Email</label>
+              <i class="fas fa-envelope input-icon"></i>
+            </div>
+          </div>
+          <div class="auth-error" id="forgot-error"></div>
+          <div class="auth-success" id="forgot-success" style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;"></div>
+          <button type="submit" class="btn btn-accent auth-submit-btn">
+            Send Reset Link <i class="fas fa-paper-plane"></i>
+          </button>
+          <div class="back-to-login-wrapper">
+            <button type="button" class="back-to-login-btn" id="back-to-login-trigger">
+              <i class="fas fa-arrow-left"></i> Back to Login
+            </button>
+          </div>
         </form>
       </div>
     </div>

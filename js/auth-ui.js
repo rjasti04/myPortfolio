@@ -1,4 +1,4 @@
-import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch } from './auth.js';
+import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset } from './auth.js';
 import { API_BASE } from './analytics.js';
 
 export function initAuthUI() {
@@ -9,8 +9,28 @@ export function initAuthUI() {
 
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
+    const forgotForm = document.getElementById('forgot-form');
     const loginError = document.getElementById('login-error');
     const registerError = document.getElementById('register-error');
+    const forgotError = document.getElementById('forgot-error');
+    const forgotSuccess = document.getElementById('forgot-success');
+
+    const forgotTrigger = document.getElementById('forgot-password-trigger');
+    const backToLoginTrigger = document.getElementById('back-to-login-trigger');
+    const modalTabs = document.querySelector('.auth-modal-tabs');
+
+    const registerPasswordInput = document.getElementById('register-password');
+    const registerConfirmPasswordInput = document.getElementById('register-confirm-password');
+    const registerSubmitBtn = document.getElementById('register-submit-btn');
+    const confirmMatchText = document.getElementById('confirm-match-text');
+
+    const reqLength = document.getElementById('req-length');
+    const reqUpper = document.getElementById('req-upper');
+    const reqNumber = document.getElementById('req-number');
+    const reqSpecial = document.getElementById('req-special');
+
+    const pwStrengthBar = document.getElementById('pw-strength-bar');
+    const pwStrengthText = document.getElementById('pw-strength-text');
 
     // Show modal via custom event
     window.addEventListener('request-login-modal', () => {
@@ -35,16 +55,144 @@ export function initAuthUI() {
         tabs.forEach(t => t.classList.remove('active'));
         tabContents.forEach(c => c.classList.remove('active'));
 
-        document.querySelector(`.auth-tab[data-tab="${tabId}"]`).classList.add('active');
-        document.getElementById(`auth-tab-${tabId}`).classList.add('active');
+        if (tabId === 'forgot') {
+            if (modalTabs) modalTabs.classList.add('hidden');
+            const forgotTab = document.getElementById('auth-tab-forgot');
+            if (forgotTab) forgotTab.classList.add('active');
+        } else {
+            if (modalTabs) modalTabs.classList.remove('hidden');
+            const targetTab = document.querySelector(`.auth-tab[data-tab="${tabId}"]`);
+            if (targetTab) targetTab.classList.add('active');
+            const targetContent = document.getElementById(`auth-tab-${tabId}`);
+            if (targetContent) targetContent.classList.add('active');
+        }
 
         loginError.textContent = '';
         registerError.textContent = '';
+        if (forgotError) forgotError.textContent = '';
+        if (forgotSuccess) {
+            forgotSuccess.textContent = '';
+            forgotSuccess.style.display = 'none';
+        }
     }
 
     tabs.forEach(tab => {
         tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
+
+    if (forgotTrigger) {
+        forgotTrigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchTab('forgot');
+        });
+    }
+
+    if (backToLoginTrigger) {
+        backToLoginTrigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchTab('login');
+        });
+    }
+
+    // Real-time Password Validation for Registration
+    function updatePasswordValidation() {
+        if (!registerPasswordInput) return;
+
+        const val = registerPasswordInput.value;
+        const confirmVal = registerConfirmPasswordInput ? registerConfirmPasswordInput.value : '';
+
+        // 1. Check criteria
+        const hasLength = val.length >= 8;
+        const hasUpper = /[A-Z]/.test(val);
+        const hasNumber = /[0-9]/.test(val);
+        const hasSpecial = /[^A-Za-z0-9]/.test(val);
+
+        // Update Checklist UI
+        function toggleCheckItem(el, isValid) {
+            if (!el) return;
+            const icon = el.querySelector('i');
+            if (isValid) {
+                el.className = 'checklist-item valid';
+                if (icon) icon.className = 'fas fa-check-circle';
+            } else {
+                if (val.length > 0) {
+                    el.className = 'checklist-item invalid';
+                    if (icon) icon.className = 'fas fa-times-circle';
+                } else {
+                    el.className = 'checklist-item';
+                    if (icon) icon.className = 'far fa-circle';
+                }
+            }
+        }
+
+        toggleCheckItem(reqLength, hasLength);
+        toggleCheckItem(reqUpper, hasUpper);
+        toggleCheckItem(reqNumber, hasNumber);
+        toggleCheckItem(reqSpecial, hasSpecial);
+
+        // 2. Strength Calculation
+        let score = 0;
+        if (val.length > 0) {
+            if (hasLength) score++;
+            if (hasUpper) score++;
+            if (hasNumber) score++;
+            if (hasSpecial) score++;
+        }
+
+        if (pwStrengthBar && pwStrengthText) {
+            pwStrengthBar.className = 'password-strength-meter';
+            if (val.length === 0) {
+                pwStrengthBar.style.width = '0%';
+                pwStrengthText.textContent = 'Strength: Weak';
+                pwStrengthText.style.color = 'var(--text-muted)';
+            } else {
+                if (score <= 2) {
+                    pwStrengthBar.classList.add('weak');
+                    pwStrengthText.textContent = 'Strength: Weak';
+                    pwStrengthText.style.color = 'var(--color-error)';
+                } else if (score === 3) {
+                    pwStrengthBar.classList.add('medium');
+                    pwStrengthText.textContent = 'Strength: Medium';
+                    pwStrengthText.style.color = 'var(--color-warning)';
+                } else if (score === 4) {
+                    pwStrengthBar.classList.add('strong');
+                    pwStrengthText.textContent = 'Strength: Strong';
+                    pwStrengthText.style.color = 'var(--color-success)';
+                }
+            }
+        }
+
+        // 3. Confirm Password equality
+        let matches = false;
+        if (registerConfirmPasswordInput && confirmMatchText) {
+            if (confirmVal.length === 0) {
+                confirmMatchText.textContent = '';
+                confirmMatchText.className = 'confirm-password-match-text';
+            } else if (val === confirmVal) {
+                confirmMatchText.textContent = 'Passwords match';
+                confirmMatchText.className = 'confirm-password-match-text valid';
+                matches = true;
+            } else {
+                confirmMatchText.textContent = 'Passwords do not match';
+                confirmMatchText.className = 'confirm-password-match-text invalid';
+            }
+        } else {
+            matches = val === confirmVal;
+        }
+
+        // 4. Submit button enablement
+        const allCriteriaMet = hasLength && hasUpper && hasNumber && hasSpecial;
+        if (registerSubmitBtn) {
+            registerSubmitBtn.disabled = !(allCriteriaMet && matches);
+        }
+    }
+
+    if (registerPasswordInput) {
+        registerPasswordInput.addEventListener('input', updatePasswordValidation);
+    }
+    if (registerConfirmPasswordInput) {
+        registerConfirmPasswordInput.addEventListener('input', updatePasswordValidation);
+    }
 
     // Handle Login
     loginForm.addEventListener('submit', async (e) => {
@@ -91,6 +239,9 @@ export function initAuthUI() {
 
             // Success
             registerForm.reset();
+            if (typeof updatePasswordValidation === 'function') {
+                updatePasswordValidation();
+            }
             modal.classList.add('hidden');
             window.dispatchEvent(new Event('auth-changed'));
 
@@ -101,6 +252,36 @@ export function initAuthUI() {
             btn.disabled = false;
         }
     });
+
+    // Handle Forgot Password
+    if (forgotForm) {
+        forgotForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('forgot-email').value;
+            const btn = forgotForm.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+
+            try {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                btn.disabled = true;
+                forgotError.textContent = '';
+                forgotSuccess.textContent = '';
+                forgotSuccess.style.display = 'none';
+
+                await requestPasswordReset(email);
+
+                // Success
+                forgotSuccess.textContent = 'Reset link sent!';
+                forgotSuccess.style.display = 'block';
+                forgotForm.reset();
+            } catch (err) {
+                forgotError.textContent = err.message || 'Failed to send reset link. Please try again.';
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
 
     // Setup Navigation UI
     setupNavUI();

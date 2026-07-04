@@ -100,16 +100,22 @@
 
 .auth-tab-content {
   display: none;
-  animation: fadeIn var(--motion-medium) var(--ease-enter);
 }
 
 .auth-tab-content.active {
   display: block;
+  animation: slideFadeIn var(--motion-medium) var(--ease-enter) forwards;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes slideFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .auth-modal-content h3 {
@@ -240,4 +246,205 @@
 .nav-dropdown-item:hover {
   background-color: rgba(255, 255, 255, 0.05);
   color: var(--accent-color, #89b4fa);
+}
+
+/* --- Auth Modal Enhancement Styles --- */
+
+/* Floating Label Support for Auth Form Inputs */
+.auth-form .floating-label-group {
+  position: relative;
+  margin-bottom: 1.25rem;
+}
+
+.auth-form .floating-label-group .input-wrapper {
+  position: relative;
+}
+
+.auth-form .floating-label-group input {
+  width: 100%;
+  min-height: 52px;
+  padding: 24px 40px 8px 14px;
+  background-color: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+  border-radius: 8px;
+  color: var(--text, #cdd6f4);
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: border-color var(--motion-base, 180ms) var(--ease-standard), box-shadow var(--motion-base, 180ms) var(--ease-standard);
+}
+
+.auth-form .floating-label-group input:focus {
+  outline: none;
+  border-color: var(--accent-fill);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.auth-form .floating-label-group .form-label {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  transition: 
+    top var(--motion-base, 180ms) var(--ease-enter), 
+    font-size var(--motion-base, 180ms) var(--ease-standard), 
+    color var(--motion-base, 180ms) var(--ease-standard), 
+    transform var(--motion-base, 180ms) var(--ease-enter);
+  pointer-events: none;
+  color: var(--text-muted, #a6adc8);
+  font-size: var(--text-body-sm, 14px);
+  margin: 0;
+  max-width: calc(100% - 56px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-form .floating-label-group input:focus ~ .form-label,
+.auth-form .floating-label-group input:not(:placeholder-shown) ~ .form-label {
+  top: 8px;
+  transform: none;
+  font-size: 11px;
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+/* Forgot Password Link styling */
+.forgot-password-link-wrapper {
+  text-align: right;
+  margin-top: 6px;
+}
+
+.forgot-password-link {
+  font-size: 0.8rem;
+  color: var(--text-muted, #a6adc8);
+  text-decoration: none;
+  transition: color var(--motion-base, 180ms) var(--ease-standard);
+  font-weight: 500;
+}
+
+.forgot-password-link:hover {
+  color: var(--accent-fill);
+}
+
+/* Back to Login Button styling */
+.back-to-login-wrapper {
+  text-align: center;
+  margin-top: 1.25rem;
+}
+
+.back-to-login-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #a6adc8);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color var(--motion-base, 180ms) var(--ease-standard);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.back-to-login-btn:hover {
+  color: var(--accent-fill);
+}
+
+/* Password Strength Meter */
+.password-strength-meter-container {
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.password-strength-meter {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  transition: width var(--motion-medium, 240ms) var(--ease-standard), background-color var(--motion-medium, 240ms) var(--ease-standard);
+}
+
+.password-strength-meter.weak {
+  width: 33.33%;
+  background-color: var(--color-error, #be123c);
+}
+
+.password-strength-meter.medium {
+  width: 66.66%;
+  background-color: var(--color-warning, #b45309);
+}
+
+.password-strength-meter.strong {
+  width: 100%;
+  background-color: var(--color-success, #047857);
+}
+
+.password-strength-text {
+  font-size: 0.75rem;
+  margin-top: 4px;
+  color: var(--text-muted, #a6adc8);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Password Checklist styling */
+.password-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checklist-item {
+  font-size: 0.75rem;
+  color: var(--text-muted, #a6adc8);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color var(--motion-base, 180ms) var(--ease-standard);
+}
+
+.checklist-item i {
+  font-size: 0.8rem;
+  width: 14px;
+  text-align: center;
+  transition: transform var(--motion-base, 180ms) var(--ease-press);
+}
+
+.checklist-item.valid {
+  color: var(--color-success, #34d399);
+}
+
+.checklist-item.valid i {
+  transform: scale(1.15);
+  color: var(--color-success, #34d399);
+}
+
+.checklist-item.invalid {
+  color: var(--color-error, #fb7185);
+}
+
+.checklist-item.invalid i {
+  color: var(--color-error, #fb7185);
+}
+
+/* Password Confirmation match text */
+.confirm-password-match-text {
+  font-size: 0.75rem;
+  margin-top: 4px;
+  min-height: 1rem;
+  font-weight: 600;
+}
+
+.confirm-password-match-text.valid {
+  color: var(--color-success, #34d399);
+}
+
+.confirm-password-match-text.invalid {
+  color: var(--color-error, #fb7185);
 }
