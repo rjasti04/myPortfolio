@@ -3,7 +3,7 @@ import re
 # -------------
 # 1. REFACOR CSS
 # -------------
-with open('styles.css', 'r', encoding='utf-8') as f:
+with open('frontend/styles.css', 'r', encoding='utf-8') as f:
     css = f.read()
 
 # Add new variables to :root
@@ -87,13 +87,13 @@ activity_classes = """
 if '.activity-pagination-wrapper' not in css:
     css += activity_classes
 
-with open('styles.css', 'w', encoding='utf-8') as f:
+with open('frontend/styles.css', 'w', encoding='utf-8') as f:
     f.write(css)
 
 # -------------
 # 2. REFACOR HTML
 # -------------
-with open('index.html', 'r', encoding='utf-8') as f:
+with open('frontend/index.html', 'r', encoding='utf-8') as f:
     html = f.read()
 
 # Replace inline styles in activity pagination
@@ -121,7 +121,7 @@ html = re.sub(
     html
 )
 # (Re-read to start clean HTML transform to avoid double class)
-with open('index.html', 'r', encoding='utf-8') as f:
+with open('frontend/index.html', 'r', encoding='utf-8') as f:
     html = f.read()
 
 html = html.replace(
@@ -137,7 +137,7 @@ html = html.replace(
     'class="activity-page-info"'
 )
 
-with open('index.html', 'w', encoding='utf-8') as f:
+with open('frontend/index.html', 'w', encoding='utf-8') as f:
     f.write(html)
 
 print("Refactoring complete!")

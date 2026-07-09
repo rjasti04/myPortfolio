@@ -1,0 +1,55 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main  # Change to master if your default branch is different
+
+jobs:
+  deploy:
+    name: Deploy Frontend and Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy FastAPI Backend (server/)
+        run: |
+          # Ensure target directory exists on EC2
+          ssh ec2-user@${{ secrets.SERVER_HOST }} "mkdir -p /home/ec2-user/fastapi/server"
+          
+          # Sync server directory to EC2, excluding virtual environments, secrets, and caches
+          rsync -avz --delete \
+            --exclude=".venv" \
+            --exclude="venv" \
+            --exclude="__pycache__" \
+            --exclude=".env*" \
+            --exclude=".git" \
+            server/ ec2-user@${{ secrets.SERVER_HOST }}:/home/ec2-user/fastapi/server/
+
+      - name: Deploy Static Frontend to Apache (/var/www/html/)
+        run: |
+          # Sync static frontend files to Apache's document root
+          # Uses sudo rsync because /var/www/html/ is owned by root/apache
+          rsync -avz --delete \
+            --rsync-path="sudo rsync" \
+            --exclude="tests" \
+            frontend/ ec2-user@${{ secrets.SERVER_HOST }}:/var/www/html/
+
+      - name: Restart FastAPI and HTTPD Services
+        run: |
+          ssh ec2-user@${{ secrets.SERVER_HOST }} "
+            # Restart the FastAPI service
+            sudo systemctl restart fastapi.service
+            
+            # Restart the Apache HTTPD service
+            sudo systemctl restart httpd
+          "

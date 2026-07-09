@@ -4,7 +4,7 @@ Welcome! This document provides architectural context, development constraints, 
 
 ## 1. Core Architecture & Tech Stack
 *   **Frontend**: Single-page portfolio PWA built with vanilla ES modules, CSS, and Three.js.
-    *   *Key Files*: `index.html` (main structure), `js/main.js` (entry point), `styles.css` (global styles).
+    *   *Key Files*: `frontend/index.html` (main structure), `frontend/js/main.js` (entry point), `frontend/styles.css` (global styles).
 *   **Backend**: FastAPI ASGI service using SQLAlchemy (async engine + asyncpg driver) and AWS Amazon Bedrock.
     *   *Key Files*: `server/main.py` (FastAPI app & routes), `server/models/` (DB schemas), `server/alembic/` (migrations).
     *   *Note*: Ignore outdated references to "raw SQL" in `docs/ADR.md`. The project uses SQLAlchemy ORM.
@@ -32,5 +32,5 @@ Tests are located in `tests/backend/` and use `pytest` with SQLite in-memory db.
     3.  `DATABASE_URL`, `AWS_REGION`, and `DEFAULT_MODEL_ID` must be mocked in the test environment to bypass import-time configuration validations in `server/main.py` (now automatically injected in `conftest.py`).
 
 ### JavaScript Frontend Tests
-*   **Command**: `npm test` (Runs `node --test tests/*.test.js` under JSDOM environment).
+*   **Command**: `npm test` (Runs `node --test frontend/tests/*.test.js` under JSDOM environment).
 *   *Note*: Node.js and npm are not in the default system PATH. Ensure Node paths are resolved if running these locally.

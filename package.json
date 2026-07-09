@@ -7,11 +7,11 @@
   },
   "scripts": {
     "lint": "npm run lint:js && npm run lint:css",
-    "lint:js": "eslint js/*.js",
-    "lint:css": "stylelint \"**/*.css\"",
+    "lint:js": "eslint frontend/js/*.js",
+    "lint:css": "stylelint \"frontend/**/*.css\"",
     "format": "prettier --write \"**/*.{html,css,js,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{html,css,js,json,md,yml,yaml}\"",
-    "test": "node --test tests/*.test.js",
+    "test": "node --test frontend/tests/*.test.js",
     "audit": "npm audit --audit-level=high"
   },
   "devDependencies": {
