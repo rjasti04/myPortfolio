@@ -47,6 +47,12 @@ jobs:
       - name: Restart FastAPI and HTTPD Services
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "
+            # Install any new dependencies
+            /home/${{ secrets.EC2_USERNAME }}/fastapi/.venv/bin/pip install -r /home/${{ secrets.EC2_USERNAME }}/fastapi/server/requirements.txt
+            
+            # Run database migrations
+            cd /home/${{ secrets.EC2_USERNAME }}/fastapi/server && ../.venv/bin/alembic upgrade head
+
             # Restart the FastAPI service
             sudo systemctl restart fastapi.service
             
