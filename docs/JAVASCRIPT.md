@@ -109,18 +109,6 @@ trackEvent('button_click', { button_id: 'cta-main' });
 
 ---
 
-### chat-utils.js
-**Purpose**: Chat export and search utilities
-
-**Key Functions**:
-- `exportChatJSON(messages, sessionTitle)` - Export chat to JSON
-- `exportChatMarkdown(messages, sessionTitle)` - Export chat to Markdown
-- `searchMessages(messages, query)` - Search through messages
-- `highlightSearchTerms(text, query)` - Highlight search terms
-- `getChatStats(messages)` - Get conversation statistics
-- `copyConversation(messages, format)` - Copy conversation to clipboard
-
----
 
 ## Configuration
 

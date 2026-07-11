@@ -144,7 +144,15 @@ function initMatrixDecode() {
     setTimeout(() => { element.style.willChange = "auto"; }, 30000);
   };
 
+  // BUG FIX ROOT CAUSE: Hovering the title repeatedly or before the initial load animation finishes
+  // triggers multiple requestAnimationFrame ticks. These concurrent loops clash over span text and styles.
+  // We lock the execution using an isDecoding boolean state flag.
+  let isDecoding = false;
+
   const animateText = (isInitial = false) => {
+    if (isDecoding) return;
+    isDecoding = true;
+
     let iterations = 0;
     let lastTime = 0;
 
@@ -185,6 +193,7 @@ function initMatrixDecode() {
           s.dataset.scrambled = "false";
         });
         element.setAttribute("data-text", originalText);
+        isDecoding = false;
         if (isInitial) enableGlitch();
       }
     };

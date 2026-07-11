@@ -1,4 +1,5 @@
 import os
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Union, Optional
 from passlib.context import CryptContext
@@ -12,11 +13,18 @@ REFRESH_TOKEN_EXPIRE_DAYS = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+def _get_sha256_hex(password: str) -> str:
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    # First verify using the SHA-256 pre-hashed password
+    if pwd_context.verify(_get_sha256_hex(plain_password), hashed_password):
+        return True
+    # Fallback to plain text verification for legacy passwords
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return pwd_context.hash(_get_sha256_hex(password))
 
 def create_access_token(subject: Union[str, int], expires_delta: Optional[timedelta] = None) -> str:
     if expires_delta:
@@ -27,9 +35,9 @@ def create_access_token(subject: Union[str, int], expires_delta: Optional[timede
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
 
-def create_refresh_token(subject: Union[str, int]) -> str:
+def create_refresh_token(subject: Union[str, int], jti: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode = {"exp": expire, "sub": str(subject), "type": "refresh"}
+    to_encode = {"exp": expire, "sub": str(subject), "type": "refresh", "jti": jti}
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
 

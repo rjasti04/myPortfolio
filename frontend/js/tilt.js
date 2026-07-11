@@ -44,7 +44,12 @@ export function initTilt() {
       card.style.transition = "transform var(--motion-medium) var(--ease-enter)";
       card.style.transform = "";
       card.addEventListener("transitionend", () => {
-        card.style.transition = "";
+        // BUG FIX ROOT CAUSE: If the user hovers back onto the card before the transition to empty finishes,
+        // the transitionend listener clears the active card transition, resulting in visual glitches.
+        // We guard the style reset by ensuring rect remains null.
+        if (!rect) {
+          card.style.transition = "";
+        }
       }, { once: true });
     });
   });

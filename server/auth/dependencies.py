@@ -11,6 +11,7 @@ import uuid
 
 logger = structlog.get_logger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -29,6 +30,8 @@ async def get_current_user(
             user_id = uuid.UUID(user_id_str)
         except ValueError:
             raise HTTPException(status_code=401, detail="Invalid user ID format")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("jwt_validation_error", error=str(e))
         raise HTTPException(
@@ -48,7 +51,7 @@ async def get_current_user(
     return user
 
 async def get_optional_current_user(
-    token: str = Depends(OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)),
+    token: str = Depends(optional_oauth2_scheme),
     db: AsyncSession = Depends(get_db)
 ) -> Optional[User]:
     if not token:

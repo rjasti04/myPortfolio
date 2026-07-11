@@ -190,7 +190,7 @@
         <picture>
           <source srcset="profile-pic-160.webp 160w, profile-pic-360.webp 360w" sizes="42px" type="image/webp" />
           <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w" sizes="42px"
-            alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="725" height="1024" />
+            alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="40" height="40" />
         </picture>
         <div class="logo-text">RJ</div>
       </a>
@@ -340,7 +340,7 @@
                 aria-label="Open AI Chat" data-spring-hover>Ask AI <i class="fas fa-robot"></i></a>
             </div>
           </div>
-          <aside class="terminal-panel" aria-label="Now Building panel">
+          <aside class="terminal-panel no-swipe" aria-label="Now Building panel">
             <div class="terminal-topbar">
               <span class="terminal-dot dot-red" aria-hidden="true"></span>
               <span class="terminal-dot dot-amber" aria-hidden="true"></span>
@@ -410,7 +410,7 @@
 
         <div class="skills-section">
           <h2 class="section-title skills-title">Technical Skills</h2>
-          <div class="skills-carousel" data-skills-carousel>
+          <div class="skills-carousel no-swipe" data-skills-carousel>
             <div class="skills-grid">
               <div class="skill-group reveal">
                 <h3 class="skill-group-label"><i class="fas fa-network-wired"></i> Data Processing</h3>
@@ -445,7 +445,9 @@
                 <h3 class="skill-group-label"><i class="fas fa-code"></i> Languages</h3>
                 <div class="skill-tags">
                   <span class="skill-tag">Python</span>
+                  <span class="skill-tag">JavaScript</span>
                   <span class="skill-tag">SQL</span>
+                  <span class="skill-tag">HTML5 / CSS3</span>
                   <span class="skill-tag">Scala</span>
                   <span class="skill-tag">Bash</span>
                 </div>
@@ -454,6 +456,9 @@
                 <h3 class="skill-group-label"><i class="fas fa-database"></i> Databases</h3>
                 <div class="skill-tags">
                   <span class="skill-tag">PostgreSQL</span>
+                  <span class="skill-tag">asyncpg</span>
+                  <span class="skill-tag">SQLAlchemy</span>
+                  <span class="skill-tag">Alembic</span>
                   <span class="skill-tag">MongoDB</span>
                   <span class="skill-tag">Redis</span>
                   <span class="skill-tag">Cassandra</span>
@@ -466,6 +471,44 @@
                   <span class="skill-tag">Grafana</span>
                   <span class="skill-tag">DataDog</span>
                   <span class="skill-tag">OpenTelemetry</span>
+                </div>
+              </div>
+              <div class="skill-group reveal">
+                <h3 class="skill-group-label"><i class="fas fa-laptop-code"></i> Frontend Stack</h3>
+                <div class="skill-tags">
+                  <span class="skill-tag">Three.js</span>
+                  <span class="skill-tag">Vanilla CSS</span>
+                  <span class="skill-tag">Service Workers</span>
+                  <span class="skill-tag">DOMPurify</span>
+                  <span class="skill-tag">Marked.js</span>
+                </div>
+              </div>
+              <div class="skill-group reveal">
+                <h3 class="skill-group-label"><i class="fas fa-server"></i> Backend Stack</h3>
+                <div class="skill-tags">
+                  <span class="skill-tag">FastAPI</span>
+                  <span class="skill-tag">Uvicorn</span>
+                  <span class="skill-tag">Pydantic</span>
+                  <span class="skill-tag">Structlog</span>
+                  <span class="skill-tag">python-multipart</span>
+                </div>
+              </div>
+              <div class="skill-group reveal">
+                <h3 class="skill-group-label"><i class="fas fa-brain"></i> AI &amp; Integrations</h3>
+                <div class="skill-tags">
+                  <span class="skill-tag">AWS (Boto3)</span>
+                  <span class="skill-tag">Amazon Bedrock</span>
+                  <span class="skill-tag">FormSubmit</span>
+                </div>
+              </div>
+              <div class="skill-group reveal">
+                <h3 class="skill-group-label"><i class="fas fa-tools"></i> Developer Tooling &amp; QA</h3>
+                <div class="skill-tags">
+                  <span class="skill-tag">Node.js</span>
+                  <span class="skill-tag">JSDom</span>
+                  <span class="skill-tag">ESLint &amp; Stylelint</span>
+                  <span class="skill-tag">Prettier</span>
+                  <span class="skill-tag">Pillow</span>
                 </div>
               </div>
             </div>
@@ -681,6 +724,70 @@
       <section id="activity">
         <h2 class="section-title">Session Activity</h2>
         <p class="section-intro">Live view of current session events from FastAPI heartbeat session.</p>
+        <div class="pipeline-monitor" id="pipeline-monitor">
+          <div class="pipeline-card">
+            <div class="pipeline-card-header">
+              <h3 class="pipeline-card-title"><i class="fas fa-network-wired"></i> Live ETL Pipeline Stream</h3>
+              <span class="pipeline-status-badge"><span class="pulse-dot"></span> Streaming</span>
+            </div>
+            <div class="pipeline-flow">
+              <div class="pipeline-node" id="node-ingress">
+                <div class="node-icon"><i class="fas fa-mouse-pointer"></i></div>
+                <div class="node-details">
+                  <span class="node-name">Ingress</span>
+                  <span class="node-value" id="val-ingress">0 eps</span>
+                </div>
+              </div>
+              <div class="pipeline-connector">
+                <div class="connector-line"></div>
+                <div class="connector-pulse"></div>
+              </div>
+              <div class="pipeline-node" id="node-kafka">
+                <div class="node-icon"><i class="fas fa-exchange-alt"></i></div>
+                <div class="node-details">
+                  <span class="node-name">Kafka Queue</span>
+                  <span class="node-value" id="val-kafka">0 msg</span>
+                </div>
+              </div>
+              <div class="pipeline-connector">
+                <div class="connector-line"></div>
+                <div class="connector-pulse"></div>
+              </div>
+              <div class="pipeline-node" id="node-fastapi">
+                <div class="node-icon"><i class="fas fa-server"></i></div>
+                <div class="node-details">
+                  <span class="node-name">FastAPI Worker</span>
+                  <span class="node-value" id="val-fastapi">0 ms</span>
+                </div>
+              </div>
+              <div class="pipeline-connector">
+                <div class="connector-line"></div>
+                <div class="connector-pulse"></div>
+              </div>
+              <div class="pipeline-node" id="node-postgres">
+                <div class="node-icon"><i class="fas fa-database"></i></div>
+                <div class="node-details">
+                  <span class="node-name">PostgreSQL</span>
+                  <span class="node-value" id="val-postgres">0 rows</span>
+                </div>
+              </div>
+            </div>
+            <div class="pipeline-stats">
+              <div class="pipeline-stat-box">
+                <span class="pipeline-stat-label">Throughput</span>
+                <span class="pipeline-stat-val" id="metric-throughput">0.0 eps</span>
+              </div>
+              <div class="pipeline-stat-box">
+                <span class="pipeline-stat-label">Worker Load</span>
+                <span class="pipeline-stat-val" id="metric-load">0.0%</span>
+              </div>
+              <div class="pipeline-stat-box">
+                <span class="pipeline-stat-label">Pipeline Health</span>
+                <span class="pipeline-stat-val" id="metric-health">100%</span>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="activity-controls">
           <div class="activity-pills-group">
             <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
@@ -756,7 +863,7 @@
 
                 <div class="form-group floating-label-group">
                   <div class="input-wrapper">
-                    <input type="text" id="contact-name" name="name" placeholder=" " autocomplete="name"
+                    <input type="text" id="contact-name" name="name" placeholder="Enter your full name" autocomplete="name"
                       aria-label="Your full name" required />
                     <label class="form-label" for="contact-name">Name</label>
                     <i class="fas fa-user input-icon"></i>
@@ -764,7 +871,7 @@
                 </div>
                 <div class="form-group floating-label-group">
                   <div class="input-wrapper">
-                    <input type="email" id="contact-email" name="email" placeholder=" " autocomplete="email"
+                    <input type="email" id="contact-email" name="email" placeholder="Enter your email address" autocomplete="email"
                       aria-label="Your email address" required />
                     <label class="form-label" for="contact-email">Email</label>
                     <i class="fas fa-envelope input-icon"></i>
@@ -772,7 +879,7 @@
                 </div>
                 <div class="form-group floating-label-group">
                   <div class="input-wrapper">
-                    <textarea id="contact-message" name="message" placeholder=" " rows="4" aria-label="Your message"
+                    <textarea id="contact-message" name="message" placeholder="Let me know what you'd like to build..." rows="3" aria-label="Your message"
                       required></textarea>
                     <label class="form-label" for="contact-message">Message</label>
                   </div>
@@ -853,6 +960,9 @@
                   aria-label="Message AI assistant" required></textarea>
                 <div class="ai-input-actions">
                   <span class="ai-tokens" id="ai-token-counter">0 tokens</span>
+                  <button type="button" class="ai-mic-btn" id="ai-page-mic-btn" aria-label="Use voice input" title="Voice input">
+                    <i class="fas fa-microphone"></i>
+                  </button>
                   <button type="submit" class="ai-send-btn" id="ai-page-send-btn" aria-label="Send message">
                     <i class="fas fa-arrow-up"></i>
                   </button>
@@ -886,16 +996,25 @@
               <span class="chat-status">Online</span>
             </div>
           </div>
-          <button type="button" class="chat-close-btn" id="chat-close-btn" aria-label="Close chat">
-            <i class="fas fa-times"></i>
-          </button>
+          <div class="chat-header-actions">
+            <button type="button" class="chat-header-btn" id="widget-new-chat-btn" title="New Chat" aria-label="New chat">
+              <i class="fas fa-plus"></i>
+            </button>
+            <button type="button" class="chat-close-btn" id="chat-close-btn" aria-label="Close chat">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
         </div>
         <div class="chat-messages" id="chat-messages" aria-live="polite">
           <!-- Messages will be injected here -->
         </div>
+
         <form class="chat-input-area" id="chat-form">
           <input type="text" id="chat-input" class="chat-input" placeholder="Type your message..." autocomplete="off"
             aria-label="Type your message to the AI assistant" required />
+          <button type="button" class="chat-mic-btn" id="chat-mic-btn" aria-label="Speech to text" title="Voice input">
+            <i class="fas fa-microphone"></i>
+          </button>
           <button type="submit" class="chat-send-btn" aria-label="Send message">
             <i class="fas fa-arrow-up"></i>
           </button>
@@ -937,7 +1056,12 @@
             <div class="input-wrapper">
               <input type="password" id="login-password" name="password" placeholder=" " required />
               <label class="form-label" for="login-password">Password</label>
-              <i class="fas fa-lock input-icon"></i>
+              <button type="button" class="password-toggle-btn" aria-label="Show password" data-toggle-target="login-password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="forgot-password-link-wrapper">
+              <a href="#" class="forgot-password-link" id="forgot-password-trigger">Forgot Password?</a>
             </div>
           </div>
           <div class="auth-error" id="login-error"></div>
@@ -960,16 +1084,69 @@
           </div>
           <div class="form-group floating-label-group">
             <div class="input-wrapper">
-              <input type="password" id="register-password" name="password" placeholder=" " minlength="8" required />
+              <input type="password" id="register-password" name="password" placeholder=" " required />
               <label class="form-label" for="register-password">Password</label>
-              <i class="fas fa-lock input-icon"></i>
+              <button type="button" class="password-toggle-btn" aria-label="Show password" data-toggle-target="register-password">
+                <i class="fas fa-eye"></i>
+              </button>
             </div>
-            <small class="password-hint">Must be at least 8 characters.</small>
+            <div class="password-strength-meter-container">
+              <div class="password-strength-meter" id="pw-strength-bar"></div>
+            </div>
+            <div class="password-strength-text" id="pw-strength-text">Strength: Weak</div>
+            <ul class="password-checklist" id="pw-checklist">
+              <li class="checklist-item" id="req-length">
+                <i class="far fa-circle"></i> Min 8 characters
+              </li>
+              <li class="checklist-item" id="req-upper">
+                <i class="far fa-circle"></i> At least 1 uppercase letter
+              </li>
+              <li class="checklist-item" id="req-number">
+                <i class="far fa-circle"></i> At least 1 number
+              </li>
+              <li class="checklist-item" id="req-special">
+                <i class="far fa-circle"></i> At least 1 special character
+              </li>
+            </ul>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="register-confirm-password" name="confirm-password" placeholder=" " required />
+              <label class="form-label" for="register-confirm-password">Confirm Password</label>
+              <button type="button" class="password-toggle-btn" aria-label="Show password" data-toggle-target="register-confirm-password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="confirm-password-match-text" id="confirm-match-text"></div>
           </div>
           <div class="auth-error" id="register-error"></div>
-          <button type="submit" class="btn btn-accent auth-submit-btn">
+          <button type="submit" class="btn btn-accent auth-submit-btn" id="register-submit-btn" disabled>
             Create Account <i class="fas fa-user-plus"></i>
           </button>
+        </form>
+      </div>
+
+      <div class="auth-tab-content" id="auth-tab-forgot">
+        <h3>Reset Password</h3>
+        <p class="auth-modal-subtitle">Enter your email and we'll send you a link to reset your password.</p>
+        <form class="auth-form" id="forgot-form">
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="email" id="forgot-email" name="email" placeholder=" " required />
+              <label class="form-label" for="forgot-email">Email</label>
+              <i class="fas fa-envelope input-icon"></i>
+            </div>
+          </div>
+          <div class="auth-error" id="forgot-error"></div>
+          <div class="auth-success" id="forgot-success" style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;"></div>
+          <button type="submit" class="btn btn-accent auth-submit-btn">
+            Send Reset Link <i class="fas fa-paper-plane"></i>
+          </button>
+          <div class="back-to-login-wrapper">
+            <button type="button" class="back-to-login-btn" id="back-to-login-trigger">
+              <i class="fas fa-arrow-left"></i> Back to Login
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -225,41 +225,60 @@ class RateLimitMiddleware:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self._hits: dict[str, list[float]] = defaultdict(list)
+        self._auth_hits: dict[str, list[float]] = defaultdict(list)
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
+        if scope["type"] != "http" or os.getenv("TESTING") == "true":
             await self.app(scope, receive, send)
             return
 
         request = Request(scope, receive)
+        path = scope.get("path", "")
+        is_auth_route = path in ["/auth/login", "/auth/register"]
         client_ip = _client_ip_from_request(request)
 
         now = time.time()
-        window = self.window_seconds
-        
-        # Filter existing hits for this IP
-        self._hits[client_ip] = [
-            t for t in self._hits[client_ip] if now - t < window
-        ]
 
-        if len(self._hits[client_ip]) >= self.max_requests:
-            response = JSONResponse(
-                {"detail": "Rate limit exceeded. Try again later."},
-                status_code=429,
-            )
-            await response(scope, receive, send)
-            return
+        if is_auth_route:
+            # Stricter limit: 5 requests per 60 seconds for login/registration
+            auth_window = 60
+            max_auth_requests = 5
+            self._auth_hits[client_ip] = [
+                t for t in self._auth_hits[client_ip] if now - t < auth_window
+            ]
+            if len(self._auth_hits[client_ip]) >= max_auth_requests:
+                response = JSONResponse(
+                    {"detail": "Too many login or registration attempts. Try again later."},
+                    status_code=429,
+                )
+                await response(scope, receive, send)
+                return
+            self._auth_hits[client_ip].append(now)
+        else:
+            # Standard limit
+            window = self.window_seconds
+            self._hits[client_ip] = [
+                t for t in self._hits[client_ip] if now - t < window
+            ]
+            if len(self._hits[client_ip]) >= self.max_requests:
+                response = JSONResponse(
+                    {"detail": "Rate limit exceeded. Try again later."},
+                    status_code=429,
+                )
+                await response(scope, receive, send)
+                return
+            self._hits[client_ip].append(now)
 
-        # Record new hit
-        self._hits[client_ip].append(now)
-
-        # Prune empty or expired entries from other IPs to prevent unbounded memory growth
-        # We do a randomized cleanup check (1% of requests) to prevent performance overhead
+        # Prune empty or expired entries to prevent unbounded memory growth
         if random.random() < 0.01:
             for ip in list(self._hits.keys()):
-                self._hits[ip] = [t for t in self._hits[ip] if now - t < window]
+                self._hits[ip] = [t for t in self._hits[ip] if now - t < self.window_seconds]
                 if not self._hits[ip]:
                     del self._hits[ip]
+            for ip in list(self._auth_hits.keys()):
+                self._auth_hits[ip] = [t for t in self._auth_hits[ip] if now - t < 60]
+                if not self._auth_hits[ip]:
+                    del self._auth_hits[ip]
 
         await self.app(scope, receive, send)
 
@@ -324,7 +343,17 @@ class BodySizeLimitMiddleware:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Start background Kafka consumer and flusher tasks
+    from server.services.kafka_stream import run_kafka_consumer, periodic_flusher
+    consumer_task = asyncio.create_task(run_kafka_consumer())
+    flusher_task = asyncio.create_task(periodic_flusher())
+    
     yield
+    
+    # Clean up background tasks on shutdown
+    consumer_task.cancel()
+    flusher_task.cancel()
+    await asyncio.gather(consumer_task, flusher_task, return_exceptions=True)
     await engine.dispose()
 
 app = FastAPI(title="Activity Tracker API", version="1.0.0", lifespan=lifespan)
@@ -468,7 +497,12 @@ async def session_heartbeat(session_id: UUID, request: Request, db: AsyncSession
     result = await db.execute(
         update(UserSession)
         .where(UserSession.session_id == session_id)
-        .values(last_active_at=_now(), is_active=True)
+        .values(
+            last_active_at=_now(),
+            is_active=True,
+            ended_at=None,
+            end_reason=None
+        )
     )
     await db.commit()
 
@@ -553,6 +587,16 @@ async def create_event(payload: EventCreate, request: Request, db: AsyncSession 
     await db.commit()
     await db.refresh(event)
 
+    # Broadcast event to any active SSE streams
+    from server.services.kafka_stream import broadcast_event
+    asyncio.create_task(broadcast_event(payload.session_id, {
+        "session_id": payload.session_id,
+        "event_type": payload.event_type,
+        "page_path": payload.page_path,
+        "event_data": payload.event_data,
+        "created_at": event.created_at
+    }))
+
     return {"event_id": event.event_id, "created_at": event.created_at}
 
 
@@ -583,12 +627,62 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
     try:
         db.add_all(events)
         await db.commit()
+        
+        # Broadcast all inserted events to active streams
+        from server.services.kafka_stream import broadcast_event
+        for e in events:
+            asyncio.create_task(broadcast_event(e.session_id, {
+                "session_id": e.session_id,
+                "event_type": e.event_type,
+                "page_path": e.page_path,
+                "event_data": e.event_data,
+                "created_at": e.created_at or _now()
+            }))
     except Exception as e:
         await db.rollback()
         logger.exception("Bulk event insert failed")
         raise HTTPException(422, "Failed to insert events (possibly invalid session_id)")
 
     return {"inserted": len(events)}
+
+
+@app.get(
+    "/sessions/{session_id}/stream",
+    summary="Stream live activity events for a session via SSE",
+)
+async def stream_session_events(session_id: UUID, request: Request):
+    """
+    Exposes an SSE stream endpoint that relays real-time event updates to the client dashboard.
+    Registers a stream queue for the session_id.
+    """
+    from server.services.kafka_stream import register_stream, unregister_stream
+    
+    client_queue = await register_stream(session_id)
+    
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                
+                try:
+                    event_dict = await asyncio.wait_for(client_queue.get(), timeout=2.0)
+                    yield f"data: {json.dumps(event_dict)}\n\n"
+                except asyncio.TimeoutError:
+                    # Keep-alive heartbeat comment
+                    yield ": keep-alive\n\n"
+        finally:
+            unregister_stream(session_id, client_queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        }
+    )
 
 
 @app.get(

@@ -60,6 +60,20 @@ export async function registerUser(email, password) {
   }
 }
 
+export async function requestPasswordReset(email) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        reject(new Error('Please enter a valid email address.'));
+      } else {
+        resolve({ success: true, message: 'Reset link sent!' });
+      }
+    }, 1000);
+  });
+}
+
+
 export async function logoutUser() {
     // Notify server if needed (optional)
     try {

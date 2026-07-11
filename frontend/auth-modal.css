@@ -1,0 +1,493 @@
+.auth-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(5px);
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--motion-medium) var(--ease-standard), visibility var(--motion-medium) var(--ease-standard);
+}
+
+.auth-modal-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.auth-modal-content {
+  background-color: var(--card-bg, #1e1e2e);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  padding: 2rem;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  transform: translateY(0);
+  transition: transform var(--motion-medium) cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid var(--border, #3a3b4a);
+  color: var(--text, #cdd6f4);
+}
+
+.auth-modal-overlay.hidden .auth-modal-content {
+  transform: translateY(20px);
+}
+
+.auth-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text, #cdd6f4);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard);
+}
+
+.auth-modal-close:hover {
+  background-color: var(--accent-soft, rgba(255, 255, 255, 0.1));
+  color: var(--accent-fill, #89b4fa);
+}
+
+.auth-modal-tabs {
+  display: flex;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color, #3a3b4a);
+  padding-bottom: 0;
+}
+
+.auth-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 0.75rem 0;
+  color: var(--muted, #a6adc8);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  transition: color var(--motion-base) var(--ease-standard);
+}
+
+.auth-tab:hover {
+  color: var(--text, #cdd6f4);
+}
+
+.auth-tab.active {
+  color: var(--accent-fill, #89b4fa);
+}
+
+.auth-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--accent-fill, #89b4fa);
+}
+
+.auth-tab-content {
+  display: none;
+}
+
+.auth-tab-content.active {
+  display: block;
+  animation: slideFadeIn var(--motion-medium) var(--ease-enter) forwards;
+}
+
+@keyframes slideFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+  color: var(--text, #cdd6f4);
+}
+
+.auth-modal-subtitle {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: var(--muted, #a6adc8);
+  font-size: 0.9rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.password-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted, #a6adc8);
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.auth-submit-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+  justify-content: center;
+  padding: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.auth-error {
+  color: var(--color-error, #f38ba8);
+  font-size: 0.85rem;
+  min-height: 1.2rem;
+  margin-top: -0.5rem;
+  display: block;
+}
+
+/* User Profile Dropdown Button (Injected via JS) */
+.nav-auth-container {
+  display: flex;
+  align-items: center;
+  margin-right: 0;
+  position: relative;
+}
+
+.nav-auth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  background-color: var(--accent-soft, rgba(137, 180, 250, 0.1));
+  border: 1px solid transparent;
+  color: var(--text, #cdd6f4);
+  transition: border-color var(--motion-base) var(--ease-standard), background-color var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard);
+}
+
+.nav-user-profile:hover {
+  border-color: rgba(137, 180, 250, 0.3);
+  background-color: rgba(137, 180, 250, 0.15);
+}
+
+.nav-user-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--accent-color, #89b4fa);
+  color: var(--bg-color, #11111b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+.nav-user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background-color: var(--card-bg, #1e1e2e);
+  border: 1px solid var(--border, #3a3b4a);
+  border-radius: 8px;
+  min-width: 150px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 0.5rem 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: opacity var(--motion-base) var(--ease-standard), visibility var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard);
+  z-index: 100;
+}
+
+.nav-user-dropdown.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.nav-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text, #cdd6f4);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.nav-dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--accent-fill, #89b4fa);
+}
+
+/* --- Auth Modal Enhancement Styles --- */
+
+/* Floating Label Support for Auth Form Inputs */
+.auth-form .floating-label-group {
+  position: relative;
+  margin-bottom: 1.25rem;
+}
+
+.auth-form .floating-label-group .input-wrapper {
+  position: relative;
+}
+
+.auth-form .floating-label-group input {
+  width: 100%;
+  min-height: 52px;
+  padding: 24px 40px 8px 14px;
+  background-color: var(--bg, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--control-border, rgba(255, 255, 255, 0.15));
+  border-radius: 8px;
+  color: var(--text, #cdd6f4);
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: border-color var(--motion-base, 180ms) var(--ease-standard), box-shadow var(--motion-base, 180ms) var(--ease-standard);
+}
+
+.auth-form .floating-label-group input:focus {
+  outline: none;
+  border-color: var(--accent-fill);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.auth-form .floating-label-group .form-label {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  transition: 
+    top var(--motion-base, 180ms) var(--ease-enter), 
+    font-size var(--motion-base, 180ms) var(--ease-standard), 
+    color var(--motion-base, 180ms) var(--ease-standard), 
+    transform var(--motion-base, 180ms) var(--ease-enter);
+  pointer-events: none;
+  color: var(--muted, #a6adc8);
+  font-size: var(--text-body-sm, 14px);
+  margin: 0;
+  max-width: calc(100% - 56px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-form .floating-label-group input:focus ~ .form-label,
+.auth-form .floating-label-group input:not(:placeholder-shown) ~ .form-label {
+  top: 8px;
+  transform: none;
+  font-size: 11px;
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+/* Forgot Password Link styling */
+.forgot-password-link-wrapper {
+  text-align: right;
+  margin-top: 6px;
+}
+
+.forgot-password-link {
+  font-size: 0.8rem;
+  color: var(--muted, #a6adc8);
+  text-decoration: none;
+  transition: color var(--motion-base, 180ms) var(--ease-standard);
+  font-weight: 500;
+}
+
+.forgot-password-link:hover {
+  color: var(--accent-fill);
+}
+
+/* Back to Login Button styling */
+.back-to-login-wrapper {
+  text-align: center;
+  margin-top: 1.25rem;
+}
+
+.back-to-login-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted, #a6adc8);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color var(--motion-base, 180ms) var(--ease-standard);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.back-to-login-btn:hover {
+  color: var(--accent-fill);
+}
+
+/* Password Strength Meter */
+.password-strength-meter-container {
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.password-strength-meter {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  transition: width var(--motion-medium, 240ms) var(--ease-standard), background-color var(--motion-medium, 240ms) var(--ease-standard);
+}
+
+.password-strength-meter.weak {
+  width: 33.33%;
+  background-color: var(--color-error, #be123c);
+}
+
+.password-strength-meter.medium {
+  width: 66.66%;
+  background-color: var(--color-warning, #b45309);
+}
+
+.password-strength-meter.strong {
+  width: 100%;
+  background-color: var(--color-success, #047857);
+}
+
+.password-strength-text {
+  font-size: 0.75rem;
+  margin-top: 4px;
+  color: var(--muted, #a6adc8);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Password Checklist styling */
+.password-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checklist-item {
+  font-size: 0.75rem;
+  color: var(--muted, #a6adc8);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color var(--motion-base, 180ms) var(--ease-standard);
+}
+
+.checklist-item i {
+  font-size: 0.8rem;
+  width: 14px;
+  text-align: center;
+  transition: transform var(--motion-base, 180ms) var(--ease-press);
+}
+
+.checklist-item.valid {
+  color: var(--color-success, #34d399);
+}
+
+.checklist-item.valid i {
+  transform: scale(1.15);
+  color: var(--color-success, #34d399);
+}
+
+.checklist-item.invalid {
+  color: var(--color-error, #fb7185);
+}
+
+.checklist-item.invalid i {
+  color: var(--color-error, #fb7185);
+}
+
+/* Password Confirmation match text */
+.confirm-password-match-text {
+  font-size: 0.75rem;
+  margin-top: 4px;
+  min-height: 1rem;
+  font-weight: 600;
+}
+
+.confirm-password-match-text.valid {
+  color: var(--color-success, #34d399);
+}
+
+.confirm-password-match-text.invalid {
+  color: var(--color-error, #fb7185);
+}
+
+/* Password Visibility Toggle Styles */
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--muted, #a6adc8);
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  height: 20px;
+  width: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: color var(--motion-base, 180ms) var(--ease-standard), transform var(--motion-fast, 120ms) var(--ease-standard);
+}
+
+.password-toggle-btn:hover {
+  color: var(--accent-fill, #89b4fa);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.password-toggle-btn:focus-visible {
+  outline: 2px solid var(--accent-fill, #89b4fa);
+}
+
+/* Disable native validation background icons (check/cross) for password inputs (both password and text toggled states) */
+.input-wrapper #login-password:not(:placeholder-shown):valid,
+.input-wrapper #login-password:not(:placeholder-shown):invalid,
+.input-wrapper #register-password:not(:placeholder-shown):valid,
+.input-wrapper #register-password:not(:placeholder-shown):invalid,
+.input-wrapper #register-confirm-password:not(:placeholder-shown):valid,
+.input-wrapper #register-confirm-password:not(:placeholder-shown):invalid {
+  background-image: none !important;
+}

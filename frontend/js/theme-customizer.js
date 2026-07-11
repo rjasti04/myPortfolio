@@ -254,6 +254,13 @@ export function initThemeCustomizer() {
     colorPopover.hidden = false;
     colorPopover.style.visibility = 'hidden';
     positionColorPopover(control);
+
+    // BUG FIX ROOT CAUSE: For keyboard accessibility, programmatically move focus to the text input
+    // when popover opens, selecting its content for easy typing.
+    if (colorPopoverHex) {
+      colorPopoverHex.focus();
+      colorPopoverHex.select();
+    }
   }
 
   function loadDefaults() {
@@ -449,9 +456,18 @@ export function initThemeCustomizer() {
     closeColorPopover();
   });
 
+  let customizerResizeTimeout;
   window.addEventListener('resize', () => {
     if (!activeColorKey || colorPopover?.hidden) return;
-    positionColorPopover(colorControls[activeColorKey]);
+    
+    // BUG FIX ROOT CAUSE: Calling layout calculations on every resize tick causes layout thrashing.
+    // We debounce the calculation to reduce CPU load.
+    clearTimeout(customizerResizeTimeout);
+    customizerResizeTimeout = setTimeout(() => {
+      if (activeColorKey && colorControls[activeColorKey]) {
+        positionColorPopover(colorControls[activeColorKey]);
+      }
+    }, 100);
   });
 
   const themePresets = {

@@ -887,7 +887,6 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
   let themeColors = readThemeColors();
   updateSpriteCache(themeColors);
   const facetOpacity = new Map();
-  const pings = [];
   const packets = [];
 
   const setSize = () => {
@@ -977,39 +976,7 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
       updateParticle(particle, delta, elapsed, width, height, smoothPointer, config, surgeIntensity);
     });
 
-    // Update and draw ping waves (affects particle velocities dynamically)
-    for (let i = pings.length - 1; i >= 0; i -= 1) {
-      const ping = pings[i];
-      ping.radius += ping.speed * delta;
-      ping.alpha = clamp(1 - (ping.radius / ping.maxRadius), 0, 1);
-      
-      if (ping.radius >= ping.maxRadius) {
-        pings.splice(i, 1);
-      } else {
-        ctx.save();
-        ctx.globalCompositeOperation = "lighter";
-        ctx.strokeStyle = colorString(themeColors.accent, ping.alpha * 0.35);
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(ping.x, ping.y, ping.radius, 0, TWO_PI);
-        ctx.stroke();
-        ctx.restore();
 
-        // Push particles intersecting the wave front
-        particles.forEach((p) => {
-          const dx = p.x - ping.x;
-          const dy = p.y - ping.y;
-          const dist = Math.hypot(dx, dy);
-          const distDiff = Math.abs(dist - ping.radius);
-          if (distDiff < 32) {
-            const force = (1 - distDiff / 32) * ping.alpha * 120;
-            const angle = Math.atan2(dy, dx);
-            p.vx += Math.cos(angle) * force * delta;
-            p.vy += Math.sin(angle) * force * delta;
-          }
-        });
-      }
-    }
 
     const connections = selectConnections(particles, config, width, height, surgeIntensity);
     drawGlassFacets(ctx, particles, connections, config, width, height, surgeIntensity, themeColors, facetOpacity, delta);
@@ -1129,14 +1096,6 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
 
   const handlePointerDown = (event) => {
     if (!pointer.active) return;
-    pings.push({
-      x: event.clientX,
-      y: event.clientY,
-      radius: 0,
-      maxRadius: Math.max(width, height) * 0.45,
-      speed: 700 + surgeIntensity * 300,
-      alpha: 1.0
-    });
     surgeIntensity = Math.min(surgeIntensity + 0.35, 1.2);
   };
 

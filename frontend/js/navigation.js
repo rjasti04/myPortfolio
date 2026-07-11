@@ -210,35 +210,30 @@ export function initNavigation() {
   offlineBanner.innerHTML = '<i class="fas fa-wifi" style="text-decoration: line-through;"></i> You are offline';
   offlineBanner.style.cssText = `
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    bottom: 24px;
+    left: 24px;
     background: var(--color-warning);
-    color: var(--bg);
-    padding: 8px 16px;
-    text-align: center;
+    color: var(--on-warning);
+    padding: 12px 20px;
+    border-radius: var(--radius-full);
     font-size: 14px;
     font-weight: 600;
+    box-shadow: var(--shadow-lg);
     z-index: 10000;
-    transform: translateY(-100%);
-    transition: transform var(--motion-base) var(--ease-standard);
+    transform: translateY(150%);
+    transition: transform var(--motion-medium) var(--ease-standard);
+    display: flex;
+    align-items: center;
+    gap: 8px;
   `;
   document.body.appendChild(offlineBanner);
 
   function showOfflineBanner() {
     offlineBanner.style.transform = 'translateY(0)';
-    // Push header down when banner is visible
-    if (headerEl) {
-      headerEl.style.marginTop = offlineBanner.offsetHeight + 'px';
-    }
   }
 
   function hideOfflineBanner() {
-    offlineBanner.style.transform = 'translateY(-100%)';
-    // Reset header position
-    if (headerEl) {
-      headerEl.style.marginTop = '';
-    }
+    offlineBanner.style.transform = 'translateY(150%)';
   }
 
   if (!isNetworkOnline()) {
@@ -253,6 +248,9 @@ export function initNavigation() {
     navLinks.forEach((link, index) => {
       const kbd = document.createElement("kbd");
       kbd.className = "nav-shortcut";
+      // BUG FIX ROOT CAUSE: Guide numbers inside kbd tag are announced by screen readers, creating audio noise
+      // (e.g. "About one, link"). We set aria-hidden="true" so screen readers ignore the helper number.
+      kbd.setAttribute("aria-hidden", "true");
       kbd.textContent = String(index + 1);
       link.appendChild(kbd);
     });

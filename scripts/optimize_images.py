@@ -29,7 +29,7 @@ def create_backup():
     print(f"Creating backup in: {backup_dir}")
     
     for image_name in IMAGES_TO_OPTIMIZE.keys():
-        src = ROOT_DIR / image_name
+        src = ROOT_DIR / 'frontend' / image_name
         if src.exists():
             dst = backup_dir / image_name
             shutil.copy2(src, dst)
@@ -97,7 +97,7 @@ def main():
     results = []
     
     for image_name, config in IMAGES_TO_OPTIMIZE.items():
-        image_path = ROOT_DIR / image_name
+        image_path = ROOT_DIR / 'frontend' / image_name
         
         if not image_path.exists():
             print(f"  [WARNING] Skipped: {image_name} (not found)")

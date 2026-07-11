@@ -80,7 +80,7 @@ Use FastAPI with asyncpg for PostgreSQL and boto3 for Amazon Bedrock.
 ## ADR-004: No ORM, Raw SQL
 
 **Date**: 2024-01-15  
-**Status**: Accepted
+**Status**: Superseded by ADR-014
 
 ### Context
 Need to interact with PostgreSQL database for activity tracking.
@@ -243,6 +243,30 @@ Implement lazy loading using IntersectionObserver API with fallback.
 - Slight delay before images load
 - Requires JavaScript (fallback loads all)
 - Need to handle loading states
+
+---
+
+## ADR-014: SQLAlchemy ORM Migration
+
+**Date**: 2024-02-15  
+**Status**: Accepted
+
+### Context
+Maintaining raw SQL queries, manual parameter binding, and custom schema scripts became error-prone and complex as authentication models (users, refresh tokens) were added.
+
+### Decision
+Migrate to SQLAlchemy ORM with the `asyncpg` async driver, and use Alembic for versioned schema migrations instead of raw SQL or script-based database setup.
+
+### Rationale
+- **Maintainability**: Pythonic models define database schemas declaratively, reducing raw SQL query fragmentation.
+- **Security**: Automatic query parameter binding via ORM mitigates SQL injection risk.
+- **Database Migrations**: Alembic provides standard, structured, and trackable database migration scripts.
+- **Type Safety & IDE Support**: Better type-hinting, code completion, and alignment with Pydantic validation models.
+
+### Consequences
+- Requires running Alembic migrations for local and production environment setup.
+- Additional abstraction layer of SQLAlchemy.
+- Need to manage session lifecycles carefully (using FastAPI dependency injection and async session contexts).
 
 ---
 

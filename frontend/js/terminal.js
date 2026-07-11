@@ -89,12 +89,14 @@ export function initTerminal() {
     const saved = localStorage.getItem(HISTORY_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (
-        Array.isArray(parsed) &&
-        parsed.length <= 100 &&
-        parsed.every(item => typeof item === 'string' && item.length <= 500)
-      ) {
-        commandHistory = parsed;
+      // BUG FIX ROOT CAUSE: If a single entry exceeded 500 characters, the entire history list was
+      // discarded due to parsed.every() validation failure. We now sanitize, truncate, and map
+      // individual entries to retain the rest of the history.
+      if (Array.isArray(parsed)) {
+        commandHistory = parsed
+          .filter(item => typeof item === 'string')
+          .map(item => item.slice(0, 500))
+          .slice(-100);
       }
     }
   } catch (e) {
@@ -184,6 +186,7 @@ export function initTerminal() {
           <li><strong>cat</strong>       - View a file (e.g., cat contact.md)</li>
           <li><strong>wget</strong>      - Download files (e.g., wget resume)</li>
           <li><strong>neofetch</strong>  - System info card</li>
+          <li><strong>system-stats</strong> - Display real-time data pipelines & system load</li>
           <li><strong>cowsay</strong>    - Make the cow say something</li>
           <li><strong>fortune</strong>   - Random wisdom</li>
           <li><strong>ping</strong>      - Ping a host</li>
@@ -410,6 +413,40 @@ export function initTerminal() {
     },
     sudo: () => {
       return `<p class="terminal-line terminal-error">rjasti is not in the sudoers file. This incident will be reported.</p>`;
+    },
+    "system-stats": () => {
+      const cpuPercent = Math.floor(25 + Math.random() * 40);
+      const memPercent = Math.floor(55 + Math.random() * 20);
+      
+      const cpuBarLength = Math.round(cpuPercent / 5);
+      const memBarLength = Math.round(memPercent / 5);
+      
+      const cpuBar = "█".repeat(cpuBarLength) + "░".repeat(20 - cpuBarLength);
+      const memBar = "█".repeat(memBarLength) + "░".repeat(20 - memBarLength);
+      
+      return `
+        <pre class="terminal-output-text" style="line-height:1.5;white-space:pre;font-family:monospace">
+  HOST: rjasti.com      OS: DataOS v2.4      UPTIME: 10+ Years      LOAD: 0.28, 0.44, 0.32
+
+  CPU [${cpuBar}] ${cpuPercent}.0% (8 Cores active)
+  MEM [${memBar}] ${memPercent}.0% (${(16 * memPercent / 100).toFixed(1)} GB / 16.0 GB)
+
+  ACTIVE STREAMS & DATA PIPELINES:
+  ┌──────────────────────┬─────────────┬──────────────┬─────────────┐
+  │ Pipeline Name        │ Source      │ Target       │ Status      │
+  ├──────────────────────┼─────────────┼──────────────┼─────────────┤
+  │ clickstream-ingress  │ Kafka       │ Snowflake    │ <span style="color:var(--terminal-green)">ACTIVE (OK)</span> │
+  │ sessions-heartbeat   │ Website API │ PostgreSQL   │ <span style="color:var(--terminal-green)">ACTIVE (OK)</span> │
+  │ model-training-job   │ S3 Bucket   │ Bedrock LLM  │ <span style="color:var(--terminal-muted)">COMPLETED</span>   │
+  └──────────────────────┴─────────────┴──────────────┴─────────────┘
+
+  INFRASTRUCTURE STATUS:
+  - Kafka Brokers:  [<span style="color:var(--terminal-green)">3/3 ONLINE</span>]  (Broker-1: OK, Broker-2: OK, Broker-3: OK)
+  - Spark Cluster:  [8 Workers active, 64 Cores, 256GB Memory]
+  - PostgreSQL:     [Connection Pool: 8/10 active connections]
+  - AWS Bedrock:    [US-EAST-1 Endpoint: <span style="color:var(--terminal-green)">ONLINE</span>, Gemma-3-12B]
+        </pre>
+      `;
     }
   };
 
@@ -474,9 +511,13 @@ export function initTerminal() {
       const inputVal = terminalInput.value.trim();
       if (!inputVal) return;
 
+      // BUG FIX ROOT CAUSE: Clean input to max 500 characters before checking history to prevent
+      // exceeding limits and triggering validation failures on reload.
+      const sanitizedInput = inputVal.substring(0, 500);
+
       // Add to history and reset index (capped at 100 entries)
-      if (commandHistory[commandHistory.length - 1] !== inputVal) {
-        commandHistory.push(inputVal);
+      if (commandHistory[commandHistory.length - 1] !== sanitizedInput) {
+        commandHistory.push(sanitizedInput);
         if (commandHistory.length > 100) commandHistory.shift();
         try {
           localStorage.setItem(HISTORY_KEY, JSON.stringify(commandHistory));

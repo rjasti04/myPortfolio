@@ -15,14 +15,16 @@ FastAPI service for activity tracking and Amazon Bedrock-powered chat.
 
 ```text
 .
-|-- index.html              # Main portfolio page
-|-- styles.css              # Global styles and responsive layout
-|-- sw.js                   # Service worker for app-shell caching
-|-- manifest.json           # PWA metadata
-|-- js/                     # Frontend modules
+|-- frontend/               # Static single-page portfolio/PWA frontend
+|   |-- index.html          # Main portfolio page
+|   |-- styles.css          # Global styles and responsive layout
+|   |-- sw.js               # Service worker for app-shell caching
+|   |-- manifest.json       # PWA metadata
+|   |-- js/                 # Frontend modules
+|   |-- tests/              # Frontend unit tests
 |-- server/main.py          # FastAPI activity and chat API
 |-- server/requirements.txt # Backend Python dependencies
-|-- tests/                  # Node.js unit tests
+|-- tests/backend/          # Backend Python unit tests
 |-- scripts/                # Image maintenance helpers
 |-- docs/                   # Supporting documentation
 ```
@@ -99,14 +101,14 @@ Optional:
 - `LOG_LEVEL`: Python logging level, default `INFO`
 
 The frontend currently points API calls at `https://rjasti.com/api` in
-`js/analytics.js`. Change `API_BASE` there when testing against a different API
+`frontend/js/analytics.js`. Change `API_BASE` there when testing against a different API
 host.
 
 ## Available Scripts
 
 ```bash
 npm run lint          # Run JavaScript and CSS linters
-npm run lint:js       # Lint js/*.js
+npm run lint:js       # Lint frontend/js/*.js
 npm run lint:css      # Lint CSS files
 npm run format        # Format supported files with Prettier
 npm run format:check  # Check formatting without writing
@@ -132,7 +134,7 @@ npm run audit         # Check npm packages for high-severity advisories
 
 - The static frontend can be hosted by any static web server or CDN.
 - The service worker caches local app-shell assets and selected third-party CDN
-  resources. Bump `CACHE_NAME` in `sw.js` when changing cached asset behavior.
+  resources. Bump `CACHE_NAME` in `frontend/sw.js` when changing cached asset behavior.
 - API responses are intentionally excluded from service worker caching.
 - The backend has no application-level authentication. Keep it behind trusted
   routing, firewall/security-group rules, or a reverse proxy unless public access

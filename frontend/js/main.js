@@ -108,13 +108,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatToggle = document.getElementById('chat-toggle-btn');
   const aiSection = document.getElementById('ai');
 
+  // BUG FIX ROOT CAUSE: Lazy-loading click listeners on document run on every click event in the viewport forever.
+  // We wrap them with AbortController signals to abort them once the respective module has loaded successfully.
+  const chatClickController = new AbortController();
   const loadChat = () => {
-    void loadChatModule();
+    void loadChatModule().then(module => {
+      if (module) {
+        try {
+          chatClickController.abort();
+        } catch (e) {}
+      }
+    });
   };
 
   chatToggle?.addEventListener('click', loadChat, { once: true });
 
-  const chatClickController = new AbortController();
   document.addEventListener('click', (event) => {
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest('[data-target="ai"], a[href="#ai"]')) {
@@ -135,8 +143,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const activitySection = document.getElementById('activity');
+  const activityClickController = new AbortController();
   const loadActivity = () => {
-    void loadActivityModule();
+    void loadActivityModule().then(module => {
+      if (module) {
+        try {
+          activityClickController.abort();
+        } catch (e) {}
+      }
+    });
   };
 
   document.addEventListener('click', (event) => {
@@ -144,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (target?.closest('[data-target="activity"], a[href="#activity"]')) {
       loadActivity();
     }
-  }, { capture: true });
+  }, { capture: true, signal: activityClickController.signal });
 
   const ensureActivityForActiveSection = () => {
     if (activitySection?.classList.contains('active') || window.location.hash === '#activity') {

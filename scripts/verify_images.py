@@ -15,7 +15,7 @@ def verify_images():
     print("=" * 60)
     
     for img_name in IMAGES:
-        img_path = ROOT_DIR / img_name
+        img_path = ROOT_DIR / 'frontend' / img_name
         
         if not img_path.exists():
             print(f"\n[ERROR] {img_name} not found!")
