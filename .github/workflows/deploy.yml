@@ -17,14 +17,14 @@ jobs:
       - name: Configure SSH Key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy FastAPI Backend (server/)
         run: |
           # Ensure target directory exists on EC2
-          ssh ec2-user@${{ secrets.SERVER_HOST }} "mkdir -p /home/ec2-user/fastapi/server"
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "mkdir -p /home/${{ secrets.EC2_USERNAME }}/fastapi/server"
           
           # Sync server directory to EC2, excluding virtual environments, secrets, and caches
           rsync -avz --delete \
@@ -33,7 +33,7 @@ jobs:
             --exclude="__pycache__" \
             --exclude=".env*" \
             --exclude=".git" \
-            server/ ec2-user@${{ secrets.SERVER_HOST }}:/home/ec2-user/fastapi/server/
+            server/ ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/fastapi/server/
 
       - name: Deploy Static Frontend to Apache (/var/www/html/)
         run: |
@@ -42,11 +42,11 @@ jobs:
           rsync -avz --delete \
             --rsync-path="sudo rsync" \
             --exclude="tests" \
-            frontend/ ec2-user@${{ secrets.SERVER_HOST }}:/var/www/html/
+            frontend/ ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/var/www/html/
 
       - name: Restart FastAPI and HTTPD Services
         run: |
-          ssh ec2-user@${{ secrets.SERVER_HOST }} "
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "
             # Restart the FastAPI service
             sudo systemctl restart fastapi.service
             
