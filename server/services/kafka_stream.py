@@ -11,6 +11,7 @@ from typing import Any, Optional, Dict, List
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import OperationalError, InterfaceError
 from server.db.database import AsyncSessionLocal
 from server.models.event import UserActivityEvent
 
@@ -150,11 +151,14 @@ async def save_batch() -> None:
             session.add_all(db_events)
             await session.commit()
             logger.info("kafka_stream_batch_write_success", count=len(db_events))
-    except Exception as e:
-        logger.error("kafka_stream_batch_write_error", error=str(e))
+    except (OperationalError, InterfaceError) as e:
+        logger.error("kafka_stream_batch_write_recoverable_error", error=str(e))
         # Restore buffer in case of recoverable DB issues
         async with batch_lock:
             batch_buffer.extend(events_to_save)
+    except Exception as e:
+        logger.error("kafka_stream_batch_write_unrecoverable_error", error=str(e), count=len(events_to_save))
+        # Discard unrecoverable failed events to prevent queue lockup
 
 async def add_to_batch(event_dict: Dict[str, Any]) -> None:
     """Adds a single event to the batch buffer, flushing if limit is reached."""
@@ -165,9 +169,9 @@ async def add_to_batch(event_dict: Dict[str, Any]) -> None:
     if trigger_flush:
         await save_batch()
 
-async def process_incoming_event(event_data: Dict[str, Any]) -> None:
+async def process_incoming_event(event_data: Dict[str, Any], is_simulated: bool = False) -> None:
     """
-    Decodes data payload, adds event to the batch buffer,
+    Decodes data payload, adds event to the batch buffer (if not simulated),
     and broadcasts it to any active SSE clients.
     """
     try:
@@ -189,11 +193,14 @@ async def process_incoming_event(event_data: Dict[str, Any]) -> None:
             "created_at": event_data.get("created_at") or datetime.now(timezone.utc)
         }
         
-        # Add to batch and broadcast in parallel
-        await asyncio.gather(
-            add_to_batch(processed_event),
-            broadcast_event(session_id, processed_event)
-        )
+        # Add to batch and broadcast in parallel (skip batching for simulated events)
+        if is_simulated:
+            await broadcast_event(session_id, processed_event)
+        else:
+            await asyncio.gather(
+                add_to_batch(processed_event),
+                broadcast_event(session_id, processed_event)
+            )
     except Exception as e:
         logger.error("process_incoming_event_error", error=str(e))
 
@@ -270,7 +277,7 @@ async def run_simulated_consumer() -> None:
                         "created_at": datetime.now(timezone.utc)
                     }
                     logger.info("simulated_event_generated", session_id=str(active_session_id), type=event_payload["event_type"])
-                    await process_incoming_event(event_payload)
+                    await process_incoming_event(event_payload, is_simulated=True)
             
             # Wait between 2.0 and 5.0 seconds
             await asyncio.sleep(random.uniform(2.0, 5.0))

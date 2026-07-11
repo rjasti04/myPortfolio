@@ -497,7 +497,12 @@ async def session_heartbeat(session_id: UUID, request: Request, db: AsyncSession
     result = await db.execute(
         update(UserSession)
         .where(UserSession.session_id == session_id)
-        .values(last_active_at=_now(), is_active=True)
+        .values(
+            last_active_at=_now(),
+            is_active=True,
+            ended_at=None,
+            end_reason=None
+        )
     )
     await db.commit()
 

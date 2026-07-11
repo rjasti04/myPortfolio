@@ -733,7 +733,9 @@ export function initChat() {
     // Check if user is unauthenticated and reached limit
     const userMessageCount = session.messages.filter(m => m.sender === 'user').length;
     if (!getAuthToken() && userMessageCount > FREE_MESSAGE_LIMIT) {
-      // Show auth modal and abort sending
+      if (widgetIndicator) widgetIndicator.remove();
+      if (aiIndicator) aiIndicator.remove();
+      setInputState(false);
       window.dispatchEvent(new Event('request-login-modal'));
       appendMessage("Please log in to continue chatting with the AI. You have reached the free message limit.", 'bot', { save: false, showCopy: false });
       return;

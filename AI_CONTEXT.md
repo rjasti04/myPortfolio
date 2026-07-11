@@ -7,7 +7,7 @@ Welcome! This document provides architectural context, development constraints, 
     *   *Key Files*: `frontend/index.html` (main structure), `frontend/js/main.js` (entry point), `frontend/styles.css` (global styles).
 *   **Backend**: FastAPI ASGI service using SQLAlchemy (async engine + asyncpg driver) and AWS Amazon Bedrock.
     *   *Key Files*: `server/main.py` (FastAPI app & routes), `server/models/` (DB schemas), `server/alembic/` (migrations).
-    *   *Note*: Ignore outdated references to "raw SQL" in `docs/ADR.md`. The project uses SQLAlchemy ORM.
+    *   *Note*: Refer to `docs/ADR.md` for historical and updated architectural decisions (e.g., transition from raw SQL to SQLAlchemy ORM).
 
 ## 2. Environment Variables & Setup
 To run the server locally, create a `.env` file in the root with:

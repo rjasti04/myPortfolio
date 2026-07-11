@@ -259,7 +259,7 @@ async function flushEvents() {
   }
 }
 
-function flushEventsOnUnload() {
+function flushEventsOnUnload(isEndingSession = false) {
   if (eventQueue.length > 0 && sessionId) {
     const payload = JSON.stringify({ events: eventQueue });
 
@@ -275,9 +275,9 @@ function flushEventsOnUnload() {
     saveEventQueue();
   }
 
-  // Also send an end session call
+  // Also send an end session call if we are explicitly closing the page/tab
   // API requires a PATCH method, which sendBeacon doesn't support
-  if (sessionId) {
+  if (sessionId && isEndingSession) {
     const endPayload = JSON.stringify({ end_reason: "tab_closed_or_hidden" });
     apiFetch(`${API_BASE}/sessions/${sessionId}/end`, {
       method: "PATCH",
@@ -303,7 +303,7 @@ function attachGlobalListeners() {
   let visibilityTimeout;
   window.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
-      flushEventsOnUnload();
+      flushEventsOnUnload(false);
     } else if (document.visibilityState === "visible") {
       clearTimeout(visibilityTimeout);
       visibilityTimeout = setTimeout(() => {
@@ -325,7 +325,7 @@ function attachGlobalListeners() {
   });
 
   window.addEventListener("pagehide", () => {
-    flushEventsOnUnload();
+    flushEventsOnUnload(true);
   });
 
   // Track global clicks on interactive elements (only attach once)
