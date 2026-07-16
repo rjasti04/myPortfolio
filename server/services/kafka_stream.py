@@ -247,6 +247,10 @@ async def run_simulated_consumer() -> None:
     Simulated consumer generator. Only emits when there are active SSE listeners,
     preventing DB bloating when no one is watching the dashboard.
     """
+    if os.getenv("ENABLE_EVENT_SIMULATOR", "false").lower() != "true":
+        logger.info("simulated_consumer_disabled", reason="ENABLE_EVENT_SIMULATOR environment variable is not set to 'true'")
+        return
+
     logger.info("simulated_consumer_started")
     
     mock_events = [
