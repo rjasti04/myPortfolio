@@ -4022,6 +4022,7 @@ body.dark-theme .skill-tag {
 
 /* Reset anchor decorations specifically for World Cup icon button link */
 #worldcup-link {
+  display: none !important;
   text-decoration: none !important;
   border: none !important;
   border-bottom: none !important;
