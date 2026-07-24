@@ -1,5 +1,6 @@
 import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, changePassword } from './auth.js';
 import { API_BASE } from './analytics.js';
+import { closeAllDropdowns } from './navigation.js';
 
 export async function initAuthUI() {
     const modal = document.getElementById('auth-modal');
@@ -538,13 +539,18 @@ async function setupNavUI() {
                 profileBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const isExpanded = dropdown.classList.contains('show');
-                    dropdown.classList.toggle('show');
-                    profileBtn.setAttribute('aria-expanded', !isExpanded);
+                    closeAllDropdowns();
+                    if (!isExpanded) {
+                        dropdown.classList.add('show');
+                        profileBtn.setAttribute('aria-expanded', 'true');
+                    }
                 });
 
-                document.addEventListener('click', () => {
-                    dropdown.classList.remove('show');
-                    profileBtn.setAttribute('aria-expanded', 'false');
+                document.addEventListener('click', (e) => {
+                    if (dropdown && !dropdown.contains(e.target) && !profileBtn.contains(e.target)) {
+                        dropdown.classList.remove('show');
+                        profileBtn.setAttribute('aria-expanded', 'false');
+                    }
                 });
 
                 if (changePwBtn) {

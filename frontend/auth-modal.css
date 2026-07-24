@@ -214,20 +214,23 @@
 
 .nav-user-dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 10px);
   right: 0;
-  margin-top: 0.5rem;
-  background-color: var(--card-bg, #1e1e2e);
-  border: 1px solid var(--border, #3a3b4a);
-  border-radius: 8px;
-  min-width: 150px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  padding: 0.5rem 0;
+  background-color: var(--bg, rgba(255, 255, 255, 0.8));
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.2));
+  border-radius: var(--radius-lg, 16px);
+  min-width: 200px;
+  box-shadow: var(--shadow-xl, 0 24px 64px rgba(0, 0, 0, 0.1));
+  padding: 12px;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-10px);
-  transition: opacity var(--motion-base) var(--ease-standard), visibility var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard);
-  z-index: 100;
+  transform: translateY(-8px);
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    visibility var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+  z-index: 1300;
 }
 
 .nav-user-dropdown.show {
@@ -237,16 +240,19 @@
 }
 
 .nav-dropdown-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   text-align: left;
-  padding: 0.5rem 1rem;
+  padding: 10px 16px;
+  border-radius: 8px;
   background: transparent;
   border: none;
   color: var(--text, #cdd6f4);
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s;
+  font-size: 14px;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .nav-dropdown-item:hover {
