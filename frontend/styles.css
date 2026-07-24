@@ -402,6 +402,45 @@ body.dark-theme header.scrolled {
   flex-shrink: 0;
 }
 
+/* Sleek Header Icon Tooltips */
+.header-icon-btn {
+  position: relative;
+}
+
+.header-icon-btn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.92);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  box-shadow: var(--shadow-md);
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-enter),
+    visibility var(--motion-base) var(--ease-standard);
+  z-index: 1200;
+}
+
+.header-icon-btn[data-tooltip]:hover::after,
+.header-icon-btn[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) scale(1);
+}
+
 /* Mobile Menu Button */
 .hamburger-btn {
   display: none;
@@ -446,10 +485,11 @@ body.dark-theme header.scrolled {
 }
 
 #nav-menu a.active {
-  background: var(--accent-fill);
-  color: var(--on-accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border: 1px solid var(--accent-mild);
+  box-shadow: 0 0 14px var(--accent-soft), inset 0 0 8px var(--accent-soft);
   font-weight: 700;
-  box-shadow: none;
 }
 
 #nav-menu a:not(.active):hover {
@@ -1051,6 +1091,22 @@ body:has(main > #ai.active) .chat-widget {
   color: var(--terminal-muted);
 }
 
+.terminal-line .cmd {
+  color: #38bdf8;
+  font-weight: 800;
+}
+
+.terminal-line .flag {
+  color: #cba6f7;
+  font-weight: 600;
+}
+
+.terminal-list .output-ok {
+  color: var(--terminal-green);
+  font-weight: 800;
+  margin-right: 4px;
+}
+
 .terminal-tags {
   display: flex;
   flex-wrap: wrap;
@@ -1065,7 +1121,22 @@ body:has(main > #ai.active) .chat-widget {
   border: 1px solid rgb(142 161 201 / 25%);
   background: rgb(142 161 201 / 8%);
   border-radius: 999px;
-  padding: 4px 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition:
+    transform var(--motion-base) var(--ease-press),
+    border-color var(--motion-base) var(--ease-standard),
+    background var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
+}
+
+.terminal-tags span:hover {
+  transform: translateY(-2px) scale(1.08);
+  border-color: var(--accent-fill);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  box-shadow: 0 4px 14px var(--accent-soft);
 }
 
 .terminal-input-line {
@@ -2329,21 +2400,33 @@ body.dark-theme #resume .item {
   }
 }
 
-/* Stat Counter */
+/* Stat Counter - Clean 3x2 Glassmorphism Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
-  gap: clamp(8px, 1.2vw, 12px);
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(12px, 1.6vw, 20px);
   margin: 2.5% 0;
 }
 
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .stat-card {
-  background: linear-gradient(135deg, var(--card-bg) 0%, color-mix(in srgb, var(--accent-soft) 20%, var(--card-bg)) 100%);
+  background: var(--surface);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 24px 20px;
+  padding: 26px 20px;
   text-align: center;
   transition:
     transform var(--motion-medium) var(--ease-standard),
@@ -2382,10 +2465,10 @@ body.dark-theme #resume .item {
 }
 
 .stat-card:hover {
-  transform: translateY(-8px) scale(1.05);
+  transform: translateY(-6px);
   border-color: var(--accent-fill);
-  box-shadow: 0 16px 48px var(--accent-soft), 0 0 0 1px var(--accent-mild);
-  background: linear-gradient(135deg, var(--card-bg) 0%, color-mix(in srgb, var(--accent-soft) 40%, var(--card-bg)) 100%);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.12), 0 0 20px var(--accent-soft);
+  background: var(--surface-soft);
 }
 
 .stat-card:hover::before {
