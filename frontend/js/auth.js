@@ -73,6 +73,25 @@ export async function requestPasswordReset(email) {
   });
 }
 
+export async function changePassword(currentPassword, newPassword) {
+  try {
+    const response = await authenticatedFetch(`${API_BASE}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to change password');
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error('Change password error:', err);
+    throw err;
+  }
+}
 
 export async function logoutUser() {
     // Notify server if needed (optional)

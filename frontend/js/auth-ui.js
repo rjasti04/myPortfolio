@@ -1,4 +1,4 @@
-import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset } from './auth.js';
+import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, changePassword } from './auth.js';
 import { API_BASE } from './analytics.js';
 
 export function initAuthUI() {
@@ -32,6 +32,23 @@ export function initAuthUI() {
     const pwStrengthBar = document.getElementById('pw-strength-bar');
     const pwStrengthText = document.getElementById('pw-strength-text');
 
+    const changePasswordForm = document.getElementById('change-password-form');
+    const changeCurrentPasswordInput = document.getElementById('change-current-password');
+    const changeNewPasswordInput = document.getElementById('change-new-password');
+    const changeConfirmPasswordInput = document.getElementById('change-confirm-password');
+    const changePwSubmitBtn = document.getElementById('change-pw-submit-btn');
+    const changeConfirmMatchText = document.getElementById('change-confirm-match-text');
+    const changePwError = document.getElementById('change-pw-error');
+    const changePwSuccess = document.getElementById('change-pw-success');
+
+    const changeReqLength = document.getElementById('change-req-length');
+    const changeReqUpper = document.getElementById('change-req-upper');
+    const changeReqNumber = document.getElementById('change-req-number');
+    const changeReqSpecial = document.getElementById('change-req-special');
+
+    const changePwStrengthBar = document.getElementById('change-pw-strength-bar');
+    const changePwStrengthText = document.getElementById('change-pw-strength-text');
+
     // Helper to reset password visibility state
     function resetPasswordVisibility() {
         const toggleBtns = document.querySelectorAll('.password-toggle-btn');
@@ -55,6 +72,11 @@ export function initAuthUI() {
         switchTab('login');
     });
 
+    window.addEventListener('request-change-password-modal', () => {
+        modal.classList.remove('hidden');
+        switchTab('change-password');
+    });
+
     // Close modal
     closeBtn.addEventListener('click', () => {
         modal.classList.add('hidden');
@@ -75,10 +97,10 @@ export function initAuthUI() {
         tabs.forEach(t => t.classList.remove('active'));
         tabContents.forEach(c => c.classList.remove('active'));
 
-        if (tabId === 'forgot') {
+        if (tabId === 'forgot' || tabId === 'change-password') {
             if (modalTabs) modalTabs.classList.add('hidden');
-            const forgotTab = document.getElementById('auth-tab-forgot');
-            if (forgotTab) forgotTab.classList.add('active');
+            const targetTab = document.getElementById(`auth-tab-${tabId}`);
+            if (targetTab) targetTab.classList.add('active');
         } else {
             if (modalTabs) modalTabs.classList.remove('hidden');
             const targetTab = document.querySelector(`.auth-tab[data-tab="${tabId}"]`);
@@ -93,6 +115,11 @@ export function initAuthUI() {
         if (forgotSuccess) {
             forgotSuccess.textContent = '';
             forgotSuccess.style.display = 'none';
+        }
+        if (changePwError) changePwError.textContent = '';
+        if (changePwSuccess) {
+            changePwSuccess.textContent = '';
+            changePwSuccess.style.display = 'none';
         }
     }
 
@@ -318,6 +345,133 @@ export function initAuthUI() {
                 forgotForm.reset();
             } catch (err) {
                 forgotError.textContent = err.message || 'Failed to send reset link. Please try again.';
+    // Real-time Password Validation for Change Password
+    function updateChangePasswordValidation() {
+        if (!changeNewPasswordInput) return;
+
+        const val = changeNewPasswordInput.value;
+        const confirmVal = changeConfirmPasswordInput ? changeConfirmPasswordInput.value : '';
+
+        const hasLength = val.length >= 8;
+        const hasUpper = /[A-Z]/.test(val);
+        const hasNumber = /[0-9]/.test(val);
+        const hasSpecial = /[^A-Za-z0-9]/.test(val);
+
+        function toggleCheckItem(el, isValid) {
+            if (!el) return;
+            const icon = el.querySelector('i');
+            if (isValid) {
+                el.className = 'checklist-item valid';
+                if (icon) icon.className = 'fas fa-check-circle';
+            } else {
+                if (val.length > 0) {
+                    el.className = 'checklist-item invalid';
+                    if (icon) icon.className = 'fas fa-times-circle';
+                } else {
+                    el.className = 'checklist-item';
+                    if (icon) icon.className = 'far fa-circle';
+                }
+            }
+        }
+
+        toggleCheckItem(changeReqLength, hasLength);
+        toggleCheckItem(changeReqUpper, hasUpper);
+        toggleCheckItem(changeReqNumber, hasNumber);
+        toggleCheckItem(changeReqSpecial, hasSpecial);
+
+        let score = 0;
+        if (val.length > 0) {
+            if (hasLength) score++;
+            if (hasUpper) score++;
+            if (hasNumber) score++;
+            if (hasSpecial) score++;
+        }
+
+        if (changePwStrengthBar && changePwStrengthText) {
+            changePwStrengthBar.className = 'password-strength-meter';
+            if (val.length === 0) {
+                changePwStrengthBar.style.width = '0%';
+                changePwStrengthText.textContent = 'Strength: Weak';
+                changePwStrengthText.style.color = 'var(--text-muted)';
+            } else {
+                if (score <= 2) {
+                    changePwStrengthBar.classList.add('weak');
+                    changePwStrengthText.textContent = 'Strength: Weak';
+                    changePwStrengthText.style.color = 'var(--color-error)';
+                } else if (score === 3) {
+                    changePwStrengthBar.classList.add('medium');
+                    changePwStrengthText.textContent = 'Strength: Medium';
+                    changePwStrengthText.style.color = 'var(--color-warning)';
+                } else if (score === 4) {
+                    changePwStrengthBar.classList.add('strong');
+                    changePwStrengthText.textContent = 'Strength: Strong';
+                    changePwStrengthText.style.color = 'var(--color-success)';
+                }
+            }
+        }
+
+        let matches = false;
+        if (changeConfirmPasswordInput && changeConfirmMatchText) {
+            if (confirmVal.length === 0) {
+                changeConfirmMatchText.textContent = '';
+                changeConfirmMatchText.className = 'confirm-password-match-text';
+            } else if (val === confirmVal) {
+                changeConfirmMatchText.textContent = 'Passwords match';
+                changeConfirmMatchText.className = 'confirm-password-match-text valid';
+                matches = true;
+            } else {
+                changeConfirmMatchText.textContent = 'Passwords do not match';
+                changeConfirmMatchText.className = 'confirm-password-match-text invalid';
+            }
+        } else {
+            matches = val === confirmVal;
+        }
+
+        const allCriteriaMet = hasLength && hasUpper && hasNumber && hasSpecial;
+        const hasCurrentPassword = changeCurrentPasswordInput && changeCurrentPasswordInput.value.length > 0;
+        if (changePwSubmitBtn) {
+            changePwSubmitBtn.disabled = !(allCriteriaMet && matches && hasCurrentPassword);
+        }
+    }
+
+    if (changeCurrentPasswordInput) changeCurrentPasswordInput.addEventListener('input', updateChangePasswordValidation);
+    if (changeNewPasswordInput) changeNewPasswordInput.addEventListener('input', updateChangePasswordValidation);
+    if (changeConfirmPasswordInput) changeConfirmPasswordInput.addEventListener('input', updateChangePasswordValidation);
+
+    // Handle Change Password Form Submit
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currentPassword = changeCurrentPasswordInput.value;
+            const newPassword = changeNewPasswordInput.value;
+            const btn = changePasswordForm.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+
+            try {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+                btn.disabled = true;
+                if (changePwError) changePwError.textContent = '';
+                if (changePwSuccess) {
+                    changePwSuccess.textContent = '';
+                    changePwSuccess.style.display = 'none';
+                }
+
+                await changePassword(currentPassword, newPassword);
+
+                if (changePwSuccess) {
+                    changePwSuccess.textContent = 'Password changed successfully!';
+                    changePwSuccess.style.display = 'block';
+                }
+                changePasswordForm.reset();
+                updateChangePasswordValidation();
+
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 1500);
+            } catch (err) {
+                if (changePwError) {
+                    changePwError.textContent = err.message || 'Failed to change password. Please try again.';
+                }
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -356,6 +510,9 @@ async function setupNavUI() {
                         <i class="fas fa-chevron-down" style="font-size: 0.7rem; margin-left: 2px;"></i>
                     </div>
                     <div class="nav-user-dropdown" id="nav-user-dropdown">
+                        <button class="nav-dropdown-item" id="nav-change-pw-btn">
+                            <i class="fas fa-key"></i> Change Password
+                        </button>
                         <button class="nav-dropdown-item" id="nav-logout-btn">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </button>
@@ -366,6 +523,7 @@ async function setupNavUI() {
 
                 const profileBtn = document.getElementById('nav-user-btn');
                 const dropdown = document.getElementById('nav-user-dropdown');
+                const changePwBtn = document.getElementById('nav-change-pw-btn');
                 const logoutBtn = document.getElementById('nav-logout-btn');
 
                 profileBtn.addEventListener('click', (e) => {
@@ -379,6 +537,13 @@ async function setupNavUI() {
                     dropdown.classList.remove('show');
                     profileBtn.setAttribute('aria-expanded', 'false');
                 });
+
+                if (changePwBtn) {
+                    changePwBtn.addEventListener('click', () => {
+                        dropdown.classList.remove('show');
+                        window.dispatchEvent(new Event('request-change-password-modal'));
+                    });
+                }
 
                 logoutBtn.addEventListener('click', async () => {
                     await logoutUser();

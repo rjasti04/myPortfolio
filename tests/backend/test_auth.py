@@ -160,3 +160,71 @@ async def test_refresh_token_rotation_and_logout(async_client: AsyncClient):
         json={"refresh_token": new_refresh_token}
     )
     assert post_logout_refresh_res.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_change_password_success(async_client: AsyncClient):
+    email = "changepw@example.com"
+    old_pwd = "OldPassword123!"
+    new_pwd = "NewPassword456!"
+
+    await async_client.post(
+        "/auth/register",
+        json={"email": email, "password": old_pwd}
+    )
+
+    login_res = await async_client.post(
+        "/auth/login",
+        json={"email": email, "password": old_pwd}
+    )
+    token = login_res.json()["access_token"]
+
+    # Change password
+    change_res = await async_client.post(
+        "/auth/change-password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"current_password": old_pwd, "new_password": new_pwd}
+    )
+    assert change_res.status_code == 200
+    assert change_res.json()["message"] == "Password changed successfully"
+
+    # Verify old password fails
+    old_login_res = await async_client.post(
+        "/auth/login",
+        json={"email": email, "password": old_pwd}
+    )
+    assert old_login_res.status_code == 401
+
+    # Verify new password succeeds
+    new_login_res = await async_client.post(
+        "/auth/login",
+        json={"email": email, "password": new_pwd}
+    )
+    assert new_login_res.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_change_password_invalid_current_password(async_client: AsyncClient):
+    email = "changepw_fail@example.com"
+    pwd = "RealPassword123!"
+
+    await async_client.post(
+        "/auth/register",
+        json={"email": email, "password": pwd}
+    )
+
+    login_res = await async_client.post(
+        "/auth/login",
+        json={"email": email, "password": pwd}
+    )
+    token = login_res.json()["access_token"]
+
+    # Try changing password with wrong current password
+    change_res = await async_client.post(
+        "/auth/change-password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"current_password": "WrongPassword123!", "new_password": "BrandNewPassword123!"}
+    )
+    assert change_res.status_code == 400
+    assert "incorrect current password" in change_res.json()["detail"].lower()
+

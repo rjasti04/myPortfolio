@@ -4,7 +4,7 @@ from sqlalchemy import update
 from fastapi import HTTPException, status
 from server.models.user import User
 from server.models.token import RefreshToken
-from server.schemas.auth import UserCreate, UserLogin, Token, RefreshTokenRequest
+from server.schemas.auth import UserCreate, UserLogin, Token, RefreshTokenRequest, ChangePasswordRequest
 from server.auth.security import (
     get_password_hash,
     verify_password,
@@ -162,3 +162,25 @@ async def revoke_user_tokens(db: AsyncSession, user_id: uuid.UUID) -> None:
     )
     await db.commit()
     logger.info("all_refresh_tokens_revoked", user_id=str(user_id))
+
+
+async def change_user_password(db: AsyncSession, user: User, data: ChangePasswordRequest) -> dict:
+    if not verify_password(data.current_password, user.hashed_password):
+        logger.warning("password_change_failed_invalid_current", user_id=str(user.id))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password"
+        )
+
+    # Hash new password and update user record
+    user.hashed_password = get_password_hash(data.new_password)
+    db.add(user)
+
+    # Revoke all existing refresh tokens for security
+    await revoke_user_tokens(db, user.id)
+
+    await db.commit()
+    logger.info("password_changed_successfully", user_id=str(user.id))
+
+    return {"message": "Password changed successfully"}
+
