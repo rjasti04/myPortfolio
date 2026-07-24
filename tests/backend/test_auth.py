@@ -307,3 +307,77 @@ async def test_change_password_breached_password(async_client: AsyncClient):
     assert "data breach" in breach_res.json()["detail"].lower()
 
 
+@pytest.mark.asyncio
+async def test_forgot_password(async_client: AsyncClient):
+    email = "forgotpw@example.com"
+    await async_client.post(
+        "/auth/register",
+        json={"email": email, "password": "InitialPass123!"}
+    )
+
+    # Test request reset for existing user
+    res1 = await async_client.post(
+        "/auth/forgot-password",
+        json={"email": email}
+    )
+    assert res1.status_code == 200
+    assert "sent" in res1.json()["message"].lower()
+
+    # Test request reset for unknown email (anti-enumeration check)
+    res2 = await async_client.post(
+        "/auth/forgot-password",
+        json={"email": "nonexistent_forgot@example.com"}
+    )
+    assert res2.status_code == 200
+    assert "sent" in res2.json()["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_reset_password_flow(async_client: AsyncClient):
+    from server.auth.security import create_password_reset_token
+
+    email = "resetflow@example.com"
+    old_pwd = "OldPass123!"
+    new_pwd = "NewBrandPassword456!"
+
+    reg_res = await async_client.post(
+        "/auth/register",
+        json={"email": email, "password": old_pwd}
+    )
+    user_id = reg_res.json()["id"]
+
+    # Generate token
+    token = create_password_reset_token(subject=user_id)
+
+    # Reset password with valid token
+    reset_res = await async_client.post(
+        "/auth/reset-password",
+        json={"token": token, "new_password": new_pwd}
+    )
+    assert reset_res.status_code == 200
+
+    # Old password login should fail
+    login_old = await async_client.post(
+        "/auth/login",
+        json={"email": email, "password": old_pwd}
+    )
+    assert login_old.status_code == 401
+
+    # New password login should succeed
+    login_new = await async_client.post(
+        "/auth/login",
+        json={"email": email, "password": new_pwd}
+    )
+    assert login_new.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_reset_password_invalid_token(async_client: AsyncClient):
+    reset_res = await async_client.post(
+        "/auth/reset-password",
+        json={"token": "invalid.jwt.token", "new_password": "NewBrandPassword456!"}
+    )
+    assert reset_res.status_code == 401
+
+
+

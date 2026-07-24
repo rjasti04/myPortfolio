@@ -61,16 +61,43 @@ export async function registerUser(email, password) {
 }
 
 export async function requestPasswordReset(email) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        reject(new Error('Please enter a valid email address.'));
-      } else {
-        resolve({ success: true, message: 'Reset link sent!' });
-      }
-    }, 1000);
-  });
+  try {
+    const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to request password reset');
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error('Request password reset error:', err);
+    throw err;
+  }
+}
+
+export async function resetPassword(token, newPassword) {
+  try {
+    const response = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password: newPassword })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to reset password');
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error('Reset password error:', err);
+    throw err;
+  }
 }
 
 export async function changePassword(currentPassword, newPassword) {

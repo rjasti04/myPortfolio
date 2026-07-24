@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.db.database import get_db
-from server.schemas.auth import UserCreate, UserLogin, Token, UserResponse, RefreshTokenRequest, ChangePasswordRequest
+from server.schemas.auth import (
+    UserCreate, UserLogin, Token, UserResponse, RefreshTokenRequest, ChangePasswordRequest,
+    ForgotPasswordRequest, ResetPasswordRequest
+)
 from server.services import auth_service
 from server.auth.dependencies import get_current_user
 from server.models.user import User
@@ -33,6 +36,21 @@ async def change_password(
 ):
     return await auth_service.change_user_password(db, current_user, data, background_tasks)
 
+@router.post("/forgot-password")
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    return await auth_service.request_password_reset(db, data, background_tasks)
+
+@router.post("/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    return await auth_service.reset_password_with_token(db, data, background_tasks)
 
 @router.post("/logout")
 async def logout(
@@ -41,3 +59,4 @@ async def logout(
 ):
     await auth_service.revoke_user_tokens(db, current_user.id)
     return {"message": "Successfully logged out"}
+

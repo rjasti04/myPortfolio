@@ -234,7 +234,7 @@ class RateLimitMiddleware:
 
         request = Request(scope, receive)
         path = scope.get("path", "")
-        is_auth_route = path in ["/auth/login", "/auth/register"]
+        is_auth_route = path in ["/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password"]
         client_ip = _client_ip_from_request(request)
 
         now = time.time()

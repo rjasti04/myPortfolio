@@ -1,4 +1,4 @@
-import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, changePassword } from './auth.js';
+import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword } from './auth.js';
 import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
 
@@ -98,7 +98,7 @@ export async function initAuthUI() {
         tabs.forEach(t => t.classList.remove('active'));
         tabContents.forEach(c => c.classList.remove('active'));
 
-        if (tabId === 'forgot' || tabId === 'change-password') {
+        if (tabId === 'forgot' || tabId === 'change-password' || tabId === 'reset-password') {
             if (modalTabs) modalTabs.classList.add('hidden');
             const targetTab = document.getElementById(`auth-tab-${tabId}`);
             if (targetTab) targetTab.classList.add('active');
@@ -121,6 +121,13 @@ export async function initAuthUI() {
         if (changePwSuccess) {
             changePwSuccess.textContent = '';
             changePwSuccess.style.display = 'none';
+        }
+        const resetPwError = document.getElementById('reset-pw-error');
+        const resetPwSuccess = document.getElementById('reset-pw-success');
+        if (resetPwError) resetPwError.textContent = '';
+        if (resetPwSuccess) {
+            resetPwSuccess.textContent = '';
+            resetPwSuccess.style.display = 'none';
         }
     }
 
@@ -484,6 +491,169 @@ export async function initAuthUI() {
                 btn.disabled = false;
             }
         });
+    }
+
+    // Reset Password Form Handling & Real-time Validation
+    const resetPasswordForm = document.getElementById('reset-password-form');
+    const resetTokenInput = document.getElementById('reset-token-input');
+    const resetNewPasswordInput = document.getElementById('reset-new-password');
+    const resetConfirmPasswordInput = document.getElementById('reset-confirm-password');
+    const resetPwSubmitBtn = document.getElementById('reset-pw-submit-btn');
+    const resetConfirmMatchText = document.getElementById('reset-confirm-match-text');
+    const resetPwError = document.getElementById('reset-pw-error');
+    const resetPwSuccess = document.getElementById('reset-pw-success');
+
+    const resetReqLength = document.getElementById('reset-req-length');
+    const resetReqUpper = document.getElementById('reset-req-upper');
+    const resetReqNumber = document.getElementById('reset-req-number');
+    const resetReqSpecial = document.getElementById('reset-req-special');
+
+    const resetPwStrengthBar = document.getElementById('reset-pw-strength-bar');
+    const resetPwStrengthText = document.getElementById('reset-pw-strength-text');
+
+    function updateResetPasswordValidation() {
+        if (!resetNewPasswordInput) return;
+
+        const val = resetNewPasswordInput.value;
+        const confirmVal = resetConfirmPasswordInput ? resetConfirmPasswordInput.value : '';
+
+        const hasLength = val.length >= 8;
+        const hasUpper = /[A-Z]/.test(val);
+        const hasNumber = /[0-9]/.test(val);
+        const hasSpecial = /[^A-Za-z0-9]/.test(val);
+
+        function toggleCheckItem(el, isValid) {
+            if (!el) return;
+            const icon = el.querySelector('i');
+            if (isValid) {
+                el.className = 'checklist-item valid';
+                if (icon) icon.className = 'fas fa-check-circle';
+            } else {
+                if (val.length > 0) {
+                    el.className = 'checklist-item invalid';
+                    if (icon) icon.className = 'fas fa-times-circle';
+                } else {
+                    el.className = 'checklist-item';
+                    if (icon) icon.className = 'far fa-circle';
+                }
+            }
+        }
+
+        toggleCheckItem(resetReqLength, hasLength);
+        toggleCheckItem(resetReqUpper, hasUpper);
+        toggleCheckItem(resetReqNumber, hasNumber);
+        toggleCheckItem(resetReqSpecial, hasSpecial);
+
+        let score = 0;
+        if (val.length > 0) {
+            if (hasLength) score++;
+            if (hasUpper) score++;
+            if (hasNumber) score++;
+            if (hasSpecial) score++;
+        }
+
+        if (resetPwStrengthBar && resetPwStrengthText) {
+            resetPwStrengthBar.className = 'password-strength-meter';
+            if (val.length === 0) {
+                resetPwStrengthBar.style.width = '0%';
+                resetPwStrengthText.textContent = 'Strength: Weak';
+                resetPwStrengthText.style.color = 'var(--text-muted)';
+            } else {
+                if (score <= 2) {
+                    resetPwStrengthBar.classList.add('weak');
+                    resetPwStrengthText.textContent = 'Strength: Weak';
+                    resetPwStrengthText.style.color = 'var(--color-error)';
+                } else if (score === 3) {
+                    resetPwStrengthBar.classList.add('medium');
+                    resetPwStrengthText.textContent = 'Strength: Medium';
+                    resetPwStrengthText.style.color = 'var(--color-warning)';
+                } else if (score === 4) {
+                    resetPwStrengthBar.classList.add('strong');
+                    resetPwStrengthText.textContent = 'Strength: Strong';
+                    resetPwStrengthText.style.color = 'var(--color-success)';
+                }
+            }
+        }
+
+        let matches = false;
+        if (resetConfirmPasswordInput && resetConfirmMatchText) {
+            if (confirmVal.length === 0) {
+                resetConfirmMatchText.textContent = '';
+                resetConfirmMatchText.className = 'confirm-password-match-text';
+            } else if (val === confirmVal) {
+                resetConfirmMatchText.textContent = 'Passwords match';
+                resetConfirmMatchText.className = 'confirm-password-match-text valid';
+                matches = true;
+            } else {
+                resetConfirmMatchText.textContent = 'Passwords do not match';
+                resetConfirmMatchText.className = 'confirm-password-match-text invalid';
+            }
+        } else {
+            matches = val === confirmVal;
+        }
+
+        const allCriteriaMet = hasLength && hasUpper && hasNumber && hasSpecial;
+        if (resetPwSubmitBtn) {
+            resetPwSubmitBtn.disabled = !(allCriteriaMet && matches);
+        }
+    }
+
+    if (resetNewPasswordInput) {
+        resetNewPasswordInput.addEventListener('input', updateResetPasswordValidation);
+    }
+    if (resetConfirmPasswordInput) {
+        resetConfirmPasswordInput.addEventListener('input', updateResetPasswordValidation);
+    }
+
+    if (resetPasswordForm) {
+        resetPasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = resetTokenInput ? resetTokenInput.value : '';
+            const newPassword = resetNewPasswordInput ? resetNewPasswordInput.value : '';
+            const btn = resetPasswordForm.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+
+            try {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+                btn.disabled = true;
+                if (resetPwError) resetPwError.textContent = '';
+                if (resetPwSuccess) {
+                    resetPwSuccess.textContent = '';
+                    resetPwSuccess.style.display = 'none';
+                }
+
+                const result = await resetPassword(token, newPassword);
+
+                if (resetPwSuccess) {
+                    resetPwSuccess.textContent = result.message || 'Password reset successfully!';
+                    resetPwSuccess.style.display = 'block';
+                }
+                resetPasswordForm.reset();
+                updateResetPasswordValidation();
+
+                setTimeout(() => {
+                    switchTab('login');
+                }, 2000);
+            } catch (err) {
+                if (resetPwError) {
+                    resetPwError.textContent = err.message || 'Failed to reset password. Please try again.';
+                }
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
+
+    // Check URL query parameters for reset_token
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetTokenParam = urlParams.get('reset_token');
+    if (resetTokenParam) {
+        if (resetTokenInput) resetTokenInput.value = resetTokenParam;
+        if (modal) modal.classList.remove('hidden');
+        switchTab('reset-password');
+        const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
     }
 
     // Setup Navigation UI
