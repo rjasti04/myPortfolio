@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v14';
+const CACHE_NAME = 'rj-portfolio-v16';
 const CACHE_EXPIRATION_DAYS = 7;
 const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -14,6 +14,7 @@ const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/styles.css',
+  '/auth-modal.css',
   '/three-bg.js',
   '/manifest.json',
   '/android-chrome-192x192.png',
@@ -21,6 +22,8 @@ const PRECACHE_URLS = [
   '/profile-pic-160.webp',
   '/js/app-logic.js',
   '/js/main.js',
+  '/js/auth.js',
+  '/js/auth-ui.js',
   '/js/theme-bootstrap.js',
   '/js/config.js',
   '/js/navigation.js',

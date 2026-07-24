@@ -1,7 +1,7 @@
 import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, changePassword } from './auth.js';
 import { API_BASE } from './analytics.js';
 
-export function initAuthUI() {
+export async function initAuthUI() {
     const modal = document.getElementById('auth-modal');
     const closeBtn = document.getElementById('auth-modal-close');
     const tabs = document.querySelectorAll('.auth-tab');
@@ -345,6 +345,12 @@ export function initAuthUI() {
                 forgotForm.reset();
             } catch (err) {
                 forgotError.textContent = err.message || 'Failed to send reset link. Please try again.';
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
     // Real-time Password Validation for Change Password
     function updateChangePasswordValidation() {
         if (!changeNewPasswordInput) return;
@@ -485,16 +491,21 @@ export function initAuthUI() {
 }
 
 async function setupNavUI() {
-    const themeToggleBtn = document.getElementById('theme-toggle');
-    if (!themeToggleBtn) return;
-    const parentContainer = themeToggleBtn.parentElement;
+    let authContainer = document.getElementById('nav-auth-container') || document.querySelector('.nav-auth-container');
+    if (!authContainer) {
+        const parentContainer = document.querySelector('.header-actions');
+        if (!parentContainer) return;
 
-    // Remove existing auth container if it exists
-    const existing = document.querySelector('.nav-auth-container');
-    if (existing) existing.remove();
-
-    const authContainer = document.createElement('div');
-    authContainer.className = 'nav-auth-container';
+        const themeToggleBtn = document.getElementById('theme-toggle') || document.getElementById('hamburger-toggle');
+        authContainer = document.createElement('div');
+        authContainer.className = 'nav-auth-container';
+        authContainer.id = 'nav-auth-container';
+        if (themeToggleBtn) {
+            parentContainer.insertBefore(authContainer, themeToggleBtn);
+        } else {
+            parentContainer.appendChild(authContainer);
+        }
+    }
 
     if (getAuthToken()) {
         try {
@@ -514,12 +525,10 @@ async function setupNavUI() {
                             <i class="fas fa-key"></i> Change Password
                         </button>
                         <button class="nav-dropdown-item" id="nav-logout-btn">
-                            <i class="fas fa-sign-out-alt"></i> Logout
+                            <i class="fas fa-right-from-bracket"></i> Logout
                         </button>
                     </div>
                 `;
-
-                parentContainer.insertBefore(authContainer, themeToggleBtn);
 
                 const profileBtn = document.getElementById('nav-user-btn');
                 const dropdown = document.getElementById('nav-user-dropdown');
@@ -551,26 +560,37 @@ async function setupNavUI() {
 
                 return; // Successfully setup logged-in state
             } else {
-                // Token invalid, clear it
-                localStorage.removeItem('rj_access_token');
+                // Token invalid or unauthenticated, clear tokens
+                clearTokens();
             }
         } catch (e) {
             console.error("Failed to fetch user profile", e);
+            clearTokens();
         }
     }
 
     // Logged out state
     authContainer.innerHTML = `
-        <button class="header-icon-btn nav-auth-btn" id="nav-login-btn" title="Log In" aria-label="Log In">
-            <i class="fas fa-sign-in-alt"></i>
+        <button class="header-icon-btn nav-auth-btn" id="nav-login-btn" title="Log In" data-tooltip="Log In" aria-label="Log In">
+            <i class="fas fa-right-to-bracket"></i>
         </button>
     `;
-    parentContainer.insertBefore(authContainer, themeToggleBtn);
 
-    document.getElementById('nav-login-btn').addEventListener('click', () => {
-        window.dispatchEvent(new Event('request-login-modal'));
-    });
+    const loginBtn = document.getElementById('nav-login-btn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            window.dispatchEvent(new Event('request-login-modal'));
+        });
+    }
 }
+
+// Global delegated click listener for login button navigation
+document.addEventListener('click', (e) => {
+    const loginTrigger = e.target.closest('#nav-login-btn');
+    if (loginTrigger) {
+        window.dispatchEvent(new Event('request-login-modal'));
+    }
+});
 
 // Auto-init when loaded
 if (document.readyState === 'loading') {
