@@ -212,8 +212,8 @@ export function initNavigation() {
     position: fixed;
     bottom: 24px;
     left: 24px;
-    background: var(--color-warning);
-    color: var(--on-warning);
+    background: #fde68a;
+    color: #0f172a;
     padding: 12px 20px;
     border-radius: var(--radius-full);
     font-size: 14px;

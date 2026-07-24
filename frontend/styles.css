@@ -3066,13 +3066,17 @@ body.dark-theme .skill-tag {
   justify-content: center;
   z-index: 2000;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity var(--motion-medium) var(--ease-standard);
+  transition:
+    opacity var(--motion-medium) var(--ease-standard),
+    visibility var(--motion-medium) var(--ease-standard);
   padding: 20px;
 }
 
 .project-detail-modal.active {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
 }
 
@@ -4134,16 +4138,19 @@ body.dark-theme .skill-tag {
   right: 0;
   width: min(340px, calc(100vw - 24px));
   opacity: 0;
+  visibility: hidden;
   transform: translateY(-8px);
   pointer-events: none;
   transition:
     opacity var(--motion-base) var(--ease-standard),
-    transform var(--motion-base) var(--ease-enter);
+    transform var(--motion-base) var(--ease-enter),
+    visibility var(--motion-base) var(--ease-standard);
   z-index: 1300;
 }
 
 .header-dropdown.is-open .header-dropdown-menu {
   opacity: 1;
+  visibility: visible;
   transform: translateY(0);
   pointer-events: auto;
 }
@@ -6753,6 +6760,13 @@ body.dark-theme .mobile-bottom-nav {
 .pulse-dot.active-red {
   background-color: var(--color-error-fill, #ef4444) !important;
   box-shadow: 0 0 8px var(--color-error-fill, #ef4444);
+}
+
+/* Offline banner contrast styling */
+.offline-banner {
+  background-color: #fde68a;
+  color: #0f172a;
+  font-weight: 600;
 }
 
 
