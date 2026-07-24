@@ -377,12 +377,12 @@ body.dark-theme header.scrolled {
 
 .profile-pic-small {
   display: block;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 2px solid var(--accent-text);
   object-fit: cover;
-  object-position: 5% 5%;
+  object-position: center 20%;
   transition:
     transform var(--motion-medium) var(--ease-enter),
     box-shadow var(--motion-medium) var(--ease-standard);

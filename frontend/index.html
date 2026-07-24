@@ -188,9 +188,9 @@
       <a href="profile-pic.jpeg" target="_blank" rel="noopener noreferrer" class="header-left" id="profile-trigger"
         aria-label="Open profile photo">
         <picture>
-          <source srcset="profile-pic-160.webp 160w, profile-pic-360.webp 360w" sizes="42px" type="image/webp" />
-          <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w" sizes="42px"
-            alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" width="40" height="40" />
+          <source srcset="profile-pic-160.webp 160w, profile-pic-360.webp 360w" sizes="80px" type="image/webp" />
+          <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w" sizes="80px"
+            alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" loading="eager" width="44" height="44" />
         </picture>
         <div class="logo-text">RJ</div>
       </a>
@@ -208,8 +208,8 @@
 
       <div class="header-actions">
         <div class="header-dropdown js-only" id="connect-dropdown">
-          <button type="button" class="header-icon-btn" id="connect-toggle" aria-label="Open connect menu" data-tooltip="Contact"
-            aria-controls="connect-dropdown-menu" aria-expanded="false">
+          <button type="button" class="header-icon-btn" id="connect-toggle" aria-label="Open connect menu"
+            data-tooltip="Contact" aria-controls="connect-dropdown-menu" aria-expanded="false">
             <i class="fas fa-paper-plane"></i>
           </button>
           <div class="header-dropdown-menu" id="connect-dropdown-menu" aria-hidden="true">
@@ -229,8 +229,9 @@
         </div>
 
         <div class="header-dropdown js-only" id="theme-customizer-dropdown">
-          <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme" data-tooltip="Customize Theme"
-            aria-label="Customize theme" aria-controls="theme-customizer-menu" aria-expanded="false">
+          <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme"
+            data-tooltip="Customize Theme" aria-label="Customize theme" aria-controls="theme-customizer-menu"
+            aria-expanded="false">
             <i class="fas fa-palette"></i>
           </button>
           <div class="header-dropdown-menu" id="theme-customizer-menu" aria-hidden="true">
@@ -305,13 +306,13 @@
           </div>
         </div>
 
-        <a href="worldcup.html" target="_blank" class="header-icon-btn" id="worldcup-link" title="World Cup Predictor" data-tooltip="World Cup"
-          aria-label="Launch 2026 World Cup Bracket Predictor in a new tab">
+        <a href="worldcup.html" target="_blank" class="header-icon-btn" id="worldcup-link" title="World Cup Predictor"
+          data-tooltip="World Cup" aria-label="Launch 2026 World Cup Bracket Predictor in a new tab">
           <i class="fas fa-futbol"></i>
         </a>
 
-        <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme" data-tooltip="Toggle Theme"
-          aria-label="Toggle theme" aria-pressed="false">
+        <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme"
+          data-tooltip="Toggle Theme" aria-label="Toggle theme" aria-pressed="false">
           <i class="fas fa-moon" id="theme-icon"></i>
         </button>
 
@@ -336,8 +337,8 @@
             <div class="hero-buttons">
               <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="btn" data-spring-hover>Resume
                 <i class="fas fa-arrow-down"></i></a>
-              <a href="#ai" data-target="ai" class="nav-cta btn hero-chat-btn" id="hero-chat-btn"
-                aria-label="Ask AI" data-spring-hover>Ask AI <i class="fas fa-robot"></i></a>
+              <a href="#ai" data-target="ai" class="nav-cta btn hero-chat-btn" id="hero-chat-btn" aria-label="Ask AI"
+                data-spring-hover>Ask AI <i class="fas fa-robot"></i></a>
             </div>
           </div>
           <aside class="terminal-panel no-swipe" aria-label="Now Building panel">
@@ -355,7 +356,8 @@
                   <li>Self-serve pipeline templates for domain teams</li>
                 </ul>
 
-                <p class="terminal-line"><span class="prompt">$</span> <span class="cmd">stack</span> <span class="flag">--active</span></p>
+                <p class="terminal-line"><span class="prompt">$</span> <span class="cmd">stack</span> <span
+                    class="flag">--active</span></p>
                 <div class="terminal-tags">
                   <span>Kafka</span>
                   <span>Spark</span>
@@ -365,7 +367,8 @@
                   <span>Kubernetes</span>
                 </div>
 
-                <p class="terminal-line"><span class="prompt">$</span> <span class="cmd">tail</span> <span class="flag">-n 3</span> recent_wins.log</p>
+                <p class="terminal-line"><span class="prompt">$</span> <span class="cmd">tail</span> <span
+                    class="flag">-n 3</span> recent_wins.log</p>
                 <ul class="terminal-list">
                   <li><span class="output-ok">[OK]</span> P95 latency down 40%</li>
                   <li><span class="output-ok">[OK]</span> Cloud spend down 30%</li>
@@ -863,24 +866,24 @@
 
                 <div class="form-group floating-label-group">
                   <div class="input-wrapper">
-                    <input type="text" id="contact-name" name="name" placeholder="Enter your full name" autocomplete="name"
-                      aria-label="Your full name" required />
+                    <input type="text" id="contact-name" name="name" placeholder="Enter your full name"
+                      autocomplete="name" aria-label="Your full name" required />
                     <label class="form-label" for="contact-name">Name</label>
                     <i class="fas fa-user input-icon"></i>
                   </div>
                 </div>
                 <div class="form-group floating-label-group">
                   <div class="input-wrapper">
-                    <input type="email" id="contact-email" name="email" placeholder="Enter your email address" autocomplete="email"
-                      aria-label="Your email address" required />
+                    <input type="email" id="contact-email" name="email" placeholder="Enter your email address"
+                      autocomplete="email" aria-label="Your email address" required />
                     <label class="form-label" for="contact-email">Email</label>
                     <i class="fas fa-envelope input-icon"></i>
                   </div>
                 </div>
                 <div class="form-group floating-label-group">
                   <div class="input-wrapper">
-                    <textarea id="contact-message" name="message" placeholder="Let me know what you'd like to build..." rows="3" aria-label="Your message"
-                      required></textarea>
+                    <textarea id="contact-message" name="message" placeholder="Let me know what you'd like to build..."
+                      rows="3" aria-label="Your message" required></textarea>
                     <label class="form-label" for="contact-message">Message</label>
                   </div>
                 </div>
@@ -960,7 +963,8 @@
                   aria-label="Message AI assistant" required></textarea>
                 <div class="ai-input-actions">
                   <span class="ai-tokens" id="ai-token-counter">0 tokens</span>
-                  <button type="button" class="ai-mic-btn" id="ai-page-mic-btn" aria-label="Use voice input" title="Voice input">
+                  <button type="button" class="ai-mic-btn" id="ai-page-mic-btn" aria-label="Use voice input"
+                    title="Voice input">
                     <i class="fas fa-microphone"></i>
                   </button>
                   <button type="submit" class="ai-send-btn" id="ai-page-send-btn" aria-label="Send message">
@@ -997,7 +1001,8 @@
             </div>
           </div>
           <div class="chat-header-actions">
-            <button type="button" class="chat-header-btn" id="widget-new-chat-btn" title="New Chat" aria-label="New chat">
+            <button type="button" class="chat-header-btn" id="widget-new-chat-btn" title="New Chat"
+              aria-label="New chat">
               <i class="fas fa-plus"></i>
             </button>
             <button type="button" class="chat-close-btn" id="chat-close-btn" aria-label="Close chat">
@@ -1056,7 +1061,8 @@
             <div class="input-wrapper">
               <input type="password" id="login-password" name="password" placeholder=" " required />
               <label class="form-label" for="login-password">Password</label>
-              <button type="button" class="password-toggle-btn" aria-label="Show password" data-toggle-target="login-password">
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="login-password">
                 <i class="fas fa-eye"></i>
               </button>
             </div>
@@ -1086,7 +1092,8 @@
             <div class="input-wrapper">
               <input type="password" id="register-password" name="password" placeholder=" " required />
               <label class="form-label" for="register-password">Password</label>
-              <button type="button" class="password-toggle-btn" aria-label="Show password" data-toggle-target="register-password">
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="register-password">
                 <i class="fas fa-eye"></i>
               </button>
             </div>
@@ -1113,7 +1120,8 @@
             <div class="input-wrapper">
               <input type="password" id="register-confirm-password" name="confirm-password" placeholder=" " required />
               <label class="form-label" for="register-confirm-password">Confirm Password</label>
-              <button type="button" class="password-toggle-btn" aria-label="Show password" data-toggle-target="register-confirm-password">
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="register-confirm-password">
                 <i class="fas fa-eye"></i>
               </button>
             </div>
@@ -1138,7 +1146,9 @@
             </div>
           </div>
           <div class="auth-error" id="forgot-error"></div>
-          <div class="auth-success" id="forgot-success" style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;"></div>
+          <div class="auth-success" id="forgot-success"
+            style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;">
+          </div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
             Send Reset Link <i class="fas fa-paper-plane"></i>
           </button>
