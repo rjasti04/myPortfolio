@@ -393,70 +393,57 @@ function nudgeAwayFromCenter(particle, delta, width, height) {
 }
 
 function updateParticle(particle, delta, elapsed, width, height, pointer, config, intensity) {
-  const turn = Math.sin(elapsed * particle.turn + particle.phase) * delta * 0.07;
-  const cos = Math.cos(turn);
-  const sin = Math.sin(turn);
-  const vx = particle.vx * cos - particle.vy * sin;
-  const vy = particle.vx * sin + particle.vy * cos;
-  const speed = Math.hypot(vx, vy) || particle.baseSpeed || 1;
-  const targetSpeed = particle.baseSpeed * (1 + intensity * 0.5);
+  // Anti-gravity zero-g float drift logic
+  const floatUpSpeed = -(particle.baseSpeed || 2.0) * 0.38 * (1 + intensity * 0.4);
+  const horizontalSway = Math.sin(elapsed * 1.6 + particle.phase) * 0.35;
 
-  particle.vx = (vx / speed) * targetSpeed;
-  particle.vy = (vy / speed) * targetSpeed;
+  // Gently interpolate velocity towards anti-gravity floating state
+  particle.vy = lerp(particle.vy, floatUpSpeed, delta * 1.8);
+  particle.vx = lerp(particle.vx, horizontalSway, delta * 1.2);
 
-  applyHomeForce(particle, delta, config);
-  nudgeAwayFromCenter(particle, delta, width, height);
-
-  // Apply fluid vector flow field influence (organic currents)
-  if (particle.zone !== "speck") {
-    const flowAngle = Math.sin(particle.x * 0.0035 + elapsed * 0.12) * Math.cos(particle.y * 0.0035 - elapsed * 0.12) * TWO_PI;
-    const flowForce = config.speed[0] * 0.14;
-    particle.vx += Math.cos(flowAngle) * flowForce * delta;
-    particle.vy += Math.sin(flowAngle) * flowForce * delta;
-  }
-
-  particle.x += particle.vx * delta;
-  particle.y += particle.vy * delta;
-
-  if (pointer.active && config.repelRadius > 0) {
+  // Mouse Anti-Gravity Point Source Interaction (150px radius)
+  const repelRadius = 150;
+  if (pointer.active) {
     const dx = particle.x - pointer.x;
     const dy = particle.y - pointer.y;
     const distanceSquared = dx * dx + dy * dy;
-    const radiusSquared = config.repelRadius * config.repelRadius;
+    const radiusSquared = repelRadius * repelRadius;
 
-    if (distanceSquared < radiusSquared) {
-      const distance = Math.sqrt(distanceSquared) || 1;
-      const normRatio = distance / config.repelRadius;
+    if (distanceSquared < radiusSquared && distanceSquared > 0) {
+      const distance = Math.sqrt(distanceSquared);
+      const normRatio = distance / repelRadius;
       
-      if (normRatio < 0.35) {
-        // Soft push directly under cursor to avoid crowding
-        const force = (1 - normRatio / 0.35) ** 1.6;
-        const push = force * config.repelStrength * 0.65 * delta;
-        particle.x += (dx / distance) * push;
-        particle.y += (dy / distance) * push;
-      } else {
-        // Orbital magnetic attraction & fluid swirl
-        const attractRatio = Math.sin(normRatio * Math.PI);
-        const attractForce = attractRatio * config.repelStrength * 0.35 * delta;
-        particle.x += (-dx / distance) * attractForce * 0.22;
-        particle.y += (-dy / distance) * attractForce * 0.22;
-        
-        const swirlForce = attractForce * 0.38;
-        particle.x += (-dy / distance) * swirlForce;
-        particle.y += (dx / distance) * swirlForce;
-      }
+      // Repulsive force strongest at center, easing smoothly to boundary
+      const force = Math.pow(1 - normRatio, 1.8) * (config.repelStrength || 220) * 1.4 * delta;
       
-      particle.vx *= 0.94;
-      particle.vy *= 0.94;
+      // Anti-gravity repulsion velocity vector
+      particle.vx += (dx / distance) * force;
+      particle.vy += (dy / distance) * force;
     }
   }
 
-  const margin = config.maxDistance * 0.6;
-  if (particle.x < -margin || particle.x > width + margin) particle.vx *= -0.98;
-  if (particle.y < -margin || particle.y > height + margin) particle.vy *= -0.98;
+  // Smooth inertia damping for graceful ease-back when mouse leaves or stops
+  particle.vx *= 0.95;
+  particle.vy *= 0.95;
 
-  particle.x = clamp(particle.x, -margin, width + margin);
-  particle.y = clamp(particle.y, -margin, height + margin);
+  // Position displacement update
+  particle.x += particle.vx * delta * 60;
+  particle.y += particle.vy * delta * 60;
+
+  // Boundary logic: Anti-gravity continuous upward wrapping
+  const margin = config.maxDistance * 0.5;
+  if (particle.y < -margin) {
+    particle.y = height + margin;
+    particle.x = Math.random() * width;
+  } else if (particle.y > height + margin) {
+    particle.y = -margin;
+  }
+
+  if (particle.x < -margin) {
+    particle.x = width + margin;
+  } else if (particle.x > width + margin) {
+    particle.x = -margin;
+  }
 }
 
 function connectionDistanceFor(a, b, config) {

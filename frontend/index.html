@@ -208,7 +208,7 @@
 
       <div class="header-actions">
         <div class="header-dropdown js-only" id="connect-dropdown">
-          <button type="button" class="header-icon-btn" id="connect-toggle" aria-label="Open connect menu"
+          <button type="button" class="header-icon-btn" id="connect-toggle" aria-label="Open connect menu" data-tooltip="Contact"
             aria-controls="connect-dropdown-menu" aria-expanded="false">
             <i class="fas fa-paper-plane"></i>
           </button>
@@ -229,7 +229,7 @@
         </div>
 
         <div class="header-dropdown js-only" id="theme-customizer-dropdown">
-          <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme"
+          <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme" data-tooltip="Customize Theme"
             aria-label="Customize theme" aria-controls="theme-customizer-menu" aria-expanded="false">
             <i class="fas fa-palette"></i>
           </button>
@@ -305,12 +305,12 @@
           </div>
         </div>
 
-        <a href="worldcup.html" target="_blank" class="header-icon-btn" id="worldcup-link" title="World Cup Predictor"
+        <a href="worldcup.html" target="_blank" class="header-icon-btn" id="worldcup-link" title="World Cup Predictor" data-tooltip="World Cup"
           aria-label="Launch 2026 World Cup Bracket Predictor in a new tab">
           <i class="fas fa-futbol"></i>
         </a>
 
-        <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme"
+        <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme" data-tooltip="Toggle Theme"
           aria-label="Toggle theme" aria-pressed="false">
           <i class="fas fa-moon" id="theme-icon"></i>
         </button>
@@ -349,13 +349,13 @@
             </div>
             <div class="terminal-body" id="terminal-body">
               <div id="terminal-output">
-                <p class="terminal-line"><span class="prompt">$</span> cat current_focus.md</p>
+                <p class="terminal-line"><span class="prompt">$</span> <span class="cmd">cat</span> current_focus.md</p>
                 <ul class="terminal-list">
                   <li>Realtime lakehouse observability rollout</li>
                   <li>Self-serve pipeline templates for domain teams</li>
                 </ul>
 
-                <p class="terminal-line"><span class="prompt">$</span> stack --active</p>
+                <p class="terminal-line"><span class="prompt">$</span> <span class="cmd">stack</span> <span class="flag">--active</span></p>
                 <div class="terminal-tags">
                   <span>Kafka</span>
                   <span>Spark</span>
@@ -365,11 +365,11 @@
                   <span>Kubernetes</span>
                 </div>
 
-                <p class="terminal-line"><span class="prompt">$</span> tail -n 3 recent_wins.log</p>
+                <p class="terminal-line"><span class="prompt">$</span> <span class="cmd">tail</span> <span class="flag">-n 3</span> recent_wins.log</p>
                 <ul class="terminal-list">
-                  <li>[OK] P95 latency down 40%</li>
-                  <li>[OK] Cloud spend down 30%</li>
-                  <li>[OK] Throughput stable at 1M+ events/sec</li>
+                  <li><span class="output-ok">[OK]</span> P95 latency down 40%</li>
+                  <li><span class="output-ok">[OK]</span> Cloud spend down 30%</li>
+                  <li><span class="output-ok">[OK]</span> Throughput stable at 1M+ events/sec</li>
                 </ul>
               </div>
               <div class="terminal-input-line">
