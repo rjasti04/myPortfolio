@@ -94,8 +94,11 @@ const PROFILE_CONFIG = {
   }
 };
 
-window.triggerWebGlSurge = () => {
+window.triggerWebGlSurge = (x, y) => {
   surgeIntensity = 1;
+  if (typeof window.__triggerBgRipple === "function" && typeof x === "number" && typeof y === "number") {
+    window.__triggerBgRipple(x, y);
+  }
 };
 
 function clamp(value, min, max) {
@@ -423,21 +426,28 @@ function updateParticle(particle, delta, elapsed, width, height, pointer, config
 
     if (distanceSquared < radiusSquared) {
       const distance = Math.sqrt(distanceSquared) || 1;
-      const force = (1 - distance / config.repelRadius) ** 1.8;
-      const push = force * config.repelStrength * delta;
-
-      // Primary radial push
-      particle.x += (dx / distance) * push;
-      particle.y += (dy / distance) * push;
+      const normRatio = distance / config.repelRadius;
       
-      // Secondary fluid swirl/orbital push
-      const swirlForce = force * config.repelStrength * 0.22 * delta;
-      particle.x += (-dy / distance) * swirlForce;
-      particle.y += (dx / distance) * swirlForce;
+      if (normRatio < 0.35) {
+        // Soft push directly under cursor to avoid crowding
+        const force = (1 - normRatio / 0.35) ** 1.6;
+        const push = force * config.repelStrength * 0.65 * delta;
+        particle.x += (dx / distance) * push;
+        particle.y += (dy / distance) * push;
+      } else {
+        // Orbital magnetic attraction & fluid swirl
+        const attractRatio = Math.sin(normRatio * Math.PI);
+        const attractForce = attractRatio * config.repelStrength * 0.35 * delta;
+        particle.x += (-dx / distance) * attractForce * 0.22;
+        particle.y += (-dy / distance) * attractForce * 0.22;
+        
+        const swirlForce = attractForce * 0.38;
+        particle.x += (-dy / distance) * swirlForce;
+        particle.y += (dx / distance) * swirlForce;
+      }
       
-      // Dampen velocity during repulsion for smoother interaction
-      particle.vx *= 0.93;
-      particle.vy *= 0.93;
+      particle.vx *= 0.94;
+      particle.vy *= 0.94;
     }
   }
 
@@ -868,6 +878,7 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
   if (!ctx) return null;
 
   const particles = [];
+  const ripples = [];
   const pointer = {
     active: false,
     x: POINTER_AWAY,
@@ -884,10 +895,25 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
   let resizeFrame = 0;
   let animationFrame = 0;
   let lastFrameTime = performance.now();
+  let lastScrollY = window.scrollY || 0;
   let themeColors = readThemeColors();
   updateSpriteCache(themeColors);
   const facetOpacity = new Map();
   const packets = [];
+
+  const triggerRipple = (rx, ry) => {
+    if (profileName === "mobile") return;
+    ripples.push({
+      x: rx,
+      y: ry,
+      radius: 4,
+      maxRadius: Math.min(width, height) * 0.45,
+      speed: 460,
+      alpha: 0.85
+    });
+  };
+
+  window.__triggerBgRipple = triggerRipple;
 
   const setSize = () => {
     const nextWidth = window.innerWidth;
@@ -970,17 +996,78 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
       smoothPointer.y = POINTER_AWAY;
     }
 
+    const currentScrollY = window.scrollY || 0;
+    const scrollDelta = currentScrollY - lastScrollY;
+    lastScrollY = currentScrollY;
+
+    if (Math.abs(scrollDelta) > 0.5) {
+      const scrollImpulse = clamp(scrollDelta * 0.35, -35, 35);
+      particles.forEach((p) => {
+        if (p.zone !== "speck") {
+          p.vy -= scrollImpulse * delta * 0.85;
+        }
+      });
+    }
+
     drawBackground(ctx, width, height);
 
     particles.forEach((particle) => {
       updateParticle(particle, delta, elapsed, width, height, smoothPointer, config, surgeIntensity);
     });
 
-
-
     const connections = selectConnections(particles, config, width, height, surgeIntensity);
     drawGlassFacets(ctx, particles, connections, config, width, height, surgeIntensity, themeColors, facetOpacity, delta);
     drawConnections(ctx, particles, config, width, height, surgeIntensity, themeColors, connections);
+
+    // Render expanding shockwave energy ripples
+    for (let i = ripples.length - 1; i >= 0; i -= 1) {
+      const rip = ripples[i];
+      rip.radius += rip.speed * delta;
+      rip.alpha = (1 - rip.radius / rip.maxRadius) * 0.85;
+
+      if (rip.radius >= rip.maxRadius || rip.alpha <= 0.01) {
+        ripples.splice(i, 1);
+        continue;
+      }
+
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.lineWidth = Math.max(1.0, 3.2 * (1 - rip.radius / rip.maxRadius));
+      ctx.strokeStyle = colorString(themeColors.accent, rip.alpha * 0.55);
+      ctx.beginPath();
+      ctx.arc(rip.x, rip.y, rip.radius, 0, TWO_PI);
+      ctx.stroke();
+
+      if (rip.radius > 15) {
+        ctx.lineWidth = 1.0;
+        ctx.strokeStyle = colorString(themeColors.data, rip.alpha * 0.35);
+        ctx.beginPath();
+        ctx.arc(rip.x, rip.y, rip.radius * 0.75, 0, TWO_PI);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Ripple wave front collision: excite particles & dispatch stream packets
+      particles.forEach((p, idx) => {
+        const d = Math.hypot(p.x - rip.x, p.y - rip.y);
+        if (Math.abs(d - rip.radius) < 28) {
+          p.pulseOffset += 0.15;
+          if (Math.random() < 0.22 && connections.length > 0) {
+            const conn = connections.find((c) => c.from === idx || c.to === idx);
+            if (conn && packets.length < 30) {
+              packets.push({
+                from: conn.from,
+                to: conn.to,
+                progress: 0,
+                speed: randomBetween([1.6, 3.4]),
+                colorKey: p.colorKey,
+                size: lerp(1.6, 2.8, Math.random())
+              });
+            }
+          }
+        }
+      });
+    }
 
     // Draw pointer-to-plexus links (Cursor Connection Hub)
     if (smoothPointer.active && profileName !== "mobile") {
@@ -1095,8 +1182,10 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
 
   const handlePointerDown = (event) => {
-    if (!pointer.active) return;
-    surgeIntensity = Math.min(surgeIntensity + 0.35, 1.2);
+    surgeIntensity = Math.min(surgeIntensity + 0.45, 1.25);
+    if (event.clientX && event.clientY) {
+      triggerRipple(event.clientX, event.clientY);
+    }
   };
 
   if (supportsHover.matches && profileName !== "mobile") {
@@ -1114,6 +1203,9 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
     window.removeEventListener("pointermove", handlePointerMove);
     document.body.removeEventListener("pointerleave", handlePointerLeave);
     window.removeEventListener("pointerdown", handlePointerDown);
+    if (window.__triggerBgRipple === triggerRipple) {
+      delete window.__triggerBgRipple;
+    }
     themeObserver.disconnect();
     ctx.clearRect(0, 0, width, height);
   };
