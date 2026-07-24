@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.db.database import get_db
 from server.schemas.auth import UserCreate, UserLogin, Token, UserResponse, RefreshTokenRequest, ChangePasswordRequest
@@ -27,10 +27,12 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 @router.post("/change-password")
 async def change_password(
     data: ChangePasswordRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    return await auth_service.change_user_password(db, current_user, data)
+    return await auth_service.change_user_password(db, current_user, data, background_tasks)
+
 
 @router.post("/logout")
 async def logout(

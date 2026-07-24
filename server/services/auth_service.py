@@ -1,9 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update
-from fastapi import HTTPException, status
+from sqlalchemy import update, delete
+from fastapi import HTTPException, status, BackgroundTasks
+from typing import Optional
 from server.models.user import User
 from server.models.token import RefreshToken
+from server.models.session import UserSession
+from server.models.password_history import PasswordHistory
 from server.schemas.auth import UserCreate, UserLogin, Token, RefreshTokenRequest, ChangePasswordRequest
 from server.auth.security import (
     get_password_hash,
@@ -13,12 +16,16 @@ from server.auth.security import (
     verify_token,
     REFRESH_TOKEN_EXPIRE_DAYS
 )
+from server.services.hibp_service import check_password_breached
+from server.services.notification_service import send_security_notification_email
 from sqlalchemy.exc import IntegrityError
 import structlog
 from datetime import datetime, timezone, timedelta
 import uuid
 
 logger = structlog.get_logger(__name__)
+
+PASSWORD_HISTORY_LIMIT = 5
 
 async def register_user(db: AsyncSession, user_data: UserCreate) -> User:
     email_normalized = user_data.email.strip().lower()
@@ -153,34 +160,106 @@ async def refresh_user_token(db: AsyncSession, token_data: RefreshTokenRequest) 
     )
 
 async def revoke_user_tokens(db: AsyncSession, user_id: uuid.UUID) -> None:
-    # Mark all active tokens for this user as revoked
+    # Mark all active refresh tokens for this user as revoked
     await db.execute(
         update(RefreshToken)
         .where(RefreshToken.user_id == user_id)
         .where(RefreshToken.is_revoked == False)
         .values(is_revoked=True)
     )
+    # Deactivate any user session records if attribute exists
+    if hasattr(UserSession, "user_id"):
+        await db.execute(
+            update(UserSession)
+            .where(UserSession.user_id == user_id)
+            .where(UserSession.is_active == True)
+            .values(is_active=False, ended_at=datetime.now(timezone.utc), end_reason="password_change")
+        )
     await db.commit()
     logger.info("all_refresh_tokens_revoked", user_id=str(user_id))
 
 
-async def change_user_password(db: AsyncSession, user: User, data: ChangePasswordRequest) -> dict:
+async def change_user_password(
+    db: AsyncSession,
+    user: User,
+    data: ChangePasswordRequest,
+    background_tasks: Optional[BackgroundTasks] = None
+) -> dict:
+    # Step 1: Verify Current Password
     if not verify_password(data.current_password, user.hashed_password):
         logger.warning("password_change_failed_invalid_current", user_id=str(user.id))
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Incorrect current password"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect current password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Hash new password and update user record
+    # Step 2: Check Password Breach Status (Have I Been Pwned API)
+    is_breached = await check_password_breached(data.new_password)
+    if is_breached:
+        logger.warning("password_change_failed_breached", user_id=str(user.id))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This password has appeared in a data breach and is unsafe to use."
+        )
+
+    # Step 3: Check Password Reuse / History
+    # Fetch top N recent password hashes from password_history for user
+    history_result = await db.execute(
+        select(PasswordHistory.password_hash)
+        .where(PasswordHistory.user_id == user.id)
+        .order_by(PasswordHistory.created_at.desc())
+        .limit(PASSWORD_HISTORY_LIMIT)
+    )
+    recent_history_hashes = history_result.scalars().all()
+
+    # Compare new_password against active password and recent history
+    all_candidate_hashes = [user.hashed_password] + list(recent_history_hashes)
+    for past_hash in all_candidate_hashes:
+        if verify_password(data.new_password, past_hash):
+            logger.warning("password_change_failed_reused", user_id=str(user.id))
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You cannot reuse a recent password."
+            )
+
+    # Step 4: Record in Password History (Store OLD password hash)
+    old_hash = user.hashed_password
+    history_entry = PasswordHistory(
+        user_id=user.id,
+        password_hash=old_hash
+    )
+    db.add(history_entry)
+
+    # Step 5: Update Active Password
     user.hashed_password = get_password_hash(data.new_password)
     db.add(user)
 
-    # Revoke all existing refresh tokens for security
+    # Clean up or prune history entries older than the last N records
+    prune_subquery = (
+        select(PasswordHistory.id)
+        .where(PasswordHistory.user_id == user.id)
+        .order_by(PasswordHistory.created_at.desc())
+        .offset(PASSWORD_HISTORY_LIMIT)
+    )
+    prune_result = await db.execute(prune_subquery)
+    old_history_ids = prune_result.scalars().all()
+    if old_history_ids:
+        await db.execute(
+            delete(PasswordHistory).where(PasswordHistory.id.in_(old_history_ids))
+        )
+
+    # Step 6: Invalidate Active Sessions & Refresh Tokens
     await revoke_user_tokens(db, user.id)
 
     await db.commit()
+
+    # Step 7: Send Notification (Asynchronous Background Task)
+    if background_tasks:
+        background_tasks.add_task(send_security_notification_email, user.email, str(user.id))
+
     logger.info("password_changed_successfully", user_id=str(user.id))
 
     return {"message": "Password changed successfully"}
+
 

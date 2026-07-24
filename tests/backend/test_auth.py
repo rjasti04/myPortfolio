@@ -219,12 +219,91 @@ async def test_change_password_invalid_current_password(async_client: AsyncClien
     )
     token = login_res.json()["access_token"]
 
-    # Try changing password with wrong current password
+    # Try changing password with wrong current password (returns 401 Unauthorized)
     change_res = await async_client.post(
         "/auth/change-password",
         headers={"Authorization": f"Bearer {token}"},
         json={"current_password": "WrongPassword123!", "new_password": "BrandNewPassword123!"}
     )
-    assert change_res.status_code == 400
+    assert change_res.status_code == 401
     assert "incorrect current password" in change_res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_change_password_reuse_prevention(async_client: AsyncClient):
+    email = "reusepw@example.com"
+    pwd1 = "Password123!Alpha"
+    pwd2 = "Password123!Beta"
+
+    await async_client.post(
+        "/auth/register",
+        json={"email": email, "password": pwd1}
+    )
+
+    login_res = await async_client.post(
+        "/auth/login",
+        json={"email": email, "password": pwd1}
+    )
+    token = login_res.json()["access_token"]
+
+    # Try reusing active password (pwd1)
+    reuse_res = await async_client.post(
+        "/auth/change-password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"current_password": pwd1, "new_password": pwd1}
+    )
+    assert reuse_res.status_code == 400
+    assert "cannot reuse" in reuse_res.json()["detail"].lower()
+
+    # Change to pwd2 successfully
+    change_res = await async_client.post(
+        "/auth/change-password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"current_password": pwd1, "new_password": pwd2}
+    )
+    assert change_res.status_code == 200
+
+    # Login with pwd2
+    login_res2 = await async_client.post(
+        "/auth/login",
+        json={"email": email, "password": pwd2}
+    )
+    token2 = login_res2.json()["access_token"]
+
+    # Try reusing pwd1 (in password history)
+    reuse_history_res = await async_client.post(
+        "/auth/change-password",
+        headers={"Authorization": f"Bearer {token2}"},
+        json={"current_password": pwd2, "new_password": pwd1}
+    )
+    assert reuse_history_res.status_code == 400
+    assert "cannot reuse" in reuse_history_res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_change_password_breached_password(async_client: AsyncClient):
+    email = "breachedpw@example.com"
+    pwd1 = "SecureInitialPass123!"
+    breached_pwd = "password123"
+
+    await async_client.post(
+        "/auth/register",
+        json={"email": email, "password": pwd1}
+    )
+
+    login_res = await async_client.post(
+        "/auth/login",
+        json={"email": email, "password": pwd1}
+    )
+    token = login_res.json()["access_token"]
+
+    # Attempt to change to a known breached password
+    breach_res = await async_client.post(
+        "/auth/change-password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"current_password": pwd1, "new_password": breached_pwd}
+    )
+    assert breach_res.status_code == 400
+    assert "data breach" in breach_res.json()["detail"].lower()
+
 
