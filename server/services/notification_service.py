@@ -71,6 +71,8 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
             msg,
             hostname=SMTP_HOST,
             port=SMTP_PORT,
+            start_tls=False if SMTP_HOST in ("127.0.0.1", "localhost") else None,
+            validate_certs=False,
             timeout=10
         )
         logger.info("password_reset_email_sent_successfully", recipient_email=email)
