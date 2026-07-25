@@ -7,6 +7,8 @@ logger = structlog.get_logger(__name__)
 
 SMTP_HOST = os.getenv("SMTP_HOST", "127.0.0.1")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "25"))
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 EMAILS_FROM_EMAIL = os.getenv("EMAILS_FROM_EMAIL", "inboxtorj@gmail.com")
 
 async def send_security_notification_email(email: str, user_id: str) -> None:
@@ -31,7 +33,8 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
         reset_link=reset_link,
         smtp_host=SMTP_HOST,
         smtp_port=SMTP_PORT,
-        from_email=EMAILS_FROM_EMAIL
+        from_email=EMAILS_FROM_EMAIL,
+        has_auth=bool(SMTP_USER and SMTP_PASSWORD)
     )
 
     # Build MIME Email Message
@@ -66,15 +69,25 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
     msg.set_content(plain_content)
     msg.add_alternative(html_content, subtype="html")
 
+    is_authenticated_smtp = bool(SMTP_USER and SMTP_PASSWORD)
+
+    send_kwargs = {
+        "hostname": SMTP_HOST,
+        "port": SMTP_PORT,
+        "timeout": 10
+    }
+
+    if is_authenticated_smtp:
+        send_kwargs["username"] = SMTP_USER
+        send_kwargs["password"] = SMTP_PASSWORD
+        send_kwargs["start_tls"] = True
+        send_kwargs["validate_certs"] = True
+    else:
+        send_kwargs["start_tls"] = False if SMTP_HOST in ("127.0.0.1", "localhost") else None
+        send_kwargs["validate_certs"] = False
+
     try:
-        await aiosmtplib.send(
-            msg,
-            hostname=SMTP_HOST,
-            port=SMTP_PORT,
-            start_tls=False if SMTP_HOST in ("127.0.0.1", "localhost") else None,
-            validate_certs=False,
-            timeout=10
-        )
+        await aiosmtplib.send(msg, **send_kwargs)
         logger.info("password_reset_email_sent_successfully", recipient_email=email)
     except Exception as e:
         logger.error(
@@ -83,5 +96,6 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
             smtp_host=SMTP_HOST,
             error=str(e)
         )
+
 
 
