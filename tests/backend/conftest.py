@@ -8,16 +8,21 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 from server.main import app
 import os
 from server.db.database import Base, get_db
 
-DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:?cache=shared")
 
 if DATABASE_URL.startswith("sqlite"):
-    engine = create_async_engine(DATABASE_URL, echo=False)
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=False,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
 else:
     engine = create_async_engine(DATABASE_URL, echo=False, poolclass=NullPool)
 

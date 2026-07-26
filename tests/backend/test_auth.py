@@ -323,38 +323,51 @@ async def test_forgot_password(async_client: AsyncClient):
     assert res1.status_code == 200
     assert "sent" in res1.json()["message"].lower()
 
-    # Test request reset for unknown email (anti-enumeration check)
+    # Test request reset for unknown email (returns 404 as email is not registered)
     res2 = await async_client.post(
         "/auth/forgot-password",
         json={"email": "nonexistent_forgot@example.com"}
     )
-    assert res2.status_code == 200
-    assert "sent" in res2.json()["message"].lower()
+    assert res2.status_code == 404
+    assert "not registered" in res2.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
 async def test_reset_password_flow(async_client: AsyncClient):
-    from server.auth.security import create_password_reset_token
-
     email = "resetflow@example.com"
     old_pwd = "OldPass123!"
     new_pwd = "NewBrandPassword456!"
 
-    reg_res = await async_client.post(
+    await async_client.post(
         "/auth/register",
         json={"email": email, "password": old_pwd}
     )
-    user_id = reg_res.json()["id"]
 
-    # Generate token
-    token = create_password_reset_token(subject=user_id)
+    from unittest.mock import patch
 
-    # Reset password with valid token
+    with patch("server.services.auth_service.send_password_reset_email") as mock_send:
+        forgot_res = await async_client.post(
+            "/auth/forgot-password",
+            json={"email": email}
+        )
+        assert forgot_res.status_code == 200
+        assert mock_send.called
+        token = mock_send.call_args[0][1]
+
+    # Reset password with valid single-use token
     reset_res = await async_client.post(
         "/auth/reset-password",
         json={"token": token, "new_password": new_pwd}
     )
     assert reset_res.status_code == 200
+
+    # Attempting to reuse the same token should fail
+    reuse_res = await async_client.post(
+        "/auth/reset-password",
+        json={"token": token, "new_password": "AnotherNewPassword789!"}
+    )
+    assert reuse_res.status_code == 400
+    assert "already been used" in reuse_res.json()["detail"].lower()
 
     # Old password login should fail
     login_old = await async_client.post(
@@ -377,7 +390,41 @@ async def test_reset_password_invalid_token(async_client: AsyncClient):
         "/auth/reset-password",
         json={"token": "invalid.jwt.token", "new_password": "NewBrandPassword456!"}
     )
-    assert reset_res.status_code == 401
+    assert reset_res.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_account_lockout_after_failed_logins(async_client: AsyncClient):
+    email = "lockout_user@example.com"
+    pwd = "CorrectPass123!"
+
+    await async_client.post(
+        "/auth/register",
+        json={"email": email, "password": pwd}
+    )
+
+    # Fail login 4 times (should return 401)
+    for _ in range(4):
+        res = await async_client.post(
+            "/auth/login",
+            json={"email": email, "password": "WrongPassword123!"}
+        )
+        assert res.status_code == 401
+
+    # 5th failed attempt locks out the account
+    res5 = await async_client.post(
+        "/auth/login",
+        json={"email": email, "password": "WrongPassword123!"}
+    )
+    assert res5.status_code == 401
+
+    # 6th attempt (even with CORRECT password) should fail with 400 account locked
+    res6 = await async_client.post(
+        "/auth/login",
+        json={"email": email, "password": pwd}
+    )
+    assert res6.status_code == 400
+    assert "locked" in res6.json()["detail"].lower()
 
 
 

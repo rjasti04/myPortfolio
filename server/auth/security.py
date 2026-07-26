@@ -41,12 +41,18 @@ def create_refresh_token(subject: Union[str, int], jti: str) -> str:
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
 
-def create_password_reset_token(subject: Union[str, int], expires_delta: Optional[timedelta] = None) -> str:
+def create_password_reset_token(
+    subject: Union[str, int],
+    jti: Optional[str] = None,
+    expires_delta: Optional[timedelta] = None
+) -> str:
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode = {"exp": expire, "sub": str(subject), "type": "password_reset"}
+    if jti:
+        to_encode["jti"] = jti
     return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
 
 def verify_token(token: str, expected_type: str = "access") -> dict:

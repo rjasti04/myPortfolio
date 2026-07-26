@@ -70,9 +70,32 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> Token:
     result = await db.execute(select(User).where(User.email == email_normalized))
     user = result.scalars().first()
 
-    if not user or not verify_password(user_data.password, user.hashed_password):
-        # Prevent user enumeration by giving generic error
+    if not user:
         logger.warning("login_failed", email=email_normalized)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    now = datetime.now(timezone.utc)
+    if user.locked_until:
+        locked_until_utc = user.locked_until if user.locked_until.tzinfo else user.locked_until.replace(tzinfo=timezone.utc)
+        if locked_until_utc > now:
+            logger.warning("login_failed_account_locked", email=email_normalized)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Account is temporarily locked due to multiple failed login attempts. Try again later or reset your password."
+            )
+
+    if not verify_password(user_data.password, user.hashed_password):
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+        if user.failed_login_attempts >= 5:
+            user.locked_until = now + timedelta(minutes=15)
+            logger.warning("account_locked_due_to_failed_logins", user_id=str(user.id), email=email_normalized)
+        db.add(user)
+        await db.commit()
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -86,13 +109,15 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> Token:
             detail="Inactive user"
         )
 
-    # Update last login
-    user.last_login = datetime.now(timezone.utc)
+    # Reset failed login attempts and update last login
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.last_login = now
     db.add(user)
 
     # Generate Refresh Token JTI and record it in database
     jti = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expires_at = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
     db_token = RefreshToken(
         user_id=user.id,
@@ -276,16 +301,37 @@ async def request_password_reset(
     result = await db.execute(select(User).where(User.email == email_normalized))
     user = result.scalars().first()
 
-    if user and user.is_active:
-        reset_token = create_password_reset_token(subject=str(user.id))
-        logger.info("password_reset_requested", user_id=str(user.id), email=email_normalized)
-        if background_tasks:
-            background_tasks.add_task(send_password_reset_email, user.email, reset_token)
-    else:
+    if not user:
         logger.info("password_reset_requested_unknown_email", email=email_normalized)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Email address is not registered"
+        )
 
-    # Always return a generic success message to prevent user enumeration
-    return {"message": "If an account with that email exists, a password reset link has been sent."}
+    if not user.is_active:
+        logger.info("password_reset_requested_inactive_user", user_id=str(user.id), email=email_normalized)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User account is inactive"
+        )
+
+    reset_jti = str(uuid.uuid4())
+    reset_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+    db_reset_token = RefreshToken(
+        user_id=user.id,
+        token_jti=reset_jti,
+        expires_at=reset_expires_at,
+        is_revoked=False
+    )
+    db.add(db_reset_token)
+    await db.commit()
+
+    reset_token = create_password_reset_token(subject=str(user.id), jti=reset_jti)
+    logger.info("password_reset_requested", user_id=str(user.id), email=email_normalized)
+    if background_tasks:
+        background_tasks.add_task(send_password_reset_email, user.email, reset_token)
+
+    return {"message": "Password reset link sent successfully to your email."}
 
 
 async def reset_password_with_token(
@@ -294,8 +340,16 @@ async def reset_password_with_token(
     background_tasks: Optional[BackgroundTasks] = None
 ) -> dict:
     # Step 1: Verify token
-    payload = verify_token(data.token, expected_type="password_reset")
+    try:
+        payload = verify_token(data.token, expected_type="password_reset")
+    except HTTPException:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset link"
+        )
+
     user_id_str = payload.get("sub")
+    reset_jti = payload.get("jti")
     if not user_id_str:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token payload")
 
@@ -303,6 +357,20 @@ async def reset_password_with_token(
         user_id = uuid.UUID(user_id_str)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token subject")
+
+    # Check single-use token status if JTI present
+    if reset_jti:
+        token_result = await db.execute(select(RefreshToken).where(RefreshToken.token_jti == reset_jti))
+        db_reset_token = token_result.scalars().first()
+        now = datetime.now(timezone.utc)
+        if not db_reset_token or db_reset_token.is_revoked or db_reset_token.expires_at.replace(tzinfo=timezone.utc) < now:
+            logger.warning("reset_password_token_already_used_or_revoked", jti=reset_jti, user_id=user_id_str)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This password reset link has already been used or expired."
+            )
+        db_reset_token.is_revoked = True
+        db.add(db_reset_token)
 
     # Step 2: Fetch user
     result = await db.execute(select(User).where(User.id == user_id))
@@ -345,8 +413,10 @@ async def reset_password_with_token(
     )
     db.add(history_entry)
 
-    # Step 6: Update Active Password
+    # Step 6: Update Active Password and clear lockout status
     user.hashed_password = get_password_hash(data.new_password)
+    user.failed_login_attempts = 0
+    user.locked_until = None
     db.add(user)
 
     # Clean up old history
