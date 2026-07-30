@@ -795,6 +795,7 @@ async def chat_endpoint(payload: ChatRequest, http_request: Request, current_use
         queue: asyncio.Queue = asyncio.Queue(maxsize=CHAT_STREAM_QUEUE_SIZE)
         loop = asyncio.get_running_loop()
         stop_stream = threading.Event()
+        assistant_chunks: list[str] = []
 
         def enqueue_from_thread(item) -> bool:
             if stop_stream.is_set():
