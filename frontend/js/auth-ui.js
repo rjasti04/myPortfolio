@@ -511,35 +511,37 @@ export async function initAuthUI() {
     }
 
     // Handle Register
-    registerForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('register-email').value;
-        const password = document.getElementById('register-password').value;
-        const btn = registerForm.querySelector('button[type="submit"]');
-        const originalText = btn.innerHTML;
+    if (registerForm) {
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const btn = registerForm.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
 
-        try {
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-            btn.disabled = true;
-            registerError.textContent = '';
+            try {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+                btn.disabled = true;
+                registerError.textContent = '';
 
-            await registerUser(email, password);
+                await registerUser(email, password);
 
-            // Success
-            registerForm.reset();
-            if (typeof updatePasswordValidation === 'function') {
-                updatePasswordValidation();
+                // Success
+                registerForm.reset();
+                if (typeof updatePasswordValidation === 'function') {
+                    updatePasswordValidation();
+                }
+                modal.classList.add('hidden');
+                window.dispatchEvent(new Event('auth-changed'));
+
+            } catch (err) {
+                registerError.textContent = err.message || 'Registration failed. Please try again.';
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
-            modal.classList.add('hidden');
-            window.dispatchEvent(new Event('auth-changed'));
-
-        } catch (err) {
-            registerError.textContent = err.message || 'Registration failed. Please try again.';
-        } finally {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
-    });
+        });
+    }
 
     // Handle Forgot Password
     if (forgotForm) {

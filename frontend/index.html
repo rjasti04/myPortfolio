@@ -1085,6 +1085,210 @@
         </form>
       </div>
 
+      <!-- Register Tab -->
+      <div class="auth-tab-content" id="auth-tab-register">
+        <h3>Create Account</h3>
+        <p class="auth-modal-subtitle">Register to unlock unlimited AI chat messages.</p>
+        <form class="auth-form" id="register-form">
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="email" id="register-email" name="email" placeholder=" " required />
+              <label class="form-label" for="register-email">Email</label>
+              <i class="fas fa-envelope input-icon"></i>
+            </div>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="register-password" name="password" placeholder=" " required />
+              <label class="form-label" for="register-password">Password</label>
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="register-password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="password-strength-meter-container">
+              <div class="password-strength-meter" id="pw-strength-bar"></div>
+            </div>
+            <div class="password-strength-text" id="pw-strength-text">Strength: Weak</div>
+            <ul class="password-checklist" id="pw-checklist">
+              <li class="checklist-item" id="req-length">
+                <i class="far fa-circle"></i> Min 8 characters
+              </li>
+              <li class="checklist-item" id="req-upper">
+                <i class="far fa-circle"></i> At least 1 uppercase letter
+              </li>
+              <li class="checklist-item" id="req-number">
+                <i class="far fa-circle"></i> At least 1 number
+              </li>
+              <li class="checklist-item" id="req-special">
+                <i class="far fa-circle"></i> At least 1 special character
+              </li>
+            </ul>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="register-confirm-password" name="confirm-password" placeholder=" " required />
+              <label class="form-label" for="register-confirm-password">Confirm Password</label>
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="register-confirm-password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="confirm-password-match-text" id="confirm-match-text"></div>
+          </div>
+          <div class="auth-error" id="register-error"></div>
+          <button type="submit" class="btn btn-accent auth-submit-btn" id="register-submit-btn" disabled>
+            Create Account <i class="fas fa-user-plus"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- Forgot Password Tab -->
+      <div class="auth-tab-content" id="auth-tab-forgot">
+        <h3>Reset Password</h3>
+        <p class="auth-modal-subtitle">Enter your email and we'll send you a link to reset your password.</p>
+        <form class="auth-form" id="forgot-form">
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="email" id="forgot-email" name="email" placeholder=" " required />
+              <label class="form-label" for="forgot-email">Email</label>
+              <i class="fas fa-envelope input-icon"></i>
+            </div>
+          </div>
+          <div class="auth-error" id="forgot-error"></div>
+          <div class="auth-success" id="forgot-success"
+            style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;">
+          </div>
+          <button type="submit" class="btn btn-accent auth-submit-btn">
+            Send Reset Link <i class="fas fa-paper-plane"></i>
+          </button>
+          <div class="back-to-login-wrapper">
+            <button type="button" class="back-to-login-btn" id="back-to-login-trigger">
+              <i class="fas fa-arrow-left"></i> Back to Login
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Reset Password Tab -->
+      <div class="auth-tab-content" id="auth-tab-reset-password">
+        <h3>Reset Your Password</h3>
+        <p class="auth-modal-subtitle">Enter your new password below to reset your account credentials.</p>
+        <form class="auth-form" id="reset-password-form">
+          <input type="hidden" id="reset-token-input" name="token" value="" />
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="reset-new-password" name="new_password" placeholder=" " required />
+              <label class="form-label" for="reset-new-password">New Password</label>
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="reset-new-password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="password-strength-meter-container">
+              <div class="password-strength-meter" id="reset-pw-strength-bar"></div>
+            </div>
+            <div class="password-strength-text" id="reset-pw-strength-text">Strength: Weak</div>
+            <ul class="password-checklist" id="reset-pw-checklist">
+              <li class="checklist-item" id="reset-req-length">
+                <i class="far fa-circle"></i> Min 8 characters
+              </li>
+              <li class="checklist-item" id="reset-req-upper">
+                <i class="far fa-circle"></i> At least 1 uppercase letter
+              </li>
+              <li class="checklist-item" id="reset-req-number">
+                <i class="far fa-circle"></i> At least 1 number
+              </li>
+              <li class="checklist-item" id="reset-req-special">
+                <i class="far fa-circle"></i> At least 1 special character
+              </li>
+            </ul>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="reset-confirm-password" name="confirm_password" placeholder=" " required />
+              <label class="form-label" for="reset-confirm-password">Confirm New Password</label>
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="reset-confirm-password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="confirm-password-match-text" id="reset-confirm-match-text"></div>
+          </div>
+          <div class="auth-error" id="reset-pw-error"></div>
+          <div class="auth-success" id="reset-pw-success"
+            style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;">
+          </div>
+          <button type="submit" class="btn btn-accent auth-submit-btn" id="reset-pw-submit-btn" disabled>
+            Set New Password <i class="fas fa-check"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- Change Password Tab -->
+      <div class="auth-tab-content" id="auth-tab-change-password">
+        <h3>Change Password</h3>
+        <p class="auth-modal-subtitle">Update your account password below.</p>
+        <form class="auth-form" id="change-password-form">
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="change-current-password" name="current_password" placeholder=" " required />
+              <label class="form-label" for="change-current-password">Current Password</label>
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="change-current-password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="change-new-password" name="new_password" placeholder=" " required />
+              <label class="form-label" for="change-new-password">New Password</label>
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="change-new-password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="password-strength-meter-container">
+              <div class="password-strength-meter" id="change-pw-strength-bar"></div>
+            </div>
+            <div class="password-strength-text" id="change-pw-strength-text">Strength: Weak</div>
+            <ul class="password-checklist" id="change-pw-checklist">
+              <li class="checklist-item" id="change-req-length">
+                <i class="far fa-circle"></i> Min 8 characters
+              </li>
+              <li class="checklist-item" id="change-req-upper">
+                <i class="far fa-circle"></i> At least 1 uppercase letter
+              </li>
+              <li class="checklist-item" id="change-req-number">
+                <i class="far fa-circle"></i> At least 1 number
+              </li>
+              <li class="checklist-item" id="change-req-special">
+                <i class="far fa-circle"></i> At least 1 special character
+              </li>
+            </ul>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="change-confirm-password" name="confirm_password" placeholder=" " required />
+              <label class="form-label" for="change-confirm-password">Confirm New Password</label>
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="change-confirm-password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="confirm-password-match-text" id="change-confirm-match-text"></div>
+          </div>
+          <div class="auth-error" id="change-pw-error"></div>
+          <div class="auth-success" id="change-pw-success"
+            style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;">
+          </div>
+          <button type="submit" class="btn btn-accent auth-submit-btn" id="change-pw-submit-btn" disabled>
+            Update Password <i class="fas fa-key"></i>
+          </button>
+        </form>
+      </div>
+
       <!-- Magic Link Request Tab -->
       <div class="auth-tab-content" id="auth-tab-magic-link">
         <h3>Passwordless Login</h3>
