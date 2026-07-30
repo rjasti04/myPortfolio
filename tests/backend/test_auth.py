@@ -561,4 +561,13 @@ async def test_active_sessions_endpoint(async_client: AsyncClient):
     assert isinstance(sessions_res.json(), list)
 
 
+def test_verify_password_invalid_hash_format():
+    from server.auth.security import verify_password
+    # Test malformed hash formats, unexpected schemes, and invalid hash strings
+    assert verify_password("Secret123!", "invalid_hash_string") is False
+    assert verify_password("Secret123!", "$unknownscheme$12345$baddata") is False
+    assert verify_password("Secret123!", "") is False
+
+
+
 

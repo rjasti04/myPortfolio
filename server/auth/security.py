@@ -17,11 +17,17 @@ def _get_sha256_hex(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # First verify using the SHA-256 pre-hashed password
-    if pwd_context.verify(_get_sha256_hex(plain_password), hashed_password):
-        return True
-    # Fallback to plain text verification for legacy passwords
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        # First verify using the SHA-256 pre-hashed password
+        if pwd_context.verify(_get_sha256_hex(plain_password), hashed_password):
+            return True
+    except Exception:
+        pass
+    try:
+        # Fallback to plain text verification for legacy passwords
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        return False
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(_get_sha256_hex(password))

@@ -17,17 +17,33 @@ export function clearTokens() {
   localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
+export function getErrorMessage(errorData, fallback) {
+  if (!errorData || errorData.detail === undefined || errorData.detail === null) {
+    return fallback;
+  }
+  if (typeof errorData.detail === 'string') {
+    return errorData.detail;
+  }
+  if (Array.isArray(errorData.detail)) {
+    return errorData.detail
+      .map(item => (typeof item === 'string' ? item : item.msg || item.detail || JSON.stringify(item)))
+      .join(', ');
+  }
+  return fallback;
+}
+
 export async function loginUser(email, password) {
   try {
+    const cleanEmail = typeof email === 'string' ? email.trim() : email;
     const response = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email: cleanEmail, password })
     });
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Login failed');
+        throw new Error(getErrorMessage(errorData, 'Login failed'));
     }
 
     const data = await response.json();
@@ -95,14 +111,15 @@ export async function verify2FA(preAuthToken, code) {
 }
 
 export async function requestMagicLink(email) {
+  const cleanEmail = typeof email === 'string' ? email.trim() : email;
   const res = await fetch(`${API_BASE}/auth/magic-link/request`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email })
+    body: JSON.stringify({ email: cleanEmail })
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to send magic link');
+    throw new Error(getErrorMessage(err, 'Failed to send magic link'));
   }
   return await res.json();
 }
@@ -115,7 +132,7 @@ export async function verifyMagicLink(token) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to verify magic link');
+    throw new Error(getErrorMessage(err, 'Failed to verify magic link'));
   }
   const data = await res.json();
   if (!data.requires_2fa && data.access_token && data.refresh_token) {
@@ -128,7 +145,7 @@ export async function fetchActiveSessions() {
   const res = await authenticatedFetch(`${API_BASE}/auth/sessions`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to fetch sessions');
+    throw new Error(getErrorMessage(err, 'Failed to fetch sessions'));
   }
   return await res.json();
 }
@@ -137,7 +154,7 @@ export async function revokeOtherSessions() {
   const res = await authenticatedFetch(`${API_BASE}/auth/sessions/revoke-others`, { method: 'POST' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to revoke other sessions');
+    throw new Error(getErrorMessage(err, 'Failed to revoke other sessions'));
   }
   return await res.json();
 }
@@ -146,26 +163,27 @@ export async function revokeSpecificSession(sessionId) {
   const res = await authenticatedFetch(`${API_BASE}/auth/sessions/${sessionId}`, { method: 'DELETE' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to revoke session');
+    throw new Error(getErrorMessage(err, 'Failed to revoke session'));
   }
   return await res.json();
 }
 
 export async function registerUser(email, password) {
   try {
+    const cleanEmail = typeof email === 'string' ? email.trim() : email;
     const response = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email: cleanEmail, password })
     });
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Registration failed');
+        throw new Error(getErrorMessage(errorData, 'Registration failed'));
     }
 
     // Auto-login after successful registration
-    return await loginUser(email, password);
+    return await loginUser(cleanEmail, password);
   } catch (err) {
     console.error('Registration error:', err);
     throw err;
@@ -174,15 +192,16 @@ export async function registerUser(email, password) {
 
 export async function requestPasswordReset(email) {
   try {
+    const cleanEmail = typeof email === 'string' ? email.trim() : email;
     const response = await fetch(`${API_BASE}/auth/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+      body: JSON.stringify({ email: cleanEmail })
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || 'Failed to request password reset');
+      throw new Error(getErrorMessage(errorData, 'Failed to request password reset'));
     }
 
     return await response.json();

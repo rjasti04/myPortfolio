@@ -304,8 +304,8 @@ export async function initAuthUI() {
     // Handle Login
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
+        const email = (document.getElementById('login-email')?.value || '').trim();
+        const password = document.getElementById('login-password')?.value || '';
         const btn = loginForm.querySelector('button[type="submit"]');
         const originalText = btn.innerHTML;
 
@@ -355,7 +355,7 @@ export async function initAuthUI() {
     if (magicLinkForm) {
         magicLinkForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('magic-link-email').value;
+            const email = (document.getElementById('magic-link-email')?.value || '').trim();
             const btn = magicLinkForm.querySelector('button[type="submit"]');
             const originalText = btn.innerHTML;
             const magicError = document.getElementById('magic-link-error');
@@ -514,8 +514,8 @@ export async function initAuthUI() {
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('register-email').value;
-            const password = document.getElementById('register-password').value;
+            const email = (document.getElementById('register-email')?.value || '').trim();
+            const password = document.getElementById('register-password')?.value || '';
             const btn = registerForm.querySelector('button[type="submit"]');
             const originalText = btn.innerHTML;
 
@@ -547,7 +547,7 @@ export async function initAuthUI() {
     if (forgotForm) {
         forgotForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('forgot-email').value;
+            const email = (document.getElementById('forgot-email')?.value || '').trim();
             const btn = forgotForm.querySelector('button[type="submit"]');
             const originalText = btn.innerHTML;
 
