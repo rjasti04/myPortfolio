@@ -1,7 +1,7 @@
 """add_ai_conversations
 
 Revision ID: g9b0c1d2e3f4
-Revises: f8a9b0c1d2e3
+Revises: c2d3e4f5a6b7
 Create Date: 2026-07-30 11:18:00.000000
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'g9b0c1d2e3f4'
-down_revision: Union[str, Sequence[str], None] = 'f8a9b0c1d2e3'
+down_revision: Union[str, Sequence[str], None] = 'c2d3e4f5a6b7'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
