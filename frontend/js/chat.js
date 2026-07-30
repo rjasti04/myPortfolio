@@ -905,6 +905,16 @@ export function initChat() {
         </div>
       `;
       appendMessage(errorMsg, 'bot', { save: false, showCopy: false });
+
+      // Ensure widget and dialog are visible so user can see error & access retry button
+      if (dialog && dialog.classList.contains('hidden')) {
+        dialog.classList.remove('hidden');
+        dialog.setAttribute('aria-hidden', 'false');
+        isOpen = true;
+      }
+      if (widget) {
+        widget.classList.remove('is-hidden');
+      }
     } finally {
       setInputState(false);
       if (aiPageInput) {

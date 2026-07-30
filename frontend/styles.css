@@ -991,9 +991,9 @@ body:has(main > #about.active) .chat-toggle-btn {
   display: none !important;
 }
 
-/* Hide the entire floating chat widget on the AI page */
-body:has(main > #ai.active) .chat-widget {
-  display: none !important;
+/* Hide the entire floating chat widget on the AI page unless explicitly forced visible */
+body:has(main > #ai.active) .chat-widget:not(.is-visible) {
+  display: none;
 }
 
 .terminal-panel {
@@ -4062,7 +4062,7 @@ body.dark-theme .skill-tag {
 ------------------------------------*/
 
 .js-only {
-  display: none !important;
+  display: none;
 }
 
 .js-enabled .noise-overlay.js-only,
@@ -4766,6 +4766,14 @@ section {
 }
 
 .js-enabled .chat-widget.js-only {
+  display: flex;
+}
+
+.chat-widget.is-hidden {
+  display: none !important;
+}
+
+.chat-widget.is-visible {
   display: flex !important;
 }
 
