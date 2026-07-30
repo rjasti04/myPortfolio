@@ -9,7 +9,7 @@ from server.models.session import UserSession
 from server.models.password_history import PasswordHistory
 from server.schemas.auth import (
     UserCreate, UserLogin, Token, RefreshTokenRequest, ChangePasswordRequest,
-    ForgotPasswordRequest, ResetPasswordRequest
+    ForgotPasswordRequest, ResetPasswordRequest, DeleteAccountRequest
 )
 from server.auth.security import (
     get_password_hash,
@@ -35,12 +35,26 @@ async def register_user(db: AsyncSession, user_data: UserCreate) -> User:
     email_normalized = user_data.email.strip().lower()
     # Check if user already exists
     result = await db.execute(select(User).where(User.email == email_normalized))
-    if result.scalars().first():
-        logger.info("registration_failed_email_exists", email=email_normalized)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
+    existing_user = result.scalars().first()
+    if existing_user:
+        now = datetime.now(timezone.utc)
+        if existing_user.deleted_at:
+            deleted_at_utc = existing_user.deleted_at if existing_user.deleted_at.tzinfo else existing_user.deleted_at.replace(tzinfo=timezone.utc)
+            if now - deleted_at_utc > timedelta(days=30):
+                await db.delete(existing_user)
+                await db.commit()
+            else:
+                logger.info("registration_failed_email_exists", email=email_normalized)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already registered"
+                )
+        else:
+            logger.info("registration_failed_email_exists", email=email_normalized)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
 
     # Hash the password
     hashed_password = get_password_hash(user_data.password)
@@ -79,6 +93,17 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> Token:
         )
 
     now = datetime.now(timezone.utc)
+
+    if user.deleted_at:
+        deleted_at_utc = user.deleted_at if user.deleted_at.tzinfo else user.deleted_at.replace(tzinfo=timezone.utc)
+        if now - deleted_at_utc > timedelta(days=30):
+            logger.warning("login_failed_account_purged", email=email_normalized)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
     if user.locked_until:
         locked_until_utc = user.locked_until if user.locked_until.tzinfo else user.locked_until.replace(tzinfo=timezone.utc)
         if locked_until_utc > now:
@@ -101,6 +126,12 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> Token:
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Automatic reactivation if account was soft deleted within 30 days
+    if user.deleted_at:
+        logger.info("account_auto_reactivated", user_id=str(user.id), email=email_normalized)
+        user.deleted_at = None
+        user.is_active = True
 
     if not user.is_active:
         logger.warning("login_failed_inactive", email=email_normalized)
@@ -447,4 +478,37 @@ async def reset_password_with_token(
     return {"message": "Password reset successfully. You can now log in with your new password."}
 
 
+async def delete_user_account(
+    db: AsyncSession,
+    user: User,
+    data: DeleteAccountRequest
+) -> dict:
+    if data.confirmation_phrase.strip().upper() != "DELETE":
+        logger.warning("account_deletion_failed_invalid_phrase", user_id=str(user.id))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Confirmation phrase must be 'DELETE'."
+        )
 
+    if not verify_password(data.current_password, user.hashed_password):
+        logger.warning("account_deletion_failed_invalid_password", user_id=str(user.id))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect current password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    now = datetime.now(timezone.utc)
+    user.deleted_at = now
+    user.is_active = False
+    db.add(user)
+
+    # Invalidate active sessions & refresh tokens
+    await revoke_user_tokens(db, user.id)
+
+    await db.commit()
+    logger.info("user_account_soft_deleted", user_id=str(user.id))
+
+    return {
+        "message": "Account successfully scheduled for deletion. Logging back in within 30 days will automatically reactivate your account."
+    }

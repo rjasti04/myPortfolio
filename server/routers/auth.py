@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from server.db.database import get_db
 from server.schemas.auth import (
     UserCreate, UserLogin, Token, UserResponse, RefreshTokenRequest, ChangePasswordRequest,
-    ForgotPasswordRequest, ResetPasswordRequest
+    ForgotPasswordRequest, ResetPasswordRequest, DeleteAccountRequest
 )
 from server.services import auth_service
 from server.auth.dependencies import get_current_user
@@ -51,6 +51,14 @@ async def reset_password(
     db: AsyncSession = Depends(get_db)
 ):
     return await auth_service.reset_password_with_token(db, data, background_tasks)
+
+@router.post("/delete-account")
+async def delete_account(
+    data: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    return await auth_service.delete_user_account(db, current_user, data)
 
 @router.post("/logout")
 async def logout(

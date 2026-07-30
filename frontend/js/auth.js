@@ -120,6 +120,26 @@ export async function changePassword(currentPassword, newPassword) {
   }
 }
 
+export async function deleteAccount(currentPassword, confirmationPhrase) {
+  try {
+    const response = await authenticatedFetch(`${API_BASE}/auth/delete-account`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: currentPassword, confirmation_phrase: confirmationPhrase })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to delete account');
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error('Delete account error:', err);
+    throw err;
+  }
+}
+
 export async function logoutUser() {
     // Notify server if needed (optional)
     try {

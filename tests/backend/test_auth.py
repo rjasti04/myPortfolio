@@ -427,4 +427,58 @@ async def test_account_lockout_after_failed_logins(async_client: AsyncClient):
     assert "locked" in res6.json()["detail"].lower()
 
 
+@pytest.mark.asyncio
+async def test_delete_account_validation_and_reactivation(async_client: AsyncClient):
+    email = "deluser@example.com"
+    pwd = "Password123!"
+
+    # 1. Register & Login
+    await async_client.post("/auth/register", json={"email": email, "password": pwd})
+    login_res = await async_client.post("/auth/login", json={"email": email, "password": pwd})
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. Try deletion with invalid phrase
+    bad_phrase_res = await async_client.post(
+        "/auth/delete-account",
+        headers=headers,
+        json={"current_password": pwd, "confirmation_phrase": "NOPE"}
+    )
+    assert bad_phrase_res.status_code == 400
+    assert "DELETE" in bad_phrase_res.json()["detail"]
+
+    # 3. Try deletion with invalid password
+    bad_pwd_res = await async_client.post(
+        "/auth/delete-account",
+        headers=headers,
+        json={"current_password": "WrongPassword123!", "confirmation_phrase": "DELETE"}
+    )
+    assert bad_pwd_res.status_code == 401
+
+    # 4. Successful soft deletion
+    del_res = await async_client.post(
+        "/auth/delete-account",
+        headers=headers,
+        json={"current_password": pwd, "confirmation_phrase": "DELETE"}
+    )
+    assert del_res.status_code == 200
+    assert "scheduled for deletion" in del_res.json()["message"].lower()
+
+    # 5. Access token should now return 400 Inactive User (or 401)
+    me_res = await async_client.get("/auth/me", headers=headers)
+    assert me_res.status_code == 400
+    assert "inactive" in me_res.json()["detail"].lower()
+
+    # 6. Logging back in auto-reactivates the account
+    relogin_res = await async_client.post("/auth/login", json={"email": email, "password": pwd})
+    assert relogin_res.status_code == 200
+    new_token = relogin_res.json()["access_token"]
+
+    # 7. Me request should succeed after reactivation
+    me_reactivated = await async_client.get("/auth/me", headers={"Authorization": f"Bearer {new_token}"})
+    assert me_reactivated.status_code == 200
+    assert me_reactivated.json()["email"] == email
+    assert me_reactivated.json()["is_active"] is True
+
+
 

@@ -1,4 +1,4 @@
-import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword } from './auth.js';
+import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword, deleteAccount } from './auth.js';
 import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
 
@@ -78,6 +78,11 @@ export async function initAuthUI() {
         switchTab('change-password');
     });
 
+    window.addEventListener('request-delete-account-modal', () => {
+        modal.classList.remove('hidden');
+        switchTab('delete-account');
+    });
+
     // Close modal
     closeBtn.addEventListener('click', () => {
         modal.classList.add('hidden');
@@ -98,7 +103,7 @@ export async function initAuthUI() {
         tabs.forEach(t => t.classList.remove('active'));
         tabContents.forEach(c => c.classList.remove('active'));
 
-        if (tabId === 'forgot' || tabId === 'change-password' || tabId === 'reset-password') {
+        if (tabId === 'forgot' || tabId === 'change-password' || tabId === 'reset-password' || tabId === 'delete-account') {
             if (modalTabs) modalTabs.classList.add('hidden');
             const targetTab = document.getElementById(`auth-tab-${tabId}`);
             if (targetTab) targetTab.classList.add('active');
@@ -128,6 +133,13 @@ export async function initAuthUI() {
         if (resetPwSuccess) {
             resetPwSuccess.textContent = '';
             resetPwSuccess.style.display = 'none';
+        }
+        const delAccError = document.getElementById('delete-account-error');
+        const delAccSuccess = document.getElementById('delete-account-success');
+        if (delAccError) delAccError.textContent = '';
+        if (delAccSuccess) {
+            delAccSuccess.textContent = '';
+            delAccSuccess.style.display = 'none';
         }
     }
 
@@ -645,6 +657,65 @@ export async function initAuthUI() {
         });
     }
 
+    // Delete Account Form Handling & Real-time Validation
+    const deleteAccountForm = document.getElementById('delete-account-form');
+    const deleteCurrentPasswordInput = document.getElementById('delete-current-password');
+    const deleteConfirmPhraseInput = document.getElementById('delete-confirm-phrase');
+    const deleteAccountSubmitBtn = document.getElementById('delete-account-submit-btn');
+    const deleteAccountError = document.getElementById('delete-account-error');
+    const deleteAccountSuccess = document.getElementById('delete-account-success');
+
+    function updateDeleteAccountValidation() {
+        if (!deleteCurrentPasswordInput || !deleteConfirmPhraseInput || !deleteAccountSubmitBtn) return;
+        const hasPw = deleteCurrentPasswordInput.value.length > 0;
+        const phraseMatch = deleteConfirmPhraseInput.value.trim().toUpperCase() === 'DELETE';
+        deleteAccountSubmitBtn.disabled = !(hasPw && phraseMatch);
+    }
+
+    if (deleteCurrentPasswordInput) deleteCurrentPasswordInput.addEventListener('input', updateDeleteAccountValidation);
+    if (deleteConfirmPhraseInput) deleteConfirmPhraseInput.addEventListener('input', updateDeleteAccountValidation);
+
+    if (deleteAccountForm) {
+        deleteAccountForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currentPassword = deleteCurrentPasswordInput.value;
+            const phrase = deleteConfirmPhraseInput.value;
+            const btn = deleteAccountForm.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+
+            try {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+                btn.disabled = true;
+                if (deleteAccountError) deleteAccountError.textContent = '';
+                if (deleteAccountSuccess) {
+                    deleteAccountSuccess.textContent = '';
+                    deleteAccountSuccess.style.display = 'none';
+                }
+
+                const result = await deleteAccount(currentPassword, phrase);
+
+                if (deleteAccountSuccess) {
+                    deleteAccountSuccess.textContent = result.message || 'Account scheduled for deletion!';
+                    deleteAccountSuccess.style.display = 'block';
+                }
+                deleteAccountForm.reset();
+                updateDeleteAccountValidation();
+
+                setTimeout(async () => {
+                    modal.classList.add('hidden');
+                    await logoutUser();
+                }, 1800);
+            } catch (err) {
+                if (deleteAccountError) {
+                    deleteAccountError.textContent = err.message || 'Failed to delete account. Please try again.';
+                }
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
+
     // Check URL query parameters for reset_token
     const urlParams = new URLSearchParams(window.location.search);
     const resetTokenParam = urlParams.get('reset_token');
@@ -695,6 +766,9 @@ async function setupNavUI() {
                         <button class="nav-dropdown-item" id="nav-change-pw-btn">
                             <i class="fas fa-key"></i> Change Password
                         </button>
+                        <button class="nav-dropdown-item nav-dropdown-item--danger" id="nav-delete-account-btn" style="color: var(--color-error, #f38ba8);">
+                            <i class="fas fa-trash-can" style="color: var(--color-error, #f38ba8);"></i> Delete Account
+                        </button>
                         <button class="nav-dropdown-item" id="nav-logout-btn">
                             <i class="fas fa-right-from-bracket"></i> Logout
                         </button>
@@ -704,6 +778,7 @@ async function setupNavUI() {
                 const profileBtn = document.getElementById('nav-user-btn');
                 const dropdown = document.getElementById('nav-user-dropdown');
                 const changePwBtn = document.getElementById('nav-change-pw-btn');
+                const deleteAccountBtn = document.getElementById('nav-delete-account-btn');
                 const logoutBtn = document.getElementById('nav-logout-btn');
 
                 profileBtn.addEventListener('click', (e) => {
@@ -727,6 +802,13 @@ async function setupNavUI() {
                     changePwBtn.addEventListener('click', () => {
                         dropdown.classList.remove('show');
                         window.dispatchEvent(new Event('request-change-password-modal'));
+                    });
+                }
+
+                if (deleteAccountBtn) {
+                    deleteAccountBtn.addEventListener('click', () => {
+                        dropdown.classList.remove('show');
+                        window.dispatchEvent(new Event('request-delete-account-modal'));
                     });
                 }
 

@@ -34,6 +34,10 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(..., min_length=8, description="Password must be at least 8 characters long")
 
+class DeleteAccountRequest(BaseModel):
+    current_password: str
+    confirmation_phrase: str
+
 class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
