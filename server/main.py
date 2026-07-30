@@ -16,8 +16,14 @@ from server.db.database import get_db, engine
 from server.models.session import UserSession
 from server.models.event import UserActivityEvent
 from server.routers import auth
-from server.auth.dependencies import get_optional_current_user
+from server.auth.dependencies import get_current_user, get_optional_current_user
 from server.models.user import User
+from server.services.chat_history_service import (
+    save_or_update_conversation,
+    get_user_conversations,
+    get_conversation_detail,
+    delete_conversation,
+)
 from fastapi import Depends
 import os
 import json
@@ -421,6 +427,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(..., min_length=1, max_length=24)
     model: Optional[str] = Field(default=None, max_length=256)
+    conversation_id: Optional[str] = Field(default=None, max_length=36)
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -860,6 +867,8 @@ async def chat_endpoint(payload: ChatRequest, http_request: Request, current_use
                     )
                     yield "\n(Error: AI service unavailable)"
                     break
+                if isinstance(item, str):
+                    assistant_chunks.append(item)
                 yield item
 
             stop_stream.set()
@@ -868,6 +877,27 @@ async def chat_endpoint(payload: ChatRequest, http_request: Request, current_use
                     await asyncio.wait_for(thread_future, timeout=5)
                 except asyncio.TimeoutError:
                     logger.warning("Bedrock stream worker did not stop promptly")
+
+            # Persist compressed conversation history if user is authenticated
+            if current_user and assistant_chunks:
+                try:
+                    assistant_response = "".join(assistant_chunks).replace("\n[__TRUNCATED__]", "")
+                    full_transcript = [
+                        {"role": m.role, "content": m.content}
+                        for m in payload.messages
+                    ] + [{"role": "assistant", "content": assistant_response}]
+
+                    conv_uuid = UUID(payload.conversation_id) if payload.conversation_id else None
+                    async with AsyncSession(engine) as db_session:
+                        await save_or_update_conversation(
+                            db=db_session,
+                            user_id=current_user.id,
+                            conversation_id=conv_uuid,
+                            model_id=model_id,
+                            messages=full_transcript,
+                        )
+                except Exception as save_err:
+                    logger.error("failed_to_save_chat_history", user_id=str(current_user.id), error=str(save_err))
         finally:
             stop_stream.set()
             bedrock_semaphore.release()
@@ -880,6 +910,43 @@ async def chat_endpoint(payload: ChatRequest, http_request: Request, current_use
             "X-Accel-Buffering": "no",  # disables Nginx buffering
         },
     )
+
+
+@app.get("/chat/history", summary="List authenticated user chat histories")
+async def list_chat_histories(
+    limit: int = Query(default=50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve compressed conversation summaries for the logged in user."""
+    histories = await get_user_conversations(db=db, user_id=current_user.id, limit=limit)
+    return {"conversations": histories}
+
+
+@app.get("/chat/history/{conversation_id}", summary="Get detailed chat history with decompressed transcript")
+async def get_chat_history_detail(
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch and decompress full message transcript for a specific conversation."""
+    detail = await get_conversation_detail(db=db, user_id=current_user.id, conversation_id=conversation_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return detail
+
+
+@app.delete("/chat/history/{conversation_id}", summary="Delete a chat conversation")
+async def delete_chat_history(
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a conversation belonging to the logged in user."""
+    deleted = await delete_conversation(db=db, user_id=current_user.id, conversation_id=conversation_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"detail": "Conversation deleted successfully"}
 
 
 @app.post("/chat/summarize")
