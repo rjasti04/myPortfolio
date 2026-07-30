@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, UUID, func
+from sqlalchemy import Column, String, Boolean, DateTime, UUID, ForeignKey, func
 from server.db.database import Base
 import uuid
 
@@ -6,6 +6,7 @@ class UserSession(Base):
     __tablename__ = "user_sessions"
 
     session_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     ip_address = Column(String(64), nullable=False)
     user_agent = Column(String(512), nullable=True)
     device_type = Column(String(50), nullable=True)

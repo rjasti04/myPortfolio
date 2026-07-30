@@ -77,3 +77,13 @@ def verify_token(token: str, expected_type: str = "access") -> dict:
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+def create_pre_auth_token(subject: Union[str, int]) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=5)
+    to_encode = {"exp": expire, "sub": str(subject), "type": "2fa_pre_auth"}
+    return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
+
+def create_magic_link_token(subject: Union[str, int], jti: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=10)
+    to_encode = {"exp": expire, "sub": str(subject), "type": "magic_link", "jti": jti}
+    return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)

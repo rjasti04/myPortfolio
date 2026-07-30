@@ -17,4 +17,7 @@ email-validator>=2.1.0
 aiokafka>=0.10.0
 httpx>=0.25.0
 aiosmtplib>=3.0.0
+pyotp>=2.9.0
+qrcode>=7.4.2
+pillow>=10.0.0
 

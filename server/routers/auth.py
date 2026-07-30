@@ -1,9 +1,12 @@
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.db.database import get_db
 from server.schemas.auth import (
     UserCreate, UserLogin, Token, UserResponse, RefreshTokenRequest, ChangePasswordRequest,
-    ForgotPasswordRequest, ResetPasswordRequest, DeleteAccountRequest
+    ForgotPasswordRequest, ResetPasswordRequest, DeleteAccountRequest,
+    Setup2FAResponse, Enable2FARequest, Disable2FARequest, Verify2FARequest,
+    MagicLinkRequest, MagicLinkVerifyRequest, UserSessionResponse, TokenResponseOr2FA
 )
 from server.services import auth_service
 from server.auth.dependencies import get_current_user
@@ -15,7 +18,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     return await auth_service.register_user(db, user)
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=TokenResponseOr2FA)
 async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
     return await auth_service.authenticate_user(db, user)
 
@@ -26,6 +29,46 @@ async def refresh_token(token_data: RefreshTokenRequest, db: AsyncSession = Depe
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.post("/2fa/setup", response_model=Setup2FAResponse)
+async def setup_2fa(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return await auth_service.setup_2fa(db, current_user)
+
+@router.post("/2fa/enable")
+async def enable_2fa(data: Enable2FARequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return await auth_service.enable_2fa(db, current_user, data)
+
+@router.post("/2fa/disable")
+async def disable_2fa(data: Disable2FARequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return await auth_service.disable_2fa(db, current_user, data)
+
+@router.post("/2fa/verify", response_model=TokenResponseOr2FA)
+async def verify_2fa(data: Verify2FARequest, db: AsyncSession = Depends(get_db)):
+    return await auth_service.verify_2fa_login(db, data)
+
+@router.post("/magic-link/request")
+async def request_magic_link(
+    data: MagicLinkRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    return await auth_service.request_magic_link(db, data, background_tasks)
+
+@router.post("/magic-link/verify", response_model=TokenResponseOr2FA)
+async def verify_magic_link(data: MagicLinkVerifyRequest, db: AsyncSession = Depends(get_db)):
+    return await auth_service.verify_magic_link(db, data)
+
+@router.get("/sessions", response_model=list[UserSessionResponse])
+async def get_sessions(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return await auth_service.get_user_sessions(db, current_user)
+
+@router.post("/sessions/revoke-others")
+async def revoke_others(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return await auth_service.revoke_all_other_sessions(db, current_user)
+
+@router.delete("/sessions/{session_id}")
+async def revoke_session(session_id: UUID, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return await auth_service.revoke_specific_session(db, current_user, session_id)
 
 @router.post("/change-password")
 async def change_password(

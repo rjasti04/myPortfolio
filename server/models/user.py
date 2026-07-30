@@ -16,3 +16,5 @@ class User(Base):
     failed_login_attempts = Column(Integer, default=0, nullable=False, server_default="0")
     locked_until = Column(DateTime(timezone=True), nullable=True)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
+    totp_secret = Column(String(255), nullable=True)
+    is_totp_enabled = Column(Boolean, default=False, nullable=False, server_default="false")

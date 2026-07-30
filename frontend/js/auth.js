@@ -31,12 +31,124 @@ export async function loginUser(email, password) {
     }
 
     const data = await response.json();
+    if (data.requires_2fa) {
+      return data;
+    }
     setTokens(data.access_token, data.refresh_token);
-    return true;
+    return data;
   } catch (err) {
     console.error('Login error:', err);
     throw err;
   }
+}
+
+export async function setup2FA() {
+  const res = await authenticatedFetch(`${API_BASE}/auth/2fa/setup`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to setup 2FA');
+  }
+  return await res.json();
+}
+
+export async function enable2FA(code) {
+  const res = await authenticatedFetch(`${API_BASE}/auth/2fa/enable`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to enable 2FA');
+  }
+  return await res.json();
+}
+
+export async function disable2FA(currentPassword, code) {
+  const res = await authenticatedFetch(`${API_BASE}/auth/2fa/disable`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current_password: currentPassword, code })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to disable 2FA');
+  }
+  return await res.json();
+}
+
+export async function verify2FA(preAuthToken, code) {
+  const res = await fetch(`${API_BASE}/auth/2fa/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pre_auth_token: preAuthToken, code })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Invalid 2FA code');
+  }
+  const data = await res.json();
+  if (data.access_token && data.refresh_token) {
+    setTokens(data.access_token, data.refresh_token);
+  }
+  return data;
+}
+
+export async function requestMagicLink(email) {
+  const res = await fetch(`${API_BASE}/auth/magic-link/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to send magic link');
+  }
+  return await res.json();
+}
+
+export async function verifyMagicLink(token) {
+  const res = await fetch(`${API_BASE}/auth/magic-link/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to verify magic link');
+  }
+  const data = await res.json();
+  if (!data.requires_2fa && data.access_token && data.refresh_token) {
+    setTokens(data.access_token, data.refresh_token);
+  }
+  return data;
+}
+
+export async function fetchActiveSessions() {
+  const res = await authenticatedFetch(`${API_BASE}/auth/sessions`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to fetch sessions');
+  }
+  return await res.json();
+}
+
+export async function revokeOtherSessions() {
+  const res = await authenticatedFetch(`${API_BASE}/auth/sessions/revoke-others`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to revoke other sessions');
+  }
+  return await res.json();
+}
+
+export async function revokeSpecificSession(sessionId) {
+  const res = await authenticatedFetch(`${API_BASE}/auth/sessions/${sessionId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to revoke session');
+  }
+  return await res.json();
 }
 
 export async function registerUser(email, password) {

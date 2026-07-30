@@ -7,9 +7,15 @@ from server.models.user import User
 from server.models.token import RefreshToken
 from server.models.session import UserSession
 from server.models.password_history import PasswordHistory
+import pyotp
+import qrcode
+import io
+import base64
 from server.schemas.auth import (
     UserCreate, UserLogin, Token, RefreshTokenRequest, ChangePasswordRequest,
-    ForgotPasswordRequest, ResetPasswordRequest, DeleteAccountRequest
+    ForgotPasswordRequest, ResetPasswordRequest, DeleteAccountRequest,
+    Setup2FAResponse, Enable2FARequest, Disable2FARequest, Verify2FARequest,
+    MagicLinkRequest, MagicLinkVerifyRequest, UserSessionResponse, TokenResponseOr2FA
 )
 from server.auth.security import (
     get_password_hash,
@@ -17,11 +23,15 @@ from server.auth.security import (
     create_access_token,
     create_refresh_token,
     create_password_reset_token,
+    create_pre_auth_token,
+    create_magic_link_token,
     verify_token,
     REFRESH_TOKEN_EXPIRE_DAYS
 )
 from server.services.hibp_service import check_password_breached
-from server.services.notification_service import send_security_notification_email, send_password_reset_email
+from server.services.notification_service import (
+    send_security_notification_email, send_password_reset_email, send_magic_link_email
+)
 from sqlalchemy.exc import IntegrityError
 import structlog
 from datetime import datetime, timezone, timedelta
@@ -79,7 +89,7 @@ async def register_user(db: AsyncSession, user_data: UserCreate) -> User:
             detail="Email already registered"
         )
 
-async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> Token:
+async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> TokenResponseOr2FA:
     email_normalized = user_data.email.strip().lower()
     result = await db.execute(select(User).where(User.email == email_normalized))
     user = result.scalars().first()
@@ -145,6 +155,15 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> Token:
     user.locked_until = None
     user.last_login = now
     db.add(user)
+    await db.commit()
+
+    if user.is_totp_enabled:
+        pre_auth_token = create_pre_auth_token(str(user.id))
+        logger.info("login_requires_2fa", user_id=str(user.id))
+        return TokenResponseOr2FA(
+            requires_2fa=True,
+            pre_auth_token=pre_auth_token
+        )
 
     # Generate Refresh Token JTI and record it in database
     jti = str(uuid.uuid4())
@@ -160,7 +179,8 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> Token:
 
     logger.info("user_logged_in", user_id=str(user.id), email=user.email)
 
-    return Token(
+    return TokenResponseOr2FA(
+        requires_2fa=False,
         access_token=create_access_token(subject=str(user.id)),
         refresh_token=create_refresh_token(subject=str(user.id), jti=jti),
         token_type="bearer"
@@ -512,3 +532,232 @@ async def delete_user_account(
     return {
         "message": "Account successfully scheduled for deletion. Logging back in within 30 days will automatically reactivate your account."
     }
+
+
+async def setup_2fa(db: AsyncSession, user: User) -> Setup2FAResponse:
+    secret = pyotp.random_base32()
+    user.totp_secret = secret
+    db.add(user)
+    await db.commit()
+
+    totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=user.email, issuer_name="rjWebApp")
+
+    qr = qrcode.QRCode(version=1, box_size=8, border=2)
+    qr.add_data(totp_uri)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    qr_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+    qr_code_data_uri = f"data:image/png;base64,{qr_b64}"
+
+    logger.info("2fa_setup_initiated", user_id=str(user.id))
+    return Setup2FAResponse(secret=secret, qr_code=qr_code_data_uri)
+
+
+async def enable_2fa(db: AsyncSession, user: User, data: Enable2FARequest) -> dict:
+    if not user.totp_secret:
+        raise HTTPException(status_code=400, detail="2FA setup not initiated")
+
+    totp = pyotp.TOTP(user.totp_secret)
+    if not totp.verify(data.code):
+        logger.warning("2fa_enable_invalid_code", user_id=str(user.id))
+        raise HTTPException(status_code=400, detail="Invalid 2FA code")
+
+    user.is_totp_enabled = True
+    db.add(user)
+    await db.commit()
+
+    logger.info("2fa_enabled_successfully", user_id=str(user.id))
+    return {"message": "2FA successfully enabled"}
+
+
+async def disable_2fa(db: AsyncSession, user: User, data: Disable2FARequest) -> dict:
+    if not verify_password(data.current_password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect current password")
+
+    if not user.totp_secret or not user.is_totp_enabled:
+        raise HTTPException(status_code=400, detail="2FA is not enabled")
+
+    totp = pyotp.TOTP(user.totp_secret)
+    if not totp.verify(data.code):
+        raise HTTPException(status_code=400, detail="Invalid 2FA code")
+
+    user.is_totp_enabled = False
+    user.totp_secret = None
+    db.add(user)
+    await db.commit()
+
+    logger.info("2fa_disabled_successfully", user_id=str(user.id))
+    return {"message": "2FA successfully disabled"}
+
+
+async def verify_2fa_login(db: AsyncSession, data: Verify2FARequest) -> TokenResponseOr2FA:
+    payload = verify_token(data.pre_auth_token, expected_type="2fa_pre_auth")
+    user_id_str = payload.get("sub")
+    if not user_id_str:
+        raise HTTPException(status_code=400, detail="Invalid token payload")
+
+    try:
+        user_id = uuid.UUID(user_id_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+
+    if not user or not user.is_active or not user.is_totp_enabled or not user.totp_secret:
+        raise HTTPException(status_code=400, detail="User not found or 2FA not enabled")
+
+    totp = pyotp.TOTP(user.totp_secret)
+    if not totp.verify(data.code):
+        logger.warning("2fa_verify_failed", user_id=str(user.id))
+        raise HTTPException(status_code=400, detail="Invalid 2FA code")
+
+    now = datetime.now(timezone.utc)
+    jti = str(uuid.uuid4())
+    expires_at = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+    db_token = RefreshToken(user_id=user.id, token_jti=jti, expires_at=expires_at)
+    db.add(db_token)
+    await db.commit()
+
+    logger.info("2fa_login_completed", user_id=str(user.id))
+    return TokenResponseOr2FA(
+        requires_2fa=False,
+        access_token=create_access_token(subject=str(user.id)),
+        refresh_token=create_refresh_token(subject=str(user.id), jti=jti),
+        token_type="bearer"
+    )
+
+
+async def request_magic_link(
+    db: AsyncSession,
+    data: MagicLinkRequest,
+    background_tasks: Optional[BackgroundTasks] = None
+) -> dict:
+    email_normalized = data.email.strip().lower()
+    result = await db.execute(select(User).where(User.email == email_normalized))
+    user = result.scalars().first()
+
+    if not user:
+        logger.info("magic_link_requested_unknown_email", email=email_normalized)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Email address is not registered"
+        )
+
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="User account is inactive")
+
+    magic_jti = str(uuid.uuid4())
+    magic_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    db_magic_token = RefreshToken(
+        user_id=user.id,
+        token_jti=magic_jti,
+        expires_at=magic_expires_at,
+        is_revoked=False
+    )
+    db.add(db_magic_token)
+    await db.commit()
+
+    magic_token = create_magic_link_token(subject=str(user.id), jti=magic_jti)
+    if background_tasks:
+        background_tasks.add_task(send_magic_link_email, user.email, magic_token)
+
+    logger.info("magic_link_requested_successfully", user_id=str(user.id), email=email_normalized)
+    return {"message": "Magic login link sent successfully to your email."}
+
+
+async def verify_magic_link(db: AsyncSession, data: MagicLinkVerifyRequest) -> TokenResponseOr2FA:
+    payload = verify_token(data.token, expected_type="magic_link")
+    user_id_str = payload.get("sub")
+    magic_jti = payload.get("jti")
+
+    if not user_id_str or not magic_jti:
+        raise HTTPException(status_code=400, detail="Invalid token payload")
+
+    try:
+        user_id = uuid.UUID(user_id_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid token subject")
+
+    token_result = await db.execute(select(RefreshToken).where(RefreshToken.token_jti == magic_jti))
+    db_token = token_result.scalars().first()
+    now = datetime.now(timezone.utc)
+
+    if not db_token or db_token.is_revoked or db_token.expires_at.replace(tzinfo=timezone.utc) < now:
+        raise HTTPException(status_code=400, detail="This magic link has already been used or expired.")
+
+    db_token.is_revoked = True
+    db.add(db_token)
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+
+    if not user or not user.is_active:
+        raise HTTPException(status_code=400, detail="User not found or inactive")
+
+    if user.is_totp_enabled:
+        pre_token = create_pre_auth_token(str(user.id))
+        await db.commit()
+        return TokenResponseOr2FA(requires_2fa=True, pre_auth_token=pre_token)
+
+    new_jti = str(uuid.uuid4())
+    expires_at = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+    new_db_token = RefreshToken(user_id=user.id, token_jti=new_jti, expires_at=expires_at)
+    db.add(new_db_token)
+    await db.commit()
+
+    logger.info("magic_link_login_completed", user_id=str(user.id))
+    return TokenResponseOr2FA(
+        requires_2fa=False,
+        access_token=create_access_token(subject=str(user.id)),
+        refresh_token=create_refresh_token(subject=str(user.id), jti=new_jti),
+        token_type="bearer"
+    )
+
+
+async def get_user_sessions(db: AsyncSession, user: User) -> list[UserSessionResponse]:
+    result = await db.execute(
+        select(UserSession)
+        .where(UserSession.user_id == user.id)
+        .where(UserSession.is_active == True)
+        .order_by(UserSession.last_active_at.desc())
+    )
+    sessions = result.scalars().all()
+    return [
+        UserSessionResponse(
+            session_id=s.session_id,
+            ip_address=s.ip_address,
+            user_agent=s.user_agent,
+            device_type=s.device_type,
+            started_at=s.started_at,
+            last_active_at=s.last_active_at,
+            is_current=False
+        ) for s in sessions
+    ]
+
+
+async def revoke_all_other_sessions(db: AsyncSession, user: User, current_session_id: Optional[uuid.UUID] = None) -> dict:
+    query = update(UserSession).where(UserSession.user_id == user.id).where(UserSession.is_active == True)
+    if current_session_id:
+        query = query.where(UserSession.session_id != current_session_id)
+    await db.execute(query.values(is_active=False, ended_at=datetime.now(timezone.utc), end_reason="user_revoked_others"))
+    await db.commit()
+    logger.info("user_revoked_other_sessions", user_id=str(user.id))
+    return {"message": "Logged out of all other active sessions successfully."}
+
+
+async def revoke_specific_session(db: AsyncSession, user: User, session_id: uuid.UUID) -> dict:
+    await db.execute(
+        update(UserSession)
+        .where(UserSession.user_id == user.id)
+        .where(UserSession.session_id == session_id)
+        .values(is_active=False, ended_at=datetime.now(timezone.utc), end_reason="user_revoked_session")
+    )
+    await db.commit()
+    logger.info("user_revoked_specific_session", user_id=str(user.id), session_id=str(session_id))
+    return {"message": "Session revoked successfully."}

@@ -481,4 +481,84 @@ async def test_delete_account_validation_and_reactivation(async_client: AsyncCli
     assert me_reactivated.json()["is_active"] is True
 
 
+@pytest.mark.asyncio
+async def test_2fa_setup_enable_and_verify(async_client: AsyncClient):
+    import pyotp
+    email = "2fa_user@example.com"
+    pwd = "Password123!"
+
+    # 1. Register & Login
+    await async_client.post("/auth/register", json={"email": email, "password": pwd})
+    login_res = await async_client.post("/auth/login", json={"email": email, "password": pwd})
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. Setup 2FA
+    setup_res = await async_client.post("/auth/2fa/setup", headers=headers)
+    assert setup_res.status_code == 200
+    setup_data = setup_res.json()
+    assert "secret" in setup_data
+    assert "data:image/png;base64," in setup_data["qr_code"]
+    secret = setup_data["secret"]
+
+    # 3. Enable 2FA with invalid code
+    bad_enable = await async_client.post("/auth/2fa/enable", headers=headers, json={"code": "000000"})
+    assert bad_enable.status_code == 400
+
+    # 4. Enable 2FA with valid TOTP code
+    totp = pyotp.TOTP(secret)
+    valid_code = totp.now()
+    enable_res = await async_client.post("/auth/2fa/enable", headers=headers, json={"code": valid_code})
+    assert enable_res.status_code == 200
+
+    # 5. Subsequent Login should return 2FA Challenge
+    login_2fa_res = await async_client.post("/auth/login", json={"email": email, "password": pwd})
+    assert login_2fa_res.status_code == 200
+    challenge_data = login_2fa_res.json()
+    assert challenge_data["requires_2fa"] is True
+    assert "pre_auth_token" in challenge_data
+
+    # 6. Verify 2FA challenge with valid code
+    pre_token = challenge_data["pre_auth_token"]
+    verify_res = await async_client.post("/auth/2fa/verify", json={"pre_auth_token": pre_token, "code": totp.now()})
+    assert verify_res.status_code == 200
+    final_data = verify_res.json()
+    assert final_data["requires_2fa"] is False
+    assert "access_token" in final_data
+
+
+@pytest.mark.asyncio
+async def test_magic_link_unregistered_and_registered(async_client: AsyncClient):
+    # 1. Unregistered email should return 404
+    req_bad = await async_client.post("/auth/magic-link/request", json={"email": "unknown_magic@example.com"})
+    assert req_bad.status_code == 404
+    assert "not registered" in req_bad.json()["detail"].lower()
+
+    # 2. Register user
+    email = "magic_user@example.com"
+    pwd = "Password123!"
+    await async_client.post("/auth/register", json={"email": email, "password": pwd})
+
+    # 3. Request magic link for registered user
+    req_good = await async_client.post("/auth/magic-link/request", json={"email": email})
+    assert req_good.status_code == 200
+    assert "magic login link sent" in req_good.json()["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_active_sessions_endpoint(async_client: AsyncClient):
+    email = "session_user@example.com"
+    pwd = "Password123!"
+
+    await async_client.post("/auth/register", json={"email": email, "password": pwd})
+    login_res = await async_client.post("/auth/login", json={"email": email, "password": pwd})
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Fetch sessions
+    sessions_res = await async_client.get("/auth/sessions", headers=headers)
+    assert sessions_res.status_code == 200
+    assert isinstance(sessions_res.json(), list)
+
+
 

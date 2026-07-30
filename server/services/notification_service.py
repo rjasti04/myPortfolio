@@ -98,4 +98,58 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
         )
 
 
+async def send_magic_link_email(email: str, magic_token: str) -> None:
+    magic_link = f"https://rjasti.com/?magic_token={magic_token}"
+    logger.info("sending_magic_link_email", recipient_email=email, magic_link=magic_link)
+
+    msg = EmailMessage()
+    msg["Subject"] = "Passwordless Magic Link - rjasti.com"
+    msg["From"] = EMAILS_FROM_EMAIL
+    msg["To"] = email
+
+    plain_content = (
+        f"You requested a passwordless login link for your account.\n\n"
+        f"Click or copy the link below to log in instantly:\n"
+        f"{magic_link}\n\n"
+        f"This link will expire in 10 minutes."
+    )
+    html_content = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2>Passwordless Login Link</h2>
+        <p>Click the button below to log in to your account instantly:</p>
+        <p>
+          <a href="{magic_link}" style="background-color: #6c5ce7; color: white; padding: 10px 18px; text-decoration: none; border-radius: 6px; display: inline-block;">
+            Log In Instantly
+          </a>
+        </p>
+        <p>Or copy and paste this link into your browser:</p>
+        <p><a href="{magic_link}">{magic_link}</a></p>
+        <p><em>This link will expire in 10 minutes. If you did not request this, please ignore this email.</em></p>
+      </body>
+    </html>
+    """
+
+    msg.set_content(plain_content)
+    msg.add_alternative(html_content, subtype="html")
+
+    send_kwargs = {
+        "hostname": SMTP_HOST,
+        "port": SMTP_PORT,
+        "timeout": 10
+    }
+    if bool(SMTP_USER and SMTP_PASSWORD):
+        send_kwargs["username"] = SMTP_USER
+        send_kwargs["password"] = SMTP_PASSWORD
+        send_kwargs["start_tls"] = True
+    else:
+        send_kwargs["start_tls"] = False if SMTP_HOST in ("127.0.0.1", "localhost") else None
+
+    try:
+        await aiosmtplib.send(msg, **send_kwargs)
+        logger.info("magic_link_email_sent_successfully", recipient_email=email)
+    except Exception as e:
+        logger.error("magic_link_email_send_failed", recipient_email=email, error=str(e))
+
+
 

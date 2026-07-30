@@ -1,4 +1,4 @@
-import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword, deleteAccount } from './auth.js';
+import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, disable2FA, verify2FA, requestMagicLink, verifyMagicLink, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession } from './auth.js';
 import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
 
@@ -83,6 +83,32 @@ export async function initAuthUI() {
         switchTab('delete-account');
     });
 
+    window.addEventListener('request-magic-link-modal', () => {
+        modal.classList.remove('hidden');
+        switchTab('magic-link');
+    });
+
+    window.addEventListener('request-2fa-setup-modal', async () => {
+        modal.classList.remove('hidden');
+        switchTab('2fa-setup');
+        try {
+            const data = await setup2FA();
+            const qrImg = document.getElementById('2fa-qr-img');
+            const secretText = document.getElementById('2fa-secret-text');
+            if (qrImg) qrImg.src = data.qr_code;
+            if (secretText) secretText.textContent = data.secret;
+        } catch (e) {
+            const errEl = document.getElementById('2fa-enable-error');
+            if (errEl) errEl.textContent = e.message || 'Failed to initialize 2FA setup.';
+        }
+    });
+
+    window.addEventListener('request-sessions-modal', async () => {
+        modal.classList.remove('hidden');
+        switchTab('sessions');
+        await loadActiveSessionsUI();
+    });
+
     // Close modal
     closeBtn.addEventListener('click', () => {
         modal.classList.add('hidden');
@@ -98,12 +124,13 @@ export async function initAuthUI() {
     });
 
     // Tab switching
+    const hiddenTabIds = ['forgot', 'change-password', 'reset-password', 'delete-account', 'magic-link', '2fa-verify', '2fa-setup', 'sessions'];
     function switchTab(tabId) {
         resetPasswordVisibility();
         tabs.forEach(t => t.classList.remove('active'));
         tabContents.forEach(c => c.classList.remove('active'));
 
-        if (tabId === 'forgot' || tabId === 'change-password' || tabId === 'reset-password' || tabId === 'delete-account') {
+        if (hiddenTabIds.includes(tabId)) {
             if (modalTabs) modalTabs.classList.add('hidden');
             const targetTab = document.getElementById(`auth-tab-${tabId}`);
             if (targetTab) targetTab.classList.add('active');
@@ -122,25 +149,16 @@ export async function initAuthUI() {
             forgotSuccess.textContent = '';
             forgotSuccess.style.display = 'none';
         }
-        if (changePwError) changePwError.textContent = '';
-        if (changePwSuccess) {
-            changePwSuccess.textContent = '';
-            changePwSuccess.style.display = 'none';
-        }
-        const resetPwError = document.getElementById('reset-pw-error');
-        const resetPwSuccess = document.getElementById('reset-pw-success');
-        if (resetPwError) resetPwError.textContent = '';
-        if (resetPwSuccess) {
-            resetPwSuccess.textContent = '';
-            resetPwSuccess.style.display = 'none';
-        }
-        const delAccError = document.getElementById('delete-account-error');
-        const delAccSuccess = document.getElementById('delete-account-success');
-        if (delAccError) delAccError.textContent = '';
-        if (delAccSuccess) {
-            delAccSuccess.textContent = '';
-            delAccSuccess.style.display = 'none';
-        }
+        const fieldsToClear = ['change-pw-error', 'reset-pw-error', 'delete-account-error', 'magic-link-error', '2fa-verify-error', '2fa-enable-error', 'sessions-error'];
+        fieldsToClear.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '';
+        });
+        const successToHide = ['change-pw-success', 'reset-pw-success', 'delete-account-success', 'magic-link-success', '2fa-enable-success'];
+        successToHide.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.textContent = ''; el.style.display = 'none'; }
+        });
     }
 
     tabs.forEach(tab => {
@@ -296,7 +314,14 @@ export async function initAuthUI() {
             btn.disabled = true;
             loginError.textContent = '';
 
-            await loginUser(email, password);
+            const res = await loginUser(email, password);
+
+            if (res && res.requires_2fa) {
+                const preInput = document.getElementById('2fa-pre-auth-token-input');
+                if (preInput) preInput.value = res.pre_auth_token;
+                switchTab('2fa-verify');
+                return;
+            }
 
             // Success
             loginForm.reset();
@@ -310,6 +335,180 @@ export async function initAuthUI() {
             btn.disabled = false;
         }
     });
+
+    const magicLinkTrigger = document.getElementById('magic-link-trigger');
+    const magicBackToLoginTrigger = document.getElementById('magic-back-to-login-trigger');
+    if (magicLinkTrigger) {
+        magicLinkTrigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchTab('magic-link');
+        });
+    }
+    if (magicBackToLoginTrigger) {
+        magicBackToLoginTrigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchTab('login');
+        });
+    }
+
+    const magicLinkForm = document.getElementById('magic-link-form');
+    if (magicLinkForm) {
+        magicLinkForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('magic-link-email').value;
+            const btn = magicLinkForm.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            const magicError = document.getElementById('magic-link-error');
+            const magicSuccess = document.getElementById('magic-link-success');
+
+            try {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                btn.disabled = true;
+                if (magicError) magicError.textContent = '';
+                if (magicSuccess) { magicSuccess.textContent = ''; magicSuccess.style.display = 'none'; }
+
+                await requestMagicLink(email);
+
+                if (magicSuccess) {
+                    magicSuccess.textContent = 'Magic link sent! Check your email.';
+                    magicSuccess.style.display = 'block';
+                }
+                magicLinkForm.reset();
+            } catch (err) {
+                if (magicError) magicError.textContent = err.message || 'Failed to send magic link.';
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
+
+    const twoFactorVerifyForm = document.getElementById('2fa-verify-form');
+    if (twoFactorVerifyForm) {
+        twoFactorVerifyForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const preAuthToken = document.getElementById('2fa-pre-auth-token-input').value;
+            const code = document.getElementById('2fa-verify-code').value;
+            const btn = twoFactorVerifyForm.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            const verifyError = document.getElementById('2fa-verify-error');
+
+            try {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+                btn.disabled = true;
+                if (verifyError) verifyError.textContent = '';
+
+                await verify2FA(preAuthToken, code);
+
+                twoFactorVerifyForm.reset();
+                modal.classList.add('hidden');
+                window.dispatchEvent(new Event('auth-changed'));
+            } catch (err) {
+                if (verifyError) verifyError.textContent = err.message || 'Invalid 2FA code.';
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
+
+    const twoFactorEnableForm = document.getElementById('2fa-enable-form');
+    if (twoFactorEnableForm) {
+        twoFactorEnableForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const code = document.getElementById('2fa-enable-code').value;
+            const btn = twoFactorEnableForm.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            const enableError = document.getElementById('2fa-enable-error');
+            const enableSuccess = document.getElementById('2fa-enable-success');
+
+            try {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enabling...';
+                btn.disabled = true;
+                if (enableError) enableError.textContent = '';
+                if (enableSuccess) { enableSuccess.textContent = ''; enableSuccess.style.display = 'none'; }
+
+                await enable2FA(code);
+
+                if (enableSuccess) {
+                    enableSuccess.textContent = '2FA successfully enabled!';
+                    enableSuccess.style.display = 'block';
+                }
+                twoFactorEnableForm.reset();
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    window.dispatchEvent(new Event('auth-changed'));
+                }, 1500);
+            } catch (err) {
+                if (enableError) enableError.textContent = err.message || 'Failed to enable 2FA.';
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
+
+    async function loadActiveSessionsUI() {
+        const container = document.getElementById('sessions-list');
+        const errEl = document.getElementById('sessions-error');
+        if (!container) return;
+        try {
+            if (errEl) errEl.textContent = '';
+            container.innerHTML = '<p style="font-size: 0.85rem; color: var(--text-muted);">Loading active sessions...</p>';
+            const sessions = await fetchActiveSessions();
+            if (!sessions || sessions.length === 0) {
+                container.innerHTML = '<p style="font-size: 0.85rem; color: var(--text-muted);">No active sessions found.</p>';
+                return;
+            }
+            container.innerHTML = sessions.map(s => `
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-color, #cdd6f4);">
+                            <i class="fas fa-${(s.device_type || 'desktop').toLowerCase().includes('mobile') ? 'mobile-screen' : 'laptop'}"></i> ${s.device_type || 'Desktop Device'}
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted, #a6adc8);">IP: ${s.ip_address}</div>
+                    </div>
+                    <button type="button" class="btn-revoke-session" data-session-id="${s.session_id}" style="background: none; border: 1px solid var(--color-error, #f38ba8); color: var(--color-error, #f38ba8); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;">
+                        Revoke
+                    </button>
+                </div>
+            `).join('');
+
+            container.querySelectorAll('.btn-revoke-session').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const sid = btn.getAttribute('data-session-id');
+                    btn.disabled = true;
+                    btn.textContent = 'Revoking...';
+                    try {
+                        await revokeSpecificSession(sid);
+                        await loadActiveSessionsUI();
+                    } catch (e) {
+                        if (errEl) errEl.textContent = e.message || 'Failed to revoke session.';
+                    }
+                });
+            });
+        } catch (e) {
+            if (errEl) errEl.textContent = e.message || 'Failed to load active sessions.';
+        }
+    }
+
+    const revokeOthersBtn = document.getElementById('revoke-others-btn');
+    if (revokeOthersBtn) {
+        revokeOthersBtn.addEventListener('click', async () => {
+            const errEl = document.getElementById('sessions-error');
+            try {
+                revokeOthersBtn.disabled = true;
+                revokeOthersBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging out...';
+                await revokeOtherSessions();
+                await loadActiveSessionsUI();
+            } catch (e) {
+                if (errEl) errEl.textContent = e.message || 'Failed to revoke other sessions.';
+            } finally {
+                revokeOthersBtn.disabled = false;
+                revokeOthersBtn.innerHTML = 'Log Out All Other Devices <i class="fas fa-right-from-bracket"></i>';
+            }
+        });
+    }
 
     // Handle Register
     registerForm.addEventListener('submit', async (e) => {
@@ -716,7 +915,7 @@ export async function initAuthUI() {
         });
     }
 
-    // Check URL query parameters for reset_token
+    // Check URL query parameters for reset_token or magic_token
     const urlParams = new URLSearchParams(window.location.search);
     const resetTokenParam = urlParams.get('reset_token');
     if (resetTokenParam) {
@@ -725,6 +924,29 @@ export async function initAuthUI() {
         switchTab('reset-password');
         const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+    }
+
+    const magicTokenParam = urlParams.get('magic_token');
+    if (magicTokenParam) {
+        (async () => {
+            try {
+                if (modal) modal.classList.remove('hidden');
+                const result = await verifyMagicLink(magicTokenParam);
+                if (result.requires_2fa) {
+                    const preInput = document.getElementById('2fa-pre-auth-token-input');
+                    if (preInput) preInput.value = result.pre_auth_token;
+                    switchTab('2fa-verify');
+                } else {
+                    modal.classList.add('hidden');
+                    window.dispatchEvent(new Event('auth-changed'));
+                }
+            } catch (e) {
+                switchTab('login');
+                if (loginError) loginError.textContent = e.message || 'Magic link verification failed.';
+            }
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+        })();
     }
 
     // Setup Navigation UI
@@ -763,6 +985,12 @@ async function setupNavUI() {
                         <i class="fas fa-chevron-down" style="font-size: 0.7rem; margin-left: 2px;"></i>
                     </div>
                     <div class="nav-user-dropdown" id="nav-user-dropdown">
+                        <button class="nav-dropdown-item" id="nav-2fa-btn">
+                            <i class="fas fa-shield-halved"></i> ${user.is_totp_enabled ? '2FA Enabled' : 'Setup 2FA'}
+                        </button>
+                        <button class="nav-dropdown-item" id="nav-sessions-btn">
+                            <i class="fas fa-laptop"></i> Active Devices
+                        </button>
                         <button class="nav-dropdown-item" id="nav-change-pw-btn">
                             <i class="fas fa-key"></i> Change Password
                         </button>
@@ -777,6 +1005,8 @@ async function setupNavUI() {
 
                 const profileBtn = document.getElementById('nav-user-btn');
                 const dropdown = document.getElementById('nav-user-dropdown');
+                const btn2FA = document.getElementById('nav-2fa-btn');
+                const sessionsBtn = document.getElementById('nav-sessions-btn');
                 const changePwBtn = document.getElementById('nav-change-pw-btn');
                 const deleteAccountBtn = document.getElementById('nav-delete-account-btn');
                 const logoutBtn = document.getElementById('nav-logout-btn');
@@ -797,6 +1027,20 @@ async function setupNavUI() {
                         profileBtn.setAttribute('aria-expanded', 'false');
                     }
                 });
+
+                if (btn2FA) {
+                    btn2FA.addEventListener('click', () => {
+                        dropdown.classList.remove('show');
+                        window.dispatchEvent(new Event('request-2fa-setup-modal'));
+                    });
+                }
+
+                if (sessionsBtn) {
+                    sessionsBtn.addEventListener('click', () => {
+                        dropdown.classList.remove('show');
+                        window.dispatchEvent(new Event('request-sessions-modal'));
+                    });
+                }
 
                 if (changePwBtn) {
                     changePwBtn.addEventListener('click', () => {
