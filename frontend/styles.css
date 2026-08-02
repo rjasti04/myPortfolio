@@ -66,6 +66,12 @@
   --shadow-lg: 0 16px 48px hsl(0, 0%, 0%, 0.06);
   --shadow-xl: 0 24px 64px hsl(0, 0%, 0%, 0.08);
 
+  /* Glassmorphism Tokens */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-blur: blur(16px) saturate(180%);
+  --glass-border: rgba(255, 255, 255, 0.35);
+  --shadow-glass-lg: 0 20px 50px rgba(0, 0, 0, 0.12), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3);
+
   /* Border Radius Scale */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -456,6 +462,15 @@ body.dark-theme header.scrolled {
   touch-action: manipulation;
 }
 
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+  font-size: 0.92em;
+  flex-shrink: 0;
+}
+
 #nav-menu {
   display: flex;
   gap: 4px;
@@ -467,6 +482,10 @@ body.dark-theme header.scrolled {
 }
 
 #nav-menu a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-size: var(--text-body-sm);
   font-weight: 600;
   color: var(--muted);
@@ -500,6 +519,60 @@ body.dark-theme header.scrolled {
 
 body.dark-theme #nav-menu a:not(.active):hover {
   background: hsl(0, 0%, 98%, 0.10);
+}
+
+@media (width <= 768px) {
+  .nav-icon {
+    display: inline-block;
+    font-size: 15px;
+    margin-right: 0;
+    margin-bottom: 2px;
+  }
+
+  .nav-label {
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  #nav-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) 8px;
+    border-radius: 20px 20px 0 0;
+    background: var(--surface-soft, rgba(255, 255, 255, 0.85));
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: none;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.15);
+    z-index: 9999;
+    justify-content: space-around;
+    align-items: center;
+    gap: 2px;
+  }
+
+  body.dark-theme #nav-menu {
+    background: rgba(18, 18, 26, 0.88);
+  }
+
+  #nav-menu a {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 2px;
+    border-radius: 12px;
+    text-align: center;
+  }
+
+  .layout {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 #nav-menu a:focus-visible,
@@ -560,9 +633,63 @@ body.dark-theme #nav-menu a:not(.active):hover {
   }
 }
 
+/* Code Block Syntax Highlighting & Tooltips */
+pre {
+  position: relative;
+}
 
+pre code.highlighted-code {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: var(--text-body-xs);
+  line-height: 1.6;
+  tab-size: 2;
+  overflow-x: auto;
+}
 
+.token-keyword { color: #ff79c6; font-weight: 600; }
+.token-string { color: #f1fa8c; }
+.token-comment { color: #6272a4; font-style: italic; }
+.token-function { color: #50fa7b; }
+.token-number { color: #bd93f9; }
 
+body:not(.dark-theme) .token-keyword { color: #d97706; font-weight: 600; }
+body:not(.dark-theme) .token-string { color: #059669; }
+body:not(.dark-theme) .token-comment { color: #64748b; font-style: italic; }
+body:not(.dark-theme) .token-function { color: #2563eb; }
+body:not(.dark-theme) .token-number { color: #7c3aed; }
+
+.code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 180ms ease, transform 180ms ease, color 180ms ease;
+  z-index: 10;
+}
+
+.code-copy-btn:hover {
+  background: var(--accent-fill);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.code-copy-btn.copied {
+  background: var(--color-success-fill);
+  color: #ffffff;
+}
 
 .customizer-content {
   position: relative;

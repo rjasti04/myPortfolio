@@ -101,16 +101,15 @@ async function _loadActivityImpl(offset) {
     return;
   }
 
-  tbody.innerHTML = `
-    <tr><td colspan="5">
-      <div style="padding: 20px;">
-        <div class="skeleton skeleton-text" style="width: 60%; margin-bottom: 12px;"></div>
-        <div class="skeleton skeleton-text" style="width: 80%; margin-bottom: 12px;"></div>
-        <div class="skeleton skeleton-text" style="width: 70%; margin-bottom: 12px;"></div>
-        <div class="skeleton skeleton-text" style="width: 90%;"></div>
-      </div>
-    </td></tr>
-  `;
+  tbody.innerHTML = Array.from({ length: 4 }).map(() => `
+    <tr class="activity-skeleton-row">
+      <td><div class="skeleton skeleton-text" style="width: 70px; height: 14px;"></div></td>
+      <td><div class="skeleton skeleton-text" style="width: 120px; height: 14px;"></div></td>
+      <td><div class="skeleton skeleton-text" style="width: 90px; height: 14px;"></div></td>
+      <td><div class="skeleton skeleton-text" style="width: 140px; height: 14px;"></div></td>
+      <td><div class="skeleton skeleton-text" style="width: 50px; height: 14px;"></div></td>
+    </tr>
+  `).join('');
   
   // Add loading state to refresh button
   const refreshBtn = document.getElementById('activity-refresh-btn');

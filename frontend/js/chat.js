@@ -2,6 +2,7 @@ import { API_BASE, apiFetch, ensureSession, isApiConfigured } from "./analytics.
 import { prefersReducedMotion } from "./config.js";
 import { copyText, escapeHTML, estimateTokens } from "./utils.js";
 import { authenticatedFetch, getAuthToken, logoutUser } from "./auth.js";
+import { highlightCode } from "./syntax-highlighter.js";
 
 // Constants
 const MAX_SESSIONS = 50;
@@ -34,12 +35,12 @@ function renderBotHTML(text) {
 
 if (typeof marked !== 'undefined') {
   const renderer = new marked.Renderer();
-  const originalCode = renderer.code.bind(renderer);
   renderer.code = function(token) {
     const text = typeof token === 'object' ? token.text : arguments[0];
+    const lang = typeof token === 'object' ? (token.lang || '') : (arguments[1] || '');
     const escapedText = encodeURIComponent(text);
-    const html = originalCode.apply(this, arguments);
-    return html.replace(/^<pre([^>]*)>/i, `<pre$1><button type="button" class="code-copy-btn" data-code="${escapedText}" title="Copy code"><i class="fas fa-copy"></i></button>`);
+    const highlightedContent = highlightCode(text, lang);
+    return `<pre><button type="button" class="code-copy-btn" data-code="${escapedText}" title="Copy code"><i class="fas fa-copy"></i> <span>Copy</span></button>${highlightedContent}</pre>`;
   };
   marked.use({ renderer });
 
@@ -49,11 +50,12 @@ if (typeof marked !== 'undefined') {
       try {
         const code = decodeURIComponent(btn.getAttribute('data-code'));
         await copyText(code);
-        const icon = btn.querySelector('i');
-        if (icon) {
-          icon.className = 'fas fa-check';
-          setTimeout(() => { icon.className = 'fas fa-copy'; }, 1500);
-        }
+        btn.classList.add('copied');
+        btn.innerHTML = '<i class="fas fa-check"></i> <span>Copied!</span>';
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = '<i class="fas fa-copy"></i> <span>Copy</span>';
+        }, 1500);
       } catch (err) {
         console.error('Failed to copy code', err);
       }

@@ -1,6 +1,9 @@
+import { ModalSwipeDismiss } from "./swipe-handler.js";
+
 const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const modalFocusReturn = new WeakMap();
 const modalKeydown = new WeakMap();
+const modalSwipeHandlers = new WeakMap();
 
 export function getFocusableElements(container) {
   return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter((element) => {
@@ -34,6 +37,11 @@ export function openModal(modal, { initialFocus = null } = {}) {
   modalFocusReturn.set(modal, document.activeElement instanceof HTMLElement ? document.activeElement : null);
   modal.classList.add("active");
   modal.setAttribute("aria-hidden", "false");
+
+  if (!modalSwipeHandlers.has(modal)) {
+    const swipeDismiss = new ModalSwipeDismiss(modal, () => closeModal(modal));
+    modalSwipeHandlers.set(modal, swipeDismiss);
+  }
 
   const onKeydown = (event) => {
     if (event.key === "Escape") {

@@ -153,3 +153,87 @@ export class PullToRefresh {
     this.element.removeEventListener('touchend', this.boundTouchEnd);
   }
 }
+
+/**
+ * Swipe-down gesture handler to dismiss modals on touch devices
+ */
+export class ModalSwipeDismiss {
+  constructor(modalSelector, closeCallback) {
+    this.modal = typeof modalSelector === 'string' ? document.querySelector(modalSelector) : modalSelector;
+    this.closeCallback = closeCallback;
+    this.startY = 0;
+    this.currentY = 0;
+    this.isDragging = false;
+    this.threshold = 70; // Swipe down threshold in px
+
+    if (!this.modal) return;
+
+    this.boundTouchStart = this.handleTouchStart.bind(this);
+    this.boundTouchMove = this.handleTouchMove.bind(this);
+    this.boundTouchEnd = this.handleTouchEnd.bind(this);
+
+    this.init();
+  }
+
+  init() {
+    this.modal.addEventListener('touchstart', this.boundTouchStart, { passive: true });
+    this.modal.addEventListener('touchmove', this.boundTouchMove, { passive: true });
+    this.modal.addEventListener('touchend', this.boundTouchEnd, { passive: true });
+  }
+
+  handleTouchStart(e) {
+    const content = this.modal.querySelector('.modal-inner, .auth-modal-content, .modal-content') || this.modal;
+    if (content.scrollTop && content.scrollTop > 0) return;
+
+    const touch = e.touches[0];
+    this.startY = touch.pageY;
+    this.isDragging = true;
+  }
+
+  handleTouchMove(e) {
+    if (!this.isDragging) return;
+    const touch = e.touches[0];
+    this.currentY = touch.pageY;
+    const distY = this.currentY - this.startY;
+
+    if (distY > 0) {
+      const content = this.modal.querySelector('.modal-inner, .auth-modal-content, .modal-content') || this.modal;
+      content.style.transform = `translateY(${Math.min(distY, 200)}px)`;
+      content.style.transition = 'none';
+    }
+  }
+
+  handleTouchEnd() {
+    if (!this.isDragging) return;
+    this.isDragging = false;
+    const distY = this.currentY - this.startY;
+    const content = this.modal.querySelector('.modal-inner, .auth-modal-content, .modal-content') || this.modal;
+
+    content.style.transition = 'transform var(--motion-medium) var(--ease-standard)';
+
+    if (distY > this.threshold) {
+      content.style.transform = 'translateY(100%)';
+      setTimeout(() => {
+        content.style.transform = '';
+        if (typeof this.closeCallback === 'function') {
+          this.closeCallback();
+        } else {
+          this.modal.classList.add('hidden');
+          this.modal.setAttribute('aria-hidden', 'true');
+        }
+      }, 200);
+    } else {
+      content.style.transform = '';
+    }
+
+    this.startY = 0;
+    this.currentY = 0;
+  }
+
+  destroy() {
+    if (!this.modal) return;
+    this.modal.removeEventListener('touchstart', this.boundTouchStart);
+    this.modal.removeEventListener('touchmove', this.boundTouchMove);
+    this.modal.removeEventListener('touchend', this.boundTouchEnd);
+  }
+}

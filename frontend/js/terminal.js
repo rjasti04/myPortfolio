@@ -1,6 +1,7 @@
 import { trackEvent } from "./analytics.js";
 import { prefersReducedMotion } from "./config.js";
 import { escapeHTML } from "./utils.js";
+import { highlightCode } from "./syntax-highlighter.js";
 
 function evaluateMathExpression(expr) {
   let index = 0;
@@ -197,9 +198,20 @@ export function initTerminal() {
           <li><strong>theme</strong>     - Toggle dark/light theme</li>
           <li><strong>echo</strong>      - Print given arguments</li>
           <li><strong>date</strong>      - Print current date and time</li>
+          <li><strong>code</strong>      - Display sample ETL pipeline code</li>
+          <li><strong>cat</strong>       - Display file contents</li>
           <li><strong>clear</strong>     - Clear the terminal</li>
         </ul>
       `;
+    },
+    code: () => {
+      const pyCode = `def process_streaming_events(event_stream):\n    """ETL Pipeline Event Processor"""\n    return event_stream.filter(lambda e: e.status == 200).map(lambda e: e.payload)`;
+      return `<pre><button type="button" class="code-copy-btn" data-code="${encodeURIComponent(pyCode)}" title="Copy code"><i class="fas fa-copy"></i> <span>Copy</span></button>${highlightCode(pyCode, "python")}</pre>`;
+    },
+    cat: (args) => {
+      const filename = args[0] || "etl.py";
+      const sampleSql = `SELECT user_id, COUNT(*) as events\nFROM analytics.user_events\nWHERE event_date >= CURRENT_DATE - INTERVAL '7 days'\nGROUP BY 1 ORDER BY 2 DESC;`;
+      return `<p class="terminal-output-text">Displaying ${escapeHTML(filename)}:</p><pre><button type="button" class="code-copy-btn" data-code="${encodeURIComponent(sampleSql)}" title="Copy code"><i class="fas fa-copy"></i> <span>Copy</span></button>${highlightCode(sampleSql, "sql")}</pre>`;
     },
     whoami: () => {
       return `

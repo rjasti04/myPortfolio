@@ -1,9 +1,16 @@
 import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, disable2FA, verify2FA, requestMagicLink, verifyMagicLink, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession } from './auth.js';
 import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
+import { ModalSwipeDismiss } from './swipe-handler.js';
 
 export async function initAuthUI() {
     const modal = document.getElementById('auth-modal');
+    if (modal) {
+        new ModalSwipeDismiss(modal, () => {
+            modal.classList.add('hidden');
+            modal.setAttribute('aria-hidden', 'true');
+        });
+    }
     const closeBtn = document.getElementById('auth-modal-close');
     const tabs = document.querySelectorAll('.auth-tab');
     const tabContents = document.querySelectorAll('.auth-tab-content');

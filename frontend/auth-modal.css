@@ -4,8 +4,9 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(5px);
+  background-color: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   z-index: 10000;
   display: flex;
   justify-content: center;
@@ -22,21 +23,23 @@
 }
 
 .auth-modal-content {
-  background-color: var(--card-bg, #1e1e2e);
-  border-radius: 12px;
+  background: var(--surface-soft, rgba(30, 30, 46, 0.85));
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: var(--radius-lg, 16px);
   width: 90%;
-  max-width: 400px;
+  max-width: 420px;
   padding: 2rem;
   position: relative;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
   transform: translateY(0);
-  transition: transform var(--motion-medium) cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  border: 1px solid var(--border, #3a3b4a);
+  transition: transform var(--motion-medium) cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow var(--motion-medium) var(--ease-standard);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
   color: var(--text, #cdd6f4);
 }
 
 .auth-modal-overlay.hidden .auth-modal-content {
-  transform: translateY(20px);
+  transform: translateY(24px) scale(0.96);
 }
 
 .auth-modal-close {
