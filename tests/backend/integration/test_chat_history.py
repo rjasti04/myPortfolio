@@ -1,7 +1,6 @@
 import pytest
 import uuid
-import zlib
-from sqlalchemy.ext.asyncio import AsyncSession
+from httpx import AsyncClient
 
 from server.models.user import User
 from server.services.chat_history_service import (
@@ -43,8 +42,6 @@ async def test_title_generation():
     assert "quantum computing" in title
     assert len(title) <= 45
 
-
-from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_chat_history_db_crud(async_client: AsyncClient):
