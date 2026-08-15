@@ -728,7 +728,7 @@ export function initChat() {
       aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
     }
 
-    const apiUrl = `${API_BASE}/chat`;
+    const apiUrl = `${API_BASE}/chat/stream`;
 
     const session = getActiveSession();
     
@@ -819,6 +819,7 @@ export function initChat() {
       }
 
       let botFullText = '';
+      let sseBuffer = '';
       let parseTimer = null;
 
       const flushParse = () => {
@@ -842,8 +843,36 @@ export function initChat() {
           const { done, value } = await reader.read();
           if (done) break;
 
-          botFullText += decoder.decode(value, { stream: true });
-          // Throttle markdown parsing to reduce CPU usage during streaming
+          sseBuffer += decoder.decode(value, { stream: true });
+          const lines = sseBuffer.split('\n');
+          sseBuffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('data: ')) {
+              const payloadStr = trimmed.slice(6);
+              try {
+                const parsed = JSON.parse(payloadStr);
+                if (parsed.text) {
+                  botFullText += parsed.text;
+                } else if (parsed.type === 'metrics' && parsed.metrics) {
+                  const m = parsed.metrics;
+                  if (aiTokenCounter) {
+                    const totalTokens = (m.input_tokens || 0) + (m.output_tokens || 0);
+                    const cacheBadge = m.cache_hit
+                      ? `<span class="badge badge-cache-hit" style="background:var(--color-primary-light,#2563eb);color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;margin-left:6px;" title="Prompt Cache Hit: ${m.cache_read_tokens} tokens saved"><i class="fas fa-bolt"></i> Cached</span>`
+                      : '';
+                    aiTokenCounter.innerHTML = `<span class="token-metrics-info">${totalTokens} tokens (${m.latency_ms}ms)</span> ${cacheBadge}`;
+                  }
+                } else if (parsed.error) {
+                  console.error('SSE backend error:', parsed.error);
+                }
+              } catch (e) {
+                botFullText += payloadStr;
+              }
+            }
+          }
+
           if (!parseTimer) {
             parseTimer = setTimeout(flushParse, MARKDOWN_PARSE_THROTTLE_MS);
           }
