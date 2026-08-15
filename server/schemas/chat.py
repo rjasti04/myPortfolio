@@ -1,9 +1,14 @@
-from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
+from typing import Optional, Literal, List
 
 class ChatMessage(BaseModel):
     role: str = Field(..., description="Role of the message sender, e.g. 'user' or 'assistant'")
-    content: str = Field(..., description="Text content of the message")
+    content: str = Field(..., min_length=1, description="Text content of the message")
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage] = Field(..., min_length=1)
+    model: Optional[str] = Field(default=None, max_length=256)
+    conversation_id: Optional[str] = Field(default=None, max_length=36)
 
 class ChatStreamRequest(BaseModel):
     messages: List[ChatMessage] = Field(..., min_length=1, description="Conversation history list")

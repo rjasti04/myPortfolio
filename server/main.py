@@ -1,12 +1,17 @@
 import os
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
-from server.routes import chat_routes
-from server.db.database import engine, Base
+from server.routes import (
+    chat_routes,
+    session_routes,
+    event_routes,
+    auth_routes,
+    system_routes,
+)
+from server.db.database import engine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("server.main")
@@ -14,7 +19,6 @@ logger = logging.getLogger("server.main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up rjWebApp FastAPI service...")
-    # Yield control to the application
     yield
     logger.info("Shutting down rjWebApp FastAPI service...")
     await engine.dispose()
@@ -44,10 +48,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register API Routers
-app.include_router(chat_routes.router)
+# Register Routers under both /api and root / for dual-prefix resilience
+routers = [
+    chat_routes.router,
+    session_routes.router,
+    event_routes.router,
+    auth_routes.router,
+    system_routes.router,
+]
+
+for router in routers:
+    app.include_router(router, prefix="/api")
+    app.include_router(router)
 
 @app.get("/health", tags=["System"])
+@app.get("/api/health", tags=["System"])
 async def health_check():
     return {
         "status": "healthy",

@@ -11,7 +11,7 @@ from server.schemas.chat import ChatStreamRequest
 from server.services.bedrock_service import bedrock_service
 from server.models.event import UserActivityEvent
 
-router = APIRouter(prefix="/api/chat", tags=["Chat & AI"])
+router = APIRouter(prefix="/chat", tags=["Chat & AI"])
 logger = logging.getLogger("server.chat_routes")
 
 @router.post("/stream", summary="Stream Bedrock Chat Completion with Prompt Caching")
