@@ -777,10 +777,12 @@ export function initChat() {
       }
     }
 
-    const messages = session.messages.map(h => ({
-      role: h.sender === 'bot' ? 'assistant' : 'user',
-      content: h.text
-    }));
+    const messages = session.messages
+      .filter(h => h && typeof h.text === 'string' && h.text.trim().length > 0)
+      .map(h => ({
+        role: h.sender === 'bot' ? 'assistant' : 'user',
+        content: h.text.trim()
+      }));
 
     try {
       const response = await authenticatedFetch(apiUrl, {
@@ -913,8 +915,10 @@ export function initChat() {
         aiMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
       }
 
-      session.messages.push({ text: botFullText, sender: 'bot' });
-      saveSessions();
+      if (botFullText && botFullText.trim().length > 0) {
+        session.messages.push({ text: botFullText.trim(), sender: 'bot' });
+        saveSessions();
+      }
       
       // Announce completion to screen readers
       announceToScreenReader('Response received');

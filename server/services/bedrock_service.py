@@ -3,6 +3,7 @@ import time
 import os
 import boto3
 from typing import AsyncGenerator, Dict, Any, List, Optional
+from server.utils.role_utils import ensure_alternating_roles
 
 DEFAULT_SYSTEM_PROMPT = """You are the AI Assistant for Rajeev Jasti's Portfolio Website.
 You provide helpful, accurate, and professional information about Rajeev Jasti's software engineering background, full-stack projects, architecture experience, and technical skills.
@@ -45,6 +46,7 @@ class BedrockService:
         """
         target_model = model_id or self.default_model_id
         active_system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
+        sanitized_messages = ensure_alternating_roles(messages)
 
         # Structure system prompt payload with Bedrock / Anthropic prompt caching
         system_payload = [
@@ -60,7 +62,7 @@ class BedrockService:
             "max_tokens": 2048,
             "temperature": 0.7,
             "system": system_payload,
-            "messages": messages,
+            "messages": sanitized_messages,
         }
 
         start_time = time.perf_counter()

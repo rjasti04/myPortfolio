@@ -10,6 +10,7 @@ from server.db.database import get_db
 from server.schemas.chat import ChatStreamRequest
 from server.services.bedrock_service import bedrock_service
 from server.models.event import UserActivityEvent
+from server.utils.role_utils import ensure_alternating_roles
 
 router = APIRouter(prefix="/chat", tags=["Chat & AI"])
 logger = logging.getLogger("server.chat_routes")
@@ -24,7 +25,7 @@ async def chat_stream_endpoint(
     Server-Sent Events (SSE) chat streaming endpoint.
     Leverages Bedrock prompt caching for system prompts and logs telemetry to PostgreSQL.
     """
-    messages_payload = [msg.model_dump() for msg in request_data.messages]
+    messages_payload = ensure_alternating_roles([msg.model_dump() for msg in request_data.messages])
     session_id_raw = request.headers.get("X-Session-ID") or request.cookies.get("session_id")
 
     session_uuid = None
