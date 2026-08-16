@@ -4715,7 +4715,7 @@ section {
 }
 
 .chat-message {
-  max-width: 85%;
+  max-width: 75%;
   min-width: 96px;
   display: flex;
   flex-direction: column;
@@ -4724,7 +4724,7 @@ section {
   padding: 12px 16px;
   border-radius: 12px;
   font-size: var(--text-body-sm);
-  line-height: 1.6;
+  line-height: 1.5;
   animation: slide-up var(--motion-medium) var(--ease-enter) forwards;
 }
 
@@ -6599,11 +6599,11 @@ body.dark-theme .ai-sidebar {
   min-width: 96px;
   display: flex;
   flex-direction: column;
-  max-width: 85%;
+  max-width: 75%;
   padding: 14px 18px;
   border-radius: 16px;
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: 16px;
+  line-height: 1.5;
   position: relative;
   animation: messageFade var(--motion-medium) var(--ease-enter) both;
 }
@@ -6623,14 +6623,14 @@ body.dark-theme .ai-sidebar {
 
 #ai .chat-message.bot {
   align-self: flex-start;
-  background: hsl(0, 0%, 0%, 0.02);
+  background: hsl(0, 0%, 0%, 0.05);
   border: 1px solid var(--border);
   color: var(--text);
   border-bottom-left-radius: 4px;
 }
 
 body.dark-theme #ai .chat-message.bot {
-  background: hsl(0, 0%, 100%, 0.03);
+  background: hsl(0, 0%, 100%, 0.06);
 }
 
 /* Bot Markdown Typography & Formatting */
@@ -6760,7 +6760,7 @@ body.dark-theme .ai-input-container {
   color: var(--text);
   padding: 10px 12px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: 16px;
   resize: none;
   max-height: 200px;
   outline: none;
@@ -6789,12 +6789,14 @@ body.dark-theme .ai-input-container {
 
 .ai-send-btn,
 .ai-mic-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   background: var(--accent-fill);
   color: var(--on-accent);
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
   transition:
     background-color var(--motion-base) var(--ease-standard),
@@ -6978,20 +6980,20 @@ body.dark-theme .ai-input-container {
     background: var(--bg);
   }
 
-  .ai-content-area { padding: 24px 16px; }
+  .ai-content-area { padding: 16px 12px; }
 
   .ai-suggestions { grid-template-columns: 1fr; gap: 8px; }
 
   .ai-heading { font-size: 24px; }
   .ai-subtitle { font-size: 14px; margin-bottom: 24px; }
 
-  .ai-input-container { padding: 16px 16px 20px; }
+  .ai-input-container { padding: 12px 12px 16px; }
   .ai-tokens { display: none; }
 
-  #ai .chat-message { max-width: 88%; padding: 12px 14px; font-size: 14px; }
+  #ai .chat-message { max-width: 88%; padding: 12px 14px; font-size: 16px; line-height: 1.5; }
 
   .ai-input-form { padding: 8px 12px; }
-  .ai-textarea { padding: 12px; font-size: 14px; }
+  .ai-textarea { padding: 10px 12px; font-size: 16px; }
 }
 
 /* (Activity styles consolidated above) */
