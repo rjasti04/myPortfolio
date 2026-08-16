@@ -728,7 +728,7 @@ export function initChat() {
       aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
     }
 
-    const apiUrl = `${API_BASE}/chat`;
+    const apiUrl = `${API_BASE}/chat/stream`;
 
     const session = getActiveSession();
     

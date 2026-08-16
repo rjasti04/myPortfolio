@@ -15,6 +15,8 @@ from server.utils.role_utils import ensure_alternating_roles
 router = APIRouter(prefix="/chat", tags=["Chat & AI"])
 logger = logging.getLogger("server.chat_routes")
 
+@router.post("", summary="Stream Bedrock Chat Completion")
+@router.post("/", summary="Stream Bedrock Chat Completion")
 @router.post("/stream", summary="Stream Bedrock Chat Completion with Prompt Caching")
 async def chat_stream_endpoint(
     request_data: ChatStreamRequest,
@@ -90,3 +92,19 @@ async def chat_stream_endpoint(
             "X-Accel-Buffering": "no",
         },
     )
+
+@router.post("/summarize", summary="Summarize Conversation History")
+async def chat_summarize_endpoint(request_data: ChatStreamRequest):
+    """Summarize long conversation history to fit within token limits."""
+    messages_payload = ensure_alternating_roles([msg.model_dump() for msg in request_data.messages])
+    summary_text = ""
+    async for chunk in bedrock_service.stream_chat_response(
+        messages=messages_payload,
+        system_prompt="Summarize the key points of the preceding conversation concisely in 2-3 sentences.",
+    ):
+        if chunk.get("type") == "delta":
+            summary_text += chunk.get("text", "")
+    if not summary_text:
+        summary_text = "Summary of preceding conversation."
+    return {"summary": summary_text}
+
