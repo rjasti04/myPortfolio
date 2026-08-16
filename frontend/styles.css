@@ -4716,32 +4716,58 @@ section {
   border-bottom-right-radius: 4px;
 }
 
-/* Copy button on messages */
+/* Chat Message & Integrated Action Bar */
 .chat-message {
+  min-width: 96px;
+  display: flex;
+  flex-direction: column;
   position: relative;
   overflow: visible;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: var(--text-body-sm);
+  line-height: 1.4;
+  animation: slide-up var(--motion-medium) var(--ease-enter) forwards;
 }
 
 .chat-message:has(.msg-actions) {
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .msg-actions {
-  position: absolute;
-  bottom: -22px;
-  right: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  opacity: 0.75;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 4px;
+  align-self: flex-end;
+  font-size: 11px;
+  opacity: 0.65;
   transition: opacity var(--motion-fast) var(--ease-standard);
-  z-index: 1;
+  user-select: none;
+}
+
+.chat-message:hover .msg-actions,
+.msg-actions:hover {
+  opacity: 1 !important;
+}
+
+.chat-message.user .msg-actions {
+  color: var(--on-accent);
+  opacity: 0.8;
+  border-top: 1px solid hsl(0, 0%, 100%, 0.18);
+}
+
+.chat-message.bot .msg-actions {
+  color: var(--muted);
+  border-top: 1px solid var(--border);
 }
 
 .msg-token-count {
-  font-size: 11px;
-  color: var(--muted);
-  opacity: 0.8;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  opacity: 0.85;
 }
 
 .warning-icon {
@@ -4751,30 +4777,29 @@ section {
 .msg-copy-btn {
   background: none;
   border: none;
-  color: var(--muted);
-  width: 24px;
-  height: 20px;
+  color: inherit;
+  width: 20px;
+  height: 18px;
   padding: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  transition: color var(--motion-fast) var(--ease-standard);
-}
-
-.chat-message:hover .msg-actions,
-.msg-actions:hover {
-  opacity: 1 !important;
+  font-size: 12px;
+  opacity: 0.8;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 
 .msg-copy-btn:hover {
-  color: var(--accent-text);
+  opacity: 1;
+  transform: scale(1.1);
 }
 
-.chat-message.user .msg-copy-btn,
-.chat-message.user .msg-token-count {
-  color: var(--muted);
+.msg-copy-btn.copied {
+  color: var(--color-success, #10b981);
 }
 
 .chat-input-area {
@@ -6256,6 +6281,9 @@ body.dark-theme .ai-sidebar {
 
 /* AI-page scoped message overrides */
 #ai .chat-message {
+  min-width: 96px;
+  display: flex;
+  flex-direction: column;
   max-width: 85%;
   padding: 14px 18px;
   border-radius: 16px;
