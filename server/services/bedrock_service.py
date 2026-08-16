@@ -2,6 +2,7 @@ import json
 import time
 import os
 import logging
+import asyncio
 from unittest.mock import MagicMock
 import boto3
 from typing import AsyncGenerator, Dict, Any, List, Optional
@@ -79,7 +80,8 @@ class BedrockService:
                     "system": system_payload,
                     "messages": sanitized_messages,
                 }
-                response = self.client.invoke_model_with_response_stream(
+                response = await asyncio.to_thread(
+                    self.client.invoke_model_with_response_stream,
                     modelId=target_model,
                     contentType="application/json",
                     accept="application/json",
@@ -105,6 +107,7 @@ class BedrockService:
                             if text_delta:
                                 total_text_length += len(text_delta)
                                 yield {"type": "delta", "text": text_delta}
+                                await asyncio.sleep(0)
 
                         elif event_type == "message_delta":
                             usage = chunk_data.get("usage", {})
@@ -130,7 +133,8 @@ class BedrockService:
 
                 system_blocks = [{"text": active_system_prompt}] if active_system_prompt else []
 
-                response = self.client.converse_stream(
+                response = await asyncio.to_thread(
+                    self.client.converse_stream,
                     modelId=target_model,
                     messages=converse_messages,
                     system=system_blocks,
@@ -144,6 +148,7 @@ class BedrockService:
                             if text_delta:
                                 total_text_length += len(text_delta)
                                 yield {"type": "delta", "text": text_delta}
+                                await asyncio.sleep(0)
                         elif "metadata" in event:
                             usage = event["metadata"].get("usage", {})
                             input_tokens = usage.get("inputTokens", input_tokens)

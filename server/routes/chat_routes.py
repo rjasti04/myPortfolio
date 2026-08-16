@@ -1,6 +1,7 @@
 import json
 import uuid
 import logging
+import asyncio
 from typing import AsyncGenerator
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -58,14 +59,17 @@ async def chat_stream_endpoint(
                     text_delta = chunk["text"]
                     complete_text += text_delta
                     yield f"data: {json.dumps({'text': text_delta})}\n\n"
+                    await asyncio.sleep(0)
 
                 elif chunk["type"] == "metrics":
                     telemetry_metrics = chunk["metrics"]
                     yield f"data: {json.dumps({'type': 'metrics', 'metrics': telemetry_metrics})}\n\n"
+                    await asyncio.sleep(0)
 
                 elif chunk["type"] == "error":
                     logger.error(f"Bedrock streaming error for model {requested_model}: {chunk['error']}")
                     yield f"data: {json.dumps({'error': chunk['error']})}\n\n"
+                    await asyncio.sleep(0)
 
             # Log observability telemetry event to PostgreSQL if session_id exists
             if telemetry_metrics and session_uuid:
