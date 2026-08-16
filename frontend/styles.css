@@ -570,6 +570,49 @@ body.dark-theme #nav-menu a:not(.active):hover {
     text-align: center;
   }
 
+  /* Mobile expanded menu state when toggled open */
+  body.nav-open #nav-menu,
+  #nav-menu.show-menu {
+    height: 100vh;
+    height: 100dvh;
+    inset: 0;
+    border-radius: 0;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 80px 20px calc(24px + env(safe-area-inset-bottom, 0px)) 20px;
+    overflow-y: auto;
+    gap: 8px;
+    box-shadow: none;
+  }
+
+  body.nav-open #nav-menu a,
+  #nav-menu.show-menu a {
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 14px 20px;
+    width: 100%;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    text-align: left;
+  }
+
+  body.nav-open #nav-menu .nav-icon,
+  #nav-menu.show-menu .nav-icon {
+    display: inline-flex;
+    font-size: 1.2rem;
+    margin-right: 14px;
+    margin-bottom: 0;
+  }
+
+  body.nav-open #nav-menu .nav-label,
+  #nav-menu.show-menu .nav-label {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
   .layout {
     padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
   }

@@ -24,18 +24,18 @@ function renderBotHTML(text) {
   if (typeof marked === "undefined") {
     return escapeHTML(text).replace(/\n/g, "<br>");
   }
-  
+
   if (typeof DOMPurify === "undefined") {
     console.error("DOMPurify unavailable - cannot render markdown safely");
     return escapeHTML(text).replace(/\n/g, "<br>");
   }
-  
+
   return DOMPurify.sanitize(marked.parse(text));
 }
 
 if (typeof marked !== 'undefined') {
   const renderer = new marked.Renderer();
-  renderer.code = function(token) {
+  renderer.code = function (token) {
     const text = typeof token === 'object' ? token.text : arguments[0];
     const lang = typeof token === 'object' ? (token.lang || '') : (arguments[1] || '');
     const escapedText = encodeURIComponent(text);
@@ -89,7 +89,7 @@ export function initChat() {
     const aiPageMicBtn = document.getElementById('ai-page-mic-btn');
     const chatMicBtn = document.getElementById('chat-mic-btn');
     const hasSpeechSupport = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
-    
+
     if (!hasSpeechSupport) {
       if (aiPageMicBtn) {
         aiPageMicBtn.style.display = 'none';
@@ -99,42 +99,42 @@ export function initChat() {
       }
       return;
     }
-    
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (chatMicBtn && chatInput) {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
-      
+
       let isListening = false;
-      
+
       chatMicBtn.addEventListener('click', () => {
         if (isListening) {
           recognition.stop();
           return;
         }
-        
+
         recognition.start();
         isListening = true;
         chatMicBtn.innerHTML = '<i class="fas fa-stop-circle"></i>';
         chatMicBtn.classList.add('listening');
       });
-      
+
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         chatInput.value = transcript;
         chatInput.dispatchEvent(new Event('input'));
         chatInput.focus();
       };
-      
+
       recognition.onend = () => {
         isListening = false;
         chatMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
         chatMicBtn.classList.remove('listening');
       };
-      
+
       recognition.onerror = () => {
         isListening = false;
         chatMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
@@ -147,34 +147,34 @@ export function initChat() {
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
-      
+
       let isListening = false;
-      
+
       aiPageMicBtn.addEventListener('click', () => {
         if (isListening) {
           recognition.stop();
           return;
         }
-        
+
         recognition.start();
         isListening = true;
         aiPageMicBtn.innerHTML = '<i class="fas fa-stop-circle"></i>';
         aiPageMicBtn.classList.add('listening');
       });
-      
+
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         aiPageInput.value = transcript;
         aiPageInput.dispatchEvent(new Event('input'));
         aiPageInput.focus();
       };
-      
+
       recognition.onend = () => {
         isListening = false;
         aiPageMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
         aiPageMicBtn.classList.remove('listening');
       };
-      
+
       recognition.onerror = () => {
         isListening = false;
         aiPageMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
@@ -182,7 +182,7 @@ export function initChat() {
       };
     }
   };
-  
+
   initVoiceInput();
 
   function updateTokenCounter() {
@@ -190,24 +190,24 @@ export function initChat() {
     const text = aiPageInput.value.trim();
     const tokens = estimateTokens(text);
     aiTokenCounter.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
-    
+
     // Disable send button if over limit
     const isOverLimit = tokens > TOKEN_LIMIT;
-    
+
     if (aiPageSendBtn) {
       aiPageSendBtn.disabled = isOverLimit || isGenerating;
-      aiPageSendBtn.title = isOverLimit 
-        ? `Message too long (${tokens}/${TOKEN_LIMIT} tokens)` 
+      aiPageSendBtn.title = isOverLimit
+        ? `Message too long (${tokens}/${TOKEN_LIMIT} tokens)`
         : 'Send message';
     }
-    
+
     // Visual feedback
     if (isOverLimit) {
       aiTokenCounter.style.color = 'var(--color-error)';
       aiTokenCounter.style.fontWeight = '800';
       aiPageInput.setAttribute('aria-invalid', 'true');
       aiPageInput.setAttribute('aria-describedby', 'token-error');
-      
+
       // Add error message
       let errorMsg = document.getElementById('token-error');
       if (!errorMsg) {
@@ -223,7 +223,7 @@ export function initChat() {
       aiPageInput.removeAttribute('aria-invalid');
       aiPageInput.removeAttribute('aria-describedby');
       document.getElementById('token-error')?.remove();
-      
+
       if (tokens > TOKEN_ERROR_THRESHOLD) {
         aiTokenCounter.style.color = 'var(--color-error)';
         aiTokenCounter.style.fontWeight = '800';
@@ -655,7 +655,7 @@ export function initChat() {
         </div>
         <div class="msg-info-drawer-row">
           <span class="msg-info-label">Model:</span>
-          <span class="msg-info-value">Claude 3.5 Sonnet (Bedrock)</span>
+          <span class="msg-info-value">Gemma-3-12B</span>
         </div>
         <div class="msg-info-drawer-row">
           <span class="msg-info-label">Latency:</span>
@@ -918,7 +918,7 @@ export function initChat() {
     indicator.setAttribute('role', 'status');
     indicator.setAttribute('aria-live', 'polite');
     indicator.setAttribute('aria-label', 'Assistant is responding');
-    
+
     if (prefersReducedMotion.matches) {
       indicator.textContent = 'Assistant is responding...';
       return indicator;
@@ -1012,7 +1012,7 @@ export function initChat() {
     const apiUrl = `${API_BASE}/chat/stream`;
 
     const session = getActiveSession();
-    
+
     // Check if user is unauthenticated and reached limit
     const userMessageCount = session.messages.filter(m => m.sender === 'user').length;
     if (!getAuthToken() && userMessageCount > FREE_MESSAGE_LIMIT) {
@@ -1037,7 +1037,7 @@ export function initChat() {
           role: h.sender === 'bot' ? 'assistant' : 'user',
           content: h.text.trim()
         }));
-      
+
       if (summaryPayload.length > 0) {
         try {
           const sumRes = await authenticatedFetch(`${API_BASE}/chat/summarize`, {
@@ -1084,11 +1084,11 @@ export function initChat() {
       });
 
       if (!response.ok) {
-          if (response.status === 401 && !getAuthToken()) {
-              window.dispatchEvent(new Event('request-login-modal'));
-              throw new Error('Please log in to continue.');
-          }
-          throw new Error('API Error');
+        if (response.status === 401 && !getAuthToken()) {
+          window.dispatchEvent(new Event('request-login-modal'));
+          throw new Error('Please log in to continue.');
+        }
+        throw new Error('API Error');
       }
 
       // Remove typing indicators
@@ -1237,13 +1237,13 @@ export function initChat() {
 
       // Final flush to ensure all content is rendered
       if (parseTimer) { clearTimeout(parseTimer); parseTimer = null; }
-      
+
       let isTruncated = false;
       if (botFullText.endsWith('\n[__TRUNCATED__]')) {
         isTruncated = true;
         botFullText = botFullText.replace('\n[__TRUNCATED__]', '');
       }
-      
+
       flushParse();
 
       // Always unmount streaming class before rendering final content or error states
@@ -1274,7 +1274,7 @@ export function initChat() {
         session.messages.push({ text: botFullText, sender: 'bot' });
         saveSessions();
       }
-      
+
       // Announce completion to screen readers
       announceToScreenReader('Response received');
 
@@ -1282,7 +1282,7 @@ export function initChat() {
       console.error('Chat API Error:', err);
       if (widgetIndicator) widgetIndicator.remove();
       if (aiIndicator) aiIndicator.remove();
-      
+
       // Unmount any active streaming placeholders on error to prevent orphan cursor blocks
       if (widgetMsgEl) {
         widgetMsgEl.classList.remove('streaming');
@@ -1392,9 +1392,9 @@ function announceToScreenReader(message) {
     white-space: nowrap;
     border: 0;
   `;
-  
+
   document.body.appendChild(announcement);
-  
+
   setTimeout(() => {
     announcement.remove();
   }, 1000);
