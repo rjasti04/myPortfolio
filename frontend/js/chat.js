@@ -654,10 +654,6 @@ export function initChat() {
           <span class="msg-info-value">${tokens} token${tokens !== 1 ? 's' : ''}</span>
         </div>
         <div class="msg-info-drawer-row">
-          <span class="msg-info-label">Model:</span>
-          <span class="msg-info-value">Gemma-3-12B</span>
-        </div>
-        <div class="msg-info-drawer-row">
           <span class="msg-info-label">Latency:</span>
           <span class="msg-info-value">${latency}</span>
         </div>
