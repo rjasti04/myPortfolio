@@ -58,5 +58,8 @@ ALLOWED_MODEL_IDS = {
     if model.strip()
 }
 ALLOWED_MODEL_IDS.add(DEFAULT_MODEL_ID)
+ALLOWED_MODEL_IDS.add("google.gemma-3-4b-it")
+ALLOWED_MODEL_IDS.add("anthropic.claude-3-5-sonnet-20241022-v2:0")
 
 TRUSTED_PROXY_NETWORKS = parse_proxy_networks(os.getenv("TRUSTED_PROXY_IPS", ""))
+

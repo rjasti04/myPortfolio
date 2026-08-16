@@ -66,24 +66,53 @@ async def test_chat_stream_endpoint_success(async_client):
 
 
 @pytest.mark.asyncio
+async def test_chat_stream_gemma_model_converse_stream(async_client):
+    """Test /api/chat/stream SSE endpoint using google.gemma-3-4b-it with Bedrock converse_stream."""
+    mock_events = [
+        {"contentBlockDelta": {"delta": {"text": "Hello from Gemma 3!"}}},
+        {"metadata": {"usage": {"inputTokens": 100, "outputTokens": 20}}}
+    ]
+    mock_bedrock_response = {"stream": mock_events}
+
+    with patch("server.services.bedrock_service.bedrock_service.client.converse_stream") as mock_converse:
+        mock_converse.return_value = mock_bedrock_response
+
+        payload = {
+            "model_id": "google.gemma-3-4b-it",
+            "messages": [
+                {"role": "user", "content": "Hello Gemma!"}
+            ]
+        }
+
+        response = await async_client.post(
+            "/api/chat/stream",
+            json=payload
+        )
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+
+        body_text = response.text
+        assert "Hello from Gemma 3!" in body_text
+        assert '"type": "metrics"' in body_text
+        assert '"model_id": "google.gemma-3-4b-it"' in body_text
+        assert '"input_tokens": 100' in body_text
+        assert '"output_tokens": 20' in body_text
+
+
+@pytest.mark.asyncio
 async def test_chat_stream_consecutive_user_messages(async_client):
     """Test /api/chat/stream automatically merges consecutive user messages before Bedrock invocation."""
     mock_events = [
-        {
-            "chunk": {
-                "bytes": json.dumps({
-                    "type": "content_block_delta",
-                    "delta": {"text": "Response to merged prompt."}
-                }).encode("utf-8")
-            }
-        }
+        {"contentBlockDelta": {"delta": {"text": "Response to merged prompt."}}}
     ]
-    mock_bedrock_response = {"body": mock_events}
+    mock_bedrock_response = {"stream": mock_events}
 
-    with patch("server.services.bedrock_service.bedrock_service.client.invoke_model_with_response_stream") as mock_invoke:
-        mock_invoke.return_value = mock_bedrock_response
+    with patch("server.services.bedrock_service.bedrock_service.client.converse_stream") as mock_converse:
+        mock_converse.return_value = mock_bedrock_response
 
         payload = {
+            "model_id": "google.gemma-3-4b-it",
             "messages": [
                 {"role": "user", "content": "Question 1"},
                 {"role": "user", "content": "Question 2"}
@@ -96,10 +125,27 @@ async def test_chat_stream_consecutive_user_messages(async_client):
         )
 
         assert response.status_code == 200
-        # Verify Bedrock received sanitized payload with single merged message
-        args, kwargs = mock_invoke.call_args
-        body_sent = json.loads(kwargs["body"])
-        assert len(body_sent["messages"]) == 1
-        assert body_sent["messages"][0]["role"] == "user"
-        assert body_sent["messages"][0]["content"] == "Question 1\n\nQuestion 2"
+        # Verify Bedrock converse_stream received sanitized payload with single merged message
+        args, kwargs = mock_converse.call_args
+        messages_sent = kwargs["messages"]
+        assert len(messages_sent) == 1
+        assert messages_sent[0]["role"] == "user"
+        assert messages_sent[0]["content"][0]["text"] == "Question 1\n\nQuestion 2"
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_invalid_model(async_client):
+    """Test /api/chat/stream rejects unsupported model IDs with HTTP 400."""
+    payload = {
+        "model_id": "unsupported.fake-model-id",
+        "messages": [{"role": "user", "content": "Hi"}]
+    }
+    with patch("server.routes.chat_routes.ALLOWED_MODEL_IDS", {"google.gemma-3-4b-it"}):
+        response = await async_client.post(
+            "/api/chat/stream",
+            json=payload
+        )
+        assert response.status_code == 400
+        assert "Unsupported model" in response.text
+
 
