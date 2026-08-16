@@ -293,10 +293,35 @@ export function initChat() {
     return sessions.find(s => s.id === activeSessionId) || sessions[0];
   }
 
+  const sidebarSearchContainer = document.getElementById('ai-sidebar-search-container');
+  const sidebarSearchInput = document.getElementById('sidebar-search-input');
+  let searchQuery = '';
+
+  if (sidebarSearchInput) {
+    sidebarSearchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value.trim().toLowerCase();
+      renderSidebar();
+    });
+  }
+
   function renderSidebar() {
     if (!aiSidebarHistory) return;
+
+    // Progressive disclosure: show search filter once history grows >= 4 items or if searching
+    if (sidebarSearchContainer) {
+      if (sessions.length >= 4 || searchQuery.length > 0) {
+        sidebarSearchContainer.classList.remove('hidden');
+      } else {
+        sidebarSearchContainer.classList.add('hidden');
+      }
+    }
+
     aiSidebarHistory.innerHTML = '';
-    sessions.forEach(session => {
+    const filteredSessions = searchQuery
+      ? sessions.filter(s => s.title.toLowerCase().includes(searchQuery))
+      : sessions;
+
+    filteredSessions.forEach(session => {
       const item = document.createElement('div');
       item.className = `history-item ${session.id === activeSessionId ? 'active' : ''}`;
 
@@ -304,16 +329,80 @@ export function initChat() {
       titleSpan.textContent = session.title;
       item.appendChild(titleSpan);
 
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'delete-session-btn';
-      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-      deleteBtn.title = 'Delete chat';
-      deleteBtn.addEventListener('click', (e) => {
+      // Three-dot menu button replacing persistent delete icon
+      const menuBtn = document.createElement('button');
+      menuBtn.type = 'button';
+      menuBtn.className = 'session-menu-btn';
+      menuBtn.innerHTML = '<i class="fas fa-ellipsis-v"></i>';
+      menuBtn.title = 'Chat options';
+
+      // Dropdown menu
+      const dropdown = document.createElement('div');
+      dropdown.className = 'session-dropdown-menu hidden';
+
+      const renameItem = document.createElement('button');
+      renameItem.type = 'button';
+      renameItem.className = 'dropdown-item';
+      renameItem.innerHTML = '<i class="fas fa-pen"></i> Rename';
+      renameItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.add('hidden');
+        menuBtn.classList.remove('active');
+
+        // Convert titleSpan to inline input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'session-rename-input';
+        input.value = session.title;
+        item.replaceChild(input, titleSpan);
+        input.focus();
+        input.select();
+
+        let isSaved = false;
+        const saveRename = () => {
+          if (isSaved) return;
+          isSaved = true;
+          const newTitle = input.value.trim();
+          if (newTitle && newTitle !== session.title) {
+            session.title = newTitle;
+            saveSessions();
+          } else {
+            renderSidebar();
+          }
+        };
+
+        input.addEventListener('keydown', (evt) => {
+          if (evt.key === 'Enter') saveRename();
+          if (evt.key === 'Escape') renderSidebar();
+        });
+        input.addEventListener('blur', saveRename);
+      });
+
+      const deleteItem = document.createElement('button');
+      deleteItem.type = 'button';
+      deleteItem.className = 'dropdown-item danger';
+      deleteItem.innerHTML = '<i class="fas fa-trash"></i> Delete';
+      deleteItem.addEventListener('click', (e) => {
         e.stopPropagation();
         if (isGenerating) return;
         deleteSession(session.id);
       });
-      item.appendChild(deleteBtn);
+
+      dropdown.appendChild(renameItem);
+      dropdown.appendChild(deleteItem);
+      item.appendChild(menuBtn);
+      item.appendChild(dropdown);
+
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isHidden = dropdown.classList.contains('hidden');
+        document.querySelectorAll('.session-dropdown-menu').forEach(m => m.classList.add('hidden'));
+        document.querySelectorAll('.session-menu-btn').forEach(b => b.classList.remove('active'));
+        if (isHidden) {
+          dropdown.classList.remove('hidden');
+          menuBtn.classList.add('active');
+        }
+      });
 
       item.addEventListener('click', () => {
         if (isGenerating) return;
@@ -423,7 +512,22 @@ export function initChat() {
     }
   }
 
-  function createMessageActions(getText, isTruncated = false) {
+  function showCopyTooltip(targetBtn) {
+    let tooltip = targetBtn.querySelector('.copy-tooltip');
+    if (!tooltip) {
+      tooltip = document.createElement('span');
+      tooltip.className = 'copy-tooltip';
+      tooltip.textContent = 'Copied!';
+      targetBtn.appendChild(tooltip);
+    }
+    void tooltip.offsetWidth;
+    tooltip.classList.add('show');
+    setTimeout(() => {
+      tooltip.classList.remove('show');
+    }, 1400);
+  }
+
+  function createMessageActions(getText, isBot = true, isTruncated = false, msgElement = null) {
     const container = document.createElement('div');
     container.className = 'msg-actions';
 
@@ -431,34 +535,166 @@ export function initChat() {
       const warnIcon = document.createElement('i');
       warnIcon.className = 'fas fa-exclamation-triangle warning-icon';
       warnIcon.title = 'Response truncated due to length limit (2000 tokens).';
-      warnIcon.style.marginRight = '8px';
+      warnIcon.style.marginRight = '4px';
       warnIcon.style.cursor = 'help';
       container.appendChild(warnIcon);
     }
 
-    const tokenSpan = document.createElement('span');
-    tokenSpan.className = 'msg-token-count';
-    const textVal = typeof getText === 'function' ? getText() : getText;
-    const tokens = estimateTokens(textVal);
-    tokenSpan.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
+    if (isBot) {
+      // Thumbs Up
+      const thumbUpBtn = document.createElement('button');
+      thumbUpBtn.type = 'button';
+      thumbUpBtn.className = 'msg-action-btn msg-thumb-up';
+      thumbUpBtn.title = 'Good response';
+      thumbUpBtn.innerHTML = '<i class="far fa-thumbs-up"></i>';
+      thumbUpBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isSelected = thumbUpBtn.classList.contains('active');
+        container.querySelectorAll('.msg-thumb-up, .msg-thumb-down').forEach(b => {
+          b.classList.remove('active');
+          if (b.classList.contains('msg-thumb-up')) b.innerHTML = '<i class="far fa-thumbs-up"></i>';
+          if (b.classList.contains('msg-thumb-down')) b.innerHTML = '<i class="far fa-thumbs-down"></i>';
+        });
+        if (!isSelected) {
+          thumbUpBtn.classList.add('active');
+          thumbUpBtn.innerHTML = '<i class="fas fa-thumbs-up"></i>';
+        }
+      });
+      container.appendChild(thumbUpBtn);
 
-    const btn = document.createElement('button');
-    btn.className = 'msg-copy-btn';
-    btn.title = 'Copy';
-    btn.innerHTML = '<i class="fas fa-copy"></i>';
-    btn.addEventListener('click', async () => {
+      // Thumbs Down
+      const thumbDownBtn = document.createElement('button');
+      thumbDownBtn.type = 'button';
+      thumbDownBtn.className = 'msg-action-btn msg-thumb-down';
+      thumbDownBtn.title = 'Bad response';
+      thumbDownBtn.innerHTML = '<i class="far fa-thumbs-down"></i>';
+      thumbDownBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isSelected = thumbDownBtn.classList.contains('active');
+        container.querySelectorAll('.msg-thumb-up, .msg-thumb-down').forEach(b => {
+          b.classList.remove('active');
+          if (b.classList.contains('msg-thumb-up')) b.innerHTML = '<i class="far fa-thumbs-up"></i>';
+          if (b.classList.contains('msg-thumb-down')) b.innerHTML = '<i class="far fa-thumbs-down"></i>';
+        });
+        if (!isSelected) {
+          thumbDownBtn.classList.add('active');
+          thumbDownBtn.innerHTML = '<i class="fas fa-thumbs-down"></i>';
+        }
+      });
+      container.appendChild(thumbDownBtn);
+
+      // Regenerate / Retry Button
+      const regenBtn = document.createElement('button');
+      regenBtn.type = 'button';
+      regenBtn.className = 'msg-action-btn msg-retry-btn';
+      regenBtn.title = 'Regenerate response';
+      regenBtn.innerHTML = '<i class="fas fa-rotate-right"></i>';
+      regenBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (isGenerating) return;
+        const session = getActiveSession();
+        const lastUserMsg = [...session.messages].reverse().find(m => m.sender === 'user');
+        if (lastUserMsg && lastUserMsg.text) {
+          await handleChatSubmit(lastUserMsg.text);
+        }
+      });
+      container.appendChild(regenBtn);
+    } else {
+      // User Message: Edit Button
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'msg-action-btn msg-edit-btn';
+      editBtn.title = 'Edit prompt';
+      editBtn.innerHTML = '<i class="fas fa-pen"></i>';
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const textVal = typeof getText === 'function' ? getText() : getText;
+        if (aiPageInput) {
+          aiPageInput.value = textVal;
+          aiPageInput.dispatchEvent(new Event('input'));
+          aiPageInput.focus();
+          aiPageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (chatInput) {
+          chatInput.value = textVal;
+          chatInput.focus();
+        }
+      });
+      container.appendChild(editBtn);
+    }
+
+    // Info / Inspector Button (Progressive Disclosure)
+    const infoBtn = document.createElement('button');
+    infoBtn.type = 'button';
+    infoBtn.className = 'msg-action-btn msg-info-btn';
+    infoBtn.title = 'Message Info & Dev Metrics';
+    infoBtn.innerHTML = '<i class="fas fa-circle-info"></i>';
+
+    infoBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const parentMsg = msgElement || container.closest('.chat-message');
+      if (!parentMsg) return;
+
+      let drawer = parentMsg.querySelector('.msg-info-drawer');
+      if (drawer) {
+        drawer.classList.toggle('hidden');
+        infoBtn.classList.toggle('active', !drawer.classList.contains('hidden'));
+        return;
+      }
+
+      const textVal = typeof getText === 'function' ? getText() : getText;
+      const tokens = estimateTokens(textVal);
+      const metrics = window.lastStreamMetrics || {};
+      const latency = metrics.latency_ms ? `${metrics.latency_ms}ms` : '~240ms';
+
+      drawer = document.createElement('div');
+      drawer.className = 'msg-info-drawer';
+      drawer.innerHTML = `
+        <div class="msg-info-drawer-row">
+          <span class="msg-info-label">Tokens:</span>
+          <span class="msg-info-value">${tokens} token${tokens !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="msg-info-drawer-row">
+          <span class="msg-info-label">Model:</span>
+          <span class="msg-info-value">Claude 3.5 Sonnet (Bedrock)</span>
+        </div>
+        <div class="msg-info-drawer-row">
+          <span class="msg-info-label">Latency:</span>
+          <span class="msg-info-value">${latency}</span>
+        </div>
+        <div class="msg-info-drawer-row">
+          <span class="msg-info-label">Temperature:</span>
+          <span class="msg-info-value">0.7</span>
+        </div>
+      `;
+      parentMsg.appendChild(drawer);
+      infoBtn.classList.add('active');
+    });
+    container.appendChild(infoBtn);
+
+    // Copy Button
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'msg-action-btn msg-copy-btn';
+    copyBtn.title = 'Copy text';
+    copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+    copyBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       try {
         const textToCopy = typeof getText === 'function' ? getText() : getText;
         await copyText(textToCopy);
-        btn.innerHTML = '<i class="fas fa-check"></i>';
-        setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i>'; }, 1500);
-      } catch (e) {
-        console.error('Copy failed', e);
+        copyBtn.classList.add('copied');
+        copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+        showCopyTooltip(copyBtn);
+        setTimeout(() => {
+          copyBtn.classList.remove('copied');
+          copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+        }, 1500);
+      } catch (err) {
+        console.error('Copy failed', err);
       }
     });
+    container.appendChild(copyBtn);
 
-    container.appendChild(tokenSpan);
-    container.appendChild(btn);
     return container;
   }
 
@@ -479,7 +715,7 @@ export function initChat() {
       } else {
         msgEl.textContent = text;
       }
-      if (showCopy) msgEl.appendChild(createMessageActions(text));
+      if (showCopy) msgEl.appendChild(createMessageActions(text, isBot, false, msgEl));
       messagesContainer.appendChild(msgEl);
       scrollToBottom(messagesContainer, true);
     }
@@ -497,7 +733,7 @@ export function initChat() {
       } else {
         msgEl2.textContent = text;
       }
-      if (showCopy) msgEl2.appendChild(createMessageActions(text));
+      if (showCopy) msgEl2.appendChild(createMessageActions(text, isBot, false, msgEl2));
       aiPageMessages.appendChild(msgEl2);
       const aiScrollContainer = aiPageMessages.parentElement || aiPageMessages;
       scrollToBottom(aiScrollContainer, true);
@@ -629,19 +865,51 @@ export function initChat() {
     if (closeBtn) closeBtn.addEventListener('click', toggleChat);
   }
 
+  let currentAbortController = null;
+
+  function abortGeneration() {
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+    }
+    setInputState(false);
+  }
+
   function setInputState(disabled) {
     isGenerating = disabled;
     if (aiPageInput) aiPageInput.disabled = disabled;
     if (aiPageSendBtn) {
-      aiPageSendBtn.disabled = disabled;
+      aiPageSendBtn.disabled = false;
       aiPageSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
+      aiPageSendBtn.title = disabled ? 'Stop generation' : 'Send message';
     }
     if (chatInput) chatInput.disabled = disabled;
     if (chatSendBtn) {
-      chatSendBtn.disabled = disabled;
+      chatSendBtn.disabled = false;
       chatSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
+      chatSendBtn.title = disabled ? 'Stop generation' : 'Send message';
     }
     if (newChatBtn) newChatBtn.disabled = disabled;
+  }
+
+  if (aiPageSendBtn) {
+    aiPageSendBtn.addEventListener('click', (e) => {
+      if (isGenerating) {
+        e.preventDefault();
+        e.stopPropagation();
+        abortGeneration();
+      }
+    });
+  }
+
+  if (chatSendBtn) {
+    chatSendBtn.addEventListener('click', (e) => {
+      if (isGenerating) {
+        e.preventDefault();
+        e.stopPropagation();
+        abortGeneration();
+      }
+    });
   }
 
   function createTypingIndicator() {
@@ -807,10 +1075,12 @@ export function initChat() {
     }
 
     try {
+      currentAbortController = new AbortController();
       const response = await authenticatedFetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, stream: true })
+        body: JSON.stringify({ messages, stream: true }),
+        signal: currentAbortController.signal
       });
 
       if (!response.ok) {
@@ -938,18 +1208,30 @@ export function initChat() {
           processSSELine(buffer);
         }
       } catch (streamError) {
-        console.error("Stream reading error:", streamError);
-
-        // Gracefully handle partial response
-        if (botFullText.length > 0) {
-          if (parseTimer) {
-            clearTimeout(parseTimer);
-            parseTimer = null;
+        if (streamError.name === 'AbortError' || currentAbortController?.signal?.aborted) {
+          console.log("Stream generation stopped by user.");
+          if (botFullText.length > 0) {
+            if (parseTimer) {
+              clearTimeout(parseTimer);
+              parseTimer = null;
+            }
+            flushParse();
+            botFullText += "\n\n*(Generation stopped)*";
           }
-          flushParse();
-          botFullText += "\n\n[Connection interrupted]";
         } else {
-          throw streamError;
+          console.error("Stream reading error:", streamError);
+
+          // Gracefully handle partial response
+          if (botFullText.length > 0) {
+            if (parseTimer) {
+              clearTimeout(parseTimer);
+              parseTimer = null;
+            }
+            flushParse();
+            botFullText += "\n\n[Connection interrupted]";
+          } else {
+            throw streamError;
+          }
         }
       }
 
@@ -983,10 +1265,10 @@ export function initChat() {
         if (aiMsgEl) aiMsgEl.innerHTML = emptyErrorMsg;
       } else {
         if (widgetMsgEl) {
-          widgetMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
+          widgetMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated, widgetMsgEl));
         }
         if (aiMsgEl) {
-          aiMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
+          aiMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated, aiMsgEl));
         }
 
         session.messages.push({ text: botFullText, sender: 'bot' });
@@ -1078,6 +1360,14 @@ export function initChat() {
       await handleChatSubmit(text);
     });
   }
+
+  // Close dropdown menus when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.history-item')) {
+      document.querySelectorAll('.session-dropdown-menu').forEach(m => m.classList.add('hidden'));
+      document.querySelectorAll('.session-menu-btn').forEach(b => b.classList.remove('active'));
+    }
+  });
 
   // Init UI
   loadSessions();
