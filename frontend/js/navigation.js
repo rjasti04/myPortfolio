@@ -94,6 +94,13 @@ export function initNavigation() {
     });
   }
 
+  const navMenuClose = document.getElementById("nav-menu-close");
+  if (navMenuClose) {
+    navMenuClose.addEventListener("click", () => {
+      setMobileMenuState(false);
+    });
+  }
+
   // Close menu when clicking on backdrop
   document.addEventListener("click", (event) => {
     if (navMenu?.classList.contains("show-menu")) {
