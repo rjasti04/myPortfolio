@@ -934,17 +934,32 @@ export function initChat() {
       
       flushParse();
 
-      if (widgetMsgEl) {
-        widgetMsgEl.classList.remove('streaming');
-        widgetMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
-      }
-      if (aiMsgEl) {
-        aiMsgEl.classList.remove('streaming');
-        aiMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
-      }
+      if (!botFullText.trim()) {
+        const retryText = text;
+        const emptyErrorMsg = `
+          <div class="chat-error-boundary">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>AI service returned an empty response. Check backend credentials/model access and try again.</span>
+            <button type="button" class="btn btn-outline retry-btn" data-retry-text="${escapeHTML(retryText)}">
+              <i class="fas fa-sync-alt"></i> Retry
+            </button>
+          </div>
+        `;
+        if (widgetMsgEl) widgetMsgEl.innerHTML = emptyErrorMsg;
+        if (aiMsgEl) aiMsgEl.innerHTML = emptyErrorMsg;
+      } else {
+        if (widgetMsgEl) {
+          widgetMsgEl.classList.remove('streaming');
+          widgetMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
+        }
+        if (aiMsgEl) {
+          aiMsgEl.classList.remove('streaming');
+          aiMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
+        }
 
-      session.messages.push({ text: botFullText, sender: 'bot' });
-      saveSessions();
+        session.messages.push({ text: botFullText, sender: 'bot' });
+        saveSessions();
+      }
       
       // Announce completion to screen readers
       announceToScreenReader('Response received');

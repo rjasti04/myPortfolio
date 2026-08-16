@@ -4733,7 +4733,7 @@ section {
   display: flex;
   align-items: center;
   gap: 8px;
-  opacity: 0;
+  opacity: 0.75;
   transition: opacity var(--motion-fast) var(--ease-standard);
   z-index: 1;
 }
@@ -4763,10 +4763,7 @@ section {
   transition: color var(--motion-fast) var(--ease-standard);
 }
 
-.chat-message:hover .msg-actions {
-  opacity: 0.6;
-}
-
+.chat-message:hover .msg-actions,
 .msg-actions:hover {
   opacity: 1 !important;
 }
