@@ -487,7 +487,8 @@ export function initChat() {
       }
       if (showCopy) msgEl2.appendChild(createMessageActions(text));
       aiPageMessages.appendChild(msgEl2);
-      aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
+      const aiScrollContainer = aiPageMessages.parentElement || aiPageMessages;
+      aiScrollContainer.scrollTop = aiScrollContainer.scrollHeight;
     }
 
     if (save) {
@@ -774,6 +775,7 @@ export function initChat() {
               currentUserMsg
             ];
             saveSessions();
+            restoreActiveSession();
           }
         } catch (err) {
           console.error("Failed to summarize context:", err);
@@ -842,14 +844,15 @@ export function initChat() {
         }
         if (aiMsgEl) {
           aiMsgEl.innerHTML = html;
-          const isNearBottom = aiPageMessages.scrollHeight - aiPageMessages.scrollTop - aiPageMessages.clientHeight < 100;
-          if (isNearBottom) aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
+          const aiScrollContainer = aiPageMessages.parentElement || aiPageMessages;
+          const isNearBottom = aiScrollContainer.scrollHeight - aiScrollContainer.scrollTop - aiScrollContainer.clientHeight < 100;
+          if (isNearBottom) aiScrollContainer.scrollTop = aiScrollContainer.scrollHeight;
         }
       };
 
       let buffer = '';
       try {
-        while (true) {
+        streamLoop: while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
@@ -868,7 +871,9 @@ export function initChat() {
               const parsed = JSON.parse(dataStr);
               if (parsed.error) {
                 console.error('Stream payload error:', parsed.error);
-                continue;
+                botFullText += `\n\n*(Error: ${escapeHTML(parsed.error)})*`;
+                flushParse();
+                break streamLoop;
               }
               const textContent = parsed.text || parsed.delta || (parsed.type === 'content' ? parsed.text : null);
               if (textContent) {
