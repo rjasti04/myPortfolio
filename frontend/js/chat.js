@@ -750,37 +750,47 @@ export function initChat() {
       const currentUserMsg = session.messages[session.messages.length - 1];
       // Everything before the current message gets summarized.
       const messagesToSummarize = session.messages.slice(0, session.messages.length - 1);
-      const summaryPayload = messagesToSummarize.map(h => ({
-        role: h.sender === 'bot' ? 'assistant' : 'user',
-        content: h.text
-      }));
+      const summaryPayload = messagesToSummarize
+        .filter(h => h && typeof h.text === 'string' && h.text.trim().length > 0)
+        .map(h => ({
+          role: h.sender === 'bot' ? 'assistant' : 'user',
+          content: h.text.trim()
+        }));
       
-      try {
-        const sumRes = await authenticatedFetch(`${API_BASE}/chat/summarize`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: summaryPayload })
-        });
-        if (sumRes.ok) {
-          const sumData = await sumRes.json();
-          // Rebuild as: user(synthetic) → bot(summary) → user(current)
-          // This guarantees strict user/assistant alternation.
-          session.messages = [
-            { text: "Summarize our conversation so far.", sender: 'user' },
-            { text: sumData.summary, sender: 'bot' },
-            currentUserMsg
-          ];
-          saveSessions();
+      if (summaryPayload.length > 0) {
+        try {
+          const sumRes = await authenticatedFetch(`${API_BASE}/chat/summarize`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: summaryPayload })
+          });
+          if (sumRes.ok) {
+            const sumData = await sumRes.json();
+            // Rebuild as: user(synthetic) → bot(summary) → user(current)
+            // This guarantees strict user/assistant alternation.
+            session.messages = [
+              { text: "Summarize our conversation so far.", sender: 'user' },
+              { text: sumData.summary, sender: 'bot' },
+              currentUserMsg
+            ];
+            saveSessions();
+          }
+        } catch (err) {
+          console.error("Failed to summarize context:", err);
         }
-      } catch (err) {
-        console.error("Failed to summarize context:", err);
       }
     }
 
-    const messages = session.messages.map(h => ({
-      role: h.sender === 'bot' ? 'assistant' : 'user',
-      content: h.text
-    }));
+    let messages = session.messages
+      .filter(h => h && typeof h.text === 'string' && h.text.trim().length > 0)
+      .map(h => ({
+        role: h.sender === 'bot' ? 'assistant' : 'user',
+        content: h.text.trim()
+      }));
+
+    if (messages.length === 0) {
+      messages = [{ role: 'user', content: text.trim() || 'Hello' }];
+    }
 
     try {
       const response = await authenticatedFetch(apiUrl, {

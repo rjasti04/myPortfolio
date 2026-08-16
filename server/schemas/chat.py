@@ -3,15 +3,14 @@ from typing import Optional, Literal, List
 
 class ChatMessage(BaseModel):
     role: str = Field(..., description="Role of the message sender, e.g. 'user' or 'assistant'")
-    content: str = Field(..., min_length=1, description="Text content of the message")
+    content: str = Field(..., description="Text content of the message")
 
     @field_validator("content")
     @classmethod
     def validate_content(cls, v: str) -> str:
-        s = v.strip() if isinstance(v, str) else v
-        if not s:
-            raise ValueError("Message content cannot be empty or whitespace-only")
-        return s
+        if not isinstance(v, str):
+            v = str(v) if v is not None else ""
+        return v.strip()
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage] = Field(..., min_length=1)
