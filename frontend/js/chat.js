@@ -627,6 +627,8 @@ export function initChat() {
     infoBtn.type = 'button';
     infoBtn.className = 'msg-action-btn msg-info-btn';
     infoBtn.title = 'Message Info & Dev Metrics';
+    infoBtn.setAttribute('aria-label', 'Toggle message info and metrics');
+    infoBtn.setAttribute('aria-expanded', 'false');
     infoBtn.innerHTML = '<i class="fas fa-circle-info"></i>';
 
     infoBtn.addEventListener('click', (e) => {
@@ -636,8 +638,9 @@ export function initChat() {
 
       let drawer = parentMsg.querySelector('.msg-info-drawer');
       if (drawer) {
-        drawer.classList.toggle('hidden');
-        infoBtn.classList.toggle('active', !drawer.classList.contains('hidden'));
+        const isHidden = drawer.classList.toggle('hidden');
+        infoBtn.classList.toggle('active', !isHidden);
+        infoBtn.setAttribute('aria-expanded', String(!isHidden));
         return;
       }
 
@@ -664,6 +667,7 @@ export function initChat() {
       `;
       parentMsg.appendChild(drawer);
       infoBtn.classList.add('active');
+      infoBtn.setAttribute('aria-expanded', 'true');
     });
     container.appendChild(infoBtn);
 
