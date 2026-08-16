@@ -837,15 +837,59 @@ export function initChat() {
         }
       };
 
+      let buffer = '';
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          botFullText += decoder.decode(value, { stream: true });
-          // Throttle markdown parsing to reduce CPU usage during streaming
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          // Keep the last partial line in the buffer
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data: ')) continue;
+            const dataStr = trimmed.slice(6).trim();
+            if (!dataStr || dataStr === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.error) {
+                console.error('Stream payload error:', parsed.error);
+                continue;
+              }
+              const textContent = parsed.text || parsed.delta || (parsed.type === 'content' ? parsed.text : null);
+              if (textContent) {
+                botFullText += textContent;
+              }
+            } catch (e) {
+              // Skip non-JSON or invalid chunks
+            }
+          }
+
           if (!parseTimer) {
             parseTimer = setTimeout(flushParse, MARKDOWN_PARSE_THROTTLE_MS);
+          }
+        }
+
+        // Process any leftover trailing line in buffer
+        if (buffer.trim()) {
+          const trimmed = buffer.trim();
+          if (trimmed.startsWith('data: ')) {
+            const dataStr = trimmed.slice(6).trim();
+            if (dataStr && dataStr !== '[DONE]') {
+              try {
+                const parsed = JSON.parse(dataStr);
+                const textContent = parsed.text || parsed.delta || (parsed.type === 'content' ? parsed.text : null);
+                if (textContent) {
+                  botFullText += textContent;
+                }
+              } catch (e) {
+                // Ignore parse errors on trailing buffer
+              }
+            }
           }
         }
       } catch (streamError) {
