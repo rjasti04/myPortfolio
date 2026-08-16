@@ -4766,8 +4766,45 @@ body:not(.dark-theme) .chat-message.user {
 
 .chat-message.user .msg-actions {
   align-self: flex-end;
-  color: rgba(255, 255, 255, 0.7);
+  background-color: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.9);
   border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.chat-message.user .msg-actions .msg-action-btn,
+.chat-message.user .msg-actions span,
+.chat-message.user .msg-actions div {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.chat-message.user .msg-actions svg,
+.chat-message.user .msg-actions i {
+  fill: rgba(255, 255, 255, 0.85);
+  stroke: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.chat-message.user .msg-actions .msg-action-btn:hover,
+.chat-message.user .msg-actions .msg-action-btn:focus {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.chat-message.user .msg-actions .msg-action-btn:hover svg,
+.chat-message.user .msg-actions .msg-action-btn:focus svg,
+.chat-message.user .msg-actions .msg-action-btn:hover i,
+.chat-message.user .msg-actions .msg-action-btn:focus i {
+  fill: #ffffff;
+  stroke: #ffffff;
+  color: #ffffff;
+}
+
+.chat-message.user .msg-info-drawer {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .chat-message.bot .msg-actions {
