@@ -192,27 +192,28 @@
   cursor: pointer;
   padding: 0.3rem 0.8rem;
   border-radius: 20px;
-  background-color: var(--accent-soft, rgba(137, 180, 250, 0.1));
+  background-color: var(--accent-soft, rgba(225, 38, 77, 0.1));
   border: 1px solid transparent;
   color: var(--text, #cdd6f4);
   transition: border-color var(--motion-base) var(--ease-standard), background-color var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard);
 }
 
 .nav-user-profile:hover {
-  border-color: rgba(137, 180, 250, 0.3);
-  background-color: rgba(137, 180, 250, 0.15);
+  border-color: var(--accent-mild, rgba(225, 38, 77, 0.3));
+  background-color: var(--accent-soft, rgba(225, 38, 77, 0.2));
 }
 
 .nav-user-icon {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background-color: var(--accent-color, #89b4fa);
-  color: var(--bg-color, #11111b);
+  background-color: var(--accent-fill, var(--accent));
+  color: var(--on-accent, #ffffff);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .nav-user-dropdown {
