@@ -411,6 +411,18 @@ export function initChat() {
     }
   }
 
+  function scrollToBottom(container, force = false) {
+    const target = container || document.getElementById('ai-page-messages')?.parentElement || document.getElementById('chat-messages');
+    if (!target) return;
+    const isNearBottom = force || (target.scrollHeight - target.scrollTop - target.clientHeight < 150);
+    if (isNearBottom) {
+      target.scrollTo({
+        top: target.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }
+
   function createMessageActions(getText, isTruncated = false) {
     const container = document.createElement('div');
     container.className = 'msg-actions';
@@ -469,7 +481,7 @@ export function initChat() {
       }
       if (showCopy) msgEl.appendChild(createMessageActions(text));
       messagesContainer.appendChild(msgEl);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      scrollToBottom(messagesContainer, true);
     }
 
     if (renderAiPage && aiPageMessages) {
@@ -488,7 +500,7 @@ export function initChat() {
       if (showCopy) msgEl2.appendChild(createMessageActions(text));
       aiPageMessages.appendChild(msgEl2);
       const aiScrollContainer = aiPageMessages.parentElement || aiPageMessages;
-      aiScrollContainer.scrollTop = aiScrollContainer.scrollHeight;
+      scrollToBottom(aiScrollContainer, true);
     }
 
     if (save) {
@@ -798,7 +810,7 @@ export function initChat() {
       const response = await authenticatedFetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages })
+        body: JSON.stringify({ messages, stream: true })
       });
 
       if (!response.ok) {
@@ -839,14 +851,12 @@ export function initChat() {
         const html = renderBotHTML(botFullText);
         if (widgetMsgEl) {
           widgetMsgEl.innerHTML = html;
-          const isNearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
-          if (isNearBottom) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          scrollToBottom(messagesContainer);
         }
         if (aiMsgEl) {
           aiMsgEl.innerHTML = html;
           const aiScrollContainer = aiPageMessages.parentElement || aiPageMessages;
-          const isNearBottom = aiScrollContainer.scrollHeight - aiScrollContainer.scrollTop - aiScrollContainer.clientHeight < 100;
-          if (isNearBottom) aiScrollContainer.scrollTop = aiScrollContainer.scrollHeight;
+          scrollToBottom(aiScrollContainer);
         }
       };
 

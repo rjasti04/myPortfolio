@@ -22,6 +22,7 @@ class ChatStreamRequest(BaseModel):
     conversation_id: Optional[str] = Field(None, description="Optional UUID string of the conversation session")
     model_id: Optional[str] = Field(None, description="Target Bedrock model ID")
     system_prompt: Optional[str] = Field(None, description="Custom system prompt override")
+    stream: Optional[bool] = Field(default=True, description="Enable streaming mode")
 
 class ChatTelemetryEvent(BaseModel):
     model_id: str
