@@ -1,6 +1,5 @@
-import { prefersDarkScheme, prefersReducedMotion } from "./config.js";
+import { prefersDarkScheme } from "./config.js";
 import { trackEvent } from "./analytics.js";
-import { animateSpring } from "./physics.js";
 import { reapplyCustomTheme } from "./theme-customizer.js";
 
 let themeBtn, themeIcon, themeColorMeta;
@@ -27,19 +26,6 @@ export function applyTheme(isDark) {
   }
 }
 
-function spinToggle() {
-  if (!themeBtn || prefersReducedMotion.matches) return;
-  animateSpring({
-    from: 0,
-    to: 360,
-    onUpdate: (deg) => {
-      themeBtn.style.transform = `rotate(${deg}deg) scale(${1 + Math.sin(deg * Math.PI / 180) * 0.15})`;
-    },
-    onComplete: () => { themeBtn.style.transform = ""; },
-    config: { stiffness: 300, damping: 20 }
-  });
-}
-
 export function initTheme() {
   themeBtn = document.getElementById("theme-toggle");
   themeIcon = document.getElementById("theme-icon");
@@ -53,7 +39,6 @@ export function initTheme() {
     trackEvent("theme_change", { theme: nextValue ? "dark" : "light" });
     applyTheme(nextValue);
     localStorage.setItem("theme", nextValue ? "dark" : "light");
-    spinToggle();
   });
 
   prefersDarkScheme.addEventListener("change", (event) => {

@@ -850,38 +850,72 @@ export function initChat() {
         }
       };
 
-      let buffer = '';
+      const handleMetrics = (metricsData) => {
+        if (typeof window !== "undefined") {
+          window.lastStreamMetrics = metricsData;
+        }
+        console.debug("SSE Stream Metrics received:", metricsData);
+      };
+
+      const processSSELine = (line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return true;
+
+        let dataStr = trimmed;
+        if (trimmed.startsWith("data:")) {
+          dataStr = trimmed.replace(/^data:\s*/, "");
+        }
+
+        if (!dataStr || dataStr === "[DONE]") {
+          if (dataStr === "[DONE]") return false;
+          return true;
+        }
+
+        try {
+          const parsed = JSON.parse(dataStr);
+
+          if (parsed.type === "metrics" || parsed.metrics) {
+            handleMetrics(parsed.metrics || parsed);
+            return true;
+          }
+
+          if (parsed.error) {
+            console.error("Stream payload error:", parsed.error);
+            botFullText += `\n\n*(Error: ${escapeHTML(parsed.error)})*`;
+            flushParse();
+            return false;
+          }
+
+          const textContent =
+            parsed.text ??
+            parsed.delta ??
+            (parsed.type === "content" ? parsed.text : null);
+          if (textContent !== null && textContent !== undefined) {
+            botFullText += textContent;
+          }
+        } catch (e) {
+          // Plain text fallback for non-JSON SSE payload
+          if (typeof dataStr === "string" && dataStr.length > 0) {
+            botFullText += dataStr;
+          }
+        }
+        return true;
+      };
+
+      let buffer = "";
       try {
         streamLoop: while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
+          const lines = buffer.split("\n");
           // Keep the last partial line in the buffer
-          buffer = lines.pop() || '';
+          buffer = lines.pop() || "";
 
           for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith('data: ')) continue;
-            const dataStr = trimmed.slice(6).trim();
-            if (!dataStr || dataStr === '[DONE]') continue;
-
-            try {
-              const parsed = JSON.parse(dataStr);
-              if (parsed.error) {
-                console.error('Stream payload error:', parsed.error);
-                botFullText += `\n\n*(Error: ${escapeHTML(parsed.error)})*`;
-                flushParse();
-                break streamLoop;
-              }
-              const textContent = parsed.text || parsed.delta || (parsed.type === 'content' ? parsed.text : null);
-              if (textContent) {
-                botFullText += textContent;
-              }
-            } catch (e) {
-              // Skip non-JSON or invalid chunks
-            }
+            const shouldContinue = processSSELine(line);
+            if (!shouldContinue) break streamLoop;
           }
 
           if (!parseTimer) {
@@ -891,25 +925,11 @@ export function initChat() {
 
         // Process any leftover trailing line in buffer
         if (buffer.trim()) {
-          const trimmed = buffer.trim();
-          if (trimmed.startsWith('data: ')) {
-            const dataStr = trimmed.slice(6).trim();
-            if (dataStr && dataStr !== '[DONE]') {
-              try {
-                const parsed = JSON.parse(dataStr);
-                const textContent = parsed.text || parsed.delta || (parsed.type === 'content' ? parsed.text : null);
-                if (textContent) {
-                  botFullText += textContent;
-                }
-              } catch (e) {
-                // Ignore parse errors on trailing buffer
-              }
-            }
-          }
+          processSSELine(buffer);
         }
       } catch (streamError) {
-        console.error('Stream reading error:', streamError);
-        
+        console.error("Stream reading error:", streamError);
+
         // Gracefully handle partial response
         if (botFullText.length > 0) {
           if (parseTimer) {
