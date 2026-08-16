@@ -3638,6 +3638,10 @@ body.dark-theme .skill-tag {
     pointer-events: auto;
   }
 
+  body.nav-open header {
+    z-index: 1300;
+  }
+
   body.nav-open .layout::after {
     content: '';
     position: fixed;
