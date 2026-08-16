@@ -934,6 +934,10 @@ export function initChat() {
       
       flushParse();
 
+      // Always unmount streaming class before rendering final content or error states
+      if (widgetMsgEl) widgetMsgEl.classList.remove('streaming');
+      if (aiMsgEl) aiMsgEl.classList.remove('streaming');
+
       if (!botFullText.trim()) {
         const retryText = text;
         const emptyErrorMsg = `
@@ -949,11 +953,9 @@ export function initChat() {
         if (aiMsgEl) aiMsgEl.innerHTML = emptyErrorMsg;
       } else {
         if (widgetMsgEl) {
-          widgetMsgEl.classList.remove('streaming');
           widgetMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
         }
         if (aiMsgEl) {
-          aiMsgEl.classList.remove('streaming');
           aiMsgEl.appendChild(createMessageActions(() => botFullText, isTruncated));
         }
 
@@ -969,6 +971,16 @@ export function initChat() {
       if (widgetIndicator) widgetIndicator.remove();
       if (aiIndicator) aiIndicator.remove();
       
+      // Unmount any active streaming placeholders on error to prevent orphan cursor blocks
+      if (widgetMsgEl) {
+        widgetMsgEl.classList.remove('streaming');
+        widgetMsgEl.remove();
+      }
+      if (aiMsgEl) {
+        aiMsgEl.classList.remove('streaming');
+        aiMsgEl.remove();
+      }
+
       // Store the original text for retry
       const retryText = text;
       const errorMsg = `
