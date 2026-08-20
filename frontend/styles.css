@@ -354,6 +354,7 @@ header {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  box-sizing: border-box;
   background: hsl(0, 0%, 100%, 0.55);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
@@ -384,7 +385,7 @@ body.dark-theme header.scrolled {
 }
 
 .header-left {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 12px;
   cursor: pointer;
@@ -394,6 +395,7 @@ body.dark-theme header.scrolled {
   font: inherit;
   text-decoration: none;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .profile-pic-small {
@@ -404,6 +406,7 @@ body.dark-theme header.scrolled {
   border: 2px solid var(--accent-text);
   object-fit: cover;
   object-position: center 20%;
+  flex-shrink: 0;
   transition:
     transform var(--motion-medium) var(--ease-enter),
     box-shadow var(--motion-medium) var(--ease-standard);
@@ -417,7 +420,7 @@ body.dark-theme header.scrolled {
 
 
 .header-actions {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
@@ -436,6 +439,9 @@ body.dark-theme header.scrolled {
   min-width: var(--min-touch-target);
   min-height: var(--min-touch-target);
   touch-action: manipulation;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .nav-icon {
@@ -444,6 +450,7 @@ body.dark-theme header.scrolled {
   justify-content: center;
   margin-right: 6px;
   font-size: 0.92em;
+  line-height: 1;
   flex-shrink: 0;
 }
 
@@ -453,18 +460,24 @@ body.dark-theme header.scrolled {
 }
 
 .nav-menu-links {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 #nav-menu {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
   background: var(--card-bg);
   padding: 4px;
   border-radius: 999px;
   border: 1px solid var(--border);
   min-width: 0;
+  margin: 0;
 }
 
 #nav-menu a {
@@ -474,8 +487,11 @@ body.dark-theme header.scrolled {
   gap: 6px;
   font-size: var(--text-body-sm);
   font-weight: 600;
+  line-height: 1;
   color: var(--muted);
   padding: 8px 16px;
+  min-height: 36px;
+  box-sizing: border-box;
   text-decoration: none;
   border-radius: 999px;
   transition:
@@ -4214,9 +4230,12 @@ body.dark-theme .skill-tag {
   width: var(--header-action-size, var(--min-touch-target));
   height: var(--header-action-size, var(--min-touch-target));
   border-radius: 50%;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  box-sizing: border-box;
   transition:
     transform var(--motion-base) var(--ease-standard),
     color var(--motion-base) var(--ease-standard),
