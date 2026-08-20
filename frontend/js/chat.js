@@ -660,10 +660,6 @@ export function initChat() {
           <span class="msg-info-label">Latency:</span>
           <span class="msg-info-value">${latency}</span>
         </div>
-        <div class="msg-info-drawer-row">
-          <span class="msg-info-label">Temperature:</span>
-          <span class="msg-info-value">0.7</span>
-        </div>
       `;
       parentMsg.appendChild(drawer);
       infoBtn.classList.add('active');
