@@ -197,36 +197,52 @@
 
 
       <nav id="nav-menu" aria-label="Primary">
-        <div class="nav-menu-header">
-          <div class="nav-menu-header-text">
-            <h3 class="nav-menu-title">Navigation</h3>
-            <p class="nav-menu-subtitle">Explore portfolio sections and interactive tools.</p>
+        <div class="nav-menu-header dropdown-panel-header">
+          <div class="nav-menu-header-text dropdown-panel-header-text">
+            <h3 class="nav-menu-title dropdown-panel-title">Navigation</h3>
+            <p class="nav-menu-subtitle dropdown-panel-subtitle">Explore portfolio sections and interactive tools.</p>
           </div>
-          <button type="button" class="nav-menu-close" id="nav-menu-close" aria-label="Close navigation menu">
+          <button type="button" class="nav-menu-close dropdown-panel-close" id="nav-menu-close"
+            aria-label="Close navigation menu">
             <i class="fas fa-times" aria-hidden="true"></i>
           </button>
         </div>
         <div class="nav-menu-links">
-          <a href="#about" data-target="about" class="active" aria-current="page"><i class="fas fa-user nav-icon" aria-hidden="true"></i> <span class="nav-label">About</span></a>
-          <a href="#resume" data-target="resume"><i class="fas fa-briefcase nav-icon" aria-hidden="true"></i> <span class="nav-label">Experience</span></a>
-          <a href="#portfolio" data-target="portfolio"><i class="fas fa-code nav-icon" aria-hidden="true"></i> <span class="nav-label">Portfolio</span></a>
-          <a href="#hobbies" data-target="hobbies"><i class="fas fa-heart nav-icon" aria-hidden="true"></i> <span class="nav-label">Hobbies</span></a>
-          <a href="#activity" data-target="activity"><i class="fas fa-chart-line nav-icon" aria-hidden="true"></i> <span class="nav-label">Activity</span></a>
-          <a href="#ai" data-target="ai"><i class="fas fa-robot nav-icon" aria-hidden="true"></i> <span class="nav-label">AI</span></a>
-          <a href="#contact" data-target="contact"><i class="fas fa-envelope nav-icon" aria-hidden="true"></i> <span class="nav-label">Contact</span></a>
+          <a href="#about" data-target="about" class="active" aria-current="page"><i class="fas fa-user nav-icon"
+              aria-hidden="true"></i> <span class="nav-label">About</span></a>
+          <a href="#resume" data-target="resume"><i class="fas fa-briefcase nav-icon" aria-hidden="true"></i> <span
+              class="nav-label">Experience</span></a>
+          <a href="#portfolio" data-target="portfolio"><i class="fas fa-code nav-icon" aria-hidden="true"></i> <span
+              class="nav-label">Portfolio</span></a>
+          <a href="#hobbies" data-target="hobbies"><i class="fas fa-heart nav-icon" aria-hidden="true"></i> <span
+              class="nav-label">Hobbies</span></a>
+          <a href="#activity" data-target="activity"><i class="fas fa-chart-line nav-icon" aria-hidden="true"></i> <span
+              class="nav-label">Activity</span></a>
+          <a href="#ai" data-target="ai"><i class="fas fa-robot nav-icon" aria-hidden="true"></i> <span
+              class="nav-label">AI</span></a>
+          <a href="#contact" data-target="contact"><i class="fas fa-envelope nav-icon" aria-hidden="true"></i> <span
+              class="nav-label">Contact</span></a>
         </div>
       </nav>
 
       <div class="header-actions">
         <div class="header-dropdown js-only" id="connect-dropdown">
           <button type="button" class="header-icon-btn" id="connect-toggle" aria-label="Open connect menu"
-            data-tooltip="Contact" aria-controls="connect-dropdown-menu" aria-expanded="false">
+            aria-controls="connect-dropdown-menu" aria-expanded="false">
             <i class="fas fa-paper-plane"></i>
           </button>
           <div class="header-dropdown-menu" id="connect-dropdown-menu" aria-hidden="true">
             <div class="header-dropdown-container">
-              <h2 class="connect-title">Connect</h2>
-              <p class="connect-copy">Reach me by email, LinkedIn, GitHub, or resume.</p>
+              <div class="dropdown-panel-header">
+                <div class="dropdown-panel-header-text">
+                  <h3 class="connect-title dropdown-panel-title">Connect</h3>
+                  <p class="connect-copy dropdown-panel-subtitle">Reach me by email, LinkedIn, GitHub, or resume.</p>
+                </div>
+                <button type="button" class="dropdown-panel-close" id="connect-dropdown-close"
+                  aria-label="Close connect menu">
+                  <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+              </div>
               <div class="connect-actions">
                 <a href="mailto:inboxtorj@gmail.com" class="connect-link">Email Me</a>
                 <a href="https://www.linkedin.com/in/rajeev-jasti-326080169" target="_blank" rel="noopener noreferrer"
@@ -241,15 +257,24 @@
 
         <div class="header-dropdown js-only" id="theme-customizer-dropdown">
           <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme"
-            data-tooltip="Customize Theme" aria-label="Customize theme" aria-controls="theme-customizer-menu"
+            aria-label="Customize theme" aria-controls="theme-customizer-menu"
             aria-expanded="false">
             <i class="fas fa-palette"></i>
           </button>
           <div class="header-dropdown-menu" id="theme-customizer-menu" aria-hidden="true">
             <div class="header-dropdown-container customizer-content">
-              <h3 class="customizer-title">Customize Theme</h3>
-              <p class="customizer-description">Choose your colors. We'll automatically generate accessible light and
-                dark variants.</p>
+              <div class="dropdown-panel-header">
+                <div class="dropdown-panel-header-text">
+                  <h3 class="customizer-title dropdown-panel-title">Customize Theme</h3>
+                  <p class="customizer-description dropdown-panel-subtitle">Choose your colors. We'll automatically
+                    generate accessible light and
+                    dark variants.</p>
+                </div>
+                <button type="button" class="dropdown-panel-close" id="theme-customizer-close"
+                  aria-label="Close theme customizer">
+                  <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+              </div>
 
               <div class="customizer-presets">
                 <label class="customizer-presets-label">Terminal Presets</label>
@@ -318,19 +343,19 @@
         </div>
 
         <a href="worldcup.html" target="_blank" class="header-icon-btn" id="worldcup-link" title="World Cup Predictor"
-          data-tooltip="World Cup" aria-label="Launch 2026 World Cup Bracket Predictor in a new tab">
+          aria-label="Launch 2026 World Cup Bracket Predictor in a new tab">
           <i class="fas fa-futbol"></i>
         </a>
 
         <div class="nav-auth-container" id="nav-auth-container">
           <button type="button" class="header-icon-btn nav-auth-btn" id="nav-login-btn" title="Log In"
-            data-tooltip="Log In" aria-label="Log In">
+            aria-label="Log In">
             <i class="fas fa-right-to-bracket"></i>
           </button>
         </div>
 
         <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme"
-          data-tooltip="Toggle Theme" aria-label="Toggle theme" aria-pressed="false">
+          aria-label="Toggle theme" aria-pressed="false">
           <i class="fas fa-moon" id="theme-icon"></i>
         </button>
 
@@ -932,7 +957,8 @@
             <div class="ai-sidebar-search hidden" id="ai-sidebar-search-container">
               <div class="sidebar-search-wrapper">
                 <i class="fas fa-search search-icon" aria-hidden="true"></i>
-                <input type="text" id="sidebar-search-input" class="sidebar-search-input" placeholder="Search chats..." aria-label="Search conversation history" autocomplete="off">
+                <input type="text" id="sidebar-search-input" class="sidebar-search-input" placeholder="Search chats..."
+                  aria-label="Search conversation history" autocomplete="off">
               </div>
             </div>
             <div class="ai-sidebar-history" id="ai-sidebar-history">
@@ -951,7 +977,8 @@
               <div class="ai-empty-view">
                 <div class="ai-hero-icon"><i class="fas fa-robot"></i></div>
                 <h1 class="ai-heading" id="ai-page-heading">How can I help you?</h1>
-                <p class="ai-subtitle" id="ai-page-subtitle">Powered by AWS Bedrock &amp; Anthropic Claude 3.5 Sonnet &mdash; ask me anything.</p>
+                <p class="ai-subtitle" id="ai-page-subtitle">Powered by AWS Bedrock &amp; Anthropic Claude 3.5 Sonnet
+                  &mdash; ask me anything.</p>
 
                 <div class="ai-suggestions" id="ai-suggested-prompts">
                   <button type="button" class="ai-suggestion-card"
@@ -1090,9 +1117,11 @@
                 <i class="fas fa-eye"></i>
               </button>
             </div>
-            <div class="forgot-password-link-wrapper" style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="forgot-password-link-wrapper"
+              style="display: flex; justify-content: space-between; align-items: center;">
               <a href="#" class="forgot-password-link" id="forgot-password-trigger">Forgot Password?</a>
-              <a href="#" class="forgot-password-link" id="magic-link-trigger" style="color: var(--color-accent, #89b4fa);">Magic Link <i class="fas fa-wand-magic-sparkles"></i></a>
+              <a href="#" class="forgot-password-link" id="magic-link-trigger"
+                style="color: var(--color-accent, #89b4fa);">Magic Link <i class="fas fa-wand-magic-sparkles"></i></a>
             </div>
           </div>
           <div class="auth-error" id="login-error"></div>
@@ -1341,7 +1370,8 @@
           <input type="hidden" id="2fa-pre-auth-token-input" value="" />
           <div class="form-group floating-label-group">
             <div class="input-wrapper">
-              <input type="text" id="2fa-verify-code" name="code" placeholder=" " required maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" />
+              <input type="text" id="2fa-verify-code" name="code" placeholder=" " required maxlength="6"
+                pattern="[0-9]{6}" autocomplete="one-time-code" />
               <label class="form-label" for="2fa-verify-code">6-Digit Code</label>
               <i class="fas fa-shield-halved input-icon"></i>
             </div>
@@ -1358,21 +1388,26 @@
         <h3>Setup Two-Factor Authentication</h3>
         <p class="auth-modal-subtitle">Scan the QR code with Google Authenticator or Authy, then enter the code.</p>
         <div id="2fa-setup-container" style="text-align: center; margin: 1rem 0;">
-          <div id="2fa-qr-code-wrapper" style="background: white; padding: 10px; display: inline-block; border-radius: 8px;">
+          <div id="2fa-qr-code-wrapper"
+            style="background: white; padding: 10px; display: inline-block; border-radius: 8px;">
             <img id="2fa-qr-img" src="" alt="2FA QR Code" style="width: 180px; height: 180px;" />
           </div>
-          <p style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-muted);">Secret Key: <code id="2fa-secret-text" style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;"></code></p>
+          <p style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-muted);">Secret Key: <code
+              id="2fa-secret-text"
+              style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;"></code></p>
         </div>
         <form class="auth-form" id="2fa-enable-form">
           <div class="form-group floating-label-group">
             <div class="input-wrapper">
-              <input type="text" id="2fa-enable-code" name="code" placeholder=" " required maxlength="6" pattern="[0-9]{6}" />
+              <input type="text" id="2fa-enable-code" name="code" placeholder=" " required maxlength="6"
+                pattern="[0-9]{6}" />
               <label class="form-label" for="2fa-enable-code">Enter 6-Digit Code</label>
               <i class="fas fa-key input-icon"></i>
             </div>
           </div>
           <div class="auth-error" id="2fa-enable-error"></div>
-          <div class="auth-success" id="2fa-enable-success" style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; display: none;"></div>
+          <div class="auth-success" id="2fa-enable-success"
+            style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; display: none;"></div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
             Enable 2FA <i class="fas fa-shield-halved"></i>
           </button>
@@ -1387,15 +1422,19 @@
           <p style="font-size: 0.85rem; color: var(--text-muted);">Loading active sessions...</p>
         </div>
         <div class="auth-error" id="sessions-error"></div>
-        <button type="button" class="btn auth-submit-btn" id="revoke-others-btn" style="background: var(--color-warning, #f9e2af); color: #11111b; font-weight: 600;">
+        <button type="button" class="btn auth-submit-btn" id="revoke-others-btn"
+          style="background: var(--color-warning, #f9e2af); color: #11111b; font-weight: 600;">
           Log Out All Other Devices <i class="fas fa-right-from-bracket"></i>
         </button>
       </div>
 
       <div class="auth-tab-content" id="auth-tab-delete-account">
         <h3 style="color: var(--color-error, #f38ba8);"><i class="fas fa-triangle-exclamation"></i> Delete Account</h3>
-        <div class="auth-warning-box" style="background: rgba(243, 139, 168, 0.1); border: 1px solid rgba(243, 139, 168, 0.3); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-color, #cdd6f4);">
-          <p style="margin: 0; line-height: 1.4;"><strong>Warning:</strong> Deleting your account will immediately deactivate your profile and log you out. You have <strong>30 days</strong> to log back in to automatically reactivate your account before permanent deletion.</p>
+        <div class="auth-warning-box"
+          style="background: rgba(243, 139, 168, 0.1); border: 1px solid rgba(243, 139, 168, 0.3); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-color, #cdd6f4);">
+          <p style="margin: 0; line-height: 1.4;"><strong>Warning:</strong> Deleting your account will immediately
+            deactivate your profile and log you out. You have <strong>30 days</strong> to log back in to automatically
+            reactivate your account before permanent deletion.</p>
         </div>
         <form class="auth-form" id="delete-account-form">
           <div class="form-group floating-label-group">
@@ -1410,7 +1449,8 @@
           </div>
           <div class="form-group floating-label-group">
             <div class="input-wrapper">
-              <input type="text" id="delete-confirm-phrase" name="confirm_phrase" placeholder=" " required autocomplete="off" />
+              <input type="text" id="delete-confirm-phrase" name="confirm_phrase" placeholder=" " required
+                autocomplete="off" />
               <label class="form-label" for="delete-confirm-phrase">Type DELETE to confirm</label>
               <i class="fas fa-trash-can input-icon"></i>
             </div>

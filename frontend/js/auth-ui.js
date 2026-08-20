@@ -1082,7 +1082,7 @@ async function setupNavUI() {
 
     // Logged out state
     authContainer.innerHTML = `
-        <button class="header-icon-btn nav-auth-btn" id="nav-login-btn" title="Log In" data-tooltip="Log In" aria-label="Log In">
+        <button class="header-icon-btn nav-auth-btn" id="nav-login-btn" title="Log In" aria-label="Log In">
             <i class="fas fa-right-to-bracket"></i>
         </button>
     `;

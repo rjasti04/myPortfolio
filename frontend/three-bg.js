@@ -895,7 +895,8 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
       y: ry,
       radius: 4,
       maxRadius: Math.min(width, height) * 0.45,
-      speed: 460,
+      speed: 620,
+      initialSpeed: 620,
       alpha: 0.85
     });
   };
@@ -1006,11 +1007,17 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
     drawGlassFacets(ctx, particles, connections, config, width, height, surgeIntensity, themeColors, facetOpacity, delta);
     drawConnections(ctx, particles, config, width, height, surgeIntensity, themeColors, connections);
 
-    // Render expanding shockwave energy ripples
+    // Render expanding shockwave energy ripples with fluid deceleration
     for (let i = ripples.length - 1; i >= 0; i -= 1) {
       const rip = ripples[i];
-      rip.radius += rip.speed * delta;
-      rip.alpha = (1 - rip.radius / rip.maxRadius) * 0.85;
+      const progress = clamp(rip.radius / rip.maxRadius, 0, 1);
+
+      // Decelerating expansion: fast burst at origin, gentle glide at perimeter
+      const currentSpeed = Math.max(140, rip.initialSpeed * Math.pow(1 - progress, 0.7));
+      rip.radius += currentSpeed * delta;
+
+      // Smooth power-curve alpha fade
+      rip.alpha = Math.pow(1 - progress, 1.4) * 0.85;
 
       if (rip.radius >= rip.maxRadius || rip.alpha <= 0.01) {
         ripples.splice(i, 1);
@@ -1019,17 +1026,21 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
 
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      ctx.lineWidth = Math.max(1.0, 3.2 * (1 - rip.radius / rip.maxRadius));
-      ctx.strokeStyle = colorString(themeColors.accent, rip.alpha * 0.55);
+
+      // Outer primary shockwave ring
+      const outerWidth = Math.max(1.0, 3.4 * Math.pow(1 - progress, 0.8));
+      ctx.lineWidth = outerWidth;
+      ctx.strokeStyle = colorString(themeColors.accent, rip.alpha * 0.6);
       ctx.beginPath();
       ctx.arc(rip.x, rip.y, rip.radius, 0, TWO_PI);
       ctx.stroke();
 
-      if (rip.radius > 15) {
-        ctx.lineWidth = 1.0;
-        ctx.strokeStyle = colorString(themeColors.data, rip.alpha * 0.35);
+      // Inner secondary harmonic ring
+      if (rip.radius > 12) {
+        ctx.lineWidth = Math.max(0.8, 1.8 * Math.pow(1 - progress, 0.8));
+        ctx.strokeStyle = colorString(themeColors.data, rip.alpha * 0.38);
         ctx.beginPath();
-        ctx.arc(rip.x, rip.y, rip.radius * 0.75, 0, TWO_PI);
+        ctx.arc(rip.x, rip.y, rip.radius * 0.78, 0, TWO_PI);
         ctx.stroke();
       }
       ctx.restore();
@@ -1170,7 +1181,7 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
 
   const handlePointerDown = (event) => {
     surgeIntensity = Math.min(surgeIntensity + 0.45, 1.25);
-    if (event.clientX && event.clientY) {
+    if (Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) {
       triggerRipple(event.clientX, event.clientY);
     }
   };

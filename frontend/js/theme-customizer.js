@@ -294,6 +294,7 @@ export function initThemeCustomizer() {
       customizerDropdown.classList.remove('is-open');
       paletteBtn.setAttribute('aria-expanded', 'false');
       customizerDropdown.querySelector('.header-dropdown-menu')?.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('dropdown-open');
     }
   };
 
