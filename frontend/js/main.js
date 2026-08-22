@@ -17,6 +17,7 @@ import { initTheme } from "./theme.js";
 import { initProjects } from "./projects.js";
 import { initContactForm } from "./form.js";
 import { initAnimations } from "./animations.js";
+import { initHeroTitle } from "./hero-title.js";
 import { initTilt } from "./tilt.js";
 import { initTerminal } from "./terminal.js";
 import { initAnalytics } from "./analytics.js";
@@ -69,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initNavigation();
   initProjects();
   initContactForm();
+  initHeroTitle();
   initAnimations();
   initTilt();
   initTerminal();

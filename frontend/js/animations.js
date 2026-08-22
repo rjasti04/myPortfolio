@@ -117,7 +117,8 @@ function initTerminalIntro() {
 }
 
 function initMatrixDecode() {
-  const element = document.querySelector(".hero-title");
+  // hero-title animation is now handled by hero-title.js — skip it here
+  const element = document.querySelector(".hero-title:not(#hero-title)");
   if (!element || prefersReducedMotion.matches) return;
 
   const originalText = element.textContent.trim();
