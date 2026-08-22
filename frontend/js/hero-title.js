@@ -1,35 +1,43 @@
 import { prefersReducedMotion, supportsHover } from "./config.js";
 
 const HERO_TITLE_SELECTOR = "#hero-title, .hero-title";
-const MATRIX_CHARS = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜｦﾝ";
-const MATRIX_FRAME_MS = 28;
-const MATRIX_ITERATION_STEP = 0.22;
+const STAGGER_STEP_MS = 42;
+const ENTRANCE_DURATION_MS = 780;
 
 /**
- * Ultimate Matrix Decode Animation for the Hero Title:
- * - Word-wrapped structural containment (zero mid-word line breaking)
- * - Holographic laser scanline leading edge (.matrix-leading)
- * - Tactile spring overshoot lock-in pops (.matrix-locked)
- * - Proximity "liquid wave" hover ripples across neighboring characters
- * - Organic non-linear cryptographic resolve jitter
+ * Concept 2: Kinetic Optical Split & 3D Spring Lock
+ * - Semantic structural tokenization (words & characters, preserving wrapping)
+ * - 3D Perspective Roll-up with optical de-quantization and spring settling
+ * - Interactive 3D Magnetic Tilt with specular accent and elastic proximity pull
+ * - Accessible and reduced-motion compliant
  */
 export function initHeroTitle() {
   const element = document.querySelector(HERO_TITLE_SELECTOR);
-  if (!element || prefersReducedMotion.matches) return;
+  if (!element) return;
 
   const originalText = element.textContent.trim();
   if (!originalText) return;
 
-  // Build clean DOM hierarchy: words → character spans
+  // Immediate accessible label
+  element.setAttribute("aria-label", originalText);
+
+  // If reduced motion is preferred, keep simple layout without transforms
+  if (prefersReducedMotion.matches) {
+    return;
+  }
+
+  // Tokenize DOM into words and character spans
   element.textContent = "";
   const words = originalText.split(/\s+/);
   const charSpans = [];
+  let globalCharIndex = 0;
 
   words.forEach((word, wordIndex) => {
     if (wordIndex > 0) {
       const spaceSpan = document.createElement("span");
       spaceSpan.className = "hero-word-space";
-      spaceSpan.textContent = "\u00A0"; // &nbsp;
+      spaceSpan.textContent = "\u00A0";
+      spaceSpan.setAttribute("aria-hidden", "true");
       element.appendChild(spaceSpan);
     }
 
@@ -41,9 +49,19 @@ export function initHeroTitle() {
       charSpan.className = "hero-char";
       charSpan.textContent = char;
       charSpan.dataset.orig = char;
-      charSpan.dataset.scrambled = "false";
+      charSpan.setAttribute("aria-hidden", "true");
+
+      const delayMs = globalCharIndex * STAGGER_STEP_MS;
+      charSpan.style.setProperty("--stagger-delay", `${delayMs}ms`);
+
       wordContainer.appendChild(charSpan);
-      charSpans.push(charSpan);
+      charSpans.push({
+        span: charSpan,
+        index: globalCharIndex,
+        delayMs,
+      });
+
+      globalCharIndex++;
     }
 
     element.appendChild(wordContainer);
@@ -51,150 +69,107 @@ export function initHeroTitle() {
 
   element.setAttribute("data-text", originalText);
 
-  let isDecoding = false;
+  // Start kinetic entrance animation once font rendering is ready
+  const startKineticEntrance = () => {
+    charSpans.forEach(({ span, delayMs }) => {
+      span.classList.add("kinetic-entering");
 
-  // Trigger tactile spring overshoot pop on lock-in
-  const triggerLockPop = (span) => {
-    span.classList.remove("matrix-locked");
-    void span.offsetWidth; // Force synchronous reflow
-    span.classList.add("matrix-locked");
-    setTimeout(() => {
-      span.classList.remove("matrix-locked");
-    }, 280);
-  };
-
-  // Main Sweep Decryption Animation
-  const animateText = () => {
-    if (isDecoding) return;
-    isDecoding = true;
-
-    // Organic cryptographic jitter per character
-    const jitter = charSpans.map(() => (Math.random() - 0.5) * 0.65);
-
-    let iterations = 0;
-    let lastTime = 0;
-
-    const tick = (time) => {
-      if (!lastTime) lastTime = time;
-      const elapsed = time - lastTime;
-
-      if (elapsed >= MATRIX_FRAME_MS) {
-        let leadingFound = false;
-
-        for (let i = 0; i < charSpans.length; i++) {
-          const span = charSpans[i];
-          const origChar = span.dataset.orig;
-          const threshold = i + jitter[i];
-
-          if (iterations >= threshold) {
-            // Character has resolved
-            if (span.dataset.scrambled === "true") {
-              span.textContent = origChar;
-              span.dataset.scrambled = "false";
-              span.classList.remove("matrix-leading", "matrix-scrambled");
-              triggerLockPop(span);
-            }
-          } else {
-            // Character is in scrambled matrix state
-            span.textContent = MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
-            span.dataset.scrambled = "true";
-            span.classList.add("matrix-scrambled");
-
-            // Holographic leading edge laser
-            if (!leadingFound) {
-              span.classList.add("matrix-leading");
-              leadingFound = true;
-            } else {
-              span.classList.remove("matrix-leading");
-            }
-          }
-        }
-
-        iterations += MATRIX_ITERATION_STEP;
-        lastTime = time;
-      }
-
-      if (iterations < charSpans.length + 0.8) {
-        requestAnimationFrame(tick);
-      } else {
-        // Complete sweep
-        charSpans.forEach((span) => {
-          span.textContent = span.dataset.orig;
-          span.dataset.scrambled = "false";
-          span.classList.remove("matrix-leading", "matrix-scrambled");
-          span.style.width = "";
-        });
-        element.setAttribute("data-text", originalText);
-        isDecoding = false;
-      }
-    };
-
-    requestAnimationFrame(tick);
-  };
-
-  // Measure stable character geometry once fonts are loaded
-  const startAnimation = () => {
-    charSpans.forEach((span) => {
-      span.style.width = "";
-      const w = span.getBoundingClientRect().width;
-      if (w > 0) {
-        span.style.width = `${Math.ceil(w)}px`;
-      }
+      const totalTime = delayMs + ENTRANCE_DURATION_MS;
+      setTimeout(() => {
+        span.classList.remove("kinetic-entering");
+        span.classList.add("kinetic-settled");
+      }, totalTime);
     });
-    animateText();
   };
 
-  if (document.fonts) {
+  if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => {
-      setTimeout(startAnimation, 120);
+      setTimeout(startKineticEntrance, 100);
     });
   } else {
-    setTimeout(startAnimation, 400);
+    setTimeout(startKineticEntrance, 250);
   }
 
-  // Liquid Proximity Wave on Hover
+  // Interactive 3D Magnetic Elastic Tilt on Hover
   if (supportsHover.matches) {
-    // Mini-scramble helper for a specific span
-    const scrambleSingle = (span, ticks, delay = 0) => {
-      if (!span || span.dataset.scrambling === "true" || isDecoding) return;
-      span.dataset.scrambling = "true";
+    charSpans.forEach(({ span, index }) => {
+      let rafId = null;
 
-      setTimeout(() => {
-        span.classList.add("matrix-scrambled", "matrix-leading");
-        let count = 0;
-        const orig = span.dataset.orig;
+      const handlePointerMove = (e) => {
+        if (!span.classList.contains("kinetic-settled")) return;
 
-        const interval = setInterval(() => {
-          span.textContent = MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
-          count++;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          const rect = span.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) return;
 
-          if (count >= ticks) {
-            clearInterval(interval);
-            span.textContent = orig;
-            span.classList.remove("matrix-scrambled", "matrix-leading");
-            span.dataset.scrambling = "false";
-            triggerLockPop(span);
+          const relX = (e.clientX - rect.left) / rect.width - 0.5;
+          const relY = (e.clientY - rect.top) / rect.height - 0.5;
+
+          const rotX = (-relY * 26).toFixed(2);
+          const rotY = (relX * 26).toFixed(2);
+
+          span.classList.remove("is-recovering");
+          span.classList.add("is-hovered");
+          span.style.transform = `perspective(600px) rotateX(${rotX}deg) rotateY(${rotY}deg) translateZ(14px) scale(1.12)`;
+
+          // Proximity elastic pull on immediate adjacent characters
+          if (index > 0) {
+            const prev = charSpans[index - 1].span;
+            if (prev && prev.classList.contains("kinetic-settled") && !prev.classList.contains("is-hovered")) {
+              prev.style.transform = `perspective(600px) rotateX(${rotX * 0.4}deg) rotateY(${rotY * 0.4}deg) translateZ(6px) scale(1.04)`;
+            }
           }
-        }, 34);
-      }, delay);
-    };
+          if (index < charSpans.length - 1) {
+            const next = charSpans[index + 1].span;
+            if (next && next.classList.contains("kinetic-settled") && !next.classList.contains("is-hovered")) {
+              next.style.transform = `perspective(600px) rotateX(${rotX * 0.4}deg) rotateY(${rotY * 0.4}deg) translateZ(6px) scale(1.04)`;
+            }
+          }
+        });
+      };
 
-    charSpans.forEach((span, index) => {
-      span.addEventListener("mouseenter", (e) => {
-        e.stopPropagation();
-        if (isDecoding) return;
+      const handlePointerLeave = () => {
+        if (rafId) cancelAnimationFrame(rafId);
 
-        // Scramble targeted character (primary wave)
-        scrambleSingle(span, 6, 0);
+        span.classList.remove("is-hovered");
+        span.classList.add("is-recovering");
+        span.style.transform = "perspective(600px) rotateX(0deg) rotateY(0deg) translateZ(0) scale(1)";
 
-        // Ripple out to immediate neighbors (decaying wave)
+        // Reset adjacent characters
         if (index > 0) {
-          scrambleSingle(charSpans[index - 1], 3, 20);
+          const prev = charSpans[index - 1].span;
+          if (prev && !prev.classList.contains("is-hovered")) {
+            prev.classList.add("is-recovering");
+            prev.style.transform = "perspective(600px) rotateX(0deg) rotateY(0deg) translateZ(0) scale(1)";
+            setTimeout(() => {
+              prev.classList.remove("is-recovering");
+              if (!prev.classList.contains("is-hovered")) prev.style.transform = "";
+            }, 450);
+          }
         }
         if (index < charSpans.length - 1) {
-          scrambleSingle(charSpans[index + 1], 3, 20);
+          const next = charSpans[index + 1].span;
+          if (next && !next.classList.contains("is-hovered")) {
+            next.classList.add("is-recovering");
+            next.style.transform = "perspective(600px) rotateX(0deg) rotateY(0deg) translateZ(0) scale(1)";
+            setTimeout(() => {
+              next.classList.remove("is-recovering");
+              if (!next.classList.contains("is-hovered")) next.style.transform = "";
+            }, 450);
+          }
         }
-      });
+
+        setTimeout(() => {
+          span.classList.remove("is-recovering");
+          if (!span.classList.contains("is-hovered")) {
+            span.style.transform = "";
+          }
+        }, 450);
+      };
+
+      span.addEventListener("pointermove", handlePointerMove);
+      span.addEventListener("pointerleave", handlePointerLeave);
     });
   }
 }
