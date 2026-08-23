@@ -1165,8 +1165,8 @@ main {
 
 .hero-title {
   font-size: var(--text-hero);
-  letter-spacing: clamp(-2px, -0.02em, -4px);
-  line-height: 1.3;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
   margin-bottom: 0;
   position: relative;
   display: inline-block;
@@ -1175,6 +1175,7 @@ main {
   margin: -0.1em -0.8em;
   perspective: 1000px;
   transform-style: preserve-3d;
+  overflow: visible;
 }
 
 /* Kinetic Optical Split & 3D Spring Lock Architecture */
@@ -1182,6 +1183,7 @@ main {
   display: inline-block;
   white-space: nowrap;
   transform-style: preserve-3d;
+  overflow: visible;
 }
 
 .hero-word-space {
@@ -1197,6 +1199,10 @@ main {
   text-align: center;
   transform-style: preserve-3d;
   transform-origin: 50% 90%;
+  padding: 0.12em 0.08em;
+  margin: -0.12em -0.08em;
+  box-sizing: content-box;
+  overflow: visible;
   opacity: 0;
   will-change: transform, filter, opacity;
   background: linear-gradient(135deg, var(--accent-text) 0%, var(--secondary-text) 50%, var(--data-text) 100%);
@@ -3706,8 +3712,8 @@ body.dark-theme .skill-tag {
 
   .hero-title {
     font-size: clamp(28px, 9vw, 36px);
-    line-height: 1.1;
-    letter-spacing: -1px;
+    line-height: 1.25;
+    letter-spacing: 0;
   }
 
   .section-title,
@@ -7424,7 +7430,7 @@ body.dark-theme .mobile-bottom-nav {
   /* Fix name text wrapping and character breaking */
   .hero-title {
     font-size: clamp(24px, 8vw, 32px);
-    letter-spacing: -1.5px;
+    letter-spacing: 0;
     white-space: nowrap;
   }
 
