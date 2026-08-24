@@ -32,7 +32,7 @@ export function initTheme() {
   themeColorMeta = document.querySelector('meta[name="theme-color"]');
 
   const savedTheme = localStorage.getItem("theme");
-  applyTheme(savedTheme !== "light");
+  applyTheme(savedTheme === "dark");
 
   themeBtn?.addEventListener("click", () => {
     const nextValue = !document.body.classList.contains("dark-theme");

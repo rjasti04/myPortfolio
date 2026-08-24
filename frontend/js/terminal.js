@@ -243,9 +243,9 @@ export function initTerminal() {
     skills: () => {
       return `
         <div class="terminal-tags">
-          <span>Kafka</span><span>Spark</span><span>Airflow</span>
-          <span>Snowflake</span><span>Terraform</span><span>Kubernetes</span>
-          <span>Python</span><span>Scala</span><span>AWS</span>
+          <span>AWS</span><span>Bedrock</span><span>FastAPI</span>
+          <span>PySpark</span><span>Kafka</span><span>PostgreSQL</span>
+          <span>Redshift</span><span>Docker</span><span>Terraform</span>
         </div>
       `;
     },
@@ -339,7 +339,7 @@ export function initTerminal() {
           <li>─────────────────</li>
           <li><strong>OS:</strong> Portfolio v1.0</li>
           <li><strong>Host:</strong> rjasti.com</li>
-          <li><strong>Uptime:</strong> 10+ years in engineering</li>
+          <li><strong>Uptime:</strong> 8+ years in engineering</li>
           <li><strong>Shell:</strong> bash</li>
           <li><strong>Theme:</strong> ${isDark ? "dark \uD83C\uDF19" : "light \u2600\uFE0F"}</li>
           <li><strong>Resolution:</strong> ${w}\u00D7${h}</li>
@@ -397,7 +397,7 @@ export function initTerminal() {
         `;
       }
       if (file === "readme" || file === "about") {
-        return `<p class="terminal-output-text">Principal Data Engineer with 10+ years building distributed systems and massive-scale ETL pipelines.</p>`;
+        return `<p class="terminal-output-text">Principal Data Engineer with 8+ years building distributed systems and massive-scale ETL pipelines.</p>`;
       }
       if (file === "current_focus") {
         return `
@@ -429,16 +429,16 @@ export function initTerminal() {
     "system-stats": () => {
       const cpuPercent = Math.floor(25 + Math.random() * 40);
       const memPercent = Math.floor(55 + Math.random() * 20);
-      
+
       const cpuBarLength = Math.round(cpuPercent / 5);
       const memBarLength = Math.round(memPercent / 5);
-      
+
       const cpuBar = "█".repeat(cpuBarLength) + "░".repeat(20 - cpuBarLength);
       const memBar = "█".repeat(memBarLength) + "░".repeat(20 - memBarLength);
-      
+
       return `
         <pre class="terminal-output-text" style="line-height:1.5;white-space:pre;font-family:monospace">
-  HOST: rjasti.com      OS: DataOS v2.4      UPTIME: 10+ Years      LOAD: 0.28, 0.44, 0.32
+  HOST: rjasti.com      OS: DataOS v2.4      UPTIME: 8+ Years      LOAD: 0.28, 0.44, 0.32
 
   CPU [${cpuBar}] ${cpuPercent}.0% (8 Cores active)
   MEM [${memBar}] ${memPercent}.0% (${(16 * memPercent / 100).toFixed(1)} GB / 16.0 GB)
@@ -477,7 +477,7 @@ export function initTerminal() {
         historyIndex = Math.max(0, historyIndex - 1);
         terminalInput.value = commandHistory[historyIndex] || "";
       }
-    } 
+    }
     // History down
     else if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -504,13 +504,13 @@ export function initTerminal() {
           commandElement.className = "terminal-line";
           commandElement.innerHTML = `<span class="prompt">$</span> ${escapeHTML(current)}`;
           fragment.appendChild(commandElement);
-          
+
           const resultElement = document.createElement("div");
           resultElement.innerHTML = `<p class="terminal-output-text">${matches.join("  ")}</p>`;
           fragment.appendChild(resultElement);
-          
+
           terminalOutput.appendChild(fragment);
-          
+
           requestAnimationFrame(() => {
             terminalBody.scrollTop = terminalBody.scrollHeight;
           });
@@ -533,7 +533,7 @@ export function initTerminal() {
         if (commandHistory.length > 100) commandHistory.shift();
         try {
           localStorage.setItem(HISTORY_KEY, JSON.stringify(commandHistory));
-        } catch (e) {}
+        } catch (e) { }
       }
       historyIndex = commandHistory.length;
 
@@ -562,11 +562,11 @@ export function initTerminal() {
       if (resultElement.innerHTML) {
         fragment.appendChild(resultElement);
       }
-      
+
       terminalOutput.appendChild(fragment);
 
       terminalInput.value = "";
-      
+
       requestAnimationFrame(() => {
         terminalBody.scrollTop = terminalBody.scrollHeight;
       });

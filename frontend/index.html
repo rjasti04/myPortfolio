@@ -10,13 +10,13 @@
   <meta name="author" content="Rajeev Jasti" />
   <meta name="theme-color" content="hsl(348, 79%, 40%)" />
   <meta name="description"
-    content="Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines." />
+    content="Portfolio of Rajeev Jasti, Principal Data Engineer &amp; Architect specializing in enterprise data platforms, backend services, and AI-enabled web applications." />
   <link rel="canonical" href="https://rjasti.com/" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:site_name" content="Rajeev Jasti" />
-  <meta property="og:title" content="Rajeev Jasti | Principal Data Engineer" />
+  <meta property="og:title" content="Rajeev Jasti | Principal Data Engineer &amp; Architect" />
   <meta property="og:description"
-    content="Architecting low-latency distributed systems and massive-scale ETL pipelines." />
+    content="Transforming enterprise systems into scalable data platforms, backend services, and AI-enabled web applications." />
   <meta property="og:image" content="https://rjasti.com/social-preview.png" />
   <meta property="og:image:secure_url" content="https://rjasti.com/social-preview.png" />
   <meta property="og:image:type" content="image/png" />
@@ -26,12 +26,12 @@
   <meta property="og:url" content="https://rjasti.com/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Rajeev Jasti | Principal Data Engineer" />
+  <meta name="twitter:title" content="Rajeev Jasti | Principal Data Engineer &amp; Architect" />
   <meta name="twitter:description"
-    content="Architecting low-latency distributed systems and massive-scale ETL pipelines." />
+    content="Transforming enterprise systems into scalable data platforms, backend services, and AI-enabled web applications." />
   <meta name="twitter:image" content="https://rjasti.com/social-preview.png" />
   <meta name="twitter:image:alt" content="Rajeev Jasti portfolio preview card" />
-  <title>Rajeev Jasti | Principal Data Engineer</title>
+  <title>Rajeev Jasti | Principal Data Engineer &amp; Architect</title>
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="shortcut icon" href="favicon.ico" />
 
@@ -47,8 +47,8 @@
         "@type": "Person",
         "@id": "https://rjasti.com/#person",
         "name": "Rajeev Jasti",
-        "jobTitle": "Principal Data Engineer",
-        "description": "Principal Data Engineer specializing in distributed systems, low-latency analytics, and ETL platform design.",
+        "jobTitle": "Principal Data Engineer & Architect",
+        "description": "Principal Data Engineer & Architect with 8+ years of experience transforming enterprise systems into scalable data platforms, backend services, and AI-enabled web applications.",
         "url": "https://rjasti.com/",
         "image": {
           "@type": "ImageObject",
@@ -66,7 +66,7 @@
         "@id": "https://rjasti.com/#website",
         "url": "https://rjasti.com/",
         "name": "Rajeev Jasti",
-        "description": "Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines.",
+        "description": "Portfolio of Rajeev Jasti, Principal Data Engineer & Architect specializing in enterprise data platforms, backend services, and AI-enabled web applications.",
         "publisher": {
           "@id": "https://rjasti.com/#person"
         },
@@ -76,8 +76,8 @@
         "@type": "WebPage",
         "@id": "https://rjasti.com/#webpage",
         "url": "https://rjasti.com/",
-        "name": "Rajeev Jasti | Principal Data Engineer",
-        "description": "Portfolio of Rajeev Jasti, Principal Data Engineer specializing in distributed systems and ETL pipelines.",
+        "name": "Rajeev Jasti | Principal Data Engineer & Architect",
+        "description": "Portfolio of Rajeev Jasti, Principal Data Engineer & Architect specializing in enterprise data platforms, backend services, and AI-enabled web applications.",
         "isPartOf": {
           "@id": "https://rjasti.com/#website"
         },
@@ -123,12 +123,12 @@
   <!-- Skip to main content for keyboard accessibility -->
   <a href="#main-content" class="skip-link">Skip to main content</a>
 
-  <!-- Inline theme bootstrap: runs before first paint to prevent white flash.
-       Defaults to dark-theme if no preference has been saved. -->
+  <!-- Inline theme bootstrap: runs before first paint to prevent flash.
+       Defaults to light-theme if no preference has been saved. -->
   <script>
     (function () {
       var saved = localStorage.getItem('theme');
-      if (saved !== 'light') {
+      if (saved === 'dark') {
         document.body.classList.add('dark-theme');
       }
     }());
@@ -212,7 +212,7 @@
               aria-hidden="true"></i> <span class="nav-label">About</span></a>
           <a href="#resume" data-target="resume"><i class="fas fa-briefcase nav-icon" aria-hidden="true"></i> <span
               class="nav-label">Experience</span></a>
-          <a href="#portfolio" data-target="portfolio"><i class="fas fa-code nav-icon" aria-hidden="true"></i> <span
+          <a href="#portfolio" data-target="portfolio" hidden style="display: none;"><i class="fas fa-code nav-icon" aria-hidden="true"></i> <span
               class="nav-label">Portfolio</span></a>
           <a href="#hobbies" data-target="hobbies"><i class="fas fa-heart nav-icon" aria-hidden="true"></i> <span
               class="nav-label">Hobbies</span></a>
@@ -257,8 +257,7 @@
 
         <div class="header-dropdown js-only" id="theme-customizer-dropdown">
           <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme"
-            aria-label="Customize theme" aria-controls="theme-customizer-menu"
-            aria-expanded="false">
+            aria-label="Customize theme" aria-controls="theme-customizer-menu" aria-expanded="false">
             <i class="fas fa-palette"></i>
           </button>
           <div class="header-dropdown-menu" id="theme-customizer-menu" aria-hidden="true">
@@ -370,12 +369,13 @@
       <section id="about" class="active">
         <div class="hero">
           <div class="hero-text">
-            <span class="hero-subtitle">Principal Data Engineer</span>
+            <span class="hero-subtitle">Principal Data Engineer &amp; Architect</span>
             <h1 class="hero-title" id="hero-title">Rajeev Jasti</h1>
             <p class="hero-description">
-              Architecting low-latency distributed systems and massive-scale
-              ETL pipelines. I build the robust infrastructure that powers
-              real-time analytics for global enterprises.
+              Principal Data Engineer &amp; Architect with 8+ years of experience transforming fragmented enterprise
+              systems into scalable, high-performance data platforms, backend services, and AI-enabled web applications.
+              Specializing in bridging low-level database internals with executive strategy and deep domain expertise
+              across Supply Chain, ERP, WMS, and TMS operations.
             </p>
             <div class="hero-buttons">
               <a href="rajeev_jasti.pdf" target="_blank" rel="noopener noreferrer" class="btn" data-spring-hover>Resume
@@ -384,40 +384,15 @@
                 data-spring-hover>Ask AI <i class="fas fa-robot"></i></a>
             </div>
           </div>
-          <aside class="terminal-panel no-swipe" aria-label="Now Building panel">
+          <aside class="terminal-panel no-swipe" aria-label="Command prompt panel">
             <div class="terminal-topbar">
               <span class="terminal-dot dot-red" aria-hidden="true"></span>
               <span class="terminal-dot dot-amber" aria-hidden="true"></span>
               <span class="terminal-dot dot-green" aria-hidden="true"></span>
-              <span class="terminal-title">now-building.sh</span>
+              <span class="terminal-title">command prompt</span>
             </div>
             <div class="terminal-body" id="terminal-body">
-              <div id="terminal-output">
-                <p class="terminal-line"><span class="prompt">$</span> <span class="cmd">cat</span> current_focus.md</p>
-                <ul class="terminal-list">
-                  <li>Realtime lakehouse observability rollout</li>
-                  <li>Self-serve pipeline templates for domain teams</li>
-                </ul>
-
-                <p class="terminal-line"><span class="prompt">$</span> <span class="cmd">stack</span> <span
-                    class="flag">--active</span></p>
-                <div class="terminal-tags">
-                  <span>Kafka</span>
-                  <span>Spark</span>
-                  <span>Airflow</span>
-                  <span>Snowflake</span>
-                  <span>Terraform</span>
-                  <span>Kubernetes</span>
-                </div>
-
-                <p class="terminal-line"><span class="prompt">$</span> <span class="cmd">tail</span> <span
-                    class="flag">-n 3</span> recent_wins.log</p>
-                <ul class="terminal-list">
-                  <li><span class="output-ok">[OK]</span> P95 latency down 40%</li>
-                  <li><span class="output-ok">[OK]</span> Cloud spend down 30%</li>
-                  <li><span class="output-ok">[OK]</span> Throughput stable at 1M+ events/sec</li>
-                </ul>
-              </div>
+              <div id="terminal-output"></div>
               <div class="terminal-input-line">
                 <span class="prompt">$</span>
                 <input type="text" id="terminal-input" class="terminal-input" autocomplete="off" spellcheck="false"
@@ -429,7 +404,7 @@
 
         <div class="stats-grid">
           <div class="stat-card reveal">
-            <div class="stat-number" data-target="10" data-suffix="+">10+</div>
+            <div class="stat-number" data-target="8" data-suffix="+">8+</div>
             <div class="stat-label">Years Experience</div>
           </div>
           <div class="stat-card reveal">
@@ -459,102 +434,103 @@
           <div class="skills-carousel no-swipe" data-skills-carousel>
             <div class="skills-grid">
               <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-network-wired"></i> Data Processing</h3>
-                <div class="skill-tags">
-                  <span class="skill-tag">Apache Spark</span>
-                  <span class="skill-tag">Kafka</span>
-                  <span class="skill-tag">Apache Airflow</span>
-                  <span class="skill-tag">Apache Flink</span>
-                  <span class="skill-tag">dbt</span>
-                </div>
-              </div>
-              <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-cloud"></i> Cloud &amp; Infrastructure</h3>
+                <h3 class="skill-group-label"><i class="fas fa-cloud"></i> Cloud &amp; Serverless</h3>
                 <div class="skill-tags">
                   <span class="skill-tag">AWS</span>
-                  <span class="skill-tag">Kubernetes</span>
-                  <span class="skill-tag">Terraform</span>
-                  <span class="skill-tag">Docker</span>
-                  <span class="skill-tag">GCP</span>
+                  <span class="skill-tag">Amazon Redshift</span>
+                  <span class="skill-tag">Amazon Bedrock</span>
+                  <span class="skill-tag">Amazon S3</span>
+                  <span class="skill-tag">AWS Glue</span>
+                  <span class="skill-tag">AWS Lambda</span>
+                  <span class="skill-tag">Amazon Athena</span>
+                  <span class="skill-tag">DynamoDB</span>
+                  <span class="skill-tag">API Gateway</span>
+                  <span class="skill-tag">CloudWatch</span>
+                  <span class="skill-tag">Amazon EKS &amp; ECS</span>
+                  <span class="skill-tag">EC2 &amp; RDS</span>
+                  <span class="skill-tag">IAM, SNS &amp; SQS</span>
+                  <span class="skill-tag">Glacier</span>
                 </div>
               </div>
               <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-server"></i> Data Warehouse</h3>
+                <h3 class="skill-group-label"><i class="fas fa-brain"></i> Generative AI &amp; LLM Systems</h3>
                 <div class="skill-tags">
-                  <span class="skill-tag">Snowflake</span>
-                  <span class="skill-tag">AWS Redshift</span>
-                  <span class="skill-tag">BigQuery</span>
-                  <span class="skill-tag">Delta Lake</span>
+                  <span class="skill-tag">Amazon Bedrock (Claude)</span>
+                  <span class="skill-tag">Foundation Models</span>
+                  <span class="skill-tag">Async Streaming APIs</span>
+                  <span class="skill-tag">Prompt Engineering</span>
+                  <span class="skill-tag">Chat Summarization</span>
+                  <span class="skill-tag">Token &amp; Rate Limiting</span>
                 </div>
               </div>
               <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-code"></i> Languages</h3>
+                <h3 class="skill-group-label"><i class="fas fa-laptop-code"></i> Web &amp; Full-Stack</h3>
                 <div class="skill-tags">
-                  <span class="skill-tag">Python</span>
-                  <span class="skill-tag">JavaScript</span>
-                  <span class="skill-tag">SQL</span>
-                  <span class="skill-tag">HTML5 / CSS3</span>
-                  <span class="skill-tag">Scala</span>
-                  <span class="skill-tag">Bash</span>
-                </div>
-              </div>
-              <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-database"></i> Databases</h3>
-                <div class="skill-tags">
-                  <span class="skill-tag">PostgreSQL</span>
-                  <span class="skill-tag">asyncpg</span>
-                  <span class="skill-tag">SQLAlchemy</span>
-                  <span class="skill-tag">Alembic</span>
-                  <span class="skill-tag">MongoDB</span>
-                  <span class="skill-tag">Redis</span>
-                  <span class="skill-tag">Cassandra</span>
-                </div>
-              </div>
-              <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-chart-line"></i> Observability</h3>
-                <div class="skill-tags">
-                  <span class="skill-tag">Prometheus</span>
-                  <span class="skill-tag">Grafana</span>
-                  <span class="skill-tag">DataDog</span>
-                  <span class="skill-tag">OpenTelemetry</span>
-                </div>
-              </div>
-              <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-laptop-code"></i> Frontend Stack</h3>
-                <div class="skill-tags">
+                  <span class="skill-tag">FastAPI</span>
+                  <span class="skill-tag">JavaScript (ES Modules)</span>
+                  <span class="skill-tag">HTML5 &amp; Vanilla CSS3</span>
                   <span class="skill-tag">Three.js</span>
-                  <span class="skill-tag">Vanilla CSS</span>
-                  <span class="skill-tag">Service Workers</span>
+                  <span class="skill-tag">PWAs &amp; Service Workers</span>
+                  <span class="skill-tag">SQLAlchemy (asyncpg)</span>
+                  <span class="skill-tag">Pydantic</span>
+                  <span class="skill-tag">Node.js</span>
                   <span class="skill-tag">DOMPurify</span>
                   <span class="skill-tag">Marked.js</span>
                 </div>
               </div>
               <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-server"></i> Backend Stack</h3>
+                <h3 class="skill-group-label"><i class="fas fa-network-wired"></i> Data Engineering &amp; BI</h3>
                 <div class="skill-tags">
-                  <span class="skill-tag">FastAPI</span>
-                  <span class="skill-tag">Uvicorn</span>
-                  <span class="skill-tag">Pydantic</span>
-                  <span class="skill-tag">Structlog</span>
-                  <span class="skill-tag">python-multipart</span>
+                  <span class="skill-tag">Matillion</span>
+                  <span class="skill-tag">PySpark &amp; Spark</span>
+                  <span class="skill-tag">Looker &amp; LookML</span>
+                  <span class="skill-tag">Apache Airflow</span>
+                  <span class="skill-tag">dbt</span>
+                  <span class="skill-tag">Pandas &amp; NumPy</span>
+                  <span class="skill-tag">Matplotlib</span>
+                  <span class="skill-tag">Data Warehousing</span>
                 </div>
               </div>
               <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-brain"></i> AI &amp; Integrations</h3>
+                <h3 class="skill-group-label"><i class="fas fa-database"></i> Databases &amp; Middleware</h3>
                 <div class="skill-tags">
-                  <span class="skill-tag">AWS (Boto3)</span>
-                  <span class="skill-tag">Amazon Bedrock</span>
-                  <span class="skill-tag">FormSubmit</span>
+                  <span class="skill-tag">PostgreSQL</span>
+                  <span class="skill-tag">Microsoft SQL Server</span>
+                  <span class="skill-tag">Amazon Redshift</span>
+                  <span class="skill-tag">MySQL</span>
+                  <span class="skill-tag">Dell Boomi</span>
+                  <span class="skill-tag">Redis</span>
+                  <span class="skill-tag">Apache Kafka</span>
+                  <span class="skill-tag">RabbitMQ</span>
+                  <span class="skill-tag">Elasticsearch</span>
+                  <span class="skill-tag">DynamoDB</span>
+                  <span class="skill-tag">Alembic</span>
                 </div>
               </div>
               <div class="skill-group reveal">
-                <h3 class="skill-group-label"><i class="fas fa-tools"></i> Developer Tooling &amp; QA</h3>
+                <h3 class="skill-group-label"><i class="fas fa-code"></i> Languages &amp; Scripting</h3>
                 <div class="skill-tags">
-                  <span class="skill-tag">Node.js</span>
-                  <span class="skill-tag">JSDom</span>
+                  <span class="skill-tag">Python</span>
+                  <span class="skill-tag">JavaScript (ES6+)</span>
+                  <span class="skill-tag">T-SQL</span>
+                  <span class="skill-tag">PL/pgSQL</span>
+                  <span class="skill-tag">SQL</span>
+                  <span class="skill-tag">Bash / Linux</span>
+                </div>
+              </div>
+              <div class="skill-group reveal">
+                <h3 class="skill-group-label"><i class="fas fa-tools"></i> DevOps, Testing &amp; Tooling</h3>
+                <div class="skill-tags">
+                  <span class="skill-tag">Git</span>
+                  <span class="skill-tag">Docker</span>
+                  <span class="skill-tag">Terraform</span>
+                  <span class="skill-tag">Kubernetes (EKS)</span>
+                  <span class="skill-tag">GitHub Actions CI/CD</span>
+                  <span class="skill-tag">Pytest</span>
+                  <span class="skill-tag">Node Test Runner</span>
+                  <span class="skill-tag">JSDOM</span>
                   <span class="skill-tag">ESLint &amp; Stylelint</span>
                   <span class="skill-tag">Prettier</span>
-                  <span class="skill-tag">Pillow</span>
                 </div>
               </div>
             </div>
@@ -575,65 +551,53 @@
 
       <section id="resume">
         <h2 class="section-title">Experience</h2>
-        <p class="section-intro">Company names are intentionally omitted for confidentiality; scope and outcomes reflect
-          production work.</p>
+        <p class="section-intro">Track record of architecting scalable data platforms, enterprise OLTP/OLAP systems, full-stack web applications, and generative AI solutions.</p>
 
         <div class="item tilt-card reveal">
           <div class="item-header">
-            <span class="item-date">2022 &mdash; Present</span>
-            <span class="item-badge">Remote</span>
+            <span class="item-date">Feb 2018 &mdash; Present</span>
+            <span class="item-badge">Salt Lake City, UT &bull; Hybrid / Remote</span>
           </div>
-          <h3>Principal Data Engineer &bull; Global Enterprise</h3>
-          <p class="item-description">
-            Architected a multi-region data mesh serving 50+ internal teams.
-            Reduced cloud infrastructure costs by 30%.
-          </p>
+          <h3>Nicholas and Company</h3>
+          <div class="experience-roles">
+            <div class="role-entry">
+              <span class="role-title">Principal Data Engineer</span>
+              <span class="role-period">(Nov 2022 &mdash; Present)</span>
+            </div>
+            <div class="role-entry">
+              <span class="role-title">Data Engineer</span>
+              <span class="role-period">(Feb 2018 &mdash; Oct 2022)</span>
+            </div>
+          </div>
           <ul class="item-bullets">
-            <li>Designed and deployed Kafka-to-Snowflake CDC pipelines handling 1M+ events/sec</li>
-            <li>Led migration from monolithic ETL to modular, domain-owned data products</li>
-            <li>Reduced P95 query latency by 40% through Spark optimization and partition tuning</li>
-            <li>Mentored a team of 6 engineers across 3 time zones</li>
+            <li><strong>Enterprise Data Engineering &amp; Modeling (OLAP):</strong> Design end-to-end batch and streaming pipelines consolidating master and transactional data across ERP, WMS, TMS, and external source systems into centralized analytical warehouses and Looker/semantic modeling layers.</li>
+            <li><strong>Full-Stack &amp; Generative AI Web Applications:</strong> Architect and build high-performance web applications and Progressive Web Apps (PWAs). Integrate real-time generative AI chat and streaming LLM inference via <strong>Amazon Bedrock (Claude)</strong> with modern <strong>FastAPI</strong> asynchronous backends, <strong>Three.js</strong> interactive visuals, and responsive vanilla JavaScript/ES module frontends.</li>
+            <li><strong>Backend, Middleware &amp; Telemetry:</strong> Build distributed microservices, asynchronous REST APIs, and middleware integrations using Python, FastAPI, SQLAlchemy (asyncpg), Lambda, API Gateway, and Boomi. Engineer real-time session activity tracking and bulk event telemetry pipelines stored in relational engines.</li>
+            <li><strong>Database Systems (OLTP):</strong> Engineer complex database engines&mdash;including dynamic pricing, rebate calculation systems, and transaction engines&mdash;using stored procedures, Alembic migrations, and strict ACID transaction handling, alongside managing high-availability DBA operations.</li>
+            <li><strong>Database Administration &amp; Reliability (OLTP &amp; OLAP):</strong> Manage enterprise-grade relational and cloud database platforms (PostgreSQL, SQL Server, Amazon Redshift, Aurora), implementing automated maintenance routines, system monitoring/alerting, disaster recovery, and High Availability (HA) architectures. Drive deep query performance tuning, index optimization, and concurrency/lock management.</li>
+            <li><strong>Cloud Architecture &amp; Modernization:</strong> Architect and execute zero-downtime migrations from on-premises legacy systems to modern AWS cloud environments (Redshift, Bedrock, Glue, Lambda, Athena, S3, DynamoDB, API Gateway, EC2, RDS, ECS).</li>
+            <li><strong>DevOps, Quality &amp; Infrastructure:</strong> Deploy and monitor containerized services using Docker, Kubernetes (EKS), ECS, Kafka, and RabbitMQ on Linux systems, automated through GitHub Actions CI/CD pipelines with comprehensive automated testing (Node.js/JSDOM, Pytest, ESLint, Stylelint).</li>
           </ul>
           <div class="item-tags">
-            <span>Kafka</span><span>Spark</span><span>Snowflake</span><span>Kubernetes</span><span>Terraform</span>
-          </div>
-        </div>
-
-        <div class="item tilt-card reveal">
-          <div class="item-header">
-            <span class="item-date">2019 &mdash; 2022</span>
-            <span class="item-badge">Hybrid</span>
-          </div>
-          <h3>Senior Data Engineer &bull; Data Platform Company</h3>
-          <p class="item-description">
-            Built and owned the company's core data platform, enabling self-serve analytics for 20+ business teams.
-          </p>
-          <ul class="item-bullets">
-            <li>Delivered Airflow-orchestrated ETL pipelines processing 500GB+ nightly</li>
-            <li>Migrated legacy Oracle DWH to Snowflake, cutting storage costs by 40%</li>
-            <li>Implemented data quality framework reducing production incidents by 60%</li>
-          </ul>
-          <div class="item-tags">
-            <span>Airflow</span><span>Snowflake</span><span>Python</span><span>dbt</span><span>AWS</span>
-          </div>
-        </div>
-
-        <div class="item tilt-card reveal">
-          <div class="item-header">
-            <span class="item-date">2016 &mdash; 2019</span>
-            <span class="item-badge">On-site</span>
-          </div>
-          <h3>Data Engineer &bull; Product Analytics Team</h3>
-          <p class="item-description">
-            Developed ETL pipelines and data models supporting product analytics for 5M+ daily active users.
-          </p>
-          <ul class="item-bullets">
-            <li>Built real-time dashboards using Spark Streaming and Kafka</li>
-            <li>Designed dimensional data models in PostgreSQL and Redshift</li>
-            <li>Automated pipeline monitoring, reducing MTTR from hours to minutes</li>
-          </ul>
-          <div class="item-tags">
-            <span>Spark</span><span>Kafka</span><span>PostgreSQL</span><span>Redshift</span><span>Python</span>
+            <span>AWS</span>
+            <span>Amazon Bedrock</span>
+            <span>FastAPI</span>
+            <span>Python</span>
+            <span>PostgreSQL</span>
+            <span>SQL Server</span>
+            <span>Amazon Redshift</span>
+            <span>Three.js</span>
+            <span>Boomi</span>
+            <span>Kafka</span>
+            <span>Docker</span>
+            <span>Kubernetes (EKS)</span>
+            <span>SQLAlchemy (asyncpg)</span>
+            <span>Alembic</span>
+            <span>Looker</span>
+            <span>PySpark</span>
+            <span>Terraform</span>
+            <span>GitHub Actions</span>
+            <span>PWA</span>
           </div>
         </div>
       </section>
@@ -729,13 +693,12 @@
         <p class="section-intro">What I do when I'm not building data pipelines.</p>
         <div class="articles-grid">
           <div class="item tilt-card article-card reveal hobby-delay-1">
-            <div class="hobby-icon-wrap"><i class="fas fa-futbol"></i></div>
+            <div class="hobby-icon-wrap"><i class="fas fa-table-tennis-paddle-ball"></i></div>
             <div class="article-meta">
-              <span class="article-date article-topic">Soccer</span>
+              <span class="article-date article-topic">Sports</span>
             </div>
-            <h3>Sunday League Striker</h3>
-            <p class="article-excerpt">I play competitively on weekends, always looking to improve my striking and
-              tactical awareness on the pitch.</p>
+            <h3>Soccer &amp; Tennis</h3>
+            <p class="article-excerpt">Avid soccer fan who follows matches closely on weekends, and an active tennis player who loves hitting the court for rallies and competitive sets.</p>
           </div>
           <div class="item tilt-card article-card reveal hobby-delay-2">
             <div class="hobby-icon-wrap"><i class="fas fa-hot-tub"></i></div>

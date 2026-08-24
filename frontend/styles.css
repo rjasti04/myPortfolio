@@ -1700,7 +1700,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 
 #resume .section-intro {
   margin: 0 0 24px;
-  max-width: 64ch;
+  max-width: 100%;
   font-size: var(--text-body-lg);
   line-height: 1.7;
 }
@@ -1794,6 +1794,31 @@ body.dark-theme #resume .item {
   font-weight: 850;
   line-height: 1.25;
   letter-spacing: 0;
+}
+
+#resume .experience-roles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  margin: 10px 0 6px;
+}
+
+#resume .role-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-body);
+}
+
+#resume .role-title {
+  font-weight: 700;
+  color: var(--primary-strong);
+}
+
+#resume .role-period {
+  font-size: var(--text-body-sm);
+  color: var(--muted);
 }
 
 #resume .item-description {
