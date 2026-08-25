@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="Rajeev Jasti" />
-  <meta name="theme-color" content="hsl(348, 79%, 40%)" />
+  <meta name="theme-color" content="#F59E0B" />
   <meta name="description"
     content="Portfolio of Rajeev Jasti, Principal Data Engineer &amp; Architect specializing in enterprise data platforms, backend services, and AI-enabled web applications." />
   <link rel="canonical" href="https://rjasti.com/" />
@@ -212,8 +212,8 @@
               aria-hidden="true"></i> <span class="nav-label">About</span></a>
           <a href="#resume" data-target="resume"><i class="fas fa-briefcase nav-icon" aria-hidden="true"></i> <span
               class="nav-label">Experience</span></a>
-          <a href="#portfolio" data-target="portfolio" hidden style="display: none;"><i class="fas fa-code nav-icon" aria-hidden="true"></i> <span
-              class="nav-label">Portfolio</span></a>
+          <a href="#portfolio" data-target="portfolio" hidden style="display: none;"><i class="fas fa-code nav-icon"
+              aria-hidden="true"></i> <span class="nav-label">Portfolio</span></a>
           <a href="#hobbies" data-target="hobbies"><i class="fas fa-heart nav-icon" aria-hidden="true"></i> <span
               class="nav-label">Hobbies</span></a>
           <a href="#activity" data-target="activity"><i class="fas fa-chart-line nav-icon" aria-hidden="true"></i> <span
@@ -279,7 +279,7 @@
                 <label class="customizer-presets-label">Terminal Presets</label>
                 <div class="preset-buttons">
                   <button type="button" class="preset-btn" data-preset="matrix">Matrix</button>
-                  <button type="button" class="preset-btn" data-preset="solarized">Solarized</button>
+                  <button type="button" class="preset-btn" data-preset="nord">Nord</button>
                   <button type="button" class="preset-btn" data-preset="dracula">Dracula</button>
                 </div>
               </div>
@@ -288,28 +288,28 @@
                 <div class="color-picker-group">
                   <label for="color-primary">Primary</label>
                   <button type="button" class="color-input-wrapper" id="color-primary" data-color-key="primary"
-                    data-color-value="#0ea5e9" style="--selected-color: #0ea5e9;" aria-haspopup="dialog"
+                    data-color-value="#F59E0B" style="--selected-color: #F59E0B;" aria-haspopup="dialog"
                     aria-expanded="false" aria-controls="theme-color-popover">
                     <span class="color-preview" aria-hidden="true"></span>
-                    <span class="color-hex-display" id="hex-primary">#0ea5e9</span>
+                    <span class="color-hex-display" id="hex-primary">#F59E0B</span>
                   </button>
                 </div>
                 <div class="color-picker-group">
                   <label for="color-secondary">Secondary</label>
                   <button type="button" class="color-input-wrapper" id="color-secondary" data-color-key="secondary"
-                    data-color-value="#a855f7" style="--selected-color: #a855f7;" aria-haspopup="dialog"
+                    data-color-value="#859900" style="--selected-color: #859900;" aria-haspopup="dialog"
                     aria-expanded="false" aria-controls="theme-color-popover">
                     <span class="color-preview" aria-hidden="true"></span>
-                    <span class="color-hex-display" id="hex-secondary">#a855f7</span>
+                    <span class="color-hex-display" id="hex-secondary">#859900</span>
                   </button>
                 </div>
                 <div class="color-picker-group">
                   <label for="color-accent">Highlight</label>
                   <button type="button" class="color-input-wrapper" id="color-accent" data-color-key="accent"
-                    data-color-value="#10b981" style="--selected-color: #10b981;" aria-haspopup="dialog"
+                    data-color-value="#B58900" style="--selected-color: #B58900;" aria-haspopup="dialog"
                     aria-expanded="false" aria-controls="theme-color-popover">
                     <span class="color-preview" aria-hidden="true"></span>
-                    <span class="color-hex-display" id="hex-accent">#10b981</span>
+                    <span class="color-hex-display" id="hex-accent">#B58900</span>
                   </button>
                 </div>
               </div>
@@ -455,7 +455,7 @@
               <div class="skill-group reveal">
                 <h3 class="skill-group-label"><i class="fas fa-brain"></i> Generative AI &amp; LLM Systems</h3>
                 <div class="skill-tags">
-                  <span class="skill-tag">Amazon Bedrock (Claude)</span>
+                  <span class="skill-tag">Amazon Bedrock</span>
                   <span class="skill-tag">Foundation Models</span>
                   <span class="skill-tag">Async Streaming APIs</span>
                   <span class="skill-tag">Prompt Engineering</span>
@@ -551,7 +551,8 @@
 
       <section id="resume">
         <h2 class="section-title">Experience</h2>
-        <p class="section-intro">Track record of architecting scalable data platforms, enterprise OLTP/OLAP systems, full-stack web applications, and generative AI solutions.</p>
+        <p class="section-intro">Track record of architecting scalable data platforms, enterprise OLTP/OLAP systems,
+          full-stack web applications, and generative AI solutions.</p>
 
         <div class="item tilt-card reveal">
           <div class="item-header">
@@ -570,13 +571,41 @@
             </div>
           </div>
           <ul class="item-bullets">
-            <li><strong>Enterprise Data Engineering &amp; Modeling (OLAP):</strong> Design end-to-end batch and streaming pipelines consolidating master and transactional data across ERP, WMS, TMS, and external source systems into centralized analytical warehouses and Looker/semantic modeling layers.</li>
-            <li><strong>Full-Stack &amp; Generative AI Web Applications:</strong> Architect and build high-performance web applications and Progressive Web Apps (PWAs). Integrate real-time generative AI chat and streaming LLM inference via <strong>Amazon Bedrock (Claude)</strong> with modern <strong>FastAPI</strong> asynchronous backends, <strong>Three.js</strong> interactive visuals, and responsive vanilla JavaScript/ES module frontends.</li>
-            <li><strong>Backend, Middleware &amp; Telemetry:</strong> Build distributed microservices, asynchronous REST APIs, and middleware integrations using Python, FastAPI, SQLAlchemy (asyncpg), Lambda, API Gateway, and Boomi. Engineer real-time session activity tracking and bulk event telemetry pipelines stored in relational engines.</li>
-            <li><strong>Database Systems (OLTP):</strong> Engineer complex database engines&mdash;including dynamic pricing, rebate calculation systems, and transaction engines&mdash;using stored procedures, Alembic migrations, and strict ACID transaction handling, alongside managing high-availability DBA operations.</li>
-            <li><strong>Database Administration &amp; Reliability (OLTP &amp; OLAP):</strong> Manage enterprise-grade relational and cloud database platforms (PostgreSQL, SQL Server, Amazon Redshift, Aurora), implementing automated maintenance routines, system monitoring/alerting, disaster recovery, and High Availability (HA) architectures. Drive deep query performance tuning, index optimization, and concurrency/lock management.</li>
-            <li><strong>Cloud Architecture &amp; Modernization:</strong> Architect and execute zero-downtime migrations from on-premises legacy systems to modern AWS cloud environments (Redshift, Bedrock, Glue, Lambda, Athena, S3, DynamoDB, API Gateway, EC2, RDS, ECS).</li>
-            <li><strong>DevOps, Quality &amp; Infrastructure:</strong> Deploy and monitor containerized services using Docker, Kubernetes (EKS), ECS, Kafka, and RabbitMQ on Linux systems, automated through GitHub Actions CI/CD pipelines with comprehensive automated testing (Node.js/JSDOM, Pytest, ESLint, Stylelint).</li>
+            <li><strong>Enterprise Data Engineering &amp; Modeling (OLAP):</strong> Accelerated analytics delivery and
+              unified fragmented operational reporting across ERP, WMS, and TMS domains into a centralized Amazon
+              Redshift data warehouse, substantially reducing query latency and pipeline SLA delivery times, by
+              architecting high-throughput batch/streaming pipelines, designing dimensional Star/Snowflake schemas, and
+              establishing a governed Looker semantic modeling layer.</li>
+            <li><strong>Backend, Middleware &amp; Telemetry:</strong> Scaled enterprise event telemetry ingestion and
+              distributed middleware integrations across heterogeneous systems, sustaining high-volume event throughput
+              with low-latency API response times and zero data loss, by engineering non-blocking Python/FastAPI REST
+              APIs with <code>asyncpg</code> connection pooling, building AWS Lambda &amp; Boomi iPaaS integration layers,
+              and designing relational event stores with structured telemetry schemas.</li>
+            <li><strong>Database Systems (OLTP):</strong> Eliminated pricing discrepancies and accelerated transactional
+              calculation throughput for mission-critical pricing and rebate engines, significantly cutting batch
+              calculation runtimes while guaranteeing strict ACID compliance under heavy transactional concurrency,
+              by designing optimized relational schemas, implementing robust stored procedures/triggers, managing
+              pessimistic/optimistic concurrency control, and automating declarative schema migrations with Alembic.</li>
+            <li><strong>Database Administration &amp; Reliability (OLTP &amp; OLAP):</strong> Maintained high-availability
+              database operations and optimized query efficiency across hybrid multi-database clusters (PostgreSQL, SQL
+              Server, Amazon Redshift, Aurora), significantly reducing P95 query execution latency and eliminating system
+              deadlocks, by implementing multi-AZ failover and automated disaster recovery, structuring indexing/vacuum
+              maintenance routines, and performing execution plan profiling with fine-grained lock tuning.</li>
+            <li><strong>Cloud Architecture &amp; Modernization:</strong> Modernized legacy on-premises infrastructure
+              into an elastic, event-driven AWS cloud platform, reducing infrastructure overhead and completing
+              migrations with <strong>zero cutover downtime</strong> across enterprise-scale data assets, by
+              architecting cloud topologies leveraging Amazon Redshift, AWS Glue ETL, Lambda, Athena, S3 data lake tiers,
+              DynamoDB, RDS Aurora, and containerized ECS workloads.</li>
+            <li><strong>DevOps, Quality &amp; Infrastructure:</strong> Accelerated release velocity and reinforced
+              production reliability across distributed message-driven services, dramatically shortening deployment
+              cycle times while achieving high test coverage and zero regression escapes, by orchestrating containerized
+              workloads on Docker/EKS/ECS, provisioning Kafka and RabbitMQ event brokers on Linux, and establishing
+              GitHub Actions CI/CD pipelines with automated Pytest, Node.js/JSDOM, ESLint, and Stylelint quality gates.</li>
+            <li><strong>Full-Stack &amp; Generative AI Web Applications:</strong> Delivered responsive Progressive Web
+              Apps (PWAs) with interactive 3D visualizations and conversational AI capabilities, achieving
+              ultra-low time-to-first-token (TTFT) streaming latency and high platform availability, by engineering
+              asynchronous FastAPI microservices, streaming Amazon Bedrock LLM inference over Server-Sent Events/WebSockets,
+              rendering Three.js GPU-accelerated graphics, and developing zero-dependency ES module frontends.</li>
           </ul>
           <div class="item-tags">
             <span>AWS</span>
@@ -698,7 +727,8 @@
               <span class="article-date article-topic">Sports</span>
             </div>
             <h3>Soccer &amp; Tennis</h3>
-            <p class="article-excerpt">Avid soccer fan who follows matches closely on weekends, and an active tennis player who loves hitting the court for rallies and competitive sets.</p>
+            <p class="article-excerpt">Avid soccer fan who follows matches closely on weekends, and an active tennis
+              player who loves hitting the court for rallies and competitive sets.</p>
           </div>
           <div class="item tilt-card article-card reveal hobby-delay-2">
             <div class="hobby-icon-wrap"><i class="fas fa-hot-tub"></i></div>

@@ -1,19 +1,19 @@
 :root {
-  /* Vibrant Modern Color System - Crimson & Gold */
-  --accent-hue: 348;
-  --accent-fill: hsl(348, 66%, 45%);
-  --accent-text: hsl(348, 66%, 38%);
-  --accent-hover: hsl(348, 66%, 34%);
+  /* Vibrant Solarized System - Amber & Olive */
+  --accent-hue: 38;
+  --accent-fill: hsl(38, 92%, 50%);
+  --accent-text: hsl(38, 92%, 35%);
+  --accent-hover: hsl(38, 92%, 40%);
   --accent: var(--accent-fill);
-  --accent-soft: hsl(348, 66%, 45%, 0.12);
-  --accent-mild: hsl(348, 66%, 45%, 0.58);
-  --secondary-fill: hsl(44, 80%, 46%);
-  --secondary-text: hsl(44, 80%, 40%);
-  --data-fill: hsl(166, 63%, 49%);
-  --data-text: hsl(166, 63%, 42%);
+  --accent-soft: hsla(38, 92%, 50%, 0.15);
+  --accent-mild: hsla(38, 92%, 50%, 0.58);
+  --secondary-fill: hsl(68, 100%, 30%);
+  --secondary-text: hsl(68, 100%, 25%);
+  --data-fill: hsl(45, 100%, 35%);
+  --data-text: hsl(45, 100%, 28%);
   --on-accent: #fff;
   --bg: #f8fafb;
-  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, #fde8ec 35%, #fffaf0 70%, #fdf8f0);
+  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, hsl(38, 55%, 95%) 35%, hsl(68, 50%, 96%) 70%, #fdfdfd);
   --text: #0f172a;
   --muted: #3f4b5a;
   --border: hsl(220, 39%, 11%, 0.13);
@@ -21,7 +21,7 @@
   --surface: hsl(0, 0%, 100%, 0.92);
   --surface-soft: hsl(0, 0%, 100%, 0.70);
   --card-bg: var(--surface);
-  --skill-bg: hsl(348, 40%, 98%, 0.80);
+  --skill-bg: hsl(38, 40%, 97%, 0.85);
   --header-height: 72px;
   scroll-padding-top: calc(var(--header-height) + 24px);
   --radius: 20px;
@@ -118,14 +118,14 @@ body.dark-theme {
   --card-bg: var(--surface);
   --skill-bg: hsl(210, 20%, 14%, 0.72);
   --select-bg: #0f1419;
-  /* Vibrant dark theme accent colors - Crimson & Gold */
-  --accent-fill: hsl(348, 66%, 52%);
-  --accent-text: hsl(348, 66%, 58%);
-  --accent-hover: hsl(348, 66%, 44%);
-  --accent-soft: hsl(348, 66%, 52%, 0.18);
-  --accent-mild: hsl(348, 66%, 52%, 0.58);
-  --secondary-text: hsl(44, 80%, 54%);
-  --data-text: hsl(166, 63%, 52%);
+  /* Solarized dark theme accent colors */
+  --accent-fill: hsl(38, 92%, 55%);
+  --accent-text: hsl(38, 92%, 65%);
+  --accent-hover: hsl(38, 92%, 45%);
+  --accent-soft: hsla(38, 92%, 55%, 0.20);
+  --accent-mild: hsla(38, 92%, 55%, 0.58);
+  --secondary-text: hsl(68, 100%, 45%);
+  --data-text: hsl(45, 100%, 50%);
   --color-success: #34d399;
   --color-warning: #fbbf24;
   --color-error: #fb7185;
@@ -354,7 +354,7 @@ header {
   margin: 0 2.5%;
   border-radius: 999px;
   height: var(--header-height);
-  padding: 0 28px;
+  padding: 0 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3771,7 +3771,7 @@ body.dark-theme .skill-tag {
   }
 
   header {
-    padding: 0 16px;
+    padding: 0 6px;
     top: 10px;
     margin: 0 12px;
     border-radius: 999px;
@@ -7319,7 +7319,7 @@ body.dark-theme .ai-input-container {
 .scroll-to-top {
   position: fixed;
   bottom: 30px;
-  right: 30px;
+  left: 30px;
   width: 50px;
   height: 50px;
   border-radius: 50%;
@@ -7359,10 +7359,11 @@ body.dark-theme .ai-input-container {
   transform: scale(0.95);
 }
 
-@media (max-width: 768px) {
+@media (width <= 1150px) {
   .scroll-to-top {
-    bottom: 90px;
-    right: 20px;
+    bottom: calc(var(--mobile-bottom-nav-height, 64px) + 20px + env(safe-area-inset-bottom, 0px));
+    left: calc(20px + env(safe-area-inset-left, 0px));
+    right: auto;
     width: 46px;
     height: 46px;
   }

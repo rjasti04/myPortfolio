@@ -22,7 +22,7 @@ export function applyTheme(isDark) {
     // Read from body because customizer applies properties on body
     const accentColor = getComputedStyle(document.body)
       .getPropertyValue('--accent-fill').trim();
-    themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#c02645"));
+    themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#F59E0B"));
   }
 }
 

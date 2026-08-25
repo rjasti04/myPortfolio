@@ -53,6 +53,7 @@ function closeTransientUi() {
 export function setActiveSection(target) {
   if (!target || !window.AppLogic?.setActiveSection) return;
   window.AppLogic.setActiveSection(target, sections, navLinks);
+  updateMobileNavActive(target);
 }
 
 export function navigateToSection(target, { updateHash = true } = {}) {
@@ -368,7 +369,7 @@ function initMobileBottomNav() {
 
   const navItems = [
     { target: 'about', icon: 'fa-home', label: 'Home' },
-    { target: 'portfolio', icon: 'fa-briefcase', label: 'Work' },
+    { target: 'resume', icon: 'fa-briefcase', label: 'Work' },
     { target: 'ai', icon: 'fa-robot', label: 'AI' },
     { target: 'contact', icon: 'fa-envelope', label: 'Contact' }
   ];
