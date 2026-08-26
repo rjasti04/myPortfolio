@@ -36,8 +36,8 @@ The application relies on Vanilla ES modules. State is generally local to the mo
 A lightweight, asynchronous Python API.
 
 *   **`server/main.py`**: The FastAPI application.
-    *   **Endpoints:** Expected to handle AI chat generation (via Amazon Bedrock) and analytics tracking.
-    *   **Stack:** `asyncpg` for raw SQL interactions (No ORM), `Pydantic v2` for data validation, `boto3` for AWS services.
+    *   **Endpoints:** Handles AI chat generation (via Amazon Bedrock), authentication, and analytics tracking.
+    *   **Stack:** `SQLAlchemy` ORM with `asyncpg` driver (managed via `alembic` migrations), `Pydantic v2` for data validation, `boto3` for AWS services.
 *   **`server/requirements.txt`**: Backend dependencies.
 
 ## Key Data Flows
@@ -51,9 +51,9 @@ A lightweight, asynchronous Python API.
 2.  **Analytics Tracking (Frontend -> Backend -> PostgreSQL):**
     *   `analytics.js` / `activity.js` monitor user interactions (clicks, scrolls, time on page).
     *   Data is periodically flushed to the FastAPI backend.
-    *   FastAPI inserts records into `user_sessions` and `user_activity_events` using raw SQL (`asyncpg`).
+    *   FastAPI persists records into `user_sessions` and `user_activity_events` via SQLAlchemy models.
 
 ## Conventions & Constraints
 *   **Vanilla First:** Avoid introducing heavy frontend frameworks (React, Vue) or CSS frameworks unless explicitly required.
 *   **Performant Animations:** Rely on CSS transitions and `requestAnimationFrame` for JS animations (Three.js).
-*   **No Backend ORM:** Database queries are written in raw SQL using `asyncpg`.
+*   **ORM & Migrations:** Database models use SQLAlchemy ORM (`server/models/`) with async sessions. All schema changes must be applied via Alembic migrations (`server/alembic/`).

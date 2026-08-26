@@ -150,6 +150,13 @@ export function initNavigation() {
     });
   });
 
+  document.querySelectorAll(".logo-text[data-target], #logo-home-link").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      navigateToSection(link.dataset.target || "about");
+    });
+  });
+
   // Generic Dropdown Logic
   const dropdownToggles = document.querySelectorAll('.header-dropdown > button');
   dropdownToggles.forEach(toggle => {

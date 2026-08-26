@@ -76,6 +76,29 @@ function initCarouselLogic(carousel, track, slides) {
       slide.removeAttribute("aria-hidden");
     });
     dots.forEach((d) => d.classList.remove("is-active"));
+    track.style.height = "";
+    track.style.minHeight = "";
+  }
+
+  function updateTrackHeight() {
+    if (!isMobile) {
+      track.style.height = "";
+      track.style.minHeight = "";
+      return;
+    }
+    let maxHeight = 0;
+    slides.forEach((slide) => {
+      const label = slide.querySelector(".skill-group-label");
+      const tags = slide.querySelector(".skill-tags");
+      const labelH = label ? label.offsetHeight : 28;
+      const tagsH = tags ? tags.scrollHeight : 100;
+      // padding-top (14px) + label + label-margin (10px) + tags + padding-bottom (56px) + borders/buffer (12px)
+      const totalH = labelH + tagsH + 92;
+      if (totalH > maxHeight) maxHeight = totalH;
+    });
+    maxHeight = Math.max(maxHeight, 320);
+    track.style.height = `${maxHeight}px`;
+    track.style.minHeight = `${maxHeight}px`;
   }
 
   function goTo(idx) {
@@ -203,6 +226,7 @@ function initCarouselLogic(carousel, track, slides) {
       carousel.classList.add("carousel-initialized");
       void carousel.offsetHeight;
       goTo(activeIdx);
+      updateTrackHeight();
       startAutoplay();
     } else {
       stopAutoplay();
@@ -229,11 +253,16 @@ function initCarouselLogic(carousel, track, slides) {
     prefersReducedMotion.addListener(onMotionChange);
   }
 
+  window.addEventListener("resize", () => {
+    if (isMobile) updateTrackHeight();
+  }, { passive: true });
+
   if (isMobile) {
     carousel.classList.add("carousel-initialized");
     // Force reflow to ensure CSS classes are applied before render
     void carousel.offsetHeight;
     render();
+    updateTrackHeight();
     startAutoplay();
   }
 }

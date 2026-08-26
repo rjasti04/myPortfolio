@@ -1,7 +1,6 @@
 import { trackEvent } from "./analytics.js";
 import { prefersReducedMotion } from "./config.js";
 import { escapeHTML } from "./utils.js";
-import { highlightCode } from "./syntax-highlighter.js";
 
 function evaluateMathExpression(expr) {
   let index = 0;
@@ -111,7 +110,7 @@ export function initTerminal() {
   });
 
   // Animated placeholder: cycles through example commands until the user interacts
-  const placeholderSamples = ["help", "whoami", "skills", "projects", "neofetch", "fortune"];
+  const placeholderSamples = ["help", "whoami", "skills", "fortune"];
   const basePlaceholder = "Type 'help' to see commands...";
   let placeholderAnimationId = null;
   let placeholderStopped = false;
@@ -139,7 +138,7 @@ export function initTerminal() {
 
       if (phase === "typing") {
         charIdx++;
-        terminalInput.setAttribute("placeholder", sample.slice(0, charIdx) + "\u2588");
+        terminalInput.setAttribute("placeholder", sample.slice(0, charIdx) + "\u258E");
         if (charIdx >= sample.length) {
           phase = "holding";
           delay = 1200;
@@ -150,7 +149,7 @@ export function initTerminal() {
         delay = 500;
       } else if (phase === "erasing") {
         charIdx--;
-        terminalInput.setAttribute("placeholder", sample.slice(0, charIdx) + "\u2588");
+        terminalInput.setAttribute("placeholder", sample.slice(0, charIdx) + "\u258E");
         if (charIdx <= 0) {
           phase = "pausing";
           delay = 400;
@@ -179,48 +178,31 @@ export function initTerminal() {
       return `
         <ul class="terminal-list">
           <li><strong>whoami</strong>    - Display details about me</li>
-          <li><strong>ai</strong>        - Launch the AI assistant</li>
-          <li><strong>projects</strong>  - Current high-level focuses</li>
-          <li><strong>skills</strong>    - Technologies I work with</li>
+          <li><strong>skills</strong>    - Technologies &amp; frameworks I work with</li>
           <li><strong>cd</strong>        - Navigate sections (e.g., cd portfolio)</li>
           <li><strong>ls</strong>        - List available sections</li>
-          <li><strong>cat</strong>       - View a file (e.g., cat contact.md)</li>
           <li><strong>wget</strong>      - Download files (e.g., wget resume)</li>
-          <li><strong>neofetch</strong>  - System info card</li>
-          <li><strong>system-stats</strong> - Display real-time data pipelines & system load</li>
           <li><strong>cowsay</strong>    - Make the cow say something</li>
           <li><strong>fortune</strong>   - Random wisdom</li>
-          <li><strong>ping</strong>      - Ping a host</li>
-          <li><strong>uptime</strong>    - How long I've been engineering</li>
           <li><strong>history</strong>   - Show command history</li>
           <li><strong>matrix</strong>    - Toggle Hacker Mode</li>
           <li><strong>calc</strong>      - Evaluate a math expression</li>
           <li><strong>theme</strong>     - Toggle dark/light theme</li>
           <li><strong>echo</strong>      - Print given arguments</li>
           <li><strong>date</strong>      - Print current date and time</li>
-          <li><strong>code</strong>      - Display sample ETL pipeline code</li>
-          <li><strong>cat</strong>       - Display file contents</li>
           <li><strong>clear</strong>     - Clear the terminal</li>
         </ul>
       `;
-    },
-    code: () => {
-      const pyCode = `def process_streaming_events(event_stream):\n    """ETL Pipeline Event Processor"""\n    return event_stream.filter(lambda e: e.status == 200).map(lambda e: e.payload)`;
-      return `<pre><button type="button" class="code-copy-btn" data-code="${encodeURIComponent(pyCode)}" title="Copy code"><i class="fas fa-copy"></i> <span>Copy</span></button>${highlightCode(pyCode, "python")}</pre>`;
-    },
-    cat: (args) => {
-      const filename = args[0] || "etl.py";
-      const sampleSql = `SELECT user_id, COUNT(*) as events\nFROM analytics.user_events\nWHERE event_date >= CURRENT_DATE - INTERVAL '7 days'\nGROUP BY 1 ORDER BY 2 DESC;`;
-      return `<p class="terminal-output-text">Displaying ${escapeHTML(filename)}:</p><pre><button type="button" class="code-copy-btn" data-code="${encodeURIComponent(sampleSql)}" title="Copy code"><i class="fas fa-copy"></i> <span>Copy</span></button>${highlightCode(sampleSql, "sql")}</pre>`;
     },
     whoami: () => {
       return `
         <ul class="terminal-list">
           <li><strong>Name:</strong> Rajeev Jasti</li>
-          <li><strong>Role:</strong> Principal Data Engineer</li>
-          <li><strong>Location:</strong> Earth (Remote)</li>
+          <li><strong>Role:</strong> Principal Data Engineer &amp; Architect</li>
+          <li><strong>Experience:</strong> 8+ Years (Feb 2018 &mdash; Present at Nicholas and Company)</li>
+          <li><strong>Location:</strong> Salt Lake City, UT (Remote)</li>
           <li><strong>Contact:</strong> inboxtorj@gmail.com</li>
-          <li><strong>Bio:</strong> Architecting low-latency distributed systems and massive-scale ETL pipelines.</li>
+          <li><strong>Focus:</strong> Enterprise data platforms (OLTP/OLAP), distributed systems, async backend APIs, and Generative AI solutions.</li>
         </ul>
       `;
     },
@@ -231,21 +213,18 @@ export function initTerminal() {
       }, 500);
       return `<p class="terminal-output-text">Initializing neural interface... Redirecting to AI portal.</p>`;
     },
-    projects: () => {
-      return `
-        <ul class="terminal-list">
-          <li>Realtime lakehouse observability rollout</li>
-          <li>Self-serve pipeline templates for domain teams</li>
-          <li>P95 latency reduction optimizations</li>
-        </ul>
-      `;
-    },
     skills: () => {
       return `
-        <div class="terminal-tags">
-          <span>AWS</span><span>Bedrock</span><span>FastAPI</span>
-          <span>PySpark</span><span>Kafka</span><span>PostgreSQL</span>
-          <span>Redshift</span><span>Docker</span><span>Terraform</span>
+        <ul class="terminal-list">
+          <li><strong>Cloud &amp; Serverless:</strong> Amazon Redshift, Amazon Bedrock, S3, AWS Glue, Lambda, Athena, DynamoDB, EKS, ECS, RDS, CloudWatch</li>
+          <li><strong>Backend &amp; APIs:</strong> Python, FastAPI, boto3, SQLAlchemy (asyncpg), Pydantic, Multiprocessing, Multithreading</li>
+          <li><strong>Data Engineering &amp; BI:</strong> Matillion, PySpark, Looker, Pandas, NumPy</li>
+          <li><strong>Databases &amp; Middleware:</strong> PostgreSQL, SQL Server, Amazon Redshift, MySQL, Dell Boomi, Redis, Apache Kafka, RabbitMQ, Elasticsearch, Alembic</li>
+          <li><strong>Languages &amp; Scripting:</strong> Python, T-SQL, PL/pgSQL, SQL, Bash / Linux</li>
+          <li><strong>DevOps &amp; Tooling:</strong> Git, Docker, Terraform, Kubernetes, GitHub Actions CI/CD, Pytest</li>
+        </ul>
+        <div class="terminal-tags" style="margin-top: 8px;">
+          <span>AWS</span><span>Amazon Bedrock</span><span>Amazon Redshift</span><span>FastAPI</span><span>Python</span><span>PySpark</span><span>PostgreSQL</span><span>SQL Server</span><span>Looker</span><span>Matillion</span><span>Dell Boomi</span><span>Apache Kafka</span><span>Docker</span><span>Kubernetes</span><span>Terraform</span><span>GitHub Actions</span>
         </div>
       `;
     },
@@ -324,30 +303,6 @@ export function initTerminal() {
         return `<p class="terminal-output-text">calc: invalid expression</p>`;
       }
     },
-    neofetch: () => {
-      const isDark = document.body.classList.contains("dark-theme");
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      return `
-        <pre class="terminal-output-text" style="line-height:1.4;white-space:pre">  ____     _ 
- |  _ \   | |
- | |_) |  | |
- |  _ < _ | |
- |_| \_(_)|_|</pre>
-        <ul class="terminal-list">
-          <li><strong>rjasti</strong>@portfolio</li>
-          <li>─────────────────</li>
-          <li><strong>OS:</strong> Portfolio v1.0</li>
-          <li><strong>Host:</strong> rjasti.com</li>
-          <li><strong>Uptime:</strong> 8+ years in engineering</li>
-          <li><strong>Shell:</strong> bash</li>
-          <li><strong>Theme:</strong> ${isDark ? "dark \uD83C\uDF19" : "light \u2600\uFE0F"}</li>
-          <li><strong>Resolution:</strong> ${w}\u00D7${h}</li>
-          <li><strong>Stack:</strong> Kafka, Spark, Airflow, Snowflake</li>
-          <li><strong>Contact:</strong> inboxtorj@gmail.com</li>
-        </ul>
-      `;
-    },
     cowsay: (args) => {
       const text = args.length ? escapeHTML(args.join(" ")).substring(0, 40) : "moo";
       const line = "\u2500".repeat(text.length + 2);
@@ -369,52 +324,8 @@ export function initTerminal() {
       const quote = quotes[Math.floor(Math.random() * quotes.length)];
       return `<p class="terminal-output-text" style="font-style:italic">${escapeHTML(quote)}</p>`;
     },
-    ping: (args) => {
-      const host = args[0] || "google.com";
-      const safeHost = escapeHTML(host.substring(0, 40));
-      const ip = "142.250.80." + Math.floor(Math.random() * 255);
-      const t1 = (10 + Math.random() * 8).toFixed(1);
-      const t2 = (10 + Math.random() * 8).toFixed(1);
-      const t3 = (10 + Math.random() * 8).toFixed(1);
-      const times = [t1, t2, t3].map(Number);
-      const avg = (times.reduce((a, b) => a + b, 0) / 3).toFixed(1);
-      return `<pre class="terminal-output-text" style="line-height:1.5;white-space:pre">PING ${safeHost} (${ip}): 56 data bytes\n64 bytes from ${ip}: icmp_seq=0 ttl=117 time=${t1} ms\n64 bytes from ${ip}: icmp_seq=1 ttl=117 time=${t2} ms\n64 bytes from ${ip}: icmp_seq=2 ttl=117 time=${t3} ms\n\n--- ${safeHost} ping statistics ---\n3 packets transmitted, 3 received, 0% packet loss\nround-trip min/avg/max = ${Math.min(...times)}/${avg}/${Math.max(...times)} ms</pre>`;
-    },
     ls: () => {
       return `<pre class="terminal-output-text" style="color:var(--terminal-green);white-space:pre">about/    resume/    portfolio/    hobbies/    contact/</pre>`;
-    },
-    cat: (args) => {
-      if (!args.length) return `<p class="terminal-output-text">cat: missing file operand</p>`;
-      const file = args[0].toLowerCase().replace(/\.md$/, "");
-      if (file === "contact") {
-        return `
-          <ul class="terminal-list">
-            <li><strong>Email:</strong> inboxtorj@gmail.com</li>
-            <li><strong>LinkedIn:</strong> linkedin.com/in/rajeev-jasti-326080169</li>
-            <li><strong>GitHub:</strong> github.com/rjasti04</li>
-            <li><strong>Website:</strong> rjasti.com</li>
-          </ul>
-        `;
-      }
-      if (file === "readme" || file === "about") {
-        return `<p class="terminal-output-text">Principal Data Engineer with 8+ years building distributed systems and massive-scale ETL pipelines.</p>`;
-      }
-      if (file === "current_focus") {
-        return `
-          <ul class="terminal-list">
-            <li>Realtime lakehouse observability rollout</li>
-            <li>Self-serve pipeline templates for domain teams</li>
-          </ul>
-        `;
-      }
-      return `<p class="terminal-output-text">cat: ${escapeHTML(args[0])}: No such file or directory</p>`;
-    },
-    uptime: () => {
-      const start = new Date(2016, 0, 1);
-      const now = new Date();
-      const years = now.getFullYear() - start.getFullYear();
-      const days = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-      return `<p class="terminal-output-text">${escapeHTML(now.toLocaleTimeString())} up ${years} years, ${days} days, 50+ projects shipped</p>`;
     },
     history: () => {
       if (commandHistory.length === 0) {
@@ -425,40 +336,6 @@ export function initTerminal() {
     },
     sudo: () => {
       return `<p class="terminal-line terminal-error">rjasti is not in the sudoers file. This incident will be reported.</p>`;
-    },
-    "system-stats": () => {
-      const cpuPercent = Math.floor(25 + Math.random() * 40);
-      const memPercent = Math.floor(55 + Math.random() * 20);
-
-      const cpuBarLength = Math.round(cpuPercent / 5);
-      const memBarLength = Math.round(memPercent / 5);
-
-      const cpuBar = "█".repeat(cpuBarLength) + "░".repeat(20 - cpuBarLength);
-      const memBar = "█".repeat(memBarLength) + "░".repeat(20 - memBarLength);
-
-      return `
-        <pre class="terminal-output-text" style="line-height:1.5;white-space:pre;font-family:monospace">
-  HOST: rjasti.com      OS: DataOS v2.4      UPTIME: 8+ Years      LOAD: 0.28, 0.44, 0.32
-
-  CPU [${cpuBar}] ${cpuPercent}.0% (8 Cores active)
-  MEM [${memBar}] ${memPercent}.0% (${(16 * memPercent / 100).toFixed(1)} GB / 16.0 GB)
-
-  ACTIVE STREAMS & DATA PIPELINES:
-  ┌──────────────────────┬─────────────┬──────────────┬─────────────┐
-  │ Pipeline Name        │ Source      │ Target       │ Status      │
-  ├──────────────────────┼─────────────┼──────────────┼─────────────┤
-  │ clickstream-ingress  │ Kafka       │ Snowflake    │ <span style="color:var(--terminal-green)">ACTIVE (OK)</span> │
-  │ sessions-heartbeat   │ Website API │ PostgreSQL   │ <span style="color:var(--terminal-green)">ACTIVE (OK)</span> │
-  │ model-training-job   │ S3 Bucket   │ Bedrock LLM  │ <span style="color:var(--terminal-muted)">COMPLETED</span>   │
-  └──────────────────────┴─────────────┴──────────────┴─────────────┘
-
-  INFRASTRUCTURE STATUS:
-  - Kafka Brokers:  [<span style="color:var(--terminal-green)">3/3 ONLINE</span>]  (Broker-1: OK, Broker-2: OK, Broker-3: OK)
-  - Spark Cluster:  [8 Workers active, 64 Cores, 256GB Memory]
-  - PostgreSQL:     [Connection Pool: 8/10 active connections]
-  - AWS Bedrock:    [US-EAST-1 Endpoint: <span style="color:var(--terminal-green)">ONLINE</span>, Gemma-3-12B]
-        </pre>
-      `;
     }
   };
 
