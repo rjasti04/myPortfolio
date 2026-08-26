@@ -306,8 +306,10 @@ export function initNavigation() {
   onOnline(hideOfflineBanner);
 
   // Feature 4: Keyboard shortcut hints on nav links
+  const visibleNavLinks = navLinks.filter((link) => !link.hasAttribute("hidden") && link.style.display !== "none");
+
   if (supportsHover.matches) {
-    navLinks.forEach((link, index) => {
+    visibleNavLinks.forEach((link, index) => {
       const kbd = document.createElement("kbd");
       kbd.className = "nav-shortcut";
       // BUG FIX ROOT CAUSE: Guide numbers inside kbd tag are announced by screen readers, creating audio noise
@@ -318,16 +320,16 @@ export function initNavigation() {
     });
   }
 
-  // Number key navigation (1-5)
+  // Number key navigation
   document.addEventListener("keydown", (event) => {
     const tag = document.activeElement?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
 
     const num = parseInt(event.key, 10);
-    if (num >= 1 && num <= navLinks.length) {
+    if (num >= 1 && num <= visibleNavLinks.length) {
       event.preventDefault();
-      const target = navLinks[num - 1]?.dataset.target;
+      const target = visibleNavLinks[num - 1]?.dataset.target;
       if (target) navigateToSection(target);
     }
   });
@@ -419,14 +421,14 @@ function updateMobileNavActive(target) {
 }
 
 function initSwipeGestures() {
-  const sectionOrder = ['about', 'resume', 'portfolio', 'hobbies', 'activity', 'ai', 'contact'];
+  const sectionOrder = ['about', 'resume', 'hobbies', 'activity', 'ai', 'contact'];
 
   new SwipeHandler({
     threshold: 75,
     onSwipeLeft: () => {
       const currentSection = document.querySelector('main section.active')?.id;
       const currentIndex = sectionOrder.indexOf(currentSection);
-      if (currentIndex < sectionOrder.length - 1) {
+      if (currentIndex !== -1 && currentIndex < sectionOrder.length - 1) {
         const nextSection = sectionOrder[currentIndex + 1];
         navigateToSection(nextSection);
         updateMobileNavActive(nextSection);
