@@ -10,9 +10,11 @@ function setMobileMenuState(isOpen) {
 
   if (isOpen) {
     navMenu.classList.add("show-menu");
+    navMenu.setAttribute("aria-hidden", "false");
     document.body.style.overflow = 'hidden';
   } else {
     navMenu.classList.remove("show-menu");
+    navMenu.setAttribute("aria-hidden", "true");
     document.body.style.overflow = '';
   }
 
