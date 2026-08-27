@@ -34,7 +34,11 @@ export function handleFocusTrap(event, modal) {
 
 export function openModal(modal, { initialFocus = null } = {}) {
   if (!modal) return;
-  modalFocusReturn.set(modal, document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  const activeEl = typeof document !== "undefined" ? document.activeElement : null;
+  const isElement = typeof HTMLElement !== "undefined"
+    ? activeEl instanceof HTMLElement
+    : Boolean(activeEl && typeof activeEl.focus === "function");
+  modalFocusReturn.set(modal, isElement ? activeEl : null);
   modal.classList.add("active");
   modal.setAttribute("aria-hidden", "false");
 

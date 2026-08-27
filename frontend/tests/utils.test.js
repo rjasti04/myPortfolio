@@ -125,11 +125,19 @@ describe('Modal Module', () => {
     window = dom.window;
     global.document = document;
     global.window = window;
+    global.HTMLElement = window.HTMLElement;
+    global.Element = window.Element;
+    global.Node = window.Node;
+    global.getComputedStyle = window.getComputedStyle.bind(window);
   });
 
   after(() => {
     delete global.document;
     delete global.window;
+    delete global.HTMLElement;
+    delete global.Element;
+    delete global.Node;
+    delete global.getComputedStyle;
     delete global.performance;
   });
 
