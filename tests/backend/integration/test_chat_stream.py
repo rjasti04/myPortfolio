@@ -78,7 +78,7 @@ async def test_chat_stream_gemma_model_converse_stream(async_client):
         mock_converse.return_value = mock_bedrock_response
 
         payload = {
-            "model_id": "google.-3-4b-it",
+            "model_id": "google.gemma-3-4b-it",
             "messages": [
                 {"role": "user", "content": "Hello Gemma!"}
             ]
