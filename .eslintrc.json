@@ -4,6 +4,10 @@
     "es2022": true,
     "node": true
   },
+  "globals": {
+    "DOMPurify": "readonly",
+    "marked": "readonly"
+  },
   "parserOptions": {
     "ecmaVersion": "latest",
     "sourceType": "module"
