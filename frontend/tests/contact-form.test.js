@@ -1,6 +1,6 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const { JSDOM } = require("jsdom");
+import test from "node:test";
+import assert from "node:assert/strict";
+import { JSDOM } from "jsdom";
 
 let dom;
 let window;
