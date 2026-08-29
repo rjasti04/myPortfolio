@@ -10,12 +10,17 @@ export function initScrollToTop() {
   document.body.appendChild(scrollBtn);
   
   let isVisible = false;
+  const SHOW_THRESHOLD = 500;
+  const HIDE_THRESHOLD = 300;
   
   const toggleVisibility = () => {
-    const shouldShow = window.scrollY > 400;
-    if (shouldShow !== isVisible) {
-      isVisible = shouldShow;
-      scrollBtn.classList.toggle('visible', shouldShow);
+    const currentY = window.scrollY || window.pageYOffset || 0;
+    if (!isVisible && currentY > SHOW_THRESHOLD) {
+      isVisible = true;
+      scrollBtn.classList.add('visible');
+    } else if (isVisible && currentY < HIDE_THRESHOLD) {
+      isVisible = false;
+      scrollBtn.classList.remove('visible');
     }
   };
   

@@ -50,15 +50,18 @@ export function triggerConfetti(options = {}) {
   }
 
   function getResolvedColors() {
-    const bodyStyles = getComputedStyle(document.body);
-    const rootStyles = getComputedStyle(document.documentElement);
+    const getStyle = typeof window !== 'undefined' && typeof window.getComputedStyle === 'function'
+      ? window.getComputedStyle.bind(window)
+      : (typeof getComputedStyle === 'function' ? getComputedStyle : null);
+    const bodyStyles = getStyle && document.body ? getStyle(document.body) : null;
+    const rootStyles = getStyle && document.documentElement ? getStyle(document.documentElement) : null;
     return colors.map(color => {
       if (typeof color === 'string' && color.startsWith('var(')) {
         const match = color.match(/var\(([^)]+)\)/);
         if (match) {
           const varName = match[1].trim();
-          return bodyStyles.getPropertyValue(varName).trim() ||
-                 rootStyles.getPropertyValue(varName).trim() ||
+          return bodyStyles?.getPropertyValue(varName)?.trim() ||
+                 rootStyles?.getPropertyValue(varName)?.trim() ||
                  '#ef4444';
         }
       }

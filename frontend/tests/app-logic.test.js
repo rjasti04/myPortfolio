@@ -1,13 +1,18 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
-const { JSDOM } = require("jsdom");
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { JSDOM } from "jsdom";
+import "../js/app-logic.js";
+
 const {
   filterProjects,
   getValidHashTarget,
   setActiveSection,
-} = require("../js/app-logic.js");
+} = globalThis.AppLogic;
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 test("setActiveSection updates active section and nav aria-current", () => {
   const dom = new JSDOM(`

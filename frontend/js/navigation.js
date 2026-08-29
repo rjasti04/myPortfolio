@@ -10,9 +10,11 @@ function setMobileMenuState(isOpen) {
 
   if (isOpen) {
     navMenu.classList.add("show-menu");
+    navMenu.setAttribute("aria-hidden", "false");
     document.body.style.overflow = 'hidden';
   } else {
     navMenu.classList.remove("show-menu");
+    navMenu.setAttribute("aria-hidden", "true");
     document.body.style.overflow = '';
   }
 
@@ -41,6 +43,8 @@ export function closeAllDropdowns() {
   if (userBtn) {
     userBtn.setAttribute('aria-expanded', 'false');
   }
+
+  document.body.classList.remove('dropdown-open');
 }
 
 function closeTransientUi() {
@@ -51,6 +55,7 @@ function closeTransientUi() {
 export function setActiveSection(target) {
   if (!target || !window.AppLogic?.setActiveSection) return;
   window.AppLogic.setActiveSection(target, sections, navLinks);
+  updateMobileNavActive(target);
 }
 
 export function navigateToSection(target, { updateHash = true } = {}) {
@@ -96,8 +101,28 @@ export function initNavigation() {
 
   const navMenuClose = document.getElementById("nav-menu-close");
   if (navMenuClose) {
-    navMenuClose.addEventListener("click", () => {
+    navMenuClose.addEventListener("click", (event) => {
+      event.stopPropagation();
       setMobileMenuState(false);
+      hamburger?.focus();
+    });
+  }
+
+  const connectDropdownClose = document.getElementById("connect-dropdown-close");
+  if (connectDropdownClose) {
+    connectDropdownClose.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeAllDropdowns();
+      document.getElementById("connect-toggle")?.focus();
+    });
+  }
+
+  const themeCustomizerClose = document.getElementById("theme-customizer-close");
+  if (themeCustomizerClose) {
+    themeCustomizerClose.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeAllDropdowns();
+      document.getElementById("palette-toggle")?.focus();
     });
   }
 
@@ -127,6 +152,13 @@ export function initNavigation() {
     });
   });
 
+  document.querySelectorAll(".logo-text[data-target], #logo-home-link").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      navigateToSection(link.dataset.target || "about");
+    });
+  });
+
   // Generic Dropdown Logic
   const dropdownToggles = document.querySelectorAll('.header-dropdown > button');
   dropdownToggles.forEach(toggle => {
@@ -143,6 +175,7 @@ export function initNavigation() {
         dropdown.classList.add('is-open');
         toggle.setAttribute('aria-expanded', 'true');
         if (menu) menu.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('dropdown-open');
       }
     });
   });
@@ -155,17 +188,29 @@ export function initNavigation() {
       userBtn?.setAttribute('aria-expanded', 'false');
     }
 
+    let hasOpenDropdown = false;
     document.querySelectorAll('.header-dropdown.is-open').forEach(dropdown => {
       if (!dropdown.contains(event.target)) {
         dropdown.classList.remove('is-open');
         dropdown.querySelector('button')?.setAttribute('aria-expanded', 'false');
         dropdown.querySelector('.header-dropdown-menu')?.setAttribute('aria-hidden', 'true');
+      } else {
+        hasOpenDropdown = true;
       }
     });
+
+    if (!hasOpenDropdown) {
+      document.body.classList.remove('dropdown-open');
+    }
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeTransientUi();
+    if (event.key === "Escape") {
+      const openDropdown = document.querySelector('.header-dropdown.is-open');
+      const openToggle = openDropdown?.querySelector('button');
+      closeTransientUi();
+      openToggle?.focus();
+    }
   });
 
   profileTrigger?.addEventListener("click", (event) => {
@@ -205,12 +250,6 @@ export function initNavigation() {
       if (!scrollTicking) {
         requestAnimationFrame(() => {
           headerEl.classList.toggle("scrolled", window.scrollY > 32);
-
-          // Update scroll progress bar
-          const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
-          const scrollProgress = (window.scrollY / scrollHeight) * 100;
-          headerEl.style.setProperty('--scroll-progress', `${Math.min(scrollProgress, 100)}%`);
-
           scrollTicking = false;
         });
         scrollTicking = true;
@@ -267,8 +306,10 @@ export function initNavigation() {
   onOnline(hideOfflineBanner);
 
   // Feature 4: Keyboard shortcut hints on nav links
+  const visibleNavLinks = navLinks.filter((link) => !link.hasAttribute("hidden") && link.style.display !== "none");
+
   if (supportsHover.matches) {
-    navLinks.forEach((link, index) => {
+    visibleNavLinks.forEach((link, index) => {
       const kbd = document.createElement("kbd");
       kbd.className = "nav-shortcut";
       // BUG FIX ROOT CAUSE: Guide numbers inside kbd tag are announced by screen readers, creating audio noise
@@ -279,16 +320,16 @@ export function initNavigation() {
     });
   }
 
-  // Number key navigation (1-5)
+  // Number key navigation
   document.addEventListener("keydown", (event) => {
     const tag = document.activeElement?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
 
     const num = parseInt(event.key, 10);
-    if (num >= 1 && num <= navLinks.length) {
+    if (num >= 1 && num <= visibleNavLinks.length) {
       event.preventDefault();
-      const target = navLinks[num - 1]?.dataset.target;
+      const target = visibleNavLinks[num - 1]?.dataset.target;
       if (target) navigateToSection(target);
     }
   });
@@ -339,7 +380,7 @@ function initMobileBottomNav() {
 
   const navItems = [
     { target: 'about', icon: 'fa-home', label: 'Home' },
-    { target: 'portfolio', icon: 'fa-briefcase', label: 'Work' },
+    { target: 'resume', icon: 'fa-briefcase', label: 'Work' },
     { target: 'ai', icon: 'fa-robot', label: 'AI' },
     { target: 'contact', icon: 'fa-envelope', label: 'Contact' }
   ];
@@ -380,14 +421,14 @@ function updateMobileNavActive(target) {
 }
 
 function initSwipeGestures() {
-  const sectionOrder = ['about', 'resume', 'portfolio', 'hobbies', 'activity', 'ai', 'contact'];
+  const sectionOrder = ['about', 'resume', 'hobbies', 'activity', 'ai', 'contact'];
 
   new SwipeHandler({
     threshold: 75,
     onSwipeLeft: () => {
       const currentSection = document.querySelector('main section.active')?.id;
       const currentIndex = sectionOrder.indexOf(currentSection);
-      if (currentIndex < sectionOrder.length - 1) {
+      if (currentIndex !== -1 && currentIndex < sectionOrder.length - 1) {
         const nextSection = sectionOrder[currentIndex + 1];
         navigateToSection(nextSection);
         updateMobileNavActive(nextSection);

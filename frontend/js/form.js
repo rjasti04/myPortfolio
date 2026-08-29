@@ -174,7 +174,11 @@ export function initContactForm() {
       showToast("Message sent successfully.", "success");
       
       // Trigger confetti celebration
-      triggerConfetti(confettiPresets.success);
+      try {
+        triggerConfetti(confettiPresets.success);
+      } catch {
+        // Non-critical animation flourish; ignore if unavailable
+      }
     } catch (error) {
       console.error(error);
       setFormStatus(contactStatus, "Trying the standard form submission flow...", "info");

@@ -1,4 +1,4 @@
-import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, disable2FA, verify2FA, requestMagicLink, verifyMagicLink, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession } from './auth.js';
+import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, verify2FA, requestMagicLink, verifyMagicLink, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession, clearTokens } from './auth.js';
 import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
 import { ModalSwipeDismiss } from './swipe-handler.js';
@@ -1082,7 +1082,7 @@ async function setupNavUI() {
 
     // Logged out state
     authContainer.innerHTML = `
-        <button class="header-icon-btn nav-auth-btn" id="nav-login-btn" title="Log In" data-tooltip="Log In" aria-label="Log In">
+        <button class="header-icon-btn nav-auth-btn" id="nav-login-btn" title="Log In" aria-label="Log In">
             <i class="fas fa-right-to-bracket"></i>
         </button>
     `;

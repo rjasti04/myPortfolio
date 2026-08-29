@@ -1,7 +1,7 @@
-import { API_BASE, apiFetch, ensureSession, isApiConfigured } from "./analytics.js";
+import { API_BASE, ensureSession, isApiConfigured } from "./analytics.js";
 import { prefersReducedMotion } from "./config.js";
 import { copyText, escapeHTML, estimateTokens } from "./utils.js";
-import { authenticatedFetch, getAuthToken, logoutUser } from "./auth.js";
+import { authenticatedFetch, getAuthToken } from "./auth.js";
 import { highlightCode } from "./syntax-highlighter.js";
 
 // Constants
@@ -11,14 +11,6 @@ const TOKEN_ERROR_THRESHOLD = 1950;
 const TOKEN_LIMIT = 2000;
 const SUMMARIZE_TOKEN_THRESHOLD = 6000;
 const MARKDOWN_PARSE_THROTTLE_MS = 100;
-const STREAM_QUEUE_SIZE = 32;
-
-/** Sanitize HTML through DOMPurify when available, escape otherwise. */
-function sanitizeHTML(html) {
-  if (typeof DOMPurify !== "undefined") return DOMPurify.sanitize(html);
-  console.error("DOMPurify is unavailable; rendering escaped content.");
-  return escapeHTML(html);
-}
 
 function renderBotHTML(text) {
   if (typeof marked === "undefined") {
@@ -660,10 +652,6 @@ export function initChat() {
           <span class="msg-info-label">Latency:</span>
           <span class="msg-info-value">${latency}</span>
         </div>
-        <div class="msg-info-drawer-row">
-          <span class="msg-info-label">Temperature:</span>
-          <span class="msg-info-value">0.7</span>
-        </div>
       `;
       parentMsg.appendChild(drawer);
       infoBtn.classList.add('active');
@@ -814,7 +802,7 @@ export function initChat() {
         }
       };
 
-      const onPointerUp = (upEvent) => {
+      const onPointerUp = () => {
         toggleBtn.releasePointerCapture(e.pointerId);
         toggleBtn.removeEventListener('pointermove', onPointerMove);
         toggleBtn.removeEventListener('pointerup', onPointerUp);
@@ -1074,6 +1062,9 @@ export function initChat() {
       messages = [{ role: 'user', content: text.trim() || 'Hello' }];
     }
 
+    let widgetMsgEl = null;
+    let aiMsgEl = null;
+
     try {
       currentAbortController = new AbortController();
       const response = await authenticatedFetch(apiUrl, {
@@ -1098,14 +1089,12 @@ export function initChat() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
 
-      let widgetMsgEl = null;
       if (messagesContainer) {
         widgetMsgEl = document.createElement('div');
         widgetMsgEl.className = 'chat-message bot streaming';
         messagesContainer.appendChild(widgetMsgEl);
       }
 
-      let aiMsgEl = null;
       if (aiPageMessages) {
         aiMsgEl = document.createElement('div');
         aiMsgEl.className = 'chat-message bot streaming';

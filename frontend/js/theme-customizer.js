@@ -89,7 +89,7 @@ function clearCustomPalette() {
     '--accent-fill', '--accent-text', '--accent-hover', '--accent-soft', '--accent-mild', '--on-accent',
     '--secondary-fill', '--secondary-text',
     '--data-fill', '--data-text', '--text',
-    '--bg', '--surface', '--card-bg', '--skill-bg', '--border'
+    '--bg', '--surface', '--card-bg', '--skill-bg', '--border', '--bg-gradient'
   ];
   vars.forEach(v => document.body.style.removeProperty(v));
 }
@@ -114,9 +114,9 @@ export function initThemeCustomizer() {
   if (!paletteBtn || !customizerDropdown) return;
 
   const defaultColors = {
-    primary: '#C02645',
-    secondary: '#D4A017',
-    accent: '#2ECDA7'
+    primary: '#F59E0B',
+    secondary: '#859900',
+    accent: '#B58900'
   };
 
   const colorLabels = {
@@ -294,6 +294,7 @@ export function initThemeCustomizer() {
       customizerDropdown.classList.remove('is-open');
       paletteBtn.setAttribute('aria-expanded', 'false');
       customizerDropdown.querySelector('.header-dropdown-menu')?.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('dropdown-open');
     }
   };
 
@@ -328,6 +329,17 @@ export function initThemeCustomizer() {
       const secondary = generateVariants(rawSecondary, isDark);
       const accent = generateVariants(rawAccent, isDark);
       
+      const [ph, ps] = hexToHsl(rawPrimary);
+      const [sh, ss] = hexToHsl(rawSecondary);
+      
+      const bgGradient = isDark
+        ? `radial-gradient(ellipse at 20% 40%, hsl(${ph}, 25%, 7%) 0%, #0a0e14 50%, hsl(${sh}, 25%, 8%) 100%)`
+        : `radial-gradient(ellipse at top left, #ffffff, hsl(${ph}, ${Math.min(ps, 55)}%, 95%) 35%, hsl(${sh}, ${Math.min(ss, 50)}%, 96%) 70%, #fdfdfd)`;
+      
+      const skillBg = isDark
+        ? `hsl(${ph}, 20%, 14%, 0.72)`
+        : `hsl(${ph}, 40%, 97%, 0.85)`;
+
       return {
         '--accent-fill': primary.fill,
         '--accent-text': primary.text,
@@ -339,6 +351,8 @@ export function initThemeCustomizer() {
         '--secondary-text': secondary.text,
         '--data-fill': accent.fill,
         '--data-text': accent.text,
+        '--bg-gradient': bgGradient,
+        '--skill-bg': skillBg,
       };
     };
 
@@ -472,7 +486,7 @@ export function initThemeCustomizer() {
 
   const themePresets = {
     matrix: { primary: '#03A062', secondary: '#10B981', accent: '#14B8A6' },
-    solarized: { primary: '#F59E0B', secondary: '#859900', accent: '#B58900' },
+    nord: { primary: '#88C0D0', secondary: '#81A1C1', accent: '#A3BE8C' },
     dracula: { primary: '#BD93F9', secondary: '#FF79C6', accent: '#50FA7B' }
   };
 
@@ -504,7 +518,7 @@ export function initThemeCustomizer() {
     if (themeColorMeta) {
       const isDark = document.body.classList.contains('dark-theme');
       const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-fill').trim();
-      themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#c02645"));
+      themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#F59E0B"));
     }
     
     closeModal();
@@ -518,7 +532,7 @@ export function initThemeCustomizer() {
     if (themeColorMeta) {
       const isDark = document.body.classList.contains('dark-theme');
       const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-fill').trim();
-      themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#c02645"));
+      themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#F59E0B"));
     }
     
     closeModal();

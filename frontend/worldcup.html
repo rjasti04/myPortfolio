@@ -1497,7 +1497,7 @@
     // INITIALIZATION & RESET ROUTINES
     function initSystem() {
       // 1. Theme Configuration
-      const savedTheme = localStorage.getItem("predictor-theme") || "dark";
+      const savedTheme = localStorage.getItem("predictor-theme") || "light";
       if (savedTheme === "light") {
         document.body.classList.add("light-theme");
         document.querySelector("#theme-toggle-btn i").className = "fas fa-sun";

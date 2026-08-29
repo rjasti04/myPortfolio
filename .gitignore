@@ -1,3 +1,12 @@
 node_modules/
 __pycache__/
 *.pyc
+
+# Virtualenvs. Not tracked (venv writes its own .venv/.gitignore), but listing
+# them here keeps ripgrep-backed tooling and `find`/`grep -r` from walking
+# ~7,500 dependency files that outnumber the 147 tracked files 50:1.
+.venv/
+server/.venv/
+
+# Test/tooling caches
+.pytest_cache/

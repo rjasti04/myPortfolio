@@ -44,7 +44,7 @@ export class SwipeHandler {
     this.startTime = Date.now();
   }
 
-  handleTouchMove(e) {
+  handleTouchMove(_e) {
     // Prevent default only if it's a horizontal swipe
     if (Math.abs(this.distX) > Math.abs(this.distY)) {
       // e.preventDefault(); // Commented to avoid blocking scroll

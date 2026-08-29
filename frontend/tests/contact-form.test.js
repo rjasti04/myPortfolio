@@ -1,6 +1,6 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const { JSDOM } = require("jsdom");
+import test from "node:test";
+import assert from "node:assert/strict";
+import { JSDOM } from "jsdom";
 
 let dom;
 let window;
@@ -89,6 +89,8 @@ test.before(async () => {
   global.sessionStorage = window.sessionStorage;
   global.requestAnimationFrame = window.requestAnimationFrame;
   global.HTMLCanvasElement = window.HTMLCanvasElement;
+  global.HTMLElement = window.HTMLElement;
+  global.getComputedStyle = window.getComputedStyle.bind(window);
   Object.defineProperty(global, "navigator", {
     configurable: true,
     value: window.navigator,
@@ -104,6 +106,8 @@ test.after(() => {
   delete global.sessionStorage;
   delete global.requestAnimationFrame;
   delete global.HTMLCanvasElement;
+  delete global.HTMLElement;
+  delete global.getComputedStyle;
   delete global.navigator;
 });
 
