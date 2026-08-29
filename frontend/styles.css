@@ -1,3 +1,4 @@
+/* #region DESIGN TOKENS & THEMES --------------------------------------*/
 :root {
   /* Vibrant Solarized System - Amber & Olive */
   --accent-hue: 38;
@@ -157,6 +158,9 @@ body.dark-theme {
   padding: 0;
 }
 
+/* #endregion */
+
+/* #region BASE, RESET & UTILITIES -------------------------------------*/
 /* Utility helper for JS state toggles */
 .hidden {
   display: none !important;
@@ -347,6 +351,9 @@ body.dark-theme.dropdown-open .layout::after {
   background: rgba(0, 0, 0, 0.78);
 }
 
+/* #endregion */
+
+/* #region HEADER & NAVIGATION -----------------------------------------*/
 /* Dim & hide bottom navigation during open modal to avoid dual-navigation confusion */
 body.nav-open .mobile-bottom-nav,
 body.dropdown-open .mobile-bottom-nav {
@@ -952,6 +959,9 @@ body.dark-theme .connect-link .connect-icon {
   }
 }
 
+/* #endregion */
+
+/* #region CODE BLOCKS & SYNTAX HIGHLIGHTING ---------------------------*/
 /* Code Block Syntax Highlighting & Tooltips */
 pre {
   position: relative;
@@ -1334,6 +1344,9 @@ body:not(.dark-theme) .token-number {
   font-weight: 600;
 }
 
+/* #endregion */
+
+/* #region LAYOUT & PAGE SHELL -----------------------------------------*/
 /* Utility Classes */
 nav,
 .item,
@@ -1409,6 +1422,9 @@ main {
   --reveal-delay: 400ms;
 }
 
+/* #endregion */
+
+/* #region HERO & TERMINAL PANEL ---------------------------------------*/
 /* Hero Section */
 .hero {
   display: grid;
@@ -1884,6 +1900,9 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 
 
 
+/* #endregion */
+
+/* #region SECTION TITLES & CARD PRIMITIVES ----------------------------*/
 /* Section Titles */
 .section-title,
 .contact-title {
@@ -2020,6 +2039,9 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   border: 1px solid var(--accent-mild);
 }
 
+/* #endregion */
+
+/* #region EXPERIENCE --------------------------------------------------*/
 /* Experience */
 #resume {
   max-width: min(100%, 960px);
@@ -2271,6 +2293,9 @@ body.dark-theme #resume .item {
   }
 }
 
+/* #endregion */
+
+/* #region PORTFOLIO & PROJECT CARDS -----------------------------------*/
 /* Portfolio */
 #portfolio {
   max-width: min(100%, 1120px);
@@ -2604,6 +2629,9 @@ body.dark-theme #resume .item {
   transform: translateX(2px);
 }
 
+/* #endregion */
+
+/* #region CONTACT & FORMS ---------------------------------------------*/
 /* Contact Premium Layout */
 .contact-section {
   padding: 48px;
@@ -3014,6 +3042,9 @@ body.dark-theme #resume .item {
   font-weight: 700;
 }
 
+/* #endregion */
+
+/* #region HEADER INFO & STAT COUNTERS ---------------------------------*/
 /* Header info groups (date/time + location/weather) */
 .header-datetime,
 .header-locweather {
@@ -3176,6 +3207,9 @@ body.dark-theme .stat-card:hover {
   letter-spacing: 0.3px;
 }
 
+/* #endregion */
+
+/* #region BUTTONS & LOGO ----------------------------------------------*/
 /* Buttons */
 .btn {
   padding: 16px 36px;
@@ -3389,6 +3423,9 @@ header.scrolled .logo-text {
   font-size: 1.35rem;
 }
 
+/* #endregion */
+
+/* #region SKILLS & SKILLS CAROUSEL ------------------------------------*/
 /* Skills Section */
 .skills-section {
   margin-top: clamp(20px, 3.5vh, 40px);
@@ -3827,6 +3864,9 @@ body.dark-theme .skill-tag.primary .fas {
   }
 }
 
+/* #endregion */
+
+/* #region MODALS & TOASTS ---------------------------------------------*/
 /* Project Detail Modal */
 .project-detail-modal {
   position: fixed;
@@ -4121,6 +4161,9 @@ body.dark-theme .skill-tag.primary .fas {
   transform: scale(1);
 }
 
+/* #endregion */
+
+/* #region RESPONSIVE - GLOBAL BREAKPOINTS -----------------------------*/
 @media (width >=1280px) {
   #about .stats-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -4814,6 +4857,9 @@ body.dark-theme .skill-tag.primary .fas {
   }
 }
 
+/* #endregion */
+
+/* #region ACCESSIBILITY & PRINT PREFERENCES ---------------------------*/
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -4923,6 +4969,9 @@ body.dark-theme .skill-tag.primary .fas {
   }
 }
 
+/* #endregion */
+
+/* #region HOBBIES & ARTICLES ------------------------------------------*/
 /* ----------------------------------
    ADVANCED ENHANCEMENTS
 ------------------------------------*/
@@ -5086,6 +5135,9 @@ body.dark-theme .skill-tag.primary .fas {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
 
+/* #endregion */
+
+/* #region SECTION ROUTER & VIEW TRANSITIONS ---------------------------*/
 /* ----------------------------------
    REFINEMENTS
 ------------------------------------*/
@@ -5316,6 +5368,9 @@ section {
 
 
 
+/* #endregion */
+
+/* #region CHAT WIDGET -------------------------------------------------*/
 /* Chat Widget Styles */
 .chat-widget {
   position: fixed;
@@ -5923,6 +5978,9 @@ nav a:hover .nav-shortcut {
   display: inline-block;
 }
 
+/* #endregion */
+
+/* #region ACTIVITY SECTION --------------------------------------------*/
 /* ── Activity Section ── */
 .activity-controls {
   display: flex;
@@ -6512,6 +6570,9 @@ nav a:hover .nav-shortcut {
   }
 }
 
+/* #endregion */
+
+/* #region ETL PIPELINE VISUALIZER -------------------------------------*/
 /* ── ETL Pipeline Visualizer ── */
 .pipeline-monitor {
   width: 100%;
@@ -6918,6 +6979,9 @@ body.dark-theme .pipeline-stat-box {
   }
 }
 
+/* #endregion */
+
+/* #region AI PAGE -----------------------------------------------------*/
 /* ── AI Page ── */
 #ai {
   height: calc(100vh - 180px);
@@ -7850,6 +7914,9 @@ body.dark-theme .ai-input-container {
 
 /* (Activity styles consolidated above) */
 
+/* #endregion */
+
+/* #region OVERLAYS, RIPPLE & SCROLL-TO-TOP ----------------------------*/
 /* Chat Error Boundary */
 .chat-error-boundary {
   display: flex;
@@ -8066,6 +8133,9 @@ body.dark-theme .ai-input-container {
   }
 }
 
+/* #endregion */
+
+/* #region MOBILE BOTTOM NAV & MOBILE FIXES ----------------------------*/
 /* Mobile Bottom Navigation */
 .mobile-bottom-nav {
   display: none;
@@ -8279,6 +8349,9 @@ body.dark-theme .mobile-bottom-nav {
   font-weight: 600;
 }
 
+/* #endregion */
+
+/* #region BACKDROP-FILTER FALLBACKS -----------------------------------*/
 /* ==========================================================================
    Fallbacks for browsers without backdrop-filter support
    ========================================================================== */
@@ -8331,3 +8404,5 @@ body.dark-theme .mobile-bottom-nav {
     border-color: var(--border);
   }
 }
+
+/* #endregion */

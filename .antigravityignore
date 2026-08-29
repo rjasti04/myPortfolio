@@ -1,6 +1,8 @@
 # Ignore dependency folders
 node_modules/
 venv/
+.venv/
+server/.venv/
 .env
 .git/
 
