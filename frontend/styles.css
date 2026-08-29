@@ -535,7 +535,11 @@ header {
     box-shadow var(--motion-medium) var(--ease-standard),
     background-color var(--motion-medium) var(--ease-standard),
     border-color var(--motion-medium) var(--ease-standard);
-  contain: layout paint;
+  /* Do NOT add `contain: layout | paint | strict | content` here. The header
+     hosts #nav-menu and .header-dropdown-menu, which are painted OUTSIDE its
+     box: paint containment clips them to the 999px pill (dropdowns opened but
+     rendered invisible), and layout containment makes the header the
+     containing block for their `position: fixed` mobile variants. */
   overflow: visible;
 }
 
@@ -2885,6 +2889,15 @@ body.dark-theme #resume .item {
   width: 100%;
 }
 
+/* FormSubmit's `_honey` spam trap. It ships as a real text input on purpose -
+   bots fill it, humans never see it - but it MUST be hidden. Left visible it
+   renders as a stray box above Name, and Chrome autofills it with a saved
+   email (it ignores autocomplete="off" here), which makes FormSubmit discard
+   the native-fallback submission as spam. `display: none` also stops autofill. */
+.form-honeypot {
+  display: none !important;
+}
+
 .contact-form textarea {
   width: 100%;
   padding: 12px;
@@ -4326,9 +4339,12 @@ body.dark-theme .skill-tag.primary .fas {
   .hero-description {
     font-size: var(--text-body-sm);
     line-height: var(--line-height-body);
-    /* Justified text on a narrow column opens rivers of whitespace and
-       hurts readability; ragged-right is the correct treatment here. */
-    text-align: start;
+    /* Mobile only: the paragraph spans the full column here, so a flush
+       right edge reads as a deliberate block. Hyphenation is required, not
+       decorative - without it a narrow justified column opens rivers. */
+    text-align: justify;
+    hyphens: auto;
+    -webkit-hyphens: auto;
     width: 100%;
     max-width: 100%;
   }
@@ -4743,6 +4759,19 @@ body.dark-theme .skill-tag.primary .fas {
     gap: 8px;
   }
 
+  /* Phones only: drop the action group's own pill chrome. Its 8px inline
+     padding and 1px border cost 18px that the icons need, and once the inner
+     999px pill grows into the outer one's curve the two read as a rendering
+     glitch rather than as nested containers. The header pill is the container
+     from here down; the icons sit directly on it. */
+  .header-actions,
+  body.dark-theme .header-actions {
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+  }
+
   .profile-pic-small {
     width: 38px;
     height: 38px;
@@ -4866,9 +4895,11 @@ body.dark-theme .skill-tag.primary .fas {
     height: 34px;
   }
 
+  /* Last slack in a 320-375px pill. Five 44px icons plus the 44px avatar
+     leave no room for the wordmark, and it is decoration here - the bottom
+     nav carries Home on every phone (the avatar link opens the photo). */
   .logo-text {
-    font-size: var(--text-xl);
-    letter-spacing: var(--tracking-tight);
+    display: none;
   }
 
   #nav-menu,
@@ -4907,9 +4938,9 @@ body.dark-theme .skill-tag.primary .fas {
 
 @media (orientation: portrait) and (width <= 1150px) {
   .hero-description {
-    /* Justified text on a narrow column opens rivers of whitespace and
-       hurts readability; ragged-right is the correct treatment here. */
-    text-align: start;
+    text-align: justify;
+    hyphens: auto;
+    -webkit-hyphens: auto;
     width: 100%;
     max-width: 100%;
   }
@@ -4931,7 +4962,6 @@ body.dark-theme .skill-tag.primary .fas {
 
   .hero-description {
     max-width: 58ch;
-    text-align: left;
   }
 
   .stats-grid {
@@ -5436,9 +5466,11 @@ section {
 
 @media (width <= 1150px) {
   header {
-    /* Must not drop below --min-touch-target: this query covers every
-       tablet and phone, which is exactly where hit area matters most. */
-    --header-action-size: var(--min-touch-target);
+    /* 44px is the floor here - WCAG 2.5.5 AAA, and Apple's 44pt HIG minimum.
+       --min-touch-target rises to 48px below 640px for body controls, but the
+       header cannot follow it: five 48px icons plus the logo need 266px and a
+       375px pill only offers 246px. Pinned to the floor, not to the token. */
+    --header-action-size: 44px;
   }
 
   .js-enabled .noise-overlay.js-only {
@@ -8354,9 +8386,9 @@ body.dark-theme .mobile-bottom-nav {
   }
 
   .hero-description {
-    /* Justified text on a narrow column opens rivers of whitespace and
-       hurts readability; ragged-right is the correct treatment here. */
-    text-align: start;
+    text-align: justify;
+    hyphens: auto;
+    -webkit-hyphens: auto;
     width: 100%;
     max-width: 100%;
   }
