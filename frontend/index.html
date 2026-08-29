@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' https://cdn.jsdelivr.net 'sha256-0/PLsWCeqKyS+oiYqnl4MhX8G5Q1tdDiTym+KJh/JJQ=' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-7qJiTE0SDGqsGuUtWq0yY/Ojx48LheZZjk0mLT1uGYM=' 'sha256-j935QdYQwd0URj8l/GbO7dZwocBphcwHOB4WmS4xhoQ=' 'sha256-YLdKYOQHLYbUhx/wZJTRLGJLs+AwpPOxKYHJLNMC/Aw='; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://cdn.jsdelivr.net https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;" />
+    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' https://cdn.jsdelivr.net 'sha256-0/PLsWCeqKyS+oiYqnl4MhX8G5Q1tdDiTym+KJh/JJQ=' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-7qJiTE0SDGqsGuUtWq0yY/Ojx48LheZZjk0mLT1uGYM=' 'sha256-j935QdYQwd0URj8l/GbO7dZwocBphcwHOB4WmS4xhoQ=' 'sha256-YLdKYOQHLYbUhx/wZJTRLGJLs+AwpPOxKYHJLNMC/Aw=' 'sha256-5iV/DQ29tzNAtQpsdD6jrRwAf5v2uwwL8pJ+Ab4w7wA='; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://cdn.jsdelivr.net https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="Rajeev Jasti" />
@@ -222,7 +222,7 @@
             <span class="nav-label">Experience</span>
             <i class="fas fa-chevron-right nav-arrow" aria-hidden="true"></i>
           </a>
-          <a href="#portfolio" data-target="portfolio" hidden style="display: none;">
+          <a href="#portfolio" data-target="portfolio" hidden>
             <i class="fas fa-code nav-icon" aria-hidden="true"></i>
             <span class="nav-label">Portfolio</span>
             <i class="fas fa-chevron-right nav-arrow" aria-hidden="true"></i>
@@ -734,9 +734,9 @@
             data-stack="Kafka,Spark,Python,Kubernetes,Prometheus"
             data-outcomes="P95 latency reduced by 40%|Handles 1M+ events per second sustainably|99.9% uptime over 18 months"
             data-icon="fas fa-microchip">
-            <h4>
+            <h3>
               <i class="fas fa-microchip project-icon"></i> Real-time Analytics Platform
-            </h4>
+            </h3>
             <p class="project-description">
               Kafka and Spark streaming pipeline processing 1M events per second with fault-tolerant event ingestion.
             </p>
@@ -756,9 +756,9 @@
             data-stack="Airflow,Snowflake,dbt,Python,AWS S3"
             data-outcomes="45% faster nightly batch runtime|30% cloud cost reduction|Zero data-loss incidents in 2 years"
             data-icon="fas fa-database">
-            <h4>
+            <h3>
               <i class="fas fa-database project-icon"></i> Cloud ETL Modernization
-            </h4>
+            </h3>
             <p class="project-description">
               Airflow-orchestrated Snowflake pipelines that reduced nightly batch runtime by 45%.
             </p>
@@ -778,9 +778,9 @@
             data-stack="Kafka,Debezium,Snowflake,Terraform,Schema Registry"
             data-outcomes="50+ domain teams onboarded|Time-to-first-dataset cut from weeks to days|100% schema compatibility enforced"
             data-icon="fas fa-network-wired">
-            <h4>
+            <h3>
               <i class="fas fa-network-wired project-icon"></i> CDC Data Mesh Enablement
-            </h4>
+            </h3>
             <p class="project-description">
               Built Kafka-to-Snowflake CDC templates for domain teams to self-serve compliant datasets.
             </p>
@@ -1048,7 +1048,7 @@
               <!-- Empty State View -->
               <div class="ai-empty-view">
                 <div class="ai-hero-icon"><i class="fas fa-robot"></i></div>
-                <h1 class="ai-heading" id="ai-page-heading">How can I help you?</h1>
+                <h2 class="ai-heading" id="ai-page-heading">How can I help you?</h2>
                 <p class="ai-subtitle" id="ai-page-subtitle">Powered by Gemma 3.4B on AWS Bedrock &mdash; ask me
                   anything.</p>
 

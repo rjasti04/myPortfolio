@@ -2,16 +2,23 @@
   /* Vibrant Solarized System - Amber & Olive */
   --accent-hue: 38;
   --accent-fill: hsl(38, 92%, 50%);
-  --accent-text: hsl(38, 92%, 35%);
+  --accent-text: hsl(38, 92%, 30%);
   --accent-hover: hsl(38, 92%, 40%);
   --accent: var(--accent-fill);
   --accent-soft: hsla(38, 92%, 50%, 0.15);
   --accent-mild: hsla(38, 92%, 50%, 0.58);
   --secondary-fill: hsl(68, 100%, 30%);
-  --secondary-text: hsl(68, 100%, 25%);
+  --secondary-text: hsl(68, 100%, 22%);
   --data-fill: hsl(45, 100%, 35%);
   --data-text: hsl(45, 100%, 28%);
-  --on-accent: #fff;
+  /* Ink on accent/secondary FILLS. Dark ink is 8.4:1 on amber in both
+     themes; the previous #fff was 2.0:1 and failed WCAG AA sitewide. */
+  --on-accent: #14100a;
+  --on-accent-inverse: #fff;
+  /* Aliases for names referenced in CSS/HTML but never defined. Without
+     these the declarations were invalid and silently dropped. */
+  --text-muted: var(--muted);
+  --primary-strong: var(--accent-text);
   --bg: #f8fafb;
   --bg-gradient: radial-gradient(ellipse at top left, #ffffff, hsl(38, 55%, 95%) 35%, hsl(68, 50%, 96%) 70%, #fdfdfd);
   --text: #0f172a;
@@ -24,7 +31,7 @@
   --skill-bg: hsl(38, 40%, 97%, 0.85);
   --header-height: 72px;
   scroll-padding-top: calc(var(--header-height) + 24px);
-  --radius: 20px;
+  --radius: var(--radius-xl);
   --select-bg: #fff;
   --terminal-bg: #1e1e2e;
   --terminal-border: #313244;
@@ -152,6 +159,13 @@ body.dark-theme {
 
 /* Utility helper for JS state toggles */
 .hidden {
+  display: none !important;
+}
+
+/* The base layer sets display on many elements, which beats the UA
+   [hidden] rule. Restore the attribute's meaning once, globally, instead
+   of pairing every [hidden] with an inline style="display:none". */
+[hidden] {
   display: none !important;
 }
 
@@ -400,8 +414,12 @@ body:not(.dark-theme) .webgl-canvas {
 /* Header & Nav */
 header {
   position: sticky;
-  top: 14px;
-  margin: 0 2.5%;
+  top: 16px;
+  /* Match main's content column exactly: main is min(1280px, 100%) with
+     clamp(14px, 4vw, 56px) inline padding. Percentage margins previously
+     left the header 325px wider than the content on each side at 1920px. */
+  width: calc(min(1280px, 100%) - 2 * clamp(14px, 4vw, 56px));
+  margin-inline: auto;
   border-radius: 999px;
   height: var(--header-height);
   padding: 0 8px;
@@ -425,7 +443,10 @@ header {
 }
 
 header.scrolled {
-  height: 56px;
+  /* Drive height through the token so scroll-padding-top and every other
+     consumer of --header-height stay truthful after the shrink. */
+  --header-height: 56px;
+  height: var(--header-height);
   box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.12);
   background: rgba(255, 255, 255, 0.85);
   border-color: rgba(255, 255, 255, 0.6);
@@ -464,6 +485,8 @@ body.dark-theme header.scrolled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: var(--min-touch-target);
+  min-height: var(--min-touch-target);
   cursor: pointer;
   background: none;
   border: none;
@@ -1555,8 +1578,8 @@ main {
 }
 
 .hero-kicker .kicker-separator {
-  color: var(--accent-fill);
-  opacity: 0.8;
+  color: var(--accent-text);
+  opacity: 0.9;
   font-weight: 800;
 }
 
@@ -1585,7 +1608,7 @@ main {
 }
 
 .hero-chat-btn {
-  color: #fff !important;
+  color: var(--on-accent);
   cursor: pointer;
   transition:
     background-color var(--motion-base) var(--ease-standard),
@@ -1655,7 +1678,9 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 .terminal-title {
   margin-left: 8px;
   font-size: var(--text-body-xs);
-  color: var(--terminal-muted);
+  /* --terminal-muted is 3.8:1 over the translucent panel; --terminal-text
+     clears AA at 4.7:1. */
+  color: var(--terminal-text);
   font-weight: 600;
   letter-spacing: 0.3px;
 }
@@ -2484,7 +2509,7 @@ body.dark-theme #resume .item {
   transform: translateY(-2px);
 }
 
-.project-card h4 {
+.project-card h3 {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -3070,7 +3095,7 @@ body.dark-theme #resume .item {
   -webkit-backdrop-filter: var(--glass-light-blur, blur(14px) saturate(160%));
   border: 1px solid var(--glass-light-border, rgba(255, 255, 255, 0.35));
   border-radius: var(--radius);
-  padding: 26px 20px;
+  padding: 24px 20px;
   text-align: center;
   transition:
     transform var(--motion-medium) var(--ease-standard),
@@ -3157,7 +3182,7 @@ body.dark-theme .stat-card:hover {
   background: linear-gradient(135deg, var(--accent-fill) 0%, var(--secondary-fill) 100%);
   color: var(--on-accent);
   text-decoration: none;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -3262,8 +3287,8 @@ body.dark-theme .stat-card:hover {
 }
 
 .hero-buttons .btn {
-  color: #fff;
-  border-radius: 999px;
+  color: var(--on-accent);
+  border-radius: var(--radius-full);
   padding: 10px 24px;
   gap: 16px;
   background: var(--accent-fill);
@@ -3346,6 +3371,8 @@ body.dark-theme .stat-card:hover {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  min-height: var(--min-touch-target);
+  padding-inline: 4px;
   transition:
     font-size var(--motion-medium) var(--ease-standard),
     transform var(--motion-base) var(--ease-standard),
@@ -3384,8 +3411,9 @@ header.scrolled .logo-text {
   backdrop-filter: var(--glass-light-blur, blur(14px) saturate(160%));
   -webkit-backdrop-filter: var(--glass-light-blur, blur(14px) saturate(160%));
   border: 1px solid var(--glass-light-border, rgba(255, 255, 255, 0.35));
-  border-radius: var(--radius-md, 14px);
-  padding: 14px 16px;
+  /* Same .glass-light surface as .stat-card, so same radius. */
+  border-radius: var(--radius);
+  padding: 16px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -3466,8 +3494,8 @@ body.dark-theme .skill-group:hover {
 .skill-tag {
   font-size: var(--text-body-xs, 13px);
   font-weight: 600;
-  padding: 4.5px 10px;
-  border-radius: 7px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
   background: var(--skill-bg);
   color: var(--text);
   border: 1px solid var(--border);
@@ -3708,12 +3736,12 @@ body.dark-theme .skill-tag.primary .fas {
     align-items: center;
     justify-content: center;
     position: absolute;
-    bottom: 14px;
+    bottom: 8px;
     top: auto;
-    min-width: 28px;
-    min-height: 28px;
-    width: 28px;
-    height: 28px;
+    min-width: var(--min-touch-target);
+    min-height: var(--min-touch-target);
+    width: var(--min-touch-target);
+    height: var(--min-touch-target);
     padding: 0;
     border-radius: 50%;
     background: var(--accent-fill);
@@ -3751,40 +3779,51 @@ body.dark-theme .skill-tag.primary .fas {
   .skills-carousel-dots {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     position: absolute;
-    bottom: 14px;
+    bottom: 8px;
     left: 50%;
     transform: translateX(-50%);
-    height: 28px;
+    height: var(--min-touch-target);
     z-index: 5;
     padding: 0;
     margin: 0;
   }
 
+  /* The button is the hit target (24px square, WCAG 2.2 SC 2.5.8); the
+     pill the user sees is a pseudo-element. Previously the button itself
+     was 18x7 and then scaleX(0.4)'d, which shrank the hit area to ~7px. */
   .skills-carousel-dot {
-    width: 18px;
-    height: 7px;
+    width: var(--min-touch-target);
+    height: var(--min-touch-target);
     padding: 0;
     border: none;
-    border-radius: 50%;
-    background: var(--border);
+    background: transparent;
+    border-radius: var(--radius-full);
+    display: grid;
+    place-items: center;
     cursor: pointer;
-    transform: scaleX(0.4);
-    transition:
-      background-color var(--motion-base) var(--ease-standard),
-      transform var(--motion-base) var(--ease-standard);
   }
 
-  .skills-carousel-dot.is-active {
+  .skills-carousel-dot::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-full);
+    background: var(--border);
+    transition:
+      width var(--motion-base) var(--ease-standard),
+      background-color var(--motion-base) var(--ease-standard);
+  }
+
+  .skills-carousel-dot.is-active::before {
+    width: 18px;
     background: var(--accent-fill);
-    transform: scaleX(1);
-    border-radius: 6px;
   }
 
   .skills-carousel-dot:focus-visible {
     outline: 2px solid var(--accent-fill);
-    outline-offset: 2px;
+    outline-offset: -4px;
   }
 }
 
@@ -4051,7 +4090,7 @@ body.dark-theme .skill-tag.primary .fas {
 
 .image-modal .modal-close {
   background: hsl(0, 0%, 0%, 0.55);
-  color: var(--on-accent);
+  color: var(--on-accent-inverse);
   border-color: hsl(0, 0%, 100%, 0.30);
 }
 
@@ -4082,21 +4121,6 @@ body.dark-theme .skill-tag.primary .fas {
   transform: scale(1);
 }
 
-.hero-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  max-width: 560px;
-  gap: 15px;
-  align-items: center;
-  margin-top: 4px;
-}
-
-.hero-buttons .btn {
-  flex: 1 1 calc(50% - 8px);
-  min-width: 160px;
-  justify-content: center;
-}
-
 @media (width >=1280px) {
   #about .stats-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -4104,7 +4128,7 @@ body.dark-theme .skill-tag.primary .fas {
 }
 
 /* Landscape tablets can handle more columns */
-@media (min-width: 1151px) and (max-width: 1024px) and (orientation: landscape) {
+@media (min-width: 1025px) and (max-width: 1150px) and (orientation: landscape) {
   .portfolio-grid {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -4165,8 +4189,9 @@ body.dark-theme .skill-tag.primary .fas {
   .hero-description {
     font-size: var(--text-body-sm);
     line-height: var(--line-height-body);
-    text-align: justify;
-    text-justify: inter-word;
+    /* Justified text on a narrow column opens rivers of whitespace and
+       hurts readability; ragged-right is the correct treatment here. */
+    text-align: start;
     width: 100%;
     max-width: 100%;
   }
@@ -4739,10 +4764,11 @@ body.dark-theme .skill-tag.primary .fas {
   }
 }
 
-@media (orientation: portrait) {
+@media (orientation: portrait) and (width <=1150px) {
   .hero-description {
-    text-align: justify;
-    text-justify: inter-word;
+    /* Justified text on a narrow column opens rivers of whitespace and
+       hurts readability; ragged-right is the correct treatment here. */
+    text-align: start;
     width: 100%;
     max-width: 100%;
   }
@@ -5257,7 +5283,9 @@ section {
 
 @media (width <=1150px) {
   header {
-    --header-action-size: 38px;
+    /* Must not drop below --min-touch-target: this query covers every
+       tablet and phone, which is exactly where hit area matters most. */
+    --header-action-size: var(--min-touch-target);
   }
 
   .js-enabled .noise-overlay.js-only {
@@ -5777,8 +5805,8 @@ body.dark-theme .chat-message.bot .msg-info-drawer {
 }
 
 .update-refresh-btn {
-  background: var(--on-accent);
-  color: var(--accent-fill);
+  background: var(--on-accent-inverse);
+  color: var(--accent-text);
   border: none;
   padding: 8px 16px;
   border-radius: 6px;
@@ -8122,7 +8150,7 @@ body.dark-theme .mobile-bottom-nav {
 }
 
 .mobile-bottom-nav-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
 }
@@ -8174,8 +8202,9 @@ body.dark-theme .mobile-bottom-nav {
   }
 
   .hero-description {
-    text-align: justify;
-    text-justify: inter-word;
+    /* Justified text on a narrow column opens rivers of whitespace and
+       hurts readability; ragged-right is the correct treatment here. */
+    text-align: start;
     width: 100%;
     max-width: 100%;
   }
