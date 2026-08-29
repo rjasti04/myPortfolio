@@ -505,3 +505,102 @@
 .input-wrapper #register-confirm-password:not(:placeholder-shown):invalid {
   background-image: none !important;
 }
+
+/* ==========================================================================
+   Auth modal - styles lifted out of index.html inline attributes.
+   ========================================================================== */
+
+.auth-success {
+  color: var(--color-success);
+  font-size: var(--text-sm);
+  min-height: 1.2rem;
+  margin-top: -0.5rem;
+  display: none;
+}
+
+.forgot-password-link-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.magic-link-trigger {
+  color: var(--color-accent);
+}
+
+/* --- 2FA setup ---------------------------------------------------------- */
+.twofa-setup {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.twofa-qr-wrapper {
+  /* The QR needs a light quiet zone in both themes for scanners to read it,
+     so this one stays light-on-purpose rather than following --surface. */
+  background: #fff;
+  padding: 10px;
+  display: inline-block;
+  border-radius: var(--radius-sm);
+}
+
+.twofa-qr-img {
+  width: 180px;
+  height: 180px;
+}
+
+.twofa-secret-line {
+  font-size: var(--text-xs);
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+}
+
+.twofa-secret-code {
+  background: var(--skill-bg);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* --- Sessions ----------------------------------------------------------- */
+.sessions-list {
+  margin: 1rem 0;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.sessions-placeholder {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* --- Destructive / cautionary controls ---------------------------------- */
+.auth-btn-warning {
+  background: var(--color-warning-fill);
+  color: var(--on-warning);
+  font-weight: 600;
+}
+
+.auth-btn-danger {
+  background: var(--color-error-fill);
+  color: var(--on-error);
+  font-weight: 600;
+}
+
+.auth-heading-danger {
+  color: var(--color-error);
+}
+
+.auth-warning-box {
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-error) 28%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.auth-warning-box p {
+  margin: 0;
+  line-height: var(--leading-snug);
+}

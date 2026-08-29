@@ -108,12 +108,12 @@
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="./auth-modal.css" />
   <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" media="print"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
     id="google-fonts-link" />
-  <noscript>
-    <link rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" />
-  </noscript>
+  <link rel="preload" as="font" type="font/woff2" crossorigin="anonymous"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin="anonymous"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-brands-400.woff2" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
     crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -935,7 +935,7 @@
               <!-- Rendered by JS -->
             </tbody>
           </table>
-          <div class="activity-pagination activity-pagination-wrapper" id="activity-pagination" style="display: none;">
+          <div class="activity-pagination activity-pagination-wrapper" id="activity-pagination">
             <button id="activity-prev-btn" class="activity-pagination-btn" disabled><i class="fas fa-chevron-left"></i>
               Prev</button>
             <span id="activity-page-info" class="activity-page-info">Page 1</span>
@@ -977,7 +977,7 @@
               <form class="contact-form premium-form" id="contact-form"
                 action="https://formsubmit.co/inboxtorj@gmail.com" method="post" accept-charset="UTF-8">
                 <input type="hidden" name="_subject" value="New portfolio message from rjasti.com" />
-                <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
+                <input type="text" name="_honey" tabindex="-1" autocomplete="off" />
 
                 <div class="form-group floating-label-group">
                   <div class="input-wrapper">
@@ -1190,10 +1190,9 @@
               </button>
             </div>
             <div class="forgot-password-link-wrapper"
-              style="display: flex; justify-content: space-between; align-items: center;">
+             >
               <a href="#" class="forgot-password-link" id="forgot-password-trigger">Forgot Password?</a>
-              <a href="#" class="forgot-password-link" id="magic-link-trigger"
-                style="color: var(--color-accent, #89b4fa);">Magic Link <i class="fas fa-wand-magic-sparkles"></i></a>
+              <a href="#" class="forgot-password-link magic-link-trigger" id="magic-link-trigger">Magic Link <i class="fas fa-wand-magic-sparkles"></i></a>
             </div>
           </div>
           <div class="auth-error" id="login-error"></div>
@@ -1275,7 +1274,7 @@
           </div>
           <div class="auth-error" id="forgot-error"></div>
           <div class="auth-success" id="forgot-success"
-            style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;">
+           >
           </div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
             Send Reset Link <i class="fas fa-paper-plane"></i>
@@ -1335,7 +1334,7 @@
           </div>
           <div class="auth-error" id="reset-pw-error"></div>
           <div class="auth-success" id="reset-pw-success"
-            style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;">
+           >
           </div>
           <button type="submit" class="btn btn-accent auth-submit-btn" id="reset-pw-submit-btn" disabled>
             Set New Password <i class="fas fa-check"></i>
@@ -1399,7 +1398,7 @@
           </div>
           <div class="auth-error" id="change-pw-error"></div>
           <div class="auth-success" id="change-pw-success"
-            style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;">
+           >
           </div>
           <button type="submit" class="btn btn-accent auth-submit-btn" id="change-pw-submit-btn" disabled>
             Update Password <i class="fas fa-key"></i>
@@ -1421,7 +1420,7 @@
           </div>
           <div class="auth-error" id="magic-link-error"></div>
           <div class="auth-success" id="magic-link-success"
-            style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;">
+           >
           </div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
             Send Magic Link <i class="fas fa-wand-magic-sparkles"></i>
@@ -1459,14 +1458,12 @@
       <div class="auth-tab-content" id="auth-tab-2fa-setup">
         <h3>Setup Two-Factor Authentication</h3>
         <p class="auth-modal-subtitle">Scan the QR code with Google Authenticator or Authy, then enter the code.</p>
-        <div id="2fa-setup-container" style="text-align: center; margin: 1rem 0;">
-          <div id="2fa-qr-code-wrapper"
-            style="background: white; padding: 10px; display: inline-block; border-radius: 8px;">
-            <img id="2fa-qr-img" src="" alt="2FA QR Code" style="width: 180px; height: 180px;" />
+        <div id="2fa-setup-container" class="twofa-setup">
+          <div id="2fa-qr-code-wrapper" class="twofa-qr-wrapper">
+            <img id="2fa-qr-img" src="" alt="2FA QR Code" class="twofa-qr-img" width="180" height="180" />
           </div>
-          <p style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-muted);">Secret Key: <code
-              id="2fa-secret-text"
-              style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;"></code></p>
+          <p class="twofa-secret-line">Secret Key: <code
+              id="2fa-secret-text" class="twofa-secret-code"></code></p>
         </div>
         <form class="auth-form" id="2fa-enable-form">
           <div class="form-group floating-label-group">
@@ -1479,7 +1476,7 @@
           </div>
           <div class="auth-error" id="2fa-enable-error"></div>
           <div class="auth-success" id="2fa-enable-success"
-            style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; display: none;"></div>
+           ></div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
             Enable 2FA <i class="fas fa-shield-halved"></i>
           </button>
@@ -1490,21 +1487,19 @@
       <div class="auth-tab-content" id="auth-tab-sessions">
         <h3>Active Sessions & Devices</h3>
         <p class="auth-modal-subtitle">Manage where your account is currently logged in.</p>
-        <div id="sessions-list" style="margin: 1rem 0; max-height: 250px; overflow-y: auto;">
-          <p style="font-size: 0.85rem; color: var(--text-muted);">Loading active sessions...</p>
+        <div id="sessions-list" class="sessions-list">
+          <p class="sessions-placeholder">Loading active sessions...</p>
         </div>
         <div class="auth-error" id="sessions-error"></div>
-        <button type="button" class="btn auth-submit-btn" id="revoke-others-btn"
-          style="background: var(--color-warning, #f9e2af); color: #11111b; font-weight: 600;">
+        <button type="button" class="btn auth-submit-btn" id="revoke-others-btn" class="auth-btn-warning">
           Log Out All Other Devices <i class="fas fa-right-from-bracket"></i>
         </button>
       </div>
 
       <div class="auth-tab-content" id="auth-tab-delete-account">
-        <h3 style="color: var(--color-error, #f38ba8);"><i class="fas fa-triangle-exclamation"></i> Delete Account</h3>
-        <div class="auth-warning-box"
-          style="background: rgba(243, 139, 168, 0.1); border: 1px solid rgba(243, 139, 168, 0.3); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-color, #cdd6f4);">
-          <p style="margin: 0; line-height: 1.4;"><strong>Warning:</strong> Deleting your account will immediately
+        <h3 class="auth-heading-danger"><i class="fas fa-triangle-exclamation"></i> Delete Account</h3>
+        <div class="auth-warning-box">
+          <p><strong>Warning:</strong> Deleting your account will immediately
             deactivate your profile and log you out. You have <strong>30 days</strong> to log back in to automatically
             reactivate your account before permanent deletion.</p>
         </div>
@@ -1529,10 +1524,9 @@
           </div>
           <div class="auth-error" id="delete-account-error"></div>
           <div class="auth-success" id="delete-account-success"
-            style="color: var(--color-success, #a6e3a1); font-size: 0.85rem; min-height: 1.2rem; margin-top: -0.5rem; display: none;">
+           >
           </div>
-          <button type="submit" class="btn auth-submit-btn" id="delete-account-submit-btn" disabled
-            style="background: var(--color-error, #f38ba8); color: #11111b; font-weight: 600;">
+          <button type="submit" class="btn auth-submit-btn" id="delete-account-submit-btn" class="auth-btn-danger" disabled>
             Delete Account <i class="fas fa-trash-can"></i>
           </button>
         </form>
