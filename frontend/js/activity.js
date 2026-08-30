@@ -133,10 +133,6 @@ function formatCount(value) {
   return value.toLocaleString();
 }
 
-function shortenSessionId(id) {
-  return id.length <= 12 ? id : `${id.slice(0, 4)}…${id.slice(-4)}`;
-}
-
 function code(value) {
   return `<code class="act-ev-code">${escapeHTML(value)}</code>`;
 }
@@ -299,11 +295,11 @@ function currentSessionId() {
 function paintSessionPill(sessionId) {
   const value = document.getElementById("current-session-id");
   const pill = document.getElementById("activity-session-pill");
-  if (value) value.textContent = sessionId ? shortenSessionId(sessionId) : "None";
+  if (value) value.textContent = sessionId || "None";
   if (pill) {
     pill.dataset.sessionId = sessionId || "";
     pill.disabled = !sessionId;
-    if (sessionId) pill.title = `Session ${sessionId} - click to copy`;
+    if (sessionId) pill.title = "Click to copy this session ID";
   }
 }
 
