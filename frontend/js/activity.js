@@ -1,4 +1,4 @@
-import { API_BASE, apiFetch, isApiConfigured } from "./analytics.js";
+import { API_BASE, apiFetch, ensureSession, isApiConfigured } from "./analytics.js";
 import { copyText, escapeHTML } from "./utils.js";
 
 // Constants
@@ -63,6 +63,7 @@ let summaryState = null;
 let relativeTimeTimer = null;
 let prefersReducedMotion = false;
 let lastPageState = { pageCount: 0, atEnd: true };
+let untriggeredExpanded = false;
 
 // ── Formatting helpers ──
 
@@ -107,17 +108,6 @@ function formatRelativeTime(isoString) {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
-}
-
-function formatDuration(ms) {
-  if (!Number.isFinite(ms) || ms < 0) return "0s";
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
 }
 
 function isMobileViewport() {
@@ -545,17 +535,20 @@ function renderSummaryTiles() {
   `,
   ];
 
-  (summaryState.by_type || []).forEach((row) => {
+  const byType = summaryState.by_type || [];
+  const triggered = byType.filter((row) => (row.count || 0) > 0);
+  const untriggered = byType.filter((row) => (row.count || 0) === 0);
+
+  const typeTile = (row) => {
     const meta = tileMeta(row.event_type);
     const count = row.count || 0;
     const share = total > 0 ? Math.round((count / total) * 100) : 0;
-    const isActive = activeTypeFilter === row.event_type;
-    tiles.push(`
+    return `
       <button
         type="button"
         class="activity-tile${count === 0 ? " is-empty" : ""}"
         data-event-type="${escapeHTML(row.event_type)}"
-        aria-pressed="${isActive ? "true" : "false"}"
+        aria-pressed="${activeTypeFilter === row.event_type ? "true" : "false"}"
         ${count === 0 ? "disabled" : ""}
         title="${escapeHTML(meta.label)}: ${count} of ${total} events${count === 0 ? "" : " - click to filter"}"
       >
@@ -564,21 +557,27 @@ function renderSummaryTiles() {
         <span class="activity-tile-label">${escapeHTML(meta.label)}</span>
         <span class="activity-tile-share" style="width: ${share}%"></span>
       </button>
-    `);
-  });
+    `;
+  };
 
-  // Derived tiles - computed from the summary span, no extra request.
+  triggered.forEach((row) => tiles.push(typeTile(row)));
+
+  // A grid half-full of greyed zeros reads as a broken dashboard. Collapse the
+  // untriggered types behind one chip the reader can open on demand.
+  if (untriggered.length) {
+    tiles.push(`
+      <button type="button" class="activity-tile activity-tile-more" id="activity-tile-more"
+        aria-expanded="${untriggeredExpanded ? "true" : "false"}"
+        aria-controls="activity-untriggered">
+        <span class="activity-tile-icon"><i class="fas fa-ellipsis" aria-hidden="true"></i></span>
+        <span class="activity-tile-value">+${untriggered.length}</span>
+        <span class="activity-tile-label">${untriggeredExpanded ? "Hide" : "Not triggered yet"}</span>
+      </button>
+    `);
+  }
+
+  // Derived tiles - computed from the summary, no extra request.
   tiles.push(`
-    <div class="activity-tile is-derived">
-      <span class="activity-tile-icon"><i class="fas fa-hourglass-half" aria-hidden="true"></i></span>
-      <span class="activity-tile-value" data-tile-duration>0s</span>
-      <span class="activity-tile-label">Session Span</span>
-    </div>
-    <div class="activity-tile is-derived">
-      <span class="activity-tile-icon"><i class="fas fa-gauge-high" aria-hidden="true"></i></span>
-      <span class="activity-tile-value" data-tile-rate>0.0</span>
-      <span class="activity-tile-label">Events / min</span>
-    </div>
     <div class="activity-tile is-derived">
       <span class="activity-tile-icon"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i></span>
       <span class="activity-tile-value" data-tile-last>-</span>
@@ -591,10 +590,17 @@ function renderSummaryTiles() {
     </div>
   `);
 
+  // Untriggered types render into their own row, revealed by the chip.
+  tiles.push(`
+    <div class="activity-untriggered" id="activity-untriggered" ${untriggeredExpanded ? "" : "hidden"}>
+      ${untriggered.map(typeTile).join("")}
+    </div>
+  `);
+
   grid.innerHTML = tiles.join("");
 
   countUp(grid.querySelector("[data-tile-total]"), total);
-  (summaryState.by_type || []).forEach((row) => {
+  byType.forEach((row) => {
     countUp(grid.querySelector(`[data-tile-count="${CSS.escape(row.event_type)}"]`), row.count || 0);
   });
   renderDerivedTiles();
@@ -609,21 +615,6 @@ function renderSummaryTiles() {
 function renderDerivedTiles() {
   const grid = document.getElementById("activity-summary-grid");
   if (!grid || !summaryState) return;
-
-  const first = summaryState.first_event_at ? new Date(summaryState.first_event_at).getTime() : NaN;
-  const last = summaryState.last_event_at ? new Date(summaryState.last_event_at).getTime() : NaN;
-  const total = summaryState.total_events || 0;
-
-  const durationMs = Number.isFinite(first) && Number.isFinite(last) ? Math.max(0, last - first) : 0;
-  const durationNode = grid.querySelector("[data-tile-duration]");
-  if (durationNode) durationNode.textContent = formatDuration(durationMs);
-
-  const rateNode = grid.querySelector("[data-tile-rate]");
-  if (rateNode) {
-    const minutes = durationMs / 60000;
-    // Under a minute of span, per-minute extrapolation is noise - show the raw count.
-    rateNode.textContent = minutes >= 1 ? (total / minutes).toFixed(1) : String(total);
-  }
 
   const lastNode = grid.querySelector("[data-tile-last]");
   if (lastNode) {
@@ -776,16 +767,13 @@ function updatePipelineVisualizer({ animate = true } = {}) {
   eventTimestamps = eventTimestamps.filter((t) => now - t <= 60000);
 
   const eps = eventTimestamps.length / 60;
-  const epsText = `${eps.toFixed(2)} eps`;
-  setText("val-ingress", epsText);
-  setText("metric-throughput", epsText);
+  setText("val-ingress", `${eps.toFixed(2)} eps`);
 
   // The client cannot observe broker depth; report what it does know - the
   // number of events it has buffered locally in the last minute.
   setText("val-kafka", `${eventTimestamps.length} msg/min`);
 
   setText("val-fastapi", lastApiLatencyMs === null ? "- ms" : `${lastApiLatencyMs.toFixed(0)} ms`);
-  setText("metric-load", lastApiLatencyMs === null ? "-" : `${lastApiLatencyMs.toFixed(0)} ms`);
 
   const rows = summaryState?.total_events;
   setText("val-postgres", Number.isFinite(rows) ? `${rows} rows` : "- rows");
@@ -842,6 +830,17 @@ export function initActivity() {
   const summaryGrid = document.getElementById("activity-summary-grid");
   if (summaryGrid) {
     summaryGrid.addEventListener("click", (event) => {
+      const moreBtn = event.target.closest("#activity-tile-more");
+      if (moreBtn) {
+        untriggeredExpanded = !untriggeredExpanded;
+        const panel = document.getElementById("activity-untriggered");
+        if (panel) panel.hidden = !untriggeredExpanded;
+        moreBtn.setAttribute("aria-expanded", String(untriggeredExpanded));
+        const label = moreBtn.querySelector(".activity-tile-label");
+        if (label) label.textContent = untriggeredExpanded ? "Hide" : "Not triggered yet";
+        return;
+      }
+
       const tile = event.target.closest(".activity-tile[data-event-type]");
       if (!tile || tile.disabled) return;
       applyTypeFilter(tile.dataset.eventType);
@@ -938,10 +937,18 @@ export function initActivity() {
   );
 }
 
-function enterActivitySection() {
+async function enterActivitySection() {
   currentOffset = 0;
   activeTypeFilter = null;
   updateFilterChrome();
+
+  // Landing straight on #activity (a shared link, a reload on the hash) races
+  // session creation: without this the page renders "no active session" and
+  // never retries, because nothing re-runs when the id finally lands.
+  if (isApiConfigured() && !sessionStorage.getItem("rj_session_id")) {
+    await ensureSession();
+  }
+
   loadActivity(0, { immediate: true });
   loadActivitySummary();
   startActivityStream();
@@ -1005,10 +1012,6 @@ function stopActivityStream() {
 }
 
 function updateStreamingStatus(status) {
-  // Pipeline health is the stream connection state - the one thing the client
-  // can actually attest to - so it is written from the same signal as the badge.
-  setText("metric-health", { connected: "Live", connecting: "Linking", disconnected: "Offline" }[status] || "Offline");
-
   const statusBadge = document.querySelector(".pipeline-status-badge");
   if (!statusBadge) return;
 

@@ -6855,6 +6855,23 @@ button.activity-tile:active {
   font-size: var(--text-body-lg);
 }
 
+.activity-tile-more {
+  border-style: dashed;
+}
+
+.activity-tile-more .activity-tile-value {
+  font-size: var(--text-body-lg);
+  color: var(--muted);
+}
+
+/* Untriggered types occupy a full grid row, revealed by the chip above. */
+.activity-untriggered {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
 .activity-summary-grid[aria-busy="true"] .activity-tile {
   opacity: 0.5;
 }
@@ -7140,44 +7157,6 @@ body.dark-theme .pipeline-status-badge {
   }
 }
 
-.pipeline-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
-}
-
-.pipeline-stat-box {
-  background: hsl(0, 0%, 0%, 0.005);
-  border: 1px solid var(--border);
-  padding: 12px 16px;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: center;
-}
-
-body.dark-theme .pipeline-stat-box {
-  background: hsl(0, 0%, 100%, 0.005);
-}
-
-.pipeline-stat-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-}
-
-.pipeline-stat-val {
-  font-size: var(--text-lg);
-  font-weight: 800;
-  color: var(--text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
 /* Responsive Visualizer */
 @media (width <= 1024px) {
   .pipeline-flow {
@@ -7319,28 +7298,6 @@ body.dark-theme .pipeline-stat-box {
     padding: 2px 8px;
     border-radius: 6px;
     font-weight: 700;
-  }
-
-  .pipeline-stats {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    border-top: 1px solid var(--border);
-    padding-top: 16px;
-  }
-
-  .pipeline-stat-box {
-    padding: 6px 4px;
-    border-radius: 8px;
-    gap: 2px;
-  }
-
-  .pipeline-stat-label {
-    font-size: var(--text-2xs);
-    letter-spacing: var(--tracking-normal);
-  }
-
-  .pipeline-stat-val {
-    font-size: var(--text-xs);
   }
 }
 
