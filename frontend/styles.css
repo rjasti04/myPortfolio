@@ -7286,18 +7286,30 @@ body.dark-theme .pipeline-status-badge {
    the height. */
 @media (width <= 1024px) {
   .pipeline-flow {
-    /* Width of the connector column, and the row gap the wrap elbow spans. */
+    /* Node columns are sized to their content (widest label measures ~191px)
+       rather than splitting the row, so the cards stay compact and the run
+       between them carries the leftover width. */
+    --pipe-node-w: 215px;
+
+    /* Shortest and longest the connector column is allowed to get. Capping it
+       keeps the run from dwarfing the cards on a wide tablet; the grid centres
+       itself once the tracks stop filling the row. */
     --pipe-link: 28px;
+    --pipe-span-max: 320px;
     --pipe-row-gap: 12px;
 
-    /* Horizontal centre of each node column, measured from that column's own
-       outer edge - the elbow lanes have to line up with the node icons. */
-    --pipe-lane: calc((100% - var(--pipe-link)) / 4);
+    /* Horizontal centre of a node column, measured from that column's own outer
+       edge - the elbow lanes have to line up with the cards they join. */
+    --pipe-lane: calc(var(--pipe-node-w) / 2);
 
     display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--pipe-link) minmax(0, 1fr);
+    grid-template-columns:
+      var(--pipe-node-w)
+      minmax(var(--pipe-link), var(--pipe-span-max))
+      var(--pipe-node-w);
     grid-template-rows: auto auto auto;
     align-items: stretch;
+    justify-content: center;
     gap: var(--pipe-row-gap) 0;
     padding: 0;
   }
@@ -7337,13 +7349,30 @@ body.dark-theme .pipeline-status-badge {
     min-width: 0;
   }
 
+  /* Run the full width of the connector column instead of a fixed stub. */
   .pipeline-connector {
-    width: var(--pipe-link);
+    width: auto;
     min-width: var(--pipe-link);
     height: 4px;
     margin: 0;
     align-self: center;
-    justify-self: center;
+    justify-self: stretch;
+  }
+
+  /* Now that the in-row runs are long enough to carry one, head them with an
+     arrow so all three connectors read the same way. */
+  .pipeline-flow > :nth-child(2)::after,
+  .pipeline-flow > :nth-child(6)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 6px solid var(--border);
+    transform: translateY(-50%);
   }
 
   /* The row wrap (Kafka -> FastAPI) is a routed elbow rather than a floating
