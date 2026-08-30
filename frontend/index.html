@@ -1029,16 +1029,20 @@
 
       <section id="ai">
         <div class="ai-container sidebar-hidden" id="ai-layout">
-          <button type="button" class="ai-sidebar-toggle" id="sidebar-open-btn" aria-label="Open sidebar">
+          <div class="ai-sidebar-scrim" id="ai-sidebar-scrim" aria-hidden="true"></div>
+
+          <button type="button" class="ai-sidebar-toggle" id="sidebar-open-btn" aria-label="Open chat history"
+            aria-controls="ai-sidebar" aria-expanded="false">
             <i class="fas fa-chevron-right"></i>
           </button>
 
-          <aside class="ai-sidebar" id="ai-sidebar">
+          <aside class="ai-sidebar" id="ai-sidebar" aria-label="Chat history">
             <div class="ai-sidebar-header">
               <button type="button" class="btn btn-accent new-chat-btn" id="new-chat-btn" data-spring-hover>
                 <i class="fas fa-plus"></i> New Chat
               </button>
-              <button type="button" class="ai-close-btn" id="sidebar-close-btn" aria-label="Close sidebar">
+              <button type="button" class="ai-close-btn" id="sidebar-close-btn" aria-label="Close chat history"
+                aria-controls="ai-sidebar" aria-expanded="true">
                 <i class="fas fa-chevron-left"></i>
               </button>
             </div>
@@ -1065,29 +1069,29 @@
               <div class="ai-empty-view">
                 <div class="ai-hero-icon"><i class="fas fa-robot"></i></div>
                 <h2 class="ai-heading" id="ai-page-heading">How can I help you?</h2>
-                <p class="ai-subtitle" id="ai-page-subtitle">Powered by Gemma 3.4B on AWS Bedrock &mdash; ask me
-                  anything.</p>
+                <p class="ai-subtitle" id="ai-page-subtitle">Ask about Rajeev's work &mdash; his projects, stack,
+                  and architecture decisions.</p>
 
                 <div class="ai-suggestions" id="ai-suggested-prompts">
                   <button type="button" class="ai-suggestion-card"
-                    data-prompt="Explain how Kafka handles fault tolerance">
-                    <i class="fas fa-stream"></i>
-                    <span>Explain how Kafka handles fault tolerance</span>
+                    data-prompt="What does Rajeev do as a Principal Data Engineer and Architect?">
+                    <i class="fas fa-user-tie"></i>
+                    <span>What does Rajeev do day to day?</span>
                   </button>
                   <button type="button" class="ai-suggestion-card"
-                    data-prompt="What are best practices for Spark optimization?">
-                    <i class="fas fa-bolt"></i>
-                    <span>What are best practices for Spark optimization?</span>
-                  </button>
-                  <button type="button" class="ai-suggestion-card"
-                    data-prompt="Compare Snowflake vs Redshift for analytics">
-                    <i class="fas fa-database"></i>
-                    <span>Compare Snowflake vs Redshift for analytics</span>
-                  </button>
-                  <button type="button" class="ai-suggestion-card"
-                    data-prompt="How does a data mesh architecture work?">
+                    data-prompt="Walk me through the architecture of this portfolio site, front to back.">
                     <i class="fas fa-network-wired"></i>
-                    <span>How does a data mesh architecture work?</span>
+                    <span>How is this site built?</span>
+                  </button>
+                  <button type="button" class="ai-suggestion-card"
+                    data-prompt="What real-time streaming and cloud migration work has Rajeev shipped?">
+                    <i class="fas fa-stream"></i>
+                    <span>What has he shipped with Kafka and AWS?</span>
+                  </button>
+                  <button type="button" class="ai-suggestion-card"
+                    data-prompt="Which parts of Rajeev's stack would suit a role in data platform engineering?">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Is he a fit for my data platform role?</span>
                   </button>
                 </div>
               </div>

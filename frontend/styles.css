@@ -1495,7 +1495,6 @@ body:not(.dark-theme) .token-number {
 nav,
 .item,
 .skill-group,
-.ai-layout,
 .act-card {
   backdrop-filter: blur(var(--blur-xl));
   -webkit-backdrop-filter: blur(var(--blur-xl));
@@ -7190,6 +7189,7 @@ nav a:hover .nav-shortcut {
 /* ── AI Page ── */
 #ai {
   height: calc(100vh - 180px);
+  height: calc(100dvh - 180px);
   min-height: 600px;
   width: 100%;
   position: relative;
@@ -7218,6 +7218,7 @@ nav a:hover .nav-shortcut {
   display: flex;
   flex-direction: column;
   transition:
+    width var(--motion-medium) var(--ease-standard),
     opacity var(--motion-medium) var(--ease-standard),
     transform var(--motion-medium) var(--ease-enter);
   z-index: 10;
@@ -7232,6 +7233,17 @@ body.dark-theme .ai-sidebar {
   opacity: 0;
   transform: translateX(-16px);
   pointer-events: none;
+}
+
+.ai-sidebar-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  background: hsl(0, 0%, 0%, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-medium) var(--ease-standard);
+  display: none;
 }
 
 .ai-sidebar-toggle {
@@ -7417,7 +7429,7 @@ body.dark-theme .ai-sidebar {
 
 .session-menu-btn:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--accent-soft);
 }
 
 .session-dropdown-menu {
@@ -7433,7 +7445,14 @@ body.dark-theme .ai-sidebar {
   display: flex;
   flex-direction: column;
   min-width: 110px;
-  animation: fadeIn 0.15s ease forwards;
+  animation: messageFade var(--motion-fast) var(--ease-enter) both;
+}
+
+/* Items low in the scrollport would render their menu past the bottom of
+   .ai-sidebar-history, which clips it. JS flips those upward. */
+.session-dropdown-menu.drop-up {
+  top: auto;
+  bottom: 36px;
 }
 
 .session-dropdown-menu.hidden {
@@ -7595,7 +7614,6 @@ body.dark-theme .ai-sidebar {
   transition:
     background-color var(--motion-base) var(--ease-standard),
     border-color var(--motion-base) var(--ease-standard),
-    box-shadow var(--motion-base) var(--ease-standard),
     transform var(--motion-base) var(--ease-standard);
   display: flex;
   align-items: flex-start;
@@ -7618,14 +7636,9 @@ body.dark-theme .ai-sidebar {
   border-color: var(--accent-fill);
   background: var(--accent-soft);
   transform: translateY(-2px);
-  box-shadow: none;
 }
 
 /* Messages */
-.ai-main:not(.empty-state) .ai-empty-view {
-  display: none;
-}
-
 .ai-messages {
   display: flex;
   flex-direction: column;
@@ -7666,7 +7679,6 @@ body.dark-theme .ai-sidebar {
   background: var(--accent-fill);
   color: var(--on-accent);
   border-bottom-right-radius: 4px;
-  box-shadow: none;
 }
 
 #ai .chat-message.bot {
@@ -7808,14 +7820,11 @@ body.dark-theme .ai-input-container {
   display: flex;
   align-items: flex-end;
   box-shadow: var(--shadow-sm);
-  transition:
-    border-color var(--motion-base) var(--ease-standard),
-    box-shadow var(--motion-base) var(--ease-standard);
+  transition: border-color var(--motion-base) var(--ease-standard);
 }
 
 .ai-input-form:focus-within {
   border-color: var(--accent-fill);
-  box-shadow: none;
 }
 
 .ai-textarea {
@@ -8019,7 +8028,7 @@ body.dark-theme .ai-input-container {
 
 /* ── Markdown in messages ── */
 #ai .chat-message.bot pre {
-  background: hsl(0, 0%, 0%, 0.4);
+  background: var(--bg);
   padding: 14px 16px;
   border-radius: 10px;
   margin: 12px 0;
@@ -8062,6 +8071,7 @@ body.dark-theme .ai-input-container {
 @media (width <= 768px) {
   #ai {
     height: calc(100vh - 140px);
+    height: calc(100dvh - 140px);
     min-height: 480px;
   }
 
@@ -8074,6 +8084,17 @@ body.dark-theme .ai-input-container {
     max-width: 280px;
     background: var(--bg);
     box-shadow: var(--elev-4);
+  }
+
+  /* The drawer overlays the conversation here, so it needs a scrim to
+     separate the two and a tap target to dismiss it. */
+  .ai-sidebar-scrim {
+    display: block;
+  }
+
+  .ai-container:not(.sidebar-hidden) .ai-sidebar-scrim {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   body.dark-theme .ai-sidebar {
