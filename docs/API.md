@@ -174,9 +174,22 @@ cap the oldest frame is dropped, since a live tail beats a stale backlog.
 Per-stage health for the activity dashboard's ETL visualiser. Read-only over
 in-process counters, so it costs no database round trip.
 
-`mode` is `kafka`, `simulator`, or `bypass`. **`bypass` means no broker is in
-the path** - browser events reach PostgreSQL directly via `/events/bulk`. The
-dashboard renders that stage as "Bypassed" rather than inventing a queue depth.
+`mode` is one of:
+
+| Mode | Meaning |
+| :--- | :--- |
+| `kafka` | A broker is attached; figures are its own |
+| `simulator` | The mock event generator is running |
+| `simulated` | No broker; queue figures are modelled (default) |
+| `bypass` | No broker and modelling disabled |
+
+The Kafka stage always carries a `simulated` boolean, so a consumer can tell
+modelled figures from broker-reported ones. In `simulated` mode the numbers are
+derived from the API's real throughput rather than invented: `messages` is the
+true count of events processed, partition offsets sum to it, `throughput` is
+the observed rolling-minute rate, and `lag` rises with arrivals then drains
+geometrically against wall time (so poll rate does not move it). Set
+`SIMULATE_KAFKA_METRICS=false` for the `bypass` report instead.
 
 `fanout` is `postgres` when cross-instance LISTEN/NOTIFY relay is active,
 otherwise `local`.
@@ -237,7 +250,12 @@ List available Amazon Bedrock foundation models in the configured region.
 - `CHAT_MAX_CONCURRENCY`: Max concurrent chat streams (default: 4)
 - `LOG_LEVEL`: Python logging level (default: INFO)
 - `KAFKA_BOOTSTRAP_SERVERS`: Broker list. Empty (default) runs the pipeline in
-  `bypass` mode - see `GET /system/pipeline`
+  `simulated` mode - see `GET /system/pipeline`
+- `SIMULATE_KAFKA_METRICS`: Model queue figures from real throughput when no
+  broker is attached (default: true). False reports `bypass`
+- `SIMULATED_KAFKA_PARTITIONS`: Partitions the modelled topic presents
+  (default: 3)
+- `SIMULATED_KAFKA_GROUP`: Modelled consumer group (default: activity-dashboard)
 - `KAFKA_TOPIC`: Activity topic (default: session-activity)
 - `KAFKA_BATCH_SIZE`: Rows buffered before an eager flush (default: 10)
 - `KAFKA_BATCH_TIMEOUT`: Periodic flush interval in seconds (default: 3.0)

@@ -73,6 +73,8 @@ let activityStreamSource = null;
 let loadedEvents = [];
 let activeTypeFilter = null;
 let summaryState = null;
+// Set when a live event lands, cleared when the server aggregates are refetched.
+let summaryStale = false;
 let relativeTimeTimer = null;
 let prefersReducedMotion = false;
 let lastPageState = { pageCount: 0, atEnd: true };
@@ -572,6 +574,14 @@ function refreshRelativeTimes() {
   // The strip's window slides whether or not events arrive, so it has to be
   // repainted on the tick as well - otherwise a quiet minute freezes it.
   renderBurstStrip();
+
+  // Pick up the server-side aggregates a live event invalidated. Rate-limited
+  // to this tick rather than fired per event, so a burst costs one refetch.
+  if (summaryStale) {
+    summaryStale = false;
+    loadActivitySummary();
+    loadActivityFunnel();
+  }
 }
 
 // ── Summary tiles ──
@@ -598,6 +608,7 @@ export async function loadActivitySummary() {
       return;
     }
     summaryState = await response.json();
+    summaryStale = false;
     renderSummaryTiles();
   } catch (error) {
     console.error("Activity summary load error", error);
@@ -806,14 +817,24 @@ function countUp(node, target) {
  */
 function incrementSummary(eventType) {
   if (!summaryState) return;
+  // distinct_paths and the funnel are server-side aggregates; a live event can
+  // change both and the client cannot derive either from the delta.
+  summaryStale = true;
   summaryState.total_events = (summaryState.total_events || 0) + 1;
   summaryState.last_event_at = new Date().toISOString();
   if (!summaryState.first_event_at) summaryState.first_event_at = summaryState.last_event_at;
 
   const row = (summaryState.by_type || []).find((r) => r.event_type === eventType);
   if (row) {
+    const wasUntriggered = (row.count || 0) === 0;
     row.count = (row.count || 0) + 1;
     row.last_at = summaryState.last_event_at;
+    if (wasUntriggered) {
+      // The chip is currently sitting in the collapsed untriggered panel;
+      // only a re-render moves it into the main bar where it belongs.
+      renderSummaryTiles();
+      return;
+    }
   } else {
     summaryState.by_type = [...(summaryState.by_type || []), { event_type: eventType, count: 1 }];
     renderSummaryTiles();
@@ -1055,10 +1076,10 @@ function updatePipelineVisualizer({ animate = true, surge = false } = {}) {
   setText("val-ingress", `${eps.toFixed(2)} eps`);
   setNodeHealth("node-ingress", health.ingress, eps > 0 ? `${eventSamples.length}/min` : null);
 
-  // The client cannot observe broker depth, so the Kafka stage reports what the
-  // server says about itself. With no broker in the path it reads "Bypassed"
-  // rather than a fabricated queue depth - an honest disabled stage is more
-  // informative than an invented number.
+  // The client cannot observe broker depth, so the Kafka stage reports whatever
+  // the server says about itself: real figures when a broker is attached, and
+  // otherwise a modelled view derived from the API's own throughput. Only an
+  // explicitly disabled simulation reports `bypass`.
   const kafka = stages?.kafka;
   if (kafka) {
     const mode = kafka.mode || "bypass";
@@ -1066,12 +1087,21 @@ function updatePipelineVisualizer({ animate = true, surge = false } = {}) {
       setText("val-kafka", "Bypassed");
       setNodeHealth("node-kafka", "bypass", "direct to API");
     } else {
-      setText("val-kafka", `${kafka.messages ?? 0} msg`);
-      setNodeHealth(
-        "node-kafka",
-        kafka.health || "ok",
-        kafka.lag === null || kafka.lag === undefined ? mode : `lag ${kafka.lag}`,
-      );
+      const messages = kafka.messages ?? 0;
+      setText("val-kafka", `${formatCount(messages)} msg`);
+
+      // Depth is the figure that says whether the consumer is keeping up, so
+      // it leads the badge; throughput backs it up when the queue is clear.
+      const lag = kafka.lag;
+      let badge;
+      if (Number.isFinite(lag) && lag > 0) {
+        badge = `lag ${lag}`;
+      } else if (Number.isFinite(kafka.throughput) && kafka.throughput > 0) {
+        badge = `${kafka.throughput.toFixed(2)} msg/s`;
+      } else {
+        badge = Number.isFinite(lag) ? "lag 0" : mode;
+      }
+      setNodeHealth("node-kafka", kafka.health || "ok", badge);
     }
   } else {
     setText("val-kafka", "-");
@@ -1120,6 +1150,14 @@ function renderBurstStrip() {
   const result = drawBurstStrip(canvas, eventSamples, { reducedMotion: prefersReducedMotion });
   const peakNode = document.getElementById("burst-peak");
   if (peakNode && result) peakNode.textContent = `peak ${result.peak}/s`;
+}
+
+/** Compact count so a large offset cannot stretch the node box. */
+function formatCount(value) {
+  if (!Number.isFinite(value)) return "-";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 10_000) return `${(value / 1000).toFixed(1)}k`;
+  return value.toLocaleString();
 }
 
 function setText(id, value) {
