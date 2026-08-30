@@ -38,6 +38,13 @@ router.add_api_route(
 )
 
 router.add_api_route(
+    "/sessions/{session_id}/events/funnel",
+    event_controller.get_session_path_funnel,
+    methods=["GET"],
+    summary="Path funnel and transition edges for a session",
+)
+
+router.add_api_route(
     "/sessions/{session_id}/events",
     event_controller.get_session_events,
     methods=["GET"],

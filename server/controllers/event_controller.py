@@ -1,5 +1,6 @@
 import json
 import asyncio
+import time
 from uuid import UUID
 from datetime import datetime, timezone
 import structlog
@@ -39,9 +40,10 @@ async def create_event(payload: EventCreate, request: Request, db: AsyncSession 
     await db.commit()
     await db.refresh(event)
 
-    # Broadcast event to active SSE streams
-    from server.services.kafka_stream import broadcast_event
-    asyncio.create_task(broadcast_event(payload.session_id, {
+    # Broadcast event to active SSE streams. `spawn_background` retains a
+    # strong reference; a bare create_task can be collected mid-await.
+    from server.services.kafka_stream import broadcast_event, spawn_background
+    spawn_background(broadcast_event(payload.session_id, {
         "event_id": event.event_id,
         "session_id": str(payload.session_id),
         "event_type": payload.event_type,
@@ -75,11 +77,15 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
     try:
         db.add_all(events)
         await db.commit()
+
+        if payload.flush_reason:
+            from server.services.kafka_stream import record_flush_reason
+            record_flush_reason(payload.flush_reason, len(events))
         
         # Broadcast all inserted events to active streams
-        from server.services.kafka_stream import broadcast_event
+        from server.services.kafka_stream import broadcast_event, spawn_background
         for e in events:
-            asyncio.create_task(broadcast_event(e.session_id, {
+            spawn_background(broadcast_event(e.session_id, {
                 "event_id": e.event_id,
                 "session_id": str(e.session_id),
                 "event_type": e.event_type,
@@ -95,27 +101,135 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
     return {"inserted": len(events)}
 
 
+# A comment frame every 2s (the previous behaviour) is far more chatty than any
+# proxy idle timeout requires. 15s keeps intermediaries from reaping the
+# connection at a fraction of the write volume.
+SSE_KEEPALIVE_SECONDS = 15.0
+
+# Cadence for pipeline health frames pushed down the same connection, so the
+# DAG needs no second polling loop.
+SSE_PIPELINE_INTERVAL_SECONDS = 2.0
+
+# Browser reconnect backoff, advertised once on connect.
+SSE_RETRY_MS = 3000
+
+
+def _sse_frame(channel: str, payload: dict, event_id: Optional[int] = None) -> str:
+    """Serialises one SSE frame on a named channel."""
+    lines = []
+    if event_id is not None:
+        lines.append(f"id: {event_id}")
+    lines.append(f"event: {channel}")
+    lines.append(f"data: {json.dumps(payload, default=str)}")
+    return "\n".join(lines) + "\n\n"
+
+
+def _compact(event: dict) -> dict:
+    """
+    Compact wire shape for streamed events.
+
+    `session_id` is implicit in the stream and ISO-8601 strings cost roughly
+    twice what an epoch integer does, so the frame carries neither. The REST
+    list endpoint keeps the verbose shape, where readability matters more than
+    bytes on the wire.
+    """
+    created_at = event.get("created_at")
+    if isinstance(created_at, str):
+        try:
+            ts = int(datetime.fromisoformat(created_at).timestamp() * 1000)
+        except ValueError:
+            ts = int(_now().timestamp() * 1000)
+    elif isinstance(created_at, datetime):
+        ts = int(created_at.timestamp() * 1000)
+    else:
+        ts = int(_now().timestamp() * 1000)
+
+    return {
+        "i": event.get("event_id"),
+        "t": ts,
+        "e": event.get("event_type"),
+        "p": event.get("page_path"),
+        "d": event.get("event_data"),
+    }
+
+
 async def stream_session_events(session_id: UUID, request: Request):
     """
     Exposes an SSE stream endpoint that relays real-time event updates to the client dashboard.
-    Registers a stream queue for the session_id.
+
+    Carries three named channels on one connection:
+      `hello`    - bootstrap (server time, retry hint, pipeline snapshot)
+      `activity` - one activity event, compacted, carrying an `id:` for resume
+      `pipeline` - periodic per-stage health for the DAG
+
+    Unnamed `data:` frames are also emitted for `activity` so a client still on
+    `EventSource.onmessage` keeps working across the deploy that switches it to
+    `addEventListener`.
     """
-    from server.services.kafka_stream import register_stream, unregister_stream
-    
+    from server.services.kafka_stream import (
+        register_stream,
+        unregister_stream,
+        replay_since,
+        pipeline_snapshot,
+    )
+
+    # Set by the browser automatically on reconnect from the last `id:` it saw.
+    raw_last_id = request.headers.get("last-event-id")
+    try:
+        last_event_id = int(raw_last_id) if raw_last_id else None
+    except ValueError:
+        last_event_id = None
+
     client_queue = await register_stream(session_id)
-    
+
     async def event_generator():
         try:
+            yield f"retry: {SSE_RETRY_MS}\n\n"
+            yield _sse_frame("hello", {
+                "server_time": _now().isoformat(),
+                "resumed_from": last_event_id,
+                "pipeline": pipeline_snapshot(),
+            })
+
+            # Close the reconnect gap before streaming anything new.
+            for missed in replay_since(session_id, last_event_id):
+                yield _sse_frame("activity", _compact(missed), event_id=missed.get("event_id"))
+                yield f"data: {json.dumps(missed, default=str)}\n\n"
+
+            last_pipeline_at = 0.0
+            last_write = time.monotonic()
             while True:
                 if await request.is_disconnected():
                     break
-                
+
+                now = time.monotonic()
+                if now - last_pipeline_at >= SSE_PIPELINE_INTERVAL_SECONDS:
+                    last_pipeline_at = now
+                    yield _sse_frame("pipeline", pipeline_snapshot())
+
+                # Wake often enough to keep the pipeline cadence honest, but
+                # only write a keep-alive comment once the full interval of
+                # genuine silence has elapsed.
                 try:
-                    event_dict = await asyncio.wait_for(client_queue.get(), timeout=2.0)
-                    yield f"data: {json.dumps(event_dict)}\n\n"
+                    event_dict = await asyncio.wait_for(
+                        client_queue.get(), timeout=SSE_PIPELINE_INTERVAL_SECONDS
+                    )
                 except asyncio.TimeoutError:
-                    # Keep-alive heartbeat comment
-                    yield ": keep-alive\n\n"
+                    idle_for = time.monotonic() - last_write
+                    if idle_for >= SSE_KEEPALIVE_SECONDS:
+                        yield ": keep-alive\n\n"
+                        last_write = time.monotonic()
+                    continue
+
+                if event_dict.get("__channel__") == "pipeline":
+                    payload = {k: v for k, v in event_dict.items() if k != "__channel__"}
+                    yield _sse_frame("pipeline", payload)
+                else:
+                    event_id = event_dict.get("event_id")
+                    yield _sse_frame("activity", _compact(event_dict), event_id=event_id)
+                    # Back-compat frame for clients still on `onmessage`.
+                    yield f"data: {json.dumps(event_dict, default=str)}\n\n"
+                last_write = time.monotonic()
         finally:
             unregister_stream(session_id, client_queue)
 
@@ -171,6 +285,89 @@ async def get_session_events(
         }
         for e in events
     ]
+
+
+async def get_session_path_funnel(
+    session_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=8, ge=1, le=25, description="Maximum paths to return."),
+):
+    """
+    Path-level funnel for the session: dwell, hits, and where each path leads.
+
+    Uses a single window-function pass to pair every event with the next
+    distinct path in the session, which is what makes the transition edges
+    computable without pulling the whole event set into the application.
+    """
+    ordered = (
+        select(
+            UserActivityEvent.page_path.label("path"),
+            UserActivityEvent.created_at.label("at"),
+            func.lead(UserActivityEvent.page_path)
+            .over(order_by=(UserActivityEvent.created_at, UserActivityEvent.event_id))
+            .label("next_path"),
+            func.lead(UserActivityEvent.created_at)
+            .over(order_by=(UserActivityEvent.created_at, UserActivityEvent.event_id))
+            .label("next_at"),
+        )
+        .where(
+            UserActivityEvent.session_id == session_id,
+            UserActivityEvent.page_path.isnot(None),
+        )
+        .subquery()
+    )
+
+    result = await db.execute(
+        select(
+            ordered.c.path,
+            func.count().label("hits"),
+            func.min(ordered.c.at).label("first_at"),
+            func.max(ordered.c.at).label("last_at"),
+        )
+        .group_by(ordered.c.path)
+        .order_by(desc("hits"))
+        .limit(limit)
+    )
+    steps = [
+        {
+            "path": row.path,
+            "hits": row.hits,
+            "first_at": row.first_at,
+            "last_at": row.last_at,
+        }
+        for row in result
+    ]
+
+    transitions_result = await db.execute(
+        select(
+            ordered.c.path.label("from_path"),
+            ordered.c.next_path.label("to_path"),
+            func.count().label("weight"),
+        )
+        .where(
+            ordered.c.next_path.isnot(None),
+            ordered.c.next_path != ordered.c.path,
+        )
+        .group_by(ordered.c.path, ordered.c.next_path)
+        .order_by(desc("weight"))
+        .limit(limit * 2)
+    )
+    transitions = [
+        {"from": row.from_path, "to": row.to_path, "weight": row.weight}
+        for row in transitions_result
+    ]
+
+    total = sum(step["hits"] for step in steps)
+    for step in steps:
+        step["share"] = round(step["hits"] / total, 4) if total else 0.0
+
+    return {
+        "session_id": session_id,
+        "total_hits": total,
+        "steps": steps,
+        "transitions": transitions,
+    }
 
 
 async def get_session_event_summary(

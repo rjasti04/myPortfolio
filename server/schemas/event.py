@@ -32,8 +32,17 @@ class EventCreate(BaseModel):
                 raise ValueError("event_data exceeds 4 KB limit")
         return v
 
+FlushReason = Literal["threshold", "timer", "unload", "hidden", "manual"]
+
+
 class BulkEventCreate(BaseModel):
     events: list[EventCreate] = Field(..., min_length=1, max_length=500)
+    # Client clock at flush time. Purely diagnostic - never trusted for
+    # ordering, since the browser clock can be arbitrarily wrong.
+    client_ts: Optional[int] = None
+    # Which client trigger produced this batch. Distinguishes healthy timed
+    # flushes from the unreliable unload path, which is worth measuring.
+    flush_reason: Optional[FlushReason] = None
 
 class EventTypeCount(BaseModel):
     event_type: str

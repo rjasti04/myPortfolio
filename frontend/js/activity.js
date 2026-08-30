@@ -1,6 +1,14 @@
-import { API_BASE, apiFetch, ensureSession, isApiConfigured } from "./analytics.js";
+import { API_BASE, apiFetch, ensureSession, isApiConfigured, onTelemetry } from "./analytics.js";
 import { copyText, escapeHTML } from "./utils.js";
 import { openModal, closeModal } from "./modal.js";
+import {
+  BURST_WINDOW_MS,
+  drawBurstStrip,
+  latencyBand,
+  percentile,
+  renderFunnel,
+  renderLatencyMeter,
+} from "./activity-charts.js";
 
 // Constants
 const PAGE_SIZE = 15;
@@ -11,8 +19,12 @@ const COPY_RESET_DELAY_MS = 1600;
 const MOBILE_BREAKPOINT = 768;
 const RELATIVE_TIME_TICK_MS = 10000;
 const COUNT_UP_DURATION_MS = 600;
-const DATA_PREVIEW_KEYS = 2;
-const TABLE_COLSPAN = 5;
+const DATA_PREVIEW_KEYS = 3;
+// Date and Time collapsed into one "When" column.
+const TABLE_COLSPAN = 4;
+// Rolling reservoir of request timings behind the p50/p95/p99 meter.
+const LATENCY_SAMPLE_LIMIT = 200;
+const DENSITY_STORAGE_KEY = "rj_activity_density";
 
 // Icon + label for every event type the API declares (server/schemas/event.py).
 // Order drives tile order; unknown types fall back to GENERIC_TILE.
@@ -69,30 +81,87 @@ let drawerOpen = false;
 
 // ── Formatting helpers ──
 
+const CHIP_VALUE_MAX = 24;
+
+function chipValueType(value) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
+}
+
+function chipValueText(value) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return `${value.length} items`;
+  if (typeof value === "object") return "{…}";
+  const text = String(value);
+  return text.length > CHIP_VALUE_MAX ? `${text.slice(0, CHIP_VALUE_MAX)}…` : text;
+}
+
+function chip(label, value, { type = "string", modifier = "" } = {}) {
+  return `<span class="kv-chip${modifier ? ` kv-chip--${modifier}` : ""}" data-type="${escapeHTML(type)}">
+    ${label ? `<b class="kv-chip-key">${escapeHTML(label)}</b>` : ""}
+    <span class="kv-chip-value">${escapeHTML(value)}</span>
+  </span>`;
+}
+
 /**
- * Human-readable preview of an event payload for the collapsed table cell.
+ * Per-event-type renderings for payloads whose shape is known.
+ *
+ * A scroll depth is a proportion and a theme change is a colour; rendering
+ * either as `{percent: 75}` makes the reader parse JSON to recover a fact the
+ * UI could simply show. Anything not listed falls through to generic chips.
+ */
+const CHIP_FORMATTERS = {
+  scroll_depth: (data) => {
+    const percent = Number(data.percent);
+    if (!Number.isFinite(percent)) return null;
+    return `<span class="kv-chip kv-chip--meter" data-type="number">
+      <span class="kv-chip-meter" style="--chip-fill: ${Math.max(0, Math.min(100, percent))}%"></span>
+      <span class="kv-chip-value">${escapeHTML(String(percent))}% scrolled</span>
+    </span>`;
+  },
+  theme_change: (data) => {
+    if (!data.theme) return null;
+    return `<span class="kv-chip kv-chip--swatch" data-type="string">
+      <span class="kv-chip-swatch" data-theme="${escapeHTML(String(data.theme))}"></span>
+      <span class="kv-chip-value">${escapeHTML(String(data.theme))}</span>
+    </span>`;
+  },
+  click: (data) => {
+    const label = data.element_id || data.text || data.tag;
+    if (!label) return null;
+    const extra = data.text && data.element_id ? chip("text", chipValueText(data.text)) : "";
+    return chip("", chipValueText(label), { type: "target", modifier: "target" }) + extra;
+  },
+  terminal_command: (data) => {
+    if (!data.command) return null;
+    const args = Array.isArray(data.args) ? ` ${data.args.join(" ")}` : "";
+    return `<span class="kv-chip kv-chip--command" data-type="command">
+      <span class="kv-chip-value">$ ${escapeHTML(`${data.command}${args}`)}</span>
+    </span>`;
+  },
+  page_view: (data) => (data.referrer ? chip("from", chipValueText(data.referrer)) : null),
+};
+
+/**
+ * Chip preview of an event payload for the collapsed table cell.
  * The panel below still shows the full pretty-printed JSON.
  */
-function previewEventData(eventData) {
-  if (!eventData || typeof eventData !== "object") return "-";
+function previewEventData(eventData, eventType) {
+  if (!eventData || typeof eventData !== "object") return "";
   const keys = Object.keys(eventData);
-  if (!keys.length) return "{}";
+  if (!keys.length) return chip("", "empty payload", { type: "null" });
 
-  const shown = keys.slice(0, DATA_PREVIEW_KEYS).map((key) => {
-    const value = eventData[key];
-    let rendered;
-    if (typeof value === "string") {
-      rendered = `"${value.length > 24 ? `${value.slice(0, 24)}…` : value}"`;
-    } else if (value === null || typeof value !== "object") {
-      rendered = String(value);
-    } else {
-      rendered = Array.isArray(value) ? `[${value.length}]` : "{…}";
-    }
-    return `${key}: ${rendered}`;
-  });
+  const formatted = CHIP_FORMATTERS[eventType]?.(eventData);
+  if (formatted) return formatted;
 
-  const overflow = keys.length - shown.length;
-  return `{ ${shown.join(", ")} }${overflow > 0 ? ` +${overflow}` : ""}`;
+  const shown = keys
+    .slice(0, DATA_PREVIEW_KEYS)
+    .map((key) => chip(key, chipValueText(eventData[key]), { type: chipValueType(eventData[key]) }))
+    .join("");
+
+  const overflow = keys.length - Math.min(keys.length, DATA_PREVIEW_KEYS);
+  return shown + (overflow > 0 ? chip("", `+${overflow} more`, { type: "more", modifier: "more" }) : "");
 }
 
 function formatEventJson(eventData) {
@@ -277,11 +346,18 @@ function renderEvents({ stagger = true } = {}) {
   // Below the breakpoint the inline table is hidden entirely and the log lives
   // in the drawer, so the cards mount there instead.
   if (isMobileViewport()) {
-    const drawerBody = document.getElementById("activity-drawer-body");
-    if (drawerBody) renderMobileCards(loadedEvents, drawerBody, currentOffset, stagger);
+    // Cards render inline by default - the log is this section's primary
+    // content and should not sit behind a drawer tap on the most common
+    // viewport. The drawer still hosts the type-filtered view opened from a
+    // chip, and owns the render while it is open.
+    const target = drawerOpen
+      ? document.getElementById("activity-drawer-body")
+      : document.querySelector(".activity-table-container");
+    if (target) renderMobileCards(loadedEvents, target, currentOffset, stagger);
     return;
   }
 
+  clearInlineMobileCards();
   const tbody = document.getElementById("activity-tbody");
   if (tbody) renderTableRows(loadedEvents, tbody, currentOffset, stagger);
 }
@@ -342,23 +418,30 @@ function renderTableRows(events, tbody, offset, stagger = true) {
 
   events.forEach((e, i) => {
     const d = new Date(e.created_at);
-    const dateStr = escapeHTML(d.toLocaleDateString());
     const timeStr = escapeHTML(d.toLocaleTimeString());
+    const dateStr = escapeHTML(d.toLocaleDateString(undefined, { month: "short", day: "numeric" }));
     const relativeStr = escapeHTML(formatRelativeTime(e.created_at));
     const hasData = Boolean(e.event_data);
-    const preview = hasData ? escapeHTML(previewEventData(e.event_data)) : "";
+    // previewEventData returns markup (escaped internally), not text.
+    const preview = hasData ? previewEventData(e.event_data, e.event_type) : "";
     const dataJson = hasData ? escapeHTML(formatEventJson(e.event_data)) : "";
     const detailRowId = `activity-data-${offset}-${i}`;
 
     const mainRow = document.createElement("tr");
+    mainRow.dataset.eventType = e.event_type;
     const delay = rowAnimation(i, stagger);
     if (delay !== null) {
       mainRow.className = "activity-row-enter";
       mainRow.style.animationDelay = `${delay}ms`;
     }
     mainRow.innerHTML = `
-      <td>${dateStr}</td>
-      <td>${timeStr}<span class="activity-relative-time" data-created-at="${escapeHTML(e.created_at)}">${relativeStr}</span></td>
+      <td class="activity-when">
+        <span class="activity-when-time">${timeStr}</span>
+        <span class="activity-when-meta">
+          <span class="activity-when-date">${dateStr}</span>
+          <span class="activity-relative-time" data-created-at="${escapeHTML(e.created_at)}">${relativeStr}</span>
+        </span>
+      </td>
       <td><span class="activity-type-badge">${escapeHTML(e.event_type)}</span></td>
       <td>${escapeHTML(e.page_path || "-")}</td>
       <td>
@@ -404,6 +487,10 @@ function renderTableRows(events, tbody, offset, stagger = true) {
 }
 
 /** Renders the card layout into `container` - the drawer body on mobile. */
+function clearInlineMobileCards() {
+  document.querySelector(".activity-table-container .activity-mobile-cards")?.remove();
+}
+
 function renderMobileCards(events, container, offset, stagger = true) {
   let mobileContainer = container.querySelector(".activity-mobile-cards");
   if (!mobileContainer) {
@@ -419,6 +506,7 @@ function renderMobileCards(events, container, offset, stagger = true) {
       const timeStr = escapeHTML(d.toLocaleTimeString());
       const relativeStr = escapeHTML(formatRelativeTime(e.created_at));
       const hasData = Boolean(e.event_data);
+      const preview = hasData ? previewEventData(e.event_data, e.event_type) : "";
       const dataJson = hasData ? escapeHTML(formatEventJson(e.event_data)) : "";
       const detailPanelId = `activity-mobile-data-${offset}-${i}`;
       const delay = rowAnimation(i, stagger);
@@ -444,6 +532,7 @@ function renderMobileCards(events, container, offset, stagger = true) {
             hasData
               ? `
             <div class="activity-card-data-section">
+              <div class="activity-card-chips">${preview}</div>
               <button class="activity-mobile-toggle" type="button" aria-expanded="false" aria-controls="${detailPanelId}">
                 <span>View Event Data</span>
                 <i class="fas fa-chevron-down" aria-hidden="true"></i>
@@ -480,6 +569,9 @@ function refreshRelativeTimes() {
     node.textContent = formatRelativeTime(node.dataset.createdAt);
   });
   renderDerivedTiles();
+  // The strip's window slides whether or not events arrive, so it has to be
+  // repainted on the tick as well - otherwise a quiet minute freezes it.
+  renderBurstStrip();
 }
 
 // ── Summary tiles ──
@@ -519,6 +611,16 @@ function renderSummaryUnavailable(message) {
   const grid = document.getElementById("activity-summary-grid");
   if (!grid) return;
   summaryState = null;
+
+  // The hero grid starts aria-busy in the markup; without clearing it here a
+  // failed summary leaves an empty region permanently announced as loading.
+  const heroGrid = document.getElementById("activity-hero-grid");
+  if (heroGrid) {
+    heroGrid.removeAttribute("aria-busy");
+    heroGrid.innerHTML = "";
+    delete heroGrid.dataset.built;
+  }
+
   grid.removeAttribute("aria-busy");
   grid.innerHTML = `<p class="activity-summary-error">${escapeHTML(message)}</p>`;
 }
@@ -528,21 +630,16 @@ function renderSummaryTiles() {
   if (!grid || !summaryState) return;
 
   const total = summaryState.total_events || 0;
-  const tiles = [
-    `
-    <button type="button" class="activity-tile is-total" id="activity-tile-total"
-      title="View the full event log">
-      <span class="activity-tile-icon"><i class="fas fa-database" aria-hidden="true"></i></span>
-      <span class="activity-tile-value" data-tile-total>0</span>
-      <span class="activity-tile-label">Total Events</span>
-    </button>
-  `,
-  ];
+  renderHeroStats(total);
 
+  const tiles = [];
   const byType = summaryState.by_type || [];
   const triggered = byType.filter((row) => (row.count || 0) > 0);
   const untriggered = byType.filter((row) => (row.count || 0) === 0);
 
+  // Per-type counts render as chips rather than cards: eight equal-weight
+  // cards spread four columns of whitespace across a desktop row, and the type
+  // breakdown is secondary to the hero stats above it.
   const typeTile = (row) => {
     const meta = tileMeta(row.event_type);
     const count = row.count || 0;
@@ -557,8 +654,8 @@ function renderSummaryTiles() {
         title="${escapeHTML(meta.label)}: ${count} of ${total} events${count === 0 ? "" : " - click to filter"}"
       >
         <span class="activity-tile-icon"><i class="fas ${escapeHTML(meta.icon)}" aria-hidden="true"></i></span>
-        <span class="activity-tile-value" data-tile-count="${escapeHTML(row.event_type)}">0</span>
         <span class="activity-tile-label">${escapeHTML(meta.label)}</span>
+        <span class="activity-tile-value" data-tile-count="${escapeHTML(row.event_type)}">0</span>
         <span class="activity-tile-share" style="width: ${share}%"></span>
       </button>
     `;
@@ -580,20 +677,6 @@ function renderSummaryTiles() {
     `);
   }
 
-  // Derived tiles - computed from the summary, no extra request.
-  tiles.push(`
-    <div class="activity-tile is-derived">
-      <span class="activity-tile-icon"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i></span>
-      <span class="activity-tile-value" data-tile-last>-</span>
-      <span class="activity-tile-label">Last Event</span>
-    </div>
-    <div class="activity-tile is-derived">
-      <span class="activity-tile-icon"><i class="fas fa-sitemap" aria-hidden="true"></i></span>
-      <span class="activity-tile-value" data-tile-paths>0</span>
-      <span class="activity-tile-label">Distinct Paths</span>
-    </div>
-  `);
-
   // Untriggered types render into their own row, revealed by the chip.
   tiles.push(`
     <div class="activity-untriggered" id="activity-untriggered" ${untriggeredExpanded ? "" : "hidden"}>
@@ -603,7 +686,6 @@ function renderSummaryTiles() {
 
   grid.innerHTML = tiles.join("");
 
-  countUp(grid.querySelector("[data-tile-total]"), total);
   byType.forEach((row) => {
     countUp(grid.querySelector(`[data-tile-count="${CSS.escape(row.event_type)}"]`), row.count || 0);
   });
@@ -616,8 +698,69 @@ function renderSummaryTiles() {
   updatePipelineVisualizer({ animate: false });
 }
 
+/**
+ * The four headline figures, above the per-type chip bar.
+ *
+ * Total and Events/sec are the two the reader checks first, so they lead;
+ * Session duration and Distinct paths give the run its shape. Events/sec is
+ * measured client-side over the same rolling minute as the burst strip.
+ */
+function renderHeroStats(total) {
+  const grid = document.getElementById("activity-hero-grid");
+  if (!grid) return;
+
+  const built = grid.dataset.built === "true";
+  if (!built) {
+    grid.innerHTML = `
+      <button type="button" class="hero-stat is-total" id="activity-tile-total"
+        title="View the full event log">
+        <span class="hero-stat-icon"><i class="fas fa-database" aria-hidden="true"></i></span>
+        <span class="hero-stat-value" data-tile-total>0</span>
+        <span class="hero-stat-label">Total Events</span>
+      </button>
+      <div class="hero-stat">
+        <span class="hero-stat-icon"><i class="fas fa-bolt" aria-hidden="true"></i></span>
+        <span class="hero-stat-value" data-tile-eps>0.00</span>
+        <span class="hero-stat-label">Events / sec</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-icon"><i class="fas fa-hourglass-half" aria-hidden="true"></i></span>
+        <span class="hero-stat-value" data-tile-duration>-</span>
+        <span class="hero-stat-label">Session Duration</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-icon"><i class="fas fa-sitemap" aria-hidden="true"></i></span>
+        <span class="hero-stat-value" data-tile-paths>0</span>
+        <span class="hero-stat-label">Distinct Paths</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-icon"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i></span>
+        <span class="hero-stat-value" data-tile-last>-</span>
+        <span class="hero-stat-label">Last Event</span>
+      </div>
+    `;
+    grid.dataset.built = "true";
+  }
+  grid.removeAttribute("aria-busy");
+
+  countUp(grid.querySelector("[data-tile-total]"), total);
+  renderDerivedTiles();
+}
+
+/** Compact "2m 14s" / "1h 03m" duration for the hero row. */
+function formatDuration(fromIso, toIso) {
+  const from = new Date(fromIso).getTime();
+  const to = new Date(toIso || Date.now()).getTime();
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to < from) return "-";
+  const seconds = Math.round((to - from) / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${String(seconds % 60).padStart(2, "0")}s`;
+  return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`;
+}
+
 function renderDerivedTiles() {
-  const grid = document.getElementById("activity-summary-grid");
+  const grid = document.getElementById("activity-hero-grid");
   if (!grid || !summaryState) return;
 
   const lastNode = grid.querySelector("[data-tile-last]");
@@ -627,6 +770,16 @@ function renderDerivedTiles() {
 
   const pathsNode = grid.querySelector("[data-tile-paths]");
   if (pathsNode) pathsNode.textContent = String(summaryState.distinct_paths || 0);
+
+  const durationNode = grid.querySelector("[data-tile-duration]");
+  if (durationNode) {
+    durationNode.textContent = summaryState.first_event_at
+      ? formatDuration(summaryState.first_event_at, null)
+      : "-";
+  }
+
+  const epsNode = grid.querySelector("[data-tile-eps]");
+  if (epsNode) epsNode.textContent = currentEps().toFixed(2);
 }
 
 function countUp(node, target) {
@@ -671,7 +824,7 @@ function incrementSummary(eventType) {
   if (!grid) return;
 
   const total = summaryState.total_events;
-  const totalNode = grid.querySelector("[data-tile-total]");
+  const totalNode = document.querySelector("#activity-hero-grid [data-tile-total]");
   if (totalNode) totalNode.textContent = String(total);
 
   (summaryState.by_type || []).forEach((r) => {
@@ -737,6 +890,7 @@ function openLogDrawer(eventType = null) {
   }
 
   drawerOpen = true;
+  clearInlineMobileCards();
   openModal(drawer, { initialFocus: document.getElementById("activity-drawer-close") });
 
   currentOffset = 0;
@@ -779,84 +933,222 @@ function updateLatestEventLine(event) {
 // ── Pipeline visualizer ──
 
 let pipelineAnimationTimers = [];
-// Rolling window of client-side event timestamps, used for a real EPS figure.
-let eventTimestamps = [];
+// Rolling window of client-observed events, used for a real EPS figure and to
+// bucket the burst strip. Typed so the strip can break bars down per type.
+let eventSamples = [];
+// Reservoir of request timings for the p50/p95/p99 meter.
+let latencySamples = [];
+// Tracked separately from eventSamples: that list is pruned to the rolling
+// window, so it can never report a gap longer than the window itself.
+let lastEventAt = null;
 let lastApiLatencyMs = null;
+let lastServerMs = null;
+// Most recent per-stage health pushed by the API on the `pipeline` channel.
+let pipelineHealth = null;
+let surgeTimer = null;
 
-function recordApiLatency(ms) {
+function recordApiLatency(ms, serverMs = null) {
   lastApiLatencyMs = ms;
+  if (serverMs !== null) lastServerMs = serverMs;
+  latencySamples.push(ms);
+  if (latencySamples.length > LATENCY_SAMPLE_LIMIT) {
+    latencySamples = latencySamples.slice(-LATENCY_SAMPLE_LIMIT);
+  }
 }
 
 function clearPipelineTimers() {
   pipelineAnimationTimers.forEach(clearTimeout);
   pipelineAnimationTimers = [];
+  if (surgeTimer) {
+    clearTimeout(surgeTimer);
+    surgeTimer = null;
+  }
 }
 
-function animatePipelineFlow() {
+/** Events per second over the trailing minute, from client observations. */
+function currentEps() {
+  const now = Date.now();
+  eventSamples = eventSamples.filter((sample) => now - sample.t <= BURST_WINDOW_MS);
+  return eventSamples.length / (BURST_WINDOW_MS / 1000);
+}
+
+/**
+ * Binds packet speed to the measured event rate.
+ *
+ * The previous behaviour restarted a fixed 3.2s node-to-node walk on every
+ * arriving event, so a burst of ten restarted the same animation ten times in
+ * one tick and only the last was ever seen. Here the connectors flow
+ * continuously and the rate itself is the signal; a discrete arrival only adds
+ * a brief surge highlight on top.
+ */
+function applyFlowRate(eps) {
+  const flow = document.querySelector(".pipeline-flow");
+  if (!flow) return;
+
+  if (prefersReducedMotion || eps <= 0) {
+    flow.classList.toggle("is-idle", true);
+    return;
+  }
+
+  // One packet period per event, clamped so a single event is still visible
+  // and a burst does not blur into a solid line.
+  const period = Math.min(2, Math.max(0.15, 2.5 / eps));
+  flow.style.setProperty("--pipe-packet-speed", `${period.toFixed(2)}s`);
+  flow.classList.remove("is-idle");
+  document.querySelectorAll(".pipeline-connector").forEach((c) => c.classList.add("flowing"));
+}
+
+/** Brief highlight when a discrete event lands. */
+function pulseSurge() {
   if (prefersReducedMotion) return;
+  const flow = document.querySelector(".pipeline-flow");
+  if (!flow) return;
+  flow.classList.add("is-surging");
+  if (surgeTimer) clearTimeout(surgeTimer);
+  surgeTimer = setTimeout(() => flow.classList.remove("is-surging"), 420);
+}
 
-  const connectors = Array.from(document.querySelectorAll(".pipeline-connector"));
-  const nodes = ["node-ingress", "node-kafka", "node-fastapi", "node-postgres"].map((id) =>
-    document.getElementById(id),
-  );
+/** Client-side health for stages the server does not report on. */
+function clientHealth(eps) {
+  const sinceLast = lastEventAt === null ? Infinity : Date.now() - lastEventAt;
 
-  clearPipelineTimers();
-  connectors.forEach((c) => c.classList.remove("flowing"));
-  nodes.forEach((n) => n?.classList.remove("active-pulse"));
+  // No event yet is "idle", not "error" - a quiet session has not failed.
+  let ingress = "idle";
+  if (lastEventAt !== null) {
+    if (eps > 0 && sinceLast < 30000) ingress = "ok";
+    else if (sinceLast < 120000) ingress = "warn";
+    else ingress = "error";
+  }
 
-  // Walk node -> connector -> node down the chain on a fixed cadence.
-  const NODE_MS = 300;
-  const CONNECTOR_MS = 500;
-  let elapsed = 0;
+  return { ingress, fastapi: latencyBand(percentile(latencySamples, 0.95)) };
+}
 
-  nodes.forEach((node, index) => {
-    const pulseAt = elapsed;
-    pipelineAnimationTimers.push(
-      setTimeout(() => node?.classList.add("active-pulse"), pulseAt),
-      setTimeout(() => node?.classList.remove("active-pulse"), pulseAt + NODE_MS),
-    );
-    elapsed += NODE_MS;
+function setNodeHealth(nodeId, health, badge) {
+  const node = document.getElementById(nodeId);
+  if (!node) return;
+  node.dataset.health = health;
 
-    const connector = connectors[index];
-    if (connector) {
-      const flowAt = elapsed;
-      pipelineAnimationTimers.push(
-        setTimeout(() => connector.classList.add("flowing"), flowAt),
-        setTimeout(() => connector.classList.remove("flowing"), flowAt + CONNECTOR_MS),
-      );
-      elapsed += CONNECTOR_MS;
-    }
-  });
+  const badgeNode = node.querySelector(".node-badge");
+  if (!badgeNode) return;
+  if (badge) {
+    badgeNode.textContent = badge;
+    badgeNode.hidden = false;
+  } else {
+    badgeNode.hidden = true;
+  }
 }
 
 /**
  * Repaints the pipeline metrics from measured values only. Every figure here is
- * derived from real client observations or the summary endpoint - nothing is
- * synthesised, since the point of this panel is to show the real pipeline.
+ * derived from real client observations, the summary endpoint, or the server's
+ * own pipeline snapshot - nothing is synthesised, since the point of this panel
+ * is to show the real pipeline.
  */
-function updatePipelineVisualizer({ animate = true } = {}) {
-  if (animate) animatePipelineFlow();
+function updatePipelineVisualizer({ animate = true, surge = false } = {}) {
+  const eps = currentEps();
+  if (animate) applyFlowRate(eps);
+  if (surge) pulseSurge();
 
-  const now = Date.now();
-  eventTimestamps = eventTimestamps.filter((t) => now - t <= 60000);
+  const health = clientHealth(eps);
+  const stages = pipelineHealth?.stages;
 
-  const eps = eventTimestamps.length / 60;
   setText("val-ingress", `${eps.toFixed(2)} eps`);
+  setNodeHealth("node-ingress", health.ingress, eps > 0 ? `${eventSamples.length}/min` : null);
 
-  // The client cannot observe broker depth; report what it does know - the
-  // number of events it has buffered locally in the last minute.
-  setText("val-kafka", `${eventTimestamps.length} msg/min`);
+  // The client cannot observe broker depth, so the Kafka stage reports what the
+  // server says about itself. With no broker in the path it reads "Bypassed"
+  // rather than a fabricated queue depth - an honest disabled stage is more
+  // informative than an invented number.
+  const kafka = stages?.kafka;
+  if (kafka) {
+    const mode = kafka.mode || "bypass";
+    if (mode === "bypass") {
+      setText("val-kafka", "Bypassed");
+      setNodeHealth("node-kafka", "bypass", "direct to API");
+    } else {
+      setText("val-kafka", `${kafka.messages ?? 0} msg`);
+      setNodeHealth(
+        "node-kafka",
+        kafka.health || "ok",
+        kafka.lag === null || kafka.lag === undefined ? mode : `lag ${kafka.lag}`,
+      );
+    }
+  } else {
+    setText("val-kafka", "-");
+    setNodeHealth("node-kafka", "idle", null);
+  }
 
   setText("val-fastapi", lastApiLatencyMs === null ? "- ms" : `${lastApiLatencyMs.toFixed(0)} ms`);
+  setNodeHealth(
+    "node-fastapi",
+    health.fastapi,
+    lastServerMs === null ? null : `srv ${lastServerMs.toFixed(0)}ms`,
+  );
 
+  const pg = stages?.postgres;
   const rows = summaryState?.total_events;
   setText("val-postgres", Number.isFinite(rows) ? `${rows} rows` : "- rows");
+  setNodeHealth(
+    "node-postgres",
+    pg?.health || (Number.isFinite(rows) ? "ok" : "idle"),
+    pg?.last_flush_ms ? `flush ${pg.last_flush_ms}ms` : null,
+  );
 
+  renderBurstStrip();
+  renderLatencyMeter(document.getElementById("latency-meter"), latencySamples);
+}
+
+export async function loadActivityFunnel() {
+  const root = document.getElementById("activity-funnel");
+  if (!root) return;
+
+  const sessionId = sessionStorage.getItem("rj_session_id");
+  if (!sessionId || !isApiConfigured()) return;
+
+  try {
+    const response = await apiFetch(`${API_BASE}/sessions/${sessionId}/events/funnel`);
+    if (!response.ok) return;
+    renderFunnel(root, await response.json(), { escapeHTML });
+  } catch (error) {
+    console.warn("Activity funnel load failed", error);
+  }
+}
+
+function renderBurstStrip() {
+  const canvas = document.getElementById("activity-burst");
+  if (!canvas) return;
+  const result = drawBurstStrip(canvas, eventSamples, { reducedMotion: prefersReducedMotion });
+  const peakNode = document.getElementById("burst-peak");
+  if (peakNode && result) peakNode.textContent = `peak ${result.peak}/s`;
 }
 
 function setText(id, value) {
   const node = document.getElementById(id);
   if (node) node.textContent = value;
+}
+
+// ── Density ──
+
+function applyDensity(density) {
+  const section = document.getElementById("activity");
+  if (section) section.dataset.density = density;
+  document.querySelectorAll(".activity-density-btn").forEach((btn) => {
+    btn.setAttribute("aria-pressed", String(btn.dataset.density === density));
+  });
+  try {
+    localStorage.setItem(DENSITY_STORAGE_KEY, density);
+  } catch (e) {
+    // A blocked localStorage costs the preference, not the feature.
+  }
+}
+
+function storedDensity() {
+  try {
+    const stored = localStorage.getItem(DENSITY_STORAGE_KEY);
+    return stored === "compact" ? "compact" : "comfortable";
+  } catch (e) {
+    return "comfortable";
+  }
 }
 
 // ── Init ──
@@ -866,6 +1158,21 @@ export function initActivity() {
   prefersReducedMotion = motionQuery.matches;
   motionQuery.addEventListener("change", (e) => {
     prefersReducedMotion = e.matches;
+  });
+
+  applyDensity(storedDensity());
+  document.querySelectorAll(".activity-density-btn").forEach((btn) => {
+    btn.addEventListener("click", () => applyDensity(btn.dataset.density));
+  });
+
+  // Every analytics flush is also a latency sample, which is what lets the
+  // meter reflect real traffic rather than only the dashboard's own fetches.
+  onTelemetry((sample) => {
+    if (!sample.ok) return;
+    recordApiLatency(sample.roundTripMs, sample.serverMs);
+    if (document.getElementById("activity")?.classList.contains("active")) {
+      updatePipelineVisualizer({ animate: false });
+    }
   });
 
   const tableContainer = document.querySelector(".activity-table-container");
@@ -1017,6 +1324,7 @@ export function initActivity() {
       currentOffset = 0;
       loadActivity(0, { immediate: true });
       loadActivitySummary();
+      loadActivityFunnel();
     });
   }
 
@@ -1062,6 +1370,15 @@ export function initActivity() {
   }
   resizeController = new AbortController();
 
+  window.addEventListener(
+    "resize",
+    () => {
+      if (!document.getElementById("activity")?.classList.contains("active")) return;
+      renderBurstStrip();
+    },
+    { signal: resizeController.signal, passive: true },
+  );
+
   const layoutQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
   layoutQuery.addEventListener(
     "change",
@@ -1094,6 +1411,7 @@ async function enterActivitySection() {
 
   loadActivity(0, { immediate: true });
   loadActivitySummary();
+  loadActivityFunnel();
   startActivityStream();
 
   if (relativeTimeTimer) clearInterval(relativeTimeTimer);
@@ -1104,6 +1422,9 @@ function leaveActivitySection() {
   closeLogDrawer();
   stopActivityStream();
   clearPipelineTimers();
+  pipelineHealth = null;
+  lastEventAt = null;
+  eventSamples = [];
   if (relativeTimeTimer) {
     clearInterval(relativeTimeTimer);
     relativeTimeTimer = null;
@@ -1132,18 +1453,62 @@ function startActivityStream() {
     updateStreamingStatus("connected");
   };
 
-  activityStreamSource.onmessage = (event) => {
+  const parse = (event, handler) => {
     try {
-      const eventData = JSON.parse(event.data);
-      handleIncomingStreamEvent(eventData);
+      handler(JSON.parse(event.data));
     } catch (err) {
       console.error("Error parsing activity stream data:", err);
     }
   };
 
+  // Named channels. The API also emits an unnamed frame per activity event so
+  // a client still on `onmessage` keeps working across the deploy; both are
+  // normalised to the same shape and deduplicated by event_id below, so
+  // receiving both costs nothing.
+  activityStreamSource.addEventListener("activity", (event) =>
+    parse(event, (data) => handleIncomingStreamEvent(normalizeStreamEvent(data))),
+  );
+
+  activityStreamSource.addEventListener("pipeline", (event) =>
+    parse(event, (snapshot) => {
+      pipelineHealth = snapshot;
+      updatePipelineVisualizer({ animate: true });
+    }),
+  );
+
+  activityStreamSource.addEventListener("hello", (event) =>
+    parse(event, (data) => {
+      if (data.pipeline) pipelineHealth = data.pipeline;
+      updatePipelineVisualizer({ animate: true });
+    }),
+  );
+
+  activityStreamSource.onmessage = (event) => {
+    parse(event, (data) => handleIncomingStreamEvent(normalizeStreamEvent(data)));
+  };
+
   activityStreamSource.onerror = (err) => {
     console.warn("Activity stream connection lost, reconnecting...", err);
     updateStreamingStatus("connecting");
+  };
+}
+
+/**
+ * Accepts either stream shape and returns the verbose one.
+ *
+ * The `activity` channel carries a compact frame - `{i,t,e,p,d}` - which drops
+ * the session_id already implied by the stream and sends epoch millis instead
+ * of an ISO string. The unnamed back-compat frame is the verbose shape.
+ */
+function normalizeStreamEvent(data) {
+  if (data && data.event_type !== undefined) return data;
+  return {
+    event_id: data.i,
+    session_id: sessionStorage.getItem("rj_session_id"),
+    event_type: data.e,
+    page_path: data.p,
+    event_data: data.d,
+    created_at: new Date(data.t).toISOString(),
   };
 }
 
@@ -1187,7 +1552,8 @@ function handleIncomingStreamEvent(eventData) {
   const incomingIdentity = identity(eventData);
   if (loadedEvents.some((e) => identity(e) === incomingIdentity)) return;
 
-  eventTimestamps.push(Date.now());
+  lastEventAt = Date.now();
+  eventSamples.push({ t: lastEventAt, type: eventData.event_type });
   incrementSummary(eventData.event_type);
   updateLatestEventLine(eventData);
 
@@ -1201,5 +1567,5 @@ function handleIncomingStreamEvent(eventData) {
     renderEvents({ stagger: false });
   }
 
-  updatePipelineVisualizer();
+  updatePipelineVisualizer({ surge: true });
 }
