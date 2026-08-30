@@ -3,15 +3,16 @@ import asyncio
 from uuid import UUID
 from datetime import datetime, timezone
 import structlog
+from typing import Optional
 from fastapi import Request, HTTPException, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from server.db.database import get_db
 from server.models.session import UserSession
 from server.models.event import UserActivityEvent
-from server.schemas.event import EventCreate, BulkEventCreate
+from server.schemas.event import EVENT_TYPES, EventCreate, BulkEventCreate
 
 logger = structlog.get_logger(__name__)
 
@@ -41,6 +42,7 @@ async def create_event(payload: EventCreate, request: Request, db: AsyncSession 
     # Broadcast event to active SSE streams
     from server.services.kafka_stream import broadcast_event
     asyncio.create_task(broadcast_event(payload.session_id, {
+        "event_id": event.event_id,
         "session_id": str(payload.session_id),
         "event_type": payload.event_type,
         "page_path": payload.page_path,
@@ -78,6 +80,7 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
         from server.services.kafka_stream import broadcast_event
         for e in events:
             asyncio.create_task(broadcast_event(e.session_id, {
+                "event_id": e.event_id,
                 "session_id": str(e.session_id),
                 "event_type": e.event_type,
                 "page_path": e.page_path,
@@ -133,14 +136,26 @@ async def get_session_events(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0, le=1_000_000),
+    event_type: Optional[str] = Query(
+        default=None,
+        description="Restrict results to a single event type (tile drill-down).",
+    ),
 ):
     limit = int(limit)
     offset = int(offset)
-    
+
+    if event_type is not None and event_type not in EVENT_TYPES:
+        raise HTTPException(422, f"Unknown event_type '{event_type}'")
+
+    query = select(UserActivityEvent).where(UserActivityEvent.session_id == session_id)
+    if event_type is not None:
+        query = query.where(UserActivityEvent.event_type == event_type)
+
     result = await db.execute(
-        select(UserActivityEvent)
-        .where(UserActivityEvent.session_id == session_id)
-        .order_by(desc(UserActivityEvent.created_at))
+        query
+        # event_id breaks ties: bulk inserts share a created_at, and without a
+        # stable secondary sort the same row can appear on two pages.
+        .order_by(desc(UserActivityEvent.created_at), desc(UserActivityEvent.event_id))
         .limit(limit)
         .offset(offset)
     )
@@ -156,3 +171,62 @@ async def get_session_events(
         }
         for e in events
     ]
+
+
+async def get_session_event_summary(
+    session_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Aggregate counts for the Activity dashboard summary tiles.
+
+    Two indexed round trips over the session_id index: one GROUP BY for the
+    per-type counts, one scalar row for the session-wide span. Counting client
+    side is not an option - the table endpoint is paginated, so the browser
+    never holds the full event set.
+    """
+    grouped = await db.execute(
+        select(
+            UserActivityEvent.event_type,
+            func.count().label("count"),
+            func.max(UserActivityEvent.created_at).label("last_at"),
+        )
+        .where(UserActivityEvent.session_id == session_id)
+        .group_by(UserActivityEvent.event_type)
+    )
+    counts = {row.event_type: (row.count, row.last_at) for row in grouped}
+
+    span = await db.execute(
+        select(
+            func.count(func.distinct(UserActivityEvent.page_path)).label("distinct_paths"),
+            func.min(UserActivityEvent.created_at).label("first_at"),
+            func.max(UserActivityEvent.created_at).label("last_at"),
+        ).where(UserActivityEvent.session_id == session_id)
+    )
+    span_row = span.one()
+
+    # Zero-fill every declared type so the client grid is stable across polls.
+    known = [
+        {
+            "event_type": name,
+            "count": counts.get(name, (0, None))[0],
+            "last_at": counts.get(name, (0, None))[1],
+        }
+        for name in EVENT_TYPES
+    ]
+    # Surface legacy or since-removed types already sitting in the table.
+    unknown = [
+        {"event_type": name, "count": count, "last_at": last_at}
+        for name, (count, last_at) in counts.items()
+        if name not in EVENT_TYPES
+    ]
+
+    return {
+        "session_id": session_id,
+        "total_events": sum(count for count, _ in counts.values()),
+        "distinct_paths": span_row.distinct_paths or 0,
+        "first_event_at": span_row.first_at,
+        "last_event_at": span_row.last_at,
+        "by_type": known + unknown,
+    }
