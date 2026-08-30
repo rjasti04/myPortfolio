@@ -48,6 +48,20 @@
   --code-action: #0f172a;
   --code-action-hover: #020617;
 
+  /* ---- Event families -----------------------------------------------------
+     Seven event types collapse into four families, and colour is what makes
+     the log readable without parsing every row. Four hues rather than seven:
+     four are learnable at a glance, seven need a legend. Each is AA on both
+     --surface and --skill-bg; --*-soft is the row/bar wash, never text. */
+  --fam-nav: hsl(32, 88%, 34%);
+  --fam-tap: #0f766e;
+  --fam-pref: #6d28d9;
+  --fam-reach: #4d7c0f;
+  --fam-nav-soft: hsla(32, 88%, 45%, 0.14);
+  --fam-tap-soft: rgba(15, 118, 110, 0.13);
+  --fam-pref-soft: rgba(109, 40, 217, 0.12);
+  --fam-reach-soft: rgba(77, 124, 15, 0.13);
+
   /* Status Colors */
   --color-success: #047857;
   --color-warning: #b45309;
@@ -205,6 +219,15 @@ body.dark-theme {
   --color-success: #34d399;
   --color-warning: #fbbf24;
   --color-error: #fb7185;
+  /* Family hues lift on the dark ground; the roles stay identical. */
+  --fam-nav: #f0a22e;
+  --fam-tap: #2dd4bf;
+  --fam-pref: #a78bfa;
+  --fam-reach: #a3e635;
+  --fam-nav-soft: rgba(240, 162, 46, 0.18);
+  --fam-tap-soft: rgba(45, 212, 191, 0.18);
+  --fam-pref-soft: rgba(167, 139, 250, 0.2);
+  --fam-reach-soft: rgba(163, 230, 53, 0.18);
   --code-action: #93c5fd;
   --code-action-hover: #fff;
   --glass-light-bg: rgba(30, 41, 59, 0.45);
@@ -1473,7 +1496,7 @@ nav,
 .item,
 .skill-group,
 .ai-layout,
-.activity-table-container {
+.act-card {
   backdrop-filter: blur(var(--blur-xl));
   -webkit-backdrop-filter: blur(var(--blur-xl));
 }
@@ -6101,2293 +6124,1058 @@ nav a:hover .nav-shortcut {
 /* #endregion */
 
 /* #region ACTIVITY SECTION --------------------------------------------*/
-/* ── Activity Section ── */
-/* The standalone `.activity-controls` band that used to sit here is gone: the
-   Refresh and Session pills moved into `.pipeline-card-tools` in the pipeline
-   card header rather than owning a full-width row of their own. */
-.activity-refresh {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  border: 1px solid transparent;
-  color: var(--accent-text);
-  font-size: var(--text-body-xs);
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    background-color var(--motion-base) var(--ease-standard),
-    border-color var(--motion-base) var(--ease-standard),
-    color var(--motion-base) var(--ease-standard),
-    box-shadow var(--motion-base) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard);
-  white-space: nowrap;
-  line-height: 1;
-  font-family: inherit;
-}
+/* ── Activity Section ──
+   Three zones, in the order a reader asks for them: who you are to the site
+   right now (the bar), what shape your visit had (the strip and the paths),
+   then the events themselves. Exactly one card elevation throughout - the
+   hierarchy is carried by size and position, not by stacking shadows, which
+   is what made the previous six panels read at equal weight. */
 
-.activity-refresh:hover:not(.static) {
-  border-color: var(--accent-fill);
-  background: var(--accent-fill);
-  color: var(--on-accent);
-  transform: translateY(-1px);
-  box-shadow: none;
-}
-
-.activity-refresh:active:not(.static) {
-  transform: translateY(0) scale(0.97);
-}
-
-.activity-refresh.static {
-  cursor: default;
-  background: var(--skill-bg);
-  border-color: var(--border);
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.activity-refresh.static span {
-  color: var(--text);
-  font-weight: 700;
-}
-
-/* Table Container */
-.activity-table-container {
-  overflow-x: auto;
+.act-card {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-top: 24px;
-  box-shadow: var(--shadow-md);
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-soft) transparent;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-1);
 }
 
-.activity-table-container::-webkit-scrollbar {
-  height: 6px;
-  width: 6px;
-}
-
-.activity-table-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.activity-table-container::-webkit-scrollbar-thumb {
-  background-color: var(--accent-soft);
-  border-radius: 6px;
-}
-
-.activity-table-container::-webkit-scrollbar-thumb:hover {
-  background-color: var(--accent-mild);
-}
-
-/* Table */
-.activity-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.activity-table th,
-.activity-table td {
-  padding: 14px 16px;
-  font-size: var(--text-body-xs);
-  border-bottom: 1px solid var(--border);
-}
-
-.activity-table th {
-  position: sticky;
-  top: 0;
-  background: var(--card-bg);
-  color: var(--muted);
+.act-card-title {
+  margin: 0;
+  font-size: var(--text-2xs);
   font-weight: 700;
-  white-space: nowrap;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  font-size: var(--text-2xs);
-  z-index: 1;
-}
-
-.activity-table tr:last-child td {
-  border-bottom: none;
-}
-
-.activity-table tbody tr {
-  transition: background-color var(--motion-base) var(--ease-standard);
-}
-
-.activity-table tbody tr:hover {
-  background: var(--accent-soft);
-}
-
-.activity-table td {
-  color: var(--text);
-  vertical-align: middle;
-}
-
-/* Columns are When, Type, Path, Data - Date and Time were merged into the
-   first, so Path and Data shifted down one from 4/5 to 3/4. */
-.activity-table td:nth-child(3) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: var(--muted);
-  white-space: nowrap;
-  font-size: var(--text-2xs);
-}
-
-.activity-table td:nth-child(4) {
-  color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: var(--text-2xs);
-}
-
-.activity-data-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 100%;
-  padding: 6px 10px;
-  border: 1px solid var(--control-border);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  cursor: pointer;
-  text-align: left;
-  transition:
-    border-color var(--motion-base) var(--ease-standard),
-    background-color var(--motion-base) var(--ease-standard),
-    color var(--motion-base) var(--ease-standard);
-}
-
-.activity-data-toggle:hover,
-.activity-data-toggle:focus-visible {
-  border-color: var(--accent-fill);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
-.activity-data-toggle:focus-visible {
-  outline: 2px solid var(--accent-fill);
-  outline-offset: 3px;
-}
-
-.activity-data-toggle i {
-  flex: 0 0 auto;
-  font-size: var(--text-2xs);
-  transition: transform var(--motion-base) var(--ease-standard);
-}
-
-.activity-data-toggle[aria-expanded="true"] i {
-  transform: rotate(180deg);
-}
-
-.activity-data-summary {
-  overflow-wrap: anywhere;
-}
-
-.activity-data-empty {
   color: var(--muted);
 }
 
-.activity-data-row td {
-  padding: 10px 16px 18px;
-  background: color-mix(in srgb, var(--card-bg) 88%, var(--accent-soft));
-}
+/* ── Zone 1: session bar ─────────────────────────────────────────────── */
 
-.activity-table tbody tr.activity-data-row:hover {
-  background: transparent;
-}
-
-.activity-data-panel {
-  overflow: hidden;
-  border: 1px solid var(--control-border);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.18);
-}
-
-.activity-data-toolbar {
+.act-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card-bg) 72%, var(--accent-soft));
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-1);
 }
 
-.activity-data-label {
-  color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: var(--tracking-wide);
-}
-
-.activity-copy-json {
+.act-live {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 10px;
-  border: 1px solid var(--control-border);
-  border-radius: 8px;
-  background: var(--card-bg);
-  color: var(--text);
-  font: inherit;
-  font-size: var(--text-2xs);
-  cursor: pointer;
-  transition:
-    border-color var(--motion-base) var(--ease-standard),
-    background-color var(--motion-base) var(--ease-standard),
-    color var(--motion-base) var(--ease-standard);
-}
-
-.activity-copy-json:hover,
-.activity-copy-json:focus-visible {
-  border-color: var(--accent-fill);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
-.activity-copy-json:focus-visible {
-  outline: 2px solid var(--accent-fill);
-  outline-offset: 3px;
-}
-
-.activity-copy-json[data-copy-state="copied"] {
-  border-color: var(--color-success);
-  color: var(--color-success);
-}
-
-.activity-copy-json[data-copy-state="failed"] {
-  border-color: var(--color-error);
-  color: var(--color-error);
-}
-
-.activity-data-pre {
-  max-height: 320px;
-  margin: 0;
-  padding: 14px 16px;
-  overflow: auto;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: var(--text-xs);
-  line-height: var(--leading-body);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* Type Badge */
-/* ── Payload chips ──
-   The Data cell used to print a truncated JSON string, which made the reader
-   parse syntax to recover a fact. Chips carry the same information as typed
-   key/value pairs, and known event shapes get a purpose-built rendering. */
-.kv-chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  max-width: 100%;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  background: var(--skill-bg);
-  border: 1px solid var(--border);
-  font-size: var(--text-2xs);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  line-height: 1.6;
-  vertical-align: middle;
-}
-
-.kv-chip-key {
-  color: var(--muted);
+  gap: 8px;
+  font-size: var(--text-sm);
   font-weight: 700;
-}
-
-.kv-chip-value {
   color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-/* Value colour carries the JSON type, so the reader does not need the quotes
-   and braces the raw payload used to supply. */
-.kv-chip[data-type="number"] .kv-chip-value {
-  color: var(--data-text);
-}
-
-.kv-chip[data-type="boolean"] .kv-chip-value {
-  color: var(--secondary-text);
-}
-
-.kv-chip[data-type="null"] .kv-chip-value {
-  color: var(--muted);
-  font-style: italic;
-}
-
-.kv-chip--target {
-  border-color: var(--accent-mild);
-  background: var(--accent-soft);
-}
-
-.kv-chip--target .kv-chip-value {
-  color: var(--accent-text);
-  font-weight: 700;
-}
-
-.kv-chip--more {
-  border-style: dashed;
-}
-
-.kv-chip--command {
-  background: var(--terminal-border);
-  border-color: var(--terminal-border);
-}
-
-.kv-chip--command .kv-chip-value {
-  color: var(--terminal-green);
-}
-
-/* Scroll depth reads as a proportion, so it is drawn as one. */
-.kv-chip--meter {
-  position: relative;
-  overflow: hidden;
-}
-
-.kv-chip-meter {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--chip-fill, 0%);
-  background: var(--accent-soft);
-}
-
-.kv-chip--meter .kv-chip-value {
-  position: relative;
-}
-
-.kv-chip-swatch {
+.act-live-dot {
   width: 9px;
   height: 9px;
   border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+
+.act-live[data-status="connected"] .act-live-dot {
+  background: var(--color-success);
+  animation: actBeat 2.4s var(--ease-standard) infinite;
+}
+
+.act-live[data-status="connecting"] .act-live-dot {
+  background: var(--color-warning-fill);
+}
+
+@keyframes actBeat {
+  0% {
+    box-shadow: 0 0 0 0 rgb(4 120 87 / 45%);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgb(4 120 87 / 0%);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgb(4 120 87 / 0%);
+  }
+}
+
+.act-session,
+.act-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--skill-bg);
   border: 1px solid var(--border);
-  background: var(--accent-fill);
-  align-self: center;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
 }
 
-.kv-chip-swatch[data-theme="dark"] {
-  background: #0a0e14;
+.act-session:hover:not(:disabled),
+.act-refresh:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent-fill);
 }
 
-.kv-chip-swatch[data-theme="light"] {
-  background: #f8fafb;
+.act-session:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
-/* ── When column ──
-   Date and time were separate columns; across a single session the date
-   repeated identically down every row, spending ~110px on no information. */
-.activity-when {
+.act-session-label {
+  color: var(--muted);
+}
+
+.act-session-value {
+  font-family: ui-monospace, sfmono-regular, consolas, "Liberation Mono", menlo, monospace;
+  color: var(--text);
+}
+
+.act-session[data-copy-state="copied"] {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.act-session[data-copy-state="failed"] {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.act-refresh {
+  margin-left: auto;
+}
+
+/* The four stages are real infrastructure, so they stay - but as context.
+   A chain of labelled dots says "healthy, end to end" in 32px; the card it
+   replaced spent 200px saying the same thing less clearly. */
+.act-chain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: var(--skill-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.act-chain::-webkit-scrollbar {
+  display: none;
+}
+
+.act-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--muted);
   white-space: nowrap;
+  cursor: help;
 }
 
-.activity-when-time {
-  display: block;
+.act-stage-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+
+.act-stage[data-health="ok"] .act-stage-dot {
+  background: var(--color-success);
+}
+
+.act-stage[data-health="warn"] .act-stage-dot {
+  background: var(--color-warning-fill);
+}
+
+.act-stage[data-health="error"] .act-stage-dot {
+  background: var(--color-error);
+}
+
+/* A bypassed broker is a configuration, not a fault: it reads as deliberate
+   rather than as the bare dash a missing snapshot used to print. */
+.act-stage[data-health="bypass"] .act-stage-dot {
+  background: transparent;
+  border: 1.5px dashed var(--muted);
+}
+
+.act-chain-link {
+  width: 12px;
+  height: 1px;
+  background: var(--border);
+  flex: none;
+}
+
+.act-chain-latency {
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: help;
+}
+
+.act-chain-latency b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Zone 2: the shape of the visit ──────────────────────────────────── */
+
+.act-shape {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (width >= 900px) {
+  .act-shape {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+}
+
+.act-visit {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px 20px 16px;
+}
+
+.act-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  align-items: flex-end;
+}
+
+.act-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.act-stat-value {
+  font-size: var(--text-fluid-2xl);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
   font-variant-numeric: tabular-nums;
   color: var(--text);
 }
 
-.activity-when-meta {
+.act-stat-lead .act-stat-value {
+  color: var(--accent-text);
+}
+
+.act-stat-label {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Session strip. Buckets span the whole visit rather than a fixed window: a
+   visit is the unit the reader cares about, and its length is not known in
+   advance. Bars are buttons because each one is a filter. */
+.act-timeline {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+  min-height: 0;
+}
+
+.act-timeline-head {
+  display: flex;
   align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.act-timeline-hint {
+  margin-left: auto;
   font-size: var(--text-2xs);
   color: var(--muted);
 }
 
-/* ── Log header and density toggle ── */
-.activity-log-header {
+.act-timeline-plot {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
+  align-items: flex-end;
+  gap: 2px;
+  flex: 1;
+  min-height: 92px;
+  max-height: 150px;
+  padding-bottom: 1px;
+  border-bottom: 1px solid var(--border);
 }
 
-.activity-log-title {
+.act-tl-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 3px 3px 0 0;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+
+.act-tl-bar:hover:not([data-empty="true"]),
+.act-tl-bar:focus-visible {
+  background: var(--accent-soft);
+}
+
+.act-tl-bar[data-empty="true"] {
+  cursor: default;
+}
+
+.act-tl-bar[aria-pressed="true"] {
+  background: var(--accent-soft);
+  box-shadow: inset 0 -2px 0 var(--accent-fill);
+}
+
+.act-tl-seg {
+  display: block;
+  min-height: 2px;
+  border-radius: 2px;
+  background: var(--fam-nav);
+}
+
+.act-timeline-plot[data-empty="true"] {
+  opacity: 0.45;
+}
+
+.act-timeline-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.act-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: auto 0 0;
+  padding: 4px 0 0;
+  list-style: none;
+}
+
+.act-key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-2xs);
+  color: var(--muted);
+}
+
+.act-key i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: block;
+  background: var(--fam-nav);
+}
+
+/* One rule set colours every family surface: strip segment, legend swatch,
+   filter chip, stream dot and path bar. */
+[data-fam="nav"] .act-tl-seg,
+.act-key li[data-fam="nav"] i,
+.act-fam[data-family="nav"] .fa-compass {
+  background: var(--fam-nav);
+}
+
+[data-fam="tap"] .act-tl-seg,
+.act-key li[data-fam="tap"] i {
+  background: var(--fam-tap);
+}
+
+[data-fam="pref"] .act-tl-seg,
+.act-key li[data-fam="pref"] i {
+  background: var(--fam-pref);
+}
+
+[data-fam="reach"] .act-tl-seg,
+.act-key li[data-fam="reach"] i {
+  background: var(--fam-reach);
+}
+
+.act-tl-seg[data-fam="nav"] {
+  background: var(--fam-nav);
+}
+
+.act-tl-seg[data-fam="tap"] {
+  background: var(--fam-tap);
+}
+
+.act-tl-seg[data-fam="pref"] {
+  background: var(--fam-pref);
+}
+
+.act-tl-seg[data-fam="reach"] {
+  background: var(--fam-reach);
+}
+
+/* Paths. The bar is the row's own background rather than a separate column:
+   name and magnitude then read in one pass, instead of a label on the left and
+   an unlabelled bar 150px to its right. */
+.act-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.act-paths-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.act-path {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: var(--text-base);
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm, 8px);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.act-path-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--fam-nav-soft);
+  border-radius: inherit;
+  z-index: 0;
+}
+
+.act-path-name {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, sfmono-regular, consolas, "Liberation Mono", menlo, monospace;
+  font-size: var(--text-2xs);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.act-path-hits {
+  position: relative;
+  z-index: 1;
+  font-size: var(--text-2xs);
   font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.act-path-share {
+  position: relative;
+  z-index: 1;
+  width: 34px;
+  text-align: right;
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.act-path:hover .act-path-name {
+  color: var(--accent-text);
+}
+
+.act-path[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1.5px var(--accent-fill);
+}
+
+.act-paths-empty {
+  font-size: var(--text-2xs);
+  color: var(--muted);
+}
+
+/* ── Zone 3: filters and the log ─────────────────────────────────────── */
+
+.act-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 11px 14px;
+  margin-bottom: 12px;
+}
+
+.act-search {
+  position: relative;
+  flex: 1;
+  min-width: 190px;
+  display: flex;
+  align-items: center;
+}
+
+.act-search i {
+  position: absolute;
+  left: 12px;
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.act-search input {
+  width: 100%;
+  padding: 9px 12px 9px 32px;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--select-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-md);
+}
+
+.act-search input::placeholder {
+  color: var(--muted);
+}
+
+.act-search input:focus-visible {
+  outline: none;
+  border-color: var(--accent-fill);
+  box-shadow: var(--glow-ring);
+}
+
+/* The chips are the filter and the type breakdown at once. Previously these
+   were two surfaces: a chip bar that displayed counts, and an undiscoverable
+   click-to-filter behaviour attached to it. */
+.act-families {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.act-fam {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+
+.act-fam:hover:not(:disabled) {
+  color: var(--text);
+  border-color: currentcolor;
+}
+
+.act-fam:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.act-fam-count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.act-fam[data-family="nav"] {
+  color: var(--fam-nav);
+}
+
+.act-fam[data-family="tap"] {
+  color: var(--fam-tap);
+}
+
+.act-fam[data-family="pref"] {
+  color: var(--fam-pref);
+}
+
+.act-fam[data-family="reach"] {
+  color: var(--fam-reach);
+}
+
+.act-fam-all {
   color: var(--text);
 }
 
-.activity-log-title i {
-  color: var(--accent-fill);
+.act-fam[aria-pressed="true"] {
+  border-color: currentcolor;
+  background: var(--skill-bg);
 }
 
-.activity-density {
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-  background: var(--card-bg);
+.act-fam[aria-pressed="true"] .act-fam-count {
+  color: inherit;
 }
 
-.activity-density-btn {
-  padding: 5px 12px;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  font-family: inherit;
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard);
-}
-
-.activity-density-btn[aria-pressed="true"] {
-  background: var(--accent-fill);
-  color: var(--on-accent);
-}
-
-.activity-density-btn:focus-visible {
-  outline: 2px solid var(--accent-fill);
-  outline-offset: -2px;
-}
-
-/* Compact trims the row box and hides the secondary timestamp line, which is
-   the only content that can go without changing what a row means. */
-#activity[data-density="compact"] .activity-table th,
-#activity[data-density="compact"] .activity-table td {
-  padding: 7px 12px;
-}
-
-#activity[data-density="compact"] .activity-when-meta {
+.act-active-wrap:empty {
   display: none;
 }
 
-.activity-type-badge {
-  display: inline-flex;
+.act-active {
+  display: flex;
   align-items: center;
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  font-weight: 700;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 9px 14px;
+  margin-bottom: 12px;
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-wide);
+  color: var(--text);
+  background: var(--accent-soft);
+  border-radius: var(--radius-md);
+}
+
+.act-active i {
+  color: var(--accent-text);
+}
+
+.act-active-clear {
+  margin-left: auto;
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--accent-text);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* The log. One list, one renderer - the table, the mobile card layout and the
+   drawer that duplicated both are gone, so a row change is one edit. */
+.act-log {
+  padding: 4px 0 10px;
+  overflow: hidden;
+}
+
+.act-stream {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.act-group {
+  padding: 15px 18px 5px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.act-ev {
+  display: grid;
+  grid-template-columns: 62px 20px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 9px 18px;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.act-ev:hover {
+  background: var(--skill-bg);
+}
+
+.act-ev-time {
+  padding-top: 3px;
+  font-family: ui-monospace, sfmono-regular, consolas, "Liberation Mono", menlo, monospace;
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.act-ev-rail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  height: 100%;
+  padding-top: 6px;
+}
+
+.act-ev-rail::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: -9px;
+  width: 1.5px;
+  background: var(--border);
+}
+
+.act-ev:last-child .act-ev-rail::before {
+  bottom: auto;
+  height: 9px;
+}
+
+.act-ev-dot {
+  position: relative;
+  z-index: 1;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--fam-nav);
+  box-shadow: 0 0 0 3px var(--card-bg);
+}
+
+.act-ev[data-fam="nav"] .act-ev-dot {
+  background: var(--fam-nav);
+}
+
+.act-ev[data-fam="tap"] .act-ev-dot {
+  background: var(--fam-tap);
+}
+
+.act-ev[data-fam="pref"] .act-ev-dot {
+  background: var(--fam-pref);
+}
+
+.act-ev[data-fam="reach"] .act-ev-dot {
+  background: var(--fam-reach);
+}
+
+.act-ev-say {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--text);
+}
+
+.act-ev-text {
+  min-width: 0;
+}
+
+.act-ev-text b {
+  font-weight: 700;
+}
+
+.act-ev-code {
+  padding: 1px 6px;
+  font-family: ui-monospace, sfmono-regular, consolas, "Liberation Mono", menlo, monospace;
+  font-size: 0.9em;
+  color: var(--muted);
+  background: var(--skill-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.act-ev-side {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-left: auto;
+  padding-left: 10px;
+}
+
+.act-ev-aside,
+.act-ev-ago {
+  font-size: var(--text-2xs);
+  color: var(--muted);
   white-space: nowrap;
 }
 
-/* Empty / Loading Message */
-.activity-message {
-  text-align: center;
+/* The payload is a developer's view of a row a reader has already understood
+   from the sentence, so it stays out of the way until asked for. */
+.act-ev-json {
+  padding: 3px 8px;
+  font-family: ui-monospace, sfmono-regular, consolas, "Liberation Mono", menlo, monospace;
+  font-size: var(--text-2xs);
   color: var(--muted);
-  padding: 48px 24px;
-  font-size: var(--text-body-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+
+.act-ev:hover .act-ev-json,
+.act-ev-json:focus-visible,
+.act-ev-json[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.act-ev-json:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.act-ev-panel {
+  grid-column: 3 / -1;
+  margin: 8px 0 4px;
+}
+
+.act-ev-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 6px;
+}
+
+.act-ev-panel-label {
+  font-family: ui-monospace, sfmono-regular, consolas, "Liberation Mono", menlo, monospace;
+  font-size: var(--text-2xs);
+  color: var(--muted);
+}
+
+.act-copy-json {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 4px 9px;
+  font: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.act-copy-json:hover {
+  color: var(--text);
+  border-color: var(--accent-fill);
+}
+
+.act-copy-json[data-copy-state="copied"] {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.act-copy-json[data-copy-state="failed"] {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.act-ev-pre {
+  margin: 0;
+  padding: 11px 13px;
+  font-family: ui-monospace, sfmono-regular, consolas, "Liberation Mono", menlo, monospace;
+  font-size: var(--text-2xs);
   line-height: var(--leading-body);
+  color: var(--muted);
+  background: var(--skill-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
 }
 
-.activity-message i {
-  margin-right: 8px;
-  color: var(--accent-text);
+.act-ev-arriving {
+  animation: actArrive var(--motion-medium) var(--ease-enter) both;
 }
 
-/* Row Entrance Animation */
-@keyframes activityRowFade {
+@keyframes actArrive {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(-7px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
-.activity-table tbody tr.activity-row-enter {
-  animation: activityRowFade var(--motion-medium) var(--ease-enter) both;
+.act-ev-skeleton .skeleton-text {
+  height: 13px;
+  width: 100%;
+  max-width: 320px;
 }
 
-/* Pagination */
-.activity-pagination-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--border);
+.act-ev-skeleton .act-ev-time .skeleton-text {
+  width: 46px;
 }
 
-.activity-pagination-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 10px;
-  background: transparent;
-  border: 1px solid var(--control-border);
-  color: var(--text);
-  font-size: var(--text-body-xs);
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background-color var(--motion-base) var(--ease-standard),
-    border-color var(--motion-base) var(--ease-standard),
-    color var(--motion-base) var(--ease-standard);
-  font-family: inherit;
-}
-
-.activity-pagination-btn:hover:not(:disabled) {
-  border-color: var(--accent-fill);
-  color: var(--accent-text);
-  background: var(--accent-soft);
-}
-
-.activity-pagination-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.activity-page-info {
-  font-size: var(--text-body-xs);
-  font-weight: 600;
-  color: var(--muted);
-  min-width: 56px;
-  text-align: center;
-}
-
-/* Activity Responsive */
-@media (width <= 768px) {
-
-  .activity-table th,
-  .activity-table td {
-    padding: 10px 12px;
-  }
-
-  .activity-data-toggle {
-    padding: 5px 8px;
-  }
-
-  .activity-data-row td {
-    padding: 8px 10px 14px;
-  }
-
-  .activity-data-toolbar {
-    padding: 8px 10px;
-  }
-
-  .activity-data-pre {
-    max-height: 260px;
-    padding: 12px;
-  }
-}
-
-@media (width <= 480px) {
-  /* Layout of the header row itself lives in the <= 640px block in the ETL
-     region; all that is left to do here is buy the session pill more room. */
-  .activity-refresh {
-    padding: 10px 14px;
-    font-size: var(--text-body-xs);
-  }
-
-  /* The word is redundant next to the sync icon at this width. */
-  .activity-refresh-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .activity-log-header {
-    gap: 8px;
-  }
-}
-
-/* Card mode. Breakpoint is mirrored by MOBILE_BREAKPOINT in js/activity.js -
-   below this width the JS renders cards instead of table rows. */
-@media (width <= 768px) {
-  .activity-table-container {
-    border: none;
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .activity-table {
-    display: none;
-  }
-
-  /* The event log is this section's primary content; on the most common
-     viewport it should not sit behind a drawer tap. The drawer remains for the
-     filtered, type-scoped view opened from a chip. */
-  .activity-table-container .activity-mobile-cards {
-    margin-bottom: 12px;
-  }
-
-  .observability-grid {
-    gap: 12px;
-  }
-
-  .vitals-card {
-    padding: 14px 16px 16px;
-  }
-
-  .activity-mobile-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .activity-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .activity-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px dashed var(--border);
-    padding-bottom: 10px;
-    margin-bottom: 2px;
-  }
-
-  .activity-card-time {
-    font-size: var(--text-2xs);
-    color: var(--muted);
-    font-weight: 600;
-  }
-
-  .activity-card-time i {
-    color: var(--accent-fill);
-    margin-right: 4px;
-  }
-
-  .activity-card-body {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .activity-card-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .activity-card-date {
-    font-size: var(--text-2xs);
-    color: var(--muted);
-    font-weight: 600;
-  }
-
-  .activity-card-date i {
-    color: var(--accent-fill);
-    margin-right: 4px;
-  }
-
-  .activity-card-path {
-    font-size: var(--text-2xs);
-  }
-
-  .activity-card-path code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    background: var(--accent-soft);
-    color: var(--accent-text);
-    padding: 2px 6px;
-    border-radius: 4px;
-  }
-
-  .activity-card-data-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .activity-mobile-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--skill-bg);
-    color: var(--text);
-    font-family: inherit;
-    font-size: var(--text-xs);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--motion-base) var(--ease-standard);
-  }
-
-  .activity-mobile-toggle:hover,
-  .activity-mobile-toggle:focus-visible {
-    border-color: var(--accent-fill);
-    background: var(--accent-soft);
-    color: var(--accent-text);
-  }
-
-  .activity-mobile-toggle i {
-    font-size: var(--text-2xs);
-    transition: transform var(--motion-base) var(--ease-standard);
-  }
-
-  .activity-mobile-toggle[aria-expanded="true"] i {
-    transform: rotate(180deg);
-  }
-
-  .activity-mobile-data-panel {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-
-  .activity-mobile-data-panel .activity-data-panel {
-    border: none;
-    border-radius: 0;
-  }
-
-  .activity-card-data-empty {
-    font-size: var(--text-2xs);
-    color: var(--muted);
-    font-style: italic;
-    text-align: center;
-    display: block;
-    padding: 8px;
-    border: 1px dashed var(--border);
-    border-radius: 8px;
-  }
-
-}
-
-@media (width <= 480px) {
-  .activity-pagination-wrapper {
-    padding: 12px 16px;
-    gap: 8px;
-  }
-
-  .activity-pagination-btn {
-    padding: 6px 12px;
-    font-size: var(--text-2xs);
-  }
-}
-
-
-/* ── Summary Tiles ── */
-.activity-summary {
-  margin-bottom: 24px;
-}
-
-.activity-summary-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-}
-
-.activity-summary-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: var(--text-body-sm);
-  font-weight: 700;
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.activity-summary-title i {
-  color: var(--accent-text);
-}
-
-.activity-filter-clear {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--skill-bg);
-  color: var(--text);
-  font-family: inherit;
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    border-color var(--motion-base) var(--ease-standard),
-    background-color var(--motion-base) var(--ease-standard),
-    color var(--motion-base) var(--ease-standard);
-}
-
-.activity-filter-clear:hover,
-.activity-filter-clear:focus-visible {
-  border-color: var(--accent-fill);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
-/* ── Hero stats ──
-   The four headline figures. Previously every metric was an equal-weight card
-   in one auto-fit grid, which at 1400px produced eight columns of 16px padding
-   around ~55px of content. Splitting the hierarchy lets the numbers a reader
-   actually checks first carry real size. */
-.activity-hero-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.hero-stat {
-  position: relative;
+.act-empty {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 16px 18px;
-  text-align: left;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  font-family: inherit;
-  color: var(--text);
-}
-
-button.hero-stat {
-  cursor: pointer;
-  transition:
-    transform var(--motion-medium) var(--ease-standard),
-    border-color var(--motion-medium) var(--ease-standard),
-    box-shadow var(--motion-medium) var(--ease-standard);
-}
-
-button.hero-stat:hover,
-button.hero-stat:focus-visible {
-  transform: translateY(-2px);
-  border-color: var(--accent-fill);
-  box-shadow: var(--shadow-md);
-}
-
-button.hero-stat:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.hero-stat-icon {
-  font-size: var(--text-body-sm);
-  color: var(--accent-text);
-}
-
-.hero-stat-value {
-  font-size: var(--text-3xl);
-  font-weight: 800;
-  line-height: 1.05;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-
-.hero-stat-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
+  gap: 5px;
+  padding: 40px 20px;
+  text-align: center;
   color: var(--muted);
-}
-
-.hero-stat.is-total .hero-stat-value {
-  color: var(--accent-text);
-}
-
-/* ── Type chip bar ──
-   Per-type counts are secondary to the hero row, so they render as a dense
-   horizontal bar rather than another row of cards. */
-.activity-summary-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.activity-tile {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px 10px;
-  text-align: left;
-  overflow: hidden;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  box-shadow: var(--shadow-sm);
-  font-family: inherit;
-  color: var(--text);
-  transition:
-    transform var(--motion-medium) var(--ease-standard),
-    border-color var(--motion-medium) var(--ease-standard),
-    box-shadow var(--motion-medium) var(--ease-standard),
-    opacity var(--motion-medium) var(--ease-standard);
-}
-
-button.activity-tile {
-  cursor: pointer;
-}
-
-button.activity-tile:hover,
-button.activity-tile:focus-visible {
-  transform: translateY(-2px);
-  border-color: var(--accent-fill);
-  box-shadow: var(--shadow-md);
-}
-
-button.activity-tile:active {
-  transform: translateY(0) scale(0.98);
-}
-
-/* Zero-count tiles stay in the grid so it never reflows as events land. */
-.activity-tile.is-empty {
-  opacity: 0.45;
-}
-
-.activity-tile[aria-pressed="true"] {
-  border-color: var(--accent-fill);
-  background: var(--accent-soft);
-  opacity: 1;
-}
-
-.activity-tile-icon {
-  font-size: var(--text-body-sm);
-  color: var(--accent-text);
-}
-
-.activity-tile-value {
   font-size: var(--text-sm);
-  font-weight: 800;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent-text);
 }
 
-.activity-tile-label {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-/* Share of total, drawn along the bottom edge. */
-/* Share of total, drawn along the bottom edge of the chip. */
-.activity-tile-share {
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 2px;
-  background: var(--accent-fill);
-  width: 0;
-  transition: width var(--motion-slow) var(--ease-standard);
-}
-
-
-
-
-
-.activity-tile-more {
-  border-style: dashed;
-}
-
-.activity-tile-more .activity-tile-value {
-  color: var(--muted);
-}
-
-/* Untriggered types occupy a full grid row, revealed by the chip above. */
-.activity-untriggered {
-  flex-basis: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.activity-summary-grid[aria-busy="true"] .activity-tile {
-  opacity: 0.5;
-}
-
-.activity-summary-error {
-  grid-column: 1 / -1;
-  padding: 14px 16px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
-  font-size: var(--text-body-xs);
-  color: var(--muted);
-  text-align: center;
-}
-
-/* ── Latest event line + log drawer (mobile) ── */
-.activity-latest {
-  display: none;
-  width: 100%;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--card-bg);
+.act-empty b {
   color: var(--text);
-  font-family: inherit;
-  font-size: var(--text-body-xs);
-  text-align: left;
-  cursor: pointer;
-}
-
-.activity-latest-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: none;
-  font-size: var(--text-2xs);
+  font-size: var(--text-base);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  color: var(--muted);
 }
 
-.activity-latest-body {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-.activity-drawer {
-  position: fixed;
-  inset: 0;
-  z-index: 1300;
-  display: none;
-  align-items: flex-end;
-  background: rgb(0 0 0 / 55%);
-  opacity: 0;
-  transition: opacity var(--motion-base) var(--ease-standard);
-}
-
-.activity-drawer.active {
-  display: flex;
-  opacity: 1;
-}
-
-.activity-drawer-panel {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-height: 88vh;
-  background: var(--bg);
-  border-top-left-radius: 18px;
-  border-top-right-radius: 18px;
-  box-shadow: var(--shadow-xl);
-  transform: translateY(100%);
-  transition: transform var(--motion-medium) var(--ease-enter);
-}
-
-.activity-drawer.active .activity-drawer-panel {
-  transform: translateY(0);
-}
-
-.activity-drawer-header {
+.act-stream-foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 16px 16px 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-.activity-drawer-title {
-  margin: 0;
-  font-size: var(--text-body);
-  font-weight: 800;
-}
-
-.activity-drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 14px 16px;
-  overscroll-behavior: contain;
-}
-
-.activity-drawer-panel .activity-pagination-wrapper {
+  flex-wrap: wrap;
+  padding: 12px 18px 2px;
+  margin-top: 6px;
   border-top: 1px solid var(--border);
 }
 
-@media (prefers-reduced-motion: reduce) {
-
-  .activity-drawer,
-  .activity-drawer-panel {
-    transition: none;
-  }
-}
-
-/* Below the card-mode breakpoint the inline table is replaced entirely by the
-   latest-event line plus the drawer, which is what takes the section from
-   roughly seven screens to under three. */
-@media (width <= 768px) {
-  .activity-latest {
-    display: flex;
-  }
-
-  .activity-table-container {
-    display: none;
-  }
-}
-
-/* ── Table refinements ── */
-.activity-filter-note {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.act-stream-status {
+  margin: 0;
   font-size: var(--text-2xs);
   color: var(--muted);
-}
-
-.activity-relative-time {
-  display: block;
-  font-size: var(--text-2xs);
-  color: var(--muted);
-}
-
-/* Neutral fill. The pill is an identifier, not an action, and giving it the
-   same amber as Refresh put two saturated chips side by side in a header that
-   also has to leave room for the live-stage accent to register. */
-.session-id-pill {
-  background: var(--skill-bg);
-  border-color: var(--border);
-  color: var(--text);
-  font-weight: 600;
-  cursor: pointer;
-  /* Flex items refuse to shrink below content width without this, which let the
-     UUID push the pill past the edge of the controls row on narrow screens. */
-  min-width: 0;
-  max-width: 100%;
-  gap: 6px;
-}
-
-.session-id-label {
-  flex: none;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-/* One line, always. The id itself is already elided head-and-tail in JS, so
-   this is the backstop for a longer id or a larger user font size - and the
-   copy affordance is a sibling, so it never gets eaten by the ellipsis. */
-.session-id-value {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-variant-numeric: tabular-nums;
 }
 
-.session-id-pill i {
-  flex: none;
+/* Appending rather than paging: reading a log backwards through numbered pages
+   loses your place every time a live event shifts the offset. */
+.act-more {
+  margin-left: auto;
+  padding: 7px 14px;
+  font: inherit;
   font-size: var(--text-2xs);
-  opacity: 0.7;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
 }
 
-.session-id-pill[data-copy-state="copied"] {
+.act-more:hover {
+  color: var(--text);
   border-color: var(--accent-fill);
-  color: var(--accent-text);
 }
 
-@media (prefers-reduced-motion: reduce) {
-
-  .activity-tile,
-  .activity-tile-share {
-    transition: none;
-  }
+/* Keyboard focus. The site styles focus per component rather than from one
+   global rule, so the section carries its own - matching the 3px accent ring
+   used across the header, buttons and chat. */
+.act-session:focus-visible,
+.act-refresh:focus-visible,
+.act-fam:focus-visible,
+.act-path:focus-visible,
+.act-more:focus-visible,
+.act-ev-json:focus-visible,
+.act-copy-json:focus-visible,
+.act-active-clear:focus-visible {
+  outline: 3px solid var(--accent-fill);
+  outline-offset: 3px;
 }
 
+/* The bars sit 2px apart, so the ring is tucked in rather than offset out -
+   at +3px each ring would sit on top of its neighbours. */
+.act-tl-bar:focus-visible {
+  outline: 2px solid var(--accent-fill);
+  outline-offset: 1px;
+}
+
+/* ── Narrow viewports ─────────────────────────────────────────────────
+   The same list, reflowed. There is no second card layout and no drawer to
+   keep in sync with it. */
 @media (width <= 640px) {
-  .activity-summary-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .act-bar {
+    gap: 11px;
+    padding: 12px 13px;
   }
 
-  .activity-tile {
-    padding: 7px 10px 9px;
+  .act-live {
+    width: 100%;
   }
 
-  .hero-stat-value {
-    font-size: var(--text-2xl);
+  .act-session,
+  .act-refresh {
+    flex: 1;
+    justify-content: center;
   }
-}
 
-/* #endregion */
+  .act-refresh {
+    margin-left: 0;
+  }
 
-/* ── Observability grid ──
-   The section was seven full-width bands stacked vertically, so at desktop
-   widths it read as a column of short, wide, mostly-empty strips. Pairing the
-   pipeline with a vitals rail puts the secondary telemetry beside it instead
-   of below it. Single column until there is genuinely room for two. */
-.observability-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-  margin-bottom: 24px;
-}
+  .act-chain {
+    width: 100%;
+    justify-content: flex-start;
+  }
 
-@media (width >= 1200px) {
-  .observability-grid {
-    grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  .act-visit {
+    padding: 16px 14px;
+  }
+
+  .act-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
     align-items: start;
   }
 
-  .observability-grid .pipeline-monitor {
-    margin-bottom: 0;
-  }
-}
-
-.vitals-rail {
-  display: grid;
-  gap: 16px;
-  align-content: start;
-}
-
-/* Below the two-column breakpoint the rail sits under the pipeline, where one
-   full-width card per row would leave both very sparse. */
-@media (768px <= width < 1200px) {
-  .vitals-rail {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.vitals-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  padding: 16px 18px 18px;
-}
-
-.vitals-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  color: var(--muted);
-  margin-bottom: 12px;
-}
-
-.vitals-title i {
-  color: var(--accent-fill);
-}
-
-/* ── Latency meter ──
-   Horizontal rather than a radial gauge: a dial renders a single number well,
-   but the story here is the spread between the median and the tail, which a
-   linear track shows directly. Positions arrive as percentages on custom
-   properties; all the drawing lives here. */
-.latency-meter {
-  --lat-p50: 0%;
-  --lat-p95: 0%;
-  --lat-p99: 0%;
-}
-
-.latency-track {
-  position: relative;
-  height: 10px;
-  border-radius: var(--radius-full);
-  background: var(--skill-bg);
-  border: 1px solid var(--border);
-  overflow: hidden;
-}
-
-.latency-band-good,
-.latency-band-warn {
-  position: absolute;
-  inset-block: 0;
-  opacity: 0.16;
-}
-
-/* 0-150ms and 150-300ms of the 0-500ms scale. */
-.latency-band-good {
-  left: 0;
-  width: 30%;
-  background: var(--color-success);
-}
-
-.latency-band-warn {
-  left: 30%;
-  width: 30%;
-  background: var(--color-warning);
-}
-
-/* p95 as the filled bar - the figure the node health reads from. */
-.latency-fill {
-  position: absolute;
-  inset-block: 0;
-  left: 0;
-  width: var(--lat-p95);
-  background: var(--accent-fill);
-  border-radius: var(--radius-full);
-  transition: width var(--motion-slow) var(--ease-standard);
-}
-
-.latency-meter[data-band="warn"] .latency-fill {
-  background: var(--color-warning);
-}
-
-.latency-meter[data-band="error"] .latency-fill {
-  background: var(--color-error);
-}
-
-.latency-meter[data-empty="true"] .latency-fill {
-  width: 0;
-}
-
-.latency-marker {
-  position: absolute;
-  inset-block: -2px;
-  width: 2px;
-  background: var(--text);
-  opacity: 0.8;
-  transition: left var(--motion-slow) var(--ease-standard);
-}
-
-.latency-marker-p50 {
-  left: var(--lat-p50);
-}
-
-/* The tail reads as a whisker rather than a second bar. */
-.latency-marker-p99 {
-  left: var(--lat-p99);
-  width: 1px;
-  opacity: 0.55;
-}
-
-.latency-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  margin-top: 10px;
-  font-size: var(--text-2xs);
-  color: var(--muted);
-}
-
-.latency-legend b {
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-  margin-right: 3px;
-}
-
-.latency-scale {
-  margin-left: auto;
-  opacity: 0.7;
-}
-
-.latency-note {
-  margin-top: 8px;
-  font-size: var(--text-2xs);
-  color: var(--muted);
-  line-height: 1.4;
-}
-
-/* ── Floating-action-button lane ──
-   The chat FAB is fixed 20px from the right edge and 60px across. It does not
-   scroll with the content, so no amount of bottom clearance keeps it off a
-   given card - only reserving that column does. It is spent on the vitals rail,
-   where it was landing on the right end of the latency track and its p99
-   reading, and where the cards are short enough that a reserved gutter costs
-   nothing. It is deliberately not applied inside the pipeline card: the header
-   there is nowrap, so a 72px gutter becomes part of the card's min-content and
-   pushes the whole card past a 320px viewport. */
-@media (width <= 640px) {
-  .vitals-card {
-    --fab-lane: 4.5rem;
-
-    padding-right: var(--fab-lane);
-  }
-}
-
-/* ── Path funnel ── */
-.activity-funnel {
-  display: grid;
-  gap: 8px;
-}
-
-.activity-funnel-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(60px, 1fr) auto;
-  grid-template-areas:
-    "path track count"
-    "next track count";
-  align-items: center;
-  gap: 0 8px;
-  font-size: var(--text-2xs);
-}
-
-.activity-funnel-path {
-  grid-area: path;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.activity-funnel-track {
-  grid-area: track;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--skill-bg);
-  overflow: hidden;
-}
-
-.activity-funnel-bar {
-  display: block;
-  height: 100%;
-  background: var(--accent-fill);
-  border-radius: var(--radius-full);
-  transition: width var(--motion-slow) var(--ease-standard);
-}
-
-.activity-funnel-count {
-  grid-area: count;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-
-.activity-funnel-share {
-  color: var(--muted);
-  font-weight: 500;
-  margin-left: 5px;
-}
-
-/* Indented under its own path so it reads as "and then...", not as a second
-   entry in the list. */
-.activity-funnel-next {
-  grid-area: next;
-  padding-left: 10px;
-  color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.92em;
-  opacity: 0.85;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.activity-funnel-next:empty {
-  display: none;
-}
-
-.activity-funnel-empty {
-  font-size: var(--text-2xs);
-  color: var(--muted);
-}
-
-/* #region ETL PIPELINE VISUALIZER -------------------------------------*/
-/* ── ETL Pipeline Visualizer ── */
-.pipeline-monitor {
-  width: 100%;
-  margin-bottom: 24px;
-}
-
-.pipeline-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.pipeline-card-header {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 12px;
-}
-
-/* The title absorbs the free space rather than the row using space-between, so
-   the status badge and the two action pills stay grouped at the end instead of
-   being flung to opposite edges once the header wraps. */
-.pipeline-card-title {
-  font-size: var(--text-base);
-  font-weight: 700;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-right: auto;
-  min-width: 0;
-}
-
-.pipeline-card-title i {
-  color: var(--accent-fill);
-}
-
-.pipeline-status-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--color-success);
-  background: hsla(166, 63%, 49%, 0.1);
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-}
-
-/* Scoped to the healthy state. Unscoped, this outranked
-   `.pipeline-status-badge.connecting` / `.disconnected` on specificity, so an
-   amber "Connecting" and a red "Offline" both sat on the green tint. */
-body.dark-theme .pipeline-status-badge:not(.connecting):not(.disconnected) {
-  background: hsla(166, 63%, 52%, 0.15);
-}
-
-.pulse-dot {
-  width: 8px;
-  height: 8px;
-  background-color: var(--color-success);
-  border-radius: 50%;
-  box-shadow: 0 0 0 0 rgba(4, 120, 87, 0.4);
-  animation: pulse-badge 1.8s infinite;
-}
-
-@keyframes pulse-badge {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(4, 120, 87, 0.7);
+  .act-stat-value {
+    font-size: var(--text-xl);
   }
 
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(4, 120, 87, 0);
-  }
-
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(4, 120, 87, 0);
-  }
-}
-
-.pipeline-flow {
-  /* One packet plus the gap behind it. Animating background-position by exactly
-     this distance loops seamlessly, so the train stays evenly spaced whatever
-     length a given run happens to be. */
-  --pipe-packet-len: 7px;
-  --pipe-packet-period: 26px;
-  --pipe-packet-speed: 0.55s;
-  --pipe-packets-x: repeating-linear-gradient(90deg, var(--accent-fill) 0 var(--pipe-packet-len), transparent var(--pipe-packet-len) var(--pipe-packet-period));
-  --pipe-packets-y: repeating-linear-gradient(180deg, var(--accent-fill) 0 var(--pipe-packet-len), transparent var(--pipe-packet-len) var(--pipe-packet-period));
-
-  display: flex;
-  align-items: center;
-  /* Centred with a capped run rather than space-between: the connectors are
-     flex:1, so on a wide viewport four ~150px nodes were separated by several
-     hundred pixels of empty line. The tablet grid below already capped its
-     span; this is the same cap for desktop. */
-  justify-content: center;
-  max-width: 1080px;
-  margin-inline: auto;
-  padding: 10px 0;
-  position: relative;
-}
-
-.pipeline-node {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--skill-bg);
-  border: 1px solid var(--border);
-  padding: 12px 16px;
-  border-radius: 12px;
-  min-width: 150px;
-  position: relative;
-  z-index: 2;
-  transition: transform var(--motion-base) var(--ease-standard), border-color var(--motion-base) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard);
-}
-
-.pipeline-node.active-pulse {
-  transform: scale(1.05);
-  border-color: var(--accent-fill);
-  box-shadow: 0 0 15px var(--accent-soft);
-}
-
-.node-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-base);
-  flex-shrink: 0;
-}
-
-.pipeline-node.active-pulse .node-icon {
-  background: var(--accent-fill);
-  color: var(--on-accent);
-}
-
-/* Three fixed tracks - name, sub-metric, value - rather than a flex stack. The
-   sub-metric row is reserved even when a stage has nothing to put in it, so the
-   stage values sit on one baseline across the whole row of nodes instead of
-   riding up wherever a badge happens to be missing. */
-.node-details {
-  display: grid;
-  grid-template-areas:
-    "name"
-    "badge"
-    "value";
-  grid-template-rows: auto calc(var(--text-2xs) * 1.4) auto;
-  row-gap: 2px;
-  align-content: center;
-  min-width: 0;
-}
-
-.node-name {
-  grid-area: name;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.node-value {
-  grid-area: value;
-  font-size: var(--text-xs);
-  font-weight: 800;
-  color: var(--text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-variant-numeric: tabular-nums;
-}
-
-.pipeline-connector {
-  flex: 1 1 auto;
-  max-width: 180px;
-  height: 4px;
-  position: relative;
-  margin: 0 -4px;
-  min-width: 20px;
-  z-index: 1;
-}
-
-.connector-line {
-  width: 100%;
-  height: 100%;
-  background: var(--border);
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
-/* Packets ride on top of the line rather than replacing it, so the run stays
-   continuous whether or not data is moving through it. */
-.connector-pulse {
-  position: absolute;
-  inset: 0;
-  width: auto;
-  height: auto;
-  background-image: var(--pipe-packets-x);
-  opacity: 0;
-}
-
-.pipeline-connector.flowing .connector-pulse {
-  opacity: 1;
-  animation: packet-stream-x var(--pipe-packet-speed) infinite linear;
-}
-
-/* Rate is the signal: packets flow continuously at a speed bound to measured
-   EPS, rather than a fixed walk restarted per event. Zero throughput stops
-   them entirely, so "quiet" and "disconnected" stay distinguishable. */
-.pipeline-flow.is-idle .connector-pulse {
-  opacity: 0;
-  animation: none;
-}
-
-.pipeline-flow.is-surging .pipeline-node {
-  border-color: var(--accent-fill);
-}
-
-.pipeline-flow.is-surging .node-icon {
-  background: var(--accent-fill);
-  color: var(--on-accent);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pipeline-connector.flowing .connector-pulse {
-    animation: none;
-    opacity: 0.5;
-  }
-}
-
-@keyframes packet-stream-x {
-  from {
-    background-position-x: 0;
-  }
-
-  to {
-    background-position-x: var(--pipe-packet-period);
-  }
-}
-
-/* Right to left, for the leg of the 2x2 wrap that doubles back. */
-@keyframes packet-stream-x-reverse {
-  from {
-    background-position-x: 0;
-  }
-
-  to {
-    background-position-x: calc(-1 * var(--pipe-packet-period));
-  }
-}
-
-@keyframes packet-stream-y {
-  from {
-    background-position-y: 0;
-  }
-
-  to {
-    background-position-y: var(--pipe-packet-period);
-  }
-}
-
-/* ── Node health ──
-   Driven by data-health, written from measured signals only. `bypass` is a
-   first-class state: when Kafka is not in the path the stage says so rather
-   than reporting a fabricated depth. */
-.pipeline-node[data-health="ok"] .node-icon {
-  background: color-mix(in srgb, var(--color-success) 18%, transparent);
-  color: var(--color-success);
-}
-
-.pipeline-node[data-health="warn"] .node-icon {
-  background: color-mix(in srgb, var(--color-warning) 20%, transparent);
-  color: var(--color-warning);
-}
-
-.pipeline-node[data-health="error"] .node-icon {
-  background: color-mix(in srgb, var(--color-error) 18%, transparent);
-  color: var(--color-error);
-}
-
-.pipeline-node[data-health="error"] {
-  border-color: color-mix(in srgb, var(--color-error) 45%, var(--border));
-}
-
-.pipeline-node[data-health="bypass"] {
-  border-style: dashed;
-  opacity: 0.72;
-}
-
-.pipeline-node[data-health="bypass"] .node-icon {
-  background: transparent;
-  border: 1px dashed var(--control-border);
-  color: var(--muted);
-}
-
-/* Micro-label under the stage name. --muted measures ~8.8:1 on the light card
-   (#3f4b5a on #fdfdfe) and ~11:1 on the dark one (#cbd5e1 on the composited
-   surface), so it clears WCAG AA 4.5:1 in both themes. Toning the amber down
-   elsewhere is fine; do not tone this down with it. */
-.node-badge {
-  grid-area: badge;
-  align-self: center;
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: var(--tracking-wide);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ── Card tools (folded in from the removed control band) ── */
-.pipeline-card-tools {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  min-width: 0;
-}
-
-.pipeline-status-badge.connecting {
-  color: var(--color-warning);
-  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
-}
-
-.pipeline-status-badge.disconnected {
-  color: var(--color-error);
-  background: color-mix(in srgb, var(--color-error) 12%, transparent);
-}
-
-.pulse-dot.active-orange {
-  background-color: var(--color-warning);
-}
-
-.pulse-dot.active-red {
-  background-color: var(--color-error);
-  animation: none;
-}
-
-/* ── Event-rate burst strip ──
-   60 one-second buckets over the trailing minute. Bars, not a smoothed area:
-   the underlying data is a discrete count per second, and interpolating
-   between integers invents values that never occurred. */
-.pipeline-burst {
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
-}
-
-/* Peak sits on the chart's own header line, centred against the title rather
-   than baseline-aligned and floating above the bars: it is a readout of the
-   series below it, so it has to read as part of the same label row. */
-.pipeline-burst-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: nowrap;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.pipeline-burst-title {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  color: var(--muted);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pipeline-burst-window {
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: normal;
-  opacity: 0.75;
-}
-
-/* Neutral chip rather than accent text: the amber is spent on the stage that is
-   actually firing, and a permanently-lit counter competed with it. */
-.pipeline-burst-peak {
-  flex: none;
-  font-size: var(--text-2xs);
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-  font-weight: 700;
-  background: var(--skill-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  padding: 2px 8px;
-  line-height: 1.4;
-}
-
-.pipeline-burst-canvas {
-  display: block;
-  width: 100%;
-  height: 48px;
-}
-
-/* Responsive Visualizer */
-
-/* Tablet / narrow-desktop: fold the four-stage chain into a 2x2 grid instead of
-   stacking four full-width cards. Reading order is preserved (row 1 Ingress ->
-   Kafka, row 2 FastAPI -> PostgreSQL) and the wrap between rows keeps its own
-   vertical connector, so the flow still reads as a single chain at roughly half
-   the height. */
-@media (width <= 1024px) {
-  .pipeline-flow {
-    /* Node columns are sized to their content (widest label measures ~191px)
-       rather than splitting the row, so the cards stay compact and the run
-       between them carries the leftover width. */
-    --pipe-node-w: 215px;
-
-    /* Shortest and longest the connector column is allowed to get. Capping it
-       keeps the run from dwarfing the cards on a wide tablet; the grid centres
-       itself once the tracks stop filling the row. */
-    --pipe-link: 28px;
-    --pipe-span-max: 320px;
-    --pipe-row-gap: 12px;
-
-    /* Total height of the wrap elbow: its own body plus the two row gaps it
-       reaches into, so it meets the cards above and below it. */
-    --pipe-wrap-h: calc(26px + (2 * var(--pipe-row-gap)));
-
-    /* Horizontal centre of a node column, measured from that column's own outer
-       edge - the elbow lanes have to line up with the cards they join. */
-    --pipe-lane: calc(var(--pipe-node-w) / 2);
-
-    display: grid;
-    max-width: none;
-    grid-template-columns:
-      var(--pipe-node-w)
-      minmax(var(--pipe-link), var(--pipe-span-max))
-      var(--pipe-node-w);
-    grid-template-rows: auto auto auto;
-    align-items: stretch;
-    justify-content: center;
-    gap: var(--pipe-row-gap) 0;
-    padding: 0;
-  }
-
-  /* Children alternate node, connector, node, connector, ... so place them
-     explicitly rather than relying on auto-flow. */
-  .pipeline-flow > :nth-child(1) {
-    grid-area: 1 / 1;
-  }
-
-  .pipeline-flow > :nth-child(2) {
-    grid-area: 1 / 2;
-  }
-
-  .pipeline-flow > :nth-child(3) {
-    grid-area: 1 / 3;
-  }
-
-  .pipeline-flow > :nth-child(4) {
-    grid-area: 2 / 1 / 3 / -1;
-  }
-
-  .pipeline-flow > :nth-child(5) {
-    grid-area: 3 / 1;
-  }
-
-  .pipeline-flow > :nth-child(6) {
-    grid-area: 3 / 2;
-  }
-
-  .pipeline-flow > :nth-child(7) {
-    grid-area: 3 / 3;
-  }
-
-  .pipeline-node {
-    width: 100%;
-    min-width: 0;
-  }
-
-  /* Run the full width of the connector column instead of a fixed stub. The
-     desktop max-width cap has to be lifted here, or the run stops short of the
-     node it is meant to reach. */
-  .pipeline-connector {
-    width: auto;
-    max-width: none;
-    min-width: var(--pipe-link);
-    height: 4px;
-    margin: 0;
-    align-self: center;
-    justify-self: stretch;
-  }
-
-  /* The row wrap (Kafka -> FastAPI) is a routed elbow rather than a floating
-     stub: it leaves the bottom of the right-hand node, crosses back between the
-     rows, and drops into the top of the left-hand node. Negative block margins
-     let it bridge both row gaps so it touches the two cards it joins. */
-  .pipeline-flow > :nth-child(4) {
-    width: auto;
-    min-width: 0;
-    height: var(--pipe-wrap-h);
-    margin-block: calc(-1 * var(--pipe-row-gap));
-    justify-self: stretch;
-  }
-
-  /* Top half: down out of Kafka, then back across to the left. */
-  .pipeline-flow > :nth-child(4) .connector-line {
-    inset: 0 var(--pipe-lane) 50% var(--pipe-lane);
-    width: auto;
-    height: auto;
-    background: none;
-    border-right: 3px solid var(--border);
-    border-bottom: 3px solid var(--border);
-    border-bottom-right-radius: 4px;
-  }
-
-  /* Bottom half: down into FastAPI. The transparent top border only exists so
-     the corner radius has an edge to curve into. */
-  .pipeline-flow > :nth-child(4)::after {
-    content: '';
-    position: absolute;
-    inset: calc(50% - 3px) var(--pipe-lane) 0 var(--pipe-lane);
-    border-top: 3px solid transparent;
-    border-left: 3px solid var(--border);
-    border-top-left-radius: 4px;
-  }
-
-  /* The elbow bends, so its packets are laid over it in three straight legs
-     that sit exactly on the borders above: the pulse covers the crossing, and
-     its two pseudo-elements ride the verticals at either end of it. All three
-     share one period and speed, so the train stays evenly spaced round the
-     corners. */
-  .pipeline-flow > :nth-child(4) .connector-pulse {
-    inset: calc(50% - 3px) var(--pipe-lane) auto var(--pipe-lane);
-    width: auto;
-    height: 3px;
-    background-image: var(--pipe-packets-x);
-  }
-
-  .pipeline-flow > :nth-child(4) .connector-pulse::before,
-  .pipeline-flow > :nth-child(4) .connector-pulse::after {
-    /* The verticals are only ~half a packet period tall, so at the shared
-       spacing they would sit empty most of the time. Tighten the period here.
-       The gradient token has to be redeclared alongside it, not just the two
-       lengths: a var() nested inside a custom property is substituted where
-       that property is declared, so overriding the lengths alone would leave
-       the inherited token still carrying the row's 7px/26px. Redeclaring it
-       on this element resolves both against the values below, which the
-       packet-stream-y keyframe also reads - so gradient and travel stay equal
-       and the loop is seamless. */
-    --pipe-packet-len: 5px;
-    --pipe-packet-period: 13px;
-    --pipe-packets-y: repeating-linear-gradient(180deg, var(--accent-fill) 0 var(--pipe-packet-len), transparent var(--pipe-packet-len) var(--pipe-packet-period));
-
-    content: '';
-    position: absolute;
-    width: 3px;
-    background-image: var(--pipe-packets-y);
-  }
-
-  /* Down out of Kafka, into the crossing. */
-  .pipeline-flow > :nth-child(4) .connector-pulse::before {
-    right: 0;
-    bottom: 100%;
-    height: calc((var(--pipe-wrap-h) / 2) - 3px);
-  }
-
-  /* Out of the crossing, down into FastAPI. */
-  .pipeline-flow > :nth-child(4) .connector-pulse::after {
-    left: 0;
-    top: 100%;
-    height: calc(var(--pipe-wrap-h) / 2);
-  }
-
-  .pipeline-flow > :nth-child(4).flowing .connector-pulse {
-    animation-name: packet-stream-x-reverse;
-  }
-
-  .pipeline-flow > :nth-child(4).flowing .connector-pulse::before,
-  .pipeline-flow > :nth-child(4).flowing .connector-pulse::after {
-    animation: packet-stream-y var(--pipe-packet-speed) infinite linear;
-  }
-}
-
-
-
-@media (width <= 640px) {
-  .pipeline-card {
-    padding: 16px;
-  }
-
-  /* ── Header: two tiers ──
-     The title keeps the live-status badge beside it and nothing else, so the
-     title row stays compact; the two action pills own the row underneath.
-     Previously all four items shared one wrapping flex row, so the session pill
-     landed in a different place depending on how wide "Streaming" /
-     "Connecting" / "Offline" happened to render. */
-  .pipeline-card-header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 10px 8px;
-    padding-bottom: 10px;
-  }
-
-  .pipeline-card-title {
-    grid-column: 1;
-    margin-right: 0;
-    font-size: var(--text-sm);
-  }
-
-  .pipeline-card-header > .pipeline-status-badge {
-    grid-column: 2;
-    justify-self: end;
-  }
-
-  .pipeline-card-tools {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    flex-wrap: nowrap;
-    gap: 8px;
-    min-width: 0;
-  }
-
-  /* Refresh is sized to its own content; the session pill takes whatever is
-     left and elides inside itself rather than pushing the row wider. */
-  .pipeline-card-tools .activity-refresh {
-    flex: 0 0 auto;
-  }
-
-  .pipeline-card-tools .session-id-pill {
-    flex: 0 1 auto;
-    justify-content: flex-start;
-    min-width: 0;
-  }
-
-  /* ── Vertical stepper ──
-     The connector is one segment per gap rather than a single full-height track
-     behind the column. The track version was drawn under the nodes, and the
-     icon discs tint with color-mix(... transparent), so a slice of line showed
-     through the middle of every badge. A per-gap segment is never underneath a
-     node at all, so there is nothing to mask. */
-  .pipeline-flow {
-    /* Radius of the icon disc. The connector lane, the segment start and the
-       node's minimum height are all derived from it, so the line meets the
-       discs exactly whatever the icon size becomes. */
-    --pipe-lane: 18px;
-    --pipe-row-gap: 1.25rem;
-
-    /* Overrides the 2x2 grid from the tablet breakpoint above. */
-    display: flex;
-    flex-direction: column;
-    gap: var(--pipe-row-gap);
-    align-items: stretch;
-    position: relative;
-    padding: 0;
-    margin: 8px 0;
-  }
-
-  .pipeline-flow .pipeline-connector {
+  .act-timeline-hint {
     display: none;
   }
 
-  .pipeline-node {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-height: calc(var(--pipe-lane) * 2);
-    background: transparent;
-    border: none;
-    padding: 0;
-    width: 100%;
-    box-shadow: none !important;
-    transform: none !important;
-    z-index: 2;
+  .act-paths {
+    padding: 14px;
   }
 
-  /* Leaves the bottom of this node's disc, ends at the top of the next one. */
-  .pipeline-node:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    left: calc(var(--pipe-lane) - 1px);
-    top: calc(50% + var(--pipe-lane));
-    bottom: calc(-1 * var(--pipe-row-gap));
-    width: 2px;
-    background: var(--border);
-    z-index: 1;
+  .act-filters {
+    padding: 11px;
   }
 
-  .pipeline-node.active-pulse .node-icon {
-    box-shadow: 0 0 12px var(--accent-fill);
-    background: var(--accent-fill);
-    color: var(--on-accent);
+  .act-ev {
+    grid-template-columns: 52px 18px minmax(0, 1fr);
+    gap: 9px;
+    padding: 9px 13px;
   }
 
-  /* Sized off the lane so the segments above and below meet the disc edge, with
-     a ring in the card colour to hold them off it. */
-  .node-icon {
-    width: calc(var(--pipe-lane) * 2);
-    height: calc(var(--pipe-lane) * 2);
-    font-size: var(--text-xs);
-    border-radius: 50%;
-    position: relative;
-    z-index: 2;
-    border: 2px solid var(--card-bg);
+  .act-ev-side {
+    margin-left: 0;
+    padding-left: 0;
   }
 
-  /* ── Two-column stage row ──
-     Stage name and sub-metric stack in the left column, the stage value sits in
-     the right one across both rows. Every stage gets the same footprint, so the
-     names, the sub-metrics and the value pills each hold a single vertical
-     baseline down the list however long any one label is. */
-  .node-details {
-    flex: 1;
-    grid-template-areas:
-      "name value"
-      "badge value";
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto calc(var(--text-2xs) * 1.4);
-    column-gap: 10px;
-    row-gap: 1px;
-    align-items: center;
-    align-content: center;
+  /* Touch has no hover, so the payload control is always visible here. */
+  .act-ev-json {
+    opacity: 1;
   }
 
-  /* The stage name must not be the thing that truncates: it is the only part
-     of the row that says which stage this is. */
-  .node-name {
-    overflow: visible;
-    text-overflow: clip;
-    font-size: var(--text-xs);
-    color: var(--text);
-  }
-
-  /* Neutral by default. Amber on every stage at once turned the whole list into
-     a block of highlight; it now marks the stage that is actually firing. */
-  .node-value {
-    justify-self: end;
-    align-self: center;
-    min-width: 64px;
-    text-align: right;
-    font-size: var(--text-xs);
-    font-weight: 700;
-    color: var(--text);
-    background: var(--skill-bg);
-    border: 1px solid var(--border);
-    padding: 3px 8px;
-    border-radius: 6px;
-  }
-
-  .pipeline-node.active-pulse .node-value {
-    color: var(--accent-text);
-    background: var(--accent-soft);
-    border-color: color-mix(in srgb, var(--accent-fill) 35%, transparent);
-  }
-
-  /* Peak moves next to the title rather than staying pinned to the right edge.
-     It reads as a caption on the series either way, and on the left it is out of
-     the FAB's column - which the pipeline card cannot solve with a reserved
-     gutter the way the vitals rail can, since the header is nowrap and the
-     gutter would become part of the card's min-content width. */
-  .pipeline-burst-header {
-    justify-content: flex-start;
-  }
-
-  .pipeline-burst-title {
-    flex: 0 1 auto;
+  .act-group,
+  .act-stream-foot {
+    padding-left: 13px;
+    padding-right: 13px;
   }
 }
 

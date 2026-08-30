@@ -25,18 +25,32 @@ trackEvent('button_click', { button_id: 'cta-main' });
 ---
 
 ### activity.js
-**Purpose**: Display and manage user activity table
+**Purpose**: The Session Activity dashboard - what the site has recorded about
+the current visit
 
 **Key Functions**:
-- `initActivity()` - Initialize activity table with pagination
-- `loadActivity(offset)` - Load activity events with pagination
-- `renderTableRows(events, tbody, offset)` - Render table rows with incremental updates
+- `initActivity()` - Wire up controls and bind to the section's active state
+- `loadActivity()` - Fetch the whole session in one request (the API caps a page
+  at 500 events) and hold it in memory
+- `loadActivitySummary()` / `loadActivityFunnel()` - Server-side aggregates for
+  the headline figures and the path list
+- `describeEvent(event)` - Turn a stored event into one plain sentence
 
 **Features**:
-- Incremental DOM updates to prevent flicker
-- URL-based pagination state
-- Mobile-responsive card layout
-- Real-time refresh capability
+- All filtering is local: search, event family, time slice and path
+- Four event families (Navigation / Interaction / Preference / Contact) carry
+  the colour encoding across the strip, chips, dots and bars
+- One list renderer for every viewport - no separate table, card or drawer path
+- SSE stream appends live events without a refetch
+
+### activity-charts.js
+**Purpose**: Pure paint helpers for the dashboard; `activity.js` owns all state
+
+**Key Functions**:
+- `bucketSession(samples, from, to)` - Per-family counts across the session span
+- `renderTimeline(root, buckets, options)` - The brushable session strip
+- `renderPaths(root, funnel, options)` - Ranked path rows
+- `percentile(values, fraction)` / `latencyBand(ms)` - Pipeline chain health
 
 ---
 

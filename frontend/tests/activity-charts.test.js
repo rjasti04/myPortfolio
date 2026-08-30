@@ -18,38 +18,188 @@ describe('Activity chart widgets', () => {
     delete global.getComputedStyle;
   });
 
-  describe('bucketEvents', () => {
-    it('places samples in one-second buckets, newest last', async () => {
-      const { bucketEvents, BURST_BUCKETS } = await import('../js/activity-charts.js');
-      const now = 1_000_000_000_000;
-      const buckets = bucketEvents(
-        [{ t: now }, { t: now }, { t: now - 1500 }, { t: now - 59_000 }],
-        now
+  describe('bucketSession', () => {
+    it('spreads samples across the session span, oldest first', async () => {
+      const { bucketSession } = await import('../js/activity-charts.js');
+      const from = 1_000_000_000_000;
+      const to = from + 48_000; // 1s per bucket at the default resolution
+
+      const buckets = bucketSession(
+        [
+          { t: from, fam: 'nav' },
+          { t: from + 500, fam: 'tap' },
+          { t: from + 24_000, fam: 'pref' },
+          { t: to, fam: 'reach' },
+        ],
+        from,
+        to
       );
 
-      assert.strictEqual(buckets.length, BURST_BUCKETS);
-      assert.strictEqual(buckets[BURST_BUCKETS - 1], 2, 'current second holds both "now" samples');
-      assert.strictEqual(buckets[BURST_BUCKETS - 2], 1, '1.5s ago lands one bucket back');
-      assert.strictEqual(buckets[0], 1, 'the oldest in-window sample lands in bucket 0');
+      assert.strictEqual(buckets.length, 48);
+      assert.strictEqual(buckets[0].total, 2, 'both opening samples land in bucket 0');
+      assert.strictEqual(buckets[0].nav, 1);
+      assert.strictEqual(buckets[0].tap, 1);
+      assert.strictEqual(buckets[24].pref, 1);
+      assert.strictEqual(buckets[47].reach, 1, 'the final instant belongs to the last bucket');
     });
 
-    it('drops samples outside the rolling window', async () => {
-      const { bucketEvents } = await import('../js/activity-charts.js');
-      const now = 1_000_000_000_000;
-      const buckets = bucketEvents([{ t: now - 61_000 }, { t: now + 5000 }], now);
+    it('drops samples outside the session span', async () => {
+      const { bucketSession } = await import('../js/activity-charts.js');
+      const from = 1_000_000_000_000;
+      const to = from + 60_000;
+
+      const buckets = bucketSession(
+        [{ t: from - 1 }, { t: to + 1 }],
+        from,
+        to
+      );
 
       assert.strictEqual(
-        buckets.reduce((sum, n) => sum + n, 0),
+        buckets.reduce((sum, b) => sum + b.total, 0),
         0,
-        'stale and future-dated samples are both excluded'
+        'samples before the session and after now are both excluded'
       );
     });
 
-    it('returns an all-zero window for no samples', async () => {
-      const { bucketEvents, BURST_BUCKETS } = await import('../js/activity-charts.js');
-      const buckets = bucketEvents([], 1_000_000_000_000);
-      assert.strictEqual(buckets.length, BURST_BUCKETS);
-      assert.ok(buckets.every((n) => n === 0));
+    it('returns a full-width empty series when the span is degenerate', async () => {
+      const { bucketSession, TIMELINE_BUCKETS } = await import('../js/activity-charts.js');
+      const buckets = bucketSession([{ t: 5 }], 10, 10);
+
+      assert.strictEqual(buckets.length, TIMELINE_BUCKETS);
+      assert.ok(buckets.every((b) => b.total === 0));
+    });
+
+    it('files an unrecognised family under navigation rather than dropping the event', async () => {
+      const { bucketSession } = await import('../js/activity-charts.js');
+      const from = 0;
+      const buckets = bucketSession([{ t: 0, fam: 'not_a_family' }], from, 48_000);
+
+      assert.strictEqual(buckets[0].total, 1);
+      assert.strictEqual(buckets[0].nav, 1);
+    });
+  });
+
+  describe('renderTimeline', () => {
+    it('renders one button per bucket, scaled to the busiest', async () => {
+      const { renderTimeline } = await import('../js/activity-charts.js');
+      const root = document.createElement('div');
+
+      const result = renderTimeline(root, [
+        { nav: 4, tap: 0, pref: 0, reach: 0, total: 4 },
+        { nav: 1, tap: 1, pref: 0, reach: 0, total: 2 },
+        { nav: 0, tap: 0, pref: 0, reach: 0, total: 0 },
+      ]);
+
+      const bars = root.querySelectorAll('.act-tl-bar');
+      assert.strictEqual(bars.length, 3);
+      assert.strictEqual(result.peak, 4);
+      assert.strictEqual(result.total, 6);
+      assert.strictEqual(bars[0].querySelector('.act-tl-seg').style.height, '100%');
+      assert.strictEqual(bars[1].querySelectorAll('.act-tl-seg').length, 2, 'one segment per family present');
+      assert.strictEqual(bars[2].dataset.empty, 'true', 'an empty bucket is marked, not hidden');
+    });
+
+    it('scales a sparse session against a floor rather than its own peak', async () => {
+      const { renderTimeline, TIMELINE_PEAK_FLOOR } = await import('../js/activity-charts.js');
+      const root = document.createElement('div');
+
+      // A single event must not fill the plot the way a busy bucket would.
+      const result = renderTimeline(root, [{ nav: 1, tap: 0, pref: 0, reach: 0, total: 1 }]);
+
+      assert.strictEqual(result.peak, 1, 'the reported peak is still the real one');
+      assert.strictEqual(
+        root.querySelector('.act-tl-seg').style.height,
+        `${((1 / TIMELINE_PEAK_FLOOR) * 100).toFixed(2)}%`
+      );
+    });
+
+    it('keeps the strip to one tab stop', async () => {
+      const { renderTimeline } = await import('../js/activity-charts.js');
+      const root = document.createElement('div');
+
+      renderTimeline(root, [
+        { nav: 0, tap: 0, pref: 0, reach: 0, total: 0 },
+        { nav: 2, tap: 0, pref: 0, reach: 0, total: 2 },
+        { nav: 1, tap: 0, pref: 0, reach: 0, total: 1 },
+      ]);
+
+      const tabbable = [...root.querySelectorAll('.act-tl-bar')].filter(
+        (b) => b.getAttribute('tabindex') === '0'
+      );
+      assert.strictEqual(tabbable.length, 1, 'exactly one bar is in the tab order');
+      assert.strictEqual(tabbable[0].dataset.bucket, '1', 'the first non-empty bucket holds it');
+    });
+
+    it('hands the tab stop to the selected bucket', async () => {
+      const { renderTimeline } = await import('../js/activity-charts.js');
+      const root = document.createElement('div');
+
+      renderTimeline(
+        root,
+        [
+          { nav: 1, tap: 0, pref: 0, reach: 0, total: 1 },
+          { nav: 3, tap: 0, pref: 0, reach: 0, total: 3 },
+        ],
+        { selected: 1 }
+      );
+
+      assert.strictEqual(root.querySelector('[data-bucket="1"]').getAttribute('tabindex'), '0');
+      assert.strictEqual(root.querySelector('[data-bucket="0"]').getAttribute('tabindex'), '-1');
+    });
+
+    it('marks the selected bucket as pressed', async () => {
+      const { renderTimeline } = await import('../js/activity-charts.js');
+      const root = document.createElement('div');
+
+      renderTimeline(root, [{ nav: 1, tap: 0, pref: 0, reach: 0, total: 1 }, { nav: 0, tap: 0, pref: 0, reach: 0, total: 0 }], {
+        selected: 0,
+      });
+
+      const bars = root.querySelectorAll('.act-tl-bar');
+      assert.strictEqual(bars[0].getAttribute('aria-pressed'), 'true');
+      assert.strictEqual(bars[1].getAttribute('aria-pressed'), 'false');
+    });
+
+    it('labels every bar so the strip is usable without sight of it', async () => {
+      const { renderTimeline } = await import('../js/activity-charts.js');
+      const root = document.createElement('div');
+
+      renderTimeline(root, [{ nav: 2, tap: 0, pref: 0, reach: 0, total: 2 }], {
+        label: (index, bucket) => `${bucket.total} events at slot ${index}`,
+      });
+
+      assert.strictEqual(root.querySelector('.act-tl-bar').getAttribute('aria-label'), '2 events at slot 0');
+    });
+  });
+
+  describe('moveTimelineFocus', () => {
+    it('walks the arrow keys across the filled buckets only', async () => {
+      const { renderTimeline, moveTimelineFocus } = await import('../js/activity-charts.js');
+      const root = document.createElement('div');
+      document.body.appendChild(root);
+
+      renderTimeline(root, [
+        { nav: 1, tap: 0, pref: 0, reach: 0, total: 1 },
+        { nav: 0, tap: 0, pref: 0, reach: 0, total: 0 },
+        { nav: 2, tap: 0, pref: 0, reach: 0, total: 2 },
+      ]);
+
+      root.querySelector('[data-bucket="0"]').focus();
+      const next = moveTimelineFocus(root, 'ArrowRight');
+      assert.strictEqual(next.dataset.bucket, '2', 'the empty bucket is skipped');
+      assert.strictEqual(next.getAttribute('tabindex'), '0');
+      assert.strictEqual(root.querySelector('[data-bucket="0"]').getAttribute('tabindex'), '-1');
+
+      assert.strictEqual(moveTimelineFocus(root, 'Home').dataset.bucket, '0');
+      assert.strictEqual(moveTimelineFocus(root, 'End').dataset.bucket, '2');
+      root.remove();
+    });
+
+    it('ignores keys it does not own', async () => {
+      const { renderTimeline, moveTimelineFocus } = await import('../js/activity-charts.js');
+      const root = document.createElement('div');
+      renderTimeline(root, [{ nav: 1, tap: 0, pref: 0, reach: 0, total: 1 }]);
+      assert.strictEqual(moveTimelineFocus(root, 'Enter'), null);
     });
   });
 
@@ -86,45 +236,15 @@ describe('Activity chart widgets', () => {
     });
   });
 
-  describe('renderLatencyMeter', () => {
-    it('writes percentile positions and band onto the element', async () => {
-      const { renderLatencyMeter } = await import('../js/activity-charts.js');
-      const root = document.createElement('div');
-      root.innerHTML =
-        '<b data-lat-p50></b><b data-lat-p95></b><b data-lat-p99></b><span data-lat-scale></span>';
-
-      // p95 of 250ms is half of the 500ms scale and inside the warn band.
-      const result = renderLatencyMeter(root, [100, 100, 250]);
-
-      assert.strictEqual(root.dataset.band, 'warn');
-      assert.strictEqual(root.dataset.empty, 'false');
-      assert.strictEqual(root.style.getPropertyValue('--lat-p95'), '50%');
-      assert.strictEqual(root.querySelector('[data-lat-p95]').textContent, '250ms');
-      assert.strictEqual(result.samples, 3);
-    });
-
-    it('marks an empty reservoir instead of drawing zeros as data', async () => {
-      const { renderLatencyMeter } = await import('../js/activity-charts.js');
-      const root = document.createElement('div');
-      root.innerHTML = '<b data-lat-p50></b><b data-lat-p95></b><b data-lat-p99></b>';
-
-      renderLatencyMeter(root, []);
-
-      assert.strictEqual(root.dataset.empty, 'true');
-      assert.strictEqual(root.dataset.band, 'idle');
-      assert.strictEqual(root.querySelector('[data-lat-p50]').textContent, '-');
-    });
-  });
-
-  describe('renderFunnel', () => {
+  describe('renderPaths', () => {
     const escapeHTML = (value) =>
       String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     it('renders one row per path, scaled to the busiest', async () => {
-      const { renderFunnel } = await import('../js/activity-charts.js');
+      const { renderPaths } = await import('../js/activity-charts.js');
       const root = document.createElement('div');
 
-      renderFunnel(
+      renderPaths(
         root,
         {
           steps: [
@@ -136,32 +256,55 @@ describe('Activity chart widgets', () => {
         { escapeHTML }
       );
 
-      const rows = root.querySelectorAll('.activity-funnel-row');
+      const rows = root.querySelectorAll('.act-path');
       assert.strictEqual(rows.length, 2);
-      assert.strictEqual(rows[0].querySelector('.activity-funnel-bar').style.width, '100%');
-      assert.strictEqual(rows[1].querySelector('.activity-funnel-bar').style.width, '25%');
-      assert.match(rows[1].querySelector('.activity-funnel-next').textContent, /\/#activity/);
+      assert.strictEqual(rows[0].querySelector('.act-path-fill').style.width, '100%');
+      assert.strictEqual(rows[1].querySelector('.act-path-fill').style.width, '25%');
+      assert.strictEqual(rows[1].querySelector('.act-path-share').textContent, '20%');
+      assert.match(rows[1].getAttribute('title'), /followed by \/#activity/);
+    });
+
+    it('derives a share when the server does not send one', async () => {
+      const { renderPaths } = await import('../js/activity-charts.js');
+      const root = document.createElement('div');
+
+      renderPaths(
+        root,
+        { steps: [{ path: '/a', hits: 3 }, { path: '/b', hits: 1 }], transitions: [] },
+        { escapeHTML }
+      );
+
+      const shares = [...root.querySelectorAll('.act-path-share')].map((n) => n.textContent);
+      assert.deepStrictEqual(shares, ['75%', '25%']);
     });
 
     it('escapes path text rather than injecting it as markup', async () => {
-      const { renderFunnel } = await import('../js/activity-charts.js');
+      const { renderPaths } = await import('../js/activity-charts.js');
       const root = document.createElement('div');
 
-      renderFunnel(
+      renderPaths(
         root,
         { steps: [{ path: '/<img src=x onerror=alert(1)>', hits: 1, share: 1 }], transitions: [] },
         { escapeHTML }
       );
 
       assert.strictEqual(root.querySelector('img'), null);
-      assert.match(root.querySelector('.activity-funnel-path').textContent, /onerror=alert\(1\)/);
+      assert.match(root.querySelector('.act-path-name').textContent, /onerror=alert\(1\)/);
+    });
+
+    it('marks the selected path as pressed', async () => {
+      const { renderPaths } = await import('../js/activity-charts.js');
+      const root = document.createElement('div');
+
+      renderPaths(root, { steps: [{ path: '/a', hits: 1 }], transitions: [] }, { escapeHTML, selected: '/a' });
+      assert.strictEqual(root.querySelector('.act-path').getAttribute('aria-pressed'), 'true');
     });
 
     it('shows an empty state rather than a bare grid', async () => {
-      const { renderFunnel } = await import('../js/activity-charts.js');
+      const { renderPaths } = await import('../js/activity-charts.js');
       const root = document.createElement('div');
-      renderFunnel(root, { steps: [], transitions: [] }, { escapeHTML });
-      assert.ok(root.querySelector('.activity-funnel-empty'));
+      renderPaths(root, { steps: [], transitions: [] }, { escapeHTML });
+      assert.ok(root.querySelector('.act-paths-empty'));
     });
   });
 });

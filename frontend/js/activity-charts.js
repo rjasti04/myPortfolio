@@ -1,106 +1,136 @@
 /**
- * Canvas and DOM widgets for the activity dashboard.
+ * DOM widgets for the activity dashboard.
  *
- * Deliberately dependency-free. A 60-bucket bar strip and a percentile meter
+ * Deliberately dependency-free. A bucketed session strip and a ranked bar list
  * are a loop and a few positioned elements; a charting library would add
  * 45-200 KB to a PWA that precaches its whole shell, for no capability this
- * page uses. Colours are read from the CSS custom properties so both themes
- * and any accent change flow through without touching this file.
+ * page uses. Colours are read from CSS custom properties so both themes and
+ * any accent change flow through without touching this file.
+ *
+ * DOM rather than canvas: every bar in the session strip is a filter control,
+ * so it needs to be a real focusable element with a label. A canvas would put
+ * the whole chart behind one hit target and hide it from assistive tech.
  *
  * `activity.js` owns all state; every export here is a pure paint from a
  * snapshot it passes in.
  */
 
-// One bucket per second of a rolling minute.
-export const BURST_BUCKETS = 60;
-export const BURST_WINDOW_MS = BURST_BUCKETS * 1000;
+// Buckets across the whole session, not a fixed time window. A visit is the
+// unit the reader cares about, and its length is not known in advance.
+export const TIMELINE_BUCKETS = 48;
 
-// Latency bands, in ms, for the p50/p95/p99 meter.
-const LATENCY_SCALE_MS = 500;
+// Paint order within a stacked bar, bottom to top. Stable so a bucket does not
+// reshuffle its own segments between repaints.
+export const FAMILY_ORDER = ["nav", "tap", "pref", "reach"];
+
+// Smallest value the strip will scale to, so a handful of events reads as a
+// handful rather than filling the plot.
+export const TIMELINE_PEAK_FLOOR = 3;
+
+// Latency bands, in ms, for the pipeline chain's health dot.
 const LATENCY_GOOD_MS = 150;
 const LATENCY_WARN_MS = 300;
 
-function cssVar(name, fallback) {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value || fallback;
-}
-
-/** Device-pixel-ratio aware sizing. Returns false when the canvas has no box. */
-function fitCanvas(canvas) {
-  const rect = canvas.getBoundingClientRect();
-  if (!rect.width || !rect.height) return false;
-
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const width = Math.round(rect.width * dpr);
-  const height = Math.round(rect.height * dpr);
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
-  }
-  const ctx = canvas.getContext("2d");
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return { ctx, width: rect.width, height: rect.height };
-}
-
 /**
- * Buckets `{ t }` samples into per-second counts over the trailing minute.
- * Index 0 is the oldest second, `BURST_BUCKETS - 1` the current one.
- */
-export function bucketEvents(samples, now = Date.now()) {
-  const buckets = new Array(BURST_BUCKETS).fill(0);
-  samples.forEach((sample) => {
-    const age = now - sample.t;
-    if (age < 0 || age >= BURST_WINDOW_MS) return;
-    const index = BURST_BUCKETS - 1 - Math.floor(age / 1000);
-    if (index >= 0 && index < BURST_BUCKETS) buckets[index] += 1;
-  });
-  return buckets;
-}
-
-/**
- * Paints the event-rate burst strip.
+ * Buckets `{ t, fam }` samples across `[from, to]` into per-family counts.
  *
- * Bars, not a smoothed area: the data is a discrete count per second, and a
- * spline between integer counts invents intermediate values that never
- * occurred. An empty window still draws the baseline, so "live but quiet"
- * stays visually distinct from "not connected".
+ * Returns one entry per bucket, oldest first. An empty session still returns a
+ * full-length array of zeroes so the strip keeps its width while it fills.
  */
-export function drawBurstStrip(canvas, samples, { reducedMotion = false } = {}) {
-  if (!canvas) return;
-  const fitted = fitCanvas(canvas);
-  if (!fitted) return;
-  const { ctx, width, height } = fitted;
+export function bucketSession(samples, from, to, buckets = TIMELINE_BUCKETS) {
+  const out = Array.from({ length: buckets }, () => ({
+    nav: 0,
+    tap: 0,
+    pref: 0,
+    reach: 0,
+    total: 0,
+  }));
 
-  const buckets = bucketEvents(samples);
-  const peak = Math.max(1, ...buckets);
+  const span = to - from;
+  if (!Number.isFinite(span) || span <= 0) return out;
 
-  ctx.clearRect(0, 0, width, height);
-
-  const accent = cssVar("--accent-fill", "#f59e0b");
-  const track = cssVar("--border", "rgba(15,23,42,0.13)");
-  const baseline = height - 1;
-
-  // Baseline keeps the widget legible when nothing is arriving.
-  ctx.fillStyle = track;
-  ctx.fillRect(0, baseline, width, 1);
-
-  const gap = 1;
-  const barWidth = Math.max(1, width / BURST_BUCKETS - gap);
-
-  buckets.forEach((count, index) => {
-    if (!count) return;
-    const x = (width / BURST_BUCKETS) * index;
-    const barHeight = Math.max(2, (count / peak) * (height - 4));
-    // The newest bar reads at full strength; older ones recede so the eye
-    // lands on "now" without any animation.
-    const age = (BURST_BUCKETS - 1 - index) / BURST_BUCKETS;
-    ctx.globalAlpha = reducedMotion ? 1 : 0.35 + 0.65 * (1 - age);
-    ctx.fillStyle = accent;
-    ctx.fillRect(x, baseline - barHeight, barWidth, barHeight);
+  samples.forEach((sample) => {
+    if (sample.t < from || sample.t > to) return;
+    // The final instant belongs in the last bucket, not one past the end.
+    const index = Math.min(buckets - 1, Math.floor(((sample.t - from) / span) * buckets));
+    const family = FAMILY_ORDER.includes(sample.fam) ? sample.fam : "nav";
+    out[index][family] += 1;
+    out[index].total += 1;
   });
 
-  ctx.globalAlpha = 1;
-  return { peak, total: buckets.reduce((sum, n) => sum + n, 0) };
+  return out;
+}
+
+/**
+ * Paints the session strip.
+ *
+ * Each bucket is a button: clicking one narrows the log to that slice of the
+ * visit. Bars are scaled to the busiest bucket rather than to an absolute
+ * rate - the question the strip answers is "when was I busy", which is
+ * relative by nature.
+ */
+export function renderTimeline(root, buckets, { selected = null, label } = {}) {
+  if (!root) return null;
+
+  // Roving tabindex: the strip is one stop in the tab order and the arrow keys
+  // move within it. Forty-eight individually tabbable bars would put the log
+  // forty-eight presses away from the filters above it.
+  const firstFilled = buckets.findIndex((b) => b.total > 0);
+  const active = selected !== null && buckets[selected]?.total > 0 ? selected : firstFilled;
+
+  const peak = Math.max(0, ...buckets.map((b) => b.total));
+  // Scaling purely to the peak makes every bar full height when the peak is 1,
+  // so four events across a quiet visit paint the same picture as forty. The
+  // floor keeps a sparse session looking sparse; a busy one is unaffected.
+  const scale = Math.max(TIMELINE_PEAK_FLOOR, peak);
+
+  root.innerHTML = buckets
+    .map((bucket, index) => {
+      const stack = FAMILY_ORDER.filter((family) => bucket[family] > 0)
+        .map(
+          (family) =>
+            `<span class="act-tl-seg" data-fam="${family}" style="height: ${(
+              (bucket[family] / scale) *
+              100
+            ).toFixed(2)}%"></span>`,
+        )
+        .join("");
+
+      const text = label ? label(index, bucket) : `${bucket.total} events`;
+      // A bucket with nothing in it is not a filter worth offering, so it is
+      // disabled rather than merely styled down: it stays visible as part of
+      // the shape but drops out of the tab order.
+      return `<button type="button" class="act-tl-bar" data-bucket="${index}"
+        aria-pressed="${selected === index ? "true" : "false"}"
+        tabindex="${index === active ? "0" : "-1"}"
+        ${bucket.total === 0 ? 'data-empty="true" disabled' : ""}
+        title="${text}" aria-label="${text}">${stack}</button>`;
+    })
+    .join("");
+
+  return { peak, total: buckets.reduce((sum, b) => sum + b.total, 0), active };
+}
+
+/**
+ * Arrow-key movement across the strip, paired with the roving tabindex above.
+ * Returns the bar that now holds focus, or null when the key is not ours.
+ */
+export function moveTimelineFocus(root, key) {
+  if (!root) return null;
+  const bars = [...root.querySelectorAll(".act-tl-bar:not([disabled])")];
+  if (!bars.length) return null;
+
+  const current = Math.max(0, bars.indexOf(document.activeElement));
+  let next;
+  if (key === "ArrowRight" || key === "ArrowDown") next = Math.min(bars.length - 1, current + 1);
+  else if (key === "ArrowLeft" || key === "ArrowUp") next = Math.max(0, current - 1);
+  else if (key === "Home") next = 0;
+  else if (key === "End") next = bars.length - 1;
+  else return null;
+
+  bars.forEach((bar, index) => bar.setAttribute("tabindex", index === next ? "0" : "-1"));
+  bars[next].focus();
+  return bars[next];
 }
 
 /** Nearest-rank percentile over an unsorted numeric sample. */
@@ -119,80 +149,45 @@ export function latencyBand(ms) {
 }
 
 /**
- * Updates the p50/p95/p99 latency meter.
+ * Renders the path list as ranked rows.
  *
- * Horizontal rather than a radial gauge: a dial renders one number, while the
- * interesting story here is the spread between the median and the tail.
- * Positions are written as percentages onto custom properties so the CSS owns
- * all the drawing.
+ * `steps` come straight from `/sessions/{id}/events/funnel`. The bar is the
+ * row's own background rather than a separate column: label and magnitude then
+ * occupy one strip the eye reads in a single pass, instead of a name on the
+ * left and an unlabelled bar 150px to its right.
  */
-export function renderLatencyMeter(root, samples) {
-  if (!root) return null;
-
-  const p50 = percentile(samples, 0.5);
-  const p95 = percentile(samples, 0.95);
-  const p99 = percentile(samples, 0.99);
-
-  const pct = (value) =>
-    value === null ? 0 : Math.min(100, (value / LATENCY_SCALE_MS) * 100);
-
-  root.style.setProperty("--lat-p50", `${pct(p50)}%`);
-  root.style.setProperty("--lat-p95", `${pct(p95)}%`);
-  root.style.setProperty("--lat-p99", `${pct(p99)}%`);
-  root.dataset.band = latencyBand(p95);
-  root.dataset.empty = samples.length ? "false" : "true";
-
-  const write = (selector, value) => {
-    const node = root.querySelector(selector);
-    if (node) node.textContent = value === null ? "-" : `${Math.round(value)}ms`;
-  };
-  write("[data-lat-p50]", p50);
-  write("[data-lat-p95]", p95);
-  write("[data-lat-p99]", p99);
-
-  const scaleNode = root.querySelector("[data-lat-scale]");
-  if (scaleNode) scaleNode.textContent = `0-${LATENCY_SCALE_MS}ms`;
-
-  return { p50, p95, p99, samples: samples.length };
-}
-
-/**
- * Renders the path funnel as stacked proportional bars.
- *
- * `steps` come straight from `/sessions/{id}/events/funnel`. Bars are sorted
- * by hits, so the reader sees where the session actually spent its attention.
- */
-export function renderFunnel(root, funnel, { escapeHTML }) {
+export function renderPaths(root, funnel, { escapeHTML, selected = null } = {}) {
   if (!root) return;
 
   const steps = funnel?.steps || [];
   if (!steps.length) {
-    root.innerHTML = `<p class="activity-funnel-empty">No navigation recorded yet.</p>`;
+    root.innerHTML = `<p class="act-paths-empty">No navigation recorded yet.</p>`;
     return;
   }
 
   const peak = Math.max(...steps.map((step) => step.hits || 0), 1);
+  const total = steps.reduce((sum, step) => sum + (step.hits || 0), 0) || 1;
   const transitions = funnel.transitions || [];
 
   root.innerHTML = steps
     .map((step) => {
+      const path = step.path || "-";
       const hits = step.hits || 0;
-      const width = Math.round((hits / peak) * 100);
-      const share = Math.round((step.share || 0) * 100);
+      // `share` is the server's figure when present; otherwise derive it from
+      // the rows on hand rather than printing nothing.
+      const share = Math.round((step.share ?? hits / total) * 100);
       const leadsTo = transitions.find((edge) => edge.from === step.path);
+      const next = leadsTo ? ` Most often followed by ${leadsTo.to}.` : "";
+
       return `
-        <div class="activity-funnel-row">
-          <span class="activity-funnel-path" title="${escapeHTML(step.path || "")}">
-            ${escapeHTML(step.path || "-")}
-          </span>
-          <span class="activity-funnel-track">
-            <span class="activity-funnel-bar" style="width: ${width}%"></span>
-          </span>
-          <span class="activity-funnel-count">${hits}<span class="activity-funnel-share">${share}%</span></span>
-          <span class="activity-funnel-next">${
-            leadsTo ? `<i class="fas fa-arrow-right" aria-hidden="true"></i> ${escapeHTML(leadsTo.to)}` : ""
-          }</span>
-        </div>
+        <button type="button" class="act-path" data-path="${escapeHTML(path)}"
+          aria-pressed="${selected === step.path ? "true" : "false"}"
+          title="${escapeHTML(path)} - ${hits} of ${total} events.${escapeHTML(next)}">
+          <span class="act-path-fill" style="width: ${Math.round((hits / peak) * 100)}%"></span>
+          <span class="act-path-name">${escapeHTML(path)}</span>
+          <span class="act-path-hits">${hits}</span>
+          <span class="act-path-share">${share}%</span>
+        </button>
       `;
     })
     .join("");

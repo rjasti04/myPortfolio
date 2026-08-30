@@ -28,7 +28,7 @@ The application relies on Vanilla ES modules. State is generally local to the mo
     *   `modal.js` / `skills-carousel.js` / `terminal.js`: Specific UI component logic.
 *   **Features & Integrations:**
     *   `chat.js`: Handles the AI chatbot interface, streaming responses, and communicating with the backend API.
-    *   `analytics.js` / `activity.js`: Manages session tracking and activity logging.
+    *   `analytics.js` / `activity.js`: Session tracking, and the dashboard that shows the visitor what was recorded.
     *   `form.js`: Logic for the FormSubmit contact form.
 *   **`three-bg.js`** (Root): Handles the WebGL Three.js background canvas.
 
