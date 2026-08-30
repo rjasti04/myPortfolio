@@ -5,7 +5,7 @@ export function initRipple() {
   document.addEventListener('pointerdown', function(e) {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
 
-    const element = e.target.closest('.btn, .project-filter, .project-details-btn, .contact-method-card');
+    const element = e.target.closest('.btn, .project-filter, .project-details-btn, .contact-copy-btn, .contact-prompt');
     if (!element) return;
 
     const ripple = document.createElement('span');

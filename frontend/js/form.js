@@ -8,6 +8,8 @@ const SUBMIT_TIMEOUT_MS = 10000;
 const CONTACT_FIELD_SELECTOR = '.floating-label-group input[id], .floating-label-group textarea[id]';
 const CONTACT_FORM_SUBMIT_LABEL = 'Send Message <i class="fas fa-paper-plane"></i>';
 const CONTACT_FORM_SENDING_LABEL = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+const COPY_RESET_MS = 2000;
+const COUNTER_WARN_RATIO = 0.9;
 
 function setFormStatus(element, message, state = "info") {
   if (!element) return;
@@ -64,28 +66,121 @@ function setSubmitState(form, submitBtn, isSubmitting) {
     : submitBtn.dataset.defaultLabel || CONTACT_FORM_SUBMIT_LABEL;
 }
 
+let copyResetTimer = null;
+
 function copyEmailToClipboard() {
   const copyEmailBtn = document.getElementById("copy-email-btn");
-  const statusText = copyEmailBtn?.querySelector('.contact-method-value');
-  const originalText = statusText?.textContent || 'Click to copy';
-  
+  const statusText = copyEmailBtn?.querySelector(".contact-method-value");
+  const liveRegion = document.getElementById("copy-email-live");
+
+  // Captured once, not per click: reading the label at click time meant a
+  // second click inside the 2s window latched "Copied!" as the resting label.
+  if (statusText && !statusText.dataset.defaultLabel) {
+    statusText.dataset.defaultLabel = statusText.textContent.trim() || "Copy";
+  }
+
   copyText(CONTACT_EMAIL)
     .then(() => {
       if (statusText) {
-        statusText.textContent = 'Copied!';
-        statusText.style.color = 'var(--color-success)';
-        setTimeout(() => {
-          statusText.textContent = originalText;
-          statusText.style.color = '';
-        }, 2000);
+        statusText.textContent = "Copied!";
+        copyEmailBtn.dataset.copied = "true";
+        clearTimeout(copyResetTimer);
+        copyResetTimer = setTimeout(() => {
+          statusText.textContent = statusText.dataset.defaultLabel;
+          delete copyEmailBtn.dataset.copied;
+        }, COPY_RESET_MS);
       }
+      // The toast is visual-first; this is what a screen reader hears.
+      if (liveRegion) liveRegion.textContent = `${CONTACT_EMAIL} copied to clipboard.`;
       showToast("Email copied to clipboard.", "success");
       trackEvent("copy_email", { success: true });
     })
     .catch(() => {
+      if (liveRegion) liveRegion.textContent = "Copy failed. Please copy the address manually.";
       showToast("Clipboard copy failed. Please copy the email manually.", "error");
       trackEvent("copy_email", { success: false, reason: "exception" });
     });
+}
+
+function fireInput(field) {
+  field.dispatchEvent(new window.Event("input", { bubbles: true }));
+}
+
+/* A blank textarea is where contact forms lose people: they know they want to
+   write, not how to open. Each chip seeds a first line and drops the caret at
+   the end of it, so the visitor continues a sentence instead of starting one.
+   A seed is only ever replaced by another seed or by an empty field - words
+   the visitor typed themselves are never overwritten. */
+function initContactPrompts() {
+  const promptGroup = document.getElementById("contact-prompts");
+  const messageField = document.getElementById("contact-message");
+  if (!promptGroup || !messageField) return;
+
+  const prompts = Array.from(promptGroup.querySelectorAll(".contact-prompt"));
+  if (!prompts.length) return;
+
+  const clearPressed = () => prompts.forEach((btn) => btn.setAttribute("aria-pressed", "false"));
+  clearPressed();
+
+  prompts.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const seed = btn.dataset.prompt || "";
+      const current = messageField.value;
+      const isReplaceable = current.trim() === "" || current === messageField.dataset.promptSeed;
+
+      // aria-pressed promises a toggle, so pressing the loaded chip again has
+      // to undo it rather than silently re-seed the same line.
+      if (btn.getAttribute("aria-pressed") === "true" && current === messageField.dataset.promptSeed) {
+        messageField.value = "";
+        delete messageField.dataset.promptSeed;
+        clearPressed();
+        fireInput(messageField);
+        messageField.focus();
+        return;
+      }
+
+      if (!isReplaceable) {
+        messageField.focus();
+        messageField.setSelectionRange(current.length, current.length);
+        showToast("Your draft is kept - add to it below.", "info");
+        return;
+      }
+
+      messageField.value = seed;
+      messageField.dataset.promptSeed = seed;
+      clearPressed();
+      btn.setAttribute("aria-pressed", "true");
+      fireInput(messageField);
+      messageField.focus();
+      messageField.setSelectionRange(seed.length, seed.length);
+      trackEvent("contact_prompt", { topic: btn.textContent.trim() });
+    });
+  });
+
+  // The moment the visitor edits a seed it stops being a seed, so the next
+  // chip click can no longer discard it.
+  messageField.addEventListener("input", () => {
+    if (messageField.dataset.promptSeed && messageField.value !== messageField.dataset.promptSeed) {
+      delete messageField.dataset.promptSeed;
+      clearPressed();
+    }
+  });
+}
+
+function initMessageCounter() {
+  const messageField = document.getElementById("contact-message");
+  const counter = document.getElementById("contact-message-count");
+  if (!messageField || !counter) return;
+
+  const max = Number(counter.dataset.max) || Number(messageField.getAttribute("maxlength")) || 0;
+  const update = () => {
+    const used = messageField.value.length;
+    counter.textContent = max ? `${used} / ${max}` : String(used);
+    counter.dataset.state = max && used >= max * COUNTER_WARN_RATIO ? "limit" : "ok";
+  };
+
+  messageField.addEventListener("input", update);
+  update();
 }
 
 export function initContactForm() {
@@ -97,6 +192,9 @@ export function initContactForm() {
   copyEmailBtn?.addEventListener("click", copyEmailToClipboard);
 
   if (!contactForm || !contactStatus) return;
+
+  initContactPrompts();
+  initMessageCounter();
 
   // Real-time validation feedback with ARIA announcements
   contactForm.querySelectorAll(CONTACT_FIELD_SELECTOR).forEach(field => {
@@ -168,6 +266,10 @@ export function initContactForm() {
       }
       if (!response.ok) throw new Error("Request failed");
       contactForm.reset();
+      // reset() mutates values without firing input, so the counter and the
+      // prompt-seed flag would both survive a successful send.
+      const messageField = contactForm.querySelector("#contact-message");
+      if (messageField) fireInput(messageField);
       clearAllFieldErrors(contactForm);
       trackEvent("contact_submission", { success: true, native_fallback: false });
       setFormStatus(contactStatus, "Message sent successfully. Thanks for reaching out.", "success");
