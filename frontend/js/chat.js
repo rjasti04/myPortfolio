@@ -231,8 +231,41 @@ export function initChat() {
   const newChatBtn = document.getElementById('new-chat-btn');
   const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
   const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
+  const sidebarScrim = document.getElementById('ai-sidebar-scrim');
+  const aiSidebar = document.getElementById('ai-sidebar');
   const aiLayout = document.getElementById('ai-layout');
   const clearAllBtn = document.getElementById('clear-all-btn');
+
+  // Matches the ≤768px breakpoint the AI page styles use for the drawer.
+  const MOBILE_BREAKPOINT = 768;
+  const isDrawerLayout = () => window.innerWidth <= MOBILE_BREAKPOINT;
+
+  // Single writer for sidebar visibility. A collapsed sidebar is 0px wide but
+  // still in the a11y tree, so it has to be made inert as well as hidden.
+  function setSidebarHidden(hidden, { persist = true } = {}) {
+    if (!aiLayout) return;
+    aiLayout.classList.toggle('sidebar-hidden', hidden);
+    if (sidebarOpenBtn) sidebarOpenBtn.setAttribute('aria-expanded', String(!hidden));
+    if (sidebarCloseBtn) sidebarCloseBtn.setAttribute('aria-expanded', String(!hidden));
+    if (aiSidebar) {
+      aiSidebar.inert = hidden;
+      aiSidebar.setAttribute('aria-hidden', String(hidden));
+    }
+    if (persist) {
+      try {
+        localStorage.setItem('rj_sidebar_hidden', String(hidden));
+      } catch (e) {
+        /* private mode / quota - preference is best-effort */
+      }
+    }
+  }
+
+  // Closing after picking a chat only makes sense while the sidebar overlays
+  // the conversation.
+  function closeSidebarOnDrawerLayout() {
+    if (isDrawerLayout()) setSidebarHidden(true, { persist: false });
+  }
+
   const suggestedPrompts = document.querySelectorAll('.ai-suggestion-card');
 
   let isOpen = false;
@@ -241,8 +274,18 @@ export function initChat() {
 
   // Persist sessions in localStorage
   const STORAGE_KEY = 'rj_chat_sessions';
+  const ACTIVE_SESSION_KEY = 'rj_chat_active_session';
   let sessions = [];
   let activeSessionId = null;
+
+  function setActiveSession(id) {
+    activeSessionId = id;
+    try {
+      localStorage.setItem(ACTIVE_SESSION_KEY, id);
+    } catch (e) {
+      /* private mode / quota - the in-memory id still works this session */
+    }
+  }
 
   function loadSessions() {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -255,9 +298,16 @@ export function initChat() {
     }
     if (sessions.length === 0) {
       createNewSession();
-    } else {
-      activeSessionId = sessions[0].id;
+      return;
     }
+    let storedId = null;
+    try {
+      storedId = localStorage.getItem(ACTIVE_SESSION_KEY);
+    } catch (e) {
+      storedId = null;
+    }
+    const restored = sessions.some(sess => sess.id === storedId) ? storedId : sessions[0].id;
+    setActiveSession(restored);
   }
 
   function saveSessions() {
@@ -276,7 +326,7 @@ export function initChat() {
       messages: []
     };
     sessions.unshift(newSession);
-    activeSessionId = newSession.id;
+    setActiveSession(newSession.id);
     saveSessions();
     restoreActiveSession();
   }
@@ -392,18 +442,25 @@ export function initChat() {
         document.querySelectorAll('.session-menu-btn').forEach(b => b.classList.remove('active'));
         if (isHidden) {
           dropdown.classList.remove('hidden');
+          dropdown.classList.remove('drop-up');
           menuBtn.classList.add('active');
+          // .ai-sidebar-history scrolls, so a menu opened near its bottom edge
+          // gets clipped. Flip it above the row when it would not fit below.
+          if (aiSidebarHistory) {
+            const historyRect = aiSidebarHistory.getBoundingClientRect();
+            if (dropdown.getBoundingClientRect().bottom > historyRect.bottom) {
+              dropdown.classList.add('drop-up');
+            }
+          }
         }
       });
 
       item.addEventListener('click', () => {
         if (isGenerating) return;
-        activeSessionId = session.id;
+        setActiveSession(session.id);
         renderSidebar();
         restoreActiveSession();
-        if (window.innerWidth <= 768 && aiLayout) {
-          aiLayout.classList.add('sidebar-hidden');
-        }
+        closeSidebarOnDrawerLayout();
       });
       aiSidebarHistory.appendChild(item);
     });
@@ -416,7 +473,7 @@ export function initChat() {
       return;
     }
     if (activeSessionId === id) {
-      activeSessionId = sessions[0].id;
+      setActiveSession(sessions[0].id);
       restoreActiveSession();
     }
     saveSessions();
@@ -425,9 +482,7 @@ export function initChat() {
   if (newChatBtn) {
     newChatBtn.addEventListener('click', () => {
       if (!isGenerating) createNewSession();
-      if (window.innerWidth <= 768 && aiLayout) {
-        aiLayout.classList.add('sidebar-hidden');
-      }
+      closeSidebarOnDrawerLayout();
     });
   }
 
@@ -466,30 +521,45 @@ export function initChat() {
     });
   }
 
-  if (sidebarOpenBtn && aiLayout) {
+  if (sidebarOpenBtn) {
     sidebarOpenBtn.addEventListener('click', () => {
-      aiLayout.classList.remove('sidebar-hidden');
-      // Save user preference
-      localStorage.setItem('rj_sidebar_hidden', 'false');
+      setSidebarHidden(false);
+      if (sidebarCloseBtn) sidebarCloseBtn.focus();
     });
   }
 
-  if (sidebarCloseBtn && aiLayout) {
+  if (sidebarCloseBtn) {
     sidebarCloseBtn.addEventListener('click', () => {
-      aiLayout.classList.add('sidebar-hidden');
-      // Save user preference
-      localStorage.setItem('rj_sidebar_hidden', 'true');
+      setSidebarHidden(true);
+      if (sidebarOpenBtn) sidebarOpenBtn.focus();
     });
   }
 
-  // Restore user preference for sidebar state
+  // On the drawer layout the sidebar covers the conversation, so tapping the
+  // scrim or pressing Escape has to dismiss it.
+  if (sidebarScrim) {
+    sidebarScrim.addEventListener('click', () => {
+      setSidebarHidden(true, { persist: false });
+      if (sidebarOpenBtn) sidebarOpenBtn.focus();
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !aiLayout) return;
+    if (!isDrawerLayout() || aiLayout.classList.contains('sidebar-hidden')) return;
+    setSidebarHidden(true, { persist: false });
+    if (sidebarOpenBtn) sidebarOpenBtn.focus();
+  });
+
+  // Restore the stored preference without rewriting it.
   if (aiLayout) {
-    const isHidden = localStorage.getItem('rj_sidebar_hidden') !== 'false';
-    if (isHidden) {
-      aiLayout.classList.add('sidebar-hidden');
-    } else {
-      aiLayout.classList.remove('sidebar-hidden');
+    let storedHidden = null;
+    try {
+      storedHidden = localStorage.getItem('rj_sidebar_hidden');
+    } catch (e) {
+      storedHidden = null;
     }
+    setSidebarHidden(storedHidden !== 'false', { persist: false });
   }
 
   function scrollToBottom(container, force = false) {
