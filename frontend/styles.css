@@ -7156,6 +7156,15 @@ body.dark-theme .pipeline-status-badge {
 }
 
 .pipeline-flow {
+  /* One packet plus the gap behind it. Animating background-position by exactly
+     this distance loops seamlessly, so the train stays evenly spaced whatever
+     length a given run happens to be. */
+  --pipe-packet-len: 7px;
+  --pipe-packet-period: 26px;
+  --pipe-packet-speed: 0.55s;
+  --pipe-packets-x: repeating-linear-gradient(90deg, var(--accent-fill) 0 var(--pipe-packet-len), transparent var(--pipe-packet-len) var(--pipe-packet-period));
+  --pipe-packets-y: repeating-linear-gradient(180deg, var(--accent-fill) 0 var(--pipe-packet-len), transparent var(--pipe-packet-len) var(--pipe-packet-period));
+
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -7242,38 +7251,50 @@ body.dark-theme .pipeline-status-badge {
   left: 0;
 }
 
+/* Packets ride on top of the line rather than replacing it, so the run stays
+   continuous whether or not data is moving through it. */
 .connector-pulse {
-  width: 0;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, var(--accent-fill), transparent);
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
+  width: auto;
+  height: auto;
+  background-image: var(--pipe-packets-x);
+  opacity: 0;
 }
 
 .pipeline-connector.flowing .connector-pulse {
-  animation: flow-stream 1s infinite linear;
+  opacity: 1;
+  animation: packet-stream-x var(--pipe-packet-speed) infinite linear;
 }
 
-@keyframes flow-stream {
-  0% {
-    width: 20px;
-    left: -20px;
-    opacity: 0;
+@keyframes packet-stream-x {
+  from {
+    background-position-x: 0;
   }
 
-  10% {
-    opacity: 1;
+  to {
+    background-position-x: var(--pipe-packet-period);
+  }
+}
+
+/* Right to left, for the leg of the 2x2 wrap that doubles back. */
+@keyframes packet-stream-x-reverse {
+  from {
+    background-position-x: 0;
   }
 
-  90% {
-    opacity: 1;
+  to {
+    background-position-x: calc(-1 * var(--pipe-packet-period));
+  }
+}
+
+@keyframes packet-stream-y {
+  from {
+    background-position-y: 0;
   }
 
-  100% {
-    width: 20px;
-    left: 100%;
-    opacity: 0;
+  to {
+    background-position-y: var(--pipe-packet-period);
   }
 }
 
@@ -7286,11 +7307,35 @@ body.dark-theme .pipeline-status-badge {
    the height. */
 @media (width <= 1024px) {
   .pipeline-flow {
+    /* Node columns are sized to their content (widest label measures ~191px)
+       rather than splitting the row, so the cards stay compact and the run
+       between them carries the leftover width. */
+    --pipe-node-w: 215px;
+
+    /* Shortest and longest the connector column is allowed to get. Capping it
+       keeps the run from dwarfing the cards on a wide tablet; the grid centres
+       itself once the tracks stop filling the row. */
+    --pipe-link: 28px;
+    --pipe-span-max: 320px;
+    --pipe-row-gap: 12px;
+
+    /* Total height of the wrap elbow: its own body plus the two row gaps it
+       reaches into, so it meets the cards above and below it. */
+    --pipe-wrap-h: calc(26px + (2 * var(--pipe-row-gap)));
+
+    /* Horizontal centre of a node column, measured from that column's own outer
+       edge - the elbow lanes have to line up with the cards they join. */
+    --pipe-lane: calc(var(--pipe-node-w) / 2);
+
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns:
+      var(--pipe-node-w)
+      minmax(var(--pipe-link), var(--pipe-span-max))
+      var(--pipe-node-w);
     grid-template-rows: auto auto auto;
     align-items: stretch;
-    gap: 12px 0;
+    justify-content: center;
+    gap: var(--pipe-row-gap) 0;
     padding: 0;
   }
 
@@ -7329,54 +7374,108 @@ body.dark-theme .pipeline-status-badge {
     min-width: 0;
   }
 
+  /* Run the full width of the connector column instead of a fixed stub. */
   .pipeline-connector {
-    width: 28px;
-    min-width: 28px;
+    width: auto;
+    min-width: var(--pipe-link);
     height: 4px;
     margin: 0;
     align-self: center;
-    justify-self: center;
+    justify-self: stretch;
   }
 
-  /* The row wrap (Kafka -> FastAPI) runs vertically down the centre. */
+  /* The row wrap (Kafka -> FastAPI) is a routed elbow rather than a floating
+     stub: it leaves the bottom of the right-hand node, crosses back between the
+     rows, and drops into the top of the left-hand node. Negative block margins
+     let it bridge both row gaps so it touches the two cards it joins. */
   .pipeline-flow > :nth-child(4) {
-    width: 4px;
-    min-width: 4px;
-    height: 16px;
+    width: auto;
+    min-width: 0;
+    height: var(--pipe-wrap-h);
+    margin-block: calc(-1 * var(--pipe-row-gap));
+    justify-self: stretch;
   }
 
+  /* Top half: down out of Kafka, then back across to the left. */
+  .pipeline-flow > :nth-child(4) .connector-line {
+    inset: 0 var(--pipe-lane) 50% var(--pipe-lane);
+    width: auto;
+    height: auto;
+    background: none;
+    border-right: 3px solid var(--border);
+    border-bottom: 3px solid var(--border);
+    border-bottom-right-radius: 4px;
+  }
+
+  /* Bottom half: down into FastAPI. The transparent top border only exists so
+     the corner radius has an edge to curve into. */
+  .pipeline-flow > :nth-child(4)::after {
+    content: '';
+    position: absolute;
+    inset: calc(50% - 3px) var(--pipe-lane) 0 var(--pipe-lane);
+    border-top: 3px solid transparent;
+    border-left: 3px solid var(--border);
+    border-top-left-radius: 4px;
+  }
+
+  /* The elbow bends, so its packets are laid over it in three straight legs
+     that sit exactly on the borders above: the pulse covers the crossing, and
+     its two pseudo-elements ride the verticals at either end of it. All three
+     share one period and speed, so the train stays evenly spaced round the
+     corners. */
   .pipeline-flow > :nth-child(4) .connector-pulse {
-    width: 100%;
-    height: 0;
-    background: linear-gradient(180deg, transparent, var(--accent-fill), transparent);
+    inset: calc(50% - 3px) var(--pipe-lane) auto var(--pipe-lane);
+    width: auto;
+    height: 3px;
+    background-image: var(--pipe-packets-x);
+  }
+
+  .pipeline-flow > :nth-child(4) .connector-pulse::before,
+  .pipeline-flow > :nth-child(4) .connector-pulse::after {
+    /* The verticals are only ~half a packet period tall, so at the shared
+       spacing they would sit empty most of the time. Tighten the period here.
+       The gradient token has to be redeclared alongside it, not just the two
+       lengths: a var() nested inside a custom property is substituted where
+       that property is declared, so overriding the lengths alone would leave
+       the inherited token still carrying the row's 7px/26px. Redeclaring it
+       on this element resolves both against the values below, which the
+       packet-stream-y keyframe also reads - so gradient and travel stay equal
+       and the loop is seamless. */
+    --pipe-packet-len: 5px;
+    --pipe-packet-period: 13px;
+    --pipe-packets-y: repeating-linear-gradient(180deg, var(--accent-fill) 0 var(--pipe-packet-len), transparent var(--pipe-packet-len) var(--pipe-packet-period));
+
+    content: '';
+    position: absolute;
+    width: 3px;
+    background-image: var(--pipe-packets-y);
+  }
+
+  /* Down out of Kafka, into the crossing. */
+  .pipeline-flow > :nth-child(4) .connector-pulse::before {
+    right: 0;
+    bottom: 100%;
+    height: calc((var(--pipe-wrap-h) / 2) - 3px);
+  }
+
+  /* Out of the crossing, down into FastAPI. */
+  .pipeline-flow > :nth-child(4) .connector-pulse::after {
+    left: 0;
+    top: 100%;
+    height: calc(var(--pipe-wrap-h) / 2);
   }
 
   .pipeline-flow > :nth-child(4).flowing .connector-pulse {
-    animation: flow-stream-vertical 1s infinite linear;
+    animation-name: packet-stream-x-reverse;
+  }
+
+  .pipeline-flow > :nth-child(4).flowing .connector-pulse::before,
+  .pipeline-flow > :nth-child(4).flowing .connector-pulse::after {
+    animation: packet-stream-y var(--pipe-packet-speed) infinite linear;
   }
 }
 
-@keyframes flow-stream-vertical {
-  0% {
-    height: 10px;
-    top: -10px;
-    opacity: 0;
-  }
 
-  10% {
-    opacity: 1;
-  }
-
-  90% {
-    opacity: 1;
-  }
-
-  100% {
-    height: 10px;
-    top: 100%;
-    opacity: 0;
-  }
-}
 
 @media (width <= 640px) {
   .pipeline-card {
