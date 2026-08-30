@@ -159,6 +159,28 @@
     </picture>
   </div>
 
+  <div class="activity-drawer" id="activity-drawer" role="dialog" aria-modal="true"
+    aria-labelledby="activity-drawer-title" aria-hidden="true">
+    <div class="activity-drawer-panel modal-inner" tabindex="-1">
+      <div class="activity-drawer-header">
+        <h3 class="activity-drawer-title" id="activity-drawer-title">Event Log</h3>
+        <button type="button" class="modal-close" id="activity-drawer-close" aria-label="Close event log">
+          <i class="fas fa-xmark" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="activity-drawer-body" id="activity-drawer-body" aria-live="polite" aria-relevant="additions">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="activity-pagination activity-pagination-wrapper" id="activity-drawer-pagination">
+        <button id="activity-drawer-prev" class="activity-pagination-btn" disabled><i
+            class="fas fa-chevron-left"></i> Prev</button>
+        <span id="activity-drawer-page-info" class="activity-page-info">Page 1</span>
+        <button id="activity-drawer-next" class="activity-pagination-btn" disabled>Next <i
+            class="fas fa-chevron-right"></i></button>
+      </div>
+    </div>
+  </div>
+
   <div class="project-detail-modal" id="project-detail-modal" role="dialog" aria-modal="true"
     aria-labelledby="project-detail-title" aria-hidden="true">
     <div class="project-detail-content modal-inner" tabindex="-1">
@@ -842,6 +864,16 @@
       <section id="activity">
         <h2 class="section-title">Session Activity</h2>
         <p class="section-intro">Live view of current session events from FastAPI heartbeat session.</p>
+        <div class="activity-controls">
+          <div class="activity-pills-group">
+            <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
+              Refresh</button>
+            <button id="activity-session-pill" class="activity-refresh session-id-pill" type="button"
+              aria-label="Copy full session ID">Session: <span id="current-session-id">-</span>
+              <i class="fas fa-copy" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
         <div class="pipeline-monitor" id="pipeline-monitor">
           <div class="pipeline-card">
             <div class="pipeline-card-header">
@@ -903,16 +935,11 @@
             <!-- Rendered by JS -->
           </div>
         </div>
-        <div class="activity-controls">
-          <div class="activity-pills-group">
-            <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
-              Refresh</button>
-            <button id="activity-session-pill" class="activity-refresh session-id-pill" type="button"
-              aria-label="Copy full session ID">Session: <span id="current-session-id">-</span>
-              <i class="fas fa-copy" aria-hidden="true"></i>
-            </button>
-          </div>
-        </div>
+        <button type="button" class="activity-latest" id="activity-latest" hidden>
+          <span class="activity-latest-label"><span class="pulse-dot active-green"></span> Latest</span>
+          <span class="activity-latest-body" id="activity-latest-body">Waiting for events…</span>
+          <i class="fas fa-chevron-right" aria-hidden="true"></i>
+        </button>
         <noscript>
           <div class="noscript-message noscript-message--accent">
             <i class="fas fa-exclamation-circle noscript-message__icon"></i>
