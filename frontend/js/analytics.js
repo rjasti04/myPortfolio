@@ -37,6 +37,10 @@ if (API_BASE.includes("localhost")) {
 // Constants
 const MAX_QUEUE_SIZE = 200;
 const QUEUE_FLUSH_THRESHOLD = 10;
+// Without a timed flush the queue only drained at the size threshold or on
+// unload, so a "live" dashboard sat silent until 10 events had accumulated and
+// then painted them all at once. This bounds the wait instead.
+const FLUSH_INTERVAL_MS = 2000;
 const HEARTBEAT_INTERVAL_MS = 60000;
 const HEARTBEAT_INITIAL_DELAY_MS = 1000;
 const SCROLL_DEBOUNCE_MS = 500;
@@ -64,6 +68,40 @@ function clearSessionId() {
 }
 const eventQueue = [];
 let heartbeatInterval;
+let flushInterval;
+
+// Observers of per-request timing. The activity dashboard subscribes to split
+// network round-trip from time actually spent in the API, which is the figure
+// its FastAPI pipeline node reports.
+const telemetryObservers = new Set();
+
+/** Subscribes to request timing samples. Returns an unsubscribe function. */
+export function onTelemetry(observer) {
+  telemetryObservers.add(observer);
+  return () => telemetryObservers.delete(observer);
+}
+
+/**
+ * Parses the `app;dur=12.3` token out of a Server-Timing header.
+ * Returns null when the header is absent - it is not CORS-safelisted, so a
+ * misconfigured deployment simply yields no server-side figure.
+ */
+function parseServerTiming(response) {
+  const header = response.headers.get("Server-Timing");
+  if (!header) return null;
+  const match = /app;dur=([\d.]+)/.exec(header);
+  return match ? Number.parseFloat(match[1]) : null;
+}
+
+function publishTelemetry(sample) {
+  telemetryObservers.forEach((observer) => {
+    try {
+      observer(sample);
+    } catch (error) {
+      console.warn("Analytics: telemetry observer failed", error);
+    }
+  });
+}
 
 // Load persisted event queue from localStorage
 function loadEventQueue() {
@@ -192,6 +230,11 @@ function startHeartbeat() {
   };
 
   heartbeatInterval = setInterval(ping, HEARTBEAT_INTERVAL_MS);
+
+  // Bounded latency to the server for anything sitting under the size
+  // threshold. Cheap: a no-op when the queue is empty.
+  if (flushInterval) clearInterval(flushInterval);
+  flushInterval = setInterval(() => flushEvents("timer"), FLUSH_INTERVAL_MS);
   
   // On resume/reload, trigger a quick verify ping shortly after initialization
   setTimeout(ping, HEARTBEAT_INITIAL_DELAY_MS);
@@ -217,22 +260,42 @@ export function trackEvent(eventType, eventData = {}) {
 
   // Flush if queue gets to threshold
   if (eventQueue.length >= QUEUE_FLUSH_THRESHOLD) {
-    flushEvents();
+    flushEvents("threshold");
   }
 }
 
-async function flushEvents() {
+async function flushEvents(flushReason = "threshold") {
   if (eventQueue.length === 0 || !sessionId) return;
 
   const eventsToSend = [...eventQueue];
   eventQueue.length = 0; // Clear the queue
   saveEventQueue();
 
+  const startedAt = performance.now();
   try {
     const response = await apiFetch(`${API_BASE}/events/bulk`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ events: eventsToSend })
+      body: JSON.stringify({
+        events: eventsToSend,
+        client_ts: Date.now(),
+        // Tells the dashboard how much data arrives via the unreliable unload
+        // path versus a healthy timed flush.
+        flush_reason: flushReason
+      })
+    });
+
+    const roundTripMs = performance.now() - startedAt;
+    const serverMs = parseServerTiming(response);
+    publishTelemetry({
+      roundTripMs,
+      serverMs,
+      // What is left after the server's own time is network plus queueing.
+      networkMs: serverMs === null ? null : Math.max(0, roundTripMs - serverMs),
+      count: eventsToSend.length,
+      reason: flushReason,
+      ok: response.ok,
+      at: Date.now()
     });
 
     if (!response.ok) {
@@ -261,7 +324,11 @@ async function flushEvents() {
 
 function flushEventsOnUnload(isEndingSession = false) {
   if (eventQueue.length > 0 && sessionId) {
-    const payload = JSON.stringify({ events: eventQueue });
+    const payload = JSON.stringify({
+      events: eventQueue,
+      client_ts: Date.now(),
+      flush_reason: isEndingSession ? "unload" : "hidden"
+    });
 
     // Use fetch with keepalive as it can reliably send data on unload and supports proper headers/methods
     apiFetch(`${API_BASE}/events/bulk`, {

@@ -31,6 +31,19 @@ async def health_check(request: Request, db: AsyncSession = Depends(get_db)):
         return JSONResponse(status_code=503, content={"status": "error", "detail": "Database unavailable"})
 
 
+async def pipeline_status():
+    """
+    Per-stage health for the activity dashboard's ETL visualiser.
+
+    Read-only over in-process counters, so it costs no database round trip and
+    is safe to poll. Clients holding an SSE connection get the same payload
+    pushed on the `pipeline` channel and need not call this at all.
+    """
+    from server.services.kafka_stream import pipeline_snapshot
+
+    return pipeline_snapshot()
+
+
 async def list_models():
     """Returns Bedrock foundation models available in the configured region."""
     try:

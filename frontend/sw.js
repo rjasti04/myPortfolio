@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v20';
+const CACHE_NAME = 'rj-portfolio-v21';
 const CACHE_EXPIRATION_DAYS = 7;
 const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -39,6 +39,7 @@ const PRECACHE_URLS = [
   '/js/analytics.js',
   '/js/chat.js',
   '/js/activity.js',
+  '/js/activity-charts.js',
   '/js/physics.js',
   '/js/particles-config.js',
   '/js/skills-carousel.js',

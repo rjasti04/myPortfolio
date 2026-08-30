@@ -92,6 +92,15 @@ Record a single activity event.
 
 Record multiple events in a single transaction (up to 500 events).
 
+**Body**:
+- `events` (required): 1-500 event objects, same shape as `POST /events`
+- `client_ts` (optional): client clock at flush time, diagnostic only - never
+  trusted for ordering
+- `flush_reason` (optional): what triggered the batch, one of `threshold`,
+  `timer`, `unload`, `hidden`, `manual`. Tallied per reason and reported by
+  `GET /system/pipeline`; a high `unload` share means the timed flush is not
+  keeping up and data is riding the unreliable path.
+
 ---
 
 #### `GET /sessions/{session_id}/events`
@@ -101,6 +110,81 @@ List events for a specific session with pagination.
 **Query Parameters**:
 - `limit` (optional): Number of events to return (1-500, default: 100)
 - `offset` (optional): Number of events to skip (0-1,000,000, default: 0)
+- `event_type` (optional): restrict to one declared event type
+
+---
+
+#### `GET /sessions/{session_id}/events/summary`
+
+Aggregate counts by event type, plus the session-wide span (distinct paths,
+first and last event). Every declared type is zero-filled so the client tile
+grid does not reflow as counts land.
+
+---
+
+#### `GET /sessions/{session_id}/events/funnel`
+
+Path funnel and transition edges for a session, computed in a single
+window-function pass.
+
+**Query Parameters**:
+- `limit` (optional): Maximum paths to return (1-25, default: 8)
+
+**Response**: `steps` (path, hits, first_at, last_at, share) ordered by hits,
+and `transitions` (from, to, weight) for the most common path-to-path moves.
+
+---
+
+#### `GET /sessions/{session_id}/stream`
+
+Server-sent events for the live activity dashboard. Three named channels share
+one connection:
+
+| Channel | Payload |
+| :--- | :--- |
+| `hello` | Bootstrap: server time, `resumed_from`, pipeline snapshot |
+| `activity` | One event, compact shape, carrying `id:` for resume |
+| `pipeline` | Per-stage health snapshot, every 2s |
+
+The compact activity frame drops `session_id` (implicit in the stream) and
+sends epoch millis rather than an ISO string:
+
+```json
+{"i": 10432, "t": 1756570000123, "e": "click", "p": "/#activity", "d": {"element_id": "cta"}}
+```
+
+An unnamed `data:` frame carrying the verbose shape is emitted alongside each
+`activity` frame, so a client using `EventSource.onmessage` still works. Both
+are deduplicated by `event_id` client-side.
+
+**Resume**: each `activity` frame carries an `id:`. On reconnect the browser
+sends `Last-Event-ID` automatically and the server replays the gap from a
+per-session ring buffer (`SSE_REPLAY_BUFFER`, retained for `SSE_REPLAY_TTL`
+after disconnect). `retry: 3000` is advertised on connect.
+
+**Backpressure**: each listener queue is bounded (`SSE_QUEUE_MAXSIZE`); at the
+cap the oldest frame is dropped, since a live tail beats a stale backlog.
+
+---
+
+### System
+
+#### `GET /system/pipeline`
+
+Per-stage health for the activity dashboard's ETL visualiser. Read-only over
+in-process counters, so it costs no database round trip.
+
+`mode` is `kafka`, `simulator`, or `bypass`. **`bypass` means no broker is in
+the path** - browser events reach PostgreSQL directly via `/events/bulk`. The
+dashboard renders that stage as "Bypassed" rather than inventing a queue depth.
+
+`fanout` is `postgres` when cross-instance LISTEN/NOTIFY relay is active,
+otherwise `local`.
+
+Stages report: `ingress` (events, last_event_at, flush_reasons), `kafka`
+(mode, messages, lag, topic), `fastapi` (listeners, queued_frames,
+dropped_frames), `postgres` (rows_written, buffer_depth, flushes,
+flush_failures, last_flush_ms, last_error).
 
 ---
 
@@ -152,6 +236,21 @@ List available Amazon Bedrock foundation models in the configured region.
 - `MAX_BODY_BYTES`: Request body limit (default: 1048576)
 - `CHAT_MAX_CONCURRENCY`: Max concurrent chat streams (default: 4)
 - `LOG_LEVEL`: Python logging level (default: INFO)
+- `KAFKA_BOOTSTRAP_SERVERS`: Broker list. Empty (default) runs the pipeline in
+  `bypass` mode - see `GET /system/pipeline`
+- `KAFKA_TOPIC`: Activity topic (default: session-activity)
+- `KAFKA_BATCH_SIZE`: Rows buffered before an eager flush (default: 10)
+- `KAFKA_BATCH_TIMEOUT`: Periodic flush interval in seconds (default: 3.0)
+- `ENABLE_EVENT_SIMULATOR`: Generate mock events when no broker is configured
+  (default: false)
+- `SSE_QUEUE_MAXSIZE`: Per-listener frame backlog cap (default: 100)
+- `SSE_REPLAY_BUFFER`: Per-session Last-Event-ID resume ring (default: 200)
+- `SSE_REPLAY_TTL`: Seconds a disconnected session's resume ring is kept
+  (default: 300)
+- `ENABLE_PG_FANOUT`: Relay SSE broadcasts between API instances over Postgres
+  LISTEN/NOTIFY. Only needed with more than one process; pure overhead on a
+  single instance (default: false)
+- `PG_FANOUT_CHANNEL`: NOTIFY channel name (default: activity_events)
 
 ---
 

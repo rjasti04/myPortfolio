@@ -11,6 +11,13 @@ router.add_api_route(
 )
 
 router.add_api_route(
+    "/system/pipeline",
+    system_controller.pipeline_status,
+    methods=["GET"],
+    summary="Per-stage health of the activity ingest pipeline",
+)
+
+router.add_api_route(
     "/models",
     system_controller.list_models,
     methods=["GET"],

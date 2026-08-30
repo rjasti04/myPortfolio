@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' https://cdn.jsdelivr.net 'sha256-0/PLsWCeqKyS+oiYqnl4MhX8G5Q1tdDiTym+KJh/JJQ=' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-7qJiTE0SDGqsGuUtWq0yY/Ojx48LheZZjk0mLT1uGYM=' 'sha256-j935QdYQwd0URj8l/GbO7dZwocBphcwHOB4WmS4xhoQ=' 'sha256-YLdKYOQHLYbUhx/wZJTRLGJLs+AwpPOxKYHJLNMC/Aw=' 'sha256-5iV/DQ29tzNAtQpsdD6jrRwAf5v2uwwL8pJ+Ab4w7wA='; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://cdn.jsdelivr.net https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;" />
+    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' https://cdn.jsdelivr.net 'sha256-0/PLsWCeqKyS+oiYqnl4MhX8G5Q1tdDiTym+KJh/JJQ=' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-7qJiTE0SDGqsGuUtWq0yY/Ojx48LheZZjk0mLT1uGYM=' 'sha256-j935QdYQwd0URj8l/GbO7dZwocBphcwHOB4WmS4xhoQ=' 'sha256-YLdKYOQHLYbUhx/wZJTRLGJLs+AwpPOxKYHJLNMC/Aw=' 'sha256-5iV/DQ29tzNAtQpsdD6jrRwAf5v2uwwL8pJ+Ab4w7wA='; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://staging-api.rjasti.com http://localhost:8000 http://127.0.0.1:8000 https://cdn.jsdelivr.net https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="Rajeev Jasti" />
@@ -864,27 +864,29 @@
       <section id="activity">
         <h2 class="section-title">Session Activity</h2>
         <p class="section-intro">Live view of current session events from FastAPI heartbeat session.</p>
-        <div class="activity-controls">
-          <div class="activity-pills-group">
-            <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
-              Refresh</button>
-            <button id="activity-session-pill" class="activity-refresh session-id-pill" type="button"
-              aria-label="Copy full session ID">Session: <span id="current-session-id">-</span>
-              <i class="fas fa-copy" aria-hidden="true"></i>
-            </button>
-          </div>
-        </div>
-        <div class="pipeline-monitor" id="pipeline-monitor">
+        <div class="observability-grid">
+          <div class="pipeline-monitor" id="pipeline-monitor">
           <div class="pipeline-card">
             <div class="pipeline-card-header">
               <h3 class="pipeline-card-title"><i class="fas fa-network-wired"></i> Live ETL Pipeline Stream</h3>
-              <span class="pipeline-status-badge" role="status" aria-live="polite"><span class="pulse-dot"></span> Streaming</span>
+              <!-- Folded in from the standalone control band below the title:
+                   two pills did not justify a full-width row of their own. -->
+              <div class="pipeline-card-tools">
+                <span class="pipeline-status-badge" role="status" aria-live="polite"><span class="pulse-dot"></span> Streaming</span>
+                <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
+                  <span class="activity-refresh-label">Refresh</span></button>
+                <button id="activity-session-pill" class="activity-refresh session-id-pill" type="button"
+                  aria-label="Copy full session ID">Session: <span id="current-session-id">-</span>
+                  <i class="fas fa-copy" aria-hidden="true"></i>
+                </button>
+              </div>
             </div>
             <div class="pipeline-flow">
-              <div class="pipeline-node" id="node-ingress">
+              <div class="pipeline-node" id="node-ingress" data-health="idle">
                 <div class="node-icon"><i class="fas fa-mouse-pointer"></i></div>
                 <div class="node-details">
                   <span class="node-name">Ingress</span>
+                  <span class="node-badge" id="badge-ingress" hidden></span>
                   <span class="node-value" id="val-ingress">0 eps</span>
                 </div>
               </div>
@@ -892,10 +894,11 @@
                 <div class="connector-line"></div>
                 <div class="connector-pulse"></div>
               </div>
-              <div class="pipeline-node" id="node-kafka">
+              <div class="pipeline-node" id="node-kafka" data-health="idle">
                 <div class="node-icon"><i class="fas fa-exchange-alt"></i></div>
                 <div class="node-details">
                   <span class="node-name">Kafka Queue</span>
+                  <span class="node-badge" id="badge-kafka" hidden></span>
                   <span class="node-value" id="val-kafka">0 msg</span>
                 </div>
               </div>
@@ -903,10 +906,11 @@
                 <div class="connector-line"></div>
                 <div class="connector-pulse"></div>
               </div>
-              <div class="pipeline-node" id="node-fastapi">
+              <div class="pipeline-node" id="node-fastapi" data-health="idle">
                 <div class="node-icon"><i class="fas fa-server"></i></div>
                 <div class="node-details">
                   <span class="node-name">FastAPI Worker</span>
+                  <span class="node-badge" id="badge-fastapi" hidden></span>
                   <span class="node-value" id="val-fastapi">0 ms</span>
                 </div>
               </div>
@@ -914,22 +918,67 @@
                 <div class="connector-line"></div>
                 <div class="connector-pulse"></div>
               </div>
-              <div class="pipeline-node" id="node-postgres">
+              <div class="pipeline-node" id="node-postgres" data-health="idle">
                 <div class="node-icon"><i class="fas fa-database"></i></div>
                 <div class="node-details">
                   <span class="node-name">PostgreSQL</span>
+                  <span class="node-badge" id="badge-postgres" hidden></span>
                   <span class="node-value" id="val-postgres">0 rows</span>
                 </div>
               </div>
             </div>
+            <div class="pipeline-burst">
+              <div class="pipeline-burst-header">
+                <span class="pipeline-burst-title">Events / second <span class="pipeline-burst-window">last 60s</span></span>
+                <span class="pipeline-burst-peak" id="burst-peak">peak 0</span>
+              </div>
+              <canvas id="activity-burst" class="pipeline-burst-canvas" height="48"
+                role="img" aria-label="Event rate over the last 60 seconds"></canvas>
+            </div>
           </div>
         </div>
+
+        <aside class="vitals-rail" aria-label="Session vitals">
+          <div class="vitals-card">
+            <h3 class="vitals-title"><i class="fas fa-gauge-high" aria-hidden="true"></i> Worker Latency</h3>
+            <div class="latency-meter" id="latency-meter" data-band="idle" data-empty="true">
+              <div class="latency-track">
+                <span class="latency-band-good"></span>
+                <span class="latency-band-warn"></span>
+                <span class="latency-fill"></span>
+                <span class="latency-marker latency-marker-p50" aria-hidden="true"></span>
+                <span class="latency-marker latency-marker-p99" aria-hidden="true"></span>
+              </div>
+              <div class="latency-legend">
+                <span><b data-lat-p50>-</b> p50</span>
+                <span><b data-lat-p95>-</b> p95</span>
+                <span><b data-lat-p99>-</b> p99</span>
+                <span class="latency-scale" data-lat-scale>0-500ms</span>
+              </div>
+              <p class="latency-note" id="latency-note">Round-trip minus server time, from live requests.</p>
+            </div>
+          </div>
+
+          <div class="vitals-card">
+            <h3 class="vitals-title"><i class="fas fa-route" aria-hidden="true"></i> Path Funnel</h3>
+            <div class="activity-funnel" id="activity-funnel">
+              <p class="activity-funnel-empty">No navigation recorded yet.</p>
+            </div>
+          </div>
+        </aside>
+        </div>
+
         <div class="activity-summary" id="activity-summary">
           <div class="activity-summary-header">
             <h3 class="activity-summary-title"><i class="fas fa-chart-simple"></i> Session Totals</h3>
             <button id="activity-filter-clear" class="activity-filter-clear" type="button" hidden>
               <i class="fas fa-xmark" aria-hidden="true"></i> Clear filter
             </button>
+          </div>
+          <!-- Two tiers: four hero stats, then per-type counts as a chip bar.
+               Eight equal cards left most of the row empty at desktop widths. -->
+          <div class="activity-hero-grid" id="activity-hero-grid" aria-busy="true">
+            <!-- Rendered by JS -->
           </div>
           <div class="activity-summary-grid" id="activity-summary-grid" aria-busy="true">
             <!-- Rendered by JS -->
@@ -946,13 +995,24 @@
             <p>JavaScript is required to view live session activity.</p>
           </div>
         </noscript>
+        <div class="activity-log-header">
+          <h3 class="activity-log-title"><i class="fas fa-list-ul" aria-hidden="true"></i> Event Log</h3>
+          <!-- Density is a reading preference, so it persists per browser. -->
+          <div class="activity-density" role="group" aria-label="Row density">
+            <button type="button" class="activity-density-btn" data-density="comfortable"
+              aria-pressed="true">Comfortable</button>
+            <button type="button" class="activity-density-btn" data-density="compact"
+              aria-pressed="false">Compact</button>
+          </div>
+        </div>
         <div class="activity-table-container">
           <table class="activity-table">
             <caption class="sr-only">Activity events for the current browsing session, newest first.</caption>
             <thead>
               <tr>
-                <th scope="col">Date</th>
-                <th scope="col">Time</th>
+                <!-- Date and time were separate columns, but a session spans one
+                     day: the date repeated identically down every row. -->
+                <th scope="col">When</th>
                 <th scope="col">Type</th>
                 <th scope="col">Path</th>
                 <th scope="col">Data</th>
