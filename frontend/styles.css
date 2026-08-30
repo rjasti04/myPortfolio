@@ -6239,6 +6239,9 @@ nav a:hover .nav-shortcut {
 .act-session-value {
   font-family: ui-monospace, sfmono-regular, consolas, "Liberation Mono", menlo, monospace;
   color: var(--text);
+  /* A UUID is 36 characters and is shown in full - it is the one identifier a
+     reader can match against their own copy, so it must never be elided. */
+  overflow-wrap: anywhere;
 }
 
 .act-session[data-copy-state="copied"] {
@@ -7114,13 +7117,15 @@ nav a:hover .nav-shortcut {
     width: 100%;
   }
 
-  .act-session,
-  .act-refresh {
-    flex: 1;
+  .act-session {
+    width: 100%;
     justify-content: center;
+    border-radius: var(--radius-md);
   }
 
   .act-refresh {
+    flex: 1;
+    justify-content: center;
     margin-left: 0;
   }
 
