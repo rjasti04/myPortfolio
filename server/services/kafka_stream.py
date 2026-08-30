@@ -29,6 +29,20 @@ BATCH_TIMEOUT_SECONDS = float(os.getenv("KAFKA_BATCH_TIMEOUT", "3.0"))
 # live tail: the reader would rather see the newest events than a backlog.
 STREAM_QUEUE_MAXSIZE = int(os.getenv("SSE_QUEUE_MAXSIZE", "100"))
 
+# With no broker configured the Kafka stage has no figures of its own to
+# report. Rather than leave the DAG's second node blank, synthesise a coherent
+# view of what the queue would be doing for the traffic actually flowing
+# through the API. Set to "false" to have the stage report `bypass` instead.
+SIMULATE_KAFKA_METRICS = os.getenv("SIMULATE_KAFKA_METRICS", "true").lower() == "true"
+
+# Partition count the simulated topic presents. Offsets are split across these.
+SIMULATED_PARTITIONS = int(os.getenv("SIMULATED_KAFKA_PARTITIONS", "3"))
+SIMULATED_CONSUMER_GROUP = os.getenv("SIMULATED_KAFKA_GROUP", "activity-dashboard")
+
+# Fraction of the simulated backlog still outstanding two seconds later, i.e.
+# the modelled consumer clears ~55% of what is queued every 2s.
+DRAIN_PER_2S = 0.45
+
 # Cross-instance fan-out. `active_streams` is per-process, so with more than
 # one uvicorn worker an event ingested by worker A never reaches an SSE client
 # held by worker B. Opt in to relay broadcasts through Postgres LISTEN/NOTIFY,
@@ -64,6 +78,17 @@ replay_last_touched: Dict[UUID, float] = {}
 # How long a disconnected session's replay tail is retained. Comfortably longer
 # than the 3s client reconnect delay, short enough to bound memory.
 REPLAY_TTL_SECONDS = float(os.getenv("SSE_REPLAY_TTL", "300"))
+
+# Monotonic timestamps of recent broadcasts, used to derive simulated queue
+# figures from the real event rate rather than from noise.
+_recent_broadcasts: Deque[float] = deque(maxlen=2000)
+
+# Simulated queue depth, plus when it was last advanced. Held across calls so
+# the series moves like a real consumer catching up rather than jumping on
+# every poll, and decays against wall time so the curve does not depend on how
+# often the snapshot happens to be read.
+_sim_lag: float = 0.0
+_sim_lag_at: float = 0.0
 
 # Holds the dedicated LISTEN connection when cross-instance fan-out is on.
 _fanout_state: Dict[str, Any] = {"conn": None}
@@ -233,6 +258,7 @@ def deliver_local(session_id: UUID, event_copy: Dict[str, Any]) -> None:
     """
     METRICS["events_broadcast"] += 1
     METRICS["last_event_at"] = datetime.now(timezone.utc).isoformat()
+    _recent_broadcasts.append(time.monotonic())
 
     # Buffer for replay even with no current listener: the browser may be
     # mid-reconnect, which is precisely the gap replay exists to close.
@@ -378,12 +404,96 @@ async def broadcast_pipeline(session_id: UUID) -> None:
 
 
 def pipeline_mode() -> str:
-    """Which ingest path is actually live: kafka, simulator, or bypass."""
+    """Which ingest path is reported: kafka, simulator, or bypass."""
     if METRICS["kafka_connected"]:
         return "kafka"
     if METRICS["simulator_running"]:
         return "simulator"
+    if SIMULATE_KAFKA_METRICS:
+        return "simulated"
     return "bypass"
+
+
+def _simulated_kafka_stats() -> Dict[str, Any]:
+    """
+    Queue figures modelled on the traffic the API is actually handling.
+
+    Derived from the real broadcast stream rather than invented from noise, so
+    the numbers stay internally consistent: throughput matches the observed
+    event rate, offsets match the total processed, and depth rises during a
+    burst and drains afterwards the way a consumer keeping up would.
+
+    The response carries `simulated: true` so a reader of the API can always
+    tell these apart from broker-reported figures.
+    """
+    global _sim_lag, _sim_lag_at
+
+    now = time.monotonic()
+    while _recent_broadcasts and now - _recent_broadcasts[0] > 60:
+        _recent_broadcasts.popleft()
+
+    per_minute = len(_recent_broadcasts)
+    throughput = round(per_minute / 60, 2)
+
+    # Depth tracks the last couple of seconds of arrivals. A backlog builds as
+    # fast as the producer creates it and drains at the consumer's pace, so the
+    # curve is asymmetric: it rises immediately to the arrival burst, then
+    # decays geometrically. An exponential approach in both directions would
+    # let depth keep climbing after the producer had already stopped.
+    burst = sum(1 for t in _recent_broadcasts if now - t <= 2.0)
+
+    # Jitter keeps the series from looking like a step function, but it is
+    # seeded per two-second bucket rather than resampled per call. Resampling
+    # let a fast poller take the maximum of many rolls and ratchet the depth
+    # upward, so how often the snapshot was read changed the reported queue.
+    jitter = random.Random(int(now // 2.0)).uniform(0.6, 1.4)
+    target = burst * jitter
+
+    # Decay against elapsed wall time, not per call: the snapshot is read by
+    # the 2s SSE cadence and by anything polling /system/pipeline, and a fast
+    # reader must not drain the queue faster than a slow one.
+    elapsed = max(0.0, now - _sim_lag_at) if _sim_lag_at else 0.0
+    _sim_lag_at = now
+    if target > _sim_lag:
+        _sim_lag = target
+    elif elapsed:
+        _sim_lag *= DRAIN_PER_2S ** (elapsed / 2.0)
+    # Snap to empty rather than trailing a fractional phantom depth forever.
+    if _sim_lag < 0.5:
+        _sim_lag = 0.0
+    lag = int(round(_sim_lag))
+
+    processed = METRICS["events_broadcast"]
+    # Offsets split round-robin across partitions, summing to the real total.
+    partitions = [
+        {
+            "partition": index,
+            "offset": processed // SIMULATED_PARTITIONS
+            + (1 if index < processed % SIMULATED_PARTITIONS else 0),
+            "lag": lag // SIMULATED_PARTITIONS
+            + (1 if index < lag % SIMULATED_PARTITIONS else 0),
+        }
+        for index in range(SIMULATED_PARTITIONS)
+    ]
+
+    if lag >= 60:
+        health = "error"
+    elif lag >= 15:
+        health = "warn"
+    else:
+        health = "ok"
+
+    return {
+        "health": health,
+        "mode": "simulated",
+        "simulated": True,
+        "messages": processed,
+        "lag": lag,
+        "throughput": throughput,
+        "topic": KAFKA_TOPIC,
+        "consumer_group": SIMULATED_CONSUMER_GROUP,
+        "partitions": partitions,
+    }
 
 
 def pipeline_snapshot() -> Dict[str, Any]:
@@ -409,9 +519,10 @@ def pipeline_snapshot() -> Dict[str, Any]:
                 "last_event_at": METRICS["last_event_at"],
                 "flush_reasons": dict(METRICS["flush_reasons"]),
             },
-            "kafka": {
+            "kafka": _simulated_kafka_stats() if mode == "simulated" else {
                 "health": {"kafka": "ok", "simulator": "warn", "bypass": "bypass"}[mode],
                 "mode": mode,
+                "simulated": mode == "simulator",
                 "messages": METRICS["kafka_messages"],
                 "lag": METRICS["kafka_lag"],
                 "topic": KAFKA_TOPIC if mode == "kafka" else None,
