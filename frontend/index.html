@@ -846,7 +846,7 @@
           <div class="pipeline-card">
             <div class="pipeline-card-header">
               <h3 class="pipeline-card-title"><i class="fas fa-network-wired"></i> Live ETL Pipeline Stream</h3>
-              <span class="pipeline-status-badge"><span class="pulse-dot"></span> Streaming</span>
+              <span class="pipeline-status-badge" role="status" aria-live="polite"><span class="pulse-dot"></span> Streaming</span>
             </div>
             <div class="pipeline-flow">
               <div class="pipeline-node" id="node-ingress">
@@ -906,12 +906,25 @@
             </div>
           </div>
         </div>
+        <div class="activity-summary" id="activity-summary">
+          <div class="activity-summary-header">
+            <h3 class="activity-summary-title"><i class="fas fa-chart-simple"></i> Session Totals</h3>
+            <button id="activity-filter-clear" class="activity-filter-clear" type="button" hidden>
+              <i class="fas fa-xmark" aria-hidden="true"></i> Clear filter
+            </button>
+          </div>
+          <div class="activity-summary-grid" id="activity-summary-grid" aria-busy="true">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
         <div class="activity-controls">
           <div class="activity-pills-group">
             <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
               Refresh</button>
-            <div class="activity-refresh static session-id-pill">Session: <span id="current-session-id">-</span>
-            </div>
+            <button id="activity-session-pill" class="activity-refresh session-id-pill" type="button"
+              aria-label="Copy full session ID">Session: <span id="current-session-id">-</span>
+              <i class="fas fa-copy" aria-hidden="true"></i>
+            </button>
           </div>
         </div>
         <noscript>
@@ -922,16 +935,17 @@
         </noscript>
         <div class="activity-table-container">
           <table class="activity-table">
+            <caption class="sr-only">Activity events for the current browsing session, newest first.</caption>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Type</th>
-                <th>Path</th>
-                <th>Data (Encoded)</th>
+                <th scope="col">Date</th>
+                <th scope="col">Time</th>
+                <th scope="col">Type</th>
+                <th scope="col">Path</th>
+                <th scope="col">Data</th>
               </tr>
             </thead>
-            <tbody id="activity-tbody">
+            <tbody id="activity-tbody" aria-live="polite" aria-relevant="additions">
               <!-- Rendered by JS -->
             </tbody>
           </table>

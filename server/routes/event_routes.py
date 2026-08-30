@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from server.controllers import event_controller
+from server.schemas.event import SessionEventSummary
 
 router = APIRouter(tags=["Events"])
 
@@ -24,6 +25,16 @@ router.add_api_route(
     event_controller.stream_session_events,
     methods=["GET"],
     summary="Stream live activity events for a session via SSE",
+)
+
+# Registered before the paginated list route so the literal /summary segment is
+# never shadowed by a future catch-all under /events.
+router.add_api_route(
+    "/sessions/{session_id}/events/summary",
+    event_controller.get_session_event_summary,
+    methods=["GET"],
+    response_model=SessionEventSummary,
+    summary="Aggregate event counts by type for a session",
 )
 
 router.add_api_route(
