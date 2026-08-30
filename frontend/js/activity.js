@@ -1,5 +1,6 @@
-import { API_BASE, apiFetch, isApiConfigured } from "./analytics.js";
+import { API_BASE, apiFetch, ensureSession, isApiConfigured } from "./analytics.js";
 import { copyText, escapeHTML } from "./utils.js";
+import { openModal, closeModal } from "./modal.js";
 
 // Constants
 const PAGE_SIZE = 15;
@@ -63,6 +64,8 @@ let summaryState = null;
 let relativeTimeTimer = null;
 let prefersReducedMotion = false;
 let lastPageState = { pageCount: 0, atEnd: true };
+let untriggeredExpanded = false;
+let drawerOpen = false;
 
 // ── Formatting helpers ──
 
@@ -107,17 +110,6 @@ function formatRelativeTime(isoString) {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
-}
-
-function formatDuration(ms) {
-  if (!Number.isFinite(ms) || ms < 0) return "0s";
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
 }
 
 function isMobileViewport() {
@@ -194,7 +186,6 @@ async function _loadActivityImpl(offset) {
   }
 
   tableContainer.setAttribute("aria-busy", "true");
-  clearMobileCards(tableContainer);
   tbody.innerHTML = Array.from({ length: 4 })
     .map(
       () => `
@@ -260,6 +251,7 @@ async function _loadActivityImpl(offset) {
     loadedEvents = events;
     currentOffset = offset;
     renderEvents();
+    if (!activeTypeFilter && offset === 0) updateLatestEventLine();
 
     if (paginationControls) {
       paginationControls.style.display = "flex";
@@ -282,15 +274,16 @@ async function _loadActivityImpl(offset) {
  * event list. Never refetches - the resize path relies on that.
  */
 function renderEvents({ stagger = true } = {}) {
-  const tbody = document.getElementById("activity-tbody");
-  const tableContainer = document.querySelector(".activity-table-container");
-  if (!tbody || !tableContainer) return;
-
+  // Below the breakpoint the inline table is hidden entirely and the log lives
+  // in the drawer, so the cards mount there instead.
   if (isMobileViewport()) {
-    renderMobileCards(loadedEvents, tableContainer, currentOffset, stagger);
-  } else {
-    renderTableRows(loadedEvents, tbody, currentOffset, stagger);
+    const drawerBody = document.getElementById("activity-drawer-body");
+    if (drawerBody) renderMobileCards(loadedEvents, drawerBody, currentOffset, stagger);
+    return;
   }
+
+  const tbody = document.getElementById("activity-tbody");
+  if (tbody) renderTableRows(loadedEvents, tbody, currentOffset, stagger);
 }
 
 /**
@@ -307,19 +300,23 @@ function rowAnimation(index, stagger) {
 function updatePagination({ pageCount, atEnd } = lastPageState) {
   lastPageState = { pageCount, atEnd };
 
-  const prevBtn = document.getElementById("activity-prev-btn");
-  const nextBtn = document.getElementById("activity-next-btn");
-  const pageInfo = document.getElementById("activity-page-info");
+  // The table and the drawer each carry their own controls; both track the one
+  // shared offset, so both are written on every update.
+  const prevBtns = ["activity-prev-btn", "activity-drawer-prev"].map((id) => document.getElementById(id));
+  const nextBtns = ["activity-next-btn", "activity-drawer-next"].map((id) => document.getElementById(id));
+  const pageInfos = ["activity-page-info", "activity-drawer-page-info"].map((id) => document.getElementById(id));
 
-  if (prevBtn) {
-    prevBtn.disabled = currentOffset === 0;
-    prevBtn.title = currentOffset === 0 ? "No previous pages" : "Previous page";
-  }
-  if (nextBtn) {
-    nextBtn.disabled = atEnd;
-    nextBtn.title = atEnd ? "No more pages" : "Next page";
-  }
-  if (!pageInfo) return;
+  prevBtns.forEach((btn) => {
+    if (!btn) return;
+    btn.disabled = currentOffset === 0;
+    btn.title = currentOffset === 0 ? "No previous pages" : "Previous page";
+  });
+  nextBtns.forEach((btn) => {
+    if (!btn) return;
+    btn.disabled = atEnd;
+    btn.title = atEnd ? "No more pages" : "Next page";
+  });
+  if (!pageInfos.some(Boolean)) return;
 
   const currentPage = Math.floor(currentOffset / PAGE_SIZE) + 1;
   // The summary endpoint is the only source of a true total, so "of N" only
@@ -328,21 +325,19 @@ function updatePagination({ pageCount, atEnd } = lastPageState) {
     ? summaryState?.total_events
     : summaryState?.by_type?.find((row) => row.event_type === activeTypeFilter)?.count;
 
+  let label;
   if (Number.isFinite(total) && total > 0) {
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    pageInfo.textContent = `Page ${currentPage} of ${totalPages} · ${total} event${total === 1 ? "" : "s"}`;
+    label = `Page ${currentPage} of ${totalPages} · ${total} event${total === 1 ? "" : "s"}`;
   } else {
-    pageInfo.textContent = atEnd && pageCount === 0 ? `Page ${currentPage} (End)` : `Page ${currentPage}`;
+    label = atEnd && pageCount === 0 ? `Page ${currentPage} (End)` : `Page ${currentPage}`;
   }
-}
-
-function clearMobileCards(container) {
-  container.querySelector(".activity-mobile-cards")?.remove();
+  pageInfos.forEach((node) => {
+    if (node) node.textContent = label;
+  });
 }
 
 function renderTableRows(events, tbody, offset, stagger = true) {
-  clearMobileCards(tbody.closest(".activity-table-container"));
-
   const fragment = document.createDocumentFragment();
 
   events.forEach((e, i) => {
@@ -408,10 +403,8 @@ function renderTableRows(events, tbody, offset, stagger = true) {
   tbody.appendChild(fragment);
 }
 
+/** Renders the card layout into `container` - the drawer body on mobile. */
 function renderMobileCards(events, container, offset, stagger = true) {
-  const tbody = container.querySelector("tbody");
-  if (tbody) tbody.innerHTML = "";
-
   let mobileContainer = container.querySelector(".activity-mobile-cards");
   if (!mobileContainer) {
     mobileContainer = document.createElement("div");
@@ -537,25 +530,29 @@ function renderSummaryTiles() {
   const total = summaryState.total_events || 0;
   const tiles = [
     `
-    <div class="activity-tile is-total">
+    <button type="button" class="activity-tile is-total" id="activity-tile-total"
+      title="View the full event log">
       <span class="activity-tile-icon"><i class="fas fa-database" aria-hidden="true"></i></span>
       <span class="activity-tile-value" data-tile-total>0</span>
       <span class="activity-tile-label">Total Events</span>
-    </div>
+    </button>
   `,
   ];
 
-  (summaryState.by_type || []).forEach((row) => {
+  const byType = summaryState.by_type || [];
+  const triggered = byType.filter((row) => (row.count || 0) > 0);
+  const untriggered = byType.filter((row) => (row.count || 0) === 0);
+
+  const typeTile = (row) => {
     const meta = tileMeta(row.event_type);
     const count = row.count || 0;
     const share = total > 0 ? Math.round((count / total) * 100) : 0;
-    const isActive = activeTypeFilter === row.event_type;
-    tiles.push(`
+    return `
       <button
         type="button"
         class="activity-tile${count === 0 ? " is-empty" : ""}"
         data-event-type="${escapeHTML(row.event_type)}"
-        aria-pressed="${isActive ? "true" : "false"}"
+        aria-pressed="${activeTypeFilter === row.event_type ? "true" : "false"}"
         ${count === 0 ? "disabled" : ""}
         title="${escapeHTML(meta.label)}: ${count} of ${total} events${count === 0 ? "" : " - click to filter"}"
       >
@@ -564,21 +561,27 @@ function renderSummaryTiles() {
         <span class="activity-tile-label">${escapeHTML(meta.label)}</span>
         <span class="activity-tile-share" style="width: ${share}%"></span>
       </button>
-    `);
-  });
+    `;
+  };
 
-  // Derived tiles - computed from the summary span, no extra request.
+  triggered.forEach((row) => tiles.push(typeTile(row)));
+
+  // A grid half-full of greyed zeros reads as a broken dashboard. Collapse the
+  // untriggered types behind one chip the reader can open on demand.
+  if (untriggered.length) {
+    tiles.push(`
+      <button type="button" class="activity-tile activity-tile-more" id="activity-tile-more"
+        aria-expanded="${untriggeredExpanded ? "true" : "false"}"
+        aria-controls="activity-untriggered">
+        <span class="activity-tile-icon"><i class="fas fa-ellipsis" aria-hidden="true"></i></span>
+        <span class="activity-tile-value">+${untriggered.length}</span>
+        <span class="activity-tile-label">${untriggeredExpanded ? "Hide" : "Not triggered yet"}</span>
+      </button>
+    `);
+  }
+
+  // Derived tiles - computed from the summary, no extra request.
   tiles.push(`
-    <div class="activity-tile is-derived">
-      <span class="activity-tile-icon"><i class="fas fa-hourglass-half" aria-hidden="true"></i></span>
-      <span class="activity-tile-value" data-tile-duration>0s</span>
-      <span class="activity-tile-label">Session Span</span>
-    </div>
-    <div class="activity-tile is-derived">
-      <span class="activity-tile-icon"><i class="fas fa-gauge-high" aria-hidden="true"></i></span>
-      <span class="activity-tile-value" data-tile-rate>0.0</span>
-      <span class="activity-tile-label">Events / min</span>
-    </div>
     <div class="activity-tile is-derived">
       <span class="activity-tile-icon"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i></span>
       <span class="activity-tile-value" data-tile-last>-</span>
@@ -591,10 +594,17 @@ function renderSummaryTiles() {
     </div>
   `);
 
+  // Untriggered types render into their own row, revealed by the chip.
+  tiles.push(`
+    <div class="activity-untriggered" id="activity-untriggered" ${untriggeredExpanded ? "" : "hidden"}>
+      ${untriggered.map(typeTile).join("")}
+    </div>
+  `);
+
   grid.innerHTML = tiles.join("");
 
   countUp(grid.querySelector("[data-tile-total]"), total);
-  (summaryState.by_type || []).forEach((row) => {
+  byType.forEach((row) => {
     countUp(grid.querySelector(`[data-tile-count="${CSS.escape(row.event_type)}"]`), row.count || 0);
   });
   renderDerivedTiles();
@@ -609,21 +619,6 @@ function renderSummaryTiles() {
 function renderDerivedTiles() {
   const grid = document.getElementById("activity-summary-grid");
   if (!grid || !summaryState) return;
-
-  const first = summaryState.first_event_at ? new Date(summaryState.first_event_at).getTime() : NaN;
-  const last = summaryState.last_event_at ? new Date(summaryState.last_event_at).getTime() : NaN;
-  const total = summaryState.total_events || 0;
-
-  const durationMs = Number.isFinite(first) && Number.isFinite(last) ? Math.max(0, last - first) : 0;
-  const durationNode = grid.querySelector("[data-tile-duration]");
-  if (durationNode) durationNode.textContent = formatDuration(durationMs);
-
-  const rateNode = grid.querySelector("[data-tile-rate]");
-  if (rateNode) {
-    const minutes = durationMs / 60000;
-    // Under a minute of span, per-minute extrapolation is noise - show the raw count.
-    rateNode.textContent = minutes >= 1 ? (total / minutes).toFixed(1) : String(total);
-  }
 
   const lastNode = grid.querySelector("[data-tile-last]");
   if (lastNode) {
@@ -705,10 +700,80 @@ function updateFilterChrome() {
 }
 
 function applyTypeFilter(eventType) {
+  // Mobile has no inline table to filter, so the same click opens the drawer.
+  // Desktop filters in place - a modal over a page with room to spare is worse.
+  if (isMobileViewport()) {
+    openLogDrawer(eventType);
+    return;
+  }
+
   activeTypeFilter = activeTypeFilter === eventType ? null : eventType;
   updateFilterChrome();
   currentOffset = 0;
   loadActivity(0, { immediate: true });
+}
+
+// ── Event log drawer (mobile) ──
+
+function drawerEl() {
+  return document.getElementById("activity-drawer");
+}
+
+/**
+ * Opens the log drawer, optionally scoped to one event type.
+ * Below the breakpoint this is the only route to the event log, so the Total
+ * Events tile opens it unfiltered.
+ */
+function openLogDrawer(eventType = null) {
+  const drawer = drawerEl();
+  if (!drawer) return;
+
+  activeTypeFilter = eventType;
+  updateFilterChrome();
+
+  const title = document.getElementById("activity-drawer-title");
+  if (title) {
+    title.textContent = eventType ? `${tileMeta(eventType).label} events` : "Event Log";
+  }
+
+  drawerOpen = true;
+  openModal(drawer, { initialFocus: document.getElementById("activity-drawer-close") });
+
+  currentOffset = 0;
+  loadActivity(0, { immediate: true });
+}
+
+function closeLogDrawer() {
+  const drawer = drawerEl();
+  if (!drawer || !drawerOpen) return;
+
+  drawerOpen = false;
+  closeModal(drawer);
+
+  // The drawer is the filter's only UI on mobile, so closing it clears the filter.
+  if (activeTypeFilter) {
+    activeTypeFilter = null;
+    updateFilterChrome();
+    currentOffset = 0;
+    loadActivity(0, { immediate: true });
+  }
+}
+
+/** One-line live proof-of-life, standing in for the log on narrow screens. */
+function updateLatestEventLine(event) {
+  const line = document.getElementById("activity-latest");
+  const body = document.getElementById("activity-latest-body");
+  if (!line || !body) return;
+
+  const source = event || loadedEvents[0];
+  if (!source) {
+    line.hidden = true;
+    return;
+  }
+
+  line.hidden = false;
+  body.textContent = `${source.event_type} · ${source.page_path || "-"} · ${formatRelativeTime(source.created_at)}`;
+  body.dataset.createdAt = source.created_at || "";
 }
 
 // ── Pipeline visualizer ──
@@ -776,16 +841,13 @@ function updatePipelineVisualizer({ animate = true } = {}) {
   eventTimestamps = eventTimestamps.filter((t) => now - t <= 60000);
 
   const eps = eventTimestamps.length / 60;
-  const epsText = `${eps.toFixed(2)} eps`;
-  setText("val-ingress", epsText);
-  setText("metric-throughput", epsText);
+  setText("val-ingress", `${eps.toFixed(2)} eps`);
 
   // The client cannot observe broker depth; report what it does know - the
   // number of events it has buffered locally in the last minute.
   setText("val-kafka", `${eventTimestamps.length} msg/min`);
 
   setText("val-fastapi", lastApiLatencyMs === null ? "- ms" : `${lastApiLatencyMs.toFixed(0)} ms`);
-  setText("metric-load", lastApiLatencyMs === null ? "-" : `${lastApiLatencyMs.toFixed(0)} ms`);
 
   const rows = summaryState?.total_events;
   setText("val-postgres", Number.isFinite(rows) ? `${rows} rows` : "- rows");
@@ -842,6 +904,29 @@ export function initActivity() {
   const summaryGrid = document.getElementById("activity-summary-grid");
   if (summaryGrid) {
     summaryGrid.addEventListener("click", (event) => {
+      const moreBtn = event.target.closest("#activity-tile-more");
+      if (moreBtn) {
+        untriggeredExpanded = !untriggeredExpanded;
+        const panel = document.getElementById("activity-untriggered");
+        if (panel) panel.hidden = !untriggeredExpanded;
+        moreBtn.setAttribute("aria-expanded", String(untriggeredExpanded));
+        const label = moreBtn.querySelector(".activity-tile-label");
+        if (label) label.textContent = untriggeredExpanded ? "Hide" : "Not triggered yet";
+        return;
+      }
+
+      if (event.target.closest("#activity-tile-total")) {
+        if (isMobileViewport()) {
+          openLogDrawer(null);
+        } else if (activeTypeFilter) {
+          activeTypeFilter = null;
+          updateFilterChrome();
+          currentOffset = 0;
+          loadActivity(0, { immediate: true });
+        }
+        return;
+      }
+
       const tile = event.target.closest(".activity-tile[data-event-type]");
       if (!tile || tile.disabled) return;
       applyTypeFilter(tile.dataset.eventType);
@@ -874,6 +959,57 @@ export function initActivity() {
       setTimeout(() => delete sessionPill.dataset.copyState, COPY_RESET_DELAY_MS);
     });
   }
+
+  const drawer = document.getElementById("activity-drawer");
+  if (drawer) {
+    // The drawer body hosts the same card markup as the table container, so it
+    // needs the same copy / expand delegation.
+    drawer.addEventListener("click", async (event) => {
+      if (event.target === drawer) {
+        closeLogDrawer();
+        return;
+      }
+      if (event.target.closest("#activity-drawer-close")) {
+        closeLogDrawer();
+        return;
+      }
+
+      const copyButton = event.target.closest(".activity-copy-json");
+      if (copyButton) {
+        const jsonBlock = copyButton.closest(".activity-data-panel")?.querySelector(".activity-data-pre");
+        if (!jsonBlock) return;
+        try {
+          await copyText(jsonBlock.textContent || "");
+          setCopyButtonState(copyButton, "copied");
+        } catch (error) {
+          console.error("Activity JSON copy failed", error);
+          setCopyButtonState(copyButton, "failed");
+        }
+        return;
+      }
+
+      const toggle = event.target.closest(".activity-mobile-toggle");
+      if (!toggle) return;
+      const panelId = toggle.getAttribute("aria-controls");
+      const panel = panelId ? document.getElementById(panelId) : null;
+      if (!panel) return;
+      const isExpanded = toggle.getAttribute("aria-expanded") === "true";
+      toggle.setAttribute("aria-expanded", String(!isExpanded));
+      panel.hidden = isExpanded;
+    });
+  }
+
+  const latestLine = document.getElementById("activity-latest");
+  if (latestLine) {
+    latestLine.addEventListener("click", () => openLogDrawer(null));
+  }
+
+  document.getElementById("activity-drawer-prev")?.addEventListener("click", () => {
+    if (currentOffset >= PAGE_SIZE) loadActivity(currentOffset - PAGE_SIZE);
+  });
+  document.getElementById("activity-drawer-next")?.addEventListener("click", () => {
+    loadActivity(currentOffset + PAGE_SIZE);
+  });
 
   const refreshBtn = document.getElementById("activity-refresh-btn");
   if (refreshBtn) {
@@ -930,18 +1066,32 @@ export function initActivity() {
   layoutQuery.addEventListener(
     "change",
     () => {
-      if (activitySection?.classList.contains("active") && loadedEvents.length) {
-        renderEvents();
+      if (!activitySection?.classList.contains("active")) return;
+      // Growing past the breakpoint reveals the inline table, which would leave
+      // the drawer stranded on top of it.
+      if (drawerOpen && !isMobileViewport()) {
+        closeLogDrawer();
       }
+      // Falls through deliberately: the newly revealed layout still has to be
+      // painted, or growing past the breakpoint leaves an empty table behind.
+      if (loadedEvents.length) renderEvents();
     },
     { signal: resizeController.signal },
   );
 }
 
-function enterActivitySection() {
+async function enterActivitySection() {
   currentOffset = 0;
   activeTypeFilter = null;
   updateFilterChrome();
+
+  // Landing straight on #activity (a shared link, a reload on the hash) races
+  // session creation: without this the page renders "no active session" and
+  // never retries, because nothing re-runs when the id finally lands.
+  if (isApiConfigured() && !sessionStorage.getItem("rj_session_id")) {
+    await ensureSession();
+  }
+
   loadActivity(0, { immediate: true });
   loadActivitySummary();
   startActivityStream();
@@ -951,6 +1101,7 @@ function enterActivitySection() {
 }
 
 function leaveActivitySection() {
+  closeLogDrawer();
   stopActivityStream();
   clearPipelineTimers();
   if (relativeTimeTimer) {
@@ -1005,10 +1156,6 @@ function stopActivityStream() {
 }
 
 function updateStreamingStatus(status) {
-  // Pipeline health is the stream connection state - the one thing the client
-  // can actually attest to - so it is written from the same signal as the badge.
-  setText("metric-health", { connected: "Live", connecting: "Linking", disconnected: "Offline" }[status] || "Offline");
-
   const statusBadge = document.querySelector(".pipeline-status-badge");
   if (!statusBadge) return;
 
@@ -1042,6 +1189,7 @@ function handleIncomingStreamEvent(eventData) {
 
   eventTimestamps.push(Date.now());
   incrementSummary(eventData.event_type);
+  updateLatestEventLine(eventData);
 
   // Only page one shows live arrivals; deeper pages would shift under the reader.
   const matchesFilter = !activeTypeFilter || eventData.event_type === activeTypeFilter;

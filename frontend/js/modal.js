@@ -5,6 +5,26 @@ const modalFocusReturn = new WeakMap();
 const modalKeydown = new WeakMap();
 const modalSwipeHandlers = new WeakMap();
 
+// Nested opens must not each stash their own scroll position, so the lock is
+// reference counted and only the outermost close restores the page.
+let scrollLockDepth = 0;
+let scrollLockOffset = 0;
+
+function lockBodyScroll() {
+  if (scrollLockDepth++ > 0) return;
+  scrollLockOffset = window.scrollY || window.pageYOffset || 0;
+  document.body.style.top = `-${scrollLockOffset}px`;
+  document.body.classList.add("modal-scroll-locked");
+}
+
+function unlockBodyScroll() {
+  if (scrollLockDepth === 0) return;
+  if (--scrollLockDepth > 0) return;
+  document.body.classList.remove("modal-scroll-locked");
+  document.body.style.top = "";
+  window.scrollTo(0, scrollLockOffset);
+}
+
 export function getFocusableElements(container) {
   return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter((element) => {
     const isVisible = element.offsetParent !== null || element.getClientRects().length > 0;
@@ -41,6 +61,7 @@ export function openModal(modal, { initialFocus = null } = {}) {
   modalFocusReturn.set(modal, isElement ? activeEl : null);
   modal.classList.add("active");
   modal.setAttribute("aria-hidden", "false");
+  lockBodyScroll();
 
   if (!modalSwipeHandlers.has(modal)) {
     const swipeDismiss = new ModalSwipeDismiss(modal, () => closeModal(modal));
@@ -70,6 +91,7 @@ export function closeModal(modal, { restoreFocus = true } = {}) {
   if (!modal || !modal.classList.contains("active")) return;
   modal.classList.remove("active");
   modal.setAttribute("aria-hidden", "true");
+  unlockBodyScroll();
 
   const handler = modalKeydown.get(modal);
   if (handler) {
