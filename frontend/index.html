@@ -159,28 +159,6 @@
     </picture>
   </div>
 
-  <div class="activity-drawer" id="activity-drawer" role="dialog" aria-modal="true"
-    aria-labelledby="activity-drawer-title" aria-hidden="true">
-    <div class="activity-drawer-panel modal-inner" tabindex="-1">
-      <div class="activity-drawer-header">
-        <h3 class="activity-drawer-title" id="activity-drawer-title">Event Log</h3>
-        <button type="button" class="modal-close" id="activity-drawer-close" aria-label="Close event log">
-          <i class="fas fa-xmark" aria-hidden="true"></i>
-        </button>
-      </div>
-      <div class="activity-drawer-body" id="activity-drawer-body" aria-live="polite" aria-relevant="additions">
-        <!-- Rendered by JS -->
-      </div>
-      <div class="activity-pagination activity-pagination-wrapper" id="activity-drawer-pagination">
-        <button id="activity-drawer-prev" class="activity-pagination-btn" disabled><i
-            class="fas fa-chevron-left"></i> Prev</button>
-        <span id="activity-drawer-page-info" class="activity-page-info">Page 1</span>
-        <button id="activity-drawer-next" class="activity-pagination-btn" disabled>Next <i
-            class="fas fa-chevron-right"></i></button>
-      </div>
-    </div>
-  </div>
-
   <div class="project-detail-modal" id="project-detail-modal" role="dialog" aria-modal="true"
     aria-labelledby="project-detail-title" aria-hidden="true">
     <div class="project-detail-content modal-inner" tabindex="-1">
@@ -863,176 +841,123 @@
 
       <section id="activity">
         <h2 class="section-title">Session Activity</h2>
-        <p class="section-intro">Live view of current session events from FastAPI heartbeat session.</p>
-        <div class="observability-grid">
-          <div class="pipeline-monitor" id="pipeline-monitor">
-          <div class="pipeline-card">
-            <div class="pipeline-card-header">
-              <h3 class="pipeline-card-title"><i class="fas fa-network-wired"></i> Live Stream</h3>
-              <!-- The live-status badge is a sibling of the title, not part of the
-                   tool group: on mobile the header becomes a grid and the two need
-                   to share the compact title row while the action pills drop below. -->
-              <span class="pipeline-status-badge" role="status" aria-live="polite"><span class="pulse-dot"></span> Streaming</span>
-              <!-- Folded in from the standalone control band below the title:
-                   two pills did not justify a full-width row of their own. -->
-              <div class="pipeline-card-tools">
-                <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
-                  <span class="activity-refresh-label">Refresh</span></button>
-                <button id="activity-session-pill" class="activity-refresh session-id-pill" type="button"
-                  aria-label="Copy full session ID"><span class="session-id-label">Session:</span><span
-                    class="session-id-value" id="current-session-id">-</span><i class="fas fa-copy"
-                    aria-hidden="true"></i></button>
+        <p class="section-intro">Everything this site has recorded about your visit, as it happens. It stays with your
+          session &mdash; no accounts, no third-party trackers, nothing that follows you off the page.</p>
+
+        <!-- Zone 1: who you are to the site right now, and whether it is listening.
+             The four pipeline stages are real (browser -> Kafka -> FastAPI -> Postgres)
+             but they are context, not the answer, so they ride here as a chain of
+             labelled dots rather than owning a card of their own. -->
+        <div class="act-bar">
+          <span class="act-live" id="act-live" data-status="disconnected" role="status" aria-live="polite">
+            <span class="act-live-dot" aria-hidden="true"></span>
+            <span id="act-live-label">Connecting&hellip;</span>
+          </span>
+
+          <button type="button" class="act-session" id="activity-session-pill" aria-label="Copy the full session ID"
+            disabled>
+            <span class="act-session-label">Session</span>
+            <span class="act-session-value" id="current-session-id">&mdash;</span>
+            <i class="fas fa-copy" aria-hidden="true"></i>
+          </button>
+
+          <div class="act-chain" aria-label="Where your events go">
+            <span class="act-stage" id="act-stage-browser" data-health="idle">
+              <i class="act-stage-dot" aria-hidden="true"></i>Browser</span>
+            <span class="act-chain-link" aria-hidden="true"></span>
+            <span class="act-stage" id="act-stage-kafka" data-health="idle">
+              <i class="act-stage-dot" aria-hidden="true"></i>Kafka</span>
+            <span class="act-chain-link" aria-hidden="true"></span>
+            <span class="act-stage" id="act-stage-api" data-health="idle">
+              <i class="act-stage-dot" aria-hidden="true"></i>API</span>
+            <span class="act-chain-link" aria-hidden="true"></span>
+            <span class="act-stage" id="act-stage-postgres" data-health="idle">
+              <i class="act-stage-dot" aria-hidden="true"></i>Postgres</span>
+            <span class="act-chain-latency" title="Round-trip time of the last API request, minus server time">
+              <b id="act-latency">&mdash;</b> ms</span>
+          </div>
+
+          <button type="button" class="act-refresh" id="activity-refresh-btn">
+            <i class="fas fa-sync-alt" aria-hidden="true"></i><span>Refresh</span>
+          </button>
+        </div>
+
+        <!-- Zone 2: the shape of the visit. Three figures a person can hold, then
+             the session strip, which answers "when was I busy" the way a rate
+             never could. -->
+        <div class="act-shape">
+          <div class="act-card act-visit">
+            <div class="act-stats" id="act-stats" aria-busy="true">
+              <div class="act-stat act-stat-lead">
+                <span class="act-stat-value" id="act-stat-total">0</span>
+                <span class="act-stat-label">Events recorded</span>
+              </div>
+              <div class="act-stat">
+                <span class="act-stat-value" id="act-stat-duration">&mdash;</span>
+                <span class="act-stat-label">Time on site</span>
+              </div>
+              <div class="act-stat">
+                <span class="act-stat-value" id="act-stat-paths">0</span>
+                <span class="act-stat-label">Sections visited</span>
               </div>
             </div>
-            <div class="pipeline-flow">
-              <div class="pipeline-node" id="node-ingress" data-health="idle">
-                <div class="node-icon"><i class="fas fa-mouse-pointer"></i></div>
-                <div class="node-details">
-                  <span class="node-name">Ingress</span>
-                  <span class="node-badge" id="badge-ingress" hidden></span>
-                  <span class="node-value" id="val-ingress">0 eps</span>
-                </div>
+
+            <div class="act-timeline">
+              <div class="act-timeline-head">
+                <h3 class="act-card-title">Your visit, minute by minute</h3>
+                <span class="act-timeline-hint">Select a bar to narrow the log</span>
               </div>
-              <div class="pipeline-connector">
-                <div class="connector-line"></div>
-                <div class="connector-pulse"></div>
+              <div class="act-timeline-plot" id="act-timeline" role="group"
+                aria-label="Session timeline. Each bar is a slice of your visit; select one to filter the log."></div>
+              <div class="act-timeline-axis">
+                <span id="act-tl-from">start</span><span>now</span>
               </div>
-              <div class="pipeline-node" id="node-kafka" data-health="idle">
-                <div class="node-icon"><i class="fas fa-exchange-alt"></i></div>
-                <div class="node-details">
-                  <span class="node-name">Kafka Queue</span>
-                  <span class="node-badge" id="badge-kafka" hidden></span>
-                  <span class="node-value" id="val-kafka">0 msg</span>
-                </div>
-              </div>
-              <div class="pipeline-connector">
-                <div class="connector-line"></div>
-                <div class="connector-pulse"></div>
-              </div>
-              <div class="pipeline-node" id="node-fastapi" data-health="idle">
-                <div class="node-icon"><i class="fas fa-server"></i></div>
-                <div class="node-details">
-                  <span class="node-name">FastAPI Worker</span>
-                  <span class="node-badge" id="badge-fastapi" hidden></span>
-                  <span class="node-value" id="val-fastapi">0 ms</span>
-                </div>
-              </div>
-              <div class="pipeline-connector">
-                <div class="connector-line"></div>
-                <div class="connector-pulse"></div>
-              </div>
-              <div class="pipeline-node" id="node-postgres" data-health="idle">
-                <div class="node-icon"><i class="fas fa-database"></i></div>
-                <div class="node-details">
-                  <span class="node-name">PostgreSQL</span>
-                  <span class="node-badge" id="badge-postgres" hidden></span>
-                  <span class="node-value" id="val-postgres">0 rows</span>
-                </div>
-              </div>
+              <ul class="act-key">
+                <li data-fam="nav"><i aria-hidden="true"></i>Navigation</li>
+                <li data-fam="tap"><i aria-hidden="true"></i>Interaction</li>
+                <li data-fam="pref"><i aria-hidden="true"></i>Preference</li>
+                <li data-fam="reach"><i aria-hidden="true"></i>Contact</li>
+              </ul>
             </div>
-            <div class="pipeline-burst">
-              <div class="pipeline-burst-header">
-                <span class="pipeline-burst-title">Events / second <span class="pipeline-burst-window">last 60s</span></span>
-                <span class="pipeline-burst-peak" id="burst-peak">peak 0</span>
-              </div>
-              <canvas id="activity-burst" class="pipeline-burst-canvas" height="48"
-                role="img" aria-label="Event rate over the last 60 seconds"></canvas>
+          </div>
+
+          <div class="act-card act-paths">
+            <h3 class="act-card-title">Where you went</h3>
+            <div class="act-paths-list" id="activity-funnel">
+              <p class="act-paths-empty">No navigation recorded yet.</p>
             </div>
           </div>
         </div>
 
-        <aside class="vitals-rail" aria-label="Session vitals">
-          <div class="vitals-card">
-            <h3 class="vitals-title"><i class="fas fa-gauge-high" aria-hidden="true"></i> Worker Latency</h3>
-            <div class="latency-meter" id="latency-meter" data-band="idle" data-empty="true">
-              <div class="latency-track">
-                <span class="latency-band-good"></span>
-                <span class="latency-band-warn"></span>
-                <span class="latency-fill"></span>
-                <span class="latency-marker latency-marker-p50" aria-hidden="true"></span>
-                <span class="latency-marker latency-marker-p99" aria-hidden="true"></span>
-              </div>
-              <div class="latency-legend">
-                <span><b data-lat-p50>-</b> p50</span>
-                <span><b data-lat-p95>-</b> p95</span>
-                <span><b data-lat-p99>-</b> p99</span>
-                <span class="latency-scale" data-lat-scale>0-500ms</span>
-              </div>
-              <p class="latency-note" id="latency-note">Round-trip minus server time, from live requests.</p>
-            </div>
-          </div>
-
-          <div class="vitals-card">
-            <h3 class="vitals-title"><i class="fas fa-route" aria-hidden="true"></i> Path Funnel</h3>
-            <div class="activity-funnel" id="activity-funnel">
-              <p class="activity-funnel-empty">No navigation recorded yet.</p>
-            </div>
-          </div>
-        </aside>
+        <!-- Zone 3: the log, as the section's actual content. The family chips are
+             the filter control and the type breakdown at once - one surface rather
+             than a display plus a hidden interaction. -->
+        <div class="act-card act-filters">
+          <label class="act-search">
+            <span class="sr-only">Search your events</span>
+            <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" id="act-search-input" autocomplete="off"
+              placeholder="Search a section, a command, a payload&hellip;">
+          </label>
+          <div class="act-families" id="act-families" role="group" aria-label="Filter by event family"></div>
         </div>
 
-        <div class="activity-summary" id="activity-summary">
-          <div class="activity-summary-header">
-            <h3 class="activity-summary-title"><i class="fas fa-chart-simple"></i> Session Totals</h3>
-            <button id="activity-filter-clear" class="activity-filter-clear" type="button" hidden>
-              <i class="fas fa-xmark" aria-hidden="true"></i> Clear filter
-            </button>
-          </div>
-          <!-- Two tiers: four hero stats, then per-type counts as a chip bar.
-               Eight equal cards left most of the row empty at desktop widths. -->
-          <div class="activity-hero-grid" id="activity-hero-grid" aria-busy="true">
-            <!-- Rendered by JS -->
-          </div>
-          <div class="activity-summary-grid" id="activity-summary-grid" aria-busy="true">
-            <!-- Rendered by JS -->
+        <div id="act-active-filters" class="act-active-wrap"></div>
+
+        <div class="act-card act-log">
+          <ul class="act-stream" id="act-stream" data-state="loading"></ul>
+          <div class="act-stream-foot">
+            <p class="act-stream-status" id="act-stream-status" role="status" aria-live="polite"></p>
+            <button type="button" class="act-more" id="act-show-more" hidden>Show more</button>
           </div>
         </div>
-        <button type="button" class="activity-latest" id="activity-latest" hidden>
-          <span class="activity-latest-label"><span class="pulse-dot active-green"></span> Latest</span>
-          <span class="activity-latest-body" id="activity-latest-body">Waiting for events…</span>
-          <i class="fas fa-chevron-right" aria-hidden="true"></i>
-        </button>
+
         <noscript>
           <div class="noscript-message noscript-message--accent">
             <i class="fas fa-exclamation-circle noscript-message__icon"></i>
-            <p>JavaScript is required to view live session activity.</p>
+            <p>JavaScript is required to view your session activity.</p>
           </div>
         </noscript>
-        <div class="activity-log-header">
-          <h3 class="activity-log-title"><i class="fas fa-list-ul" aria-hidden="true"></i> Event Log</h3>
-          <!-- Density is a reading preference, so it persists per browser. -->
-          <div class="activity-density" role="group" aria-label="Row density">
-            <button type="button" class="activity-density-btn" data-density="comfortable"
-              aria-pressed="true">Comfortable</button>
-            <button type="button" class="activity-density-btn" data-density="compact"
-              aria-pressed="false">Compact</button>
-          </div>
-        </div>
-        <div class="activity-table-container">
-          <table class="activity-table">
-            <caption class="sr-only">Activity events for the current browsing session, newest first.</caption>
-            <thead>
-              <tr>
-                <!-- Date and time were separate columns, but a session spans one
-                     day: the date repeated identically down every row. -->
-                <th scope="col">When</th>
-                <th scope="col">Type</th>
-                <th scope="col">Path</th>
-                <th scope="col">Data</th>
-              </tr>
-            </thead>
-            <tbody id="activity-tbody" aria-live="polite" aria-relevant="additions">
-              <!-- Rendered by JS -->
-            </tbody>
-          </table>
-          <div class="activity-pagination activity-pagination-wrapper" id="activity-pagination">
-            <button id="activity-prev-btn" class="activity-pagination-btn" disabled><i class="fas fa-chevron-left"></i>
-              Prev</button>
-            <span id="activity-page-info" class="activity-page-info">Page 1</span>
-            <button id="activity-next-btn" class="activity-pagination-btn" disabled>Next <i
-                class="fas fa-chevron-right"></i></button>
-          </div>
-        </div>
       </section>
 
       <section id="contact">
