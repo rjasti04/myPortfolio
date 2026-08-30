@@ -233,8 +233,7 @@ async function _loadActivityImpl(offset) {
   const sessionIdSpan = document.getElementById("current-session-id");
   const sessionPill = document.getElementById("activity-session-pill");
   if (sessionIdSpan) {
-    const displayId = sessionId ? sessionId.split("-").slice(0, 3).join("-") : "None";
-    sessionIdSpan.textContent = displayId;
+    sessionIdSpan.textContent = sessionId ? shortenSessionId(sessionId) : "None";
   }
   if (sessionPill) {
     sessionPill.dataset.sessionId = sessionId || "";
@@ -1150,6 +1149,16 @@ function renderBurstStrip() {
   const result = drawBurstStrip(canvas, eventSamples, { reducedMotion: prefersReducedMotion });
   const peakNode = document.getElementById("burst-peak");
   if (peakNode && result) peakNode.textContent = `peak ${result.peak}/s`;
+}
+
+/**
+ * Head-and-tail elision for the session pill. The previous three-group slice
+ * ("1323abe9-c16e-4716") was wide enough to wrap the pill onto its own line on a
+ * phone; this keeps the two ends that actually distinguish one session from
+ * another, and the full id still reaches the tooltip and the clipboard.
+ */
+function shortenSessionId(id) {
+  return id.length <= 12 ? id : `${id.slice(0, 4)}\u2026${id.slice(-4)}`;
 }
 
 /** Compact count so a large offset cannot stretch the node box. */

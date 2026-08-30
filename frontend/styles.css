@@ -6688,18 +6688,10 @@ nav a:hover .nav-shortcut {
 }
 
 @media (width <= 480px) {
-  /* The controls moved into the pipeline card header, so they wrap onto their
-     own full-width row here rather than crowding the title. */
-  .pipeline-card-tools {
-    width: 100%;
-    justify-content: flex-start;
-    gap: 8px;
-  }
-
+  /* Layout of the header row itself lives in the <= 640px block in the ETL
+     region; all that is left to do here is buy the session pill more room. */
   .activity-refresh {
-    flex: 1;
-    justify-content: center;
-    padding: 10px 16px;
+    padding: 10px 14px;
     font-size: var(--text-body-xs);
   }
 
@@ -6713,14 +6705,6 @@ nav a:hover .nav-shortcut {
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
-  }
-
-  .session-id-pill {
-    flex: 1.2;
-    justify-content: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .activity-log-header {
@@ -7288,18 +7272,38 @@ button.activity-tile:active {
   color: var(--muted);
 }
 
+/* Neutral fill. The pill is an identifier, not an action, and giving it the
+   same amber as Refresh put two saturated chips side by side in a header that
+   also has to leave room for the live-stage accent to register. */
 .session-id-pill {
+  background: var(--skill-bg);
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 600;
   cursor: pointer;
   /* Flex items refuse to shrink below content width without this, which let the
      UUID push the pill past the edge of the controls row on narrow screens. */
   min-width: 0;
   max-width: 100%;
+  gap: 6px;
 }
 
-.session-id-pill #current-session-id {
+.session-id-label {
+  flex: none;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+/* One line, always. The id itself is already elided head-and-tail in JS, so
+   this is the backstop for a longer id or a larger user font size - and the
+   copy affordance is a sibling, so it never gets eaten by the ellipsis. */
+.session-id-value {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .session-id-pill i {
@@ -7508,6 +7512,23 @@ button.activity-tile:active {
   line-height: 1.4;
 }
 
+/* ── Floating-action-button lane ──
+   The chat FAB is fixed 20px from the right edge and 60px across. It does not
+   scroll with the content, so no amount of bottom clearance keeps it off a
+   given card - only reserving that column does. It is spent on the vitals rail,
+   where it was landing on the right end of the latency track and its p99
+   reading, and where the cards are short enough that a reserved gutter costs
+   nothing. It is deliberately not applied inside the pipeline card: the header
+   there is nowrap, so a 72px gutter becomes part of the card's min-content and
+   pushes the whole card past a 320px viewport. */
+@media (width <= 640px) {
+  .vitals-card {
+    --fab-lane: 4.5rem;
+
+    padding-right: var(--fab-lane);
+  }
+}
+
 /* ── Path funnel ── */
 .activity-funnel {
   display: grid;
@@ -7606,14 +7627,16 @@ button.activity-tile:active {
 
 .pipeline-card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px 12px;
   border-bottom: 1px solid var(--border);
   padding-bottom: 12px;
 }
 
+/* The title absorbs the free space rather than the row using space-between, so
+   the status badge and the two action pills stay grouped at the end instead of
+   being flung to opposite edges once the header wraps. */
 .pipeline-card-title {
   font-size: var(--text-base);
   font-weight: 700;
@@ -7621,6 +7644,8 @@ button.activity-tile:active {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-right: auto;
+  min-width: 0;
 }
 
 .pipeline-card-title i {
@@ -7639,7 +7664,10 @@ button.activity-tile:active {
   border-radius: var(--radius-full);
 }
 
-body.dark-theme .pipeline-status-badge {
+/* Scoped to the healthy state. Unscoped, this outranked
+   `.pipeline-status-badge.connecting` / `.disconnected` on specificity, so an
+   amber "Connecting" and a red "Offline" both sat on the green tint. */
+body.dark-theme .pipeline-status-badge:not(.connecting):not(.disconnected) {
   background: hsla(166, 63%, 52%, 0.15);
 }
 
@@ -7730,14 +7758,24 @@ body.dark-theme .pipeline-status-badge {
   color: var(--on-accent);
 }
 
+/* Three fixed tracks - name, sub-metric, value - rather than a flex stack. The
+   sub-metric row is reserved even when a stage has nothing to put in it, so the
+   stage values sit on one baseline across the whole row of nodes instead of
+   riding up wherever a badge happens to be missing. */
 .node-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  grid-template-areas:
+    "name"
+    "badge"
+    "value";
+  grid-template-rows: auto calc(var(--text-2xs) * 1.4) auto;
+  row-gap: 2px;
+  align-content: center;
   min-width: 0;
 }
 
 .node-name {
+  grid-area: name;
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--muted);
@@ -7747,10 +7785,12 @@ body.dark-theme .pipeline-status-badge {
 }
 
 .node-value {
+  grid-area: value;
   font-size: var(--text-xs);
   font-weight: 800;
   color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .pipeline-connector {
@@ -7877,12 +7917,21 @@ body.dark-theme .pipeline-status-badge {
   color: var(--muted);
 }
 
+/* Micro-label under the stage name. --muted measures ~8.8:1 on the light card
+   (#3f4b5a on #fdfdfe) and ~11:1 on the dark one (#cbd5e1 on the composited
+   surface), so it clears WCAG AA 4.5:1 in both themes. Toning the amber down
+   elsewhere is fine; do not tone this down with it. */
 .node-badge {
+  grid-area: badge;
+  align-self: center;
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   letter-spacing: var(--tracking-wide);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Card tools (folded in from the removed control band) ── */
@@ -7892,6 +7941,7 @@ body.dark-theme .pipeline-status-badge {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .pipeline-status-badge.connecting {
@@ -7922,11 +7972,16 @@ body.dark-theme .pipeline-status-badge {
   padding-top: 12px;
 }
 
+/* Peak sits on the chart's own header line, centred against the title rather
+   than baseline-aligned and floating above the bars: it is a readout of the
+   series below it, so it has to read as part of the same label row. */
 .pipeline-burst-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .pipeline-burst-title {
@@ -7935,6 +7990,10 @@ body.dark-theme .pipeline-status-badge {
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
   color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pipeline-burst-window {
@@ -7944,11 +8003,19 @@ body.dark-theme .pipeline-status-badge {
   opacity: 0.75;
 }
 
+/* Neutral chip rather than accent text: the amber is spent on the stage that is
+   actually firing, and a permanently-lit counter competed with it. */
 .pipeline-burst-peak {
+  flex: none;
   font-size: var(--text-2xs);
   font-variant-numeric: tabular-nums;
-  color: var(--accent-text);
+  color: var(--text);
   font-weight: 700;
+  background: var(--skill-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+  line-height: 1.4;
 }
 
 .pipeline-burst-canvas {
@@ -8145,28 +8212,72 @@ body.dark-theme .pipeline-status-badge {
     padding: 16px;
   }
 
-  /* Compact Timeline Visualizer Flow */
+  /* ── Header: two tiers ──
+     The title keeps the live-status badge beside it and nothing else, so the
+     title row stays compact; the two action pills own the row underneath.
+     Previously all four items shared one wrapping flex row, so the session pill
+     landed in a different place depending on how wide "Streaming" /
+     "Connecting" / "Offline" happened to render. */
+  .pipeline-card-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px 8px;
+    padding-bottom: 10px;
+  }
+
+  .pipeline-card-title {
+    grid-column: 1;
+    margin-right: 0;
+    font-size: var(--text-sm);
+  }
+
+  .pipeline-card-header > .pipeline-status-badge {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .pipeline-card-tools {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  /* Refresh is sized to its own content; the session pill takes whatever is
+     left and elides inside itself rather than pushing the row wider. */
+  .pipeline-card-tools .activity-refresh {
+    flex: 0 0 auto;
+  }
+
+  .pipeline-card-tools .session-id-pill {
+    flex: 0 1 auto;
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  /* ── Vertical stepper ──
+     The connector is one segment per gap rather than a single full-height track
+     behind the column. The track version was drawn under the nodes, and the
+     icon discs tint with color-mix(... transparent), so a slice of line showed
+     through the middle of every badge. A per-gap segment is never underneath a
+     node at all, so there is nothing to mask. */
   .pipeline-flow {
+    /* Radius of the icon disc. The connector lane, the segment start and the
+       node's minimum height are all derived from it, so the line meets the
+       discs exactly whatever the icon size becomes. */
+    --pipe-lane: 18px;
+    --pipe-row-gap: 1.25rem;
+
     /* Overrides the 2x2 grid from the tablet breakpoint above. */
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: var(--pipe-row-gap);
     align-items: stretch;
     position: relative;
-    padding-left: 20px;
+    padding: 0;
     margin: 8px 0;
-  }
-
-  .pipeline-flow::before {
-    content: '';
-    position: absolute;
-    top: 16px;
-    bottom: 16px;
-    left: 36px;
-    /* Centered with 32px node-icon + 20px padding-left */
-    width: 2px;
-    background: var(--border);
-    z-index: 1;
   }
 
   .pipeline-flow .pipeline-connector {
@@ -8176,14 +8287,27 @@ body.dark-theme .pipeline-status-badge {
   .pipeline-node {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
+    min-height: calc(var(--pipe-lane) * 2);
     background: transparent;
     border: none;
-    padding: 12px 0;
+    padding: 0;
     width: 100%;
     box-shadow: none !important;
     transform: none !important;
     z-index: 2;
+  }
+
+  /* Leaves the bottom of this node's disc, ends at the top of the next one. */
+  .pipeline-node:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: calc(var(--pipe-lane) - 1px);
+    top: calc(50% + var(--pipe-lane));
+    bottom: calc(-1 * var(--pipe-row-gap));
+    width: 2px;
+    background: var(--border);
+    z-index: 1;
   }
 
   .pipeline-node.active-pulse .node-icon {
@@ -8192,24 +8316,34 @@ body.dark-theme .pipeline-status-badge {
     color: var(--on-accent);
   }
 
+  /* Sized off the lane so the segments above and below meet the disc edge, with
+     a ring in the card colour to hold them off it. */
   .node-icon {
-    width: 32px;
-    height: 32px;
+    width: calc(var(--pipe-lane) * 2);
+    height: calc(var(--pipe-lane) * 2);
     font-size: var(--text-xs);
     border-radius: 50%;
+    position: relative;
     z-index: 2;
     border: 2px solid var(--card-bg);
   }
 
+  /* ── Two-column stage row ──
+     Stage name and sub-metric stack in the left column, the stage value sits in
+     the right one across both rows. Every stage gets the same footprint, so the
+     names, the sub-metrics and the value pills each hold a single vertical
+     baseline down the list however long any one label is. */
   .node-details {
     flex: 1;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: space-between;
+    grid-template-areas:
+      "name value"
+      "badge value";
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto calc(var(--text-2xs) * 1.4);
+    column-gap: 10px;
+    row-gap: 1px;
     align-items: center;
-    gap: 2px 8px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 8px;
+    align-content: center;
   }
 
   /* The stage name must not be the thing that truncates: it is the only part
@@ -8217,31 +8351,43 @@ body.dark-theme .pipeline-status-badge {
   .node-name {
     overflow: visible;
     text-overflow: clip;
-    flex: 1 1 auto;
-  }
-
-  /* The badge takes the full second line rather than squeezing the name. */
-  .node-badge {
-    order: 3;
-    flex-basis: 100%;
-  }
-
-  .pipeline-node:last-child .node-details {
-    border-bottom: none;
-  }
-
-  .node-name {
     font-size: var(--text-xs);
     color: var(--text);
   }
 
+  /* Neutral by default. Amber on every stage at once turned the whole list into
+     a block of highlight; it now marks the stage that is actually firing. */
   .node-value {
+    justify-self: end;
+    align-self: center;
+    min-width: 64px;
+    text-align: right;
     font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--text);
+    background: var(--skill-bg);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  .pipeline-node.active-pulse .node-value {
     color: var(--accent-text);
     background: var(--accent-soft);
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-weight: 700;
+    border-color: color-mix(in srgb, var(--accent-fill) 35%, transparent);
+  }
+
+  /* Peak moves next to the title rather than staying pinned to the right edge.
+     It reads as a caption on the series either way, and on the left it is out of
+     the FAB's column - which the pipeline card cannot solve with a reserved
+     gutter the way the vitals rail can, since the header is nowrap and the
+     gutter would become part of the card's min-content width. */
+  .pipeline-burst-header {
+    justify-content: flex-start;
+  }
+
+  .pipeline-burst-title {
+    flex: 0 1 auto;
   }
 }
 
