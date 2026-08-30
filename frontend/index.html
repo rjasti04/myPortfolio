@@ -868,17 +868,20 @@
           <div class="pipeline-monitor" id="pipeline-monitor">
           <div class="pipeline-card">
             <div class="pipeline-card-header">
-              <h3 class="pipeline-card-title"><i class="fas fa-network-wired"></i> Live ETL Pipeline Stream</h3>
+              <h3 class="pipeline-card-title"><i class="fas fa-network-wired"></i> Live Stream</h3>
+              <!-- The live-status badge is a sibling of the title, not part of the
+                   tool group: on mobile the header becomes a grid and the two need
+                   to share the compact title row while the action pills drop below. -->
+              <span class="pipeline-status-badge" role="status" aria-live="polite"><span class="pulse-dot"></span> Streaming</span>
               <!-- Folded in from the standalone control band below the title:
                    two pills did not justify a full-width row of their own. -->
               <div class="pipeline-card-tools">
-                <span class="pipeline-status-badge" role="status" aria-live="polite"><span class="pulse-dot"></span> Streaming</span>
                 <button id="activity-refresh-btn" class="activity-refresh" type="button"><i class="fas fa-sync-alt"></i>
                   <span class="activity-refresh-label">Refresh</span></button>
                 <button id="activity-session-pill" class="activity-refresh session-id-pill" type="button"
-                  aria-label="Copy full session ID">Session: <span id="current-session-id">-</span>
-                  <i class="fas fa-copy" aria-hidden="true"></i>
-                </button>
+                  aria-label="Copy full session ID"><span class="session-id-label">Session:</span><span
+                    class="session-id-value" id="current-session-id">-</span><i class="fas fa-copy"
+                    aria-hidden="true"></i></button>
               </div>
             </div>
             <div class="pipeline-flow">
