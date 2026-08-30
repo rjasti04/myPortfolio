@@ -116,12 +116,7 @@
   --elev-3: var(--shadow-ring), 0 12px 28px hsl(var(--shadow-ambient), 0.10);
   --elev-4: var(--shadow-ring), 0 24px 56px hsl(var(--shadow-ambient), 0.13);
 
-  /* Accent glow is a separate semantic from elevation: it signals focus and
-     hover state, not height, and must not be folded into --elev-*. */
-  --glow-sm: 0 2px 8px var(--accent-soft);
-  --glow-md: 0 4px 14px var(--accent-soft);
-  --glow-lg: 0 8px 24px var(--accent-mild);
-  --glow-ring: 0 0 0 3px var(--accent-soft);
+  /* --glow-* lives on `body`, not here - see the note on that rule. */
 
   /* Legacy aliases - 11 declarations still name these. */
   --shadow-sm: var(--elev-2);
@@ -223,6 +218,20 @@ body.dark-theme {
   --elev-2: var(--shadow-ring), 0 4px 14px hsl(var(--shadow-ambient), 0.38);
   --elev-3: var(--shadow-ring), 0 12px 32px hsl(var(--shadow-ambient), 0.46);
   --elev-4: var(--shadow-ring), 0 24px 60px hsl(var(--shadow-ambient), 0.55);
+}
+
+/* Accent glow: focus and hover state, not height - never fold into --elev-*.
+   Declared on `body` rather than :root because a var() inside a custom
+   property is substituted where that property is declared, not where it is
+   used. Declared on :root these froze at the light-theme amber, so the glow
+   ignored both `body.dark-theme` and the theme customizer, which writes the
+   accent tokens to body.style - a Matrix-green button kept an amber halo.
+   Every consumer is a body descendant, so resolving here tracks both. */
+body {
+  --glow-sm: 0 2px 8px var(--accent-soft);
+  --glow-md: 0 4px 14px var(--accent-soft);
+  --glow-lg: 0 8px 24px var(--accent-mild);
+  --glow-ring: 0 0 0 3px var(--accent-soft);
 }
 
 * {
@@ -640,23 +649,18 @@ body.dark-theme header.scrolled {
 
 
 
+/* The action group carries no pill chrome of its own at any width. Its 999px
+   pill lived inside the header's own 999px pill, and at 44px icons plus 4px
+   block padding and a 1px border it stood 54px tall inside a header that
+   shrinks to 56px on scroll: the two curves collided and read as a rendering
+   glitch rather than as nested containers. Phones already dropped it for the
+   18px of inline space it cost; every width now does. The header pill is the
+   container - the icons sit directly on it. */
 .header-actions {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
-  padding: 4px 8px;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  box-shadow: var(--elev-1);
-  transition:
-    border-color var(--motion-base) var(--ease-standard),
-    box-shadow var(--motion-base) var(--ease-standard);
-}
-
-body.dark-theme .header-actions {
-  box-shadow: var(--elev-2);
 }
 
 /* Mobile Menu Button */
@@ -4781,19 +4785,6 @@ body.dark-theme .skill-tag.primary .fas {
     gap: 8px;
   }
 
-  /* Phones only: drop the action group's own pill chrome. Its 8px inline
-     padding and 1px border cost 18px that the icons need, and once the inner
-     999px pill grows into the outer one's curve the two read as a rendering
-     glitch rather than as nested containers. The header pill is the container
-     from here down; the icons sit directly on it. */
-  .header-actions,
-  body.dark-theme .header-actions {
-    padding: 0;
-    background: none;
-    border: 0;
-    box-shadow: none;
-  }
-
   .profile-pic-small {
     width: 38px;
     height: 38px;
@@ -6116,7 +6107,9 @@ nav a:hover .nav-shortcut {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin-bottom: 0;
+  /* The pipeline card that follows carries no top margin, so a zero margin
+     here parked the Refresh / Session pills on its border. */
+  margin-bottom: 16px;
 }
 
 .activity-pills-group {
