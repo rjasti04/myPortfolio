@@ -30,7 +30,7 @@ function initReveals() {
   revealElements.forEach((element) => observer.observe(element));
 
   // Stagger delays for grid children (stats, skills, project cards)
-  document.querySelectorAll(".stats-grid, .skills-grid, .portfolio-grid, .articles-grid").forEach((grid) => {
+  document.querySelectorAll(".stats-grid, .skills-grid, .portfolio-grid, .articles-grid, .xp-domains").forEach((grid) => {
     const children = Array.from(grid.querySelectorAll(".reveal"));
     children.forEach((child, i) => {
       child.style.setProperty("--reveal-delay", `${i * REVEAL_STAGGER_MS}ms`);

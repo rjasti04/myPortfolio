@@ -592,121 +592,328 @@
 
       </section>
 
+      <!-- Experience.
+           Three zones, in the order a reader actually asks the questions:
+           where and how long (the company card), what held up in production
+           (the proof strip), and what the work actually was (the domain
+           grid). The long method prose still exists verbatim - it sits one
+           disclosure below each outcome instead of being the first thing on
+           the page, so a thirty-second scan and a full read are both served
+           by one layout. -->
       <section id="resume">
         <h2 class="section-title">Experience</h2>
-        <p class="section-intro">Track record of architecting scalable data platforms, enterprise OLTP/OLAP systems,
-          full-stack web applications, and generative AI solutions.</p>
+        <p class="section-intro">Eight years on one supply chain platform &mdash; the warehouse underneath it, the
+          services around it, and the databases that keep it honest.</p>
 
-        <div class="item tilt-card reveal">
-          <div class="item-header">
-            <span class="item-date">Feb 2018 &mdash; Present</span>
-            <span class="item-badge">Salt Lake City, UT &bull; Remote</span>
-          </div>
-          <h3>Nicholas and Company</h3>
-          <div class="experience-roles">
-            <div class="role-entry">
-              <span class="role-title">Principal Data Engineer</span>
-              <span class="role-period">(Nov 2022 &mdash; Present)</span>
+        <!-- Zone 1: the anchor. One company, two roles, shown chronologically
+             so the promotion reads left to right instead of having to be
+             inferred from two dates. -->
+        <article class="xp-company reveal">
+          <div class="xp-company-top">
+            <div class="xp-company-id">
+              <span class="xp-company-mark" aria-hidden="true"><i class="fas fa-briefcase"></i></span>
+              <div>
+                <h3 class="xp-company-name">Nicholas and Company</h3>
+                <p class="xp-company-meta">
+                  <span><i class="fas fa-location-dot" aria-hidden="true"></i>Salt Lake City, UT &bull; Remote</span>
+                  <span><i class="fas fa-calendar-days" aria-hidden="true"></i>Feb 2018 &mdash; Present</span>
+                  <span class="xp-tenure" data-xp-span data-start="2018-02" data-end="present">8 yr+</span>
+                </p>
+              </div>
             </div>
-            <div class="role-entry">
-              <span class="role-title">Data Engineer</span>
-              <span class="role-period">(Feb 2018 &mdash; Oct 2022)</span>
+            <div class="xp-company-actions">
+              <a class="xp-action xp-action--primary" href="rajeev_jasti.pdf" target="_blank"
+                rel="noopener noreferrer">
+                <i class="fas fa-file-arrow-down" aria-hidden="true"></i>Resume PDF
+              </a>
+              <a class="xp-action" href="#ai" data-target="ai">
+                <i class="fas fa-robot" aria-hidden="true"></i>Ask about this work
+              </a>
             </div>
           </div>
-          <ul class="item-bullets">
-            <li><strong>Enterprise Data Engineering &amp; Modeling (OLAP):</strong> Accelerated analytics delivery and
-              unified fragmented operational reporting across ERP, WMS, and TMS domains into a centralized Amazon
-              Redshift data warehouse, substantially reducing query latency and pipeline SLA delivery times, by
-              architecting high-throughput batch/streaming pipelines, designing dimensional Star/Snowflake schemas, and
-              establishing a governed Looker semantic modeling layer.</li>
-            <li><strong>Backend, Middleware &amp; Telemetry:</strong> Scaled enterprise event telemetry ingestion and
-              distributed middleware integrations across heterogeneous systems, sustaining high-volume event throughput
-              with low-latency API response times and zero data loss, by engineering non-blocking Python/FastAPI REST
-              APIs with <code>asyncpg</code> connection pooling, building AWS Lambda &amp; Boomi iPaaS integration
-              layers,
-              and designing relational event stores with structured telemetry schemas.</li>
-            <li><strong>Database Systems (OLTP):</strong> Eliminated pricing discrepancies and accelerated transactional
-              calculation throughput for mission-critical pricing and rebate engines, significantly cutting batch
-              calculation runtimes while guaranteeing strict ACID compliance under heavy transactional concurrency,
-              by designing optimized relational schemas, implementing robust stored procedures/triggers, managing
-              pessimistic/optimistic concurrency control, and automating declarative schema migrations with Alembic.
+
+          <ol class="xp-track">
+            <li class="xp-role">
+              <span class="xp-role-dot" aria-hidden="true"></span>
+              <p class="xp-role-flag xp-role-flag--past">Previous</p>
+              <h4 class="xp-role-title">Data Engineer</h4>
+              <p class="xp-role-dates">Feb 2018 &mdash; Oct 2022</p>
+              <p class="xp-role-span" data-xp-span data-start="2018-02" data-end="2022-10">4 yr 9 mo</p>
             </li>
-            <li><strong>Database Administration &amp; Reliability (OLTP &amp; OLAP):</strong> Maintained
-              high-availability
-              database operations and optimized query efficiency across hybrid multi-database clusters (PostgreSQL, SQL
-              Server, Amazon Redshift, Aurora), significantly reducing P95 query execution latency and eliminating
-              system
-              deadlocks, by implementing multi-AZ failover and automated disaster recovery, structuring indexing/vacuum
-              maintenance routines, and performing execution plan profiling with fine-grained lock tuning.</li>
-            <li><strong>Cloud Architecture &amp; Modernization:</strong> Modernized legacy on-premises infrastructure
-              into an elastic, event-driven AWS cloud platform, reducing infrastructure overhead and completing
-              migrations with zero cutover downtime across enterprise-scale data assets, by
-              architecting cloud topologies leveraging Amazon Redshift, AWS Glue ETL, Lambda, Athena, S3 data lake
-              tiers,
-              DynamoDB, RDS Aurora, and containerized ECS workloads.</li>
-            <li><strong>DevOps, Quality &amp; Infrastructure:</strong> Accelerated release velocity and reinforced
-              production reliability across distributed message-driven services, dramatically shortening deployment
-              cycle times while achieving high test coverage and zero regression escapes, by orchestrating containerized
-              workloads on Docker/EKS/ECS, provisioning Kafka and RabbitMQ event brokers on Linux, and establishing
-              GitHub Actions CI/CD pipelines with automated Pytest, Node.js/JSDOM, ESLint, and Stylelint quality gates.
+            <li class="xp-role-step" aria-hidden="true">
+              <i class="fas fa-arrow-right-long"></i>
+              <span>Promoted</span>
             </li>
-            <li><strong>Full-Stack &amp; Generative AI Web Applications:</strong> Delivered responsive Progressive Web
-              Apps (PWAs) with interactive 3D visualizations and conversational AI capabilities, achieving
-              ultra-low time-to-first-token (TTFT) streaming latency and high platform availability, by engineering
-              asynchronous FastAPI microservices, streaming Amazon Bedrock LLM inference over Server-Sent
-              Events/WebSockets,
-              rendering Three.js GPU-accelerated graphics, and developing zero-dependency ES module frontends.</li>
+            <li class="xp-role xp-role--current">
+              <span class="xp-role-dot" aria-hidden="true"></span>
+              <p class="xp-role-flag">Current</p>
+              <h4 class="xp-role-title">Principal Data Engineer</h4>
+              <p class="xp-role-dates">Nov 2022 &mdash; Present</p>
+              <p class="xp-role-span" data-xp-span data-start="2022-11" data-end="present">3 yr 10 mo</p>
+            </li>
+          </ol>
+        </article>
+
+        <!-- Zone 2: proof. Every one of these four is a guarantee already
+             claimed in the prose below; pulling them out as figures gives the
+             page one thing a scanner can carry away. -->
+        <div class="xp-proof reveal" role="group" aria-labelledby="xp-proof-title">
+          <h3 class="xp-proof-title" id="xp-proof-title">Four numbers that stayed at zero</h3>
+          <ul class="xp-proof-grid">
+            <li class="xp-proof-item">
+              <span class="xp-proof-value">0</span>
+              <span class="xp-proof-label">records lost in telemetry ingestion</span>
+            </li>
+            <li class="xp-proof-item">
+              <span class="xp-proof-value">0</span>
+              <span class="xp-proof-label">minutes of downtime at cloud cutover</span>
+            </li>
+            <li class="xp-proof-item">
+              <span class="xp-proof-value">0</span>
+              <span class="xp-proof-label">regressions escaping to production</span>
+            </li>
+            <li class="xp-proof-item">
+              <span class="xp-proof-value">0</span>
+              <span class="xp-proof-label">deadlocks across the database clusters</span>
+            </li>
           </ul>
-          <div class="item-tags">
-            <span>Amazon Redshift</span>
-            <span>Amazon Bedrock</span>
-            <span>Amazon S3</span>
-            <span>AWS Glue</span>
-            <span>AWS Lambda</span>
-            <span>Amazon Athena</span>
-            <span>DynamoDB</span>
-            <span>API Gateway</span>
-            <span>CloudWatch</span>
-            <span>Amazon EKS</span>
-            <span>Amazon ECS</span>
-            <span>EC2</span>
-            <span>RDS</span>
-            <span>IAM</span>
-            <span>SNS</span>
-            <span>SQS</span>
-            <span>Glacier</span>
-            <span>FastAPI</span>
-            <span>boto3</span>
-            <span>SQLAlchemy</span>
-            <span>Pydantic</span>
-            <span>Multiprocessing</span>
-            <span>Multithreading</span>
-            <span>Matillion</span>
-            <span>PySpark</span>
-            <span>Looker</span>
-            <span>Pandas</span>
-            <span>NumPy</span>
-            <span>PostgreSQL</span>
-            <span>SQL Server</span>
-            <span>MySQL</span>
-            <span>Dell Boomi</span>
-            <span>Redis</span>
-            <span>Apache Kafka</span>
-            <span>RabbitMQ</span>
-            <span>Elasticsearch</span>
-            <span>Alembic</span>
-            <span>Python</span>
-            <span>T-SQL</span>
-            <span>PL/pgSQL</span>
-            <span>SQL</span>
-            <span>Bash / Linux</span>
-            <span>Git</span>
-            <span>Docker</span>
-            <span>Terraform</span>
-            <span>Kubernetes</span>
-            <span>GitHub Actions CI/CD</span>
-            <span>Pytest</span>
+        </div>
+
+        <!-- Zone 3: the work itself, split by domain. Each card leads with the
+             outcome, then the wins, then the method behind a disclosure. The
+             tech stack is attached to the domain it was actually used in
+             rather than pooled into one 48-chip blob at the bottom. -->
+        <div class="xp-domains-head">
+          <h3 class="xp-domains-title">What the work covers</h3>
+          <div class="xp-density js-only" id="xp-density" role="group" aria-label="Level of detail">
+            <button type="button" class="xp-density-btn" data-density="highlights" aria-pressed="true">
+              Highlights
+            </button>
+            <button type="button" class="xp-density-btn" data-density="full" aria-pressed="false">
+              Full detail
+            </button>
           </div>
+        </div>
+
+        <div class="xp-domains">
+          <article class="xp-domain reveal">
+            <div class="xp-domain-head">
+              <span class="xp-domain-icon" aria-hidden="true"><i class="fas fa-warehouse"></i></span>
+              <div class="xp-domain-heading">
+                <p class="xp-domain-kicker">OLAP</p>
+                <h4 class="xp-domain-title">Enterprise data platform &amp; modeling</h4>
+              </div>
+            </div>
+            <p class="xp-domain-outcome">Collapsed fragmented ERP, WMS and TMS reporting into one governed Amazon
+              Redshift warehouse.</p>
+            <ul class="xp-wins">
+              <li>Query latency down</li>
+              <li>Pipeline SLAs met sooner</li>
+            </ul>
+            <details class="xp-how">
+              <summary><i class="fas fa-chevron-right" aria-hidden="true"></i>How it was built</summary>
+              <p>Architected high-throughput batch and streaming pipelines, designed dimensional Star and Snowflake
+                schemas, and established a governed Looker semantic modeling layer &mdash; so analytics ran off one
+                definition of the business instead of several.</p>
+            </details>
+            <ul class="xp-stack">
+              <li>Amazon Redshift</li>
+              <li>Amazon S3</li>
+              <li>AWS Glue</li>
+              <li>Amazon Athena</li>
+              <li>Matillion</li>
+              <li>PySpark</li>
+              <li>Looker</li>
+              <li>Pandas</li>
+              <li>NumPy</li>
+            </ul>
+          </article>
+
+          <article class="xp-domain reveal">
+            <div class="xp-domain-head">
+              <span class="xp-domain-icon" aria-hidden="true"><i class="fas fa-tower-broadcast"></i></span>
+              <div class="xp-domain-heading">
+                <p class="xp-domain-kicker">Middleware</p>
+                <h4 class="xp-domain-title">Backend services &amp; telemetry</h4>
+              </div>
+            </div>
+            <p class="xp-domain-outcome">Scaled enterprise event telemetry ingestion across heterogeneous systems with
+              zero data loss.</p>
+            <ul class="xp-wins">
+              <li>High-volume throughput</li>
+              <li>Low-latency APIs</li>
+            </ul>
+            <details class="xp-how">
+              <summary><i class="fas fa-chevron-right" aria-hidden="true"></i>How it was built</summary>
+              <p>Engineered non-blocking Python/FastAPI REST APIs on <code>asyncpg</code> connection pooling, built AWS
+                Lambda and Boomi iPaaS integration layers, and designed relational event stores with structured
+                telemetry schemas.</p>
+            </details>
+            <ul class="xp-stack">
+              <li>FastAPI</li>
+              <li>asyncpg</li>
+              <li>SQLAlchemy</li>
+              <li>Pydantic</li>
+              <li>boto3</li>
+              <li>AWS Lambda</li>
+              <li>API Gateway</li>
+              <li>Dell Boomi</li>
+              <li>Redis</li>
+              <li>Elasticsearch</li>
+            </ul>
+          </article>
+
+          <article class="xp-domain reveal">
+            <div class="xp-domain-head">
+              <span class="xp-domain-icon" aria-hidden="true"><i class="fas fa-database"></i></span>
+              <div class="xp-domain-heading">
+                <p class="xp-domain-kicker">OLTP</p>
+                <h4 class="xp-domain-title">Transactional database systems</h4>
+              </div>
+            </div>
+            <p class="xp-domain-outcome">Eliminated pricing discrepancies in the mission-critical pricing and rebate
+              engines.</p>
+            <ul class="xp-wins">
+              <li>Batch runtimes cut</li>
+              <li>ACID held under concurrency</li>
+            </ul>
+            <details class="xp-how">
+              <summary><i class="fas fa-chevron-right" aria-hidden="true"></i>How it was built</summary>
+              <p>Designed optimized relational schemas, implemented stored procedures and triggers, managed pessimistic
+                and optimistic concurrency control, and automated declarative schema migrations with Alembic.</p>
+            </details>
+            <ul class="xp-stack">
+              <li>PostgreSQL</li>
+              <li>SQL Server</li>
+              <li>MySQL</li>
+              <li>T-SQL</li>
+              <li>PL/pgSQL</li>
+              <li>SQL</li>
+              <li>Alembic</li>
+            </ul>
+          </article>
+
+          <article class="xp-domain reveal">
+            <div class="xp-domain-head">
+              <span class="xp-domain-icon" aria-hidden="true"><i class="fas fa-shield-halved"></i></span>
+              <div class="xp-domain-heading">
+                <p class="xp-domain-kicker">Reliability</p>
+                <h4 class="xp-domain-title">Database administration &amp; uptime</h4>
+              </div>
+            </div>
+            <p class="xp-domain-outcome">Held high availability across hybrid PostgreSQL, SQL Server, Redshift and
+              Aurora clusters.</p>
+            <ul class="xp-wins">
+              <li>P95 query latency down</li>
+              <li>Deadlocks eliminated</li>
+            </ul>
+            <details class="xp-how">
+              <summary><i class="fas fa-chevron-right" aria-hidden="true"></i>How it was built</summary>
+              <p>Implemented multi-AZ failover with automated disaster recovery, structured indexing and vacuum
+                maintenance routines, and profiled execution plans with fine-grained lock tuning.</p>
+            </details>
+            <ul class="xp-stack">
+              <li>RDS Aurora</li>
+              <li>PostgreSQL</li>
+              <li>SQL Server</li>
+              <li>Amazon Redshift</li>
+              <li>CloudWatch</li>
+            </ul>
+          </article>
+
+          <article class="xp-domain reveal">
+            <div class="xp-domain-head">
+              <span class="xp-domain-icon" aria-hidden="true"><i class="fas fa-cloud"></i></span>
+              <div class="xp-domain-heading">
+                <p class="xp-domain-kicker">Cloud</p>
+                <h4 class="xp-domain-title">Architecture &amp; modernization</h4>
+              </div>
+            </div>
+            <p class="xp-domain-outcome">Moved legacy on-premises infrastructure onto an elastic, event-driven AWS
+              platform.</p>
+            <ul class="xp-wins">
+              <li>Zero cutover downtime</li>
+              <li>Infrastructure overhead down</li>
+            </ul>
+            <details class="xp-how">
+              <summary><i class="fas fa-chevron-right" aria-hidden="true"></i>How it was built</summary>
+              <p>Architected cloud topologies across Amazon Redshift, AWS Glue ETL, Lambda, Athena and tiered S3 data
+                lakes, with DynamoDB, RDS Aurora and containerized ECS workloads carrying the runtime.</p>
+            </details>
+            <ul class="xp-stack">
+              <li>EC2</li>
+              <li>Amazon ECS</li>
+              <li>DynamoDB</li>
+              <li>RDS</li>
+              <li>IAM</li>
+              <li>SNS</li>
+              <li>SQS</li>
+              <li>Glacier</li>
+              <li>Terraform</li>
+            </ul>
+          </article>
+
+          <article class="xp-domain reveal">
+            <div class="xp-domain-head">
+              <span class="xp-domain-icon" aria-hidden="true"><i class="fas fa-screwdriver-wrench"></i></span>
+              <div class="xp-domain-heading">
+                <p class="xp-domain-kicker">Delivery</p>
+                <h4 class="xp-domain-title">DevOps, quality &amp; infrastructure</h4>
+              </div>
+            </div>
+            <p class="xp-domain-outcome">Shortened deployment cycles across distributed message-driven services.</p>
+            <ul class="xp-wins">
+              <li>Zero regression escapes</li>
+              <li>High test coverage</li>
+            </ul>
+            <details class="xp-how">
+              <summary><i class="fas fa-chevron-right" aria-hidden="true"></i>How it was built</summary>
+              <p>Orchestrated containerized workloads on Docker, EKS and ECS, provisioned Kafka and RabbitMQ event
+                brokers on Linux, and established GitHub Actions CI/CD pipelines gated on Pytest, Node.js/JSDOM, ESLint
+                and Stylelint.</p>
+            </details>
+            <ul class="xp-stack">
+              <li>Docker</li>
+              <li>Kubernetes</li>
+              <li>Amazon EKS</li>
+              <li>Apache Kafka</li>
+              <li>RabbitMQ</li>
+              <li>GitHub Actions CI/CD</li>
+              <li>Pytest</li>
+              <li>Git</li>
+              <li>Bash / Linux</li>
+            </ul>
+          </article>
+
+          <article class="xp-domain reveal">
+            <div class="xp-domain-head">
+              <span class="xp-domain-icon" aria-hidden="true"><i class="fas fa-wand-magic-sparkles"></i></span>
+              <div class="xp-domain-heading">
+                <p class="xp-domain-kicker">Product</p>
+                <h4 class="xp-domain-title">Full-stack &amp; generative AI</h4>
+              </div>
+            </div>
+            <p class="xp-domain-outcome">Shipped Progressive Web Apps with 3D visualization and streaming conversational
+              AI.</p>
+            <ul class="xp-wins">
+              <li>Ultra-low TTFT</li>
+              <li>High platform availability</li>
+            </ul>
+            <details class="xp-how">
+              <summary><i class="fas fa-chevron-right" aria-hidden="true"></i>How it was built</summary>
+              <p>Engineered asynchronous FastAPI microservices, streamed Amazon Bedrock LLM inference over Server-Sent
+                Events and WebSockets, rendered GPU-accelerated Three.js graphics, and built zero-dependency ES module
+                frontends.</p>
+            </details>
+            <ul class="xp-stack">
+              <li>Amazon Bedrock</li>
+              <li>FastAPI</li>
+              <li>Three.js</li>
+              <li>Python</li>
+              <li>Multiprocessing</li>
+              <li>Multithreading</li>
+            </ul>
+          </article>
         </div>
       </section>
 

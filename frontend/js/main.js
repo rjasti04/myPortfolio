@@ -15,6 +15,7 @@ window.addEventListener('unhandledrejection', (event) => {
 import { initNavigation } from "./navigation.js";
 import { initTheme } from "./theme.js";
 import { initProjects } from "./projects.js";
+import { initExperience } from "./experience.js";
 import { initContactForm } from "./form.js";
 import { initAnimations } from "./animations.js";
 import { initHeroTitle } from "./hero-title.js";
@@ -69,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   initNavigation();
   initProjects();
+  initExperience();
   initContactForm();
   initHeroTitle();
   initAnimations();
