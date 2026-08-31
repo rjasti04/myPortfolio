@@ -157,11 +157,11 @@ async def test_an_abandoned_streaming_response_does_not_leak_its_slot():
     for _ in range(start + 1):
         slot = await bedrock_config.acquire_bedrock_slot()
 
-        async def body():  # noqa: ARG001 - deliberately never iterated
+        async def body(held=slot):  # bound now, not at call time
             try:
                 yield "chunk"
             finally:
-                await slot.release()
+                await held.release()
 
         generator = body()
         del generator  # client gone; the body is never started
@@ -187,3 +187,38 @@ async def test_slot_acquisition_refuses_when_saturated():
         assert excinfo.value.status_code == 429
     finally:
         await asyncio.gather(*(slot.release() for slot in held))
+
+
+# --- dual-prefix mounting ---------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_both_mount_prefixes_still_route(async_client):
+    """Every router is mounted at `/x` and at `/api/x`. Which one production
+    actually uses depends on whether Apache strips the prefix before proxying,
+    so dropping either would risk an outage. The root copy is hidden from the
+    OpenAPI schema, which must not change routing - asserted over real requests
+    rather than by walking the route table, which nests included routers.
+    """
+    for path in ("/health", "/api/health"):
+        assert (await async_client.get(path)).status_code == 200, f"{path} stopped routing"
+
+    for path in ("/sessions", "/api/sessions"):
+        response = await async_client.post(
+            path, json={"user_agent": "pytest", "device_type": "desktop"}
+        )
+        assert response.status_code == 201, f"{path} stopped routing"
+
+    # A path that exists under neither mount still 404s, so the check above is
+    # not simply passing on a catch-all.
+    assert (await async_client.get("/api/definitely-not-a-route")).status_code == 404
+
+
+def test_only_one_copy_of_each_route_is_documented():
+    """The duplicate mount made /openapi.json advertise 66 paths for 33
+    endpoints and made FastAPI warn about duplicate operation ids on boot."""
+    from server.main import app
+
+    documented = app.openapi()["paths"]
+    assert not any(p.startswith("/auth/") for p in documented), "root mount leaked into the schema"
+    assert "/api/auth/login" in documented

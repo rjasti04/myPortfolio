@@ -15,7 +15,7 @@ async def health_check(request: Request, db: AsyncSession = Depends(get_db)):
     try:
         # Check DB connection
         await db.execute(select(1))
-            
+
         logger.info(
             "health_check_ok",
             request_id=request_id,
@@ -63,4 +63,4 @@ async def list_models():
         return {"models": models}
     except Exception as e:
         logger.error(f"Error listing Bedrock models: {e}")
-        raise HTTPException(500, "Unable to list models")
+        raise HTTPException(500, "Unable to list models") from e

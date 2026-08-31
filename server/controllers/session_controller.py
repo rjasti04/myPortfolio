@@ -9,6 +9,7 @@ from server.db.database import get_db
 from server.models.session import UserSession
 from server.schemas.session import SessionCreate, SessionEnd
 from server.config.settings import TRUSTED_PROXY_NETWORKS
+from server.auth.session_token import require_session_access, sign_session
 from server.utils.ip_utils import client_ip_from_request
 
 logger = structlog.get_logger(__name__)
@@ -42,10 +43,21 @@ async def create_session(payload: SessionCreate, request: Request, db: AsyncSess
         device_type=payload.device_type,
         ip_address=client_ip[:15] + "..." if len(client_ip) > 15 else client_ip
     )
-    return {"session_id": str(session_db.session_id), "started_at": session_db.started_at}
+    # The capability token is returned exactly once, here. Everything scoped to
+    # this session requires it from now on.
+    return {
+        "session_id": str(session_db.session_id),
+        "session_token": sign_session(session_db.session_id),
+        "started_at": session_db.started_at,
+    }
 
 
-async def session_heartbeat(session_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
+async def session_heartbeat(
+    session_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: UUID = Depends(require_session_access),
+):
     """Call periodically (e.g. every 60 s) to keep the session alive."""
     result = await db.execute(
         update(UserSession)
@@ -65,7 +77,13 @@ async def session_heartbeat(session_id: UUID, request: Request, db: AsyncSession
     return {"status": "ok", "last_active_at": _now()}
 
 
-async def end_session(session_id: UUID, payload: SessionEnd, request: Request, db: AsyncSession = Depends(get_db)):
+async def end_session(
+    session_id: UUID,
+    payload: SessionEnd,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: UUID = Depends(require_session_access),
+):
     """Marks the session inactive and records ended_at + end_reason."""
     result = await db.execute(
         update(UserSession)
@@ -85,7 +103,12 @@ async def end_session(session_id: UUID, payload: SessionEnd, request: Request, d
     return {"status": "ended", "ended_at": _now()}
 
 
-async def get_session(session_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
+async def get_session(
+    session_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: UUID = Depends(require_session_access),
+):
     result = await db.execute(select(UserSession).where(UserSession.session_id == session_id))
     session = result.scalars().first()
 

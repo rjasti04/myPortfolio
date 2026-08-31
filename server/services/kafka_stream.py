@@ -4,14 +4,12 @@ import json
 import base64
 import random
 import time
-import logging
 from uuid import UUID
 from datetime import datetime, timezone
 from collections import defaultdict, deque
 from typing import Any, Optional, Deque, Dict, List, Set
 
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import OperationalError, InterfaceError
 from server.db.database import AsyncSessionLocal
 from server.models.event import UserActivityEvent
@@ -23,6 +21,14 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "session-activity")
 BATCH_SIZE = int(os.getenv("KAFKA_BATCH_SIZE", "10"))
 BATCH_TIMEOUT_SECONDS = float(os.getenv("KAFKA_BATCH_TIMEOUT", "3.0"))
+
+# Hard ceiling on the pending-write buffer. A failed flush returns its events to
+# the buffer, so a database outage previously grew it without limit until the
+# process ran out of memory - the one failure mode guaranteed to take the API
+# down along with the database. At the cap the oldest events are dropped, which
+# is the right trade for analytics: losing the tail of a backlog beats losing
+# the service.
+MAX_BUFFERED_EVENTS = int(os.getenv("MAX_BUFFERED_EVENTS", "10000"))
 
 # A slow or stalled SSE reader must not be able to grow its queue without
 # bound. At the cap the oldest frame is dropped, which is the right trade for a
@@ -38,6 +44,12 @@ SIMULATE_KAFKA_METRICS = os.getenv("SIMULATE_KAFKA_METRICS", "true").lower() == 
 # Partition count the simulated topic presents. Offsets are split across these.
 SIMULATED_PARTITIONS = int(os.getenv("SIMULATED_KAFKA_PARTITIONS", "3"))
 SIMULATED_CONSUMER_GROUP = os.getenv("SIMULATED_KAFKA_GROUP", "activity-dashboard")
+
+# Lag is diagnostic, so it is sampled on a timer. It used to be recomputed on
+# every message, which issued a `position()` round trip per partition per
+# message and made the measurement more expensive than the consumption.
+LAG_SAMPLE_INTERVAL_SECONDS = float(os.getenv("KAFKA_LAG_SAMPLE_INTERVAL", "5.0"))
+_last_lag_sample_at: float = 0.0
 
 # Fraction of the simulated backlog still outstanding two seconds later, i.e.
 # the modelled consumer clears ~55% of what is queued every 2s.
@@ -93,6 +105,11 @@ _sim_lag_at: float = 0.0
 # Holds the dedicated LISTEN connection when cross-instance fan-out is on.
 _fanout_state: Dict[str, Any] = {"conn": None}
 
+# asyncpg forbids concurrent operations on one connection, and the fan-out
+# publishes over the same connection that holds the LISTEN. Two events
+# broadcast at once would race into "another operation is in progress".
+_fanout_publish_lock = asyncio.Lock()
+
 # Buffer for batch database writes
 batch_buffer: List[Dict[str, Any]] = []
 batch_lock = asyncio.Lock()
@@ -115,6 +132,11 @@ METRICS: Dict[str, Any] = {
     "rows_written": 0,
     "flush_count": 0,
     "flush_failures": 0,
+    # Events the pipeline accepted and could not persist, split by cause. These
+    # were previously dropped with nothing but a log line, so the dashboard
+    # reported a healthy pipeline while data went missing.
+    "events_dropped_overflow": 0,
+    "events_dropped_rejected": 0,
     "last_flush_ms": None,
     "last_event_at": None,
     "last_error": None,
@@ -316,7 +338,8 @@ async def _publish_fanout(session_id: UUID, event_copy: Dict[str, Any]) -> None:
         if len(payload.encode("utf-8")) > PG_NOTIFY_MAX_BYTES:
             logger.warning("pg_fanout_payload_too_large", session_id=str(session_id))
             return
-        await conn.execute("SELECT pg_notify($1, $2)", PG_FANOUT_CHANNEL, payload)
+        async with _fanout_publish_lock:
+            await conn.execute("SELECT pg_notify($1, $2)", PG_FANOUT_CHANNEL, payload)
     except Exception as e:
         logger.error("pg_fanout_publish_error", error=str(e))
 
@@ -362,8 +385,12 @@ async def run_pg_fanout() -> None:
             await conn.add_listener(PG_FANOUT_CHANNEL, _on_fanout_notify)
             _fanout_state["conn"] = conn
             logger.info("pg_fanout_listening", channel=PG_FANOUT_CHANNEL, instance=INSTANCE_ID)
-            # Hold the connection open; the listener fires from asyncpg's reader.
-            while not conn.is_closed():
+            # Hold the connection open; the listener fires from asyncpg's reader
+            # task, so this loop has nothing to await on. asyncpg exposes no
+            # awaitable "connection closed" signal, so polling is the option
+            # available; ASYNC110's asyncio.Event suggestion would need a
+            # termination callback that does not exist here.
+            while not conn.is_closed():  # noqa: ASYNC110
                 await asyncio.sleep(5)
         except asyncio.CancelledError:
             logger.info("pg_fanout_cancelled")
@@ -534,13 +561,21 @@ def pipeline_snapshot() -> Dict[str, Any]:
                 "dropped_frames": METRICS["frames_dropped"],
             },
             "postgres": {
-                "health": "error" if METRICS["last_error"] else "ok",
+                "health": (
+                    "error"
+                    if METRICS["last_error"]
+                    or METRICS["events_dropped_overflow"]
+                    or METRICS["events_dropped_rejected"]
+                    else "ok"
+                ),
                 "rows_written": METRICS["rows_written"],
                 "buffer_depth": len(batch_buffer),
                 "flushes": METRICS["flush_count"],
                 "flush_failures": METRICS["flush_failures"],
                 "last_flush_ms": METRICS["last_flush_ms"],
                 "last_error": METRICS["last_error"],
+                "dropped_overflow": METRICS["events_dropped_overflow"],
+                "dropped_rejected": METRICS["events_dropped_rejected"],
             },
         },
     }
@@ -590,14 +625,33 @@ async def save_batch() -> None:
         METRICS["flush_failures"] += 1
         METRICS["last_error"] = "database unavailable"
         logger.error("kafka_stream_batch_write_recoverable_error", error=str(e))
-        # Restore buffer in case of recoverable DB issues
+        # Return the events for a later attempt, but never past the cap: a long
+        # outage would otherwise buffer until the process died.
         async with batch_lock:
             batch_buffer.extend(events_to_save)
+            overflow = len(batch_buffer) - MAX_BUFFERED_EVENTS
+            if overflow > 0:
+                del batch_buffer[:overflow]
+                METRICS["events_dropped_overflow"] += overflow
+                logger.error(
+                    "kafka_stream_buffer_overflow",
+                    dropped=overflow,
+                    buffered=len(batch_buffer),
+                    cap=MAX_BUFFERED_EVENTS,
+                )
     except Exception as e:
         METRICS["flush_failures"] += 1
         METRICS["last_error"] = "write rejected"
-        logger.error("kafka_stream_batch_write_unrecoverable_error", error=str(e), count=len(events_to_save))
-        # Discard unrecoverable failed events to prevent queue lockup
+        # Dropping these is deliberate - retrying a rejected write just locks
+        # the queue - but it is data loss and is now counted rather than only
+        # logged, so pipeline_snapshot can surface it.
+        METRICS["events_dropped_rejected"] += len(events_to_save)
+        logger.error(
+            "kafka_stream_batch_write_unrecoverable_error",
+            error=str(e),
+            count=len(events_to_save),
+            total_rejected=METRICS["events_dropped_rejected"],
+        )
 
 async def add_to_batch(event_dict: Dict[str, Any]) -> None:
     """Adds a single event to the batch buffer, flushing if limit is reached."""
@@ -696,7 +750,11 @@ async def run_kafka_consumer() -> None:
         async for msg in consumer:
             logger.info("kafka_message_received", partition=msg.partition, offset=msg.offset)
             METRICS["kafka_messages"] += 1
-            await _record_lag(consumer)
+            global _last_lag_sample_at
+            monotonic_now = time.monotonic()
+            if monotonic_now - _last_lag_sample_at >= LAG_SAMPLE_INTERVAL_SECONDS:
+                _last_lag_sample_at = monotonic_now
+                await _record_lag(consumer)
             if isinstance(msg.value, dict):
                 await process_incoming_event(msg.value)
     except asyncio.CancelledError:

@@ -1,0 +1,33 @@
+# The backend had no linting at all: the frontend ran ESLint and Stylelint in CI
+# while Python ran nothing. F821 alone would have caught the five auth routes
+# that shipped calling service functions that do not exist.
+target-version = "py310"
+line-length = 120
+
+[lint]
+# Scoped to rules that find defects. The stylistic modernisation families (UP,
+# I) flag ~170 more findings here; they are worth doing, but as their own
+# mechanical change rather than buried in a review that is fixing bugs.
+select = [
+    "F",     # pyflakes: undefined names, unused imports and variables
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "B",     # bugbear: mutable defaults, loop-variable capture, lost tracebacks
+    "ASYNC", # blocking calls inside async functions - the H3 class of bug
+    "C4",    # comprehension simplifications
+]
+ignore = [
+    "E501",  # long lines; line-length above is advisory for prose
+    "B008",  # FastAPI's entire dependency idiom is a call in a default argument
+    # `Column == False` is not a truthiness test, it builds SQL. Ruff's fix
+    # would turn a WHERE clause into a Python bool and silently break the query.
+    "E712",
+]
+
+[lint.per-file-ignores]
+# conftest sets environment variables that must exist before server imports run,
+# so its imports genuinely cannot all sit at the top.
+"tests/backend/conftest.py" = ["E402"]
+# Alembic's generated env.py deliberately defers imports until after it has put
+# the repository root on sys.path.
+"server/alembic/env.py" = ["E402"]

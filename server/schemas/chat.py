@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Literal, List
+from typing import Optional, List
 
 class ChatMessage(BaseModel):
     role: str = Field(..., description="Role of the message sender, e.g. 'user' or 'assistant'")

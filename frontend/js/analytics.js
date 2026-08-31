@@ -47,24 +47,47 @@ const SCROLL_DEBOUNCE_MS = 500;
 const EVENT_QUEUE_STORAGE_KEY = 'rj_event_queue';
 
 let sessionId = null;
+// Capability token handed out when the session is created. Every request scoped
+// to this session must present it; without it the API cannot tell us apart from
+// anyone else who happens to know the id.
+let sessionToken = null;
 try {
   sessionId = sessionStorage.getItem("rj_session_id");
+  sessionToken = sessionStorage.getItem("rj_session_token");
+  // A session stored before tokens existed can no longer be used. Drop it so a
+  // fresh one is created rather than issuing calls that will be refused.
+  if (sessionId && !sessionToken) {
+    sessionStorage.removeItem("rj_session_id");
+    sessionId = null;
+  }
 } catch (e) {
   console.warn("Analytics: sessionStorage not available");
 }
 
-function setSessionId(id) {
+function setSessionId(id, token) {
   sessionId = id;
+  sessionToken = token || null;
   try {
     sessionStorage.setItem("rj_session_id", id);
+    if (token) sessionStorage.setItem("rj_session_token", token);
   } catch (e) {}
 }
 
 function clearSessionId() {
   sessionId = null;
+  sessionToken = null;
   try {
     sessionStorage.removeItem("rj_session_id");
+    sessionStorage.removeItem("rj_session_token");
   } catch (e) {}
+}
+
+// Appends the token to a URL, for the one caller that cannot send headers:
+// EventSource has no way to set them.
+export function withSessionToken(url) {
+  if (!sessionToken) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}session_token=${encodeURIComponent(sessionToken)}`;
 }
 const eventQueue = [];
 let heartbeatInterval;
@@ -135,7 +158,12 @@ export function apiFetch(url, options = {}) {
   const defaultOptions = {
     mode: "cors"
   };
-  return fetch(url, { ...defaultOptions, ...options });
+  const merged = { ...defaultOptions, ...options };
+  // Attached centrally so no call site can forget it.
+  if (sessionToken) {
+    merged.headers = { ...(merged.headers || {}), "X-Session-Token": sessionToken };
+  }
+  return fetch(url, merged);
 }
 
 function getDeviceType() {
@@ -176,7 +204,7 @@ async function startSession() {
 
       if (response.ok) {
         const data = await response.json();
-        setSessionId(data.session_id);
+        setSessionId(data.session_id, data.session_token);
 
         startHeartbeat();
         trackEvent("page_view", { referrer: document.referrer });

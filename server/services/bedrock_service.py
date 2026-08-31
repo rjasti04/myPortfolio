@@ -1,14 +1,92 @@
 import json
 import time
-import os
 import logging
 import asyncio
-from unittest.mock import MagicMock
+import threading
+from typing import AsyncGenerator, Callable, Dict, Any, Iterable, List, Optional
+
 import boto3
-from typing import AsyncGenerator, Dict, Any, List, Optional
+from server.config.settings import AWS_REGION, DEFAULT_MODEL_ID
 from server.utils.role_utils import ensure_alternating_roles
 
 logger = logging.getLogger("server.bedrock_service")
+
+# How long the reader thread waits for room in the queue before concluding the
+# consumer is gone. Bounds how long a worker thread outlives an abandoned
+# request; it never blocks the event loop.
+_QUEUE_PUT_TIMEOUT_SECONDS = 10.0
+
+# Bounded so a fast model cannot buffer an unlimited response in memory while a
+# slow client drains it.
+_STREAM_QUEUE_SIZE = 64
+
+_STREAM_DONE = object()
+
+
+async def _iter_blocking_stream(
+    open_stream: Callable[[], Optional[Iterable[Any]]],
+    queue_size: int = _STREAM_QUEUE_SIZE,
+) -> AsyncGenerator[Any, None]:
+    """Yields items from a blocking iterator without occupying the event loop.
+
+    botocore's EventStream is a synchronous iterator whose `__next__` performs a
+    socket read. Iterating it directly inside an async generator - which is what
+    this service used to do - pins the event loop for the whole duration of the
+    model's response, stalling every other request the worker is handling,
+    including SSE keep-alives and the health check the deploy now gates on. The
+    interleaved `await asyncio.sleep(0)` calls did not help: the blocking happens
+    inside `__next__`, before control ever returns to the loop.
+
+    `open_stream` runs on the worker thread too, so the initial API call is also
+    off the loop, and anything it raises is re-raised to the consumer.
+    """
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue = asyncio.Queue(maxsize=queue_size)
+    stop = threading.Event()
+
+    def _put(item: Any) -> bool:
+        """Hands one item to the loop. False means the consumer is gone."""
+        try:
+            asyncio.run_coroutine_threadsafe(queue.put(item), loop).result(
+                timeout=_QUEUE_PUT_TIMEOUT_SECONDS
+            )
+            return True
+        except Exception:
+            stop.set()
+            return False
+
+    def pump() -> None:
+        stream = None
+        try:
+            stream = open_stream()
+            for item in stream or ():
+                if stop.is_set() or not _put(item):
+                    break
+        except BaseException as exc:  # surfaced to the consumer, never swallowed
+            _put(exc)
+        finally:
+            close = getattr(stream, "close", None)
+            if callable(close):
+                try:
+                    close()
+                except Exception:
+                    pass
+            _put(_STREAM_DONE)
+
+    loop.run_in_executor(None, pump)
+    try:
+        while True:
+            item = await queue.get()
+            if item is _STREAM_DONE:
+                break
+            if isinstance(item, BaseException):
+                raise item
+            yield item
+    finally:
+        # Tell the reader to stop pulling from Bedrock if the client hung up.
+        # The thread exits on its next loop or its next put timeout; it is
+        # deliberately not awaited, so tearing down a response stays non-blocking.
+        stop.set()
 
 DEFAULT_SYSTEM_PROMPT = """You are the AI Assistant for Rajeev Jasti's Portfolio Website.
 You provide helpful, accurate, and professional information about Rajeev Jasti's software engineering background, full-stack projects, architecture experience, and technical skills.
@@ -29,10 +107,11 @@ class BedrockService:
     """Service wrapper for AWS Bedrock runtime with prompt caching and streaming."""
 
     def __init__(self, region_name: Optional[str] = None, default_model_id: Optional[str] = None):
-        self.region_name = region_name or os.getenv("AWS_REGION", "us-east-1")
-        self.default_model_id = default_model_id or os.getenv(
-            "DEFAULT_MODEL_ID", "google.gemma-3-4b-it"
-        )
+        # Defaults come from settings, which requires them; hardcoded fallbacks
+        # here meant a misconfigured deployment silently billed a different
+        # region or model than the operator intended.
+        self.region_name = region_name or AWS_REGION
+        self.default_model_id = default_model_id or DEFAULT_MODEL_ID
         self._client = None
 
     @property
@@ -63,11 +142,16 @@ class BedrockService:
         total_text_length = 0
 
         try:
-            # Check if requested model is an Anthropic Claude model OR if test mocked invoke_model_with_response_stream
+            # Claude models take the raw invoke API because that is the one
+            # supporting prompt caching; everything else goes through Converse.
+            # This used to also branch on `isinstance(..., MagicMock)`, so the
+            # path under test was selected by whether a mock happened to be
+            # installed rather than by the model - production behaviour that
+            # existed only for the test suite, and which meant the suite never
+            # actually exercised Converse for a non-Claude default model.
             is_anthropic_raw = target_model.startswith(("anthropic.", "us.anthropic.", "eu.anthropic."))
-            is_invoke_mocked = isinstance(getattr(self.client, "invoke_model_with_response_stream", None), MagicMock)
-            
-            if (is_anthropic_raw or is_invoke_mocked) and hasattr(self.client, "invoke_model_with_response_stream"):
+
+            if is_anthropic_raw and hasattr(self.client, "invoke_model_with_response_stream"):
                 system_payload = [
                     {
                         "type": "text",
@@ -82,38 +166,37 @@ class BedrockService:
                     "system": system_payload,
                     "messages": sanitized_messages,
                 }
-                response = await asyncio.to_thread(
-                    self.client.invoke_model_with_response_stream,
-                    modelId=target_model,
-                    contentType="application/json",
-                    accept="application/json",
-                    body=json.dumps(payload),
-                )
-                stream = response.get("body")
-                if stream:
-                    for event in stream:
-                        chunk = event.get("chunk")
-                        if not chunk:
-                            continue
-                        chunk_data = json.loads(chunk.get("bytes").decode("utf-8"))
-                        event_type = chunk_data.get("type")
+                def _open_invoke_stream():
+                    response = self.client.invoke_model_with_response_stream(
+                        modelId=target_model,
+                        contentType="application/json",
+                        accept="application/json",
+                        body=json.dumps(payload),
+                    )
+                    return response.get("body")
 
-                        if event_type == "message_start":
-                            usage = chunk_data.get("message", {}).get("usage", {})
-                            input_tokens = usage.get("input_tokens", 0)
-                            cache_read_tokens = usage.get("cache_read_input_tokens", 0)
-                            cache_creation_tokens = usage.get("cache_creation_input_tokens", 0)
+                async for event in _iter_blocking_stream(_open_invoke_stream):
+                    chunk = event.get("chunk")
+                    if not chunk:
+                        continue
+                    chunk_data = json.loads(chunk.get("bytes").decode("utf-8"))
+                    event_type = chunk_data.get("type")
 
-                        elif event_type == "content_block_delta":
-                            text_delta = chunk_data.get("delta", {}).get("text", "")
-                            if text_delta:
-                                total_text_length += len(text_delta)
-                                yield {"type": "delta", "text": text_delta}
-                                await asyncio.sleep(0)
+                    if event_type == "message_start":
+                        usage = chunk_data.get("message", {}).get("usage", {})
+                        input_tokens = usage.get("input_tokens", 0)
+                        cache_read_tokens = usage.get("cache_read_input_tokens", 0)
+                        cache_creation_tokens = usage.get("cache_creation_input_tokens", 0)
 
-                        elif event_type == "message_delta":
-                            usage = chunk_data.get("usage", {})
-                            output_tokens = usage.get("output_tokens", 0)
+                    elif event_type == "content_block_delta":
+                        text_delta = chunk_data.get("delta", {}).get("text", "")
+                        if text_delta:
+                            total_text_length += len(text_delta)
+                            yield {"type": "delta", "text": text_delta}
+
+                    elif event_type == "message_delta":
+                        usage = chunk_data.get("usage", {})
+                        output_tokens = usage.get("output_tokens", 0)
             else:
                 # Universal Bedrock converse_stream API (supports google.gemma-3-4b-it, Llama, Titan, etc.)
                 converse_messages = []
@@ -135,28 +218,27 @@ class BedrockService:
 
                 system_blocks = [{"text": active_system_prompt}] if active_system_prompt else []
 
-                response = await asyncio.to_thread(
-                    self.client.converse_stream,
-                    modelId=target_model,
-                    messages=converse_messages,
-                    system=system_blocks,
-                    inferenceConfig={"maxTokens": 2048, "temperature": 0.7},
-                )
-                stream = response.get("stream")
-                if stream:
-                    for event in stream:
-                        if "contentBlockDelta" in event:
-                            text_delta = event["contentBlockDelta"].get("delta", {}).get("text", "")
-                            if text_delta:
-                                total_text_length += len(text_delta)
-                                yield {"type": "delta", "text": text_delta}
-                                await asyncio.sleep(0)
-                        elif "metadata" in event:
-                            usage = event["metadata"].get("usage", {})
-                            input_tokens = usage.get("inputTokens", input_tokens)
-                            output_tokens = usage.get("outputTokens", output_tokens)
-                            cache_read_tokens = usage.get("cacheReadInputTokens", cache_read_tokens)
-                            cache_creation_tokens = usage.get("cacheWriteInputTokens", cache_creation_tokens)
+                def _open_converse_stream():
+                    response = self.client.converse_stream(
+                        modelId=target_model,
+                        messages=converse_messages,
+                        system=system_blocks,
+                        inferenceConfig={"maxTokens": 2048, "temperature": 0.7},
+                    )
+                    return response.get("stream")
+
+                async for event in _iter_blocking_stream(_open_converse_stream):
+                    if "contentBlockDelta" in event:
+                        text_delta = event["contentBlockDelta"].get("delta", {}).get("text", "")
+                        if text_delta:
+                            total_text_length += len(text_delta)
+                            yield {"type": "delta", "text": text_delta}
+                    elif "metadata" in event:
+                        usage = event["metadata"].get("usage", {})
+                        input_tokens = usage.get("inputTokens", input_tokens)
+                        output_tokens = usage.get("outputTokens", output_tokens)
+                        cache_read_tokens = usage.get("cacheReadInputTokens", cache_read_tokens)
+                        cache_creation_tokens = usage.get("cacheWriteInputTokens", cache_creation_tokens)
 
             elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
 

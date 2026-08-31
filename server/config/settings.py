@@ -1,26 +1,9 @@
 import os
 import structlog
+from server.config.env import env_int as _env_int, required_env as _required_env
 from server.utils.ip_utils import parse_proxy_networks
 
 logger = structlog.get_logger(__name__)
-
-def _required_env(name: str) -> str:
-    value = os.getenv(name, "").strip()
-    if not value:
-        raise RuntimeError(f"{name} must be set")
-    return value
-
-
-def _env_int(name: str, default: int) -> int:
-    raw = os.getenv(name, str(default))
-    try:
-        value = int(raw)
-    except (TypeError, ValueError):
-        raise RuntimeError(f"{name} must be an integer")
-    if value <= 0:
-        raise RuntimeError(f"{name} must be greater than zero")
-    return value
-
 
 # The value that used to be `security.py`'s fallback. It is public in the repo
 # history, so any token signed with it must be treated as forgeable.
@@ -80,6 +63,12 @@ CHAT_MAX_CONCURRENCY = _env_int("CHAT_MAX_CONCURRENCY", 4)
 CHAT_STREAM_QUEUE_SIZE = _env_int("CHAT_STREAM_QUEUE_SIZE", 128)
 BEDROCK_TIMEOUT_SECONDS = _env_int("BEDROCK_TIMEOUT_SECONDS", 30)
 BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS = _env_int("BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS", 10)
+
+# User messages an unauthenticated caller may send before being asked to log
+# in. chat.js enforces the same number client-side and already handles the 401,
+# but nothing enforced it server-side, so calling the API directly bought
+# unlimited Bedrock inference.
+CHAT_FREE_MESSAGE_LIMIT = _env_int("CHAT_FREE_MESSAGE_LIMIT", 6)
 
 _raw_allowed_models = os.getenv("ALLOWED_MODEL_IDS", "")
 ALLOWED_MODEL_IDS = {
