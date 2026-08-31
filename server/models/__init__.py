@@ -14,6 +14,7 @@ from server.models.event import UserActivityEvent
 from server.models.token import RefreshToken
 from server.models.password_history import PasswordHistory
 from server.models.ai_conversation import AIConversation
+from server.models.one_time_token import OneTimeToken
 
 __all__ = [
     "Base",
@@ -23,4 +24,5 @@ __all__ = [
     "RefreshToken",
     "PasswordHistory",
     "AIConversation",
+    "OneTimeToken",
 ]

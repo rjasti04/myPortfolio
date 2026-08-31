@@ -8,7 +8,7 @@
 - **Backend stack**: FastAPI, Pydantic v2, asyncpg, boto3/botocore, orjson, structlog
 - **Frontend stack**: Vanilla JS modules, Three.js, service worker, web app manifest, DOMPurify, marked, Font Awesome, Google Fonts
 - **Key integrations**: Amazon Bedrock chat API, PostgreSQL activity tracking, FormSubmit contact form, browser `localStorage`/`sessionStorage`, PWA cache storage
-- **Database expectations**: Existing PostgreSQL tables (`users`, `refresh_tokens`, `user_sessions`, `user_activity_events`); schemas/migrations are managed in-repo via Alembic under `server/alembic/` (raw SQL files are excluded)
+- **Database expectations**: PostgreSQL tables `users`, `refresh_tokens`, `one_time_tokens`, `password_history`, `user_sessions`, `user_activity_events`, `ai_conversations`; schemas/migrations are managed in-repo via Alembic under `server/alembic/` (raw SQL files are excluded). CI applies the full chain against Postgres and runs `alembic check`, so a model changed without a migration fails before deploy
 - **Constraints**: SQLAlchemy ORM (async engine + asyncpg driver); API requires `DATABASE_URL`, `AWS_REGION`, and `DEFAULT_MODEL_ID`; frontend API base is hardcoded in `js/analytics.js`
 - **Deployment considerations**: API has no app-level authentication; protect with reverse proxy, firewall/security groups, CORS, and trusted proxy settings
 - **Scalability considerations**: In-memory rate limiting is single-instance only; use shared storage such as Redis before running multiple API instances
@@ -89,13 +89,16 @@ For every technical assessment, use this structure:
     AWS_REGION=us-east-1
     DEFAULT_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
     TESTING=false
+    JWT_SECRET=<openssl rand -hex 32>
     ```
+    `JWT_SECRET` is required and has no fallback; the app refuses to start without it.
     `conftest.py` already injects `TESTING=true` plus mock values for
     `DATABASE_URL`, `AWS_REGION`, and `DEFAULT_MODEL_ID`, so backend tests
     bypass the rate-limiting middleware and the import-time config validation
     in `server/main.py`. `PYTHONPATH` must include the repo root.
 *   **Autonomous Test Commands:**
-    *   *Backend (pytest with in-memory SQLite):* `$env:PYTHONPATH='.'; & 'server/.venv/Scripts/pytest.exe' tests/backend/`
+    *   *Backend (pytest with in-memory SQLite):* `$env:PYTHONPATH='.'; & 'server/.venv/Scripts/pytest.exe'`
+        (`pytest.ini` sets `testpaths`, so no path argument is needed. Lint with `ruff check server tests`.)
     *   *Frontend (Node test runner):* `npm test`
         *   **Node and npm are NOT on the default system PATH.** `npm`, `npx`,
             and `node` will all fail with "command not found". Resolve the Node

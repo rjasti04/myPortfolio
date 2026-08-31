@@ -464,3 +464,81 @@ async def test_repeated_bad_2fa_codes_lock_the_account(async_client):
     )
     assert locked.status_code == 400
     assert "locked" in locked.text.lower()
+
+
+# --- single-use token isolation ---------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_reset_token_cannot_be_spent_as_a_magic_link(async_client, monkeypatch):
+    """Reset, magic-link and pre-auth tokens all used to be rows in
+    refresh_tokens with nothing recording what they were for, so the only thing
+    keeping them apart was the `type` claim on the JWT presenting them. The
+    stored record now carries a purpose and redemption checks it."""
+    captured: list[str] = []
+
+    async def _capture(_recipient, token):
+        captured.append(token)
+
+    monkeypatch.setattr(auth_service, "send_password_reset_email", _capture)
+    email, _ = await _register(async_client)
+    await async_client.post("/api/auth/forgot-password", json={"email": email})
+    reset_token = captured[0]
+
+    replayed = await async_client.post(
+        "/api/auth/magic-link/verify", json={"token": reset_token}
+    )
+    assert replayed.status_code == 401, "a reset token must not authenticate a magic link"
+
+
+@pytest.mark.asyncio
+async def test_changing_the_password_voids_a_pending_reset_link(async_client, monkeypatch):
+    """A link in flight is a live credential. Under the old shared table it was
+    revoked as a side effect of sweeping refresh tokens; now it is explicit."""
+    captured: list[str] = []
+
+    async def _capture(_recipient, token):
+        captured.append(token)
+
+    monkeypatch.setattr(auth_service, "send_password_reset_email", _capture)
+    email, password = await _register(async_client)
+
+    await async_client.post("/api/auth/forgot-password", json={"email": email})
+    pending = captured[0]
+
+    headers = await _auth_header(async_client, email, password)
+    changed = await async_client.post(
+        "/api/auth/change-password",
+        headers=headers,
+        json={"current_password": password, "new_password": "Ch4ngedPassw0rd!"},
+    )
+    assert changed.status_code == 200
+
+    stale = await async_client.post(
+        "/api/auth/reset-password",
+        json={"token": pending, "new_password": "H1jackedPassw0rd!"},
+    )
+    assert stale.status_code == 400, "a reset issued before the change must not still work"
+
+
+@pytest.mark.asyncio
+async def test_a_spent_reset_token_stays_spent(async_client, monkeypatch):
+    captured: list[str] = []
+
+    async def _capture(_recipient, token):
+        captured.append(token)
+
+    monkeypatch.setattr(auth_service, "send_password_reset_email", _capture)
+    email, _ = await _register(async_client)
+    await async_client.post("/api/auth/forgot-password", json={"email": email})
+
+    first = await async_client.post(
+        "/api/auth/reset-password",
+        json={"token": captured[0], "new_password": "F1rstReset!x"},
+    )
+    assert first.status_code == 200
+    second = await async_client.post(
+        "/api/auth/reset-password",
+        json={"token": captured[0], "new_password": "S3condReset!x"},
+    )
+    assert second.status_code == 400

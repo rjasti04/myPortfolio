@@ -6,6 +6,7 @@ from typing import Optional
 from server.models.user import User
 from server.models.token import RefreshToken
 from server.models.session import UserSession
+from server.models.one_time_token import OneTimeToken
 from server.models.password_history import PasswordHistory
 import pyotp
 import qrcode
@@ -42,6 +43,43 @@ import uuid
 logger = structlog.get_logger(__name__)
 
 PASSWORD_HISTORY_LIMIT = 5
+
+PURPOSE_PASSWORD_RESET = "password_reset"
+PURPOSE_MAGIC_LINK = "magic_link"
+PURPOSE_2FA_PRE_AUTH = "2fa_pre_auth"
+
+
+def issue_one_time_token(db: AsyncSession, user_id: uuid.UUID, purpose: str, ttl: timedelta) -> str:
+    """Records a single-use token and returns its jti. The caller commits."""
+    jti = str(uuid.uuid4())
+    db.add(OneTimeToken(
+        user_id=user_id,
+        jti=jti,
+        purpose=purpose,
+        expires_at=datetime.now(timezone.utc) + ttl,
+    ))
+    return jti
+
+
+async def consume_one_time_token(db: AsyncSession, jti: Optional[str], purpose: str) -> bool:
+    """Marks a token spent. False if it is missing, issued for another purpose,
+    already used, or expired. The purpose check is what stops a token minted for
+    one flow being redeemed in another. The caller commits."""
+    if not jti:
+        return False
+    result = await db.execute(select(OneTimeToken).where(OneTimeToken.jti == jti))
+    token = result.scalars().first()
+    if token is None or token.purpose != purpose or token.used_at is not None:
+        return False
+    expires_at = token.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    if expires_at < now:
+        return False
+    token.used_at = now
+    db.add(token)
+    return True
 
 async def register_user(db: AsyncSession, user_data: UserCreate) -> User:
     email_normalized = user_data.email.strip().lower()
@@ -171,12 +209,7 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> TokenResp
         # reset the tally on every attempt, so failed second factors could never
         # accumulate to a lockout - an attacker just logged in again between
         # guesses. verify_2fa_login clears them once the code checks out.
-        pre_auth_jti = str(uuid.uuid4())
-        db.add(RefreshToken(
-            user_id=user.id,
-            token_jti=pre_auth_jti,
-            expires_at=now + timedelta(minutes=5),
-        ))
+        pre_auth_jti = issue_one_time_token(db, user.id, PURPOSE_2FA_PRE_AUTH, timedelta(minutes=5))
         db.add(user)
         await db.commit()
         pre_auth_token = create_pre_auth_token(str(user.id), jti=pre_auth_jti)
@@ -288,6 +321,15 @@ async def revoke_user_tokens(
             .where(UserSession.is_active == True)
             .values(is_active=False, ended_at=datetime.now(timezone.utc), end_reason=end_reason)
         )
+    # Pending reset and magic links are credentials too, so a password change or
+    # a logout must void them. They used to live in refresh_tokens and got swept
+    # up by accident; now it is deliberate and scoped.
+    await db.execute(
+        update(OneTimeToken)
+        .where(OneTimeToken.user_id == user_id)
+        .where(OneTimeToken.used_at.is_(None))
+        .values(used_at=datetime.now(timezone.utc))
+    )
     await db.commit()
     logger.info("all_refresh_tokens_revoked", user_id=str(user_id))
 
@@ -413,15 +455,7 @@ async def request_password_reset(
         logger.info("password_reset_requested_inactive_user", user_id=str(user.id), email=email_normalized)
         return generic_response
 
-    reset_jti = str(uuid.uuid4())
-    reset_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-    db_reset_token = RefreshToken(
-        user_id=user.id,
-        token_jti=reset_jti,
-        expires_at=reset_expires_at,
-        is_revoked=False
-    )
-    db.add(db_reset_token)
+    reset_jti = issue_one_time_token(db, user.id, PURPOSE_PASSWORD_RESET, timedelta(minutes=15))
     await db.commit()
 
     reset_token = create_password_reset_token(subject=str(user.id), jti=reset_jti)
@@ -456,19 +490,12 @@ async def reset_password_with_token(
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token subject") from None
 
-    # Check single-use token status if JTI present
-    if reset_jti:
-        token_result = await db.execute(select(RefreshToken).where(RefreshToken.token_jti == reset_jti))
-        db_reset_token = token_result.scalars().first()
-        now = datetime.now(timezone.utc)
-        if not db_reset_token or db_reset_token.is_revoked or db_reset_token.expires_at.replace(tzinfo=timezone.utc) < now:
-            logger.warning("reset_password_token_already_used_or_revoked", jti=reset_jti, user_id=user_id_str)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This password reset link has already been used or expired."
-            )
-        db_reset_token.is_revoked = True
-        db.add(db_reset_token)
+    if not await consume_one_time_token(db, reset_jti, PURPOSE_PASSWORD_RESET):
+        logger.warning("reset_password_token_already_used_or_revoked", jti=reset_jti, user_id=user_id_str)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This password reset link has already been used or expired."
+        )
 
     # Step 2: Fetch user
     result = await db.execute(select(User).where(User.id == user_id))
@@ -669,22 +696,13 @@ async def verify_2fa_login(db: AsyncSession, data: Verify2FARequest) -> TokenRes
     # The pre-auth token is single-use. Without this it stayed valid for its
     # full five minutes, so capturing one bought unlimited attempts at a
     # six-digit code.
-    db_pre_auth = None
-    if pre_auth_jti:
-        pre_auth_result = await db.execute(
-            select(RefreshToken).where(RefreshToken.token_jti == pre_auth_jti)
+    pre_auth_valid = await consume_one_time_token(db, pre_auth_jti, PURPOSE_2FA_PRE_AUTH)
+    if pre_auth_jti and not pre_auth_valid:
+        logger.warning("2fa_pre_auth_token_reused_or_expired", user_id=user_id_str)
+        raise HTTPException(
+            status_code=400,
+            detail="This sign-in attempt has expired. Please log in again.",
         )
-        db_pre_auth = pre_auth_result.scalars().first()
-        if (
-            not db_pre_auth
-            or db_pre_auth.is_revoked
-            or db_pre_auth.expires_at.replace(tzinfo=timezone.utc) < now
-        ):
-            logger.warning("2fa_pre_auth_token_reused_or_expired", user_id=user_id_str)
-            raise HTTPException(
-                status_code=400,
-                detail="This sign-in attempt has expired. Please log in again.",
-            )
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
@@ -717,11 +735,6 @@ async def verify_2fa_login(db: AsyncSession, data: Verify2FARequest) -> TokenRes
         await db.commit()
         logger.warning("2fa_verify_failed", user_id=str(user.id))
         raise HTTPException(status_code=400, detail="Invalid 2FA code")
-
-    # Burn the pre-auth token now the code has been accepted.
-    if db_pre_auth is not None:
-        db_pre_auth.is_revoked = True
-        db.add(db_pre_auth)
 
     user.failed_login_attempts = 0
     user.locked_until = None
@@ -766,15 +779,7 @@ async def request_magic_link(
         logger.info("magic_link_requested_inactive_user", user_id=str(user.id))
         return generic_response
 
-    magic_jti = str(uuid.uuid4())
-    magic_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
-    db_magic_token = RefreshToken(
-        user_id=user.id,
-        token_jti=magic_jti,
-        expires_at=magic_expires_at,
-        is_revoked=False
-    )
-    db.add(db_magic_token)
+    magic_jti = issue_one_time_token(db, user.id, PURPOSE_MAGIC_LINK, timedelta(minutes=10))
     await db.commit()
 
     magic_token = create_magic_link_token(subject=str(user.id), jti=magic_jti)
@@ -798,15 +803,9 @@ async def verify_magic_link(db: AsyncSession, data: MagicLinkVerifyRequest) -> T
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid token subject") from None
 
-    token_result = await db.execute(select(RefreshToken).where(RefreshToken.token_jti == magic_jti))
-    db_token = token_result.scalars().first()
     now = datetime.now(timezone.utc)
-
-    if not db_token or db_token.is_revoked or db_token.expires_at.replace(tzinfo=timezone.utc) < now:
+    if not await consume_one_time_token(db, magic_jti, PURPOSE_MAGIC_LINK):
         raise HTTPException(status_code=400, detail="This magic link has already been used or expired.")
-
-    db_token.is_revoked = True
-    db.add(db_token)
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
@@ -815,12 +814,7 @@ async def verify_magic_link(db: AsyncSession, data: MagicLinkVerifyRequest) -> T
         raise HTTPException(status_code=400, detail="User not found or inactive")
 
     if user.is_totp_enabled:
-        pre_auth_jti = str(uuid.uuid4())
-        db.add(RefreshToken(
-            user_id=user.id,
-            token_jti=pre_auth_jti,
-            expires_at=now + timedelta(minutes=5),
-        ))
+        pre_auth_jti = issue_one_time_token(db, user.id, PURPOSE_2FA_PRE_AUTH, timedelta(minutes=5))
         pre_token = create_pre_auth_token(str(user.id), jti=pre_auth_jti)
         await db.commit()
         return TokenResponseOr2FA(requires_2fa=True, pre_auth_token=pre_token)
