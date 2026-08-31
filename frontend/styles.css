@@ -5560,10 +5560,17 @@ body.dark-theme .skill-tag.primary .fas {
   line-height: var(--leading-body);
 }
 
+/* The fact pills restated what the paragraph above them already says -
+   "Sauna / 20 minutes / Recovery" under a sentence about a 20-minute sauna -
+   so they read as filler rather than detail. Hidden rather than deleted: the
+   list stays in the markup, and the layout below restores with one word if
+   the tiles ever earn a metadata row worth showing. display:none also drops
+   the pills from the accessibility tree, so screen readers stop hearing the
+   same three words twice. */
 .hobby-facts {
   position: relative;
   z-index: 1;
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   gap: 8px;
   margin: 2px 0 0;
