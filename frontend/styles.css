@@ -7496,9 +7496,17 @@ nav a:hover .nav-shortcut {
     margin-left: 0;
   }
 
+  /* Centre the chain in the full-width pill it becomes here. "safe" is
+     load-bearing, not decoration: this is a scroll container, and on a
+     320-390px phone the four stages plus the latency read overflow it by
+     40-110px. Plain "center" would centre that overflow too, pushing
+     "Browser" past the left edge with no way to scroll back to it. "safe"
+     centres while the row fits and falls back to start the moment it does
+     not, so nothing is ever stranded. Browsers too old to parse it drop the
+     declaration and keep today's flex-start. */
   .act-chain {
     width: 100%;
-    justify-content: flex-start;
+    justify-content: safe center;
   }
 
   .act-visit {
