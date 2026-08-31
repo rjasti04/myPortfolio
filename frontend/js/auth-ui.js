@@ -377,7 +377,7 @@ export async function initAuthUI() {
                 await requestMagicLink(email);
 
                 if (magicSuccess) {
-                    magicSuccess.textContent = 'Magic link sent! Check your email.';
+                    magicSuccess.textContent = 'If that email has an account, a sign-in link is on its way.';
                     magicSuccess.style.display = 'block';
                 }
                 magicLinkForm.reset();
@@ -568,7 +568,7 @@ export async function initAuthUI() {
                 await requestPasswordReset(email);
 
                 // Success
-                forgotSuccess.textContent = 'Reset link sent!';
+                forgotSuccess.textContent = 'If that email has an account, a reset link is on its way.';
                 forgotSuccess.style.display = 'block';
                 forgotForm.reset();
             } catch (err) {

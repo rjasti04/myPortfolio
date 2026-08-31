@@ -19,7 +19,9 @@ from server.schemas.auth import (
 )
 from server.auth.security import (
     get_password_hash,
+    spend_verification_time,
     verify_password,
+    verify_password_scheme,
     create_access_token,
     create_refresh_token,
     create_password_reset_token,
@@ -95,6 +97,9 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> TokenResp
     user = result.scalars().first()
 
     if not user:
+        # Same bcrypt cost as a real check: returning early made response time
+        # a reliable oracle for which addresses have accounts.
+        spend_verification_time()
         logger.warning("login_failed", email=email_normalized)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -123,7 +128,10 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> TokenResp
                 detail="Account is temporarily locked due to multiple failed login attempts. Try again later or reset your password."
             )
 
-    if not verify_password(user_data.password, user.hashed_password):
+    password_matched, needs_rehash = verify_password_scheme(
+        user_data.password, user.hashed_password
+    )
+    if not password_matched:
         user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
         if user.failed_login_attempts >= 5:
             user.locked_until = now + timedelta(minutes=15)
@@ -150,20 +158,41 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> TokenResp
             detail="Inactive user"
         )
 
-    # Reset failed login attempts and update last login
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    user.last_login = now
-    db.add(user)
-    await db.commit()
+    # A login is the only moment the plaintext is available, so it is the only
+    # chance to migrate a pre-SHA256-prehash row. Without this the legacy branch
+    # in verify_password_scheme stays load-bearing forever.
+    if needs_rehash:
+        user.hashed_password = get_password_hash(user_data.password)
+        logger.info("password_hash_upgraded", user_id=str(user.id))
 
     if user.is_totp_enabled:
-        pre_auth_token = create_pre_auth_token(str(user.id))
+        # The lockout counters are deliberately NOT cleared here. A correct
+        # password is only half of this login, and clearing them at this point
+        # reset the tally on every attempt, so failed second factors could never
+        # accumulate to a lockout - an attacker just logged in again between
+        # guesses. verify_2fa_login clears them once the code checks out.
+        pre_auth_jti = str(uuid.uuid4())
+        db.add(RefreshToken(
+            user_id=user.id,
+            token_jti=pre_auth_jti,
+            expires_at=now + timedelta(minutes=5),
+        ))
+        db.add(user)
+        await db.commit()
+        pre_auth_token = create_pre_auth_token(str(user.id), jti=pre_auth_jti)
         logger.info("login_requires_2fa", user_id=str(user.id))
         return TokenResponseOr2FA(
             requires_2fa=True,
             pre_auth_token=pre_auth_token
         )
+
+    # Fully authenticated from here: no second factor stands between the caller
+    # and a token pair, so the lockout state can be cleared.
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.last_login = now
+    db.add(user)
+    await db.commit()
 
     # Generate Refresh Token JTI and record it in database
     jti = str(uuid.uuid4())
@@ -369,19 +398,20 @@ async def request_password_reset(
     result = await db.execute(select(User).where(User.email == email_normalized))
     user = result.scalars().first()
 
+    # Every outcome below returns this. Distinguishing "not registered" or
+    # "inactive" from success let anyone enumerate which addresses hold accounts
+    # by watching the status code.
+    generic_response = {
+        "message": "If that email address has an account, a password reset link is on its way."
+    }
+
     if not user:
         logger.info("password_reset_requested_unknown_email", email=email_normalized)
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Email address is not registered"
-        )
+        return generic_response
 
     if not user.is_active:
         logger.info("password_reset_requested_inactive_user", user_id=str(user.id), email=email_normalized)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User account is inactive"
-        )
+        return generic_response
 
     reset_jti = str(uuid.uuid4())
     reset_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
@@ -399,7 +429,7 @@ async def request_password_reset(
     if background_tasks:
         background_tasks.add_task(send_password_reset_email, user.email, reset_token)
 
-    return {"message": "Password reset link sent successfully to your email."}
+    return generic_response
 
 
 async def reset_password_with_token(
@@ -625,6 +655,7 @@ async def disable_2fa(db: AsyncSession, user: User, data: Disable2FARequest) -> 
 async def verify_2fa_login(db: AsyncSession, data: Verify2FARequest) -> TokenResponseOr2FA:
     payload = verify_token(data.pre_auth_token, expected_type="2fa_pre_auth")
     user_id_str = payload.get("sub")
+    pre_auth_jti = payload.get("jti")
     if not user_id_str:
         raise HTTPException(status_code=400, detail="Invalid token payload")
 
@@ -633,18 +664,70 @@ async def verify_2fa_login(db: AsyncSession, data: Verify2FARequest) -> TokenRes
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid user ID")
 
+    now = datetime.now(timezone.utc)
+
+    # The pre-auth token is single-use. Without this it stayed valid for its
+    # full five minutes, so capturing one bought unlimited attempts at a
+    # six-digit code.
+    db_pre_auth = None
+    if pre_auth_jti:
+        pre_auth_result = await db.execute(
+            select(RefreshToken).where(RefreshToken.token_jti == pre_auth_jti)
+        )
+        db_pre_auth = pre_auth_result.scalars().first()
+        if (
+            not db_pre_auth
+            or db_pre_auth.is_revoked
+            or db_pre_auth.expires_at.replace(tzinfo=timezone.utc) < now
+        ):
+            logger.warning("2fa_pre_auth_token_reused_or_expired", user_id=user_id_str)
+            raise HTTPException(
+                status_code=400,
+                detail="This sign-in attempt has expired. Please log in again.",
+            )
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
 
     if not user or not user.is_active or not user.is_totp_enabled or not user.totp_secret:
         raise HTTPException(status_code=400, detail="User not found or 2FA not enabled")
 
+    # The second factor was outside the lockout entirely: failed codes were not
+    # counted, so a six-digit secret could be walked through at will.
+    if user.locked_until:
+        locked_until_utc = (
+            user.locked_until
+            if user.locked_until.tzinfo
+            else user.locked_until.replace(tzinfo=timezone.utc)
+        )
+        if locked_until_utc > now:
+            logger.warning("2fa_verify_rejected_account_locked", user_id=str(user.id))
+            raise HTTPException(
+                status_code=400,
+                detail="Account is temporarily locked due to repeated failed attempts. Try again later.",
+            )
+
     totp = pyotp.TOTP(user.totp_secret)
     if not totp.verify(data.code):
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+        if user.failed_login_attempts >= 5:
+            user.locked_until = now + timedelta(minutes=15)
+            logger.warning("account_locked_due_to_failed_2fa", user_id=str(user.id))
+        db.add(user)
+        await db.commit()
         logger.warning("2fa_verify_failed", user_id=str(user.id))
         raise HTTPException(status_code=400, detail="Invalid 2FA code")
 
-    now = datetime.now(timezone.utc)
+    # Burn the pre-auth token now the code has been accepted.
+    if db_pre_auth is not None:
+        db_pre_auth.is_revoked = True
+        db.add(db_pre_auth)
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.last_login = now
+    db.add(user)
+
     jti = str(uuid.uuid4())
     expires_at = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
@@ -670,15 +753,18 @@ async def request_magic_link(
     result = await db.execute(select(User).where(User.email == email_normalized))
     user = result.scalars().first()
 
+    # Same enumeration-resistant contract as the password reset above.
+    generic_response = {
+        "message": "If that email address has an account, a sign-in link is on its way."
+    }
+
     if not user:
         logger.info("magic_link_requested_unknown_email", email=email_normalized)
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Email address is not registered"
-        )
+        return generic_response
 
     if not user.is_active:
-        raise HTTPException(status_code=400, detail="User account is inactive")
+        logger.info("magic_link_requested_inactive_user", user_id=str(user.id))
+        return generic_response
 
     magic_jti = str(uuid.uuid4())
     magic_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
@@ -696,7 +782,7 @@ async def request_magic_link(
         background_tasks.add_task(send_magic_link_email, user.email, magic_token)
 
     logger.info("magic_link_requested_successfully", user_id=str(user.id), email=email_normalized)
-    return {"message": "Magic login link sent successfully to your email."}
+    return generic_response
 
 
 async def verify_magic_link(db: AsyncSession, data: MagicLinkVerifyRequest) -> TokenResponseOr2FA:
@@ -729,7 +815,13 @@ async def verify_magic_link(db: AsyncSession, data: MagicLinkVerifyRequest) -> T
         raise HTTPException(status_code=400, detail="User not found or inactive")
 
     if user.is_totp_enabled:
-        pre_token = create_pre_auth_token(str(user.id))
+        pre_auth_jti = str(uuid.uuid4())
+        db.add(RefreshToken(
+            user_id=user.id,
+            token_jti=pre_auth_jti,
+            expires_at=now + timedelta(minutes=5),
+        ))
+        pre_token = create_pre_auth_token(str(user.id), jti=pre_auth_jti)
         await db.commit()
         return TokenResponseOr2FA(requires_2fa=True, pre_auth_token=pre_token)
 

@@ -348,3 +348,119 @@ async def test_delete_account_is_reachable_at_the_path_the_frontend_uses(async_c
         json={"current_password": password, "confirmation_phrase": "DELETE"},
     )
     assert response.status_code == 200, response.text
+
+
+# --- account enumeration ----------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_does_not_reveal_whether_an_account_exists(async_client, monkeypatch):
+    """A 404 for unknown addresses and a 200 for known ones let anyone confirm
+    which emails hold accounts, one request at a time."""
+    async def _noop(*_a, **_k):
+        return None
+
+    monkeypatch.setattr(auth_service, "send_password_reset_email", _noop)
+    email, _ = await _register(async_client)
+
+    known = await async_client.post("/api/auth/forgot-password", json={"email": email})
+    unknown = await async_client.post(
+        "/api/auth/forgot-password", json={"email": f"absent-{uuid.uuid4().hex}@example.com"}
+    )
+
+    assert known.status_code == unknown.status_code == 200
+    assert known.json() == unknown.json(), "responses must be byte-identical"
+
+
+@pytest.mark.asyncio
+async def test_magic_link_does_not_reveal_whether_an_account_exists(async_client):
+    email, _ = await _register(async_client)
+    known = await async_client.post("/api/auth/magic-link/request", json={"email": email})
+    unknown = await async_client.post(
+        "/api/auth/magic-link/request", json={"email": f"absent-{uuid.uuid4().hex}@example.com"}
+    )
+    assert known.status_code == unknown.status_code == 200
+    assert known.json() == unknown.json()
+
+
+@pytest.mark.asyncio
+async def test_a_reset_link_still_reaches_a_real_account(async_client, monkeypatch):
+    """The generic response must not have turned the feature into a no-op."""
+    captured: list[str] = []
+
+    async def _capture(_recipient, token):
+        captured.append(token)
+
+    monkeypatch.setattr(auth_service, "send_password_reset_email", _capture)
+    email, _ = await _register(async_client)
+
+    await async_client.post("/api/auth/forgot-password", json={"email": email})
+    assert captured, "a registered address must still be sent a link"
+
+    await async_client.post(
+        "/api/auth/forgot-password", json={"email": f"absent-{uuid.uuid4().hex}@example.com"}
+    )
+    assert len(captured) == 1, "an unknown address must not trigger mail"
+
+
+# --- second factor brute force ----------------------------------------------
+
+
+async def _enable_2fa(async_client, email, password):
+    headers = await _auth_header(async_client, email, password)
+    secret = (await async_client.post("/api/auth/2fa/setup", headers=headers)).json()["secret"]
+    enabled = await async_client.post(
+        "/api/auth/2fa/enable", headers=headers, json={"code": pyotp.TOTP(secret).now()}
+    )
+    assert enabled.status_code == 200
+    return secret
+
+
+@pytest.mark.asyncio
+async def test_a_pre_auth_token_cannot_be_replayed(async_client):
+    """It carried no jti, so a captured token stayed usable for five minutes -
+    long enough to walk a six-digit code space at leisure."""
+    email, password = await _register(async_client)
+    secret = await _enable_2fa(async_client, email, password)
+
+    challenge = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    pre_auth = challenge.json()["pre_auth_token"]
+
+    first = await async_client.post(
+        "/api/auth/2fa/verify",
+        json={"pre_auth_token": pre_auth, "code": pyotp.TOTP(secret).now()},
+    )
+    assert first.status_code == 200
+
+    replay = await async_client.post(
+        "/api/auth/2fa/verify",
+        json={"pre_auth_token": pre_auth, "code": pyotp.TOTP(secret).now()},
+    )
+    assert replay.status_code == 400, "a spent pre-auth token must not work twice"
+
+
+@pytest.mark.asyncio
+async def test_repeated_bad_2fa_codes_lock_the_account(async_client):
+    """Failed second-factor attempts were not counted at all, leaving the
+    six-digit code the only thing between an attacker and the account."""
+    email, password = await _register(async_client)
+    await _enable_2fa(async_client, email, password)
+
+    for _ in range(5):
+        challenge = await async_client.post(
+            "/api/auth/login", json={"email": email, "password": password}
+        )
+        assert challenge.status_code == 200
+        attempt = await async_client.post(
+            "/api/auth/2fa/verify",
+            json={"pre_auth_token": challenge.json()["pre_auth_token"], "code": "000000"},
+        )
+        assert attempt.status_code == 400
+
+    locked = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert locked.status_code == 400
+    assert "locked" in locked.text.lower()
