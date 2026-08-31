@@ -31,4 +31,11 @@ class UserActivityEvent(Base):
             text("created_at DESC"),
             text("event_id DESC"),
         ),
+        # Containment lookups over the payload (e.g. event_data @> '{"theme":"dark"}').
+        Index(
+            "ix_events_data_gin",
+            "event_data",
+            postgresql_using="gin",
+        ),
     )
+

@@ -39,7 +39,7 @@ def _frontend_endpoints() -> dict[str, set[str]]:
     """Every `${API_BASE}/...` template literal, mapped to the files using it."""
     found: dict[str, set[str]] = {}
     for js in FRONTEND_JS:
-        for match in re.finditer(r"`\$\{API_BASE\}(/[^`]*)`", js.read_text()):
+        for match in re.finditer(r"`\$\{API_BASE\}(/[^`]*)`", js.read_text(encoding="utf-8")):
             found.setdefault(_normalise(match.group(1)), set()).add(js.name)
     return found
 
