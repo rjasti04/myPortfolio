@@ -24,8 +24,15 @@ import sys
 # Ensure server is in path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from dotenv import load_dotenv
+
 from server.models import Base
 target_metadata = Base.metadata
+
+# Safely load environment from .env files without shell sourcing
+_repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(os.path.join(_repo_root, ".env"))
+load_dotenv(os.path.join(_repo_root, "server", ".env"))
 
 # Set database URL dynamically from env
 # No fallback: a migration run against a placeholder DSN is worse than one that

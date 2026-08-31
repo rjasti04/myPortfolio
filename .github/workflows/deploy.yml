@@ -292,21 +292,8 @@ jobs:
             -r "$APP_DIR/server/requirements.txt"
 
           # An SSH command does not inherit the environment systemd gives the
-          # service, so DATABASE_URL has to be loaded here. It used to fall back
-          # to a placeholder DSN when unset, which meant a migration run could
-          # quietly target the wrong database or fail with a confusing
-          # connection error; there is no fallback now, so make it explicit.
-          set -a
-          for candidate in "$APP_DIR/.env" "$APP_DIR/server/.env"; do
-            [ -f "$candidate" ] && . "$candidate"
-          done
-          set +a
-
-          if [ -z "${DATABASE_URL:-}" ]; then
-            echo "::error::DATABASE_URL is not set for the migration step."
-            echo "Put it in $APP_DIR/.env so alembic can reach the database."
-            exit 1
-          fi
+          # service. alembic/env.py loads .env directly via python-dotenv,
+          # avoiding shell-sourcing errors from unquoted env variables.
 
           cd "$APP_DIR/server"
           "$APP_DIR/.venv/bin/alembic" upgrade head
