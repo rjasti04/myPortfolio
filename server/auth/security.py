@@ -1,4 +1,3 @@
-import os
 import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Union, Optional
@@ -6,7 +5,8 @@ from passlib.context import CryptContext
 import jwt
 from fastapi import HTTPException, status
 
-JWT_SECRET = os.getenv("JWT_SECRET", "supersecret_default_key_change_in_production")
+from server.config.settings import JWT_SECRET
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 30

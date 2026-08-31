@@ -1,9 +1,20 @@
+import hashlib
 import os
 import structlog
 import aiosmtplib
 from email.message import EmailMessage
 
 logger = structlog.get_logger(__name__)
+
+
+def _token_fingerprint(token: str) -> str:
+    """A short, non-reversible tag for correlating a token across log lines.
+
+    Reset and magic links used to be logged in full, which put a working
+    account-takeover credential into the log stream for anyone with read
+    access. A truncated digest keeps the diagnostic value without the secret.
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()[:12]
 
 SMTP_HOST = os.getenv("SMTP_HOST", "127.0.0.1")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "25"))
@@ -30,7 +41,7 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
     logger.info(
         "sending_password_reset_email",
         recipient_email=email,
-        reset_link=reset_link,
+        token_fingerprint=_token_fingerprint(reset_token),
         smtp_host=SMTP_HOST,
         smtp_port=SMTP_PORT,
         from_email=EMAILS_FROM_EMAIL,
@@ -83,8 +94,11 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
         send_kwargs["start_tls"] = True
         send_kwargs["validate_certs"] = True
     else:
+        # Only a loopback relay is exempt from TLS; anything remote keeps
+        # certificate validation on, since the message carries a live
+        # account-recovery credential.
         send_kwargs["start_tls"] = False if SMTP_HOST in ("127.0.0.1", "localhost") else None
-        send_kwargs["validate_certs"] = False
+        send_kwargs["validate_certs"] = SMTP_HOST not in ("127.0.0.1", "localhost")
 
     try:
         await aiosmtplib.send(msg, **send_kwargs)
@@ -100,7 +114,11 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
 
 async def send_magic_link_email(email: str, magic_token: str) -> None:
     magic_link = f"https://rjasti.com/?magic_token={magic_token}"
-    logger.info("sending_magic_link_email", recipient_email=email, magic_link=magic_link)
+    logger.info(
+        "sending_magic_link_email",
+        recipient_email=email,
+        token_fingerprint=_token_fingerprint(magic_token),
+    )
 
     msg = EmailMessage()
     msg["Subject"] = "Passwordless Magic Link - rjasti.com"

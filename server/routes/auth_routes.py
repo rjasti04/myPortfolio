@@ -61,10 +61,11 @@ async def verify_magic_link(data: MagicLinkVerifyRequest, db: AsyncSession = Dep
 @router.post("/change-password")
 async def change_password(
     data: ChangePasswordRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    return await auth_service.change_password(db, current_user, data)
+    return await auth_service.change_user_password(db, current_user, data, background_tasks)
 
 @router.post("/forgot-password")
 async def forgot_password(
@@ -77,9 +78,10 @@ async def forgot_password(
 @router.post("/reset-password")
 async def reset_password(
     data: ResetPasswordRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ):
-    return await auth_service.reset_password(db, data)
+    return await auth_service.reset_password_with_token(db, data, background_tasks)
 
 @router.delete("/account")
 async def delete_account(
@@ -87,14 +89,14 @@ async def delete_account(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    return await auth_service.delete_account(db, current_user, data)
+    return await auth_service.delete_user_account(db, current_user, data)
 
 @router.get("/sessions", response_model=list[UserSessionResponse])
 async def get_active_sessions(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    return await auth_service.get_user_auth_sessions(db, current_user)
+    return await auth_service.get_user_sessions(db, current_user)
 
 @router.delete("/sessions/{session_id}")
 async def revoke_session(
@@ -102,4 +104,4 @@ async def revoke_session(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    return await auth_service.revoke_user_auth_session(db, current_user, session_id)
+    return await auth_service.revoke_specific_session(db, current_user, session_id)
