@@ -452,8 +452,18 @@ body.dropdown-open header {
   z-index: 1300;
 }
 
+/* The chat dialog joins the nav and the dropdowns on the one scrim rather
+   than growing a second one. It has to hang off .layout: .layout is a
+   stacking context (position: relative, z-index: 1), so a scrim on body
+   would paint over everything inside it, the chat included. It also cannot
+   be a pseudo-element of .chat-widget itself - dragging the bubble sets an
+   inline transform on the widget, which would make a position: fixed child
+   resolve against the widget's own box instead of the viewport and shrink
+   the blur to a postage stamp that slides around. At z-index 1200 the scrim
+   covers the header (1000) and sits under the widget (9999). */
 body.nav-open .layout::after,
-body.dropdown-open .layout::after {
+body.dropdown-open .layout::after,
+body.chat-open .layout::after {
   content: '';
   position: fixed;
   inset: 0;
@@ -466,7 +476,8 @@ body.dropdown-open .layout::after {
 }
 
 body.dark-theme.nav-open .layout::after,
-body.dark-theme.dropdown-open .layout::after {
+body.dark-theme.dropdown-open .layout::after,
+body.dark-theme.chat-open .layout::after {
   background: rgba(0, 0, 0, 0.78);
 }
 
