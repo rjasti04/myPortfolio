@@ -216,3 +216,54 @@ async def test_streaming_does_not_block_the_event_loop(async_client):
     # by the stream the counter would barely move; the threshold is deliberately
     # far below the theoretical ~35 so timing jitter cannot make this flaky.
     assert ticks >= 8, f"event loop was starved during streaming (only {ticks} ticks)"
+
+
+@pytest.mark.asyncio
+async def test_anonymous_callers_are_capped_at_the_free_message_limit(async_client):
+    """chat.js caps anonymous conversations and already handles this 401, but
+    the limit lived only in the browser - calling the API directly bought
+    unlimited inference."""
+    from server.config.settings import CHAT_FREE_MESSAGE_LIMIT
+
+    messages = [
+        {"role": "user" if i % 2 == 0 else "assistant", "content": f"m{i}"}
+        for i in range(CHAT_FREE_MESSAGE_LIMIT * 2 + 2)
+    ]
+    user_messages = sum(1 for m in messages if m["role"] == "user")
+    assert user_messages > CHAT_FREE_MESSAGE_LIMIT
+
+    with patch("server.services.bedrock_service.bedrock_service.client.converse_stream") as mock_converse:
+        mock_converse.return_value = {"stream": []}
+        response = await async_client.post(
+            "/api/chat/stream",
+            json={"model_id": "google.gemma-3-4b-it", "messages": messages},
+        )
+        assert response.status_code == 401
+        assert "free messages" in response.text
+        mock_converse.assert_not_called(), "Bedrock must not be invoked past the free limit"
+
+
+@pytest.mark.asyncio
+async def test_the_free_limit_does_not_apply_to_signed_in_callers(async_client):
+    import uuid as _uuid
+
+    from server.config.settings import CHAT_FREE_MESSAGE_LIMIT
+
+    email = f"cap-{_uuid.uuid4().hex[:12]}@example.com"
+    password = "Str0ngPassw0rd!"
+    await async_client.post("/api/auth/register", json={"email": email, "password": password})
+    login = await async_client.post("/api/auth/login", json={"email": email, "password": password})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    messages = [
+        {"role": "user" if i % 2 == 0 else "assistant", "content": f"m{i}"}
+        for i in range(CHAT_FREE_MESSAGE_LIMIT * 2 + 2)
+    ]
+    with patch("server.services.bedrock_service.bedrock_service.client.converse_stream") as mock_converse:
+        mock_converse.return_value = {"stream": [{"contentBlockDelta": {"delta": {"text": "ok"}}}]}
+        response = await async_client.post(
+            "/api/chat/stream", headers=headers,
+            json={"model_id": "google.gemma-3-4b-it", "messages": messages},
+        )
+    assert response.status_code == 200
+    assert "ok" in response.text

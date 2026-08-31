@@ -2,18 +2,30 @@ import json
 import uuid
 import logging
 import asyncio
-from typing import AsyncGenerator
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from typing import AsyncGenerator, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from starlette.background import BackgroundTask
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from server.auth.dependencies import get_current_user, get_optional_current_user
 from server.db.database import get_db
+from server.models.user import User
 from server.schemas.chat import ChatStreamRequest
 from server.services.bedrock_service import bedrock_service
+from server.services.chat_history_service import (
+    delete_conversation,
+    get_conversation_detail,
+    get_user_conversations,
+    save_or_update_conversation,
+)
 from server.models.event import UserActivityEvent
 from server.utils.role_utils import ensure_alternating_roles
-from server.config.settings import ALLOWED_MODEL_IDS, DEFAULT_MODEL_ID
+from server.config.settings import (
+    ALLOWED_MODEL_IDS,
+    CHAT_FREE_MESSAGE_LIMIT,
+    DEFAULT_MODEL_ID,
+)
 from server.config.bedrock import acquire_bedrock_slot
 
 router = APIRouter(prefix="/chat", tags=["Chat & AI"])
@@ -26,6 +38,7 @@ async def chat_stream_endpoint(
     request_data: ChatStreamRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """
     Server-Sent Events (SSE) chat streaming endpoint.
@@ -34,6 +47,18 @@ async def chat_stream_endpoint(
     requested_model = request_data.model_id or DEFAULT_MODEL_ID
     if ALLOWED_MODEL_IDS and requested_model not in ALLOWED_MODEL_IDS:
         raise HTTPException(status_code=400, detail=f"Unsupported model: {requested_model}")
+
+    # chat.js caps anonymous conversations and already handles this 401, but the
+    # limit was only ever enforced in the browser: calling the API directly gave
+    # an anonymous caller unlimited inference at our expense.
+    if current_user is None:
+        user_messages = sum(1 for message in request_data.messages if message.role == "user")
+        if user_messages > CHAT_FREE_MESSAGE_LIMIT:
+            raise HTTPException(
+                status_code=401,
+                detail="You have reached the maximum number of free messages. Please log in to continue.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     messages_payload = ensure_alternating_roles([msg.model_dump() for msg in request_data.messages])
     session_id_raw = request.headers.get("X-Session-ID") or request.cookies.get("session_id")
@@ -95,6 +120,38 @@ async def chat_stream_endpoint(
                 except Exception as exc:
                     logger.warning(f"Failed to record LLM telemetry event: {exc}")
                     await db.rollback()
+
+            # Persist the transcript for signed-in users. ai_conversations, its
+            # service and its migration all shipped, but nothing ever wrote to
+            # the table because the only code that called this lived in an
+            # unrouted module.
+            if current_user is not None and complete_text:
+                try:
+                    transcript = [
+                        {"role": message.role, "content": message.content}
+                        for message in request_data.messages
+                    ] + [{"role": "assistant", "content": complete_text}]
+                    conversation_uuid = (
+                        uuid.UUID(request_data.conversation_id)
+                        if request_data.conversation_id
+                        else None
+                    )
+                    # The request-scoped session, same as the telemetry write
+                    # above: it stays open for the life of the streaming
+                    # response. The unrouted controller opened its own session
+                    # straight off the engine, which also made it untestable,
+                    # since a dependency override cannot reach past it.
+                    await save_or_update_conversation(
+                        db=db,
+                        user_id=current_user.id,
+                        conversation_id=conversation_uuid,
+                        model_id=requested_model,
+                        messages=transcript,
+                    )
+                except (ValueError, TypeError) as exc:
+                    logger.warning(f"Skipping history save, bad conversation_id: {exc}")
+                except Exception as exc:
+                    logger.error(f"Failed to save chat history: {exc}")
         finally:
             await slot.release()
 
@@ -134,3 +191,42 @@ async def chat_summarize_endpoint(request_data: ChatStreamRequest):
     finally:
         await slot.release()
 
+
+# --- Conversation history ---------------------------------------------------
+# These were implemented in a controller module that no router ever included,
+# so the whole feature was unreachable despite having a model and a migration.
+
+@router.get("/history", summary="List the caller's saved conversations")
+async def list_chat_history(
+    limit: int = Query(default=50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return {"conversations": await get_user_conversations(db=db, user_id=current_user.id, limit=limit)}
+
+
+@router.get("/history/{conversation_id}", summary="Fetch one conversation transcript")
+async def get_chat_history_detail(
+    conversation_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    detail = await get_conversation_detail(
+        db=db, user_id=current_user.id, conversation_id=conversation_id
+    )
+    if not detail:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return detail
+
+
+@router.delete("/history/{conversation_id}", summary="Delete one conversation")
+async def delete_chat_history(
+    conversation_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not await delete_conversation(
+        db=db, user_id=current_user.id, conversation_id=conversation_id
+    ):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"detail": "Conversation deleted successfully"}
