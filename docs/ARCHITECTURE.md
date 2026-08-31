@@ -38,7 +38,10 @@ A lightweight, asynchronous Python API.
 *   **`server/main.py`**: The FastAPI application.
     *   **Endpoints:** Handles AI chat generation (via Amazon Bedrock), authentication, and analytics tracking.
     *   **Stack:** `SQLAlchemy` ORM with `asyncpg` driver (managed via `alembic` migrations), `Pydantic v2` for data validation, `boto3` for AWS services.
-*   **`server/requirements.txt`**: Backend dependencies.
+*   **`server/requirements.in`**: Direct backend dependencies. Edit this one.
+*   **`server/requirements.txt`** / **`requirements-dev.txt`**: Generated locks - every
+    package pinned with hashes, installed with `--require-hashes` by CI and the
+    deploy. Regenerate with `uv pip compile` (see README); never edit by hand.
 
 ## Key Data Flows
 

@@ -1,0 +1,52 @@
+# Direct runtime dependencies, human-edited.
+#
+# This is the file you change. The pinned, hash-checked lock that CI and the
+# production host actually install from is generated with:
+#
+#   uv pip compile server/requirements.in --universal \
+#     --python-version 3.10 --generate-hashes \
+#     -o server/requirements.txt
+#
+# `--universal` is required, not cosmetic: it emits environment markers so one
+# lock covers every interpreter from 3.10 up. A lock resolved for a single
+# version pins conditional dependencies unconditionally - a 3.10 resolve pins
+# backports-asyncio-runner, which refuses to install on 3.11 - so it would
+# break the moment CI and the host disagreed on the Python version.
+
+# --- Web framework and ASGI server ---
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# --- Database ---
+asyncpg>=0.29.0
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+
+# --- Serialization and validation ---
+pydantic>=2.5.0
+pydantic-settings>=2.0.0
+orjson>=3.9.0
+python-multipart>=0.0.6
+email-validator>=2.1.0
+
+# --- AWS Bedrock ---
+boto3>=1.34.0
+botocore>=1.34.0
+
+# --- Auth ---
+passlib[bcrypt]>=1.7.4
+bcrypt<4.0.0
+pyjwt>=2.8.0
+pyotp>=2.9.0
+qrcode>=7.4.2
+pillow>=10.0.0
+
+# --- Activity ingest pipeline ---
+aiokafka>=0.10.0
+
+# --- Outbound HTTP and email ---
+httpx>=0.25.0
+aiosmtplib>=3.0.0
+
+# --- Logging ---
+structlog>=23.2.0

@@ -14,6 +14,7 @@ jobs:
   frontend-check:
     name: Frontend Lint & Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -37,6 +38,7 @@ jobs:
   backend-check:
     name: Backend Pytest Suite
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -46,11 +48,16 @@ jobs:
         with:
           python-version: '3.10'
           cache: 'pip'
+          cache-dependency-path: server/requirements*.txt
 
-      - name: Install Backend Dependencies
+      # requirements-dev.txt is a superset of requirements.txt resolved in one
+      # pass, so CI can never test against a different version of a shared
+      # package than production installs. --require-hashes makes an unpinned or
+      # substituted artifact a hard failure rather than a silent upgrade.
+      - name: Install Pinned Backend & Test Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r server/requirements.txt pytest pytest-asyncio httpx aiosqlite
+          pip install --require-hashes -r server/requirements-dev.txt
 
       - name: Run Backend Pytest Suite
         run: pytest tests/backend/
@@ -70,6 +77,25 @@ jobs:
     needs: [frontend-check, backend-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Serialises deploys. Two merges in quick succession previously ran two
+    # `rsync --delete` passes and two `alembic upgrade head` invocations against
+    # the same host at the same time. Queue rather than cancel: interrupting a
+    # half-finished migration or file sync is worse than waiting.
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USERNAME }}
+      # Single source of truth for the remote layout: the rsync targets below
+      # and every remote script are driven from these, so a snapshot can never
+      # back up a different directory than the deploy overwrites.
+      REMOTE_APP_DIR: /home/${{ secrets.EC2_USERNAME }}/fastapi
+      WEB_ROOT: /var/www/html
+      HEALTH_URL: ${{ vars.HEALTH_CHECK_URL || 'https://rjasti.com/api/health' }}
 
     steps:
       - name: Checkout Code
@@ -80,13 +106,34 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      # Everything below this point is recoverable: the previous release is on
+      # disk before a single byte is overwritten.
+      - name: Snapshot Current Release for Rollback
+        run: |
+          ssh "$EC2_USER@$EC2_HOST" bash -se -- "$REMOTE_APP_DIR" "$WEB_ROOT" <<'REMOTE'
+          set -euo pipefail
+          APP_DIR="$1"
+          WEB_ROOT="$2"
+          BACKUP_DIR="$APP_DIR/../deploy-backups"
+          mkdir -p "$APP_DIR/server" "$BACKUP_DIR"
+
+          rsync -a --delete "$APP_DIR/server/" "$BACKUP_DIR/server.prev/"
+          sudo rsync -a --delete "$WEB_ROOT/" "$BACKUP_DIR/html.prev/"
+
+          # Recorded so a failed deploy can report which revision the schema
+          # was on before migrations ran.
+          if [ -x "$APP_DIR/.venv/bin/alembic" ] && [ -f "$APP_DIR/server/alembic.ini" ]; then
+            (cd "$APP_DIR/server" && "$APP_DIR/.venv/bin/alembic" current \
+              > "$BACKUP_DIR/alembic-revision.prev" 2>/dev/null) || true
+          fi
+          echo "Snapshot written to $BACKUP_DIR"
+          REMOTE
+          echo "DEPLOY_SNAPSHOT=ok" >> "$GITHUB_ENV"
 
       - name: Deploy FastAPI Backend (server/)
         run: |
-          # Ensure target directory exists on EC2
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "mkdir -p /home/${{ secrets.EC2_USERNAME }}/fastapi/server"
-          
           # Sync server directory to EC2, excluding virtual environments, secrets, and caches
           rsync -avz --delete \
             --exclude=".venv" \
@@ -94,7 +141,7 @@ jobs:
             --exclude="__pycache__" \
             --exclude=".env*" \
             --exclude=".git" \
-            server/ ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/fastapi/server/
+            server/ "$EC2_USER@$EC2_HOST:$REMOTE_APP_DIR/server/"
 
       - name: Deploy Static Frontend to Apache (/var/www/html/)
         run: |
@@ -103,20 +150,113 @@ jobs:
           rsync -avz --delete \
             --rsync-path="sudo rsync" \
             --exclude="tests" \
-            frontend/ ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/var/www/html/
+            frontend/ "$EC2_USER@$EC2_HOST:$WEB_ROOT/"
+
+      - name: Install Dependencies and Run Migrations
+        run: |
+          ssh "$EC2_USER@$EC2_HOST" bash -se -- "$REMOTE_APP_DIR" <<'REMOTE'
+          set -euo pipefail
+          APP_DIR="$1"
+
+          # Same hash-checked lock CI tested against.
+          "$APP_DIR/.venv/bin/pip" install --require-hashes \
+            -r "$APP_DIR/server/requirements.txt"
+
+          cd "$APP_DIR/server"
+          "$APP_DIR/.venv/bin/alembic" upgrade head
+          REMOTE
 
       - name: Restart FastAPI and HTTPD Services
         run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "
-            # Install any new dependencies
-            /home/${{ secrets.EC2_USERNAME }}/fastapi/.venv/bin/pip install -r /home/${{ secrets.EC2_USERNAME }}/fastapi/server/requirements.txt
-            
-            # Run database migrations
-            cd /home/${{ secrets.EC2_USERNAME }}/fastapi/server && ../.venv/bin/alembic upgrade head
+          ssh "$EC2_USER@$EC2_HOST" bash -se <<'REMOTE'
+          set -euo pipefail
+          sudo systemctl restart fastapi.service
+          sudo systemctl restart httpd
+          REMOTE
 
-            # Restart the FastAPI service
-            sudo systemctl restart fastapi.service
-            
-            # Restart the Apache HTTPD service
-            sudo systemctl restart httpd
-          "
+      # A restart that returns 0 only means systemd accepted the unit, not that
+      # the app came up. An import-time failure - a missing JWT_SECRET, say -
+      # exits after systemd has already reported success, which used to leave
+      # the site down behind a green checkmark.
+      - name: Verify Deployment Health
+        run: |
+          ssh "$EC2_USER@$EC2_HOST" bash -se <<'REMOTE'
+          set -euo pipefail
+          for unit in fastapi.service httpd; do
+            if ! systemctl is-active --quiet "$unit"; then
+              echo "::error::$unit is not active after restart"
+              systemctl status "$unit" --no-pager -l | tail -40 || true
+              journalctl -u "$unit" -n 60 --no-pager || true
+              exit 1
+            fi
+            echo "$unit is active"
+          done
+          REMOTE
+
+          echo "Probing $HEALTH_URL"
+          MAX_ATTEMPTS=12
+          healthy=0
+          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            if body="$(curl -fsS --max-time 10 "$HEALTH_URL")"; then
+              if printf '%s' "$body" | grep -qE '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+                echo "Healthy after ${attempt} attempt(s): $body"
+                healthy=1
+                break
+              fi
+              echo "Attempt ${attempt}/${MAX_ATTEMPTS}: reachable but not healthy -> $body"
+            else
+              echo "Attempt ${attempt}/${MAX_ATTEMPTS}: no healthy response yet"
+            fi
+            sleep 5
+          done
+
+          if [ "$healthy" -ne 1 ]; then
+            echo "::error::$HEALTH_URL never reported status=ok; rolling back"
+            exit 1
+          fi
+
+      # Restores the previous code on both tiers and brings the services back.
+      # The database is deliberately NOT downgraded: `alembic downgrade` can
+      # drop columns and lose rows, so migrations must stay backward-compatible
+      # with the release before them (expand now, contract in a later deploy).
+      - name: Roll Back Failed Deployment
+        if: failure() && env.DEPLOY_SNAPSHOT == 'ok'
+        run: |
+          echo "::warning::Deployment failed - restoring the previous release"
+          ssh "$EC2_USER@$EC2_HOST" bash -se -- "$REMOTE_APP_DIR" "$WEB_ROOT" <<'REMOTE'
+          set -euo pipefail
+          APP_DIR="$1"
+          WEB_ROOT="$2"
+          BACKUP_DIR="$APP_DIR/../deploy-backups"
+
+          rsync -a --delete "$BACKUP_DIR/server.prev/" "$APP_DIR/server/"
+          sudo rsync -a --delete "$BACKUP_DIR/html.prev/" "$WEB_ROOT/"
+
+          "$APP_DIR/.venv/bin/pip" install --require-hashes \
+            -r "$APP_DIR/server/requirements.txt"
+
+          sudo systemctl restart fastapi.service
+          sudo systemctl restart httpd
+
+          if [ -f "$BACKUP_DIR/alembic-revision.prev" ]; then
+            echo "Schema revision before this deploy:"
+            cat "$BACKUP_DIR/alembic-revision.prev"
+          fi
+          echo "Code rolled back. The database schema was NOT downgraded - if this"
+          echo "deploy applied a migration, verify it is compatible with the"
+          echo "restored release."
+          REMOTE
+
+      - name: Confirm Rollback Restored Service
+        if: failure() && env.DEPLOY_SNAPSHOT == 'ok'
+        run: |
+          for attempt in $(seq 1 6); do
+            if curl -fsS --max-time 10 "$HEALTH_URL" \
+                 | grep -qE '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+              echo "::notice::Rollback succeeded - $HEALTH_URL is healthy again"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Rollback did not restore a healthy service - manual intervention required"
+          exit 1

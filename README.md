@@ -23,7 +23,8 @@ FastAPI service for activity tracking and Amazon Bedrock-powered chat.
 |   |-- js/                 # Frontend modules
 |   |-- tests/              # Frontend unit tests
 |-- server/main.py          # FastAPI activity and chat API
-|-- server/requirements.txt # Backend Python dependencies
+|-- server/requirements.in  # Backend dependencies (edit this)
+|-- server/requirements.txt # Pinned, hash-checked lock (generated)
 |-- tests/backend/          # Backend Python unit tests
 |-- scripts/                # Image maintenance helpers
 |-- docs/                   # Supporting documentation
@@ -44,8 +45,27 @@ tables. Migration SQL is not included in this repository.
 
 ```bash
 npm install
-python -m pip install -r server/requirements.txt
+python -m pip install -r server/requirements.txt          # runtime only
+python -m pip install -r server/requirements-dev.txt      # runtime + test tools
 ```
+
+`requirements.txt` and `requirements-dev.txt` are generated locks: every
+package is pinned to an exact version with hashes, so CI, your machine and the
+production host install byte-identical dependencies. Do not edit them by hand.
+
+To add or upgrade a dependency, edit `server/requirements.in` (or
+`requirements-dev.in`) and regenerate both:
+
+```bash
+uv pip compile server/requirements.in --universal \
+  --python-version 3.10 --generate-hashes -o server/requirements.txt
+uv pip compile server/requirements-dev.in --universal \
+  --python-version 3.10 --generate-hashes -o server/requirements-dev.txt
+```
+
+`--universal` matters: it emits environment markers so one lock covers every
+interpreter from 3.10 up. A single-version resolve pins conditional packages
+unconditionally and breaks as soon as CI and the host disagree on Python.
 
 ## Run the Frontend Locally
 
