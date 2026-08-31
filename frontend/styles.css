@@ -8056,6 +8056,14 @@ body.dark-theme .ai-sidebar {
   width: 100%;
 }
 
+/* An odd number of cards leaves the last one alone in a two-column row with a
+   hole beside it. Written as last-and-odd rather than as :nth-child(5) so the
+   row closes itself whatever the count grows or shrinks to; on the one-column
+   layout below 768px it is a no-op, since 1 / -1 is that single column. */
+.ai-suggestion-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .ai-suggestion-card {
   background: var(--card-bg);
   border: 1px solid var(--border);
