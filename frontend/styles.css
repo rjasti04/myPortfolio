@@ -5683,6 +5683,21 @@ body.dark-theme .skill-tag.primary .fas {
   display: flex !important;
 }
 
+/* The topic chips earn their keep on a wide contact layout, where they sit
+   beside the form and cost nothing. On a phone held upright the column is
+   already tall, and four full-width chips push the name/email/message fields
+   an extra screen down - the visitor scrolls past the help to reach the thing
+   it was helping with. Hide them there; the seeded copy is a convenience, not
+   content, and the placeholder still says what to write.
+   Overrides the .js-enabled display above, so it has to match its !important
+   and follow it in source order. */
+@media (orientation: portrait) and (width <= 640px) {
+  .contact-prompts,
+  .js-enabled .contact-prompts.js-only {
+    display: none !important;
+  }
+}
+
 .header-left,
 .profile-trigger,
 .logo-text {
