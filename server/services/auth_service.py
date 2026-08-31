@@ -89,7 +89,7 @@ async def register_user(db: AsyncSession, user_data: UserCreate) -> User:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
-        )
+        ) from None
 
 async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> TokenResponseOr2FA:
     email_normalized = user_data.email.strip().lower()
@@ -226,7 +226,7 @@ async def refresh_user_token(db: AsyncSession, token_data: RefreshTokenRequest) 
     try:
         user_id = uuid.UUID(user_id_str)
     except ValueError:
-        raise HTTPException(status_code=401, detail="Invalid token subject")
+        raise HTTPException(status_code=401, detail="Invalid token subject") from None
 
     # Look up the refresh token in the database
     token_result = await db.execute(select(RefreshToken).where(RefreshToken.token_jti == jti))
@@ -444,7 +444,7 @@ async def reset_password_with_token(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired password reset link"
-        )
+        ) from None
 
     user_id_str = payload.get("sub")
     reset_jti = payload.get("jti")
@@ -454,7 +454,7 @@ async def reset_password_with_token(
     try:
         user_id = uuid.UUID(user_id_str)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token subject")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token subject") from None
 
     # Check single-use token status if JTI present
     if reset_jti:
@@ -662,7 +662,7 @@ async def verify_2fa_login(db: AsyncSession, data: Verify2FARequest) -> TokenRes
     try:
         user_id = uuid.UUID(user_id_str)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid user ID")
+        raise HTTPException(status_code=400, detail="Invalid user ID") from None
 
     now = datetime.now(timezone.utc)
 
@@ -796,7 +796,7 @@ async def verify_magic_link(db: AsyncSession, data: MagicLinkVerifyRequest) -> T
     try:
         user_id = uuid.UUID(user_id_str)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid token subject")
+        raise HTTPException(status_code=400, detail="Invalid token subject") from None
 
     token_result = await db.execute(select(RefreshToken).where(RefreshToken.token_jti == magic_jti))
     db_token = token_result.scalars().first()

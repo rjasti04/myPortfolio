@@ -112,7 +112,13 @@ routers = [
 
 for router in routers:
     app.include_router(router, prefix="/api")
-    app.include_router(router)
+    # The same routers are mounted again at the root. Whether Apache strips the
+    # /api prefix before proxying decides which of the two actually serves
+    # production, and dropping either without knowing would be an outage, so
+    # both stay. The root copy is kept out of the schema: it made /openapi.json
+    # advertise 66 paths for 33 endpoints and made FastAPI warn about duplicate
+    # operation ids on every start. Routing is unchanged.
+    app.include_router(router, include_in_schema=False)
 
 # NOTE: /health and /api/health are served by system_routes -> system_controller
 # .health_check, which also verifies the database connection. An app-level

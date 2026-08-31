@@ -6,7 +6,6 @@ mode guaranteed to take the API down alongside the database it depends on.
 Unrecoverable failures, meanwhile, discarded events with nothing but a log line.
 """
 
-import asyncio
 
 import pytest
 from sqlalchemy.exc import OperationalError

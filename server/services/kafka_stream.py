@@ -4,14 +4,12 @@ import json
 import base64
 import random
 import time
-import logging
 from uuid import UUID
 from datetime import datetime, timezone
 from collections import defaultdict, deque
 from typing import Any, Optional, Deque, Dict, List, Set
 
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import OperationalError, InterfaceError
 from server.db.database import AsyncSessionLocal
 from server.models.event import UserActivityEvent
@@ -387,8 +385,12 @@ async def run_pg_fanout() -> None:
             await conn.add_listener(PG_FANOUT_CHANNEL, _on_fanout_notify)
             _fanout_state["conn"] = conn
             logger.info("pg_fanout_listening", channel=PG_FANOUT_CHANNEL, instance=INSTANCE_ID)
-            # Hold the connection open; the listener fires from asyncpg's reader.
-            while not conn.is_closed():
+            # Hold the connection open; the listener fires from asyncpg's reader
+            # task, so this loop has nothing to await on. asyncpg exposes no
+            # awaitable "connection closed" signal, so polling is the option
+            # available; ASYNC110's asyncio.Event suggestion would need a
+            # termination callback that does not exist here.
+            while not conn.is_closed():  # noqa: ASYNC110
                 await asyncio.sleep(5)
         except asyncio.CancelledError:
             logger.info("pg_fanout_cancelled")

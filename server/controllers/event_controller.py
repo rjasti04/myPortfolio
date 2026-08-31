@@ -89,7 +89,7 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
         if payload.flush_reason:
             from server.services.kafka_stream import record_flush_reason
             record_flush_reason(payload.flush_reason, len(events))
-        
+
         # Broadcast all inserted events to active streams
         from server.services.kafka_stream import broadcast_event, spawn_background
         for e in events:
@@ -104,7 +104,7 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
     except Exception as e:
         await db.rollback()
         logger.exception("Bulk event insert failed")
-        raise HTTPException(422, "Failed to insert events (possibly invalid session_id)")
+        raise HTTPException(422, "Failed to insert events (possibly invalid session_id)") from e
 
     return {"inserted": len(events)}
 

@@ -110,7 +110,9 @@ def test_depth_drains_monotonically_to_zero_once_arrivals_stop(clock):
 
     assert readings[0] <= peak, "depth must not grow after arrivals stop"
     assert all(
-        later <= earlier for earlier, later in zip(readings, readings[1:])
+        # strict=False is the point: the second sequence is deliberately one
+        # shorter, so this walks consecutive pairs.
+        later <= earlier for earlier, later in zip(readings, readings[1:], strict=False)
     ), f"drain must be monotonic, got {readings}"
     assert readings[-1] == 0, f"queue must reach empty, ended at {readings[-1]}"
 

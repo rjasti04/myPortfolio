@@ -1,7 +1,6 @@
 import hashlib
 import httpx
 import structlog
-from fastapi import HTTPException, status
 
 logger = structlog.get_logger(__name__)
 

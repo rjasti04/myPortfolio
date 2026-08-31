@@ -22,7 +22,7 @@ def upgrade() -> None:
     """Upgrade schema."""
     op.add_column('users', sa.Column('totp_secret', sa.String(length=255), nullable=True))
     op.add_column('users', sa.Column('is_totp_enabled', sa.Boolean(), server_default='false', nullable=False))
-    
+
     op.add_column('user_sessions', sa.Column('user_id', sa.UUID(), nullable=True))
     op.create_index(op.f('ix_user_sessions_user_id'), 'user_sessions', ['user_id'], unique=False)
     op.create_foreign_key('fk_user_sessions_user_id', 'user_sessions', 'users', ['user_id'], ['id'], ondelete='CASCADE')
@@ -33,6 +33,6 @@ def downgrade() -> None:
     op.drop_constraint('fk_user_sessions_user_id', 'user_sessions', type_='foreignkey')
     op.drop_index(op.f('ix_user_sessions_user_id'), table_name='user_sessions')
     op.drop_column('user_sessions', 'user_id')
-    
+
     op.drop_column('users', 'is_totp_enabled')
     op.drop_column('users', 'totp_secret')

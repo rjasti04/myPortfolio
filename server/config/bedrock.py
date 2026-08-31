@@ -69,5 +69,5 @@ async def acquire_bedrock_slot(
     try:
         await asyncio.wait_for(bedrock_semaphore.acquire(), timeout=0.1)
     except asyncio.TimeoutError:
-        raise HTTPException(429, busy_message)
+        raise HTTPException(429, busy_message) from None
     return BedrockSlot()

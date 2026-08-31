@@ -1,6 +1,5 @@
 import json
 import time
-import os
 import logging
 import asyncio
 import threading
@@ -151,7 +150,7 @@ class BedrockService:
             # existed only for the test suite, and which meant the suite never
             # actually exercised Converse for a non-Claude default model.
             is_anthropic_raw = target_model.startswith(("anthropic.", "us.anthropic.", "eu.anthropic."))
-            
+
             if is_anthropic_raw and hasattr(self.client, "invoke_model_with_response_stream"):
                 system_payload = [
                     {

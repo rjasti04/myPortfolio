@@ -1,10 +1,12 @@
 name: CI/CD Pipeline
 
 on:
+  # Restricted to main. Previously '**' matched every branch, so any commit on a
+  # branch with an open pull request ran the whole matrix twice - once for the
+  # push and once for the pull_request - doubling CI cost for no extra signal.
   push:
     branches:
       - main
-      - '**'
   pull_request:
     branches:
       - main
@@ -15,6 +17,11 @@ jobs:
     name: Frontend Lint & Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Superseded runs on the same branch are cancelled. Safe here, unlike the
+    # deploy job, because nothing these jobs do is stateful.
+    concurrency:
+      group: frontend-check-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -36,9 +43,20 @@ jobs:
 
   # ─── 2. BACKEND QUALITY GATE ──────────────────────────────────────────
   backend-check:
-    name: Backend Pytest Suite
+    name: Backend Lint & Pytest (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    concurrency:
+      group: backend-check-${{ matrix.python-version }}-${{ github.ref }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        # The host's interpreter version is not pinned by this repository, so
+        # testing only the lower bound left the upper end unverified. The lock
+        # is resolved --universal precisely so one set of pins covers both; this
+        # is what proves it.
+        python-version: ['3.10', '3.12']
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -46,7 +64,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python-version }}
           cache: 'pip'
           cache-dependency-path: server/requirements*.txt
 
@@ -59,8 +77,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install --require-hashes -r server/requirements-dev.txt
 
+      # The backend had no linting while the frontend had two linters. F821
+      # alone would have caught the five auth routes that shipped calling
+      # service functions that do not exist.
+      - name: Lint Backend (ruff)
+        run: ruff check server tests
+
       - name: Run Backend Pytest Suite
-        run: pytest tests/backend/
+        run: pytest --cov=server --cov-report=term-missing --cov-fail-under=55
         env:
           PYTHONPATH: .
           TESTING: 'true'
@@ -71,10 +95,85 @@ jobs:
           # service environment on the host; there is no longer a fallback.
           JWT_SECRET: 'ci-only-jwt-secret-not-used-by-any-deployment'
 
+  # ─── 3. MIGRATIONS & SCHEMA DRIFT ─────────────────────────────────────
+  migration-check:
+    name: Migrations & Schema Drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: migration-check-${{ github.ref }}
+      cancel-in-progress: true
+
+    # The suite builds its schema with Base.metadata.create_all against SQLite,
+    # so migrations were never executed by any test and a model that had drifted
+    # from its migration was only discovered by `alembic upgrade head` running
+    # against production. This job runs them against the real engine instead.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: rjwebapp
+          POSTGRES_PASSWORD: rjwebapp
+          POSTGRES_DB: rjwebapp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://rjwebapp:rjwebapp@localhost:5432/rjwebapp
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: server/requirements*.txt
+
+      - name: Install Pinned Backend Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --require-hashes -r server/requirements.txt
+
+      - name: Assert a Single Migration Head
+        working-directory: server
+        run: |
+          heads=$(PYTHONPATH=.. alembic heads | grep -c '(head)' || true)
+          echo "heads: $heads"
+          if [ "$heads" -ne 1 ]; then
+            echo "::error::expected exactly one migration head, found $heads"
+            PYTHONPATH=.. alembic heads
+            exit 1
+          fi
+
+      - name: Apply Migrations
+        working-directory: server
+        run: PYTHONPATH=.. alembic upgrade head
+
+      # The real payoff: alembic compares the models against the schema the
+      # migrations just built and fails if they disagree, so a model changed
+      # without a migration cannot reach the deploy step.
+      - name: Detect Model / Migration Drift
+        working-directory: server
+        run: PYTHONPATH=.. alembic check
+
+      - name: Verify Migrations Are Reversible
+        working-directory: server
+        run: |
+          PYTHONPATH=.. alembic downgrade base
+          PYTHONPATH=.. alembic upgrade head
+
   # ─── 3. PRODUCTION DEPLOYMENT (Gated by Test Success) ─────────────────
   deploy:
     name: Deploy Frontend and Backend to EC2
-    needs: [frontend-check, backend-check]
+    needs: [frontend-check, backend-check, migration-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -98,15 +197,30 @@ jobs:
       HEALTH_URL: ${{ vars.HEALTH_CHECK_URL || 'https://rjasti.com/api/health' }}
 
     steps:
-      - name: Checkout Code
+      - name: Checkout the Tested Commit
         uses: actions/checkout@v4
+        with:
+          # Pin to the commit that triggered this run. Checking out the branch
+          # would deploy whatever main points at when the job starts, which is
+          # not necessarily what the quality gates just passed.
+          ref: ${{ github.sha }}
 
       - name: Configure SSH Key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          if [ -n "${{ secrets.EC2_HOST_KEY }}" ]; then
+            # Pinned: the deploy will refuse to talk to anything else.
+            printf '%s\n' "${{ secrets.EC2_HOST_KEY }}" >> ~/.ssh/known_hosts
+            echo "Using the pinned host key"
+          else
+            # Trust-on-first-use, every run: whatever answers on that address is
+            # accepted. Set the EC2_HOST_KEY secret to close this - capture it
+            # with: ssh-keyscan -H <host>
+            echo "::warning::EC2_HOST_KEY is not set; falling back to ssh-keyscan (trust on first use)"
+            ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          fi
 
       # Everything below this point is recoverable: the previous release is on
       # disk before a single byte is overwritten.
@@ -161,6 +275,23 @@ jobs:
           # Same hash-checked lock CI tested against.
           "$APP_DIR/.venv/bin/pip" install --require-hashes \
             -r "$APP_DIR/server/requirements.txt"
+
+          # An SSH command does not inherit the environment systemd gives the
+          # service, so DATABASE_URL has to be loaded here. It used to fall back
+          # to a placeholder DSN when unset, which meant a migration run could
+          # quietly target the wrong database or fail with a confusing
+          # connection error; there is no fallback now, so make it explicit.
+          set -a
+          for candidate in "$APP_DIR/.env" "$APP_DIR/server/.env"; do
+            [ -f "$candidate" ] && . "$candidate"
+          done
+          set +a
+
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::DATABASE_URL is not set for the migration step."
+            echo "Put it in $APP_DIR/.env so alembic can reach the database."
+            exit 1
+          fi
 
           cd "$APP_DIR/server"
           "$APP_DIR/.venv/bin/alembic" upgrade head

@@ -3,12 +3,12 @@ import json
 import time
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 @pytest.mark.asyncio
 async def test_chat_stream_endpoint_success(async_client):
     """Test /api/chat/stream SSE endpoint returns text chunks and metrics payload."""
-    
+
     mock_events = [
         {
             "chunk": {

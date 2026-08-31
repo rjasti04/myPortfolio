@@ -7,10 +7,8 @@ os.environ.setdefault("DEFAULT_MODEL_ID", "dummy-model-id")
 # throwaway value is for the test process only.
 os.environ.setdefault("JWT_SECRET", "test-only-jwt-secret-not-for-any-real-deployment")
 
-import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool, StaticPool
 
 from server.main import app

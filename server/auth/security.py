@@ -110,13 +110,13 @@ def verify_token(token: str, expected_type: str = "access") -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
     except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
 def create_pre_auth_token(subject: Union[str, int], jti: Optional[str] = None) -> str:
     """Half-authenticated token issued between password and second factor.
