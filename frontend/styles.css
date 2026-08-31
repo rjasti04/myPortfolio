@@ -2419,19 +2419,13 @@ body.dark-theme #resume .item {
   }
 
   #resume .item-tags {
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    flex-wrap: wrap;
     padding-bottom: 4px;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  #resume .item-tags::-webkit-scrollbar {
-    display: none;
   }
 
   #resume .item-tags span {
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-width: 0;
   }
 
   #resume .item h3 {
