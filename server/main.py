@@ -12,7 +12,11 @@ from server.routes import (
     auth_routes,
     system_routes,
 )
+from server.config.settings import origins
 from server.db.database import engine
+from server.middlewares.body_size import BodySizeLimitMiddleware
+from server.middlewares.rate_limit import RateLimitMiddleware
+from server.middlewares.request_id import RequestIDMiddleware
 from server.middlewares.server_timing import ServerTimingMiddleware
 from server.services import kafka_stream
 
@@ -61,16 +65,23 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS Middleware Configuration
-origins = [
-    "http://localhost:1111",
-    "http://127.0.0.1:1111",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "https://rjasti.com",
-    "https://www.rjasti.com",
-]
+# Middleware stack. `add_middleware` prepends, so the LAST registration here is
+# the OUTERMOST layer at request time; these calls read innermost-first.
+#
+# The rate limiter, the body-size cap and the request-ID tagger were all
+# implemented but never registered, which left the API with no request
+# throttling, no body ceiling (`MAX_BODY_BYTES` was dead config) and
+# `request_id=unknown` on every structured log line.
 
+# Innermost: measures handler work only, not time spent in the layers above.
+app.add_middleware(ServerTimingMiddleware)
+app.add_middleware(BodySizeLimitMiddleware)
+app.add_middleware(RateLimitMiddleware)
+
+# Above the limiter, so 413/429 replies still carry CORS headers and the
+# browser can read the status instead of reporting an opaque network error.
+# `origins` comes from settings, which honours CORS_ORIGINS and always appends
+# the production domains; main.py used to hardcode a divergent list.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -82,9 +93,9 @@ app.add_middleware(
     expose_headers=["Server-Timing", "X-Request-ID"],
 )
 
-# Measures handler wall time and emits Server-Timing, which the activity
-# dashboard reads to split network RTT from actual server work.
-app.add_middleware(ServerTimingMiddleware)
+# Outermost, so every response - including one rejected by the limiter - is
+# tagged and correlatable in the logs.
+app.add_middleware(RequestIDMiddleware)
 
 # Register Routers under both /api and root / for dual-prefix resilience
 routers = [
@@ -99,12 +110,7 @@ for router in routers:
     app.include_router(router, prefix="/api")
     app.include_router(router)
 
-@app.get("/health", tags=["System"])
-@app.get("/api/health", tags=["System"])
-async def health_check():
-    return {
-        "status": "healthy",
-        "service": "rjWebApp API",
-        "aws_region": os.getenv("AWS_REGION", "us-east-1"),
-        "default_model": os.getenv("DEFAULT_MODEL_ID", "anthropic.claude-3-5-sonnet-20241022-v2:0"),
-    }
+# NOTE: /health and /api/health are served by system_routes -> system_controller
+# .health_check, which also verifies the database connection. An app-level
+# handler for the same paths used to sit here; it was shadowed by the router
+# (registered first, so it matched first) and never executed.

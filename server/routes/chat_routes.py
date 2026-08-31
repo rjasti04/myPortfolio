@@ -5,6 +5,7 @@ import asyncio
 from typing import AsyncGenerator
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from server.db.database import get_db
@@ -13,7 +14,7 @@ from server.services.bedrock_service import bedrock_service
 from server.models.event import UserActivityEvent
 from server.utils.role_utils import ensure_alternating_roles
 from server.config.settings import ALLOWED_MODEL_IDS, DEFAULT_MODEL_ID
-from server.config.bedrock import acquire_bedrock_slot, bedrock_semaphore
+from server.config.bedrock import acquire_bedrock_slot
 
 router = APIRouter(prefix="/chat", tags=["Chat & AI"])
 logger = logging.getLogger("server.chat_routes")
@@ -44,7 +45,7 @@ async def chat_stream_endpoint(
         except ValueError:
             pass
 
-    await acquire_bedrock_slot("AI streaming service is busy. Try again shortly.")
+    slot = await acquire_bedrock_slot("AI streaming service is busy. Try again shortly.")
 
     async def event_generator() -> AsyncGenerator[str, None]:
         complete_text = ""
@@ -95,7 +96,7 @@ async def chat_stream_endpoint(
                     logger.warning(f"Failed to record LLM telemetry event: {exc}")
                     await db.rollback()
         finally:
-            bedrock_semaphore.release()
+            await slot.release()
 
     return StreamingResponse(
         event_generator(),
@@ -105,20 +106,31 @@ async def chat_stream_endpoint(
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
+        # Backstop for the case where the body is never iterated at all, so the
+        # generator's `finally` above never runs. Releasing twice is a no-op.
+        background=BackgroundTask(slot.release),
     )
 
 @router.post("/summarize", summary="Summarize Conversation History")
 async def chat_summarize_endpoint(request_data: ChatStreamRequest):
     """Summarize long conversation history to fit within token limits."""
     messages_payload = ensure_alternating_roles([msg.model_dump() for msg in request_data.messages])
-    summary_text = ""
-    async for chunk in bedrock_service.stream_chat_response(
-        messages=messages_payload,
-        system_prompt="Summarize the key points of the preceding conversation concisely in 2-3 sentences.",
-    ):
-        if chunk.get("type") == "delta":
-            summary_text += chunk.get("text", "")
-    if not summary_text:
-        summary_text = "Summary of preceding conversation."
-    return {"summary": summary_text}
+
+    # This calls Bedrock exactly like the streaming route does, but used to take
+    # no slot at all, so it could drive unbounded concurrent inference straight
+    # past CHAT_MAX_CONCURRENCY.
+    slot = await acquire_bedrock_slot("AI summarization service is busy. Try again shortly.")
+    try:
+        summary_text = ""
+        async for chunk in bedrock_service.stream_chat_response(
+            messages=messages_payload,
+            system_prompt="Summarize the key points of the preceding conversation concisely in 2-3 sentences.",
+        ):
+            if chunk.get("type") == "delta":
+                summary_text += chunk.get("text", "")
+        if not summary_text:
+            summary_text = "Summary of preceding conversation."
+        return {"summary": summary_text}
+    finally:
+        await slot.release()
 

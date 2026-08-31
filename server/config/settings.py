@@ -22,14 +22,44 @@ def _env_int(name: str, default: int) -> int:
     return value
 
 
+# The value that used to be `security.py`'s fallback. It is public in the repo
+# history, so any token signed with it must be treated as forgeable.
+_LEGACY_JWT_SECRET = "supersecret_default_key_change_in_production"
+JWT_SECRET_MIN_LENGTH = 32
+
+
+def _required_secret(name: str) -> str:
+    """A required env var that must not be the published placeholder.
+
+    There is deliberately no default: an unset signing key previously fell back
+    to a constant checked into a public repository, which let anyone mint a
+    valid token for any user id. Failing at import is the only safe behaviour.
+    """
+    value = _required_env(name)
+    if value == _LEGACY_JWT_SECRET:
+        raise RuntimeError(
+            f"{name} is set to the placeholder value that shipped in the repository. "
+            "Generate a fresh one with `openssl rand -hex 32`."
+        )
+    if len(value) < JWT_SECRET_MIN_LENGTH:
+        raise RuntimeError(
+            f"{name} must be at least {JWT_SECRET_MIN_LENGTH} characters. "
+            "Generate one with `openssl rand -hex 32`."
+        )
+    return value
+
+
 DATABASE_URL = _required_env("DATABASE_URL")
 AWS_REGION = _required_env("AWS_REGION")
 DEFAULT_MODEL_ID = _required_env("DEFAULT_MODEL_ID")
+JWT_SECRET = _required_secret("JWT_SECRET")
 
 _raw_origins = os.getenv("CORS_ORIGINS", "")
 origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 if not origins:
     origins = [
+        "http://localhost:1111",
+        "http://127.0.0.1:1111",
         "http://localhost:8080",
         "http://127.0.0.1:8080",
         "http://localhost:8000",

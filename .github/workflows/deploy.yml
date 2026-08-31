@@ -60,6 +60,9 @@ jobs:
           DATABASE_URL: 'sqlite+aiosqlite:///:memory:'
           AWS_REGION: 'us-east-1'
           DEFAULT_MODEL_ID: 'google.gemma-3-4b-it'
+          # Test-only signing key. Production reads JWT_SECRET from the
+          # service environment on the host; there is no longer a fallback.
+          JWT_SECRET: 'ci-only-jwt-secret-not-used-by-any-deployment'
 
   # ─── 3. PRODUCTION DEPLOYMENT (Gated by Test Success) ─────────────────
   deploy:

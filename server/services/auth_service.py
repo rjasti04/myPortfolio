@@ -535,6 +535,18 @@ async def delete_user_account(
 
 
 async def setup_2fa(db: AsyncSession, user: User) -> Setup2FAResponse:
+    # Enrolling again while 2FA is live would overwrite the secret the user's
+    # authenticator already holds, without ever clearing `is_totp_enabled`:
+    # every subsequent code would be rejected and the account would be locked
+    # behind a second factor nobody can produce. Anyone holding a stolen access
+    # token could also use it to swap the second factor for one of their own.
+    if user.is_totp_enabled:
+        logger.warning("2fa_setup_rejected_already_enabled", user_id=str(user.id))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA is already enabled. Disable it before enrolling a new authenticator.",
+        )
+
     secret = pyotp.random_base32()
     user.totp_secret = secret
     db.add(user)
