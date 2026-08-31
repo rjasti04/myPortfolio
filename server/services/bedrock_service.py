@@ -7,6 +7,7 @@ import threading
 from typing import AsyncGenerator, Callable, Dict, Any, Iterable, List, Optional
 
 import boto3
+from server.config.settings import AWS_REGION, DEFAULT_MODEL_ID
 from server.utils.role_utils import ensure_alternating_roles
 
 logger = logging.getLogger("server.bedrock_service")
@@ -107,10 +108,11 @@ class BedrockService:
     """Service wrapper for AWS Bedrock runtime with prompt caching and streaming."""
 
     def __init__(self, region_name: Optional[str] = None, default_model_id: Optional[str] = None):
-        self.region_name = region_name or os.getenv("AWS_REGION", "us-east-1")
-        self.default_model_id = default_model_id or os.getenv(
-            "DEFAULT_MODEL_ID", "google.gemma-3-4b-it"
-        )
+        # Defaults come from settings, which requires them; hardcoded fallbacks
+        # here meant a misconfigured deployment silently billed a different
+        # region or model than the operator intended.
+        self.region_name = region_name or AWS_REGION
+        self.default_model_id = default_model_id or DEFAULT_MODEL_ID
         self._client = None
 
     @property

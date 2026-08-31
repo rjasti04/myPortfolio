@@ -19,8 +19,12 @@ from server.middlewares.rate_limit import RateLimitMiddleware
 from server.middlewares.request_id import RequestIDMiddleware
 from server.middlewares.server_timing import ServerTimingMiddleware
 from server.services import kafka_stream
+from server.utils.logging_config import setup_logging
 
-logging.basicConfig(level=logging.INFO)
+# Every module logs through structlog, but nothing ever called this, so the
+# library ran on its defaults and LOG_LEVEL did nothing. Configuring it here
+# turns the application's logs into the JSON the aggregator expects.
+setup_logging()
 logger = logging.getLogger("server.main")
 
 

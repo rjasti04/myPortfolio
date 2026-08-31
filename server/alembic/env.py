@@ -28,7 +28,12 @@ from server.models import Base
 target_metadata = Base.metadata
 
 # Set database URL dynamically from env
-config.set_main_option("sqlalchemy.url", os.environ.get("DATABASE_URL", "postgresql+asyncpg://user:password@localhost:5432/dbname"))
+# No fallback: a migration run against a placeholder DSN is worse than one that
+# refuses to start.
+_database_url = os.environ.get("DATABASE_URL", "").strip()
+if not _database_url:
+    raise RuntimeError("DATABASE_URL must be set to run migrations")
+config.set_main_option("sqlalchemy.url", _database_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
