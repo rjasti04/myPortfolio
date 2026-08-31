@@ -12,7 +12,7 @@
  * session strip has the complete series it needs to draw a shape.
  */
 
-import { API_BASE, apiFetch, ensureSession, isApiConfigured, onTelemetry } from "./analytics.js";
+import { API_BASE, apiFetch, ensureSession, isApiConfigured, onTelemetry, withSessionToken } from "./analytics.js";
 import { copyText, escapeHTML } from "./utils.js";
 import {
   TIMELINE_BUCKETS,
@@ -792,7 +792,9 @@ function startActivityStream() {
   }
 
   setLiveStatus("connecting");
-  activityStreamSource = new EventSource(`${API_BASE}/sessions/${sessionId}/stream`);
+  // EventSource cannot set request headers, so the session token travels as
+  // a query parameter on this one endpoint.
+  activityStreamSource = new EventSource(withSessionToken(`${API_BASE}/sessions/${sessionId}/stream`));
   activityStreamSource.onopen = () => setLiveStatus("connected");
 
   const parse = (event, handler) => {

@@ -13,6 +13,7 @@ from sqlalchemy import desc, func
 from server.db.database import get_db
 from server.models.session import UserSession
 from server.models.event import UserActivityEvent
+from server.auth.session_token import assert_session_access, require_session_access
 from server.schemas.event import EVENT_TYPES, EventCreate, BulkEventCreate
 
 logger = structlog.get_logger(__name__)
@@ -26,6 +27,8 @@ async def create_event(payload: EventCreate, request: Request, db: AsyncSession 
     Inserts one row into user_activity_events.
     The session must exist in user_sessions.
     """
+    assert_session_access(payload.session_id, request)
+
     session_exists = await db.execute(select(UserSession).where(UserSession.session_id == payload.session_id))
     if not session_exists.scalars().first():
         raise HTTPException(404, f"session_id {payload.session_id} not found")
@@ -61,6 +64,11 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
     """
     if not payload.events:
         raise HTTPException(400, "events list is empty")
+
+    # One batch, one session: a caller holding one token must not be able to
+    # write events attributed to somebody else's session.
+    for event in payload.events:
+        assert_session_access(event.session_id, request)
     if len(payload.events) > 500:
         raise HTTPException(400, "Maximum 500 events per bulk request")
 
@@ -153,7 +161,11 @@ def _compact(event: dict) -> dict:
     }
 
 
-async def stream_session_events(session_id: UUID, request: Request):
+async def stream_session_events(
+    session_id: UUID,
+    request: Request,
+    _: UUID = Depends(require_session_access),
+):
     """
     Exposes an SSE stream endpoint that relays real-time event updates to the client dashboard.
 
@@ -248,6 +260,7 @@ async def get_session_events(
     session_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    _: UUID = Depends(require_session_access),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0, le=1_000_000),
     event_type: Optional[str] = Query(
@@ -291,6 +304,7 @@ async def get_session_path_funnel(
     session_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    _: UUID = Depends(require_session_access),
     limit: int = Query(default=8, ge=1, le=25, description="Maximum paths to return."),
 ):
     """
@@ -374,6 +388,7 @@ async def get_session_event_summary(
     session_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    _: UUID = Depends(require_session_access),
 ):
     """
     Aggregate counts for the Activity dashboard summary tiles.

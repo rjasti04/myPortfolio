@@ -52,9 +52,35 @@ Create a new user session for activity tracking.
 ```json
 {
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "session_token": "9f2c...e41a",
   "started_at": "2024-01-15T10:30:00Z"
 }
 ```
+
+`session_token` is issued once, here, and is the only thing that authorises
+access to this session afterwards. Store it with the id.
+
+---
+
+### Session capability tokens
+
+Every endpoint scoped to a `session_id` requires the token issued when that
+session was created. Without it the session id alone granted full access, so any
+party holding or guessing an id could read a visitor's behavioural trail and
+device metadata, or write events attributed to them.
+
+Send it as a header:
+
+```
+X-Session-Token: <session_token>
+```
+
+`GET /sessions/{session_id}/stream` also accepts `?session_token=...`, because
+`EventSource` cannot set request headers. Prefer the header everywhere else -
+a query parameter is liable to end up in access logs.
+
+A missing or wrong token returns **403** with an identical body whether or not
+the session exists, so the endpoint cannot be used to discover valid ids.
 
 ---
 
