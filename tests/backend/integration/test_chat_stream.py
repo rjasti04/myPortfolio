@@ -1,4 +1,7 @@
+import asyncio
 import json
+import time
+
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -45,6 +48,11 @@ async def test_chat_stream_endpoint_success(async_client):
         mock_invoke.return_value = mock_bedrock_response
 
         payload = {
+            # Named explicitly. The service used to pick the raw-invoke path
+            # when it detected a MagicMock on the client, so this test passed
+            # only because it was mocked - the branch was chosen by the test
+            # double rather than by the model id. The model now decides.
+            "model_id": "anthropic.claude-3-5-sonnet-20241022-v2:0",
             "messages": [
                 {"role": "user", "content": "Hello, tell me about Rajeev Jasti."}
             ]
@@ -149,3 +157,62 @@ async def test_chat_stream_invalid_model(async_client):
         assert "Unsupported model" in response.text
 
 
+class _BlockingEventStream:
+    """Stands in for botocore's EventStream: a *synchronous* iterator whose
+    `__next__` blocks on I/O. A plain list cannot reproduce the bug this guards,
+    because iterating a list never blocks."""
+
+    def __init__(self, events, delay_seconds):
+        self._events = list(events)
+        self._delay = delay_seconds
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if not self._events:
+            raise StopIteration
+        time.sleep(self._delay)  # the socket read
+        return self._events.pop(0)
+
+
+@pytest.mark.asyncio
+async def test_streaming_does_not_block_the_event_loop(async_client):
+    """The service used to iterate the Bedrock stream synchronously inside an
+    async generator, pinning the loop for the whole response: one chat stalled
+    every other request on the worker, SSE keep-alives and the deploy's health
+    check included. Drive a stream that blocks for ~0.3s in total and assert an
+    unrelated coroutine still gets scheduled throughout."""
+    events = [{"contentBlockDelta": {"delta": {"text": f"chunk-{i} "}}} for i in range(6)]
+    events.append({"metadata": {"usage": {"inputTokens": 10, "outputTokens": 6}}})
+
+    ticks = 0
+
+    async def heartbeat():
+        nonlocal ticks
+        while True:
+            await asyncio.sleep(0.01)
+            ticks += 1
+
+    with patch("server.services.bedrock_service.bedrock_service.client.converse_stream") as mock_converse:
+        mock_converse.return_value = {"stream": _BlockingEventStream(events, 0.05)}
+
+        beat = asyncio.create_task(heartbeat())
+        try:
+            response = await async_client.post(
+                "/api/chat/stream",
+                json={
+                    "model_id": "google.gemma-3-4b-it",
+                    "messages": [{"role": "user", "content": "hi"}],
+                },
+            )
+        finally:
+            beat.cancel()
+
+    assert response.status_code == 200
+    assert "chunk-0" in response.text and "chunk-5" in response.text
+
+    # ~0.35s of blocking reads against a 10ms heartbeat. If the loop were held
+    # by the stream the counter would barely move; the threshold is deliberately
+    # far below the theoretical ~35 so timing jitter cannot make this flaky.
+    assert ticks >= 8, f"event loop was starved during streaming (only {ticks} ticks)"
