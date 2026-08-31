@@ -270,6 +270,20 @@ export function initChat() {
 
   let isOpen = false;
   let isGenerating = false;
+
+  /* One owner for "the chat is open": the dialog's own state plus the body
+     class the layout scrim hangs off. Every path that opens or closes the
+     widget goes through here, so a blurred backdrop can never outlive the
+     dialog that asked for it - a stray body class would leave the page
+     blurred and unclickable with nothing on screen to dismiss. */
+  function setChatOpen(open) {
+    if (!dialog) return;
+    isOpen = open;
+    dialog.classList.toggle('hidden', !open);
+    dialog.setAttribute('aria-hidden', String(!open));
+    toggleBtn?.setAttribute('aria-expanded', String(open));
+    document.body.classList.toggle('chat-open', open);
+  }
   const FREE_MESSAGE_LIMIT = 6;
 
   // Persist sessions in localStorage
@@ -895,11 +909,8 @@ export function initChat() {
         wasDragged = false;
         return;
       }
-      isOpen = !isOpen;
+      setChatOpen(!isOpen);
       if (isOpen) {
-        dialog.classList.remove('hidden');
-        dialog.setAttribute('aria-hidden', 'false');
-        toggleBtn.setAttribute('aria-expanded', 'true');
         if (prefersReducedMotion.matches) {
           chatInput?.focus();
         } else {
@@ -911,16 +922,32 @@ export function initChat() {
           });
         }
         if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      } else {
-        dialog.classList.add('hidden');
-        dialog.setAttribute('aria-hidden', 'true');
-        toggleBtn.setAttribute('aria-expanded', 'false');
-        if (e && e.currentTarget === closeBtn) toggleBtn.focus();
+      } else if (e && e.currentTarget === closeBtn) {
+        toggleBtn.focus();
       }
     }
 
     toggleBtn.addEventListener('click', toggleChat);
     if (closeBtn) closeBtn.addEventListener('click', toggleChat);
+  }
+
+  /* The scrim covers the page and takes pointer events, so without a way out
+     the blurred area would be a dead zone - clicks land on it and nothing
+     happens. Dismissal mirrors the header dropdowns: a document-level click
+     that misses the widget closes it, and Escape does the same for a dialog
+     that now reads as modal. The click that opens the widget is inside it,
+     so it is filtered out here rather than reopening a race with itself. */
+  if (dialog && widget) {
+    document.addEventListener('click', (event) => {
+      if (!isOpen || widget.contains(event.target)) return;
+      setChatOpen(false);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || !isOpen) return;
+      setChatOpen(false);
+      toggleBtn?.focus();
+    });
   }
 
   let currentAbortController = null;
@@ -1367,9 +1394,7 @@ export function initChat() {
 
       // Ensure widget and dialog are visible so user can see error & access retry button
       if (dialog && dialog.classList.contains('hidden')) {
-        dialog.classList.remove('hidden');
-        dialog.setAttribute('aria-hidden', 'false');
-        isOpen = true;
+        setChatOpen(true);
       }
       if (widget) {
         widget.classList.remove('is-hidden');

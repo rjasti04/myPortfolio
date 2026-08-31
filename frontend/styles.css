@@ -452,8 +452,18 @@ body.dropdown-open header {
   z-index: 1300;
 }
 
+/* The chat dialog joins the nav and the dropdowns on the one scrim rather
+   than growing a second one. It has to hang off .layout: .layout is a
+   stacking context (position: relative, z-index: 1), so a scrim on body
+   would paint over everything inside it, the chat included. It also cannot
+   be a pseudo-element of .chat-widget itself - dragging the bubble sets an
+   inline transform on the widget, which would make a position: fixed child
+   resolve against the widget's own box instead of the viewport and shrink
+   the blur to a postage stamp that slides around. At z-index 1200 the scrim
+   covers the header (1000) and sits under the widget (9999). */
 body.nav-open .layout::after,
-body.dropdown-open .layout::after {
+body.dropdown-open .layout::after,
+body.chat-open .layout::after {
   content: '';
   position: fixed;
   inset: 0;
@@ -466,7 +476,8 @@ body.dropdown-open .layout::after {
 }
 
 body.dark-theme.nav-open .layout::after,
-body.dark-theme.dropdown-open .layout::after {
+body.dark-theme.dropdown-open .layout::after,
+body.dark-theme.chat-open .layout::after {
   background: rgba(0, 0, 0, 0.78);
 }
 
@@ -5560,10 +5571,17 @@ body.dark-theme .skill-tag.primary .fas {
   line-height: var(--leading-body);
 }
 
+/* The fact pills restated what the paragraph above them already says -
+   "Sauna / 20 minutes / Recovery" under a sentence about a 20-minute sauna -
+   so they read as filler rather than detail. Hidden rather than deleted: the
+   list stays in the markup, and the layout below restores with one word if
+   the tiles ever earn a metadata row worth showing. display:none also drops
+   the pills from the accessibility tree, so screen readers stop hearing the
+   same three words twice. */
 .hobby-facts {
   position: relative;
   z-index: 1;
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   gap: 8px;
   margin: 2px 0 0;
@@ -5681,6 +5699,21 @@ body.dark-theme .skill-tag.primary .fas {
 .js-enabled #theme-toggle.js-only,
 .js-enabled #palette-toggle.js-only {
   display: flex !important;
+}
+
+/* The topic chips earn their keep on a wide contact layout, where they sit
+   beside the form and cost nothing. On a phone held upright the column is
+   already tall, and four full-width chips push the name/email/message fields
+   an extra screen down - the visitor scrolls past the help to reach the thing
+   it was helping with. Hide them there; the seeded copy is a convenience, not
+   content, and the placeholder still says what to write.
+   Overrides the .js-enabled display above, so it has to match its !important
+   and follow it in source order. */
+@media (orientation: portrait) and (width <= 640px) {
+  .contact-prompts,
+  .js-enabled .contact-prompts.js-only {
+    display: none !important;
+  }
 }
 
 .header-left,
@@ -6607,6 +6640,8 @@ nav a:hover .nav-shortcut {
    A chain of labelled dots says "healthy, end to end" in 32px; the card it
    replaced spent 200px saying the same thing less clearly. */
 .act-chain {
+  --act-flow-cycle: 2.6s;
+
   display: flex;
   align-items: center;
   gap: 8px;
@@ -6660,11 +6695,85 @@ nav a:hover .nav-shortcut {
   border: 1.5px dashed var(--muted);
 }
 
+/* ---- The stream ---------------------------------------------------------
+   The coloured dots say the pipeline is healthy; this says it is moving. A
+   pulse crosses the three connectors in turn - out of Browser, past Kafka,
+   past the API, into Postgres - so one packet appears to travel the length
+   of the chain in the direction the events really go.
+
+   It is gated rather than run unconditionally. Everything else on this card
+   is a measured value, and a stream pouring out of a browser that has not
+   captured an event yet would be the one invented signal on it - so the
+   pulse runs only while the source stage is actually passing traffic ("ok",
+   or "warn", which is slow but still moving) and holds still on "idle". The
+   whole stream hangs off that one stage, which is also what keeps the three
+   segments in step: they unpause together on the same repaint, so the chase
+   always starts from a shared zero rather than drifting apart.
+
+   Paused parks each pulse at its first keyframe, off the left edge of a
+   clipped track, so a resting chain is exactly the hairline it was before.
+   The blanket prefers-reduced-motion rule already caps this at one
+   near-instant iteration, and the pulse ends up off-track either way. */
 .act-chain-link {
+  position: relative;
   width: 12px;
   height: 1px;
   background: var(--border);
   flex: none;
+  overflow: hidden;
+}
+
+.act-chain-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--accent-fill), transparent);
+  transform: translateX(-100%);
+  animation: act-chain-flow var(--act-flow-cycle) var(--ease-standard) infinite;
+  animation-play-state: paused;
+}
+
+/* Each hop starts about the time the one before it clears its segment, so
+   the row reads as a packet travelling rather than three lights blinking
+   together. The links are the 2nd, 4th and 6th children of the chain. */
+.act-chain-link:nth-child(4)::after {
+  animation-delay: calc(var(--act-flow-cycle) * 0.12);
+}
+
+.act-chain-link:nth-child(6)::after {
+  animation-delay: calc(var(--act-flow-cycle) * 0.24);
+}
+
+/* "~" is the whole gate: every connector downstream of the source stage,
+   which is precisely the stream from Browser to Postgres. */
+#act-stage-browser[data-health="ok"] ~ .act-chain-link::after,
+#act-stage-browser[data-health="warn"] ~ .act-chain-link::after {
+  animation-play-state: running;
+}
+
+@keyframes act-chain-flow {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  38% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
 }
 
 .act-chain-latency {
@@ -7474,9 +7583,17 @@ nav a:hover .nav-shortcut {
     margin-left: 0;
   }
 
+  /* Centre the chain in the full-width pill it becomes here. "safe" is
+     load-bearing, not decoration: this is a scroll container, and on a
+     320-390px phone the four stages plus the latency read overflow it by
+     40-110px. Plain "center" would centre that overflow too, pushing
+     "Browser" past the left edge with no way to scroll back to it. "safe"
+     centres while the row fits and falls back to start the moment it does
+     not, so nothing is ever stranded. Browsers too old to parse it drop the
+     declaration and keep today's flex-start. */
   .act-chain {
     width: 100%;
-    justify-content: flex-start;
+    justify-content: safe center;
   }
 
   .act-visit {
@@ -7948,6 +8065,14 @@ body.dark-theme .ai-sidebar {
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   width: 100%;
+}
+
+/* An odd number of cards leaves the last one alone in a two-column row with a
+   hole beside it. Written as last-and-odd rather than as :nth-child(5) so the
+   row closes itself whatever the count grows or shrinks to; on the one-column
+   layout below 768px it is a no-op, since 1 / -1 is that single column. */
+.ai-suggestion-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
 .ai-suggestion-card {
