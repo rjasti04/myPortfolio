@@ -239,7 +239,11 @@ async def refresh_user_token(db: AsyncSession, token_data: RefreshTokenRequest) 
         token_type="bearer"
     )
 
-async def revoke_user_tokens(db: AsyncSession, user_id: uuid.UUID) -> None:
+async def revoke_user_tokens(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    end_reason: str = "password_change",
+) -> None:
     # Mark all active refresh tokens for this user as revoked
     await db.execute(
         update(RefreshToken)
@@ -253,10 +257,23 @@ async def revoke_user_tokens(db: AsyncSession, user_id: uuid.UUID) -> None:
             update(UserSession)
             .where(UserSession.user_id == user_id)
             .where(UserSession.is_active == True)
-            .values(is_active=False, ended_at=datetime.now(timezone.utc), end_reason="password_change")
+            .values(is_active=False, ended_at=datetime.now(timezone.utc), end_reason=end_reason)
         )
     await db.commit()
     logger.info("all_refresh_tokens_revoked", user_id=str(user_id))
+
+
+async def logout_user(db: AsyncSession, user: User) -> dict:
+    """Revokes every refresh token held by the user.
+
+    The access token carries no refresh `jti`, and the frontend sends only its
+    bearer header, so the caller's individual token cannot be singled out -
+    revoking the set is the only option that actually ends the session, and is
+    the safer default regardless.
+    """
+    await revoke_user_tokens(db, user.id, end_reason="logout")
+    logger.info("user_logged_out", user_id=str(user.id))
+    return {"message": "Logged out successfully."}
 
 
 async def change_user_password(

@@ -1,5 +1,6 @@
+from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, status, BackgroundTasks
+from fastapi import APIRouter, Body, Depends, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.db.database import get_db
 from server.schemas.auth import (
@@ -58,6 +59,18 @@ async def request_magic_link(
 async def verify_magic_link(data: MagicLinkVerifyRequest, db: AsyncSession = Depends(get_db)):
     return await auth_service.verify_magic_link(db, data)
 
+@router.post("/logout")
+async def logout(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Revoke the caller's refresh tokens.
+
+    The deployed frontend has always called this and discarded the failure, so
+    a "logged out" refresh token stayed valid for its full 30-day lifetime.
+    """
+    return await auth_service.logout_user(db, current_user)
+
 @router.post("/change-password")
 async def change_password(
     data: ChangePasswordRequest,
@@ -84,6 +97,7 @@ async def reset_password(
     return await auth_service.reset_password_with_token(db, data, background_tasks)
 
 @router.delete("/account")
+@router.post("/delete-account")
 async def delete_account(
     data: DeleteAccountRequest,
     current_user: User = Depends(get_current_user),
@@ -98,6 +112,22 @@ async def get_active_sessions(
 ):
     return await auth_service.get_user_sessions(db, current_user)
 
+@router.post("/sessions/revoke-others")
+async def revoke_other_sessions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    current_session_id: Optional[UUID] = Body(default=None, embed=True),
+):
+    """End every session except the one the caller names.
+
+    `revoke_all_other_sessions` existed but had no route, so the frontend's
+    "log out everywhere else" button always 404'd. With no `current_session_id`
+    the call ends every session, which is the safe reading of the request.
+    """
+    return await auth_service.revoke_all_other_sessions(db, current_user, current_session_id)
+
+# Declared before /sessions/{session_id} so the literal path segment is not
+# captured as a UUID by the parameterised route.
 @router.delete("/sessions/{session_id}")
 async def revoke_session(
     session_id: UUID,

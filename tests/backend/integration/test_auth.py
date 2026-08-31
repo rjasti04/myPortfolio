@@ -292,3 +292,59 @@ async def test_setup_2fa_cannot_rotate_a_live_secret(async_client):
     )
     assert verified.status_code == 200, verified.text
     assert verified.json()["access_token"]
+
+
+# --- routes the deployed frontend calls -------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_logout_revokes_the_refresh_token(async_client):
+    """auth.js discards the result of this call, so a broken route is invisible
+    from the UI while the refresh token stays valid for another 30 days."""
+    email, password = await _register(async_client)
+    tokens = await _login(async_client, email, password)
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    response = await async_client.post("/api/auth/logout", headers=headers)
+    assert response.status_code == 200, response.text
+
+    replay = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert replay.status_code == 401, "the refresh token must not survive a logout"
+
+
+@pytest.mark.asyncio
+async def test_logout_requires_authentication(async_client):
+    assert (await async_client.post("/api/auth/logout")).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_revoke_other_sessions_is_routed(async_client):
+    email, password = await _register(async_client)
+    headers = await _auth_header(async_client, email, password)
+    response = await async_client.post("/api/auth/sessions/revoke-others", headers=headers)
+    assert response.status_code == 200, response.text
+    assert "message" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_delete_account_is_reachable_at_the_path_the_frontend_uses(async_client):
+    """The frontend POSTs /auth/delete-account; the API only served
+    DELETE /auth/account, so the button 404'd."""
+    email, password = await _register(async_client)
+    headers = await _auth_header(async_client, email, password)
+
+    rejected = await async_client.post(
+        "/api/auth/delete-account",
+        headers=headers,
+        json={"current_password": password, "confirmation_phrase": "nope"},
+    )
+    assert rejected.status_code == 400
+
+    response = await async_client.post(
+        "/api/auth/delete-account",
+        headers=headers,
+        json={"current_password": password, "confirmation_phrase": "DELETE"},
+    )
+    assert response.status_code == 200, response.text
