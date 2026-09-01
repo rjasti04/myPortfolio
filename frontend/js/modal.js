@@ -4,6 +4,10 @@ const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea:not([disab
 const modalFocusReturn = new WeakMap();
 const modalKeydown = new WeakMap();
 const modalSwipeHandlers = new WeakMap();
+// Per-modal teardown, so a dialog with bookkeeping of its own still gets it run
+// when the close comes from inside this module - Escape, the swipe dismiss, or
+// a caller invoking closeModal directly rather than its own wrapper.
+const modalOnClose = new WeakMap();
 
 // Nested opens must not each stash their own scroll position, so the lock is
 // reference counted and only the outermost close restores the page.
@@ -52,8 +56,17 @@ export function handleFocusTrap(event, modal) {
   }
 }
 
-export function openModal(modal, { initialFocus = null } = {}) {
+export function openModal(modal, { initialFocus = null, onClose = null } = {}) {
   if (!modal) return;
+  // Idempotent: the scroll lock is reference counted, so opening the same modal
+  // twice used to take two locks and one close could never release it. Two
+  // listeners firing for one click is enough to trigger that, which is exactly
+  // what the login button did.
+  if (modal.classList.contains("active")) {
+    if (initialFocus && typeof initialFocus.focus === "function") initialFocus.focus();
+    return;
+  }
+  if (onClose) modalOnClose.set(modal, onClose);
   const activeEl = typeof document !== "undefined" ? document.activeElement : null;
   const isElement = typeof HTMLElement !== "undefined"
     ? activeEl instanceof HTMLElement
@@ -98,6 +111,9 @@ export function closeModal(modal, { restoreFocus = true } = {}) {
     document.removeEventListener("keydown", handler);
     modalKeydown.delete(modal);
   }
+
+  const onClose = modalOnClose.get(modal);
+  if (typeof onClose === "function") onClose();
 
   if (restoreFocus) {
     const focusReturn = modalFocusReturn.get(modal);

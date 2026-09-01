@@ -1,5 +1,5 @@
 import { compactViewport, prefersReducedMotion, supportsHover } from "./config.js";
-import { closeModal, openModal } from "./modal.js";
+import { closeModal, handleFocusTrap, openModal } from "./modal.js";
 import { onOnline, onOffline, isNetworkOnline } from "./utils.js";
 import { SwipeHandler } from "./swipe-handler.js";
 
@@ -199,6 +199,20 @@ export function initNavigation() {
         toggle.setAttribute('aria-expanded', 'true');
         if (menu) menu.setAttribute('aria-hidden', 'false');
         document.body.classList.add('dropdown-open');
+
+        // Move focus into the panel. Opening one used to leave focus on the
+        // toggle, so a keyboard user had to Tab forward blindly and could not
+        // tell the panel had opened at all. Escape already returns focus here.
+        // rAF because the panel transitions from visibility:hidden and cannot
+        // take focus until that has applied.
+        if (menu) {
+          requestAnimationFrame(() => {
+            const target = menu.querySelector(
+              'input:not([type="hidden"]):not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+            );
+            target?.focus();
+          });
+        }
       }
     });
   });
@@ -233,6 +247,16 @@ export function initNavigation() {
       const openToggle = openDropdown?.querySelector('button');
       closeTransientUi();
       openToggle?.focus();
+      return;
+    }
+
+    // Trap Tab inside an open panel. The theme customiser in particular is a
+    // whole form - presets, three colour buttons, a nested popover, Apply and
+    // Reset - and Tab used to walk straight out of it into the page behind.
+    if (event.key === "Tab") {
+      const openDropdown = document.querySelector('.header-dropdown.is-open');
+      const menu = openDropdown?.querySelector('.header-dropdown-menu');
+      if (menu) handleFocusTrap(event, menu);
     }
   });
 

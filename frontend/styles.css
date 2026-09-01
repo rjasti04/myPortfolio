@@ -7,6 +7,7 @@
   --accent-hover: hsl(38, 92%, 40%);
   --accent: var(--accent-fill);
   --accent-soft: hsla(38, 92%, 50%, 0.15);
+
   --accent-mild: hsla(38, 92%, 50%, 0.58);
   --secondary-fill: hsl(68, 100%, 30%);
   --secondary-text: hsl(68, 100%, 22%);
@@ -251,6 +252,16 @@ body.dark-theme {
    accent tokens to body.style - a Matrix-green button kept an amber halo.
    Every consumer is a body descendant, so resolving here tracks both. */
 body {
+  /* Focus ring colour, resolved here rather than on :root.
+     Custom properties substitute where they are DEFINED: a :root alias of
+     var(--accent-text) froze the light value, because --accent-text is
+     overridden on body.dark-theme. Defining it on body picks up both that
+     override and the inline properties the theme customiser writes to body.
+
+     Not --accent-fill: measured against the light background it is 2.04:1,
+     under the 3:1 WCAG 1.4.11 requires. --accent-text measures 5.17:1 light
+     and 9.59:1 dark. */
+  --focus-ring: var(--accent-text);
   --glow-sm: 0 2px 8px var(--accent-soft);
   --glow-md: 0 4px 14px var(--accent-soft);
   --glow-lg: 0 8px 24px var(--accent-mild);
@@ -911,6 +922,16 @@ body.dark-theme #nav-menu a:not(.active):hover {
   visibility: visible;
   transform: translateY(0) scale(1);
   pointer-events: auto;
+
+  /* visibility is a discrete property, so with the base rule's 0.25s transition
+     it flipped at the halfway point - the panel was still `hidden` for ~125ms
+     after opening. Nothing inside could take focus or be clicked in that window.
+     Overriding it to 0s on the way in makes the panel interactive immediately;
+     the base rule still animates it out on close. */
+  transition:
+    opacity 0.25s var(--ease-standard),
+    transform 0.25s var(--ease-enter),
+    visibility 0s;
 }
 
 .header-dropdown-container {
@@ -1071,7 +1092,7 @@ body.dark-theme .connect-link .connect-icon {
 .code-copy-btn:focus-visible,
 .voice-input-btn:focus-visible,
 .delete-session-btn:focus-visible {
-  outline: 3px solid var(--accent-fill);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
   transition: outline-offset var(--motion-base) var(--ease-press);
 }
@@ -1265,7 +1286,7 @@ body:not(.dark-theme) .token-number {
 }
 
 .preset-btn:focus-visible {
-  outline: 3px solid var(--accent-fill);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -1327,7 +1348,7 @@ body:not(.dark-theme) .token-number {
 .color-popover-close:focus-visible,
 .color-popover-hex:focus-visible,
 .color-swatch-option:focus-visible {
-  outline: 3px solid var(--accent-fill);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -3340,7 +3361,6 @@ body.dark-theme #resume .item {
 }
 
 .contact-form textarea:focus {
-  outline: none;
   border-color: var(--accent-fill);
 }
 
@@ -3487,14 +3507,13 @@ body.dark-theme #resume .item {
 }
 
 .form-group input:focus {
-  outline: none;
   border-color: var(--accent-fill);
   box-shadow: none;
 }
 
 .form-group input:focus-visible,
 .form-group textarea:focus-visible {
-  outline: 3px solid var(--accent-fill);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -4342,7 +4361,7 @@ body.dark-theme .skill-tag.primary .fas {
   }
 
   .skills-carousel-arrow:focus-visible {
-    outline: 2px solid var(--accent-fill);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
   }
 
@@ -4392,7 +4411,7 @@ body.dark-theme .skill-tag.primary .fas {
   }
 
   .skills-carousel-dot:focus-visible {
-    outline: 2px solid var(--accent-fill);
+    outline: 2px solid var(--focus-ring);
     outline-offset: -4px;
   }
 }
@@ -5854,7 +5873,7 @@ body.dark-theme .skill-tag.primary .fas {
 }
 
 #worldcup-link:focus-visible {
-  outline: 3px solid var(--accent-fill);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -5952,7 +5971,7 @@ section {
 }
 
 .form-group textarea:focus-visible {
-  outline: 3px solid var(--accent-fill);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -6455,6 +6474,14 @@ body.dark-theme .chat-message.bot .msg-info-drawer {
   font-family: inherit;
   outline: none;
   transition: border-color var(--motion-base) var(--ease-standard);
+}
+
+/* A border-colour change alone is not a focus indicator: it fails WCAG 2.2
+   SC 2.4.11 and is invisible against several of the customiser's palettes.
+   Matches the outline convention used elsewhere in this file. */
+.chat-input:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 /* Update notification banner */
@@ -7630,14 +7657,14 @@ nav a:hover .nav-shortcut {
 .act-ev-json:focus-visible,
 .act-copy-json:focus-visible,
 .act-active-clear:focus-visible {
-  outline: 3px solid var(--accent-fill);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
 /* The bars sit 2px apart, so the ring is tucked in rather than offset out -
    at +3px each ring would sit on top of its neighbours. */
 .act-tl-bar:focus-visible {
-  outline: 2px solid var(--accent-fill);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 
@@ -7901,6 +7928,14 @@ body.dark-theme .ai-sidebar {
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+/* A border-colour change alone is not a focus indicator: it fails WCAG 2.2
+   SC 2.4.11 and is invisible against several of the customiser's palettes.
+   Matches the outline convention used elsewhere in this file. */
+.sidebar-search-input:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .sidebar-search-input:focus {
