@@ -193,9 +193,6 @@ export const commands = [
     name: "wget",
     summary: "Download files (e.g. wget resume)",
     usage: "wget <file>",
-    chip: true,
-    chipLabel: "wget resume",
-    chipInput: "wget resume",
     complete: (ctx, partial) => ["resume"].filter((f) => f.startsWith(partial.toLowerCase())),
     run(ctx, args) {
       if (!args.length) return out.text("wget: missing URL");

@@ -7039,8 +7039,7 @@ nav a:hover .nav-shortcut {
 /* One rule set colours every family surface: strip segment, legend swatch,
    filter chip, stream dot and path bar. */
 [data-fam="nav"] .act-tl-seg,
-.act-key li[data-fam="nav"] i,
-.act-fam[data-family="nav"] .fa-compass {
+.act-key li[data-fam="nav"] i {
   background: var(--fam-nav);
 }
 
