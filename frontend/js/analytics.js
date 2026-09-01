@@ -335,8 +335,30 @@ async function flushEvents(flushReason = "threshold") {
           eventQueue.length = MAX_QUEUE_SIZE;
         }
         saveEventQueue();
+        console.error(`Analytics: Server returned ${response.status}, retrying ${eventsToSend.length} event(s)`);
+      } else {
+        // A 4xx is not retryable, so these events are gone. Say which ones:
+        // this branch used to log a bare status code, which is why a schema
+        // mismatch could silently destroy batches for a long time without
+        // anyone noticing what was being lost.
+        console.error(
+          `Analytics: Server returned ${response.status}, dropping ${eventsToSend.length} event(s)`,
+          eventsToSend.map((event) => event.event_type)
+        );
       }
-      console.error(`Analytics: Server returned ${response.status}`);
+      return;
+    }
+
+    // The API accepts a batch per row and reports the rows it declined, so a
+    // client running ahead of a server deploy loses only the unknown events
+    // rather than everything flushed alongside them.
+    try {
+      const body = await response.json();
+      if (Array.isArray(body?.rejected) && body.rejected.length > 0) {
+        console.warn("Analytics: server rejected some events", body.rejected);
+      }
+    } catch (parseError) {
+      // A successful insert with an unreadable body is not worth surfacing.
     }
   } catch (error) {
     // Put events back in queue on network error

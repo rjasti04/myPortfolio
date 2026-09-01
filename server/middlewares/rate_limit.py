@@ -4,7 +4,7 @@ import random
 from collections import defaultdict
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from server.config.settings import TRUSTED_PROXY_NETWORKS
+from server.config.settings import CHAT_RATE_LIMIT_PER_MINUTE, TRUSTED_PROXY_NETWORKS
 from server.utils.ip_utils import client_ip_from_request
 
 # Credential-guessing surfaces, held to the stricter budget below. Kept as
@@ -18,6 +18,17 @@ AUTH_RATE_LIMITED_PATHS = frozenset({
     # strict budget alongside the password routes.
     "/auth/2fa/verify",
     "/auth/magic-link/request",
+})
+
+# Bedrock inference. These sat on the general 60/min budget, which is far too
+# generous for the only endpoint on the service that spends money per call and
+# takes no authentication. Paired with the size caps in `schemas/chat.py`, this
+# is what bounds the worst case an anonymous IP can bill.
+CHAT_RATE_LIMITED_PATHS = frozenset({
+    "/chat",
+    "/chat/",
+    "/chat/stream",
+    "/chat/summarize",
 })
 
 
@@ -46,6 +57,7 @@ class RateLimitMiddleware:
         self.window_seconds = window_seconds
         self._hits: dict[str, list[float]] = defaultdict(list)
         self._auth_hits: dict[str, list[float]] = defaultdict(list)
+        self._chat_hits: dict[str, list[float]] = defaultdict(list)
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http" or os.getenv("TESTING") == "true":
@@ -54,12 +66,27 @@ class RateLimitMiddleware:
 
         request = Request(scope, receive)
         path = scope.get("path", "")
-        is_auth_route = _normalise_path(path) in AUTH_RATE_LIMITED_PATHS
+        normalised_path = _normalise_path(path)
+        is_auth_route = normalised_path in AUTH_RATE_LIMITED_PATHS
+        is_chat_route = normalised_path in CHAT_RATE_LIMITED_PATHS
         client_ip = client_ip_from_request(request, TRUSTED_PROXY_NETWORKS)
 
         now = time.time()
 
-        if is_auth_route:
+        if is_chat_route:
+            chat_window = 60
+            self._chat_hits[client_ip] = [
+                t for t in self._chat_hits[client_ip] if now - t < chat_window
+            ]
+            if len(self._chat_hits[client_ip]) >= CHAT_RATE_LIMIT_PER_MINUTE:
+                response = JSONResponse(
+                    {"detail": "Too many AI requests. Try again in a minute."},
+                    status_code=429,
+                )
+                await response(scope, receive, send)
+                return
+            self._chat_hits[client_ip].append(now)
+        elif is_auth_route:
             # Stricter limit: 5 requests per 60 seconds for login/registration
             auth_window = 60
             max_auth_requests = 5
@@ -99,5 +126,9 @@ class RateLimitMiddleware:
                 self._auth_hits[ip] = [t for t in self._auth_hits[ip] if now - t < 60]
                 if not self._auth_hits[ip]:
                     del self._auth_hits[ip]
+            for ip in list(self._chat_hits.keys()):
+                self._chat_hits[ip] = [t for t in self._chat_hits[ip] if now - t < 60]
+                if not self._chat_hits[ip]:
+                    del self._chat_hits[ip]
 
         await self.app(scope, receive, send)

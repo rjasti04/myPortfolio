@@ -61,26 +61,56 @@ async def create_event(payload: EventCreate, request: Request, db: AsyncSession 
 async def create_events_bulk(payload: BulkEventCreate, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Inserts up to 500 events in a single transaction.
+
+    Unrecognised event types are skipped individually rather than failing the
+    batch. `BulkEventItem` types `event_type` as a plain string precisely so
+    that decision lands here: when the vocabulary lived in the request schema,
+    FastAPI answered 422 for the whole request, and since analytics.js only
+    re-queues on 5xx/429 the valid events in that batch were lost with it. A
+    client that runs ahead of a server deploy should cost itself one event, not
+    everything it had buffered.
     """
     if not payload.events:
         raise HTTPException(400, "events list is empty")
 
     # One batch, one session: a caller holding one token must not be able to
-    # write events attributed to somebody else's session.
+    # write events attributed to somebody else's session. This stays a hard
+    # failure for the whole batch - it is an authorisation boundary, not a
+    # vocabulary mismatch.
     for event in payload.events:
         assert_session_access(event.session_id, request)
     if len(payload.events) > 500:
         raise HTTPException(400, "Maximum 500 events per bulk request")
 
-    events = [
-        UserActivityEvent(
-            session_id=e.session_id,
-            event_type=e.event_type,
-            page_path=e.page_path,
-            event_data=e.event_data
+    events = []
+    rejected = []
+    for index, e in enumerate(payload.events):
+        if e.event_type not in EVENT_TYPES:
+            rejected.append({
+                "index": index,
+                "event_type": e.event_type,
+                "reason": "unknown event_type",
+            })
+            continue
+        events.append(
+            UserActivityEvent(
+                session_id=e.session_id,
+                event_type=e.event_type,
+                page_path=e.page_path,
+                event_data=e.event_data,
+            )
         )
-        for e in payload.events
-    ]
+
+    if rejected:
+        logger.warning(
+            "bulk_events_partially_rejected",
+            rejected_count=len(rejected),
+            accepted_count=len(events),
+            event_types=sorted({r["event_type"] for r in rejected}),
+        )
+
+    if not events:
+        return {"inserted": 0, "rejected": rejected}
 
     try:
         db.add_all(events)
@@ -106,7 +136,7 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
         logger.exception("Bulk event insert failed")
         raise HTTPException(422, "Failed to insert events (possibly invalid session_id)") from e
 
-    return {"inserted": len(events)}
+    return {"inserted": len(events), "rejected": rejected}
 
 
 # A comment frame every 2s (the previous behaviour) is far more chatty than any

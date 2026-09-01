@@ -13,6 +13,7 @@ from server.config import settings
 from server.middlewares.body_size import BodySizeLimitMiddleware
 from server.middlewares.rate_limit import (
     AUTH_RATE_LIMITED_PATHS,
+    CHAT_RATE_LIMITED_PATHS,
     RateLimitMiddleware,
     _normalise_path,
 )
@@ -87,6 +88,33 @@ def test_normalise_path_only_strips_a_real_api_prefix(path, expected):
 
 def test_non_auth_routes_stay_on_the_general_budget():
     assert _normalise_path("/api/events/bulk") not in AUTH_RATE_LIMITED_PATHS
+    assert _normalise_path("/api/events/bulk") not in CHAT_RATE_LIMITED_PATHS
+
+
+@pytest.mark.parametrize(
+    "path", ["/chat", "/chat/", "/chat/stream", "/chat/summarize"]
+)
+def test_chat_routes_are_on_their_own_budget_under_both_prefixes(path):
+    """Bedrock inference sat on the general 60/min budget.
+
+    It is the only endpoint that spends money per call and it takes no
+    authentication, so the general limit let one IP drive sixty inference
+    requests a minute indefinitely.
+    """
+    assert _normalise_path(path) in CHAT_RATE_LIMITED_PATHS
+    assert _normalise_path(f"/api{path}") in CHAT_RATE_LIMITED_PATHS
+
+
+def test_chat_budget_is_stricter_than_the_general_one():
+    limiter = RateLimitMiddleware(app=None)
+    assert settings.CHAT_RATE_LIMIT_PER_MINUTE < limiter.max_requests
+
+
+def test_chat_and_auth_budgets_are_tracked_separately():
+    """Chat traffic must not be able to exhaust the login budget, or vice versa."""
+    limiter = RateLimitMiddleware(app=None)
+    assert limiter._chat_hits is not limiter._auth_hits
+    assert limiter._chat_hits is not limiter._hits
 
 
 # --- required signing key ---------------------------------------------------

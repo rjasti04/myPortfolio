@@ -70,6 +70,12 @@ BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS = _env_int("BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS"
 # unlimited Bedrock inference.
 CHAT_FREE_MESSAGE_LIMIT = _env_int("CHAT_FREE_MESSAGE_LIMIT", 6)
 
+# Requests per minute per IP against the Bedrock-backed chat routes. These used
+# to share the general 60/min budget; 12 is roughly one message every five
+# seconds, which no real conversation exceeds, and it caps what an anonymous
+# caller can spend without needing to know who they are.
+CHAT_RATE_LIMIT_PER_MINUTE = _env_int("CHAT_RATE_LIMIT_PER_MINUTE", 12)
+
 _raw_allowed_models = os.getenv("ALLOWED_MODEL_IDS", "")
 ALLOWED_MODEL_IDS = {
     model.strip()

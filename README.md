@@ -115,6 +115,8 @@ Optional:
 - `TRUSTED_PROXY_IPS`: comma-separated proxy IPs/CIDRs trusted for `X-Forwarded-For`
 - `MAX_BODY_BYTES`: request body limit, default `1048576`
 - `CHAT_MAX_CONCURRENCY`: concurrent chat stream limit, default `4`
+- `CHAT_FREE_MESSAGE_LIMIT`: anonymous user messages before login, default `6`
+- `CHAT_RATE_LIMIT_PER_MINUTE`: per-IP requests/min against the chat routes, default `12`
 - `CHAT_STREAM_QUEUE_SIZE`: async streaming queue size, default `32`
 - `BEDROCK_TIMEOUT_SECONDS`: Bedrock read timeout, default `30`
 - `BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS`: stream queue put timeout, default `2`
@@ -144,7 +146,9 @@ npm run audit         # Check npm packages for high-severity advisories
 - `PATCH /sessions/{session_id}/end`: end a session
 - `GET /sessions/{session_id}`: fetch session metadata
 - `POST /events`: record one activity event
-- `POST /events/bulk`: record up to 500 activity events
+- `POST /events/bulk`: record up to 500 activity events. Accepts the batch per
+  row and answers `{inserted, rejected[]}`; an unrecognised `event_type` costs
+  that one event rather than the whole batch
 - `GET /sessions/{session_id}/events`: list events for a session
 - `POST /chat`: stream a Bedrock chat response
 - `POST /chat/summarize`: summarize chat history through Bedrock

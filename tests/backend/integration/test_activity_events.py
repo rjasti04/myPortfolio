@@ -181,3 +181,118 @@ async def test_created_event_broadcast_includes_event_id(async_client):
         assert broadcast["event_id"] == created_id
     finally:
         kafka_stream.unregister_stream(__import__("uuid").UUID(session_id), queue)
+
+
+# --- Bulk batch resilience (BUG-01) -----------------------------------------
+# The client emits event types the server may not have declared yet. When the
+# vocabulary lived in the request schema, FastAPI answered 422 for the whole
+# request and analytics.js dropped the batch, so one unknown type destroyed
+# every valid event flushed alongside it.
+
+
+@pytest.mark.asyncio
+async def test_contact_prompt_is_an_accepted_event_type():
+    """form.js has always emitted this; the schema has to know about it."""
+    assert "contact_prompt" in EVENT_TYPES
+
+
+@pytest.mark.asyncio
+async def test_ai_llm_telemetry_is_a_declared_event_type():
+    """chat_routes writes this row directly, so the summary must not call it unknown."""
+    assert "ai_llm_telemetry" in EVENT_TYPES
+
+
+@pytest.mark.asyncio
+async def test_unknown_event_type_does_not_discard_the_rest_of_the_batch(async_client):
+    """The regression that lost contact form conversions.
+
+    `contact_prompt` and `contact_submission` are emitted seconds apart and land
+    in the same flush window, so the batch that carried the conversion event was
+    exactly the batch most likely to be rejected.
+    """
+    session_id, headers = await _new_session(async_client)
+
+    response = await async_client.post(
+        "/api/events/bulk",
+        json={
+            "events": [
+                {"session_id": session_id, "event_type": "page_view", "page_path": "/#contact"},
+                {"session_id": session_id, "event_type": "not_a_real_event_type"},
+                {
+                    "session_id": session_id,
+                    "event_type": "contact_submission",
+                    "event_data": {"success": True},
+                },
+            ]
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["inserted"] == 2
+    assert [r["event_type"] for r in body["rejected"]] == ["not_a_real_event_type"]
+    assert body["rejected"][0]["index"] == 1
+
+    stored = await async_client.get(f"/api/sessions/{session_id}/events", headers=headers)
+    assert stored.status_code == 200
+    stored_types = {e["event_type"] for e in stored.json()}
+    assert "contact_submission" in stored_types, "the conversion event must survive"
+    assert "page_view" in stored_types
+    assert "not_a_real_event_type" not in stored_types
+
+
+@pytest.mark.asyncio
+async def test_batch_of_only_unknown_types_reports_rather_than_failing(async_client):
+    session_id, headers = await _new_session(async_client)
+
+    response = await async_client.post(
+        "/api/events/bulk",
+        json={"events": [{"session_id": session_id, "event_type": "made_up"}]},
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    assert response.json() == {
+        "inserted": 0,
+        "rejected": [{"index": 0, "event_type": "made_up", "reason": "unknown event_type"}],
+    }
+
+
+@pytest.mark.asyncio
+async def test_bulk_still_refuses_a_batch_touching_another_session(async_client):
+    """Partial acceptance covers vocabulary drift, not the authorisation boundary."""
+    session_id, headers = await _new_session(async_client)
+    other_session_id, _ = await _new_session(async_client)
+
+    response = await async_client.post(
+        "/api/events/bulk",
+        json={
+            "events": [
+                {"session_id": session_id, "event_type": "page_view"},
+                {"session_id": other_session_id, "event_type": "page_view"},
+            ]
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_bulk_still_rejects_structurally_invalid_rows(async_client):
+    """A malformed session_id is a client bug, not schema drift: still a 422."""
+    session_id, headers = await _new_session(async_client)
+
+    response = await async_client.post(
+        "/api/events/bulk",
+        json={
+            "events": [
+                {"session_id": session_id, "event_type": "page_view"},
+                {"session_id": "not-a-uuid", "event_type": "page_view"},
+            ]
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 422

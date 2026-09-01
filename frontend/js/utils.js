@@ -1,7 +1,26 @@
+// Escapes the five characters that can change the meaning of markup, including
+// both quote forms.
+//
+// The previous implementation round-tripped through `textContent` ->
+// `innerHTML`, which escapes `&`, `<` and `>` but leaves `"` untouched. Six
+// call sites interpolate the result *inside* a double-quoted HTML attribute
+// (chat.js retry buttons, activity.js event rows, activity-charts.js path
+// bars), so a value containing a quote closed the attribute early and anything
+// after it was parsed as further attributes - `onmouseover` included. The
+// activity-charts path bars are fed by `page_path`, which is visitor-controlled
+// and persisted, so that one was an injection stored in the database.
+//
+// Regex rather than the DOM so this is also usable without a document.
+const HTML_ESCAPES = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
 export function escapeHTML(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value);
-  return div.innerHTML;
+  return String(value).replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]);
 }
 
 export function copyText(text) {
