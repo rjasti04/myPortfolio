@@ -6,7 +6,7 @@
 - **Languages**: HTML, CSS, JavaScript ES modules, Python 3.10+
 - **Tooling**: Node.js 18+, npm, ESLint, Stylelint, Prettier, Node test runner, jsdom
 - **Backend stack**: FastAPI, Pydantic v2, asyncpg, boto3/botocore, orjson, structlog
-- **Frontend stack**: Vanilla JS modules, Three.js, service worker, web app manifest, DOMPurify, marked, Font Awesome, Google Fonts
+- **Frontend stack**: Vanilla JS modules, service worker, web app manifest, DOMPurify, marked, Font Awesome, Google Fonts
 - **Key integrations**: Amazon Bedrock chat API, PostgreSQL activity tracking, FormSubmit contact form, browser `localStorage`/`sessionStorage`, PWA cache storage
 - **Database expectations**: PostgreSQL tables `users`, `refresh_tokens`, `one_time_tokens`, `password_history`, `user_sessions`, `user_activity_events`, `ai_conversations`; schemas/migrations are managed in-repo via Alembic under `server/alembic/` (raw SQL files are excluded). CI applies the full chain against Postgres and runs `alembic check`, so a model changed without a migration fails before deploy
 - **Constraints**: SQLAlchemy ORM (async engine + asyncpg driver); API requires `DATABASE_URL`, `AWS_REGION`, and `DEFAULT_MODEL_ID`; frontend API base is hardcoded in `js/analytics.js`
@@ -27,7 +27,7 @@
 | `frontend/index.html` | 21,200 | `grep -n '<section id=' frontend/index.html` for the section map. |
 | `frontend/js/chat.js` | 12,400 | One 1,310-line `initChat()`; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (17 hits). |
 | `frontend/js/auth-ui.js` | 12,500 | Same shape - one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (7 hits). |
-| `frontend/three-bg.js` | 10,100 | WebGL scene setup; read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
+| `frontend/plexus-bg.js` | 13,700 | Canvas2D plexus background - no Three.js, no WebGL, despite the old name. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
 
 `server/.venv/` holds ~7,500 dependency files (136 MB) against 147 tracked
 files. It is gitignored, so ripgrep-backed `Grep`/`Glob` skip it — but plain

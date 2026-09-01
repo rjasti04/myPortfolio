@@ -176,28 +176,26 @@ document.addEventListener("DOMContentLoaded", () => {
     ensureActivityForActiveSection();
   }
 
-  // Defer Three.js background for faster initial paint
-  // Only load on capable devices to avoid performance issues
-  const loadThreeBackground = () => {
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const cores = navigator.hardwareConcurrency || 4;
-    const memory = navigator.deviceMemory || 4;
-    const isMobileViewport = window.matchMedia('(pointer: coarse) and (max-width: 768px)').matches;
-    const hasGoodHardware = isMobileViewport ? cores >= 4 : cores >= 2;
-    const hasEnoughMemory = memory >= 3;
+  // Defer the plexus background so it never delays first paint.
+  // The old capability gate read navigator.hardwareConcurrency/deviceMemory,
+  // which Safari reports for neither (both fell back to a passing default, so
+  // the gate mostly did nothing) and which say nothing about GPU or thermal
+  // headroom anyway. plexus-bg.js now measures its own per-frame cost and steps
+  // detail down when it overruns, so weak devices degrade instead of being
+  // guessed at up front. Reduced motion is still an explicit opt-out.
+  const loadPlexusBackground = () => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    if (!prefersReducedMotion && hasGoodHardware && hasEnoughMemory) {
-      import("../three-bg.js").catch(err => {
-        console.warn('Three.js background failed to load:', err);
-        // Silently degrade - background is non-critical
-      });
-    }
+    import("../plexus-bg.js").catch(err => {
+      console.warn('Plexus background failed to load:', err);
+      // Silently degrade - background is non-critical
+    });
   };
 
   if ("requestIdleCallback" in window) {
-    requestIdleCallback(loadThreeBackground);
+    requestIdleCallback(loadPlexusBackground);
   } else {
-    setTimeout(loadThreeBackground, 200);
+    setTimeout(loadPlexusBackground, 200);
   }
 
   if ("serviceWorker" in navigator) {

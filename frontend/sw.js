@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v22';
+const CACHE_NAME = 'rj-portfolio-v23';
 const CACHE_EXPIRATION_DAYS = 7;
 const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -15,7 +15,7 @@ const PRECACHE_URLS = [
   '/index.html',
   '/styles.css',
   '/auth-modal.css',
-  '/three-bg.js',
+  '/plexus-bg.js',
   '/manifest.json',
   '/android-chrome-192x192.png',
   '/android-chrome-512x512.png',

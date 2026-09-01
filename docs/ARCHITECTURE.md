@@ -30,7 +30,7 @@ The application relies on Vanilla ES modules. State is generally local to the mo
     *   `chat.js`: Handles the AI chatbot interface, streaming responses, and communicating with the backend API.
     *   `analytics.js` / `activity.js`: Session tracking, and the dashboard that shows the visitor what was recorded.
     *   `form.js`: Logic for the FormSubmit contact form.
-*   **`three-bg.js`** (Root): Handles the WebGL Three.js background canvas.
+*   **`plexus-bg.js`** (Root): Animated plexus background on a 2D canvas. Despite the former `three-bg.js` name it uses neither Three.js nor WebGL. Adapts detail to measured frame cost and is skipped under reduced motion.
 
 ### 3. Backend API (`/server`)
 A lightweight, asynchronous Python API.
@@ -58,5 +58,5 @@ A lightweight, asynchronous Python API.
 
 ## Conventions & Constraints
 *   **Vanilla First:** Avoid introducing heavy frontend frameworks (React, Vue) or CSS frameworks unless explicitly required.
-*   **Performant Animations:** Rely on CSS transitions and `requestAnimationFrame` for JS animations (Three.js).
+*   **Performant Animations:** Rely on CSS transitions and `requestAnimationFrame` for JS animations.
 *   **ORM & Migrations:** Database models use SQLAlchemy ORM (`server/models/`) with async sessions. All schema changes must be applied via Alembic migrations (`server/alembic/`).

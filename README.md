@@ -7,7 +7,7 @@ FastAPI service for activity tracking and Amazon Bedrock-powered chat.
 
 ## Tech Stack
 
-- Frontend: HTML, CSS, JavaScript modules, Three.js, service worker, web app manifest
+- Frontend: HTML, CSS, JavaScript modules, service worker, web app manifest
 - Backend: FastAPI, asyncpg/PostgreSQL, Pydantic, boto3/Amazon Bedrock, structlog
 - Tooling: Node.js test runner, jsdom, ESLint, Stylelint, Prettier
 

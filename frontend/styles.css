@@ -542,7 +542,7 @@ body.dropdown-open .header-actions > *:not(.header-dropdown.is-open):not(.nav-au
 }
 
 
-.webgl-canvas {
+.plexus-canvas {
   position: fixed;
   top: 0;
   left: 0;
@@ -552,13 +552,32 @@ body.dropdown-open .header-actions > *:not(.header-dropdown.is-open):not(.nav-au
   pointer-events: none;
   opacity: 1;
   transition: opacity var(--motion-slow) var(--ease-standard);
+
+  /* Keeps the centre column clear behind body copy. This replaces three
+     hard rectangular cutoffs in plexus-bg.js that popped links and facets
+     in and out as they crossed the boundary; a mask fades instead of
+     switching, and is composited on the GPU. */
+  -webkit-mask-image: radial-gradient(
+    ellipse 58% 72% at 50% 44%,
+    rgb(0 0 0 / 14%) 0%,
+    rgb(0 0 0 / 20%) 20%,
+    rgb(0 0 0 / 55%) 36%,
+    #000 62%
+  );
+  mask-image: radial-gradient(
+    ellipse 58% 72% at 50% 44%,
+    rgb(0 0 0 / 14%) 0%,
+    rgb(0 0 0 / 20%) 20%,
+    rgb(0 0 0 / 55%) 36%,
+    #000 62%
+  );
 }
 
-body:not(.dark-theme) .webgl-canvas {
+body:not(.dark-theme) .plexus-canvas {
   opacity: 1;
 }
 
-.webgl-canvas[hidden] {
+.plexus-canvas[hidden] {
   display: none !important;
 }
 
@@ -5320,7 +5339,7 @@ body.dark-theme .skill-tag.primary .fas {
     scroll-behavior: auto !important;
   }
 
-  .js-enabled .webgl-canvas.js-only,
+  .js-enabled .plexus-canvas.js-only,
   .js-enabled .noise-overlay.js-only {
     display: none !important;
   }
@@ -5368,7 +5387,7 @@ body.dark-theme .skill-tag.primary .fas {
 /* Print Styles */
 @media print {
 
-  .webgl-canvas,
+  .plexus-canvas,
   .noise-overlay,
   .toast-container,
   .header-actions,
@@ -5683,7 +5702,7 @@ body.dark-theme .skill-tag.primary .fas {
 }
 
 .js-enabled .noise-overlay.js-only,
-.js-enabled .webgl-canvas.js-only,
+.js-enabled .plexus-canvas.js-only,
 .js-enabled .toast-container.js-only,
 .js-enabled .contact-prompts.js-only,
 .js-enabled .header-dropdown.js-only {
@@ -5885,7 +5904,7 @@ section {
     display: none !important;
   }
 
-  .js-enabled .webgl-canvas.js-only {
+  .js-enabled .plexus-canvas.js-only {
     opacity: 0.78;
   }
 

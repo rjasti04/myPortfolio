@@ -342,9 +342,9 @@ export function initTerminal() {
   const commandList = Object.keys(commands).concat(["echo"]);
 
   terminalInput.addEventListener("keydown", (e) => {
-    // Trigger WebGL surge on typing
-    if (typeof window.triggerWebGlSurge === "function") {
-      window.triggerWebGlSurge();
+    // Nudge the background field on typing
+    if (typeof window.triggerBgSurge === "function") {
+      window.triggerBgSurge();
     }
 
     // History up
