@@ -44,7 +44,13 @@ const FLUSH_INTERVAL_MS = 2000;
 const HEARTBEAT_INTERVAL_MS = 60000;
 const HEARTBEAT_INITIAL_DELAY_MS = 1000;
 const SCROLL_DEBOUNCE_MS = 500;
-const EVENT_QUEUE_STORAGE_KEY = 'rj_event_queue';
+// Namespaced per session. The session id lives in sessionStorage (per tab) but
+// the queue lives in localStorage (shared across tabs), and each queued event
+// carries a baked-in session_id. Under one shared key, a second tab would
+// restore the first tab's events, flush them with its own token, and get a 403
+// for the whole batch - taking its own valid events with it.
+const EVENT_QUEUE_STORAGE_PREFIX = 'rj_event_queue';
+const LEGACY_EVENT_QUEUE_STORAGE_KEY = 'rj_event_queue';
 
 let sessionId = null;
 // Capability token handed out when the session is created. Every request scoped
@@ -74,6 +80,12 @@ function setSessionId(id, token) {
 }
 
 function clearSessionId() {
+  // The queue is keyed by session, and its events can only ever be flushed by
+  // the session that owns them, so it goes when the session does.
+  try {
+    if (sessionId) localStorage.removeItem(eventQueueKey());
+  } catch (e) {}
+  eventQueue.length = 0;
   sessionId = null;
   sessionToken = null;
   try {
@@ -126,14 +138,44 @@ function publishTelemetry(sample) {
   });
 }
 
-// Load persisted event queue from localStorage
-function loadEventQueue() {
+function eventQueueKey(id = sessionId) {
+  return `${EVENT_QUEUE_STORAGE_PREFIX}:${id}`;
+}
+
+/**
+ * Removes queues belonging to sessions that are over: the unscoped key written
+ * by earlier builds, and any namespaced queue that is not the live session's.
+ * Those events can never be flushed - only the session that owns them holds the
+ * token the API requires - so keeping them just consumes quota.
+ */
+function purgeForeignEventQueues() {
   try {
-    const stored = localStorage.getItem(EVENT_QUEUE_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_EVENT_QUEUE_STORAGE_KEY);
+    const mine = sessionId ? eventQueueKey() : null;
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(`${EVENT_QUEUE_STORAGE_PREFIX}:`) && key !== mine) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to purge stale event queues:', e);
+  }
+}
+
+// Load this session's persisted event queue from localStorage.
+function loadEventQueue() {
+  if (!sessionId) return;
+  try {
+    const stored = localStorage.getItem(eventQueueKey());
     if (stored) {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed)) {
-        eventQueue.push(...parsed.slice(0, MAX_QUEUE_SIZE));
+        // Belt and braces: a queue restored under this session's key should
+        // only ever hold this session's events.
+        eventQueue.push(
+          ...parsed.filter((event) => event && event.session_id === sessionId).slice(0, MAX_QUEUE_SIZE)
+        );
       }
     }
   } catch (e) {
@@ -143,8 +185,9 @@ function loadEventQueue() {
 
 // Persist event queue to localStorage
 function saveEventQueue() {
+  if (!sessionId) return;
   try {
-    localStorage.setItem(EVENT_QUEUE_STORAGE_KEY, JSON.stringify(eventQueue));
+    localStorage.setItem(eventQueueKey(), JSON.stringify(eventQueue));
   } catch (e) {
     console.warn('Failed to save event queue to localStorage:', e);
   }
@@ -495,17 +538,19 @@ export function initAnalytics() {
     return;
   }
 
-  // Load persisted event queue
-  loadEventQueue();
-
   attachGlobalListeners();
 
   if (sessionId) {
-    // Session already exists from this tab (e.g., page reload)
+    // Session already exists from this tab (e.g., page reload). Its queue can
+    // only be restored now that we know which session it belongs to - loading
+    // it before this point is what let one tab adopt another tab's events.
+    purgeForeignEventQueues();
+    loadEventQueue();
     startHeartbeat();
     trackEvent("page_view", { referrer: document.referrer, is_reload: true });
   } else {
     clearSessionId();
+    purgeForeignEventQueues();
     // New tab, start session
     startSession();
   }

@@ -5,6 +5,29 @@ import { SwipeHandler } from "./swipe-handler.js";
 
 let hamburger, navMenu, navLinks, sections, imageModal, imageModalCloseButton, profileTrigger;
 
+/**
+ * True while any dialog is on screen.
+ *
+ * `.image-modal` / `.project-detail-modal` are shown by modal.js adding
+ * `.active`; the auth modal is a separate implementation that toggles
+ * `.hidden` instead. Keyboard shortcuts have to respect both, or they fire
+ * through an open dialog.
+ */
+function isModalOpen() {
+  return Boolean(
+    document.querySelector(".image-modal.active, .project-detail-modal.active") ||
+      document.querySelector("#auth-modal:not(.hidden)")
+  );
+}
+
+/** True when focus is somewhere the user is typing, so single keys are text. */
+function isTypingTarget(element) {
+  if (!element) return false;
+  if (element.isContentEditable) return true;
+  const tag = element.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+
 function setMobileMenuState(isOpen) {
   if (!navMenu || !hamburger) return;
 
@@ -322,8 +345,11 @@ export function initNavigation() {
 
   // Number key navigation
   document.addEventListener("keydown", (event) => {
-    const tag = document.activeElement?.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    // A number pressed over an open dialog used to change the section behind
+    // it: the modal stayed up, the body stayed scroll-locked, and closing it
+    // later restored a scroll offset from a section the user had left.
+    if (isModalOpen()) return;
+    if (isTypingTarget(document.activeElement)) return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
 
     const num = parseInt(event.key, 10);
@@ -351,8 +377,10 @@ export function initNavigation() {
     };
 
     document.addEventListener("keydown", (event) => {
-      const tag = document.activeElement?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (isTypingTarget(document.activeElement)) return;
+      // Opening the shortcut overlay on top of a dialog stacks two things
+      // competing for Escape.
+      if (isModalOpen() && !overlay.classList.contains("active")) return;
 
       if (event.key === "?" && !event.metaKey && !event.ctrlKey && !event.altKey) {
         event.preventDefault();

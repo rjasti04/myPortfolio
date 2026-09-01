@@ -1,15 +1,20 @@
 import { showToast } from "./utils.js";
 
-// Add global unhandled rejection handler
+// Global unhandled rejection handler.
+//
+// `preventDefault()` is what tells the browser the rejection was handled, so
+// calling it unconditionally suppressed *every* unhandled rejection from the
+// console and from window.onerror. Nothing reports errors to the server either,
+// so production failures were invisible to everyone. Only suppress the case
+// actually handled here - the one that shows the user a toast.
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection:', event.reason);
 
-  // Show user-friendly message for critical failures
-  if (event.reason?.message?.includes('fetch') || event.reason?.message?.includes('network')) {
+  const message = String(event.reason?.message ?? event.reason ?? '');
+  if (/fetch|network/i.test(message)) {
     showToast('Network error. Please check your connection.', 'error');
+    event.preventDefault();
   }
-
-  event.preventDefault();
 });
 
 import { initNavigation } from "./navigation.js";

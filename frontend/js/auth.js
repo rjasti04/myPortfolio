@@ -62,7 +62,7 @@ export async function setup2FA() {
   const res = await authenticatedFetch(`${API_BASE}/auth/2fa/setup`, { method: 'POST' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to setup 2FA');
+    throw new Error(getErrorMessage(err, 'Failed to setup 2FA'));
   }
   return await res.json();
 }
@@ -75,7 +75,7 @@ export async function enable2FA(code) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to enable 2FA');
+    throw new Error(getErrorMessage(err, 'Failed to enable 2FA'));
   }
   return await res.json();
 }
@@ -88,7 +88,7 @@ export async function disable2FA(currentPassword, code) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to disable 2FA');
+    throw new Error(getErrorMessage(err, 'Failed to disable 2FA'));
   }
   return await res.json();
 }
@@ -101,7 +101,7 @@ export async function verify2FA(preAuthToken, code) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Invalid 2FA code');
+    throw new Error(getErrorMessage(err, 'Invalid 2FA code'));
   }
   const data = await res.json();
   if (data.access_token && data.refresh_token) {
@@ -221,7 +221,7 @@ export async function resetPassword(token, newPassword) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || 'Failed to reset password');
+      throw new Error(getErrorMessage(errorData, 'Failed to reset password'));
     }
 
     return await response.json();
@@ -241,7 +241,7 @@ export async function changePassword(currentPassword, newPassword) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || 'Failed to change password');
+      throw new Error(getErrorMessage(errorData, 'Failed to change password'));
     }
 
     return await response.json();
@@ -261,7 +261,7 @@ export async function deleteAccount(currentPassword, confirmationPhrase) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || 'Failed to delete account');
+      throw new Error(getErrorMessage(errorData, 'Failed to delete account'));
     }
 
     return await response.json();
@@ -287,43 +287,75 @@ export async function logoutUser() {
     window.dispatchEvent(new Event('auth-changed'));
 }
 
+// In-flight refresh, shared by every caller that 401s at the same time.
+//
+// The server rotates refresh tokens: `refresh_user_token` revokes the presented
+// token and issues a new one. Without this, concurrent 401s - which is exactly
+// what the AI page produces on load, with /chat/history, /auth/me and
+// /auth/sessions all firing at once - each sent the *same* refresh token. The
+// first won; the rest were told the token had been revoked, fell through to
+// clearTokens(), and signed the user out mid-session. Whichever loser finished
+// last also overwrote the winner's new token pair in localStorage.
+let refreshInFlight = null;
+
+/**
+ * Refreshes the access token at most once at a time.
+ * @returns {Promise<string|null>} the new access token, or null if refresh failed.
+ */
+function refreshAccessTokenOnce() {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) return null;
+
+    try {
+      const refreshResponse = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken })
+      });
+      if (!refreshResponse.ok) return null;
+
+      const data = await refreshResponse.json();
+      setTokens(data.access_token, data.refresh_token);
+      return data.access_token;
+    } catch (e) {
+      console.error('Failed to refresh token', e);
+      return null;
+    }
+  })();
+
+  // Cleared before the awaiting callers resume, so a later 401 starts a fresh
+  // attempt rather than reusing this settled promise.
+  refreshInFlight = refreshInFlight.finally(() => {
+    refreshInFlight = null;
+  });
+
+  return refreshInFlight;
+}
+
 export async function authenticatedFetch(url, options = {}) {
-  let token = getAuthToken();
+  const token = getAuthToken();
   const headers = {
     ...options.headers,
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   };
 
-  let response = await fetch(url, { ...options, headers });
+  const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401 && token) {
-      // Try refresh
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-      if (refreshToken) {
-          try {
-              const refreshResponse = await fetch(`${API_BASE}/auth/refresh`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ refresh_token: refreshToken })
-              });
+      const newAccessToken = await refreshAccessTokenOnce();
 
-              if (refreshResponse.ok) {
-                  const data = await refreshResponse.json();
-                  setTokens(data.access_token, data.refresh_token);
-
-                  // Retry original request
-                  const newHeaders = {
-                      ...options.headers,
-                      'Authorization': `Bearer ${data.access_token}`
-                  };
-                  return fetch(url, { ...options, headers: newHeaders });
-              }
-          } catch (e) {
-              console.error('Failed to refresh token', e);
-          }
+      if (newAccessToken) {
+          // Retry the original request with the refreshed credential.
+          return fetch(url, {
+              ...options,
+              headers: { ...options.headers, 'Authorization': `Bearer ${newAccessToken}` }
+          });
       }
 
-      // If refresh failed or no refresh token, clear tokens
+      // Refresh genuinely failed (or there was no refresh token): sign out.
       clearTokens();
       window.dispatchEvent(new Event('auth-changed'));
   }
