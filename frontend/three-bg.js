@@ -113,8 +113,24 @@ function randomBetween(range) {
   return lerp(range[0], range[1], Math.random());
 }
 
+// `rgba()` strings were rebuilt for every connection, facet and particle on
+// every frame (~1.5k string allocations/frame at desktop density). Alpha is
+// quantised to 1/255 - finer steps are not observable - so the cache converges
+// on a few hundred entries and every subsequent frame is a pure lookup.
+const colorStringCache = new Map();
+
 function colorString(color, alpha) {
-  return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`;
+  const a = alpha < 0 ? 0 : alpha > 1 ? 255 : (alpha * 255) | 0;
+  const key = (((color[0] << 24) | (color[1] << 16) | (color[2] << 8) | a) >>> 0);
+  let out = colorStringCache.get(key);
+  if (out === undefined) {
+    // Cap the cache so a long session on a shifting palette cannot grow it
+    // without bound; 4096 entries covers every colour/alpha pair in practice.
+    if (colorStringCache.size > 4096) colorStringCache.clear();
+    out = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${(a / 255).toFixed(3)})`;
+    colorStringCache.set(key, out);
+  }
+  return out;
 }
 
 function blendColors(a, b, weight = 0.5) {
@@ -127,16 +143,37 @@ function blendColors(a, b, weight = 0.5) {
 }
 
 function averageColors(colors) {
-  const total = colors.reduce(
-    (sum, color) => [
-      sum[0] + color[0],
-      sum[1] + color[1],
-      sum[2] + color[2]
-    ],
-    [0, 0, 0]
-  );
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  for (let i = 0; i < colors.length; i += 1) {
+    r += colors[i][0];
+    g += colors[i][1];
+    b += colors[i][2];
+  }
+  const n = colors.length;
+  return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+}
 
-  return total.map((channel) => Math.round(channel / colors.length));
+// There are only four palette keys, so every mid-tone a frame can ask for is
+// one of ten pairs. Precomputing them at theme-sync time removes the
+// per-connection `averageColors([...])` allocation from the draw loop.
+const midColorCache = new Map();
+
+function rebuildDerivedColors(themeColors) {
+  midColorCache.clear();
+  const keys = ["accent", "secondary", "data", "node"];
+  keys.forEach((ka) => {
+    keys.forEach((kb) => {
+      const ca = themeColors[ka] || COLOR_FALLBACKS.accent;
+      const cb = themeColors[kb] || COLOR_FALLBACKS.accent;
+      midColorCache.set(`${ka}|${kb}`, averageColors([ca, cb]));
+    });
+  });
+}
+
+function midColor(themeColors, keyA, keyB) {
+  return midColorCache.get(`${keyA}|${keyB}`) || themeColors.accent;
 }
 
 function parseHexColor(value) {
@@ -208,8 +245,22 @@ function readThemeColors() {
 }
 
 const spriteCache = new Map();
+let spriteCacheSignature = "";
+
+function paletteSignature(themeColors) {
+  return ["accent", "secondary", "data", "node"]
+    .map((k) => (themeColors[k] || COLOR_FALLBACKS[k]).join(","))
+    .join("|");
+}
 
 function updateSpriteCache(themeColors) {
+  // The theme MutationObserver fires for any class/style write on <body>, not
+  // just palette changes. Rebuilding 8 offscreen canvases + radial gradients on
+  // each of those was pure waste, so bail out when the colours did not move.
+  const signature = paletteSignature(themeColors);
+  if (signature === spriteCacheSignature && spriteCache.size) return;
+  spriteCacheSignature = signature;
+  rebuildDerivedColors(themeColors);
   spriteCache.clear();
   const keys = ["accent", "secondary", "data", "node"];
   const baseRadius = 32;
@@ -249,7 +300,11 @@ function updateSpriteCache(themeColors) {
 
 function getProfileName() {
   if (mobileDevice.matches || window.innerWidth <= 640) return "mobile";
-  if (compactViewportQuery.matches || window.innerHeight < 720) return "compact";
+  // The innerHeight test is deliberately skipped on touch devices: a URL bar
+  // collapsing past 720px would otherwise flip the profile and trigger a full
+  // destroy/remount of the particle field in the middle of a scroll.
+  const shortViewport = !mobileDevice.matches && window.innerHeight < 720;
+  if (compactViewportQuery.matches || shortViewport) return "compact";
   return "desktop";
 }
 
@@ -475,35 +530,66 @@ function midpointIsTooCentral(a, b, width, height) {
     midY < height * 0.86;
 }
 
-function buildSpatialGrid(particles, cellSize) {
-  const grid = new Map();
-  for (let i = 0; i < particles.length; i += 1) {
-    const cx = Math.floor(particles[i].x / cellSize);
-    const cy = Math.floor(particles[i].y / cellSize);
-    const key = `${cx},${cy}`;
-    if (!grid.has(key)) grid.set(key, []);
-    grid.get(key).push(i);
-  }
-  return grid;
+// The grid, its buckets and the candidate objects below are all reused across
+// frames. The previous version allocated a Map, one array per occupied cell and
+// a string key per particle *and* per neighbour probe (~1.8k strings/frame at
+// desktop density), which showed up as steady GC pressure in the profile.
+const GRID_ORIGIN = 512;
+const gridBuckets = new Map();
+let gridGeneration = 0;
+
+function gridKey(cx, cy) {
+  return (cy + GRID_ORIGIN) * 4096 + (cx + GRID_ORIGIN);
 }
+
+function buildSpatialGrid(particles, cellSize) {
+  gridGeneration += 1;
+  const gen = gridGeneration;
+  const invCell = 1 / cellSize;
+
+  for (let i = 0; i < particles.length; i += 1) {
+    const cx = Math.floor(particles[i].x * invCell);
+    const cy = Math.floor(particles[i].y * invCell);
+    const key = gridKey(cx, cy);
+    let bucket = gridBuckets.get(key);
+    if (bucket === undefined) {
+      bucket = { gen, list: [] };
+      gridBuckets.set(key, bucket);
+    } else if (bucket.gen !== gen) {
+      // Stale from an earlier frame: recycle the array instead of reallocating.
+      bucket.gen = gen;
+      bucket.list.length = 0;
+    }
+    bucket.list.push(i);
+  }
+
+  return gen;
+}
+
+const candidatePool = [];
+const candidates = [];
 
 function collectConnections(particles, config, width, height) {
   const cellSize = config.maxDistance;
-  const grid = buildSpatialGrid(particles, cellSize);
-  const candidates = [];
+  const gen = buildSpatialGrid(particles, cellSize);
+  const invCell = 1 / cellSize;
+  let count = 0;
+
+  candidates.length = 0;
 
   for (let i = 0; i < particles.length; i += 1) {
     const a = particles[i];
-    const cx = Math.floor(a.x / cellSize);
-    const cy = Math.floor(a.y / cellSize);
+    const cx = Math.floor(a.x * invCell);
+    const cy = Math.floor(a.y * invCell);
 
     for (let dx = -1; dx <= 1; dx += 1) {
       for (let dy = -1; dy <= 1; dy += 1) {
-        const nKey = `${cx + dx},${cy + dy}`;
-        const bucket = grid.get(nKey);
-        if (!bucket) continue;
+        const bucket = gridBuckets.get(gridKey(cx + dx, cy + dy));
+        if (bucket === undefined || bucket.gen !== gen) continue;
 
-        for (const j of bucket) {
+        const list = bucket.list;
+        for (let k = 0; k < list.length; k += 1) {
+          const j = list[k];
           if (j <= i) continue;
           const b = particles[j];
           const maxDist = connectionDistanceFor(a, b, config);
@@ -514,13 +600,27 @@ function collectConnections(particles, config, width, height) {
           if (d2 > maxDist * maxDist) continue;
           if (midpointIsTooCentral(a, b, width, height)) continue;
 
-          candidates.push({ from: i, to: j, distance: Math.sqrt(d2), maxDistance: maxDist });
+          let candidate = candidatePool[count];
+          if (candidate === undefined) {
+            candidate = { from: 0, to: 0, distance: 0, maxDistance: 0, alpha: 0, proximity: 0 };
+            candidatePool[count] = candidate;
+          }
+          candidate.from = i;
+          candidate.to = j;
+          candidate.distance = Math.sqrt(d2);
+          candidate.maxDistance = maxDist;
+          candidates.push(candidate);
+          count += 1;
         }
       }
     }
   }
 
-  return candidates.sort((a, b) => a.distance - b.distance);
+  return candidates.sort(byDistance);
+}
+
+function byDistance(a, b) {
+  return a.distance - b.distance;
 }
 
 function connectionKey(a, b) {
@@ -541,13 +641,6 @@ function triangleArea(a, b, c) {
   );
 }
 
-function triangleCentroid(a, b, c) {
-  return {
-    x: (a.x + b.x + c.x) / 3,
-    y: (a.y + b.y + c.y) / 3
-  };
-}
-
 function pointIsTooCentral(x, y, width, height) {
   return x > width * 0.34 &&
     x < width * 0.66 &&
@@ -555,41 +648,71 @@ function pointIsTooCentral(x, y, width, height) {
     y < height * 0.84;
 }
 
-function longestTriangleEdge(a, b, c) {
-  const edges = [
-    [a, b, distanceSquared(a, b)],
-    [b, c, distanceSquared(b, c)],
-    [c, a, distanceSquared(c, a)]
-  ];
+// Reused output slot: this is called once per visible facet per frame and the
+// result is consumed immediately by the caller.
+const longestEdgeOut = [null, null];
 
-  return edges.sort((first, second) => second[2] - first[2])[0];
+function longestTriangleEdge(a, b, c) {
+  const ab = distanceSquared(a, b);
+  const bc = distanceSquared(b, c);
+  const ca = distanceSquared(c, a);
+
+  if (ab >= bc && ab >= ca) {
+    longestEdgeOut[0] = a;
+    longestEdgeOut[1] = b;
+  } else if (bc >= ca) {
+    longestEdgeOut[0] = b;
+    longestEdgeOut[1] = c;
+  } else {
+    longestEdgeOut[0] = c;
+    longestEdgeOut[1] = a;
+  }
+
+  return longestEdgeOut;
 }
 
-function selectConnections(particles, config, width, height, intensity) {
-  const linkCounts = new Uint8Array(particles.length);
-  const connections = collectConnections(particles, config, width, height);
-  const selectedConnections = [];
+let linkCounts = new Uint8Array(0);
+const selectedConnections = [];
+// particle index -> index of its first selected connection, so the ripple
+// collision pass can find an outgoing edge in O(1) instead of scanning the
+// whole connection list per excited particle.
+let firstConnectionOf = new Int32Array(0);
 
-  connections.forEach((connection) => {
+function selectConnections(particles, config, width, height, intensity) {
+  if (linkCounts.length < particles.length) {
+    linkCounts = new Uint8Array(particles.length);
+    firstConnectionOf = new Int32Array(particles.length);
+  } else {
+    linkCounts.fill(0, 0, particles.length);
+  }
+  firstConnectionOf.fill(-1, 0, particles.length);
+
+  const connections = collectConnections(particles, config, width, height);
+  selectedConnections.length = 0;
+
+  for (let i = 0; i < connections.length; i += 1) {
+    const connection = connections[i];
     const a = particles[connection.from];
     const b = particles[connection.to];
     const maxLinks = a.zone === "speck" || b.zone === "speck" ? 1 : config.maxLinks;
 
-    if (linkCounts[connection.from] >= maxLinks || linkCounts[connection.to] >= maxLinks) return;
+    if (linkCounts[connection.from] >= maxLinks || linkCounts[connection.to] >= maxLinks) continue;
 
     const proximity = 1 - connection.distance / connection.maxDistance;
     const falloff = config.connectionFalloff || 1.4;
-    const alpha = clamp(proximity ** falloff * config.lineAlpha * (1 + intensity * 0.45), 0, 0.78);
 
-    selectedConnections.push({
-      ...connection,
-      alpha,
-      proximity
-    });
+    // Mutate the pooled candidate rather than spreading it into a fresh object.
+    connection.proximity = proximity;
+    connection.alpha = clamp(proximity ** falloff * config.lineAlpha * (1 + intensity * 0.45), 0, 0.78);
+
+    const slot = selectedConnections.length;
+    if (firstConnectionOf[connection.from] < 0) firstConnectionOf[connection.from] = slot;
+    if (firstConnectionOf[connection.to] < 0) firstConnectionOf[connection.to] = slot;
+    selectedConnections.push(connection);
 
     linkCounts[connection.from] += 1;
     linkCounts[connection.to] += 1;
-  });
+  }
 
   return selectedConnections;
 }
@@ -641,12 +764,16 @@ function collectGlassFacets(particles, connections, config, width, height) {
         const area = triangleArea(a, b, c);
         if (area < minArea || area > maxArea) continue;
 
-        const centroid = triangleCentroid(a, b, c);
-        if (pointIsTooCentral(centroid.x, centroid.y, width, height)) continue;
+        const cx = (a.x + b.x + c.x) / 3;
+        const cy = (a.y + b.y + c.y) / 3;
+        if (pointIsTooCentral(cx, cy, width, height)) continue;
 
         facets.push({
           points: [from, first, second],
-          centroid,
+          // `from` is always the smallest index here, so ordering the other two
+          // is enough for a stable key. Computed once instead of twice per
+          // facet per frame via slice().sort().join().
+          key: first < second ? `${from}:${first}:${second}` : `${from}:${second}:${first}`,
           area,
           strength: (neighbors[i].proximity + neighbors[j].proximity + closingConnection.proximity) / 3
         });
@@ -658,6 +785,15 @@ function collectGlassFacets(particles, connections, config, width, height) {
     .sort((a, b) => (b.strength * Math.sqrt(b.area)) - (a.strength * Math.sqrt(a.area)))
     .slice(0, maxFacets);
 }
+
+const facetByKey = new Map();
+const facetColors = [null, null, null];
+
+// Fixed-size scratch for the "cursor connection hub" pass.
+const HUB_LINKS = 4;
+const hubDistSq = new Float64Array(HUB_LINKS);
+const hubIndex = new Int32Array(HUB_LINKS);
+let hubCount = 0;
 
 function traceTriangle(ctx, a, b, c) {
   ctx.beginPath();
@@ -679,10 +815,9 @@ function drawGlassFacets(ctx, particles, connections, config, width, height, int
 
   // Update opacity for currently visible facets
   facets.forEach((facet) => {
-    const key = facet.points.slice().sort((a, b) => a - b).join(":");
-    activeKeys.add(key);
-    const prev = facetOpacity.get(key) || 0;
-    facetOpacity.set(key, Math.min(prev + fadeIn, 1));
+    activeKeys.add(facet.key);
+    const prev = facetOpacity.get(facet.key) || 0;
+    facetOpacity.set(facet.key, Math.min(prev + fadeIn, 1));
   });
 
   // Fade out facets that are no longer detected
@@ -698,16 +833,21 @@ function drawGlassFacets(ctx, particles, connections, config, width, height, int
   }
 
   // Build a lookup of current facets by key for drawing fading-out ones
-  const facetByKey = new Map();
+  facetByKey.clear();
   facets.forEach((facet) => {
-    const key = facet.points.slice().sort((a, b) => a - b).join(":");
-    facetByKey.set(key, facet);
+    facetByKey.set(facet.key, facet);
   });
 
   if (!facetOpacity.size) return;
 
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
+
+  // Palette-derived and intensity-derived values are the same for every facet
+  // in a frame; they were being recomputed inside the loop.
+  const cyanGlass = blendColors(themeColors.accent, themeColors.data, 0.22);
+  const edgeWidth = 0.85 + intensity * 0.25;
+  const seamWidth = 1.35 + intensity * 0.25;
 
   // Draw all facets that have any opacity (active + fading out)
   for (const [key, opacity] of facetOpacity) {
@@ -720,9 +860,10 @@ function drawGlassFacets(ctx, particles, connections, config, width, height, int
     const c = particles[third];
     if (!a || !b || !c) continue;
 
-    const colors = [a, b, c].map((particle) => themeColors[particle.colorKey] || themeColors.accent);
-    const cyanGlass = blendColors(themeColors.accent, themeColors.data, 0.22);
-    const glassColor = blendColors(averageColors(colors), cyanGlass, 0.72);
+    facetColors[0] = themeColors[a.colorKey] || themeColors.accent;
+    facetColors[1] = themeColors[b.colorKey] || themeColors.accent;
+    facetColors[2] = themeColors[c.colorKey] || themeColors.accent;
+    const glassColor = blendColors(averageColors(facetColors), cyanGlass, 0.72);
     const highlightColor = blendColors(glassColor, themeColors.node, 0.56);
     const baseAlpha = clamp(
       (config.glassFacetAlpha || 0.14) * (0.65 + facet.strength * 0.9) * (1 + intensity * 0.35),
@@ -731,31 +872,29 @@ function drawGlassFacets(ctx, particles, connections, config, width, height, int
     );
     const alpha = baseAlpha * opacity;
 
-    ctx.fillStyle = colorString(glassColor, alpha * 0.55);
+    // Single fill: 0.55*glass + 0.08*node is identical to filling twice under
+    // additive compositing, and halves the fill-rate cost of the facet pass.
+    ctx.fillStyle = colorString(blendColors(glassColor, themeColors.node, 0.127), alpha * 0.63);
 
     if (config.enableShadows) {
       ctx.shadowBlur = (16 + intensity * 8) * opacity;
       ctx.shadowColor = colorString(themeColors.accent, alpha * 1.7);
     }
-    
+
     traceTriangle(ctx, a, b, c);
     ctx.fill();
-    
+
     if (config.enableShadows) {
       ctx.shadowBlur = 0;
     }
 
-    ctx.fillStyle = colorString(themeColors.node, alpha * 0.08);
-    traceTriangle(ctx, a, b, c);
-    ctx.fill();
-
-    ctx.lineWidth = 0.85 + intensity * 0.25;
+    // Reuse the path already built for the fill instead of retracing it.
+    ctx.lineWidth = edgeWidth;
     ctx.strokeStyle = colorString(highlightColor, alpha * 0.65);
-    traceTriangle(ctx, a, b, c);
     ctx.stroke();
 
     const [start, end] = longestTriangleEdge(a, b, c);
-    ctx.lineWidth = 1.35 + intensity * 0.25;
+    ctx.lineWidth = seamWidth;
     ctx.strokeStyle = colorString(highlightColor, alpha * 1.1);
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
@@ -766,38 +905,76 @@ function drawGlassFacets(ctx, particles, connections, config, width, height, int
   ctx.restore();
 }
 
+// Every connection used to cost two beginPath/stroke pairs — ~500 stroke calls
+// per frame at desktop density, and stroking under "lighter" is the single most
+// expensive thing this file does (it was the top JS frame in the CPU profile).
+// Lines are instead bucketed by colour pair and a quantised alpha, so all lines
+// sharing a style go into one path that is stroked twice (glow + core). That
+// takes the stroke count down to roughly two per populated bucket.
+const CONNECTION_ALPHA_BANDS = 16;
+const connectionBatches = new Map();
+
 function drawConnections(ctx, particles, config, width, height, intensity, themeColors, connections) {
   ctx.globalCompositeOperation = "lighter";
   ctx.lineCap = "round";
 
-  connections.forEach((connection) => {
+  connectionBatches.forEach(resetBatch);
+
+  for (let i = 0; i < connections.length; i += 1) {
+    const connection = connections[i];
     const a = particles[connection.from];
     const b = particles[connection.to];
-    const alpha = connection.alpha;
-    const gi = config.glowIntensity || 1.0;
+    let band = (connection.alpha * CONNECTION_ALPHA_BANDS) | 0;
+    if (band >= CONNECTION_ALPHA_BANDS) band = CONNECTION_ALPHA_BANDS - 1;
 
-    const aColor = themeColors[a.colorKey] || themeColors.accent;
-    const bColor = themeColors[b.colorKey] || themeColors.accent;
-    const midColor = averageColors([aColor, bColor]);
+    const key = `${a.colorKey}|${b.colorKey}|${band}`;
+    let batch = connectionBatches.get(key);
+    if (batch === undefined) {
+      batch = { keyA: a.colorKey, keyB: b.colorKey, band, points: [], count: 0 };
+      connectionBatches.set(key, batch);
+    }
 
-    // Soft outer glow — single blended color avoids per-line gradient allocation
-    ctx.lineWidth = 4.0 + intensity * 0.8;
-    ctx.strokeStyle = colorString(midColor, alpha * 0.22 * gi);
+    const points = batch.points;
+    const n = batch.count;
+    points[n] = a.x;
+    points[n + 1] = a.y;
+    points[n + 2] = b.x;
+    points[n + 3] = b.y;
+    batch.count = n + 4;
+  }
+
+  const gi = config.glowIntensity || 1.0;
+  const glowWidth = 4.0 + intensity * 0.8;
+  const coreWidth = 1.2 + intensity * 0.25;
+
+  connectionBatches.forEach((batch) => {
+    if (batch.count === 0) return;
+
+    const color = midColor(themeColors, batch.keyA, batch.keyB);
+    const alpha = (batch.band + 0.5) / CONNECTION_ALPHA_BANDS;
+    const points = batch.points;
+
     ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
+    for (let i = 0; i < batch.count; i += 4) {
+      ctx.moveTo(points[i], points[i + 1]);
+      ctx.lineTo(points[i + 2], points[i + 3]);
+    }
+
+    // Soft outer glow, then the core line — same path, stroked twice.
+    ctx.lineWidth = glowWidth;
+    ctx.strokeStyle = colorString(color, alpha * 0.22 * gi);
     ctx.stroke();
 
-    // Core line with blended solid color instead of linear gradient
-    ctx.lineWidth = 1.2 + intensity * 0.25;
-    ctx.strokeStyle = colorString(midColor, alpha * 0.95);
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
+    ctx.lineWidth = coreWidth;
+    ctx.strokeStyle = colorString(color, alpha * 0.95);
     ctx.stroke();
   });
 
   ctx.lineCap = "butt";
+}
+
+function resetBatch(batch) {
+  batch.count = 0;
 }
 
 function drawParticles(ctx, particles, elapsed, intensity, themeColors) {
@@ -832,24 +1009,23 @@ function drawParticles(ctx, particles, elapsed, intensity, themeColors) {
       ctx.globalAlpha = alpha * 0.45;
       const color = themeColors[particle.colorKey] || themeColors.accent;
       
-      // Subtle rotating dashed outer circle
+      // Subtle rotating dashed ring. The transform has to be applied *before*
+      // the arc is traced — path points are baked with the CTM in force when
+      // each command runs, so the previous ordering rotated only the pen and
+      // the ring never actually turned.
+      ctx.translate(particle.x, particle.y);
+      ctx.rotate(elapsed * particle.turn * 0.22);
       ctx.strokeStyle = colorString(color, 0.7);
       ctx.lineWidth = 0.8;
       ctx.setLineDash([3, 5]);
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, r * 3.6, 0, TWO_PI);
-      
-      ctx.translate(particle.x, particle.y);
-      ctx.rotate(elapsed * particle.turn * 0.4);
-      ctx.translate(-particle.x, -particle.y);
+      ctx.arc(0, 0, r * 3.6, 0, TWO_PI);
       ctx.stroke();
 
-      // Tiny coordinate label
-      ctx.fillStyle = colorString(themeColors.node, 0.5);
-      ctx.font = "8px monospace";
-      const hexId = `0x${Math.floor(particle.pulseOffset * 100).toString(16).toUpperCase()}`;
-      ctx.fillText(hexId, particle.x + r * 4.5, particle.y + 3);
-      
+      // The tiny "0x4F" coordinate labels that used to render here were removed:
+      // legible text in a background reads as UI, pulls focus from the content
+      // in front of it, and cost a font rasterisation per hub per frame.
+
       ctx.restore();
     }
   });
@@ -883,6 +1059,10 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
   let animationFrame = 0;
   let lastFrameTime = performance.now();
   let lastScrollY = window.scrollY || 0;
+  // Sampled in a passive scroll listener rather than read inside the animation
+  // frame: a scrollY read in rAF can force a synchronous layout when another
+  // module has dirtied styles earlier in the same frame.
+  let currentScrollY = lastScrollY;
   let themeColors = readThemeColors();
   updateSpriteCache(themeColors);
   const facetOpacity = new Map();
@@ -903,9 +1083,29 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
 
   window.__triggerBgRipple = triggerRipple;
 
+  let lastCssWidth = 0;
+  let lastCssHeight = 0;
+
   const setSize = () => {
     const nextWidth = window.innerWidth;
     const nextHeight = Math.max(window.innerHeight, 1);
+
+    // Mobile browsers fire `resize` continuously as the URL bar collapses and
+    // expands during a scroll. Reassigning canvas.width/height reallocates and
+    // clears the backing store, and reconcileParticles reseeds the field — so
+    // the old code rebuilt the whole background mid-scroll. Width is what
+    // actually changes on rotation, so ignore pure height drift on touch.
+    if (
+      lastCssWidth === nextWidth &&
+      mobileDevice.matches &&
+      Math.abs(nextHeight - lastCssHeight) < 140
+    ) {
+      return;
+    }
+
+    lastCssWidth = nextWidth;
+    lastCssHeight = nextHeight;
+
     const pixelRatio = Math.min(window.devicePixelRatio || 1, config.dpr);
     const xScale = width > 0 ? nextWidth / width : 1;
     const yScale = height > 0 ? nextHeight / height : 1;
@@ -938,6 +1138,10 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
     });
   };
 
+  const handleScroll = () => {
+    currentScrollY = window.scrollY || 0;
+  };
+
   const handlePointerMove = (event) => {
     pointer.active = true;
     pointer.x = event.clientX;
@@ -950,9 +1154,17 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
     pointer.y = POINTER_AWAY;
   };
 
+  // The theme MutationObserver fires on every class/style write to <body>, and
+  // the customiser writes ~17 CSS variables per preview keystroke. Coalescing to
+  // one frame keeps getComputedStyle (and any sprite rebuild) to once per frame.
+  let themeSyncFrame = 0;
   const syncThemeColors = () => {
-    themeColors = readThemeColors();
-    updateSpriteCache(themeColors);
+    if (themeSyncFrame) return;
+    themeSyncFrame = window.requestAnimationFrame(() => {
+      themeSyncFrame = 0;
+      themeColors = readThemeColors();
+      updateSpriteCache(themeColors);
+    });
   };
 
   const render = (currentTime) => {
@@ -984,17 +1196,20 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
       smoothPointer.y = POINTER_AWAY;
     }
 
-    const currentScrollY = window.scrollY || 0;
     const scrollDelta = currentScrollY - lastScrollY;
     lastScrollY = currentScrollY;
 
     if (Math.abs(scrollDelta) > 0.5) {
-      const scrollImpulse = clamp(scrollDelta * 0.35, -35, 35);
-      particles.forEach((p) => {
+      // Softened from 0.35/±35: the field used to lurch against the content
+      // during a flick scroll, which read as jank and pulled the eye away from
+      // what the visitor was actually scrolling to.
+      const scrollImpulse = clamp(scrollDelta * 0.16, -14, 14);
+      for (let i = 0; i < particles.length; i += 1) {
+        const p = particles[i];
         if (p.zone !== "speck") {
-          p.vy -= scrollImpulse * delta * 0.85;
+          p.vy -= scrollImpulse * delta * 0.6;
         }
-      });
+      }
     }
 
     drawBackground(ctx, width, height);
@@ -1045,13 +1260,25 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
       }
       ctx.restore();
 
-      // Ripple wave front collision: excite particles & dispatch stream packets
-      particles.forEach((p, idx) => {
-        const d = Math.hypot(p.x - rip.x, p.y - rip.y);
-        if (Math.abs(d - rip.radius) < 28) {
+      // Ripple wave front collision: excite particles & dispatch stream packets.
+      // Compared in squared space (no Math.hypot per particle per ripple), and
+      // the outgoing edge comes from the index built in selectConnections
+      // instead of a linear `connections.find()` inside this loop.
+      const bandInner = Math.max(0, rip.radius - 28);
+      const bandOuter = rip.radius + 28;
+      const bandInnerSq = bandInner * bandInner;
+      const bandOuterSq = bandOuter * bandOuter;
+
+      for (let idx = 0; idx < particles.length; idx += 1) {
+        const p = particles[idx];
+        const dx = p.x - rip.x;
+        const dy = p.y - rip.y;
+        const dSq = dx * dx + dy * dy;
+        if (dSq > bandInnerSq && dSq < bandOuterSq) {
           p.pulseOffset += 0.15;
           if (Math.random() < 0.22 && connections.length > 0) {
-            const conn = connections.find((c) => c.from === idx || c.to === idx);
+            const slot = firstConnectionOf[idx];
+            const conn = slot >= 0 ? connections[slot] : null;
             if (conn && packets.length < 30) {
               packets.push({
                 from: conn.from,
@@ -1064,27 +1291,43 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
             }
           }
         }
-      });
+      }
     }
 
     // Draw pointer-to-plexus links (Cursor Connection Hub)
     if (smoothPointer.active && profileName !== "mobile") {
-      const closest = [];
-      particles.forEach((p, idx) => {
-        if (p.zone === "speck") return;
-        const dist = Math.hypot(p.x - smoothPointer.x, p.y - smoothPointer.y);
-        if (dist < config.repelRadius * 1.4) {
-          closest.push({ index: idx, dist });
+      // Previously allocated an object per nearby particle and sorted the lot
+      // every frame just to take the top 4. This keeps 4 slots and inserts.
+      const reach = config.repelRadius * 1.4;
+      const reachSq = reach * reach;
+      hubCount = 0;
+
+      for (let idx = 0; idx < particles.length; idx += 1) {
+        const p = particles[idx];
+        if (p.zone === "speck") continue;
+        const dx = p.x - smoothPointer.x;
+        const dy = p.y - smoothPointer.y;
+        const dSq = dx * dx + dy * dy;
+        if (dSq >= reachSq) continue;
+
+        // Insertion sort into a fixed 4-entry buffer.
+        let slot = hubCount < HUB_LINKS ? hubCount : HUB_LINKS - 1;
+        if (hubCount === HUB_LINKS && dSq >= hubDistSq[HUB_LINKS - 1]) continue;
+        while (slot > 0 && hubDistSq[slot - 1] > dSq) {
+          hubDistSq[slot] = hubDistSq[slot - 1];
+          hubIndex[slot] = hubIndex[slot - 1];
+          slot -= 1;
         }
-      });
-      closest.sort((a, b) => a.dist - b.dist);
-      const connectionsToPointer = closest.slice(0, 4);
+        hubDistSq[slot] = dSq;
+        hubIndex[slot] = idx;
+        if (hubCount < HUB_LINKS) hubCount += 1;
+      }
 
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      connectionsToPointer.forEach((conn) => {
-        const p = particles[conn.index];
-        const proximity = 1 - conn.dist / (config.repelRadius * 1.4);
+      for (let h = 0; h < hubCount; h += 1) {
+        const p = particles[hubIndex[h]];
+        const proximity = 1 - Math.sqrt(hubDistSq[h]) / reach;
         const alpha = proximity * 0.65 * (1 + surgeIntensity * 0.3);
         const color = themeColors[p.colorKey] || themeColors.accent;
 
@@ -1101,7 +1344,7 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
         ctx.moveTo(smoothPointer.x, smoothPointer.y);
         ctx.lineTo(p.x, p.y);
         ctx.stroke();
-      });
+      }
       ctx.restore();
     }
 
@@ -1174,6 +1417,7 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
 
   setSize();
   window.addEventListener("resize", handleResize, { passive: true });
+  window.addEventListener("scroll", handleScroll, { passive: true });
 
   const themeObserver = new MutationObserver(syncThemeColors);
   themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class", "style"] });
@@ -1197,7 +1441,9 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
   return () => {
     window.cancelAnimationFrame(animationFrame);
     if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
+    if (themeSyncFrame) window.cancelAnimationFrame(themeSyncFrame);
     window.removeEventListener("resize", handleResize);
+    window.removeEventListener("scroll", handleScroll);
     window.removeEventListener("pointermove", handlePointerMove);
     document.body.removeEventListener("pointerleave", handlePointerLeave);
     window.removeEventListener("pointerdown", handlePointerDown);
