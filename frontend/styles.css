@@ -9005,8 +9005,20 @@ body.dark-theme .mobile-bottom-nav {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  flex: 1;
-  padding: 8px;
+
+  /* `flex: 1` alone sizes from content, so a long label like "Activity" stole
+     width from its neighbours and the narrowest target came out 36px at 320px.
+     A zero basis with min-width: 0 divides the bar evenly instead. */
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 4px;
+
+  /* The bar is 64px tall but its items are sized by their content, so each tap
+     target came out 38px high - inside WCAG 2.2 SC 2.5.8's 24px floor, but
+     under the 44px both Apple's and Google's guidance ask for. Stretching them
+     to fill the bar costs no layout and takes the target to 48px. */
+  align-self: stretch;
+  min-height: 44px;
   color: var(--muted);
   text-decoration: none;
   font-size: var(--text-xl);

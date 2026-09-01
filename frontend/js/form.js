@@ -187,7 +187,6 @@ export function initContactForm() {
   const contactForm = document.getElementById("contact-form");
   const contactStatus = document.getElementById("contact-status");
   const copyEmailBtn = document.getElementById("copy-email-btn");
-  let nativeFallbackInProgress = false;
 
   copyEmailBtn?.addEventListener("click", copyEmailToClipboard);
 
@@ -215,22 +214,23 @@ export function initContactForm() {
     });
   });
 
-  const submitNatively = () => {
-    nativeFallbackInProgress = true;
-    let nextField = contactForm.querySelector('input[name="_next"]');
-    if (!nextField) {
-      nextField = document.createElement("input");
-      nextField.type = "hidden";
-      nextField.name = "_next";
-      contactForm.append(nextField);
-    }
-    nextField.value = `${window.location.href.split("#")[0]}#contact`;
-    contactForm.submit();
-  };
+  // The form carries a real `action`, so a browser without fetch submits it
+  // natively without help. `_next` is set up front so that path returns here
+  // instead of stranding the visitor on FormSubmit's own thank-you page.
+  //
+  // There used to be a submitNatively() that ran on *any* AJAX failure. That is
+  // what made a timeout deliver the message twice, and it navigated the visitor
+  // off the site to do it.
+  const nextField = document.createElement("input");
+  nextField.type = "hidden";
+  nextField.name = "_next";
+  nextField.value = `${window.location.href.split("#")[0]}#contact`;
+  contactForm.append(nextField);
 
   contactForm.addEventListener("input", () => clearFormStatus(contactStatus));
   contactForm.addEventListener("submit", async (event) => {
-    if (nativeFallbackInProgress || typeof window.fetch !== "function") return;
+    // No fetch: let the browser submit the form natively.
+    if (typeof window.fetch !== "function") return;
     event.preventDefault();
     if (!contactForm.reportValidity()) return;
 
@@ -245,6 +245,10 @@ export function initContactForm() {
     const name = contactForm.querySelector("#contact-name")?.value.trim() || "";
     const email = contactForm.querySelector("#contact-email")?.value.trim() || "";
     const message = contactForm.querySelector("#contact-message")?.value.trim() || "";
+    // The honeypot is in the markup and rides along on a native form POST, but
+    // this payload is hand-built, so the AJAX path - the one virtually every
+    // submission takes - dropped it and FormSubmit never got to apply it.
+    const honeypot = contactForm.querySelector('input[name="_honey"]')?.value || "";
     if (submitBtn && !submitBtn.dataset.defaultLabel) {
       submitBtn.dataset.defaultLabel = submitBtn.innerHTML;
     }
@@ -258,7 +262,13 @@ export function initContactForm() {
         response = await fetch(`https://formsubmit.co/ajax/${CONTACT_EMAIL}`, {
           method: "POST",
           headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({ _subject: "New portfolio message from rjasti.com", email, message, name }),
+          body: JSON.stringify({
+            _subject: "New portfolio message from rjasti.com",
+            _honey: honeypot,
+            email,
+            message,
+            name,
+          }),
           signal: abortController.signal,
         });
       } finally {
@@ -283,13 +293,31 @@ export function initContactForm() {
       }
     } catch (error) {
       console.error(error);
-      setFormStatus(contactStatus, "Trying the standard form submission flow...", "info");
-      trackEvent("contact_submission", { success: false, native_fallback: true });
-      submitNatively();
+
+      // Aborting cancels the browser's wait, not the POST already in flight at
+      // FormSubmit. Falling through to a native submit here delivered slow-but-
+      // successful messages twice, and the visitor saw a full-page navigation
+      // away from the site for their trouble. Ask instead.
+      const timedOut = error?.name === "AbortError";
+      trackEvent("contact_submission", {
+        success: false,
+        native_fallback: false,
+        reason: timedOut ? "timeout" : "network",
+      });
+      setFormStatus(
+        contactStatus,
+        timedOut
+          ? "That took longer than expected. Your message may still have arrived - "
+            + "check before resending, or email me directly."
+          : "Could not reach the mail service. Please try again, or email me directly.",
+        "error"
+      );
+      showToast(
+        timedOut ? "Send timed out - check before resending." : "Could not send. Please try again.",
+        "error"
+      );
     } finally {
-      if (!nativeFallbackInProgress) {
-        setSubmitState(contactForm, submitBtn, false);
-      }
+      setSubmitState(contactForm, submitBtn, false);
     }
   });
 }

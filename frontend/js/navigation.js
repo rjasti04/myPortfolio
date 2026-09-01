@@ -446,9 +446,21 @@ function initMobileBottomNav() {
   mobileNav.className = 'mobile-bottom-nav';
   mobileNav.setAttribute('aria-label', 'Mobile navigation');
 
+  // Every section a visitor can reach, in the same order as the header nav.
+  //
+  // This listed four of the six, so Hobbies and Activity were reachable on a
+  // phone only through the hamburger - and on a phone the bottom bar *is* the
+  // navigation. Six fits: measured at 320px, the narrowest width still worth
+  // supporting, each item is 54px wide with no label clipping and no horizontal
+  // overflow.
+  //
+  // Portfolio is deliberately absent: its nav link is still `hidden` pending
+  // the decision recorded as BUG-02.
   const navItems = [
     { target: 'about', icon: 'fa-home', label: 'Home' },
     { target: 'resume', icon: 'fa-briefcase', label: 'Work' },
+    { target: 'hobbies', icon: 'fa-heart', label: 'Hobbies' },
+    { target: 'activity', icon: 'fa-chart-line', label: 'Activity' },
     { target: 'ai', icon: 'fa-robot', label: 'AI' },
     { target: 'contact', icon: 'fa-envelope', label: 'Contact' }
   ];
