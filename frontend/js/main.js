@@ -80,32 +80,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initScrollToTop();
   initThemeCustomizer();
 
-  // Initialize particle effects on hero section
-  const heroSection = document.querySelector('.hero');
-  if (heroSection && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    const particlesContainer = document.createElement('div');
-    particlesContainer.id = 'particles-canvas';
-    particlesContainer.style.position = 'absolute';
-    particlesContainer.style.top = '0';
-    particlesContainer.style.left = '0';
-    particlesContainer.style.width = '100%';
-    particlesContainer.style.height = '100%';
-    particlesContainer.style.pointerEvents = 'none';
-    particlesContainer.style.zIndex = '0';
-    heroSection.style.position = 'relative';
-    heroSection.insertBefore(particlesContainer, heroSection.firstChild);
-
-    const initHeroEffects = () => {
-      initParticles('particles-canvas');
-    };
-
-    if ("requestIdleCallback" in window) {
-      requestIdleCallback(initHeroEffects);
-    } else {
-      setTimeout(initHeroEffects, 200);
-    }
-  }
-
   // Lazy-load chat on first interaction with chat widget or AI section
   const chatToggle = document.getElementById('chat-toggle-btn');
   const aiSection = document.getElementById('ai');
@@ -176,28 +150,69 @@ document.addEventListener("DOMContentLoaded", () => {
     ensureActivityForActiveSection();
   }
 
-  // Defer Three.js background for faster initial paint
-  // Only load on capable devices to avoid performance issues
-  const loadThreeBackground = () => {
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Animated background — exactly one layer, chosen by device capability.
+  //
+  // The full-viewport plexus (three-bg.js) and the hero particle layer render
+  // the same effect: drifting nodes joined by proximity lines. Both used to be
+  // mounted unconditionally, stacking two independently animated canvases over
+  // the hero. The plexus is the richer of the two, so it takes capable devices
+  // and the hero layer becomes the cheap fallback for everything else.
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let destroyHeroParticles = null;
+
+  const canAffordPlexus = () => {
     const cores = navigator.hardwareConcurrency || 4;
     const memory = navigator.deviceMemory || 4;
     const isMobileViewport = window.matchMedia('(pointer: coarse) and (max-width: 768px)').matches;
-    const hasGoodHardware = isMobileViewport ? cores >= 4 : cores >= 2;
-    const hasEnoughMemory = memory >= 3;
-
-    if (!prefersReducedMotion && hasGoodHardware && hasEnoughMemory) {
-      import("../three-bg.js").catch(err => {
-        console.warn('Three.js background failed to load:', err);
-        // Silently degrade - background is non-critical
-      });
-    }
+    return (isMobileViewport ? cores >= 4 : cores >= 2) && memory >= 3;
   };
 
+  const mountHeroParticles = () => {
+    const heroSection = document.querySelector('.hero');
+    if (!heroSection || destroyHeroParticles) return;
+
+    let particlesContainer = document.getElementById('particles-canvas');
+    if (!particlesContainer) {
+      particlesContainer = document.createElement('div');
+      particlesContainer.id = 'particles-canvas';
+      particlesContainer.style.position = 'absolute';
+      particlesContainer.style.inset = '0';
+      particlesContainer.style.pointerEvents = 'none';
+      particlesContainer.style.zIndex = '0';
+      heroSection.style.position = 'relative';
+      heroSection.insertBefore(particlesContainer, heroSection.firstChild);
+    }
+
+    destroyHeroParticles = initParticles('particles-canvas');
+  };
+
+  const loadBackground = () => {
+    if (reducedMotion.matches) return;
+
+    if (canAffordPlexus()) {
+      // three-bg.js mounts itself on import and manages its own reduced-motion
+      // and viewport-profile listeners.
+      import("../three-bg.js").catch(err => {
+        console.warn('Plexus background failed to load; falling back:', err);
+        mountHeroParticles();
+      });
+      return;
+    }
+
+    mountHeroParticles();
+  };
+
+  // Reduced motion can be toggled mid-session; tear the fallback down when it is.
+  reducedMotion.addEventListener('change', () => {
+    if (!reducedMotion.matches) return;
+    destroyHeroParticles?.();
+    destroyHeroParticles = null;
+  });
+
   if ("requestIdleCallback" in window) {
-    requestIdleCallback(loadThreeBackground);
+    requestIdleCallback(loadBackground, { timeout: 2000 });
   } else {
-    setTimeout(loadThreeBackground, 200);
+    setTimeout(loadBackground, 200);
   }
 
   if ("serviceWorker" in navigator) {
