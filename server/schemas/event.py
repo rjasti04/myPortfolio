@@ -20,6 +20,12 @@ EventTypeName = Literal[
     # through the model rather than this schema, so it was already in the table
     # while the summary endpoint reported it as an unknown type.
     "ai_llm_telemetry",
+    # Uncaught exceptions and unhandled rejections, forwarded by
+    # error-handler.js. Production JS failures previously reached nobody: they
+    # went to console.error and nothing collected them. Routed through the
+    # existing bulk pipeline rather than a dedicated endpoint, so it needs no
+    # new surface, no new auth and no new table.
+    "client_error",
 ]
 
 # Ordered tuple of every accepted event type. The summary endpoint emits a row

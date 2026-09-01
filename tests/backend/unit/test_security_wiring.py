@@ -250,3 +250,83 @@ def test_only_one_copy_of_each_route_is_documented():
     documented = app.openapi()["paths"]
     assert not any(p.startswith("/auth/") for p in documented), "root mount leaked into the schema"
     assert "/api/auth/login" in documented
+
+
+# --- Bedrock client configuration (BUG-09) ----------------------------------
+
+
+def test_the_chat_client_carries_the_configured_timeouts():
+    """The streaming path built its own client with no Config at all.
+
+    config/bedrock.py assembled a properly tuned client that nothing imported,
+    so chat ran on botocore defaults - a 60s read timeout instead of
+    BEDROCK_TIMEOUT_SECONDS - and a hung connection held one of the
+    CHAT_MAX_CONCURRENCY slots for a minute rather than thirty seconds.
+    """
+    from server.services.bedrock_service import bedrock_service
+
+    config = bedrock_service.client.meta.config
+    assert config.read_timeout == settings.BEDROCK_TIMEOUT_SECONDS
+    assert config.connect_timeout == 10
+    # botocore normalises max_attempts=2 (retries) into total_max_attempts=3
+    # (the initial call plus two retries).
+    assert config.retries["mode"] == "standard"
+    assert config.retries["total_max_attempts"] == 3
+
+
+def test_the_chat_client_is_the_shared_configured_one():
+    from server.config.bedrock import bedrock_runtime
+    from server.services.bedrock_service import bedrock_service
+
+    assert bedrock_service.client is bedrock_runtime
+
+
+def test_stream_queue_settings_are_actually_used():
+    """Both were defined, validated and documented while the module hardcoded
+    its own values, so two documented env vars turned nothing."""
+    from server.services import bedrock_service as svc
+
+    assert svc._STREAM_QUEUE_SIZE == settings.CHAT_STREAM_QUEUE_SIZE
+    assert svc._QUEUE_PUT_TIMEOUT_SECONDS == settings.BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS
+
+
+# --- Concurrent SSE streams (SEC-04) ----------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_session_cannot_hold_unlimited_sse_streams():
+    """An SSE connection is one request that then stays open indefinitely.
+
+    CHAT_MAX_CONCURRENCY covers Bedrock and the rate limiter counts requests,
+    but neither bounds this. A session token costs one unauthenticated POST.
+    """
+    import uuid as _uuid
+
+    from server.services import kafka_stream
+
+    session_id = _uuid.uuid4()
+    opened = []
+    try:
+        for _ in range(settings.MAX_STREAMS_PER_SESSION):
+            opened.append(await kafka_stream.register_stream(session_id))
+
+        with pytest.raises(kafka_stream.TooManyStreams):
+            await kafka_stream.register_stream(session_id)
+    finally:
+        for queue in opened:
+            kafka_stream.unregister_stream(session_id, queue)
+
+
+@pytest.mark.asyncio
+async def test_closing_a_stream_frees_the_slot():
+    import uuid as _uuid
+
+    from server.services import kafka_stream
+
+    session_id = _uuid.uuid4()
+    first = await kafka_stream.register_stream(session_id)
+    kafka_stream.unregister_stream(session_id, first)
+
+    # Reusable, otherwise a visitor who reloads a few times locks themselves out.
+    again = await kafka_stream.register_stream(session_id)
+    kafka_stream.unregister_stream(session_id, again)

@@ -1,4 +1,4 @@
-import { compactViewport, prefersReducedMotion, supportsHover } from "./config.js";
+import { compactViewport, mobileDevice, prefersReducedMotion, supportsHover } from "./config.js";
 import { closeModal, handleFocusTrap, openModal } from "./modal.js";
 import { onOnline, onOffline, isNetworkOnline } from "./utils.js";
 import { SwipeHandler } from "./swipe-handler.js";
@@ -284,10 +284,26 @@ export function initNavigation() {
   // Initialize mobile bottom navigation
   initMobileBottomNav();
 
-  // Initialize swipe gestures for mobile
-  if (compactViewport.matches) {
-    initSwipeGestures();
-  }
+  // Swipe navigation, phones only.
+  //
+  // Was gated on compactViewport (<=1150px), so horizontal swipes navigated
+  // sections on 1024px laptops and tablets with trackpads. `mobileDevice` is
+  // the query that actually means "phone" - coarse pointer AND <=768px - and
+  // is what chat.js already uses for its drawer layout.
+  //
+  // Re-evaluated on change, too: this ran once at load, so rotating a tablet
+  // into portrait never enabled it and rotating out never disabled it.
+  let swipeGestures = null;
+  const syncSwipeGestures = () => {
+    if (mobileDevice.matches && !swipeGestures) {
+      swipeGestures = initSwipeGestures();
+    } else if (!mobileDevice.matches && swipeGestures) {
+      swipeGestures.destroy();
+      swipeGestures = null;
+    }
+  };
+  syncSwipeGestures();
+  mobileDevice.addEventListener("change", syncSwipeGestures);
 
   // Compact header on scroll
   const headerEl = document.getElementById("header");
@@ -475,7 +491,10 @@ function updateMobileNavActive(target) {
 function initSwipeGestures() {
   const sectionOrder = ['about', 'resume', 'hobbies', 'activity', 'ai', 'contact'];
 
-  new SwipeHandler({
+  // Returned so the caller can tear it down when the viewport stops being a
+  // phone; the handler binds to document, so leaving it attached would keep
+  // navigating sections on a resized desktop window.
+  return new SwipeHandler({
     threshold: 75,
     onSwipeLeft: () => {
       const currentSection = document.querySelector('main section.active')?.id;

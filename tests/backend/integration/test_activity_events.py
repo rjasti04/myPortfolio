@@ -296,3 +296,66 @@ async def test_bulk_still_rejects_structurally_invalid_rows(async_client):
     )
 
     assert response.status_code == 422
+
+
+# --- Session token delivery (SEC-02) ----------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_session_creation_sets_the_token_as_a_cookie(async_client):
+    """EventSource cannot set headers, so the stream endpoint used to take the
+    token in the query string - where it lands in the access log, in browser
+    history, and in any Referer the page emits."""
+    response = await async_client.post(
+        "/api/sessions", json={"user_agent": "pytest", "device_type": "desktop"}
+    )
+    assert response.status_code == 201
+
+    cookie = response.cookies.get("rj_session_token")
+    assert cookie, "the session token must be issued as a cookie"
+    assert cookie == response.json()["session_token"]
+
+    header = response.headers["set-cookie"]
+    assert "HttpOnly" in header, "no script on the page should be able to read it"
+    assert "SameSite=strict" in header.replace("samesite", "SameSite")
+
+
+@pytest.mark.asyncio
+async def test_the_cookie_alone_authorises_a_session_scoped_call(async_client):
+    """This is what lets the token come out of the URL: the cookie rides along
+    on the same-origin EventSource request with no header and no query."""
+    created = await async_client.post(
+        "/api/sessions", json={"user_agent": "pytest", "device_type": "desktop"}
+    )
+    session_id = created.json()["session_id"]
+
+    # No X-Session-Token header; async_client carries the cookie jar.
+    response = await async_client.get(f"/api/sessions/{session_id}/events")
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_a_call_with_neither_cookie_nor_header_is_still_refused(async_client):
+    created = await async_client.post(
+        "/api/sessions", json={"user_agent": "pytest", "device_type": "desktop"}
+    )
+    session_id = created.json()["session_id"]
+
+    # A separate client, so this starts with an empty cookie jar. `async_client`
+    # is session-scoped and shared, so clearing its cookies here would silently
+    # strip credentials from every test that runs after this one.
+    from httpx import ASGITransport, AsyncClient
+
+    from server.main import app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as anonymous:
+        response = await anonymous.get(f"/api/sessions/{session_id}/events")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_client_error_is_an_accepted_event_type():
+    """Uncaught frontend exceptions had nowhere to go but the browser console."""
+    assert "client_error" in EVENT_TYPES

@@ -60,7 +60,7 @@ for domain in ["https://rjasti.com", "https://www.rjasti.com"]:
 
 MAX_BODY_BYTES = _env_int("MAX_BODY_BYTES", 1_048_576)  # 1 MB
 CHAT_MAX_CONCURRENCY = _env_int("CHAT_MAX_CONCURRENCY", 4)
-CHAT_STREAM_QUEUE_SIZE = _env_int("CHAT_STREAM_QUEUE_SIZE", 128)
+CHAT_STREAM_QUEUE_SIZE = _env_int("CHAT_STREAM_QUEUE_SIZE", 128)  # bedrock_service stream queue
 BEDROCK_TIMEOUT_SECONDS = _env_int("BEDROCK_TIMEOUT_SECONDS", 30)
 BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS = _env_int("BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS", 10)
 
@@ -75,6 +75,13 @@ CHAT_FREE_MESSAGE_LIMIT = _env_int("CHAT_FREE_MESSAGE_LIMIT", 6)
 # seconds, which no real conversation exceeds, and it caps what an anonymous
 # caller can spend without needing to know who they are.
 CHAT_RATE_LIMIT_PER_MINUTE = _env_int("CHAT_RATE_LIMIT_PER_MINUTE", 12)
+
+# Concurrent SSE connections one analytics session may hold open. A session
+# token is free - POST /sessions is unauthenticated by design - and an open
+# stream costs a worker slot for as long as it lasts, so without a cap a caller
+# could hold every one of them. Two is enough for a real visitor with the
+# dashboard open in a second tab.
+MAX_STREAMS_PER_SESSION = _env_int("MAX_STREAMS_PER_SESSION", 2)
 
 _raw_allowed_models = os.getenv("ALLOWED_MODEL_IDS", "")
 ALLOWED_MODEL_IDS = {

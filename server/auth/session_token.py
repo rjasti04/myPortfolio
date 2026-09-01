@@ -28,6 +28,10 @@ _PREFIX = "analytics-session:"
 
 SESSION_TOKEN_HEADER = "X-Session-Token"
 SESSION_TOKEN_QUERY = "session_token"
+# Set at session creation and sent automatically on same-origin requests,
+# including EventSource, which cannot set headers. This is what let the token
+# come out of the query string.
+SESSION_TOKEN_COOKIE = "rj_session_token"
 
 
 def sign_session(session_id: UUID | str) -> str:
@@ -46,7 +50,20 @@ def token_matches(session_id: UUID | str, token: Optional[str]) -> bool:
 
 
 def _extract(request: Request, query_token: Optional[str]) -> Optional[str]:
-    return request.headers.get(SESSION_TOKEN_HEADER) or query_token
+    """Header first, then cookie, then the query parameter.
+
+    The query parameter existed only because EventSource cannot set headers, so
+    the SSE endpoint took the token in the URL - where it lands in the web
+    server's access log, in browser history, and in any Referer the page emits.
+    A cookie covers EventSource on a same-origin API, so the query parameter is
+    now a deprecated fallback: still accepted so a client cached from before
+    this deploy keeps working, but nothing issues one any more.
+    """
+    return (
+        request.headers.get(SESSION_TOKEN_HEADER)
+        or request.cookies.get(SESSION_TOKEN_COOKIE)
+        or query_token
+    )
 
 
 def assert_session_access(
@@ -69,9 +86,12 @@ async def require_session_access(
     request: Request,
     session_token: Optional[str] = Query(
         default=None,
+        deprecated=True,
         description=(
-            "Session capability token. Prefer the X-Session-Token header; this "
-            "parameter exists because EventSource cannot set request headers."
+            "Deprecated: the session token now travels as a same-origin cookie, "
+            "so it no longer appears in access logs or browser history. Still "
+            "accepted for clients cached from before that change. Prefer the "
+            "X-Session-Token header for non-EventSource calls."
         ),
     ),
 ) -> UUID:

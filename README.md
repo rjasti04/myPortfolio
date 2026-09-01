@@ -117,9 +117,9 @@ Optional:
 - `CHAT_MAX_CONCURRENCY`: concurrent chat stream limit, default `4`
 - `CHAT_FREE_MESSAGE_LIMIT`: anonymous user messages before login, default `6`
 - `CHAT_RATE_LIMIT_PER_MINUTE`: per-IP requests/min against the chat routes, default `12`
-- `CHAT_STREAM_QUEUE_SIZE`: async streaming queue size, default `32`
+- `CHAT_STREAM_QUEUE_SIZE`: async streaming queue size, default `128`
 - `BEDROCK_TIMEOUT_SECONDS`: Bedrock read timeout, default `30`
-- `BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS`: stream queue put timeout, default `2`
+- `BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS`: stream queue put timeout, default `10`
 - `LOG_LEVEL`: Python logging level, default `INFO`
 
 The frontend currently points API calls at `https://rjasti.com/api` in

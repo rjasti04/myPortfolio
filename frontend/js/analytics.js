@@ -94,12 +94,21 @@ function clearSessionId() {
   } catch (e) {}
 }
 
-// Appends the token to a URL, for the one caller that cannot send headers:
-// EventSource has no way to set them.
+/**
+ * Kept as an identity function for the one caller that cannot send headers.
+ *
+ * This used to append `?session_token=<hmac>` to the SSE URL, because
+ * EventSource has no way to set request headers. That put a bearer credential
+ * for the visitor's entire behavioural trail into the web server's access log,
+ * into browser history, and into any Referer the page emitted.
+ *
+ * The API now sets the same token as an HttpOnly, SameSite=Strict cookie when
+ * the session is created, and the API is same-origin, so EventSource sends it
+ * automatically. The signature stays so call sites read the same and so this
+ * remains the single place that decides how the stream authenticates.
+ */
 export function withSessionToken(url) {
-  if (!sessionToken) return url;
-  const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}session_token=${encodeURIComponent(sessionToken)}`;
+  return url;
 }
 const eventQueue = [];
 let heartbeatInterval;

@@ -204,11 +204,14 @@ async def stream_session_events(
       `activity` - one activity event, compacted, carrying an `id:` for resume
       `pipeline` - periodic per-stage health for the DAG
 
-    Unnamed `data:` frames are also emitted for `activity` so a client still on
-    `EventSource.onmessage` keeps working across the deploy that switches it to
-    `addEventListener`.
+    Every event used to be sent twice - once on the named `activity` channel and
+    once as an unnamed `data:` frame, for a client still on
+    `EventSource.onmessage`. That deploy has long since happened and the only
+    client subscribes to both, deduplicating by `event_id`, so the copy was pure
+    waste: double the bytes, and the redundant one was the larger verbose shape.
     """
     from server.services.kafka_stream import (
+        TooManyStreams,
         register_stream,
         unregister_stream,
         replay_since,
@@ -222,7 +225,12 @@ async def stream_session_events(
     except ValueError:
         last_event_id = None
 
-    client_queue = await register_stream(session_id)
+    try:
+        client_queue = await register_stream(session_id)
+    except TooManyStreams as exc:
+        # 429 rather than 403: the caller is authorised, just over its
+        # allowance, and EventSource will retry on its own backoff.
+        raise HTTPException(status_code=429, detail=str(exc)) from None
 
     async def event_generator():
         try:
@@ -236,7 +244,6 @@ async def stream_session_events(
             # Close the reconnect gap before streaming anything new.
             for missed in replay_since(session_id, last_event_id):
                 yield _sse_frame("activity", _compact(missed), event_id=missed.get("event_id"))
-                yield f"data: {json.dumps(missed, default=str)}\n\n"
 
             last_pipeline_at = 0.0
             last_write = time.monotonic()
@@ -269,8 +276,6 @@ async def stream_session_events(
                 else:
                     event_id = event_dict.get("event_id")
                     yield _sse_frame("activity", _compact(event_dict), event_id=event_id)
-                    # Back-compat frame for clients still on `onmessage`.
-                    yield f"data: {json.dumps(event_dict, default=str)}\n\n"
                 last_write = time.monotonic()
         finally:
             unregister_stream(session_id, client_queue)

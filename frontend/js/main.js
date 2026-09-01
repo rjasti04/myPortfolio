@@ -1,4 +1,15 @@
 import { showToast } from "./utils.js";
+import { reportClientError } from "./error-handler.js";
+
+// Uncaught synchronous errors. Nothing listened for these at all, so a thrown
+// exception during init - the kind that leaves half the page inert - was
+// visible only to whoever had devtools open at the time.
+window.addEventListener("error", (event) => {
+  reportClientError(event.error ?? event.message, {
+    source: "onerror",
+    at: `${event.filename ?? ""}:${event.lineno ?? 0}`,
+  });
+});
 
 // Global unhandled rejection handler.
 //
@@ -9,6 +20,7 @@ import { showToast } from "./utils.js";
 // actually handled here - the one that shows the user a toast.
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection:', event.reason);
+  reportClientError(event.reason, { source: 'unhandledrejection' });
 
   const message = String(event.reason?.message ?? event.reason ?? '');
   if (/fetch|network/i.test(message)) {
