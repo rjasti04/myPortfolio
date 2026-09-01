@@ -49,9 +49,6 @@ const SKILL_TAGS = [
   "Apache Kafka", "Docker", "Kubernetes", "Terraform", "GitHub Actions",
 ];
 
-export const slug = (value) =>
-  String(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-
 export const commands = [
   {
     name: "help",
@@ -135,31 +132,6 @@ export const commands = [
       }
       await ctx.navigate(target);
       return out.text(`Navigating to /${target}...`);
-    },
-  },
-  {
-    name: "open",
-    summary: "Open a project's details (e.g. open real-time-analytics-platform)",
-    usage: "open <project>",
-    navigates: true,
-    complete: (ctx, partial) => ctx.projects().map((p) => p.id).filter((id) => id.startsWith(partial.toLowerCase())),
-    async run(ctx, args) {
-      const projects = ctx.projects();
-      if (!args.length) {
-        return out.frag(
-          out.text("open: missing operand. Available projects:"),
-          out.columns(projects.map((p) => [p.id, p.title])),
-        );
-      }
-      const wanted = slug(args.join(" "));
-      const match =
-        projects.find((p) => p.id === wanted) ??
-        projects.find((p) => p.id.startsWith(wanted));
-      if (!match) return out.err(`open: no project matching '${args.join(" ")}'`);
-      // Awaited so a navigation failure surfaces through the runner's error
-      // handling instead of becoming an unhandled rejection.
-      await ctx.openProject(match.id);
-      return out.text(`Opening ${match.title}...`);
     },
   },
   {

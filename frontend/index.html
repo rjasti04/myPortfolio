@@ -172,28 +172,6 @@
     </picture>
   </div>
 
-  <div class="project-detail-modal" id="project-detail-modal" role="dialog" aria-modal="true"
-    aria-labelledby="project-detail-title" aria-hidden="true">
-    <div class="project-detail-content modal-inner" tabindex="-1">
-      <button type="button" class="modal-close" id="project-detail-close" aria-label="Close project details">
-        <i class="fas fa-times"></i>
-      </button>
-      <div class="project-detail-header">
-        <div class="project-detail-icon" id="project-detail-icon"></div>
-        <h3 class="project-detail-title" id="project-detail-title"></h3>
-      </div>
-      <p class="project-detail-description" id="project-detail-description"></p>
-      <div class="project-detail-meta">
-        <div class="project-detail-stack" id="project-detail-stack"></div>
-        <ul class="project-detail-outcomes" id="project-detail-outcomes"></ul>
-      </div>
-      <a href="#contact" data-target="contact" class="btn btn-outline nav-cta project-detail-cta"
-        id="project-detail-cta">
-        Discuss This Project <i class="fas fa-arrow-right"></i>
-      </a>
-    </div>
-  </div>
-
 
 
   <div class="layout">
@@ -233,11 +211,6 @@
           <a href="#resume" data-target="resume">
             <i class="fas fa-briefcase nav-icon" aria-hidden="true"></i>
             <span class="nav-label">Experience</span>
-            <i class="fas fa-chevron-right nav-arrow" aria-hidden="true"></i>
-          </a>
-          <a href="#portfolio" data-target="portfolio" hidden>
-            <i class="fas fa-code nav-icon" aria-hidden="true"></i>
-            <span class="nav-label">Portfolio</span>
             <i class="fas fa-chevron-right nav-arrow" aria-hidden="true"></i>
           </a>
           <a href="#hobbies" data-target="hobbies">
@@ -737,91 +710,6 @@
         </div>
       </section>
 
-      <section id="portfolio">
-        <h2 class="section-title">Projects</h2>
-        <p class="section-intro">Selected platform work focused on reliability, observability, and reusable delivery
-          patterns.</p>
-        <div class="project-toolbar" aria-label="Project filters">
-          <div class="project-filter-group" role="group" aria-label="Filter projects by stack">
-            <button type="button" class="project-filter active" data-filter="all" aria-pressed="true">All</button>
-            <button type="button" class="project-filter" data-filter="kafka" aria-pressed="false">Kafka</button>
-            <button type="button" class="project-filter" data-filter="spark" aria-pressed="false">Spark</button>
-            <button type="button" class="project-filter" data-filter="snowflake" aria-pressed="false">Snowflake</button>
-            <button type="button" class="project-filter" data-filter="airflow" aria-pressed="false">Airflow</button>
-          </div>
-          <label class="project-search-label" for="project-search">Search projects</label>
-          <input type="search" id="project-search" class="project-search"
-            placeholder="Search by project name or technology" />
-        </div>
-        <p class="project-results" id="project-results" role="status" aria-live="polite"></p>
-        <div class="portfolio-grid" id="portfolio-grid">
-          <article class="item tilt-card project-card reveal" data-tags="kafka spark realtime"
-            data-title="Real-time Analytics Platform"
-            data-description="Kafka and Spark streaming pipeline processing 1M events per second with fault-tolerant event ingestion. Deployed on Kubernetes with auto-scaling consumers and end-to-end latency monitoring."
-            data-stack="Kafka,Spark,Python,Kubernetes,Prometheus"
-            data-outcomes="P95 latency reduced by 40%|Handles 1M+ events per second sustainably|99.9% uptime over 18 months"
-            data-icon="fas fa-microchip">
-            <h3>
-              <i class="fas fa-microchip project-icon"></i> Real-time Analytics Platform
-            </h3>
-            <p class="project-description">
-              Kafka and Spark streaming pipeline processing 1M events per second with fault-tolerant event ingestion.
-            </p>
-            <div class="project-card-footer">
-              <div class="project-card-tags">
-                <span>Kafka</span><span>Spark</span><span>Kubernetes</span>
-              </div>
-              <button type="button" class="project-details-btn"
-                aria-label="View details for Real-time Analytics Platform">Details <i
-                  class="fas fa-arrow-right"></i></button>
-            </div>
-          </article>
-
-          <article class="item tilt-card project-card reveal" data-tags="snowflake airflow etl"
-            data-title="Cloud ETL Modernization"
-            data-description="Airflow-orchestrated Snowflake pipelines that reduced nightly batch runtime by 45%. Includes lineage tracking, automated alerting, and self-healing retry logic."
-            data-stack="Airflow,Snowflake,dbt,Python,AWS S3"
-            data-outcomes="45% faster nightly batch runtime|30% cloud cost reduction|Zero data-loss incidents in 2 years"
-            data-icon="fas fa-database">
-            <h3>
-              <i class="fas fa-database project-icon"></i> Cloud ETL Modernization
-            </h3>
-            <p class="project-description">
-              Airflow-orchestrated Snowflake pipelines that reduced nightly batch runtime by 45%.
-            </p>
-            <div class="project-card-footer">
-              <div class="project-card-tags">
-                <span>Airflow</span><span>Snowflake</span><span>dbt</span>
-              </div>
-              <button type="button" class="project-details-btn"
-                aria-label="View details for Cloud ETL Modernization">Details <i
-                  class="fas fa-arrow-right"></i></button>
-            </div>
-          </article>
-
-          <article class="item tilt-card project-card reveal" data-tags="kafka snowflake cdc"
-            data-title="CDC Data Mesh Enablement"
-            data-description="Built Kafka-to-Snowflake CDC templates for domain teams to self-serve compliant datasets. Includes schema registry, automated compatibility testing, and governance controls."
-            data-stack="Kafka,Debezium,Snowflake,Terraform,Schema Registry"
-            data-outcomes="50+ domain teams onboarded|Time-to-first-dataset cut from weeks to days|100% schema compatibility enforced"
-            data-icon="fas fa-network-wired">
-            <h3>
-              <i class="fas fa-network-wired project-icon"></i> CDC Data Mesh Enablement
-            </h3>
-            <p class="project-description">
-              Built Kafka-to-Snowflake CDC templates for domain teams to self-serve compliant datasets.
-            </p>
-            <div class="project-card-footer">
-              <div class="project-card-tags">
-                <span>Kafka</span><span>Snowflake</span><span>CDC</span>
-              </div>
-              <button type="button" class="project-details-btn"
-                aria-label="View details for CDC Data Mesh Enablement">Details <i
-                  class="fas fa-arrow-right"></i></button>
-            </div>
-          </article>
-        </div>
-      </section>
 
       <section id="hobbies">
         <h2 class="section-title">Interests &amp; Hobbies</h2>

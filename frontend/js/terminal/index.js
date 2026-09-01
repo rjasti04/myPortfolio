@@ -2,7 +2,7 @@ import { trackEvent } from "../analytics.js";
 import { prefersReducedMotion } from "../config.js";
 import { navigateToSection } from "../navigation.js";
 import { toggleTheme } from "../theme.js";
-import { createRegistry, slug } from "./registry.js";
+import { createRegistry } from "./registry.js";
 import { createHistory } from "./history.js";
 import { Intent, intentFor, completeInput } from "./keymap.js";
 import { initPalette } from "./palette.js";
@@ -39,12 +39,6 @@ export function initTerminal() {
     sections: () =>
       Array.from(document.querySelectorAll("main section[id]")).map((section) => section.id),
 
-    projects: () =>
-      Array.from(document.querySelectorAll("article.project-card[data-title]")).map((card) => ({
-        id: slug(card.dataset.title),
-        title: card.dataset.title,
-        card,
-      })),
 
     stats: () =>
       Array.from(document.querySelectorAll("#about .stat-card")).map((card) => ({
@@ -57,13 +51,6 @@ export function initTerminal() {
       await nextFrame();
     },
 
-    async openProject(id) {
-      const match = ctx.projects().find((project) => project.id === id);
-      if (!match) return false;
-      await ctx.navigate("portfolio");
-      match.card.querySelector(".project-details-btn")?.click();
-      return true;
-    },
 
     async ask(question) {
       await ctx.navigate("ai");

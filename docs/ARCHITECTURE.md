@@ -12,7 +12,7 @@ The application is a Progressive Web App (PWA) static frontend with an optional 
 ## Directory Structure
 
 ### 1. Frontend Core
-*   **`index.html`**: The single-page application entry point. Contains the DOM structure for all sections (Hero, About, Projects, Contact, Chat).
+*   **`index.html`**: The single-page application entry point. Contains the DOM structure for all sections (Hero, About, Experience, Hobbies, Activity, AI, Contact).
 *   **`styles.css`**: Global Vanilla CSS file. No Tailwind or preprocessors are used. Handles all responsive layouts, CSS variables, and core animations.
 *   **`sw.js`** & **`manifest.json`**: Progressive Web App (PWA) service worker and configuration for offline caching and installability.
 

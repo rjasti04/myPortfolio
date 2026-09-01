@@ -28,7 +28,6 @@ const PRECACHE_URLS = [
   '/js/config.js',
   '/js/navigation.js',
   '/js/theme.js',
-  '/js/projects.js',
   '/js/form.js',
   '/js/confetti.js',
   '/js/animations.js',

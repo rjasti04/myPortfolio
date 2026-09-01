@@ -10,11 +10,7 @@ const HTML = `<!DOCTYPE html><html><body>
         <div class="stat-card"><div class="stat-number">99.9%</div><div class="stat-label">Uptime</div></div>
       </div>
     </section>
-    <section id="portfolio">
-      <article class="project-card" data-title="Real-time Analytics Platform">
-        <button class="project-details-btn"></button>
-      </article>
-    </section>
+    <section id="resume"></section>
     <section id="contact"></section>
   </main>
 </body></html>`;
@@ -150,10 +146,6 @@ describe('Terminal', () => {
       assert.ok(registry.get('echo'));
     });
 
-    it('slugifies project titles', async () => {
-      const { slug } = await import('../js/terminal/registry.js');
-      assert.strictEqual(slug('Real-time Analytics Platform'), 'real-time-analytics-platform');
-    });
   });
 
   describe('commands', () => {
@@ -169,11 +161,9 @@ describe('Terminal', () => {
       ctx = {
         registry,
         history: createHistory({ storage: createMemoryStorage(), key: 'k' }),
-        sections: () => ['about', 'portfolio', 'contact'],
-        projects: () => [{ id: 'real-time-analytics-platform', title: 'Real-time Analytics Platform' }],
+        sections: () => ['about', 'resume', 'contact'],
         stats: () => [{ value: '8+', label: 'Years Experience' }],
         navigate: (t) => navigated.push(t),
-        openProject: (id) => navigated.push(`project:${id}`),
         download: () => navigated.push('download'),
         toggleTheme: () => true,
         toggleMatrix: () => true,
@@ -192,8 +182,8 @@ describe('Terminal', () => {
     it('cd rejects unknown sections and navigates to known ones', async () => {
       assert.match((await run('cd', ['nope'])).textContent, /No such directory/);
       assert.strictEqual(navigated.length, 0);
-      await run('cd', ['portfolio']);
-      assert.deepStrictEqual(navigated, ['portfolio']);
+      await run('cd', ['resume']);
+      assert.deepStrictEqual(navigated, ['resume']);
     });
 
     it('calc evaluates and rejects non-arithmetic input', async () => {
@@ -215,15 +205,7 @@ describe('Terminal', () => {
       assert.strictEqual(said, `< ${'x'.repeat(40)} >`);
     });
 
-    it('open resolves a project by slug prefix', async () => {
-      await run('open', ['real-time']);
-      assert.deepStrictEqual(navigated, ['project:real-time-analytics-platform']);
-    });
 
-    it('open reports an unmatched project without navigating', async () => {
-      assert.match((await run('open', ['nope'])).textContent, /no project matching/);
-      assert.deepStrictEqual(navigated, []);
-    });
 
     it('stats reads the values it is given', async () => {
       assert.match((await run('stats')).textContent, /Years Experience/);
@@ -241,7 +223,7 @@ describe('Terminal', () => {
     beforeEach(async () => {
       const { createRegistry } = await import('../js/terminal/registry.js');
       registry = createRegistry();
-      ctx = { registry, sections: () => ['about', 'portfolio', 'contact'], projects: () => [] };
+      ctx = { registry, sections: () => ['about', 'resume', 'contact'] };
     });
 
     it('finds the longest common prefix', async () => {
@@ -258,7 +240,7 @@ describe('Terminal', () => {
 
     it('completes command arguments, not just command names', async () => {
       const { completeInput } = await import('../js/terminal/keymap.js');
-      assert.strictEqual(completeInput('cd po', registry, ctx).value, 'cd portfolio ');
+      assert.strictEqual(completeInput('cd re', registry, ctx).value, 'cd resume ');
     });
 
     it('reports ambiguity without over-inserting', async () => {

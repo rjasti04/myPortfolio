@@ -500,7 +500,7 @@ function attachGlobalListeners() {
   // Track global clicks on interactive elements (only attach once)
   if (!globalClickHandler) {
     globalClickHandler = (e) => {
-      const target = e.target.closest("a, button, .project-card, [data-track]");
+      const target = e.target.closest("a, button, [data-track]");
       if (target) {
         trackEvent("click", {
           tag: target.tagName,
