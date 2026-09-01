@@ -1652,10 +1652,23 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js"
+  <!-- Markdown rendering for the AI chat.
+       `defer` matters: as plain classic scripts these blocked DOMContentLoaded,
+       and main.js does all of its initialisation inside that event - so a slow
+       jsdelivr delayed the theme, the navigation and analytics for every
+       visitor, including the majority who never open the chat.
+       Measured with each third-party request stalled 3s, median of 3 runs:
+       DOMContentLoaded 9256ms -> 6117ms. First paint is unchanged (~3.2s in
+       both) because it is gated by the render-blocking stylesheets from cdnjs
+       and fonts.googleapis, which `defer` does not touch - self-hosting those
+       is the remaining fix.
+       These stay in the document rather than moving into chat.js because the
+       CSP pins script-src to 'self' plus cdn.jsdelivr.net; renderBotHTML()
+       already degrades to escaped plain text when they are absent. -->
+  <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js"
     integrity="sha384-qSFej5dZNviyoPgYJ5+Xk4bEbX8AYddxAHPuzs1aSgRiXxJ3qmyWNaPsRkpv/+x5"
     crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"
+  <script defer src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"
     integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
     crossorigin="anonymous"></script>
   <script src="./js/app-logic.js" defer></script>

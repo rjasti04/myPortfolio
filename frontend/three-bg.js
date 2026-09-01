@@ -1,3 +1,14 @@
+/**
+ * Animated plexus background: drifting nodes joined by proximity lines.
+ *
+ * The filename is historical. This is a plain 2D-canvas renderer - see the
+ * `getContext("2d")` calls below - and there is no Three.js anywhere in this
+ * repository. A 1.3 MB unreferenced `js/vendor/three.module.js` was published
+ * to the web root on every deploy until it was removed; nothing had ever
+ * imported it. Renaming this module would churn the service worker precache
+ * list and main.js for no functional gain, so the name stays and this note
+ * explains it.
+ */
 import {
   prefersReducedMotion as reducedMotionQuery,
   compactViewport as compactViewportQuery,
