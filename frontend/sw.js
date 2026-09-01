@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v22';
+const CACHE_NAME = 'rj-portfolio-v23';
 const CACHE_EXPIRATION_DAYS = 7;
 const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -35,7 +35,13 @@ const PRECACHE_URLS = [
   '/js/tilt.js',
   '/js/modal.js',
   '/js/utils.js',
-  '/js/terminal.js',
+  '/js/terminal/index.js',
+  '/js/terminal/registry.js',
+  '/js/terminal/output.js',
+  '/js/terminal/history.js',
+  '/js/terminal/keymap.js',
+  '/js/terminal/palette.js',
+  '/js/terminal/math.js',
   '/js/analytics.js',
   '/js/chat.js',
   '/js/activity.js',

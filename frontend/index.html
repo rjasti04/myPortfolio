@@ -441,14 +441,28 @@
               <span class="terminal-dot dot-amber" aria-hidden="true"></span>
               <span class="terminal-dot dot-green" aria-hidden="true"></span>
               <span class="terminal-title">command prompt</span>
+              <span class="terminal-hint" aria-hidden="true">tap to run a command</span>
+              <button type="button" class="terminal-toggle" id="terminal-toggle" aria-expanded="true"
+                aria-controls="terminal-body">
+                <span class="sr-only">Show or hide the command prompt</span>
+                <i class="fas fa-chevron-down" aria-hidden="true"></i>
+              </button>
             </div>
             <div class="terminal-body" id="terminal-body">
-              <div id="terminal-output"></div>
+              <div id="terminal-output" role="log" aria-live="polite" aria-atomic="false"
+                aria-label="Command output"></div>
+              <div class="terminal-chips" id="terminal-chips" aria-label="Starter commands"></div>
               <div class="terminal-input-line">
-                <span class="prompt">$</span>
+                <span class="prompt" aria-hidden="true">$</span>
                 <input type="text" id="terminal-input" class="terminal-input" autocomplete="off" spellcheck="false"
-                  placeholder="Type 'help' to see commands..." aria-label="Terminal command input" />
+                  autocapitalize="off" autocorrect="off" inputmode="text" enterkeyhint="go"
+                  placeholder="Type 'help' to see commands..." aria-label="Terminal command input"
+                  aria-describedby="terminal-keyhints" />
               </div>
+              <p class="sr-only" id="terminal-keyhints">
+                Press Enter to run, Tab to complete, Up and Down arrows for history,
+                Control L to clear. Press Control K anywhere for the command palette.
+              </p>
             </div>
           </aside>
         </div>

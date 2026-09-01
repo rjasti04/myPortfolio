@@ -8,7 +8,7 @@
   },
   "scripts": {
     "lint": "npm run lint:js && npm run lint:css",
-    "lint:js": "eslint frontend/js/*.js",
+    "lint:js": "eslint frontend/js/*.js frontend/js/terminal/*.js",
     "lint:css": "stylelint \"frontend/**/*.css\"",
     "format": "prettier --write \"**/*.{html,css,js,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{html,css,js,json,md,yml,yaml}\"",

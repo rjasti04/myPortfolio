@@ -1801,6 +1801,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 }
 
 .terminal-panel {
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
   border: 1px solid var(--glass-dark-border, rgba(255, 255, 255, 0.12));
   border-radius: 14px;
   background: var(--glass-dark-bg, rgba(15, 23, 42, 0.7));
@@ -1940,7 +1941,9 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   background: rgb(142 161 201 / 8%);
   border-radius: 999px;
   padding: 4px 10px;
-  cursor: pointer;
+  /* Inert labels: the old `cursor: pointer` advertised a click that no
+     handler ever implemented. */
+  cursor: default;
   transition:
     transform var(--motion-base) var(--ease-press),
     border-color var(--motion-base) var(--ease-standard),
@@ -1950,11 +1953,97 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 }
 
 .terminal-tags span:hover {
-  transform: translateY(-2px) scale(1.08);
   border-color: var(--accent-fill);
   color: var(--accent-text);
   background: var(--accent-soft);
-  box-shadow: var(--glow-md);
+}
+
+/* Starter chips: the discoverability fix. Rendered from the command registry,
+   so they cannot drift from what is actually implemented. */
+.terminal-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+
+.terminal-chip {
+  font: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--terminal-text);
+  border: 1px solid rgb(142 161 201 / 30%);
+  background: rgb(142 161 201 / 10%);
+  border-radius: 999px;
+  padding: 5px 11px;
+  min-height: 30px;
+  cursor: pointer;
+  transition:
+    transform var(--motion-base) var(--ease-press),
+    border-color var(--motion-base) var(--ease-standard),
+    background var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
+}
+
+.terminal-chip::before {
+  content: "$ ";
+  opacity: 0.55;
+}
+
+.terminal-chip:hover,
+.terminal-chip:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--accent-fill);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.terminal-block {
+  display: contents;
+}
+
+/* Aligned two-column output (help, stats, open). Relies on the panel's
+   monospace stack so the padEnd() in output.js lines up. */
+.terminal-list--cols {
+  padding-left: 0;
+}
+
+.terminal-list--cols li {
+  white-space: pre-wrap;
+}
+
+.terminal-list--cols li::before {
+  content: none;
+}
+
+/* Collapse control — only surfaced on small viewports. */
+.terminal-toggle,
+.terminal-hint {
+  display: none;
+}
+
+.terminal-toggle {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--terminal-muted);
+  cursor: pointer;
+  padding: 6px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 8px;
+}
+
+.terminal-toggle i {
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+
+.terminal-panel.is-collapsed .terminal-toggle i {
+  transform: rotate(-90deg);
+}
+
+.terminal-panel.is-collapsed .terminal-body {
+  display: none;
 }
 
 .terminal-input-line {
@@ -8950,9 +9039,43 @@ body.dark-theme .mobile-bottom-nav {
     border-radius: 12px;
   }
 
-  /* Hide terminal panel on mobile viewports */
+  /* The command prompt is the most distinctive thing on this page; it used to
+     be `display: none` here, which deleted it for every phone visitor. It now
+     collapses to a ~48px strip that expands on tap. */
   .terminal-panel.no-swipe {
-    display: none !important;
+    display: flex;
+    height: auto;
+    max-width: 100%;
+    order: 3;
+  }
+
+  .terminal-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .terminal-panel.is-collapsed .terminal-hint {
+    display: inline;
+    margin-left: 8px;
+    font-size: var(--text-2xs);
+    color: var(--terminal-muted);
+  }
+
+  .terminal-panel:not(.is-collapsed) .terminal-body {
+    max-height: min(60vh, 420px);
+  }
+
+  #terminal-body {
+    max-height: min(60vh, 420px);
+  }
+
+  .terminal-chips {
+    gap: 8px;
+  }
+
+  .terminal-chip {
+    min-height: 36px;
   }
 
   .hero {
@@ -9046,6 +9169,141 @@ body.dark-theme .mobile-bottom-nav {
   background-color: #fde68a;
   color: #0f172a;
   font-weight: 600;
+}
+
+/* #endregion */
+
+/* #region COMMAND PALETTE (Ctrl+K) ------------------------------------*/
+
+/* A second renderer over the same command registry the About-page prompt
+   uses, so every command is reachable from anywhere on the site. */
+.cmd-palette {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(48px, 12vh, 140px) 16px 16px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.cmd-palette[hidden] {
+  display: none;
+}
+
+.cmd-palette-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(2 6 23 / 55%);
+  backdrop-filter: blur(var(--blur-sm, 4px));
+  -webkit-backdrop-filter: blur(var(--blur-sm, 4px));
+}
+
+.cmd-palette-box {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: min(70vh, 520px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--glass-dark-border, rgb(255 255 255 / 12%));
+  border-radius: 14px;
+  background: var(--glass-dark-bg, rgb(15 23 42 / 92%));
+  box-shadow: var(--glass-dark-shadow, 0 24px 60px rgb(0 0 0 / 45%));
+}
+
+.cmd-palette-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+
+.cmd-palette-prompt {
+  color: var(--terminal-green);
+  font-weight: 700;
+}
+
+.cmd-palette-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--terminal-text);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  caret-color: var(--terminal-green);
+  box-shadow: none !important;
+}
+
+.cmd-palette-input::placeholder {
+  color: var(--terminal-muted);
+  opacity: 0.6;
+}
+
+.cmd-palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cmd-palette-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.cmd-palette-item.is-active,
+.cmd-palette-item:hover {
+  background: rgb(142 161 201 / 14%);
+}
+
+.cmd-palette-name {
+  color: var(--terminal-green);
+  font-size: var(--text-body-xs);
+  font-weight: 700;
+}
+
+.cmd-palette-summary {
+  color: var(--terminal-text);
+  font-size: var(--text-2xs);
+  opacity: 0.85;
+}
+
+.cmd-palette-empty {
+  padding: 14px 12px;
+  color: var(--terminal-muted);
+  font-size: var(--text-body-xs);
+}
+
+.cmd-palette-hint {
+  margin: 0;
+  padding: 8px 14px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  color: var(--terminal-muted);
+  font-size: var(--text-2xs);
+}
+
+.cmd-palette-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  margin: 0 2px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 4px;
+  background: rgb(255 255 255 / 6%);
+  font: inherit;
+  font-size: var(--text-2xs);
+}
+
+body.cmd-palette-open {
+  overflow: hidden;
 }
 
 /* #endregion */

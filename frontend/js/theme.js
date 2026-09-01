@@ -26,6 +26,25 @@ export function applyTheme(isDark) {
   }
 }
 
+/**
+ * Flip the theme, persisting and tracking it exactly as the header button
+ * does. Exported so callers (the command prompt) don't have to synthesise a
+ * click on `#theme-toggle` to change the theme.
+ *
+ * @returns {boolean} true when the resulting theme is dark.
+ */
+export function toggleTheme() {
+  const nextValue = !document.body.classList.contains("dark-theme");
+  trackEvent("theme_change", { theme: nextValue ? "dark" : "light" });
+  applyTheme(nextValue);
+  try {
+    localStorage.setItem("theme", nextValue ? "dark" : "light");
+  } catch {
+    // Storage unavailable — the theme still applies for this view.
+  }
+  return nextValue;
+}
+
 export function initTheme() {
   themeBtn = document.getElementById("theme-toggle");
   themeIcon = document.getElementById("theme-icon");
@@ -35,10 +54,7 @@ export function initTheme() {
   applyTheme(savedTheme === "dark");
 
   themeBtn?.addEventListener("click", () => {
-    const nextValue = !document.body.classList.contains("dark-theme");
-    trackEvent("theme_change", { theme: nextValue ? "dark" : "light" });
-    applyTheme(nextValue);
-    localStorage.setItem("theme", nextValue ? "dark" : "light");
+    toggleTheme();
   });
 
   prefersDarkScheme.addEventListener("change", (event) => {
