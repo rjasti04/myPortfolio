@@ -25,7 +25,12 @@ The application relies on Vanilla ES modules. State is generally local to the mo
     *   `navigation.js`: Scroll handling, header state, and mobile menu.
     *   `animations.js` / `confetti.js` / `particles-config.js` / `tilt.js`: Micro-interactions and visual effects.
     *   `theme.js` / `theme-customizer.js`: Light/Dark mode and dynamic color palette management.
-    *   `modal.js` / `skills-carousel.js` / `terminal.js`: Specific UI component logic.
+    *   `modal.js` / `skills-carousel.js`: Specific UI component logic.
+    *   `terminal/`: The About-page command prompt, split into a data-only
+        command `registry.js`, DOM-node `output.js` builders (no innerHTML),
+        `history.js`, `keymap.js`, the `palette.js` Ctrl+K surface over the
+        same registry, and `index.js` which owns all DOM wiring. Commands
+        reach the outside world only through the injected `ctx`.
 *   **Features & Integrations:**
     *   `chat.js`: Handles the AI chatbot interface, streaming responses, and communicating with the backend API.
     *   `analytics.js` / `activity.js`: Session tracking, and the dashboard that shows the visitor what was recorded.

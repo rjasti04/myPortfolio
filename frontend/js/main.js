@@ -19,7 +19,7 @@ import { initContactForm } from "./form.js";
 import { initAnimations } from "./animations.js";
 import { initHeroTitle } from "./hero-title.js";
 import { initTilt } from "./tilt.js";
-import { initTerminal } from "./terminal.js";
+import { initTerminal } from "./terminal/index.js";
 import { initAnalytics } from "./analytics.js";
 import { initSkillsCarousel } from "./skills-carousel.js";
 import { initRipple } from "./ripple.js";
