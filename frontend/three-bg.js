@@ -439,25 +439,6 @@ function drawBackground(ctx, width, height) {
   ctx.clearRect(0, 0, width, height);
 }
 
-function applyHomeForce(particle, delta, config) {
-  if (particle.zone === "speck") return;
-
-  particle.vx += (particle.homeX - particle.x) * config.homeStrength * delta;
-  particle.vy += (particle.homeY - particle.y) * config.homeStrength * delta * 0.55;
-}
-
-function nudgeAwayFromCenter(particle, delta, width, height) {
-  if (particle.zone === "speck") return;
-
-  const inQuietX = particle.x > width * 0.32 && particle.x < width * 0.68;
-  const inQuietY = particle.y > height * 0.16 && particle.y < height * 0.86;
-
-  if (!inQuietX || !inQuietY) return;
-
-  const direction = particle.zone === "right" ? 1 : -1;
-  particle.vx += direction * width * 0.22 * delta;
-}
-
 function updateParticle(particle, delta, elapsed, width, height, pointer, config, intensity) {
   // Anti-gravity zero-g float drift logic
   const floatUpSpeed = -(particle.baseSpeed || 2.0) * 0.38 * (1 + intensity * 0.4);

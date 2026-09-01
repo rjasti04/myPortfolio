@@ -41,6 +41,23 @@ jobs:
       - name: Run Frontend Tests (JSDOM)
         run: npm test
 
+      # index.html pins its inline scripts by sha256 in the CSP. Editing one -
+      # even reindenting it - invalidates the hash and the browser then refuses
+      # to run it silently. One of them is the theme bootstrap, so the only
+      # symptom is the flash-of-wrong-theme it exists to prevent. Nothing else
+      # in this pipeline would catch that.
+      - name: Verify CSP Inline-Script Hashes
+        run: python3 scripts/check_csp_hashes.py
+
+      # `npm run audit` existed from the start and was never called by CI. It
+      # currently reports high-severity advisories in the dev toolchain
+      # (postcss, ws, via stylelint and jsdom). Not blocking, because a
+      # transitive dev advisory should not stop a portfolio deploy, but it has
+      # to be visible rather than silently unrun.
+      - name: Audit npm Dependencies
+        run: npm run audit
+        continue-on-error: true
+
   # ─── 2. BACKEND QUALITY GATE ──────────────────────────────────────────
   backend-check:
     name: Backend Lint & Pytest (py${{ matrix.python-version }})
@@ -233,16 +250,39 @@ jobs:
           BACKUP_DIR="$APP_DIR/../deploy-backups"
           mkdir -p "$APP_DIR/server" "$BACKUP_DIR"
 
-          rsync -a --delete "$APP_DIR/server/" "$BACKUP_DIR/server.prev/"
-          sudo rsync -a --delete "$WEB_ROOT/" "$BACKUP_DIR/html.prev/"
+          # Timestamped, and `current` points at the newest. This used to write
+          # to a single server.prev/html.prev pair, so rollback reached exactly
+          # one release back: two bad deploys in a row and the last good release
+          # was overwritten by the first bad one, leaving nothing to roll back
+          # to but a manual redeploy from a git ref.
+          STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+          SNAP="$BACKUP_DIR/$STAMP"
+          mkdir -p "$SNAP"
+
+          rsync -a --delete "$APP_DIR/server/" "$SNAP/server/"
+          sudo rsync -a --delete "$WEB_ROOT/" "$SNAP/html/"
 
           # Recorded so a failed deploy can report which revision the schema
           # was on before migrations ran.
           if [ -x "$APP_DIR/.venv/bin/alembic" ] && [ -f "$APP_DIR/server/alembic.ini" ]; then
             (cd "$APP_DIR/server" && "$APP_DIR/.venv/bin/alembic" current \
-              > "$BACKUP_DIR/alembic-revision.prev" 2>/dev/null) || true
+              > "$SNAP/alembic-revision" 2>/dev/null) || true
           fi
-          echo "Snapshot written to $BACKUP_DIR"
+
+          # `current` is what the rollback step restores from; the timestamped
+          # directories behind it are what make going back further possible.
+          ln -sfn "$SNAP" "$BACKUP_DIR/current.new"
+          mv -Tf "$BACKUP_DIR/current.new" "$BACKUP_DIR/current"
+
+          # Keep ten. Anything older is not worth the disk.
+          ls -1d "$BACKUP_DIR"/20*/ 2>/dev/null | sort -r | tail -n +11 | while read -r old; do
+            echo "Pruning old snapshot: $old"
+            sudo rm -rf "$old"
+          done
+
+          echo "Snapshot written to $SNAP"
+          echo "Available rollback points:"
+          ls -1d "$BACKUP_DIR"/20*/ 2>/dev/null | sort -r | head -10 || true
           REMOTE
           echo "DEPLOY_SNAPSHOT=ok" >> "$GITHUB_ENV"
 
@@ -348,6 +388,55 @@ jobs:
             exit 1
           fi
 
+      # /health only runs `SELECT 1`. It cannot tell you whether Apache is
+      # serving the new frontend, or whether the /api prefix still routes -
+      # the two things a deploy is most likely to break. A green health check
+      # with a stale or half-synced document root looks identical to success.
+      #
+      # Deliberately read-only: nothing here writes to the production database.
+      - name: Smoke Test the Deployed Site
+        run: |
+          SITE_URL="${HEALTH_URL%/api/health}"
+          echo "Smoke testing $SITE_URL"
+          failed=0
+
+          # 1. The document root serves the app shell.
+          code="$(curl -fsS -o /tmp/index.out -w '%{http_code}' --max-time 15 "$SITE_URL/" || echo 000)"
+          if [ "$code" != "200" ]; then
+            echo "::error::GET / returned $code"; failed=1
+          else
+            echo "GET / -> 200"
+          fi
+
+          # 2. The frontend that landed is the one this run built. sw.js carries
+          #    a CACHE_NAME bumped per release, so comparing it proves the rsync
+          #    actually replaced the document root rather than half-failing.
+          expected="$(grep -oE "rj-portfolio-v[0-9]+" frontend/sw.js | head -1)"
+          served="$(curl -fsS --max-time 15 "$SITE_URL/sw.js" | grep -oE "rj-portfolio-v[0-9]+" | head -1 || true)"
+          if [ -n "$expected" ] && [ "$expected" != "$served" ]; then
+            echo "::error::deployed sw.js is $served, expected $expected - the frontend sync did not land"
+            failed=1
+          else
+            echo "sw.js cache version -> $served"
+          fi
+
+          # 3. The /api prefix routes. main.py mounts every router twice
+          #    precisely because whether Apache strips /api decides which copy
+          #    serves production, and getting that wrong is an outage that
+          #    /health alone would not reveal if it were probed on the root mount.
+          code="$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 15 "$SITE_URL/api/health" || echo 000)"
+          if [ "$code" != "200" ]; then
+            echo "::error::GET /api/health returned $code - prefix routing is broken"; failed=1
+          else
+            echo "GET /api/health -> 200"
+          fi
+
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::smoke test failed; rolling back"
+            exit 1
+          fi
+          echo "Smoke test passed"
+
       # Restores the previous code on both tiers and brings the services back.
       # The database is deliberately NOT downgraded: `alembic downgrade` can
       # drop columns and lose rows, so migrations must stay backward-compatible
@@ -361,9 +450,17 @@ jobs:
           APP_DIR="$1"
           WEB_ROOT="$2"
           BACKUP_DIR="$APP_DIR/../deploy-backups"
+          SNAP="$(readlink -f "$BACKUP_DIR/current")"
 
-          rsync -a --delete "$BACKUP_DIR/server.prev/" "$APP_DIR/server/"
-          sudo rsync -a --delete "$BACKUP_DIR/html.prev/" "$WEB_ROOT/"
+          if [ -z "$SNAP" ] || [ ! -d "$SNAP/server" ]; then
+            echo "::error::No usable snapshot at $BACKUP_DIR/current - cannot roll back automatically"
+            ls -1d "$BACKUP_DIR"/20*/ 2>/dev/null | sort -r | head -10 || true
+            exit 1
+          fi
+          echo "Restoring from $SNAP"
+
+          rsync -a --delete "$SNAP/server/" "$APP_DIR/server/"
+          sudo rsync -a --delete "$SNAP/html/" "$WEB_ROOT/"
 
           "$APP_DIR/.venv/bin/pip" install --require-hashes \
             -r "$APP_DIR/server/requirements.txt"
@@ -371,10 +468,12 @@ jobs:
           sudo systemctl restart fastapi.service
           sudo systemctl restart httpd
 
-          if [ -f "$BACKUP_DIR/alembic-revision.prev" ]; then
+          if [ -f "$SNAP/alembic-revision" ]; then
             echo "Schema revision before this deploy:"
-            cat "$BACKUP_DIR/alembic-revision.prev"
+            cat "$SNAP/alembic-revision"
           fi
+          echo "Older rollback points, if this one is also bad:"
+          ls -1d "$BACKUP_DIR"/20*/ 2>/dev/null | sort -r | head -10 || true
           echo "Code rolled back. The database schema was NOT downgraded - if this"
           echo "deploy applied a migration, verify it is compatible with the"
           echo "restored release."

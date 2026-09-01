@@ -12,9 +12,24 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "ignorePatterns": ["frontend/js/vendor/**"],
   "rules": {
-    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_"
+      }
+    ],
     "no-undef": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "frontend/sw.js"
+      ],
+      "env": {
+        "serviceworker": true,
+        "browser": false
+      }
+    }
+  ]
 }

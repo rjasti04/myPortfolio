@@ -10,3 +10,8 @@ server/.venv/
 
 # Test/tooling caches
 .pytest_cache/
+
+# Coverage artefact: a binary that every local pytest run rewrites, so it showed
+# up as a spurious modification in unrelated commits.
+.coverage
+.venv-test/
