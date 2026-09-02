@@ -1803,6 +1803,39 @@ main {
   justify-content: center;
 }
 
+/* The PDF is the secondary action now that the Resume button opens the
+   Experience section. Deliberately not a third .btn: .hero-buttons is a
+   two-column grid below 768px, so a third button leaves an orphan on the
+   second row. */
+.hero-resume-download {
+  margin: 14px 0 0;
+}
+
+.pdf-download-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: color var(--motion-base) var(--ease-standard);
+}
+
+.pdf-download-link:hover,
+.pdf-download-link:focus-visible {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pdf-download-link:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
 .hero-chat-btn {
   color: var(--on-accent);
   cursor: pointer;
@@ -2333,6 +2366,24 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   max-width: 100%;
   font-size: var(--text-body-lg);
   line-height: var(--leading-body);
+}
+
+/* Where the Resume links now land, so the PDF stays one tap away. */
+.section-actions {
+  margin: 0 0 32px;
+}
+
+.section-actions .btn {
+  padding: 12px 26px;
+  font-size: var(--text-sm);
+  gap: 10px;
+}
+
+@media (width <= 768px) {
+  .section-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 #resume .item {
