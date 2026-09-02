@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Open Graph card — Champions League predictor</title>
+  <link rel="stylesheet" href="card.css">
+  <style>
+    /* Tokens lifted from :root in frontend/ucl.html. */
+    .card {
+      background: hsl(230, 45%, 9%);
+      color: hsl(215, 40%, 98%);
+    }
+
+    .glow-blue {
+      width: 700px;
+      height: 700px;
+      top: -300px;
+      right: -160px;
+      background: radial-gradient(circle, rgba(71, 107, 225, 0.34), transparent 66%);
+    }
+
+    .glow-cyan {
+      width: 520px;
+      height: 520px;
+      bottom: -280px;
+      left: -140px;
+      background: radial-gradient(circle, hsla(190, 95%, 55%, 0.16), transparent 66%);
+    }
+
+    .rule {
+      background: linear-gradient(90deg, hsl(226, 72%, 58%), hsl(190, 95%, 55%));
+    }
+
+    .eyebrow {
+      color: hsl(190, 95%, 55%);
+    }
+
+    .left {
+      width: 640px;
+    }
+
+    .title {
+      font-size: 62px;
+    }
+
+    .title .thin {
+      color: hsl(220, 18%, 68%);
+    }
+
+    .lead {
+      color: hsl(220, 18%, 68%);
+      max-width: 600px;
+    }
+
+    .chip {
+      background: hsl(230, 30%, 18%);
+      border-color: hsl(230, 20%, 27%);
+      color: hsl(215, 40%, 98%);
+    }
+
+    .chip.gold {
+      background: rgba(251, 191, 36, 0.16);
+      border-color: rgba(251, 191, 36, 0.45);
+      color: #fbbf24;
+    }
+
+    .bracket {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .footer {
+      border-top: 1px solid hsl(230, 20%, 27%);
+    }
+
+    .footer .url {
+      color: hsl(215, 40%, 98%);
+    }
+
+    .footer .meta {
+      color: hsl(220, 18%, 68%);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="glow glow-blue"></div>
+    <div class="glow glow-cyan"></div>
+
+    <div class="body">
+      <div class="left">
+        <div class="rule"></div>
+        <div class="eyebrow">Bracket Predictor</div>
+        <h1 class="title"><span class="thin">2026/27 UEFA</span>Champions League</h1>
+        <p class="lead">Rank the 36-club league phase, settle the knockout
+          play-offs, and run the bracket to the final in Madrid.</p>
+        <div class="chips">
+          <span class="chip">36 clubs</span>
+          <span class="chip">Swiss league phase</span>
+          <span class="chip gold">Final &bull; Madrid &bull; Jun 2027</span>
+        </div>
+      </div>
+
+      <!-- The knockout bracket, drawn the way the page draws it: cards joined
+           by connector lines measured from their positions. The rows are
+           deliberately abstract - a predictor card should not ship a
+           prediction. -->
+      <div class="bracket">
+        <svg width="352" height="300" viewBox="0 0 352 300" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="link" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="hsl(226, 72%, 58%)" stop-opacity="0.30" />
+              <stop offset="1" stop-color="hsl(190, 95%, 55%)" stop-opacity="0.85" />
+            </linearGradient>
+          </defs>
+
+          <!-- Connectors: round of 16 -> quarter-finals -->
+          <g stroke="url(#link)" stroke-width="2" fill="none">
+            <path d="M104 32 H124 V78 H140" />
+            <path d="M104 102 H124 V78" />
+            <path d="M104 198 H124 V244 H140" />
+            <path d="M104 268 H124 V244" />
+            <!-- quarter-finals -> final -->
+            <path d="M244 78 H264 V161 H284" />
+            <path d="M244 244 H264 V161" />
+          </g>
+
+          <g fill="hsl(230, 30%, 18%)" stroke="hsl(230, 20%, 27%)" stroke-width="1.5">
+            <rect x="0" y="14" width="104" height="36" rx="9" />
+            <rect x="0" y="84" width="104" height="36" rx="9" />
+            <rect x="0" y="180" width="104" height="36" rx="9" />
+            <rect x="0" y="250" width="104" height="36" rx="9" />
+            <rect x="140" y="60" width="104" height="36" rx="9" />
+            <rect x="140" y="226" width="104" height="36" rx="9" />
+          </g>
+
+          <!-- Seed pips and name bars, so the cards read as team rows. -->
+          <g fill="hsl(220, 18%, 68%)" fill-opacity="0.55">
+            <rect x="12" y="27" width="14" height="10" rx="2" />
+            <rect x="32" y="28" width="56" height="8" rx="4" />
+            <rect x="12" y="97" width="14" height="10" rx="2" />
+            <rect x="32" y="98" width="44" height="8" rx="4" />
+            <rect x="12" y="193" width="14" height="10" rx="2" />
+            <rect x="32" y="194" width="50" height="8" rx="4" />
+            <rect x="12" y="263" width="14" height="10" rx="2" />
+            <rect x="32" y="264" width="38" height="8" rx="4" />
+            <rect x="152" y="73" width="14" height="10" rx="2" />
+            <rect x="172" y="74" width="48" height="8" rx="4" />
+            <rect x="152" y="239" width="14" height="10" rx="2" />
+            <rect x="172" y="240" width="54" height="8" rx="4" />
+          </g>
+
+          <!-- The final, and the trophy that ends it. -->
+          <rect x="284" y="131" width="60" height="60" rx="14" fill="rgba(251, 191, 36, 0.14)"
+            stroke="#fbbf24" stroke-width="1.5" />
+          <g fill="#fbbf24">
+            <path d="M303 145h22v9a11 11 0 0 1-22 0z" />
+            <path d="M299 146h4v6a7 7 0 0 1-4-6zm26 0h4a7 7 0 0 1-4 6z" />
+            <rect x="311" y="165" width="6" height="8" rx="1" />
+            <rect x="304" y="172" width="20" height="5" rx="2" />
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="url">rjasti.com/ucl</span>
+      <span class="meta">League phase &bull; Play-offs &bull; Bracket</span>
+    </div>
+  </div>
+</body>
+
+</html>

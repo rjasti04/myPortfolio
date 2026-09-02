@@ -3,7 +3,7 @@
   xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://rjasti.com/</loc>
-    <lastmod>2026-04-05</lastmod>
+    <lastmod>2026-09-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <image:image>
@@ -17,5 +17,21 @@
     <lastmod>2026-09-02</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
+    <image:image>
+      <image:loc>https://rjasti.com/ucl-preview.png</image:loc>
+      <image:title>2026/27 Champions League Bracket Predictor</image:title>
+      <image:caption>Preview card for the Champions League bracket predictor</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://rjasti.com/worldcup</loc>
+    <lastmod>2026-09-02</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+    <image:image>
+      <image:loc>https://rjasti.com/worldcup-preview.png</image:loc>
+      <image:title>2026 World Cup Bracket Predictor</image:title>
+      <image:caption>Preview card for the World Cup bracket predictor</image:caption>
+    </image:image>
   </url>
 </urlset>

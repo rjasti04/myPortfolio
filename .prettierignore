@@ -13,6 +13,11 @@ frontend/index.html
 frontend/worldcup.html
 frontend/ucl.html
 
+# The Open Graph card sources. The portfolio card's terminal panel is a
+# `white-space: pre` block whose leading spaces are the column alignment, and
+# the two SVG motifs are hand-placed coordinate lists. Prettier reflows both.
+scripts/social-previews/
+
 # Generated locks and coverage artefacts.
 package-lock.json
 server/requirements*.txt

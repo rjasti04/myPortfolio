@@ -155,7 +155,7 @@ domain logic for auth, Bedrock, chat history, ingest, breach checks and email.
 | Path | Role |
 | :--- | :--- |
 | `tests/backend/` | pytest suites — `unit/` (6 files) and `integration/` (6 files) |
-| `scripts/` | `build.mjs`, `check_csp_hashes.py`, `vendor_fonts.py`, three Pillow image helpers |
+| `scripts/` | `build.mjs`, `check_csp_hashes.py`, `vendor_fonts.py`, four Pillow image helpers (one of them, `generate_social_previews.py`, renders the cards in `scripts/social-previews/`) |
 | `docs/` | This documentation set |
 | `assets/` | `master-icon.png` — kept outside `frontend/` so the deploy never publishes it |
 | `.github/workflows/` | `deploy.yml` — the whole CI/CD pipeline |
