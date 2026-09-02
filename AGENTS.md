@@ -47,7 +47,6 @@ Do not preload these. Each entry states its trigger.
 | `docs/ADR.md` | changing DB schema, the ORM layer, or auth flow |
 | `docs/API.md` | adding or modifying a FastAPI route |
 | `docs/JAVASCRIPT.md` | adding or refactoring a frontend ES module |
-| `docs/IMPROVEMENTS.md` | **historical changelog of shipped work. Do NOT read for current state** - it describes things that are already done |
 | `README.md` | human onboarding only; the stack summary above supersedes it |
 
 ## 1. Contextual Persona
