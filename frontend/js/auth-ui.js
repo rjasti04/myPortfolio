@@ -1,16 +1,10 @@
 import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, verify2FA, requestMagicLink, verifyMagicLink, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession, clearTokens } from './auth.js';
 import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
-import { ModalSwipeDismiss } from './swipe-handler.js';
+import { closeModal, openModal } from './modal.js';
 
 export async function initAuthUI() {
     const modal = document.getElementById('auth-modal');
-    if (modal) {
-        new ModalSwipeDismiss(modal, () => {
-            modal.classList.add('hidden');
-            modal.setAttribute('aria-hidden', 'true');
-        });
-    }
     const closeBtn = document.getElementById('auth-modal-close');
     const tabs = document.querySelectorAll('.auth-tab');
     const tabContents = document.querySelectorAll('.auth-tab-content');
@@ -74,30 +68,87 @@ export async function initAuthUI() {
         });
     }
 
+
+    // The auth modal is a real dialog and now behaves like one. modal.js already
+    // implements the focus trap, Escape, reference-counted scroll lock and focus
+    // restore used by the image and project dialogs; this routes the auth modal
+    // through the same code instead of toggling a class.
+    //
+    // `hidden` drives the CSS (visibility/opacity); `active` is what modal.js
+    // keys its own state on. Both are needed, and `hidden` has to come off
+    // before openModal runs or there is nothing focusable to move focus to.
+    const TAB_TITLE_IDS = {
+        login: 'auth-modal-title',
+        register: 'auth-title-register',
+        forgot: 'auth-title-forgot',
+        'reset-password': 'auth-title-reset-password',
+        'change-password': 'auth-title-change-password',
+        'magic-link': 'auth-title-magic-link',
+        '2fa-verify': 'auth-title-2fa-verify',
+        '2fa-setup': 'auth-title-2fa-setup',
+        sessions: 'auth-title-sessions',
+        'delete-account': 'auth-title-delete-account',
+    };
+
+    function firstFieldOf(tabId) {
+        const panel = document.getElementById(`auth-tab-${tabId}`);
+        return panel?.querySelector('input:not([type="hidden"]):not([disabled]), textarea, select') || null;
+    }
+
+    function openAuthModal(tabId) {
+        modal.classList.remove('hidden');
+        // Cleared explicitly: a swipe-dismiss used to leave aria-hidden="true"
+        // behind, and nothing removed it, so every later open was invisible to
+        // screen readers.
+        modal.removeAttribute('aria-hidden');
+        switchTab(tabId);
+        // The `hidden` bookkeeping hangs off onClose rather than living only in
+        // closeAuthModal, because modal.js closes this dialog itself on Escape
+        // and on swipe-dismiss. Without the hook those paths released the scroll
+        // lock but left the overlay on screen.
+        openModal(modal, {
+            initialFocus: firstFieldOf(tabId),
+            onClose: () => {
+                modal.classList.add('hidden');
+                resetPasswordVisibility();
+                // renderAuthUI rebuilds #nav-auth-container with innerHTML, so
+                // the button that opened the dialog may no longer be in the
+                // document. modal.js would then focus a detached node and
+                // focus would land on <body>.
+                requestAnimationFrame(() => {
+                    if (document.activeElement && document.activeElement !== document.body) return;
+                    const fallback = document.getElementById('nav-login-btn')
+                        || document.getElementById('nav-user-btn');
+                    fallback?.focus();
+                });
+            },
+        });
+    }
+
+    function closeAuthModal() {
+        // closeModal fires the onClose above, which restores `hidden`.
+        closeModal(modal);
+    }
+
     // Show modal via custom event
     window.addEventListener('request-login-modal', () => {
-        modal.classList.remove('hidden');
-        switchTab('login');
+        openAuthModal('login');
     });
 
     window.addEventListener('request-change-password-modal', () => {
-        modal.classList.remove('hidden');
-        switchTab('change-password');
+        openAuthModal('change-password');
     });
 
     window.addEventListener('request-delete-account-modal', () => {
-        modal.classList.remove('hidden');
-        switchTab('delete-account');
+        openAuthModal('delete-account');
     });
 
     window.addEventListener('request-magic-link-modal', () => {
-        modal.classList.remove('hidden');
-        switchTab('magic-link');
+        openAuthModal('magic-link');
     });
 
     window.addEventListener('request-2fa-setup-modal', async () => {
-        modal.classList.remove('hidden');
-        switchTab('2fa-setup');
+        openAuthModal('2fa-setup');
         try {
             const data = await setup2FA();
             const qrImg = document.getElementById('2fa-qr-img');
@@ -111,22 +162,19 @@ export async function initAuthUI() {
     });
 
     window.addEventListener('request-sessions-modal', async () => {
-        modal.classList.remove('hidden');
-        switchTab('sessions');
+        openAuthModal('sessions');
         await loadActiveSessionsUI();
     });
 
     // Close modal
     closeBtn.addEventListener('click', () => {
-        modal.classList.add('hidden');
-        resetPasswordVisibility();
+        closeAuthModal();
     });
 
     // Close on click outside
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
-            modal.classList.add('hidden');
-            resetPasswordVisibility();
+            closeAuthModal();
         }
     });
 
@@ -147,6 +195,22 @@ export async function initAuthUI() {
             if (targetTab) targetTab.classList.add('active');
             const targetContent = document.getElementById(`auth-tab-${tabId}`);
             if (targetContent) targetContent.classList.add('active');
+        }
+
+        // Roving tabindex + selection state for the two real tabs. Without this
+        // they were styled buttons with no announced state.
+        tabs.forEach((tab) => {
+            const selected = tab.dataset.tab === tabId;
+            tab.setAttribute('aria-selected', String(selected));
+            tab.tabIndex = selected ? 0 : -1;
+        });
+
+        // Name the dialog after the panel actually showing. aria-labelledby was
+        // pinned to the login heading, which is hidden on the other nine views,
+        // leaving the dialog effectively unnamed.
+        const titleId = TAB_TITLE_IDS[tabId];
+        if (titleId && document.getElementById(titleId)) {
+            modal.setAttribute('aria-labelledby', titleId);
         }
 
         loginError.textContent = '';
@@ -171,6 +235,23 @@ export async function initAuthUI() {
     tabs.forEach(tab => {
         tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
+
+    if (modalTabs) {
+        modalTabs.addEventListener('keydown', (event) => {
+            const order = Array.from(tabs);
+            const current = order.indexOf(document.activeElement);
+            if (current === -1) return;
+            let next = null;
+            if (event.key === 'ArrowRight') next = (current + 1) % order.length;
+            else if (event.key === 'ArrowLeft') next = (current - 1 + order.length) % order.length;
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = order.length - 1;
+            if (next === null) return;
+            event.preventDefault();
+            switchTab(order[next].dataset.tab);
+            order[next].focus();
+        });
+    }
 
     if (forgotTrigger) {
         forgotTrigger.addEventListener('click', (e) => {
@@ -332,7 +413,7 @@ export async function initAuthUI() {
 
             // Success
             loginForm.reset();
-            modal.classList.add('hidden');
+            closeAuthModal();
             window.dispatchEvent(new Event('auth-changed'));
 
         } catch (err) {
@@ -408,7 +489,7 @@ export async function initAuthUI() {
                 await verify2FA(preAuthToken, code);
 
                 twoFactorVerifyForm.reset();
-                modal.classList.add('hidden');
+                closeAuthModal();
                 window.dispatchEvent(new Event('auth-changed'));
             } catch (err) {
                 if (verifyError) verifyError.textContent = err.message || 'Invalid 2FA code.';
@@ -443,7 +524,7 @@ export async function initAuthUI() {
                 }
                 twoFactorEnableForm.reset();
                 setTimeout(() => {
-                    modal.classList.add('hidden');
+                    closeAuthModal();
                     window.dispatchEvent(new Event('auth-changed'));
                 }, 1500);
             } catch (err) {
@@ -538,7 +619,7 @@ export async function initAuthUI() {
                 if (typeof updatePasswordValidation === 'function') {
                     updatePasswordValidation();
                 }
-                modal.classList.add('hidden');
+                closeAuthModal();
                 window.dispatchEvent(new Event('auth-changed'));
 
             } catch (err) {
@@ -700,7 +781,7 @@ export async function initAuthUI() {
                 updateChangePasswordValidation();
 
                 setTimeout(() => {
-                    modal.classList.add('hidden');
+                    closeAuthModal();
                 }, 1500);
             } catch (err) {
                 if (changePwError) {
@@ -910,7 +991,7 @@ export async function initAuthUI() {
                 updateDeleteAccountValidation();
 
                 setTimeout(async () => {
-                    modal.classList.add('hidden');
+                    closeAuthModal();
                     await logoutUser();
                 }, 1800);
             } catch (err) {
@@ -929,8 +1010,7 @@ export async function initAuthUI() {
     const resetTokenParam = urlParams.get('reset_token');
     if (resetTokenParam) {
         if (resetTokenInput) resetTokenInput.value = resetTokenParam;
-        if (modal) modal.classList.remove('hidden');
-        switchTab('reset-password');
+        if (modal) openAuthModal('reset-password');
         const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
     }
@@ -939,14 +1019,14 @@ export async function initAuthUI() {
     if (magicTokenParam) {
         (async () => {
             try {
-                if (modal) modal.classList.remove('hidden');
+                if (modal) openAuthModal('login');
                 const result = await verifyMagicLink(magicTokenParam);
                 if (result.requires_2fa) {
                     const preInput = document.getElementById('2fa-pre-auth-token-input');
                     if (preInput) preInput.value = result.pre_auth_token;
                     switchTab('2fa-verify');
                 } else {
-                    modal.classList.add('hidden');
+                    closeAuthModal();
                     window.dispatchEvent(new Event('auth-changed'));
                 }
             } catch (e) {
@@ -1087,12 +1167,10 @@ async function setupNavUI() {
         </button>
     `;
 
-    const loginBtn = document.getElementById('nav-login-btn');
-    if (loginBtn) {
-        loginBtn.addEventListener('click', () => {
-            window.dispatchEvent(new Event('request-login-modal'));
-        });
-    }
+    // No direct listener here: the delegated document-level handler below
+    // already fires `request-login-modal` for #nav-login-btn, and it keeps
+    // working across the innerHTML re-render this function performs. Binding
+    // both meant one click dispatched the event twice.
 }
 
 // Global delegated click listener for login button navigation

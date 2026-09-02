@@ -11,6 +11,7 @@ from typing import Any, Optional, Deque, Dict, List, Set
 
 import structlog
 from sqlalchemy.exc import OperationalError, InterfaceError
+from server.config.settings import MAX_STREAMS_PER_SESSION
 from server.db.database import AsyncSessionLocal
 from server.models.event import UserActivityEvent
 
@@ -223,8 +224,32 @@ def decode_payload(data: Any) -> Any:
 
     return data
 
+class TooManyStreams(Exception):
+    """Raised when a session already holds its allowance of open SSE streams."""
+
+
 async def register_stream(session_id: UUID) -> asyncio.Queue:
-    """Registers an SSE listener queue for a session."""
+    """Registers an SSE listener queue for a session.
+
+    Raises TooManyStreams past MAX_STREAMS_PER_SESSION. The stream endpoint was
+    the one place with no concurrency bound at all: CHAT_MAX_CONCURRENCY covers
+    Bedrock and the rate limiter counts requests, but an SSE connection is a
+    single request that then stays open indefinitely, holding a worker slot. A
+    session token costs one unauthenticated POST, so nothing stopped a caller
+    opening them until the server ran out.
+    """
+    existing = active_streams.get(session_id)
+    if existing is not None and len(existing) >= MAX_STREAMS_PER_SESSION:
+        logger.warning(
+            "stream_limit_reached",
+            session_id=str(session_id),
+            active_connections=len(existing),
+            limit=MAX_STREAMS_PER_SESSION,
+        )
+        raise TooManyStreams(
+            f"This session already has {len(existing)} open activity streams."
+        )
+
     queue: asyncio.Queue = asyncio.Queue(maxsize=STREAM_QUEUE_MAXSIZE)
     active_streams[session_id].append(queue)
     replay_buffers.setdefault(session_id, deque(maxlen=REPLAY_BUFFER_SIZE))

@@ -16,6 +16,12 @@ export class SwipeHandler {
     this.startTime = 0;
     this.distX = 0;
     this.distY = 0;
+    // Whether touchstart accepted this gesture. Without it, touchstart and
+    // touchend filtered independently on their own targets - which differ
+    // whenever a drag begins on a button and ends on the page - so a gesture
+    // rejected at the start could still be measured at the end, against
+    // startX/startY left over from a previous one.
+    this.armed = false;
     
     // Cache bound handlers to prevent listener leaks
     this.boundTouchStart = this.handleTouchStart.bind(this);
@@ -31,12 +37,15 @@ export class SwipeHandler {
     document.addEventListener('touchend', this.boundTouchEnd, { passive: true });
   }
 
+  static IGNORE_SELECTOR =
+    'input, textarea, select, button, a, .no-swipe, [data-scroll-x], pre, table, .act-table';
+
   handleTouchStart(e) {
-    // Ignore if touching interactive elements
-    const target = e.target;
-    if (target.closest('input, textarea, select, button, a, .no-swipe')) {
-      return;
-    }
+    // Interactive and horizontally scrollable regions are not swipe surfaces:
+    // dragging sideways inside a code block or a wide table is a scroll, and
+    // treating it as navigation jumps the visitor to another section.
+    this.armed = !e.target.closest(SwipeHandler.IGNORE_SELECTOR);
+    if (!this.armed) return;
 
     const touch = e.touches[0];
     this.startX = touch.pageX;
@@ -52,10 +61,11 @@ export class SwipeHandler {
   }
 
   handleTouchEnd(e) {
-    const target = e.target;
-    if (target.closest('input, textarea, select, button, a, .no-swipe')) {
-      return;
-    }
+    // One gesture, one decision: whatever touchstart concluded stands, so the
+    // release target cannot revive a rejected gesture or measure it from a
+    // stale origin.
+    if (!this.armed) return;
+    this.armed = false;
 
     const touch = e.changedTouches[0];
     this.distX = touch.pageX - this.startX;

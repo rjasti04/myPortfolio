@@ -194,3 +194,53 @@ test("contact form exposes loading state and resets after successful ajax submis
   assert.equal(submitBtn.disabled, false);
   assert.equal(form.hasAttribute("aria-busy"), false);
 });
+
+// Regression: the honeypot is in the markup and rides a native form POST, but
+// the AJAX payload is hand-built and used to drop it - so on the path virtually
+// every submission takes, FormSubmit never saw it.
+test("contact form forwards the honeypot in the ajax payload", async () => {
+  const form = resetContactDom();
+  fillValidContactForm();
+  let body = null;
+  window.fetch = global.fetch = async (_url, options) => {
+    body = JSON.parse(options.body);
+    return { ok: true };
+  };
+  initContactForm();
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushPromises();
+
+  assert.ok(body, "the ajax request must have been made");
+  assert.ok("_honey" in body, "FormSubmit cannot apply a honeypot it is not sent");
+});
+
+// Regression: aborting cancels the browser's wait, not the POST already in
+// flight. Falling through to a native submit delivered slow-but-successful
+// messages twice.
+test("contact form does not resubmit natively when the request times out", async () => {
+  const form = resetContactDom();
+  fillValidContactForm();
+
+  let fetchCalls = 0;
+  window.fetch = global.fetch = async () => {
+    fetchCalls += 1;
+    const err = new Error("aborted");
+    err.name = "AbortError";
+    throw err;
+  };
+  let nativeSubmits = 0;
+  form.submit = () => {
+    nativeSubmits += 1;
+  };
+
+  initContactForm();
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushPromises();
+
+  assert.equal(fetchCalls, 1);
+  assert.equal(nativeSubmits, 0, "a timeout must not send the message a second time");
+
+  const status = document.getElementById("contact-status");
+  assert.equal(status.dataset.state, "error");
+  assert.match(status.textContent, /may still have arrived/i);
+});

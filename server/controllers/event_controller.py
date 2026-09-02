@@ -61,26 +61,56 @@ async def create_event(payload: EventCreate, request: Request, db: AsyncSession 
 async def create_events_bulk(payload: BulkEventCreate, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Inserts up to 500 events in a single transaction.
+
+    Unrecognised event types are skipped individually rather than failing the
+    batch. `BulkEventItem` types `event_type` as a plain string precisely so
+    that decision lands here: when the vocabulary lived in the request schema,
+    FastAPI answered 422 for the whole request, and since analytics.js only
+    re-queues on 5xx/429 the valid events in that batch were lost with it. A
+    client that runs ahead of a server deploy should cost itself one event, not
+    everything it had buffered.
     """
     if not payload.events:
         raise HTTPException(400, "events list is empty")
 
     # One batch, one session: a caller holding one token must not be able to
-    # write events attributed to somebody else's session.
+    # write events attributed to somebody else's session. This stays a hard
+    # failure for the whole batch - it is an authorisation boundary, not a
+    # vocabulary mismatch.
     for event in payload.events:
         assert_session_access(event.session_id, request)
     if len(payload.events) > 500:
         raise HTTPException(400, "Maximum 500 events per bulk request")
 
-    events = [
-        UserActivityEvent(
-            session_id=e.session_id,
-            event_type=e.event_type,
-            page_path=e.page_path,
-            event_data=e.event_data
+    events = []
+    rejected = []
+    for index, e in enumerate(payload.events):
+        if e.event_type not in EVENT_TYPES:
+            rejected.append({
+                "index": index,
+                "event_type": e.event_type,
+                "reason": "unknown event_type",
+            })
+            continue
+        events.append(
+            UserActivityEvent(
+                session_id=e.session_id,
+                event_type=e.event_type,
+                page_path=e.page_path,
+                event_data=e.event_data,
+            )
         )
-        for e in payload.events
-    ]
+
+    if rejected:
+        logger.warning(
+            "bulk_events_partially_rejected",
+            rejected_count=len(rejected),
+            accepted_count=len(events),
+            event_types=sorted({r["event_type"] for r in rejected}),
+        )
+
+    if not events:
+        return {"inserted": 0, "rejected": rejected}
 
     try:
         db.add_all(events)
@@ -106,7 +136,7 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
         logger.exception("Bulk event insert failed")
         raise HTTPException(422, "Failed to insert events (possibly invalid session_id)") from e
 
-    return {"inserted": len(events)}
+    return {"inserted": len(events), "rejected": rejected}
 
 
 # A comment frame every 2s (the previous behaviour) is far more chatty than any
@@ -174,11 +204,14 @@ async def stream_session_events(
       `activity` - one activity event, compacted, carrying an `id:` for resume
       `pipeline` - periodic per-stage health for the DAG
 
-    Unnamed `data:` frames are also emitted for `activity` so a client still on
-    `EventSource.onmessage` keeps working across the deploy that switches it to
-    `addEventListener`.
+    Every event used to be sent twice - once on the named `activity` channel and
+    once as an unnamed `data:` frame, for a client still on
+    `EventSource.onmessage`. That deploy has long since happened and the only
+    client subscribes to both, deduplicating by `event_id`, so the copy was pure
+    waste: double the bytes, and the redundant one was the larger verbose shape.
     """
     from server.services.kafka_stream import (
+        TooManyStreams,
         register_stream,
         unregister_stream,
         replay_since,
@@ -192,7 +225,12 @@ async def stream_session_events(
     except ValueError:
         last_event_id = None
 
-    client_queue = await register_stream(session_id)
+    try:
+        client_queue = await register_stream(session_id)
+    except TooManyStreams as exc:
+        # 429 rather than 403: the caller is authorised, just over its
+        # allowance, and EventSource will retry on its own backoff.
+        raise HTTPException(status_code=429, detail=str(exc)) from None
 
     async def event_generator():
         try:
@@ -206,7 +244,6 @@ async def stream_session_events(
             # Close the reconnect gap before streaming anything new.
             for missed in replay_since(session_id, last_event_id):
                 yield _sse_frame("activity", _compact(missed), event_id=missed.get("event_id"))
-                yield f"data: {json.dumps(missed, default=str)}\n\n"
 
             last_pipeline_at = 0.0
             last_write = time.monotonic()
@@ -239,8 +276,6 @@ async def stream_session_events(
                 else:
                     event_id = event_dict.get("event_id")
                     yield _sse_frame("activity", _compact(event_dict), event_id=event_id)
-                    # Back-compat frame for clients still on `onmessage`.
-                    yield f"data: {json.dumps(event_dict, default=str)}\n\n"
                 last_write = time.monotonic()
         finally:
             unregister_stream(session_id, client_queue)

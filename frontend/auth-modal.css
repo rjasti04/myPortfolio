@@ -294,6 +294,15 @@
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
+/* The box-shadow above is --accent-soft at 15% alpha, which composites to
+   1.12:1 against the field in light theme - not a focus indicator by WCAG
+   1.4.11's 3:1 bar. This rule needs to match the specificity above to win, and
+   applies only for keyboard focus so the softer treatment still covers clicks. */
+.auth-form .floating-label-group input:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .auth-form .floating-label-group .form-label {
   position: absolute;
   top: 50%;
@@ -493,7 +502,7 @@
 }
 
 .password-toggle-btn:focus-visible {
-  outline: 2px solid var(--accent-fill, #89b4fa);
+  outline: 2px solid var(--focus-ring, #89b4fa);
 }
 
 /* Disable native validation background icons (check/cross) for password inputs (both password and text toggled states) */

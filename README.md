@@ -7,7 +7,7 @@ FastAPI service for activity tracking and Amazon Bedrock-powered chat.
 
 ## Tech Stack
 
-- Frontend: HTML, CSS, JavaScript modules, Three.js, service worker, web app manifest
+- Frontend: HTML, CSS, JavaScript modules, 2D-canvas background, service worker, web app manifest
 - Backend: FastAPI, asyncpg/PostgreSQL, Pydantic, boto3/Amazon Bedrock, structlog
 - Tooling: Node.js test runner, jsdom, ESLint, Stylelint, Prettier
 
@@ -115,9 +115,11 @@ Optional:
 - `TRUSTED_PROXY_IPS`: comma-separated proxy IPs/CIDRs trusted for `X-Forwarded-For`
 - `MAX_BODY_BYTES`: request body limit, default `1048576`
 - `CHAT_MAX_CONCURRENCY`: concurrent chat stream limit, default `4`
-- `CHAT_STREAM_QUEUE_SIZE`: async streaming queue size, default `32`
+- `CHAT_FREE_MESSAGE_LIMIT`: anonymous user messages before login, default `6`
+- `CHAT_RATE_LIMIT_PER_MINUTE`: per-IP requests/min against the chat routes, default `12`
+- `CHAT_STREAM_QUEUE_SIZE`: async streaming queue size, default `128`
 - `BEDROCK_TIMEOUT_SECONDS`: Bedrock read timeout, default `30`
-- `BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS`: stream queue put timeout, default `2`
+- `BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS`: stream queue put timeout, default `10`
 - `LOG_LEVEL`: Python logging level, default `INFO`
 
 The frontend currently points API calls at `https://rjasti.com/api` in
@@ -127,6 +129,7 @@ host.
 ## Available Scripts
 
 ```bash
+npm run build         # Build the optimised site into dist/ (what the deploy ships)
 npm run lint          # Run JavaScript and CSS linters
 npm run lint:js       # Lint frontend/js/*.js
 npm run lint:css      # Lint CSS files
@@ -144,7 +147,9 @@ npm run audit         # Check npm packages for high-severity advisories
 - `PATCH /sessions/{session_id}/end`: end a session
 - `GET /sessions/{session_id}`: fetch session metadata
 - `POST /events`: record one activity event
-- `POST /events/bulk`: record up to 500 activity events
+- `POST /events/bulk`: record up to 500 activity events. Accepts the batch per
+  row and answers `{inserted, rejected[]}`; an unrecognised `event_type` costs
+  that one event rather than the whole batch
 - `GET /sessions/{session_id}/events`: list events for a session
 - `POST /chat`: stream a Bedrock chat response
 - `POST /chat/summarize`: summarize chat history through Bedrock
@@ -174,6 +179,25 @@ python scripts/optimize_images.py
 
 `optimize_images.py` writes optimized image files and creates timestamped backups
 under `backups/`.
+
+## Fonts
+
+Fonts are self-hosted and subset, so no third-party origin sits in the critical
+rendering path. `frontend/fonts.css` and `frontend/fonts/` are generated - do not
+edit them by hand. After adding an icon that is not already used anywhere:
+
+```bash
+python -m pip install "fonttools[woff]"
+python scripts/vendor_fonts.py
+```
+
+The script scans the source for `fa-*` classes, cuts the Font Awesome faces down
+to just those glyphs, and fetches only the latin subsets of Plus Jakarta Sans.
+It needs network access, so it is a maintenance step rather than part of the
+build; its output is committed.
+
+`frontend/vendor/` holds DOMPurify and marked, copied verbatim from the npm
+packages pinned in `package.json`. See `frontend/vendor/README.md`.
 
 ## Data and AWS Impact
 

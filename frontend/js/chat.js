@@ -1109,6 +1109,10 @@ export function initChat() {
       return;
     }
 
+    // Set only when a summarisation round trip succeeds. Until the stream
+    // completes it is the payload we send, never the stored transcript.
+    let compactedMessages = null;
+
     // Summarize old messages if token count gets too high
     const totalTokens = session.messages.reduce((sum, msg) => sum + estimateTokens(msg.text), 0);
     if (totalTokens > SUMMARIZE_TOKEN_THRESHOLD) {
@@ -1132,15 +1136,20 @@ export function initChat() {
           });
           if (sumRes.ok) {
             const sumData = await sumRes.json();
-            // Rebuild as: user(synthetic) → bot(summary) → user(current)
-            // This guarantees strict user/assistant alternation.
-            session.messages = [
+            // Compacted as: user(synthetic) → bot(summary) → user(current),
+            // which guarantees strict user/assistant alternation.
+            //
+            // Held out of `session.messages` until the turn actually succeeds.
+            // This used to overwrite the transcript and call saveSessions()
+            // immediately - before the request the compaction exists to enable
+            // had even been attempted - so a failed stream left the user with a
+            // summary they never asked for and no way back to their
+            // conversation.
+            compactedMessages = [
               { text: "Summarize our conversation so far.", sender: 'user' },
               { text: sumData.summary, sender: 'bot' },
               currentUserMsg
             ];
-            saveSessions();
-            restoreActiveSession();
           }
         } catch (err) {
           console.error("Failed to summarize context:", err);
@@ -1148,7 +1157,7 @@ export function initChat() {
       }
     }
 
-    let messages = session.messages
+    let messages = (compactedMessages ?? session.messages)
       .filter(h => h && typeof h.text === 'string' && h.text.trim().length > 0)
       .map(h => ({
         role: h.sender === 'bot' ? 'assistant' : 'user',
@@ -1357,8 +1366,18 @@ export function initChat() {
           aiMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated, aiMsgEl));
         }
 
-        session.messages.push({ text: botFullText, sender: 'bot' });
-        saveSessions();
+        // The turn succeeded, so the compaction (if any) is now safe to keep.
+        // The reply goes in before the re-render, or restoreActiveSession()
+        // rebuilds the transcript from a history that does not contain it yet
+        // and the message the user just watched arrive disappears.
+        if (compactedMessages) {
+          session.messages = [...compactedMessages, { text: botFullText, sender: 'bot' }];
+          saveSessions();
+          restoreActiveSession();
+        } else {
+          session.messages.push({ text: botFullText, sender: 'bot' });
+          saveSessions();
+        }
       }
 
       // Announce completion to screen readers
@@ -1400,6 +1419,10 @@ export function initChat() {
         widget.classList.remove('is-hidden');
       }
     } finally {
+      // The controller belongs to the stream that just ended. Leaving it set
+      // meant abortGeneration() held a reference to a finished request and the
+      // AbortError branch could consult a stale signal.
+      currentAbortController = null;
       setInputState(false);
       if (aiPageInput) {
         aiPageInput.style.height = 'auto'; // Reset height
@@ -1409,16 +1432,27 @@ export function initChat() {
     }
   }
 
-  // Use event delegation for retry buttons
+  // Use event delegation for retry buttons.
+  //
+  // Every other entry point into handleChatSubmit guards on isGenerating; this
+  // one did not. A second submit overwrote currentAbortController, so Stop no
+  // longer stopped the first stream and it kept billing tokens, and the two
+  // streams raced to push into the same session transcript. The error boundary
+  // is rendered into both the widget and the AI page, so there are two buttons
+  // carrying the same text - all the more reason to guard.
   document.addEventListener('click', (e) => {
     const retryBtn = e.target.closest('.retry-btn');
-    if (retryBtn) {
-      const retryText = retryBtn.getAttribute('data-retry-text');
-      if (retryText) {
-        retryBtn.closest('.chat-message')?.remove();
-        handleChatSubmit(retryText);
-      }
-    }
+    if (!retryBtn) return;
+    if (isGenerating) return;
+
+    const retryText = retryBtn.getAttribute('data-retry-text');
+    if (!retryText) return;
+
+    // Drop both copies of the error card, not just the clicked one.
+    document.querySelectorAll('.retry-btn').forEach((button) => {
+      button.closest('.chat-message')?.remove();
+    });
+    handleChatSubmit(retryText);
   });
 
   if (chatForm) {

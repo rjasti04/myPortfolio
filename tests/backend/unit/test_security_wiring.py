@@ -13,6 +13,7 @@ from server.config import settings
 from server.middlewares.body_size import BodySizeLimitMiddleware
 from server.middlewares.rate_limit import (
     AUTH_RATE_LIMITED_PATHS,
+    CHAT_RATE_LIMITED_PATHS,
     RateLimitMiddleware,
     _normalise_path,
 )
@@ -87,6 +88,33 @@ def test_normalise_path_only_strips_a_real_api_prefix(path, expected):
 
 def test_non_auth_routes_stay_on_the_general_budget():
     assert _normalise_path("/api/events/bulk") not in AUTH_RATE_LIMITED_PATHS
+    assert _normalise_path("/api/events/bulk") not in CHAT_RATE_LIMITED_PATHS
+
+
+@pytest.mark.parametrize(
+    "path", ["/chat", "/chat/", "/chat/stream", "/chat/summarize"]
+)
+def test_chat_routes_are_on_their_own_budget_under_both_prefixes(path):
+    """Bedrock inference sat on the general 60/min budget.
+
+    It is the only endpoint that spends money per call and it takes no
+    authentication, so the general limit let one IP drive sixty inference
+    requests a minute indefinitely.
+    """
+    assert _normalise_path(path) in CHAT_RATE_LIMITED_PATHS
+    assert _normalise_path(f"/api{path}") in CHAT_RATE_LIMITED_PATHS
+
+
+def test_chat_budget_is_stricter_than_the_general_one():
+    limiter = RateLimitMiddleware(app=None)
+    assert settings.CHAT_RATE_LIMIT_PER_MINUTE < limiter.max_requests
+
+
+def test_chat_and_auth_budgets_are_tracked_separately():
+    """Chat traffic must not be able to exhaust the login budget, or vice versa."""
+    limiter = RateLimitMiddleware(app=None)
+    assert limiter._chat_hits is not limiter._auth_hits
+    assert limiter._chat_hits is not limiter._hits
 
 
 # --- required signing key ---------------------------------------------------
@@ -222,3 +250,83 @@ def test_only_one_copy_of_each_route_is_documented():
     documented = app.openapi()["paths"]
     assert not any(p.startswith("/auth/") for p in documented), "root mount leaked into the schema"
     assert "/api/auth/login" in documented
+
+
+# --- Bedrock client configuration (BUG-09) ----------------------------------
+
+
+def test_the_chat_client_carries_the_configured_timeouts():
+    """The streaming path built its own client with no Config at all.
+
+    config/bedrock.py assembled a properly tuned client that nothing imported,
+    so chat ran on botocore defaults - a 60s read timeout instead of
+    BEDROCK_TIMEOUT_SECONDS - and a hung connection held one of the
+    CHAT_MAX_CONCURRENCY slots for a minute rather than thirty seconds.
+    """
+    from server.services.bedrock_service import bedrock_service
+
+    config = bedrock_service.client.meta.config
+    assert config.read_timeout == settings.BEDROCK_TIMEOUT_SECONDS
+    assert config.connect_timeout == 10
+    # botocore normalises max_attempts=2 (retries) into total_max_attempts=3
+    # (the initial call plus two retries).
+    assert config.retries["mode"] == "standard"
+    assert config.retries["total_max_attempts"] == 3
+
+
+def test_the_chat_client_is_the_shared_configured_one():
+    from server.config.bedrock import bedrock_runtime
+    from server.services.bedrock_service import bedrock_service
+
+    assert bedrock_service.client is bedrock_runtime
+
+
+def test_stream_queue_settings_are_actually_used():
+    """Both were defined, validated and documented while the module hardcoded
+    its own values, so two documented env vars turned nothing."""
+    from server.services import bedrock_service as svc
+
+    assert svc._STREAM_QUEUE_SIZE == settings.CHAT_STREAM_QUEUE_SIZE
+    assert svc._QUEUE_PUT_TIMEOUT_SECONDS == settings.BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS
+
+
+# --- Concurrent SSE streams (SEC-04) ----------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_session_cannot_hold_unlimited_sse_streams():
+    """An SSE connection is one request that then stays open indefinitely.
+
+    CHAT_MAX_CONCURRENCY covers Bedrock and the rate limiter counts requests,
+    but neither bounds this. A session token costs one unauthenticated POST.
+    """
+    import uuid as _uuid
+
+    from server.services import kafka_stream
+
+    session_id = _uuid.uuid4()
+    opened = []
+    try:
+        for _ in range(settings.MAX_STREAMS_PER_SESSION):
+            opened.append(await kafka_stream.register_stream(session_id))
+
+        with pytest.raises(kafka_stream.TooManyStreams):
+            await kafka_stream.register_stream(session_id)
+    finally:
+        for queue in opened:
+            kafka_stream.unregister_stream(session_id, queue)
+
+
+@pytest.mark.asyncio
+async def test_closing_a_stream_frees_the_slot():
+    import uuid as _uuid
+
+    from server.services import kafka_stream
+
+    session_id = _uuid.uuid4()
+    first = await kafka_stream.register_stream(session_id)
+    kafka_stream.unregister_stream(session_id, first)
+
+    # Reusable, otherwise a visitor who reloads a few times locks themselves out.
+    again = await kafka_stream.register_stream(session_id)
+    kafka_stream.unregister_stream(session_id, again)

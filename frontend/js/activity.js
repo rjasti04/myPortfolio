@@ -792,9 +792,18 @@ function startActivityStream() {
   }
 
   setLiveStatus("connecting");
-  // EventSource cannot set request headers, so the session token travels as
-  // a query parameter on this one endpoint.
-  activityStreamSource = new EventSource(withSessionToken(`${API_BASE}/sessions/${sessionId}/stream`));
+  // EventSource cannot set request headers, so this endpoint authenticates by
+  // cookie: the API sets an HttpOnly SameSite=Strict token when the session is
+  // created. `withCredentials` is what makes EventSource send it when the API
+  // is on a different port from the page, as it is in local development - the
+  // two are still same-site, so Strict does not block the cookie.
+  //
+  // The token used to travel in the query string here, which put it in the
+  // access log and in browser history.
+  activityStreamSource = new EventSource(
+    withSessionToken(`${API_BASE}/sessions/${sessionId}/stream`),
+    { withCredentials: true },
+  );
   activityStreamSource.onopen = () => setLiveStatus("connected");
 
   const parse = (event, handler) => {
@@ -805,9 +814,10 @@ function startActivityStream() {
     }
   };
 
-  // Named channels. The API also emits an unnamed frame per activity event so
-  // a client still on `onmessage` keeps working across the deploy; both are
-  // normalised to the same shape and deduplicated by event_id below.
+  // Named channels. The API used to also emit an unnamed copy of every activity
+  // event for a client still on `onmessage`; this listener and that copy were
+  // doing the same work twice, with the duplicate deduplicated away by
+  // event_id. The API no longer sends it and `onmessage` is gone below.
   activityStreamSource.addEventListener("activity", (event) =>
     parse(event, (data) => handleIncomingStreamEvent(normalizeStreamEvent(data))),
   );
@@ -823,8 +833,6 @@ function startActivityStream() {
       paintChain();
     }),
   );
-  activityStreamSource.onmessage = (event) =>
-    parse(event, (data) => handleIncomingStreamEvent(normalizeStreamEvent(data)));
   activityStreamSource.onerror = () => setLiveStatus("connecting");
 }
 

@@ -8,7 +8,8 @@ from PIL import Image
 
 ROOT_DIR = Path(__file__).parent.parent
 
-IMAGES = ['icon-192.png', 'icon-512.png', 'master-icon.png', 'profile-pic.jpeg']
+IMAGES = ['android-chrome-192x192.png', 'android-chrome-512x512.png',
+          'apple-touch-icon.png', 'profile-pic.jpeg']
 
 def verify_images():
     print("Image Verification Report")

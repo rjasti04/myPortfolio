@@ -1,3 +1,14 @@
+/**
+ * Animated plexus background: drifting nodes joined by proximity lines.
+ *
+ * The filename is historical. This is a plain 2D-canvas renderer - see the
+ * `getContext("2d")` calls below - and there is no Three.js anywhere in this
+ * repository. A 1.3 MB unreferenced `js/vendor/three.module.js` was published
+ * to the web root on every deploy until it was removed; nothing had ever
+ * imported it. Renaming this module would churn the service worker precache
+ * list and main.js for no functional gain, so the name stays and this note
+ * explains it.
+ */
 import {
   prefersReducedMotion as reducedMotionQuery,
   compactViewport as compactViewportQuery,
@@ -426,25 +437,6 @@ function reconcileParticles(particles, width, height, config) {
 function drawBackground(ctx, width, height) {
   ctx.globalCompositeOperation = "source-over";
   ctx.clearRect(0, 0, width, height);
-}
-
-function applyHomeForce(particle, delta, config) {
-  if (particle.zone === "speck") return;
-
-  particle.vx += (particle.homeX - particle.x) * config.homeStrength * delta;
-  particle.vy += (particle.homeY - particle.y) * config.homeStrength * delta * 0.55;
-}
-
-function nudgeAwayFromCenter(particle, delta, width, height) {
-  if (particle.zone === "speck") return;
-
-  const inQuietX = particle.x > width * 0.32 && particle.x < width * 0.68;
-  const inQuietY = particle.y > height * 0.16 && particle.y < height * 0.86;
-
-  if (!inQuietX || !inQuietY) return;
-
-  const direction = particle.zone === "right" ? 1 : -1;
-  particle.vx += direction * width * 0.22 * delta;
 }
 
 function updateParticle(particle, delta, elapsed, width, height, pointer, config, intensity) {

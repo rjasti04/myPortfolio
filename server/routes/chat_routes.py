@@ -76,9 +76,11 @@ async def chat_stream_endpoint(
         complete_text = ""
         telemetry_metrics = None
         try:
+            # No system_prompt: the service falls back to DEFAULT_SYSTEM_PROMPT.
+            # Callers used to be able to override it, unauthenticated and
+            # uncapped - see the note on ChatStreamRequest.
             async for chunk in bedrock_service.stream_chat_response(
                 messages=messages_payload,
-                system_prompt=request_data.system_prompt,
                 model_id=requested_model,
             ):
                 if chunk["type"] == "delta":

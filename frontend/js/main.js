@@ -1,20 +1,36 @@
 import { showToast } from "./utils.js";
+import { reportClientError } from "./error-handler.js";
 
-// Add global unhandled rejection handler
+// Uncaught synchronous errors. Nothing listened for these at all, so a thrown
+// exception during init - the kind that leaves half the page inert - was
+// visible only to whoever had devtools open at the time.
+window.addEventListener("error", (event) => {
+  reportClientError(event.error ?? event.message, {
+    source: "onerror",
+    at: `${event.filename ?? ""}:${event.lineno ?? 0}`,
+  });
+});
+
+// Global unhandled rejection handler.
+//
+// `preventDefault()` is what tells the browser the rejection was handled, so
+// calling it unconditionally suppressed *every* unhandled rejection from the
+// console and from window.onerror. Nothing reports errors to the server either,
+// so production failures were invisible to everyone. Only suppress the case
+// actually handled here - the one that shows the user a toast.
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection:', event.reason);
+  reportClientError(event.reason, { source: 'unhandledrejection' });
 
-  // Show user-friendly message for critical failures
-  if (event.reason?.message?.includes('fetch') || event.reason?.message?.includes('network')) {
+  const message = String(event.reason?.message ?? event.reason ?? '');
+  if (/fetch|network/i.test(message)) {
     showToast('Network error. Please check your connection.', 'error');
+    event.preventDefault();
   }
-
-  event.preventDefault();
 });
 
 import { initNavigation } from "./navigation.js";
 import { initTheme } from "./theme.js";
-import { initProjects } from "./projects.js";
 import { initContactForm } from "./form.js";
 import { initAnimations } from "./animations.js";
 import { initHeroTitle } from "./hero-title.js";
@@ -68,7 +84,6 @@ function loadActivityModule() {
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   initNavigation();
-  initProjects();
   initContactForm();
   initHeroTitle();
   initAnimations();
@@ -231,7 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // New service worker available
-                showUpdateNotification();
+                showUpdateNotification(registration);
               }
             });
           });
@@ -241,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-function showUpdateNotification() {
+function showUpdateNotification(registration) {
   const updateBanner = document.createElement('div');
   updateBanner.className = 'update-banner';
   updateBanner.setAttribute('role', 'alert');
@@ -270,6 +285,16 @@ function showUpdateNotification() {
   document.body.appendChild(updateBanner);
 
   document.getElementById('update-refresh-btn').addEventListener('click', () => {
-    window.location.reload();
+    // Tell the waiting worker to take over, then reload once it has. The worker
+    // used to call skipWaiting() during install, so it activated before this
+    // banner was ever shown and a plain reload could still land on the old
+    // asset set.
+    const waiting = registration?.waiting;
+    if (waiting) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true });
+      waiting.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      window.location.reload();
+    }
   });
 }

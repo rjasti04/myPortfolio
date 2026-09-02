@@ -1,9 +1,28 @@
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import List, Literal, Optional
+
+# Ceilings for one inference request. Every one of these is a cost control, not
+# an ergonomics choice: `/chat` is unauthenticated by design, so whatever the
+# schema accepts is what an anonymous caller can bill to the Bedrock account.
+#
+# MAX_TOTAL_CONTENT_CHARS is the load-bearing one. chat.js summarises its own
+# history once it estimates ~6000 tokens (SUMMARIZE_TOKEN_THRESHOLD), so a
+# legitimate client never sends more than roughly that; 24000 characters is the
+# same bound expressed server side, where it cannot be edited away.
+MAX_MESSAGES = 60
+MAX_MESSAGE_CHARS = 8_000
+MAX_TOTAL_CONTENT_CHARS = 24_000
+
 
 class ChatMessage(BaseModel):
-    role: str = Field(..., description="Role of the message sender, e.g. 'user' or 'assistant'")
-    content: str = Field(..., description="Text content of the message")
+    # Was a bare `str`, so any value round-tripped into the Bedrock payload.
+    # ensure_alternating_roles only ever produces these two.
+    role: Literal["user", "assistant"] = Field(
+        ..., description="Role of the message sender"
+    )
+    content: str = Field(
+        ..., max_length=MAX_MESSAGE_CHARS, description="Text content of the message"
+    )
 
     @field_validator("content")
     @classmethod
@@ -13,16 +32,38 @@ class ChatMessage(BaseModel):
         return v.strip()
 
 class ChatRequest(BaseModel):
-    messages: List[ChatMessage] = Field(..., min_length=1)
+    messages: List[ChatMessage] = Field(..., min_length=1, max_length=MAX_MESSAGES)
     model: Optional[str] = Field(default=None, max_length=256)
     conversation_id: Optional[str] = Field(default=None, max_length=36)
 
 class ChatStreamRequest(BaseModel):
-    messages: List[ChatMessage] = Field(..., min_length=1, description="Conversation history list")
-    conversation_id: Optional[str] = Field(None, description="Optional UUID string of the conversation session")
-    model_id: Optional[str] = Field(None, description="Target Bedrock model ID")
-    system_prompt: Optional[str] = Field(None, description="Custom system prompt override")
+    messages: List[ChatMessage] = Field(
+        ..., min_length=1, max_length=MAX_MESSAGES, description="Conversation history list"
+    )
+    conversation_id: Optional[str] = Field(
+        None, max_length=36, description="Optional UUID string of the conversation session"
+    )
+    model_id: Optional[str] = Field(None, max_length=256, description="Target Bedrock model ID")
     stream: Optional[bool] = Field(default=True, description="Enable streaming mode")
+
+    # `system_prompt` used to be accepted here and passed straight through to
+    # Bedrock. It was unauthenticated and had no length limit, so a caller could
+    # both replace the portfolio persona - turning the site's AWS account into a
+    # free general-purpose LLM - and bill up to MAX_BODY_BYTES of input tokens
+    # per request. CHAT_FREE_MESSAGE_LIMIT counts user-role *messages*, so one
+    # short message carrying a megabyte of system prompt passed every check.
+    # The server owns the persona now; bedrock_service.DEFAULT_SYSTEM_PROMPT is
+    # the only one a caller can reach.
+
+    @model_validator(mode="after")
+    def limit_total_content(self) -> "ChatStreamRequest":
+        total = sum(len(message.content) for message in self.messages)
+        if total > MAX_TOTAL_CONTENT_CHARS:
+            raise ValueError(
+                f"Conversation exceeds {MAX_TOTAL_CONTENT_CHARS} characters "
+                f"({total}). Summarize the history and retry."
+            )
+        return self
 
 class ChatTelemetryEvent(BaseModel):
     model_id: str

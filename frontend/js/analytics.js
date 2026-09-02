@@ -44,7 +44,13 @@ const FLUSH_INTERVAL_MS = 2000;
 const HEARTBEAT_INTERVAL_MS = 60000;
 const HEARTBEAT_INITIAL_DELAY_MS = 1000;
 const SCROLL_DEBOUNCE_MS = 500;
-const EVENT_QUEUE_STORAGE_KEY = 'rj_event_queue';
+// Namespaced per session. The session id lives in sessionStorage (per tab) but
+// the queue lives in localStorage (shared across tabs), and each queued event
+// carries a baked-in session_id. Under one shared key, a second tab would
+// restore the first tab's events, flush them with its own token, and get a 403
+// for the whole batch - taking its own valid events with it.
+const EVENT_QUEUE_STORAGE_PREFIX = 'rj_event_queue';
+const LEGACY_EVENT_QUEUE_STORAGE_KEY = 'rj_event_queue';
 
 let sessionId = null;
 // Capability token handed out when the session is created. Every request scoped
@@ -74,6 +80,12 @@ function setSessionId(id, token) {
 }
 
 function clearSessionId() {
+  // The queue is keyed by session, and its events can only ever be flushed by
+  // the session that owns them, so it goes when the session does.
+  try {
+    if (sessionId) localStorage.removeItem(eventQueueKey());
+  } catch (e) {}
+  eventQueue.length = 0;
   sessionId = null;
   sessionToken = null;
   try {
@@ -82,12 +94,21 @@ function clearSessionId() {
   } catch (e) {}
 }
 
-// Appends the token to a URL, for the one caller that cannot send headers:
-// EventSource has no way to set them.
+/**
+ * Kept as an identity function for the one caller that cannot send headers.
+ *
+ * This used to append `?session_token=<hmac>` to the SSE URL, because
+ * EventSource has no way to set request headers. That put a bearer credential
+ * for the visitor's entire behavioural trail into the web server's access log,
+ * into browser history, and into any Referer the page emitted.
+ *
+ * The API now sets the same token as an HttpOnly, SameSite=Strict cookie when
+ * the session is created, and the API is same-origin, so EventSource sends it
+ * automatically. The signature stays so call sites read the same and so this
+ * remains the single place that decides how the stream authenticates.
+ */
 export function withSessionToken(url) {
-  if (!sessionToken) return url;
-  const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}session_token=${encodeURIComponent(sessionToken)}`;
+  return url;
 }
 const eventQueue = [];
 let heartbeatInterval;
@@ -126,14 +147,44 @@ function publishTelemetry(sample) {
   });
 }
 
-// Load persisted event queue from localStorage
-function loadEventQueue() {
+function eventQueueKey(id = sessionId) {
+  return `${EVENT_QUEUE_STORAGE_PREFIX}:${id}`;
+}
+
+/**
+ * Removes queues belonging to sessions that are over: the unscoped key written
+ * by earlier builds, and any namespaced queue that is not the live session's.
+ * Those events can never be flushed - only the session that owns them holds the
+ * token the API requires - so keeping them just consumes quota.
+ */
+function purgeForeignEventQueues() {
   try {
-    const stored = localStorage.getItem(EVENT_QUEUE_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_EVENT_QUEUE_STORAGE_KEY);
+    const mine = sessionId ? eventQueueKey() : null;
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(`${EVENT_QUEUE_STORAGE_PREFIX}:`) && key !== mine) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to purge stale event queues:', e);
+  }
+}
+
+// Load this session's persisted event queue from localStorage.
+function loadEventQueue() {
+  if (!sessionId) return;
+  try {
+    const stored = localStorage.getItem(eventQueueKey());
     if (stored) {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed)) {
-        eventQueue.push(...parsed.slice(0, MAX_QUEUE_SIZE));
+        // Belt and braces: a queue restored under this session's key should
+        // only ever hold this session's events.
+        eventQueue.push(
+          ...parsed.filter((event) => event && event.session_id === sessionId).slice(0, MAX_QUEUE_SIZE)
+        );
       }
     }
   } catch (e) {
@@ -143,8 +194,9 @@ function loadEventQueue() {
 
 // Persist event queue to localStorage
 function saveEventQueue() {
+  if (!sessionId) return;
   try {
-    localStorage.setItem(EVENT_QUEUE_STORAGE_KEY, JSON.stringify(eventQueue));
+    localStorage.setItem(eventQueueKey(), JSON.stringify(eventQueue));
   } catch (e) {
     console.warn('Failed to save event queue to localStorage:', e);
   }
@@ -335,8 +387,30 @@ async function flushEvents(flushReason = "threshold") {
           eventQueue.length = MAX_QUEUE_SIZE;
         }
         saveEventQueue();
+        console.error(`Analytics: Server returned ${response.status}, retrying ${eventsToSend.length} event(s)`);
+      } else {
+        // A 4xx is not retryable, so these events are gone. Say which ones:
+        // this branch used to log a bare status code, which is why a schema
+        // mismatch could silently destroy batches for a long time without
+        // anyone noticing what was being lost.
+        console.error(
+          `Analytics: Server returned ${response.status}, dropping ${eventsToSend.length} event(s)`,
+          eventsToSend.map((event) => event.event_type)
+        );
       }
-      console.error(`Analytics: Server returned ${response.status}`);
+      return;
+    }
+
+    // The API accepts a batch per row and reports the rows it declined, so a
+    // client running ahead of a server deploy loses only the unknown events
+    // rather than everything flushed alongside them.
+    try {
+      const body = await response.json();
+      if (Array.isArray(body?.rejected) && body.rejected.length > 0) {
+        console.warn("Analytics: server rejected some events", body.rejected);
+      }
+    } catch (parseError) {
+      // A successful insert with an unreadable body is not worth surfacing.
     }
   } catch (error) {
     // Put events back in queue on network error
@@ -426,7 +500,7 @@ function attachGlobalListeners() {
   // Track global clicks on interactive elements (only attach once)
   if (!globalClickHandler) {
     globalClickHandler = (e) => {
-      const target = e.target.closest("a, button, .project-card, [data-track]");
+      const target = e.target.closest("a, button, [data-track]");
       if (target) {
         trackEvent("click", {
           tag: target.tagName,
@@ -473,17 +547,19 @@ export function initAnalytics() {
     return;
   }
 
-  // Load persisted event queue
-  loadEventQueue();
-
   attachGlobalListeners();
 
   if (sessionId) {
-    // Session already exists from this tab (e.g., page reload)
+    // Session already exists from this tab (e.g., page reload). Its queue can
+    // only be restored now that we know which session it belongs to - loading
+    // it before this point is what let one tab adopt another tab's events.
+    purgeForeignEventQueues();
+    loadEventQueue();
     startHeartbeat();
     trackEvent("page_view", { referrer: document.referrer, is_reload: true });
   } else {
     clearSessionId();
+    purgeForeignEventQueues();
     // New tab, start session
     startSession();
   }

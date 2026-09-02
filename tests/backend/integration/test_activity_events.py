@@ -181,3 +181,181 @@ async def test_created_event_broadcast_includes_event_id(async_client):
         assert broadcast["event_id"] == created_id
     finally:
         kafka_stream.unregister_stream(__import__("uuid").UUID(session_id), queue)
+
+
+# --- Bulk batch resilience (BUG-01) -----------------------------------------
+# The client emits event types the server may not have declared yet. When the
+# vocabulary lived in the request schema, FastAPI answered 422 for the whole
+# request and analytics.js dropped the batch, so one unknown type destroyed
+# every valid event flushed alongside it.
+
+
+@pytest.mark.asyncio
+async def test_contact_prompt_is_an_accepted_event_type():
+    """form.js has always emitted this; the schema has to know about it."""
+    assert "contact_prompt" in EVENT_TYPES
+
+
+@pytest.mark.asyncio
+async def test_ai_llm_telemetry_is_a_declared_event_type():
+    """chat_routes writes this row directly, so the summary must not call it unknown."""
+    assert "ai_llm_telemetry" in EVENT_TYPES
+
+
+@pytest.mark.asyncio
+async def test_unknown_event_type_does_not_discard_the_rest_of_the_batch(async_client):
+    """The regression that lost contact form conversions.
+
+    `contact_prompt` and `contact_submission` are emitted seconds apart and land
+    in the same flush window, so the batch that carried the conversion event was
+    exactly the batch most likely to be rejected.
+    """
+    session_id, headers = await _new_session(async_client)
+
+    response = await async_client.post(
+        "/api/events/bulk",
+        json={
+            "events": [
+                {"session_id": session_id, "event_type": "page_view", "page_path": "/#contact"},
+                {"session_id": session_id, "event_type": "not_a_real_event_type"},
+                {
+                    "session_id": session_id,
+                    "event_type": "contact_submission",
+                    "event_data": {"success": True},
+                },
+            ]
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["inserted"] == 2
+    assert [r["event_type"] for r in body["rejected"]] == ["not_a_real_event_type"]
+    assert body["rejected"][0]["index"] == 1
+
+    stored = await async_client.get(f"/api/sessions/{session_id}/events", headers=headers)
+    assert stored.status_code == 200
+    stored_types = {e["event_type"] for e in stored.json()}
+    assert "contact_submission" in stored_types, "the conversion event must survive"
+    assert "page_view" in stored_types
+    assert "not_a_real_event_type" not in stored_types
+
+
+@pytest.mark.asyncio
+async def test_batch_of_only_unknown_types_reports_rather_than_failing(async_client):
+    session_id, headers = await _new_session(async_client)
+
+    response = await async_client.post(
+        "/api/events/bulk",
+        json={"events": [{"session_id": session_id, "event_type": "made_up"}]},
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    assert response.json() == {
+        "inserted": 0,
+        "rejected": [{"index": 0, "event_type": "made_up", "reason": "unknown event_type"}],
+    }
+
+
+@pytest.mark.asyncio
+async def test_bulk_still_refuses_a_batch_touching_another_session(async_client):
+    """Partial acceptance covers vocabulary drift, not the authorisation boundary."""
+    session_id, headers = await _new_session(async_client)
+    other_session_id, _ = await _new_session(async_client)
+
+    response = await async_client.post(
+        "/api/events/bulk",
+        json={
+            "events": [
+                {"session_id": session_id, "event_type": "page_view"},
+                {"session_id": other_session_id, "event_type": "page_view"},
+            ]
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_bulk_still_rejects_structurally_invalid_rows(async_client):
+    """A malformed session_id is a client bug, not schema drift: still a 422."""
+    session_id, headers = await _new_session(async_client)
+
+    response = await async_client.post(
+        "/api/events/bulk",
+        json={
+            "events": [
+                {"session_id": session_id, "event_type": "page_view"},
+                {"session_id": "not-a-uuid", "event_type": "page_view"},
+            ]
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+
+
+# --- Session token delivery (SEC-02) ----------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_session_creation_sets_the_token_as_a_cookie(async_client):
+    """EventSource cannot set headers, so the stream endpoint used to take the
+    token in the query string - where it lands in the access log, in browser
+    history, and in any Referer the page emits."""
+    response = await async_client.post(
+        "/api/sessions", json={"user_agent": "pytest", "device_type": "desktop"}
+    )
+    assert response.status_code == 201
+
+    cookie = response.cookies.get("rj_session_token")
+    assert cookie, "the session token must be issued as a cookie"
+    assert cookie == response.json()["session_token"]
+
+    header = response.headers["set-cookie"]
+    assert "HttpOnly" in header, "no script on the page should be able to read it"
+    assert "SameSite=strict" in header.replace("samesite", "SameSite")
+
+
+@pytest.mark.asyncio
+async def test_the_cookie_alone_authorises_a_session_scoped_call(async_client):
+    """This is what lets the token come out of the URL: the cookie rides along
+    on the same-origin EventSource request with no header and no query."""
+    created = await async_client.post(
+        "/api/sessions", json={"user_agent": "pytest", "device_type": "desktop"}
+    )
+    session_id = created.json()["session_id"]
+
+    # No X-Session-Token header; async_client carries the cookie jar.
+    response = await async_client.get(f"/api/sessions/{session_id}/events")
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_a_call_with_neither_cookie_nor_header_is_still_refused(async_client):
+    created = await async_client.post(
+        "/api/sessions", json={"user_agent": "pytest", "device_type": "desktop"}
+    )
+    session_id = created.json()["session_id"]
+
+    # A separate client, so this starts with an empty cookie jar. `async_client`
+    # is session-scoped and shared, so clearing its cookies here would silently
+    # strip credentials from every test that runs after this one.
+    from httpx import ASGITransport, AsyncClient
+
+    from server.main import app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as anonymous:
+        response = await anonymous.get(f"/api/sessions/{session_id}/events")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_client_error_is_an_accepted_event_type():
+    """Uncaught frontend exceptions had nowhere to go but the browser console."""
+    assert "client_error" in EVENT_TYPES

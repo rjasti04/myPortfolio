@@ -12,7 +12,7 @@ The application is a Progressive Web App (PWA) static frontend with an optional 
 ## Directory Structure
 
 ### 1. Frontend Core
-*   **`index.html`**: The single-page application entry point. Contains the DOM structure for all sections (Hero, About, Projects, Contact, Chat).
+*   **`index.html`**: The single-page application entry point. Contains the DOM structure for all sections (Hero, About, Experience, Hobbies, Activity, AI, Contact).
 *   **`styles.css`**: Global Vanilla CSS file. No Tailwind or preprocessors are used. Handles all responsive layouts, CSS variables, and core animations.
 *   **`sw.js`** & **`manifest.json`**: Progressive Web App (PWA) service worker and configuration for offline caching and installability.
 
@@ -35,7 +35,9 @@ The application relies on Vanilla ES modules. State is generally local to the mo
     *   `chat.js`: Handles the AI chatbot interface, streaming responses, and communicating with the backend API.
     *   `analytics.js` / `activity.js`: Session tracking, and the dashboard that shows the visitor what was recorded.
     *   `form.js`: Logic for the FormSubmit contact form.
-*   **`three-bg.js`** (Root): Handles the WebGL Three.js background canvas.
+*   **`three-bg.js`** (Root): Draws the animated plexus background. The name is
+    historical - it is a plain 2D-canvas renderer (`getContext("2d")`) and the
+    repository has no Three.js dependency.
 
 ### 3. Backend API (`/server`)
 A lightweight, asynchronous Python API.
@@ -63,5 +65,5 @@ A lightweight, asynchronous Python API.
 
 ## Conventions & Constraints
 *   **Vanilla First:** Avoid introducing heavy frontend frameworks (React, Vue) or CSS frameworks unless explicitly required.
-*   **Performant Animations:** Rely on CSS transitions and `requestAnimationFrame` for JS animations (Three.js).
+*   **Performant Animations:** Rely on CSS transitions and `requestAnimationFrame` for JS animations.
 *   **ORM & Migrations:** Database models use SQLAlchemy ORM (`server/models/`) with async sessions. All schema changes must be applied via Alembic migrations (`server/alembic/`).

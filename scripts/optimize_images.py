@@ -14,10 +14,15 @@ import io
 ROOT_DIR = Path(__file__).parent.parent
 
 # Images to optimize with target sizes (in KB)
+# icon-192.png, icon-512.png and master-icon.png used to be listed here. The
+# first two were byte-identical 1024x1024 copies of the master that nothing
+# referenced, and have been deleted; the master now lives in assets/ so it is
+# not published to the web root by the deploy's `rsync frontend/`. The two
+# android-chrome icons are generated from it at their declared sizes.
 IMAGES_TO_OPTIMIZE = {
-    'icon-192.png': {'target_kb': 50, 'quality': 85},
-    'icon-512.png': {'target_kb': 100, 'quality': 85},
-    'master-icon.png': {'target_kb': 100, 'quality': 85},
+    'android-chrome-192x192.png': {'target_kb': 30, 'quality': 85},
+    'android-chrome-512x512.png': {'target_kb': 150, 'quality': 85},
+    'apple-touch-icon.png': {'target_kb': 50, 'quality': 85},
     'profile-pic.jpeg': {'target_kb': 150, 'quality': 80},
 }
 

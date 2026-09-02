@@ -2,13 +2,11 @@ const CACHE_NAME = 'rj-portfolio-v23';
 const CACHE_EXPIRATION_DAYS = 7;
 const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 
-const ALLOWED_ORIGINS = new Set([
-  'https://fonts.googleapis.com',
-  'https://fonts.gstatic.com',
-  'https://cdnjs.cloudflare.com',
-  'https://unpkg.com',
-  'https://cdn.jsdelivr.net',
-]);
+// Everything the page loads is now same-origin: the fonts are self-hosted and
+// subset, and marked/DOMPurify are vendored from npm. Nothing here needs a
+// cross-origin caching path any more, and keeping one would let a future stray
+// third-party request be cached silently.
+const ALLOWED_ORIGINS = new Set([]);
 
 const PRECACHE_URLS = [
   '/',
@@ -28,7 +26,6 @@ const PRECACHE_URLS = [
   '/js/config.js',
   '/js/navigation.js',
   '/js/theme.js',
-  '/js/projects.js',
   '/js/form.js',
   '/js/confetti.js',
   '/js/animations.js',
@@ -57,10 +54,32 @@ const PRECACHE_URLS = [
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then(async cache => {
+      // Per-URL rather than cache.addAll: addAll rejects the whole install if a
+      // single entry 404s, so one renamed or missing file stopped the worker
+      // installing at all and left the visitor with no offline shell whatever.
+      // A shell that is 90% cached beats no shell.
+      const results = await Promise.allSettled(
+        PRECACHE_URLS.map(url => cache.add(new Request(url, { cache: 'reload' })))
+      );
+      const failed = results
+        .map((r, i) => (r.status === 'rejected' ? PRECACHE_URLS[i] : null))
+        .filter(Boolean);
+      if (failed.length) {
+        console.warn('SW: could not precache', failed);
+      }
+    })
+    // No skipWaiting() here. It used to activate the new worker immediately,
+    // which swapped the asset set under a page that was already running - and
+    // made the "a new version is available" banner appear after the swap had
+    // already happened. The page now asks for it, from that banner.
   );
+});
+
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', event => {
@@ -143,10 +162,36 @@ self.addEventListener('fetch', event => {
   // Never cache API responses; they may contain session-scoped data.
   if (url.pathname.startsWith('/api/')) return;
 
-  // 2. Local App Shell & Assets (HTML/CSS/JS/Images): Stale-While-Revalidate strategy
-  // We serve exactly what is in the cache instantly, then blindly fetch in the background
-  // to update the cache for the NEXT page load.
   if (event.request.method !== 'GET') return;
+
+  // 2a. Navigations and HTML: network-first.
+  //
+  // index.html names the hashed asset files, so a stale copy points at a build
+  // that no longer exists. Stale-while-revalidate served the previous deploy's
+  // HTML against the current deploy's assets - a mismatch that only resolved on
+  // the *second* reload. The cache is still the offline fallback.
+  const isDocument =
+    event.request.mode === 'navigate' ||
+    (event.request.headers.get('accept') || '').includes('text/html');
+
+  if (isDocument) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then(hit => hit || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // 2b. Everything else (hashed assets, images): stale-while-revalidate.
+  // Safe here precisely because the filenames are content-hashed - a cached
+  // asset can never be the wrong version of itself.
 
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {

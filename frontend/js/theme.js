@@ -50,8 +50,11 @@ export function initTheme() {
   themeIcon = document.getElementById("theme-icon");
   themeColorMeta = document.querySelector('meta[name="theme-color"]');
 
+  // Must match the inline bootstrap in index.html exactly: a saved choice wins,
+  // otherwise follow the OS. If these two disagree the theme visibly changes at
+  // DOMContentLoaded, which is the flash the bootstrap exists to prevent.
   const savedTheme = localStorage.getItem("theme");
-  applyTheme(savedTheme === "dark");
+  applyTheme(savedTheme ? savedTheme === "dark" : prefersDarkScheme.matches);
 
   themeBtn?.addEventListener("click", () => {
     toggleTheme();

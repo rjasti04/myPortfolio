@@ -1,9 +1,31 @@
-import { compactViewport, prefersReducedMotion, supportsHover } from "./config.js";
-import { closeModal, openModal } from "./modal.js";
+import { compactViewport, mobileDevice, prefersReducedMotion, supportsHover } from "./config.js";
+import { closeModal, handleFocusTrap, openModal } from "./modal.js";
 import { onOnline, onOffline, isNetworkOnline } from "./utils.js";
 import { SwipeHandler } from "./swipe-handler.js";
 
 let hamburger, navMenu, navLinks, sections, imageModal, imageModalCloseButton, profileTrigger;
+
+/**
+ * True while any dialog is on screen.
+ *
+ * `.image-modal` is shown by modal.js adding `.active`; the auth modal is a
+ * separate implementation that toggles `.hidden` instead. Keyboard shortcuts
+ * have to respect both, or they fire through an open dialog.
+ */
+function isModalOpen() {
+  return Boolean(
+    document.querySelector(".image-modal.active") ||
+      document.querySelector("#auth-modal:not(.hidden)")
+  );
+}
+
+/** True when focus is somewhere the user is typing, so single keys are text. */
+function isTypingTarget(element) {
+  if (!element) return false;
+  if (element.isContentEditable) return true;
+  const tag = element.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
 
 function setMobileMenuState(isOpen) {
   if (!navMenu || !hamburger) return;
@@ -61,8 +83,6 @@ export function setActiveSection(target) {
 export function navigateToSection(target, { updateHash = true } = {}) {
   if (!target) return;
   closeTransientUi();
-  const projectDetailModal = document.getElementById("project-detail-modal");
-  closeModal(projectDetailModal, { restoreFocus: false });
   setActiveSection(target);
 
   if (updateHash) {
@@ -176,6 +196,20 @@ export function initNavigation() {
         toggle.setAttribute('aria-expanded', 'true');
         if (menu) menu.setAttribute('aria-hidden', 'false');
         document.body.classList.add('dropdown-open');
+
+        // Move focus into the panel. Opening one used to leave focus on the
+        // toggle, so a keyboard user had to Tab forward blindly and could not
+        // tell the panel had opened at all. Escape already returns focus here.
+        // rAF because the panel transitions from visibility:hidden and cannot
+        // take focus until that has applied.
+        if (menu) {
+          requestAnimationFrame(() => {
+            const target = menu.querySelector(
+              'input:not([type="hidden"]):not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+            );
+            target?.focus();
+          });
+        }
       }
     });
   });
@@ -210,6 +244,16 @@ export function initNavigation() {
       const openToggle = openDropdown?.querySelector('button');
       closeTransientUi();
       openToggle?.focus();
+      return;
+    }
+
+    // Trap Tab inside an open panel. The theme customiser in particular is a
+    // whole form - presets, three colour buttons, a nested popover, Apply and
+    // Reset - and Tab used to walk straight out of it into the page behind.
+    if (event.key === "Tab") {
+      const openDropdown = document.querySelector('.header-dropdown.is-open');
+      const menu = openDropdown?.querySelector('.header-dropdown-menu');
+      if (menu) handleFocusTrap(event, menu);
     }
   });
 
@@ -237,10 +281,26 @@ export function initNavigation() {
   // Initialize mobile bottom navigation
   initMobileBottomNav();
 
-  // Initialize swipe gestures for mobile
-  if (compactViewport.matches) {
-    initSwipeGestures();
-  }
+  // Swipe navigation, phones only.
+  //
+  // Was gated on compactViewport (<=1150px), so horizontal swipes navigated
+  // sections on 1024px laptops and tablets with trackpads. `mobileDevice` is
+  // the query that actually means "phone" - coarse pointer AND <=768px - and
+  // is what chat.js already uses for its drawer layout.
+  //
+  // Re-evaluated on change, too: this ran once at load, so rotating a tablet
+  // into portrait never enabled it and rotating out never disabled it.
+  let swipeGestures = null;
+  const syncSwipeGestures = () => {
+    if (mobileDevice.matches && !swipeGestures) {
+      swipeGestures = initSwipeGestures();
+    } else if (!mobileDevice.matches && swipeGestures) {
+      swipeGestures.destroy();
+      swipeGestures = null;
+    }
+  };
+  syncSwipeGestures();
+  mobileDevice.addEventListener("change", syncSwipeGestures);
 
   // Compact header on scroll
   const headerEl = document.getElementById("header");
@@ -322,8 +382,11 @@ export function initNavigation() {
 
   // Number key navigation
   document.addEventListener("keydown", (event) => {
-    const tag = document.activeElement?.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    // A number pressed over an open dialog used to change the section behind
+    // it: the modal stayed up, the body stayed scroll-locked, and closing it
+    // later restored a scroll offset from a section the user had left.
+    if (isModalOpen()) return;
+    if (isTypingTarget(document.activeElement)) return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
 
     const num = parseInt(event.key, 10);
@@ -351,8 +414,10 @@ export function initNavigation() {
     };
 
     document.addEventListener("keydown", (event) => {
-      const tag = document.activeElement?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (isTypingTarget(document.activeElement)) return;
+      // Opening the shortcut overlay on top of a dialog stacks two things
+      // competing for Escape.
+      if (isModalOpen() && !overlay.classList.contains("active")) return;
 
       if (event.key === "?" && !event.metaKey && !event.ctrlKey && !event.altKey) {
         event.preventDefault();
@@ -378,9 +443,21 @@ function initMobileBottomNav() {
   mobileNav.className = 'mobile-bottom-nav';
   mobileNav.setAttribute('aria-label', 'Mobile navigation');
 
+  // Every section a visitor can reach, in the same order as the header nav.
+  //
+  // This listed four of the six, so Hobbies and Activity were reachable on a
+  // phone only through the hamburger - and on a phone the bottom bar *is* the
+  // navigation. Six fits: measured at 320px, the narrowest width still worth
+  // supporting, each item is 54px wide with no label clipping and no horizontal
+  // overflow.
+  //
+  // Portfolio is deliberately absent: its nav link is still `hidden` pending
+  // the decision recorded as BUG-02.
   const navItems = [
     { target: 'about', icon: 'fa-home', label: 'Home' },
     { target: 'resume', icon: 'fa-briefcase', label: 'Work' },
+    { target: 'hobbies', icon: 'fa-heart', label: 'Hobbies' },
+    { target: 'activity', icon: 'fa-chart-line', label: 'Activity' },
     { target: 'ai', icon: 'fa-robot', label: 'AI' },
     { target: 'contact', icon: 'fa-envelope', label: 'Contact' }
   ];
@@ -423,7 +500,10 @@ function updateMobileNavActive(target) {
 function initSwipeGestures() {
   const sectionOrder = ['about', 'resume', 'hobbies', 'activity', 'ai', 'contact'];
 
-  new SwipeHandler({
+  // Returned so the caller can tear it down when the viewport stops being a
+  // phone; the handler binds to document, so leaving it attached would keep
+  // navigating sections on a resized desktop window.
+  return new SwipeHandler({
     threshold: 75,
     onSwipeLeft: () => {
       const currentSection = document.querySelector('main section.active')?.id;

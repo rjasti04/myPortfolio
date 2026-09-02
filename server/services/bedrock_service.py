@@ -6,7 +6,13 @@ import threading
 from typing import AsyncGenerator, Callable, Dict, Any, Iterable, List, Optional
 
 import boto3
-from server.config.settings import AWS_REGION, DEFAULT_MODEL_ID
+from server.config.bedrock import bedrock_config, bedrock_runtime
+from server.config.settings import (
+    AWS_REGION,
+    BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS,
+    CHAT_STREAM_QUEUE_SIZE,
+    DEFAULT_MODEL_ID,
+)
 from server.utils.role_utils import ensure_alternating_roles
 
 logger = logging.getLogger("server.bedrock_service")
@@ -14,11 +20,15 @@ logger = logging.getLogger("server.bedrock_service")
 # How long the reader thread waits for room in the queue before concluding the
 # consumer is gone. Bounds how long a worker thread outlives an abandoned
 # request; it never blocks the event loop.
-_QUEUE_PUT_TIMEOUT_SECONDS = 10.0
+#
+# Both of these were hardcoded here while settings.py defined, validated and
+# documented BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS and CHAT_STREAM_QUEUE_SIZE for
+# exactly this purpose - so the README described two knobs that turned nothing.
+_QUEUE_PUT_TIMEOUT_SECONDS = BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS
 
 # Bounded so a fast model cannot buffer an unlimited response in memory while a
 # slow client drains it.
-_STREAM_QUEUE_SIZE = 64
+_STREAM_QUEUE_SIZE = CHAT_STREAM_QUEUE_SIZE
 
 _STREAM_DONE = object()
 
@@ -116,8 +126,28 @@ class BedrockService:
 
     @property
     def client(self):
+        """The configured bedrock-runtime client.
+
+        This used to build its own with `boto3.client(...)` and no Config, so
+        the chat path - the only one that actually streams inference - ran on
+        botocore defaults: a 60s read timeout instead of BEDROCK_TIMEOUT_SECONDS
+        and no retry policy. Meanwhile config/bedrock.py built a properly tuned
+        client that nothing imported. A hung Bedrock connection therefore held
+        one of the CHAT_MAX_CONCURRENCY slots for a minute rather than thirty
+        seconds.
+        """
         if self._client is None:
-            self._client = boto3.client("bedrock-runtime", region_name=self.region_name)
+            self._client = (
+                bedrock_runtime
+                if self.region_name == AWS_REGION
+                # A caller asking for another region still gets the same timeout
+                # and retry policy rather than silently falling back to defaults.
+                else boto3.client(
+                    "bedrock-runtime",
+                    region_name=self.region_name,
+                    config=bedrock_config,
+                )
+            )
         return self._client
 
     async def stream_chat_response(

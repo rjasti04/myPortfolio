@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from server.controllers import event_controller
-from server.schemas.event import SessionEventSummary
+from server.schemas.event import BulkEventResult, SessionEventSummary
 
 router = APIRouter(tags=["Events"])
 
@@ -17,6 +17,7 @@ router.add_api_route(
     event_controller.create_events_bulk,
     methods=["POST"],
     status_code=201,
+    response_model=BulkEventResult,
     summary="Record multiple events in one shot",
 )
 
