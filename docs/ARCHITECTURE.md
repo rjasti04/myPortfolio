@@ -124,7 +124,8 @@ fire-and-forget tasks are awaited, and the SQLAlchemy engine is disposed.
 | `js/terminal/` | The command prompt, split into data (`registry`), DOM builders (`output`), `history`, `keymap`, `palette` and the `index` that owns all wiring |
 | `vendor/` | DOMPurify + marked, copied verbatim from the npm packages pinned in `package.json` |
 | `tests/` | Node test runner + jsdom suites (excluded from `dist/`) |
-| `worldcup.html` | Standalone side project, unrelated to the portfolio SPA |
+| `worldcup.html` | Standalone side project, unrelated to the portfolio SPA (retired — the header link is hidden) |
+| `ucl.html` | Standalone side project, unrelated to the portfolio SPA — the 2026/27 Champions League bracket predictor |
 
 ### `server/` — the API tier
 

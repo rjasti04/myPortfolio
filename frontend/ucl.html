@@ -1,0 +1,2469 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description"
+    content="Interactive 2026/27 UEFA Champions League bracket predictor. Rank the 36-team league phase, pick the knockout play-off winners, and run the bracket from the round of 16 to the final in Madrid.">
+  <meta name="theme-color" content="#0b1023">
+  <title>2026/27 Champions League Bracket Predictor</title>
+  <link rel="icon" href="favicon.ico">
+
+  <!-- Fonts and Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* CSS VARIABLES & SYSTEM DESIGN */
+    :root {
+      /* Dark theme (default) — UEFA night-match navy */
+      --bg: hsl(230, 45%, 9%);
+      --surface: hsl(230, 38%, 13%);
+      --surface-card: hsl(230, 30%, 18%);
+      --border: hsl(230, 20%, 27%);
+      --border-glow: rgba(71, 107, 225, 0.28);
+      --text: hsl(215, 40%, 98%);
+      --text-muted: hsl(220, 18%, 68%);
+
+      /* Accent colours */
+      --primary: hsl(226, 72%, 58%);
+      /* Champions League blue */
+      --primary-rgb: 71, 107, 225;
+      --primary-strong: hsl(226, 72%, 48%);
+      --secondary: hsl(190, 95%, 55%);
+      /* Starball cyan */
+      --accent-success: #34d399;
+      /* Straight to the round of 16 */
+      --accent-warning: #fbbf24;
+      /* Knockout play-off places */
+      --accent-danger: #f87171;
+      /* Eliminated */
+
+      /* Badge semantic colours (dark mode) */
+      --badge-success-bg: rgba(52, 211, 153, 0.16);
+      --badge-success-text: var(--accent-success);
+      --badge-warning-bg: rgba(251, 191, 36, 0.16);
+      --badge-warning-text: var(--accent-warning);
+      --badge-danger-bg: rgba(248, 113, 113, 0.14);
+      --badge-danger-text: var(--accent-danger);
+
+      /* Design tokens */
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+      --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.45);
+      --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body.light-theme {
+      --bg: hsl(220, 30%, 97%);
+      --surface: hsl(0, 0%, 100%);
+      --surface-card: hsl(220, 28%, 94%);
+      --border: hsl(220, 18%, 86%);
+      --border-glow: rgba(71, 107, 225, 0.22);
+      --text: hsl(230, 45%, 12%);
+      --text-muted: hsl(222, 14%, 42%);
+      --primary: hsl(226, 68%, 48%);
+      --primary-rgb: 40, 74, 205;
+      --primary-strong: hsl(226, 68%, 40%);
+      --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
+      --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.09);
+      --shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.13);
+
+      /* Badge semantic colours (light mode — WCAG AA contrast) */
+      --badge-success-bg: #d1fae5;
+      --badge-success-text: #065f46;
+      --badge-warning-bg: #fef3c7;
+      --badge-warning-text: #92400e;
+      --badge-danger-bg: #fee2e2;
+      --badge-danger-text: #991b1b;
+    }
+
+    /* GLOBAL RESET & BASE STYLES */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* MAIN CONTAINER & APP FRAME */
+    .app-container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px 16px 80px 16px;
+    }
+
+    /* HEADER */
+    header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin-bottom: 32px;
+      padding: 24px;
+      background: radial-gradient(circle at top, rgba(var(--primary-rgb), 0.16), transparent 62%);
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+
+    .header-top {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      font-size: 28px;
+      color: var(--primary);
+      text-shadow: 0 0 14px rgba(var(--primary-rgb), 0.5);
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--text), var(--primary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hero-title-section h1 {
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .hero-title-section p {
+      color: var(--text-muted);
+      font-size: 16px;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .hero-meta {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .hero-chip {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background-color: var(--surface);
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hero-chip i {
+      color: var(--primary);
+    }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-family);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: var(--transition-base);
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-strong);
+      box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.35);
+      transform: translateY(-1px);
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover {
+      background-color: var(--border);
+      border-color: var(--text-muted);
+    }
+
+    .btn-icon-only {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      padding: 0;
+      font-size: 16px;
+    }
+
+    /* TAB NAVIGATION */
+    .navigation-tabs {
+      display: flex;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 6px;
+      margin: 0 auto 32px auto;
+      max-width: 620px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-family);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 12px 16px;
+      border-radius: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: var(--transition-base);
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      background-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.25);
+    }
+
+    /* PANELS */
+    .view-panel {
+      display: none;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    .view-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* CARD COMPONENT */
+    .card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--primary);
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* LEAGUE PHASE VIEW */
+    .league-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .zone-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .zone-key {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .zone-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .zone-dot.r16 {
+      background-color: var(--accent-success);
+    }
+
+    .zone-dot.po {
+      background-color: var(--accent-warning);
+    }
+
+    .zone-dot.out {
+      background-color: var(--accent-danger);
+    }
+
+    .standings-list {
+      list-style-type: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .lp-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background-color: var(--surface-card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      user-select: none;
+      transition: var(--transition-base);
+      position: relative;
+    }
+
+    .lp-row.zone-r16 {
+      border-left-color: var(--accent-success);
+    }
+
+    .lp-row.zone-po {
+      border-left-color: var(--accent-warning);
+    }
+
+    .lp-row.zone-out {
+      border-left-color: var(--accent-danger);
+      opacity: 0.72;
+    }
+
+    .lp-row:hover {
+      border-color: var(--border-glow);
+      opacity: 1;
+    }
+
+    .lp-row.dragging {
+      opacity: 0.4;
+      background-color: var(--border);
+      border-style: dashed;
+    }
+
+    .lp-row.drag-over-top {
+      box-shadow: inset 0 2px 0 0 var(--primary);
+    }
+
+    .lp-row.drag-over-bottom {
+      box-shadow: inset 0 -2px 0 0 var(--primary);
+    }
+
+    .reorder-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    .reorder-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 10px;
+      width: 26px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition-base);
+    }
+
+    .reorder-btn:hover:not(:disabled) {
+      color: var(--text);
+      background-color: var(--border);
+      border-color: var(--text-muted);
+    }
+
+    .reorder-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .lp-rank {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid var(--border);
+      background-color: var(--surface);
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .zone-r16 .lp-rank {
+      background-color: var(--badge-success-bg);
+      border-color: var(--accent-success);
+      color: var(--badge-success-text);
+    }
+
+    .zone-po .lp-rank {
+      background-color: var(--badge-warning-bg);
+      border-color: var(--accent-warning);
+      color: var(--badge-warning-text);
+    }
+
+    .zone-out .lp-rank {
+      background-color: var(--badge-danger-bg);
+      border-color: var(--accent-danger);
+      color: var(--badge-danger-text);
+    }
+
+    .team-flag {
+      width: 24px;
+      height: 16px;
+      object-fit: cover;
+      border-radius: 2px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      flex-shrink: 0;
+    }
+
+    .lp-name {
+      font-size: 14px;
+      font-weight: 600;
+      flex-grow: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pot-chip {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .status-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 12px;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .status-badge.advances {
+      background-color: var(--badge-success-bg);
+      color: var(--badge-success-text);
+    }
+
+    .status-badge.playoff {
+      background-color: var(--badge-warning-bg);
+      color: var(--badge-warning-text);
+    }
+
+    .status-badge.eliminated {
+      background-color: var(--badge-danger-bg);
+      color: var(--badge-danger-text);
+    }
+
+    .drag-handle {
+      color: var(--text-muted);
+      font-size: 13px;
+      padding: 4px 2px;
+      cursor: grab;
+      flex-shrink: 0;
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .zone-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 2px 4px 2px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
+    .zone-divider::after {
+      content: '';
+      flex-grow: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--border), transparent);
+    }
+
+    /* LEAGUE PHASE SIDE RAIL */
+    .league-rail {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: sticky;
+      top: 16px;
+    }
+
+    .rail-card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .rail-title {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+
+    .rail-card p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .rail-card p:last-child {
+      margin-bottom: 0;
+    }
+
+    .rail-seed-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .rail-seed {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .rail-seed span.seed-no {
+      width: 20px;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .rail-seed span.seed-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .rail-dates {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .rail-dates li {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 6px;
+    }
+
+    .rail-dates li:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .rail-dates strong {
+      color: var(--text);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    /* PLAY-OFF VIEW */
+    .stage-intro {
+      max-width: 820px;
+      margin: 0 auto 28px auto;
+      text-align: center;
+    }
+
+    .stage-intro h2 {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .stage-intro p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .stage-counter {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 6px 16px;
+      border-radius: 999px;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .stage-counter.complete {
+      background-color: var(--badge-success-bg);
+      border-color: var(--accent-success);
+      color: var(--badge-success-text);
+    }
+
+    .playoff-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    /* KNOCKOUT BRACKET VIEW */
+    .bracket-container {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 32px 16px;
+      position: relative;
+      width: 100%;
+      background:
+        linear-gradient(to right, var(--bg) 30%, rgba(var(--primary-rgb), 0)),
+        linear-gradient(to right, rgba(var(--primary-rgb), 0), var(--bg) 70%) 100% 0,
+        radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0)),
+        radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0)) 100% 0;
+      background-repeat: no-repeat;
+      background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+      background-attachment: local, local, scroll, scroll;
+    }
+
+    .bracket-layout {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 18px;
+      align-items: center;
+      width: 100%;
+      min-width: 1280px;
+    }
+
+    .bracket-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      height: 720px;
+      position: relative;
+    }
+
+    .round-heading {
+      position: absolute;
+      top: -26px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* MATCH CARD */
+    .match-card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      position: relative;
+      transition: var(--transition-base);
+      z-index: 5;
+    }
+
+    .match-card:hover {
+      border-color: var(--text-muted);
+      box-shadow: var(--shadow-md);
+    }
+
+    .match-card.decided {
+      border-color: rgba(var(--primary-rgb), 0.5);
+    }
+
+    .match-info-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 5px 10px;
+      background-color: rgba(var(--primary-rgb), 0.07);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .match-info-label span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    .match-team {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      cursor: pointer;
+      transition: var(--transition-base);
+      background-color: var(--surface);
+      position: relative;
+    }
+
+    .match-team:first-of-type {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .match-team:not(.placeholder):hover {
+      background-color: var(--surface-card);
+    }
+
+    .match-team.winner {
+      background-color: rgba(var(--primary-rgb), 0.12);
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .match-team.winner::after {
+      content: '\f058';
+      font-family: 'Font Awesome 6 Free';
+      font-weight: 900;
+      position: absolute;
+      right: 12px;
+      color: var(--primary);
+      font-size: 14px;
+    }
+
+    .match-team:not(.winner):not(.placeholder):hover::after {
+      content: '\f054';
+      font-family: 'Font Awesome 6 Free';
+      font-weight: 900;
+      position: absolute;
+      right: 12px;
+      color: var(--primary);
+      font-size: 11px;
+      opacity: 0.6;
+      animation: hoverSlide 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
+    @keyframes hoverSlide {
+      from {
+        transform: translateX(-4px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 0.6;
+      }
+    }
+
+    .match-team.placeholder {
+      color: var(--text-muted);
+      font-style: italic;
+      font-size: 12px;
+      cursor: not-allowed;
+    }
+
+    .match-team.placeholder:hover {
+      background-color: var(--surface);
+    }
+
+    .match-team-flag {
+      width: 18px;
+      height: 12px;
+      object-fit: cover;
+      border-radius: 1px;
+      flex-shrink: 0;
+    }
+
+    .match-team-name {
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-grow: 1;
+      padding-right: 18px;
+    }
+
+    /* MOBILE ROUND SELECTOR */
+    .mobile-bracket-tabs {
+      display: none;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .mobile-bracket-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .mobile-tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-family);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 16px;
+      border-radius: 16px;
+      cursor: pointer;
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    .mobile-tab-btn.active {
+      background-color: var(--primary);
+      color: #fff;
+    }
+
+    /* CHAMPION PANEL */
+    .champion-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+    }
+
+    .champion-card {
+      background: linear-gradient(135deg, var(--surface), var(--surface-card));
+      border: 2px solid var(--primary);
+      border-radius: var(--radius-lg);
+      padding: 22px 18px;
+      text-align: center;
+      width: 100%;
+      max-width: 240px;
+      box-shadow: 0 0 26px rgba(var(--primary-rgb), 0.18);
+    }
+
+    .champion-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .trophy {
+      font-size: 30px;
+      color: #e2c275;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
+      margin-bottom: 8px;
+    }
+
+    .champion-slot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .champion-slot:last-of-type {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .champion-team {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .champion-team img {
+      width: 20px;
+      height: 14px;
+      object-fit: cover;
+      border-radius: 1px;
+    }
+
+    .champion-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+    }
+
+    .champion-empty {
+      font-style: italic;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .champion-venue {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* CONFETTI CANVAS */
+    #celebration-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      display: none;
+    }
+
+    /* TOASTS */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 10000;
+    }
+
+    .toast {
+      background-color: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      max-width: 320px;
+    }
+
+    .toast-success {
+      border-left-color: var(--accent-success);
+    }
+
+    .toast-warning {
+      border-left-color: var(--accent-warning);
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .toast.fade-out {
+      animation: fadeOut 0.4s ease-out forwards;
+    }
+
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      to {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+    }
+
+    /* FOOTER & ACCESSIBILITY */
+    footer {
+      text-align: center;
+      margin-top: 60px;
+      color: var(--text-muted);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+
+    button:focus-visible,
+    .lp-row:focus-visible,
+    .match-team:focus-visible {
+      outline: 3px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 1100px) {
+      .league-layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .league-rail {
+        position: static;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+    }
+
+    @media (max-width: 1200px) {
+      .bracket-layout {
+        display: none;
+      }
+
+      .mobile-bracket-tabs {
+        display: flex;
+        gap: 6px;
+      }
+
+      .mobile-bracket-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      .mobile-champion-view {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        padding: 8px 0 24px 0;
+      }
+
+      .mobile-champion-view .champion-card {
+        max-width: 320px;
+      }
+    }
+
+    @media (min-width: 1201px) {
+
+      .mobile-bracket-list,
+      .mobile-champion-view {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 768px) {
+      header {
+        padding: 16px;
+      }
+
+      .brand-title {
+        font-size: 16px;
+      }
+
+      .brand-logo {
+        font-size: 22px;
+      }
+
+      .hero-title-section h1 {
+        font-size: 26px;
+      }
+
+      .hero-title-section p {
+        font-size: 14px;
+      }
+
+      .navigation-tabs {
+        border-radius: 20px;
+        padding: 4px;
+      }
+
+      .tab-btn {
+        padding: 10px 10px;
+        font-size: 12px;
+        min-height: 44px;
+      }
+
+      .card {
+        padding: 14px;
+      }
+
+      .lp-row {
+        gap: 8px;
+        padding: 8px 10px;
+      }
+
+      .reorder-btn {
+        width: 30px;
+        height: 24px;
+      }
+
+      .pot-chip,
+      .drag-handle {
+        display: none;
+      }
+
+      .sr-only-mobile {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .status-badge {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app-container">
+
+    <!-- HEADER -->
+    <header>
+      <div class="header-top">
+        <div class="brand">
+          <i class="fas fa-futbol brand-logo"></i>
+          <span class="brand-title">UCL 26/27</span>
+        </div>
+        <div class="header-actions">
+          <button id="theme-toggle-btn" class="btn btn-outline btn-icon-only" aria-label="Toggle theme"
+            title="Toggle light/dark theme">
+            <i class="fas fa-moon"></i>
+          </button>
+          <button id="reset-btn" class="btn btn-outline" aria-label="Reset all bracket predictions">
+            <i class="fas fa-rotate-left"></i> <span class="sr-only-mobile">Reset</span>
+          </button>
+          <button id="share-btn" class="btn btn-outline" aria-label="Copy a share link for these predictions">
+            <i class="fas fa-share-nodes"></i> <span class="sr-only-mobile">Share</span>
+          </button>
+          <button id="download-btn" class="btn btn-primary" aria-label="Download a prediction summary">
+            <i class="fas fa-download"></i> <span class="sr-only-mobile">Export</span>
+          </button>
+        </div>
+      </div>
+      <div class="hero-title-section">
+        <h1>2026/27 CHAMPIONS LEAGUE BRACKET</h1>
+        <p>Rank the 36-club league phase, settle the knockout play-offs, and run the bracket from the round of 16 to the
+          final in Madrid.</p>
+        <div class="hero-meta">
+          <span class="hero-chip"><i class="fas fa-table-list"></i> 36 clubs · 8 matchdays</span>
+          <span class="hero-chip"><i class="fas fa-shuffle"></i> Swiss league phase</span>
+          <span class="hero-chip"><i class="fas fa-location-dot"></i> Final · Madrid · 5 Jun 2027</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- STAGE TABS -->
+    <nav class="navigation-tabs" aria-label="Prediction stages">
+      <button class="tab-btn active" data-tab="league-tab">
+        <i class="fas fa-table-list"></i> <span>League Phase</span>
+      </button>
+      <button class="tab-btn" data-tab="playoff-tab">
+        <i class="fas fa-scale-balanced"></i> <span>Play-offs</span>
+      </button>
+      <button class="tab-btn" data-tab="knockout-tab">
+        <i class="fas fa-diagram-project"></i> <span>Knockout Bracket</span>
+      </button>
+    </nav>
+
+    <main id="main-content">
+
+      <!-- STAGE 1: LEAGUE PHASE STANDINGS -->
+      <section id="league-tab" class="view-panel active" aria-labelledby="league-title">
+        <h2 id="league-title" class="sr-only">League Phase Standings Predictor</h2>
+
+        <div class="league-layout">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Final League Phase Table</div>
+                <div class="card-subtitle">Drag or use the arrows to reorder all 36 clubs</div>
+              </div>
+              <div class="zone-legend" aria-hidden="true">
+                <span class="zone-key"><span class="zone-dot r16"></span>1–8</span>
+                <span class="zone-key"><span class="zone-dot po"></span>9–24</span>
+                <span class="zone-key"><span class="zone-dot out"></span>25–36</span>
+              </div>
+            </div>
+            <ol class="standings-list" id="standings-container">
+              <!-- Rendered dynamically via JS -->
+            </ol>
+          </div>
+
+          <aside class="league-rail" aria-label="League phase summary">
+            <div class="rail-card">
+              <div class="rail-title">How the format works</div>
+              <p>All 36 clubs sit in one table and play eight different opponents, four at home and four away.</p>
+              <p><strong>1st–8th</strong> go straight into the round of 16. <strong>9th–24th</strong> contest a
+                two-legged knockout play-off. <strong>25th–36th</strong> are out of Europe entirely.</p>
+            </div>
+
+            <div class="rail-card">
+              <div class="rail-title">Your seeded eight</div>
+              <ol class="rail-seed-list" id="rail-seeds">
+                <!-- Rendered dynamically via JS -->
+              </ol>
+            </div>
+
+            <div class="rail-card">
+              <div class="rail-title">Key dates</div>
+              <ul class="rail-dates">
+                <li><span>Matchday 1</span><strong>8–10 Sep 2026</strong></li>
+                <li><span>Matchday 8</span><strong>27 Jan 2027</strong></li>
+                <li><span>Play-offs</span><strong>16–24 Feb 2027</strong></li>
+                <li><span>Round of 16</span><strong>9–17 Mar 2027</strong></li>
+                <li><span>Quarter-finals</span><strong>6–14 Apr 2027</strong></li>
+                <li><span>Semi-finals</span><strong>27 Apr–5 May 2027</strong></li>
+                <li><span>Final</span><strong>5 Jun 2027</strong></li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- STAGE 2: KNOCKOUT PLAY-OFFS -->
+      <section id="playoff-tab" class="view-panel" aria-labelledby="playoff-title">
+        <div class="stage-intro">
+          <h2 id="playoff-title">Knockout Phase Play-offs</h2>
+          <p>The sixteen clubs that finished 9th to 24th meet over two legs for the last eight places in the round of
+            16. Seeds 9–16 are paired against seeds 17–24 and play the second leg at home. Pick a winner from each
+            tie.</p>
+          <div class="stage-counter" id="playoff-counter" aria-live="polite">Decided: 0 of 8</div>
+        </div>
+        <div class="playoff-grid" id="playoff-container">
+          <!-- Rendered dynamically via JS -->
+        </div>
+      </section>
+
+      <!-- STAGE 3: KNOCKOUT BRACKET -->
+      <section id="knockout-tab" class="view-panel" aria-labelledby="knockout-title">
+        <h2 id="knockout-title" class="sr-only">Knockout Bracket Progression</h2>
+
+        <!-- Mobile round selector -->
+        <nav class="mobile-bracket-tabs" aria-label="Knockout round selection">
+          <button class="mobile-tab-btn active" data-round="r16">Round of 16</button>
+          <button class="mobile-tab-btn" data-round="qf">Quarter-finals</button>
+          <button class="mobile-tab-btn" data-round="sf">Semi-finals</button>
+          <button class="mobile-tab-btn" data-round="final">Final &amp; Champion</button>
+        </nav>
+
+        <div class="mobile-bracket-list" id="mobile-bracket-list-container">
+          <!-- Rendered dynamically via JS -->
+        </div>
+
+        <div class="mobile-champion-view" id="mobile-champion-container">
+          <!-- Rendered dynamically via JS -->
+        </div>
+
+        <!-- Desktop mirrored bracket -->
+        <div class="bracket-container" id="desktop-bracket-container">
+          <div class="bracket-layout" id="desktop-bracket-layout">
+
+            <div class="bracket-column">
+              <div class="round-heading" aria-hidden="true">Round of 16</div>
+              <div id="d-r16-1"></div>
+              <div id="d-r16-2"></div>
+              <div id="d-r16-3"></div>
+              <div id="d-r16-4"></div>
+            </div>
+
+            <div class="bracket-column">
+              <div class="round-heading" aria-hidden="true">Quarter-finals</div>
+              <div id="d-qf-1"></div>
+              <div id="d-qf-2"></div>
+            </div>
+
+            <div class="bracket-column">
+              <div class="round-heading" aria-hidden="true">Semi-final</div>
+              <div id="d-sf-1"></div>
+            </div>
+
+            <div class="bracket-column" style="justify-content: center; gap: 24px;">
+              <div class="round-heading" aria-hidden="true">Final</div>
+              <div id="d-final"></div>
+              <div class="champion-container" id="d-champion">
+                <!-- Rendered dynamically via JS -->
+              </div>
+            </div>
+
+            <div class="bracket-column">
+              <div class="round-heading" aria-hidden="true">Semi-final</div>
+              <div id="d-sf-2"></div>
+            </div>
+
+            <div class="bracket-column">
+              <div class="round-heading" aria-hidden="true">Quarter-finals</div>
+              <div id="d-qf-3"></div>
+              <div id="d-qf-4"></div>
+            </div>
+
+            <div class="bracket-column">
+              <div class="round-heading" aria-hidden="true">Round of 16</div>
+              <div id="d-r16-5"></div>
+              <div id="d-r16-6"></div>
+              <div id="d-r16-7"></div>
+              <div id="d-r16-8"></div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer>
+      <p>&copy; 2026 Champions League Bracket Predictor. Built by <a href="https://rjasti.com" target="_blank"
+          rel="noopener noreferrer">Rajeev Jasti</a>.</p>
+      <p style="margin-top: 6px; font-size: 11px;">Not affiliated with UEFA. Flags courtesy of <a
+          href="https://flagcdn.com/" target="_blank" rel="noopener noreferrer">FlagCDN</a>. Play-off and bracket
+        pairings follow the seeding rules; the real draw resolves each pairing between two seeds. Your picks are saved
+        to this browser.</p>
+    </footer>
+  </div>
+
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+  <canvas id="celebration-canvas"></canvas>
+
+  <script>
+    // ---------------------------------------------------------------------
+    // TOURNAMENT DATA
+    // The 36 clubs drawn into the 2026/27 league phase in Monaco on
+    // 27 August 2026, listed in their seeding-pot order. That order doubles as
+    // the default predicted finishing table.
+    // ---------------------------------------------------------------------
+    const LEAGUE_TEAMS = [
+      // Pot 1
+      { name: "Paris Saint-Germain", code: "fr", pot: 1 },
+      { name: "Bayern München", code: "de", pot: 1 },
+      { name: "Real Madrid", code: "es", pot: 1 },
+      { name: "Liverpool", code: "gb-eng", pot: 1 },
+      { name: "Inter", code: "it", pot: 1 },
+      { name: "Manchester City", code: "gb-eng", pot: 1 },
+      { name: "Arsenal", code: "gb-eng", pot: 1 },
+      { name: "Barcelona", code: "es", pot: 1 },
+      { name: "Atlético de Madrid", code: "es", pot: 1 },
+      // Pot 2
+      { name: "Borussia Dortmund", code: "de", pot: 2 },
+      { name: "Roma", code: "it", pot: 2 },
+      { name: "Sporting CP", code: "pt", pot: 2 },
+      { name: "Aston Villa", code: "gb-eng", pot: 2 },
+      { name: "Porto", code: "pt", pot: 2 },
+      { name: "Manchester United", code: "gb-eng", pot: 2 },
+      { name: "Club Brugge", code: "be", pot: 2 },
+      { name: "Real Betis", code: "es", pot: 2 },
+      { name: "PSV Eindhoven", code: "nl", pot: 2 },
+      // Pot 3
+      { name: "Feyenoord", code: "nl", pot: 3 },
+      { name: "Lille", code: "fr", pot: 3 },
+      { name: "Bodø/Glimt", code: "no", pot: 3 },
+      { name: "Napoli", code: "it", pot: 3 },
+      { name: "RB Leipzig", code: "de", pot: 3 },
+      { name: "Villarreal", code: "es", pot: 3 },
+      { name: "Fenerbahçe", code: "tr", pot: 3 },
+      { name: "Shakhtar Donetsk", code: "ua", pot: 3 },
+      { name: "Galatasaray", code: "tr", pot: 3 },
+      // Pot 4
+      { name: "Slavia Praha", code: "cz", pot: 4 },
+      { name: "Slovan Bratislava", code: "sk", pot: 4 },
+      { name: "VfB Stuttgart", code: "de", pot: 4 },
+      { name: "AEK Athens", code: "gr", pot: 4 },
+      { name: "LASK", code: "at", pot: 4 },
+      { name: "Como", code: "it", pot: 4 },
+      { name: "Lens", code: "fr", pot: 4 },
+      { name: "Viking", code: "no", pot: 4 },
+      { name: "Sabah", code: "az", pot: 4 }
+    ];
+
+    const TEAM_COUNT = LEAGUE_TEAMS.length; // 36
+
+    // Knockout play-offs: seeds 9-16 are drawn against seeds 17-24 in fixed
+    // seeding bands (9/10 v 23/24, 11/12 v 21/22, 13/14 v 19/20, 15/16 v
+    // 17/18). The real draw decides which club of each band pair meets which,
+    // so the predictor resolves every band to its symmetric pairing.
+    const PLAYOFF_TIES = [
+      { id: "po-1", seedA: 9, seedB: 24 },
+      { id: "po-2", seedA: 10, seedB: 23 },
+      { id: "po-3", seedA: 11, seedB: 22 },
+      { id: "po-4", seedA: 12, seedB: 21 },
+      { id: "po-5", seedA: 13, seedB: 20 },
+      { id: "po-6", seedA: 14, seedB: 19 },
+      { id: "po-7", seedA: 15, seedB: 18 },
+      { id: "po-8", seedA: 16, seedB: 17 }
+    ];
+
+    // Round of 16: each of the top eight meets a play-off winner from the band
+    // reserved for its seeding pair (1/2 face the 15-18 band, 3/4 the 13-20
+    // band, 5/6 the 11-22 band, 7/8 the 9-24 band). Ties 1-4 sit in the left
+    // half of the bracket, ties 5-8 in the right half.
+    const R16_TIES = [
+      { id: "r16-1", seed: 1, from: "po-8" },
+      { id: "r16-2", seed: 8, from: "po-1" },
+      { id: "r16-3", seed: 3, from: "po-6" },
+      { id: "r16-4", seed: 5, from: "po-4" },
+      { id: "r16-5", seed: 2, from: "po-7" },
+      { id: "r16-6", seed: 7, from: "po-2" },
+      { id: "r16-7", seed: 4, from: "po-5" },
+      { id: "r16-8", seed: 6, from: "po-3" }
+    ];
+
+    // Winner routing through the rest of the bracket.
+    const MATCH_FLOW = {
+      "r16-1": { parent: "qf-1", slot: "team1" },
+      "r16-2": { parent: "qf-1", slot: "team2" },
+      "r16-3": { parent: "qf-2", slot: "team1" },
+      "r16-4": { parent: "qf-2", slot: "team2" },
+      "r16-5": { parent: "qf-3", slot: "team1" },
+      "r16-6": { parent: "qf-3", slot: "team2" },
+      "r16-7": { parent: "qf-4", slot: "team1" },
+      "r16-8": { parent: "qf-4", slot: "team2" },
+      "qf-1": { parent: "sf-1", slot: "team1" },
+      "qf-2": { parent: "sf-1", slot: "team2" },
+      "qf-3": { parent: "sf-2", slot: "team1" },
+      "qf-4": { parent: "sf-2", slot: "team2" },
+      "sf-1": { parent: "final", slot: "team1" },
+      "sf-2": { parent: "final", slot: "team2" }
+    };
+
+    const R16_IDS = R16_TIES.map(t => t.id);
+    const QF_IDS = ["qf-1", "qf-2", "qf-3", "qf-4"];
+    const SF_IDS = ["sf-1", "sf-2"];
+    const PLAYOFF_IDS = PLAYOFF_TIES.map(t => t.id);
+    const BRACKET_IDS = [...R16_IDS, ...QF_IDS, ...SF_IDS, "final"];
+
+    const ROUND_LABELS = {
+      po: "Play-off",
+      r16: "Round of 16",
+      qf: "Quarter-final",
+      sf: "Semi-final",
+      final: "Final"
+    };
+
+    const STORAGE_KEY = "ucl-predictor-state";
+    const THEME_KEY = "ucl-predictor-theme";
+
+    // Live prediction state.
+    const state = {
+      order: [],          // 36 indices into LEAGUE_TEAMS; position 0 finishes 1st
+      playoffWinner: {},  // play-off tie id -> club name
+      bracketWinner: {}   // knockout match id -> club name
+    };
+
+    let activeMobileRound = "r16";
+    let pendingFocusRank = null;
+
+    // ---------------------------------------------------------------------
+    // SMALL HELPERS
+    // ---------------------------------------------------------------------
+    function getFlagUrl(code) {
+      if (!code) return "";
+      return `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, ch => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[ch]));
+    }
+
+    // Club finishing in the given league-phase position (1-based).
+    function seedTeam(position) {
+      const idx = state.order[position - 1];
+      return typeof idx === "number" ? LEAGUE_TEAMS[idx] : null;
+    }
+
+    function ordinal(n) {
+      const rest = n % 100;
+      if (rest >= 11 && rest <= 13) return `${n}th`;
+      return `${n}${["th", "st", "nd", "rd"][n % 10] || "th"}`;
+    }
+
+    function showToast(message, type = "normal") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      toast.className = `toast toast-${type}`;
+
+      let icon = '<i class="fas fa-circle-info"></i>';
+      if (type === "success") icon = '<i class="fas fa-circle-check"></i>';
+      if (type === "warning") icon = '<i class="fas fa-circle-exclamation"></i>';
+
+      toast.innerHTML = `${icon} <span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add("fade-out");
+        toast.addEventListener("animationend", () => toast.remove());
+      }, 3000);
+    }
+
+    // ---------------------------------------------------------------------
+    // MATCH ENGINE
+    // Builds every tie from the current standings and the recorded winners.
+    // ---------------------------------------------------------------------
+    function calculateMatchesData() {
+      const matches = {};
+
+      PLAYOFF_TIES.forEach(tie => {
+        matches[tie.id] = {
+          round: "po",
+          seed1: tie.seedA,
+          seed2: tie.seedB,
+          team1: seedTeam(tie.seedA),
+          team2: seedTeam(tie.seedB)
+        };
+      });
+
+      R16_TIES.forEach(tie => {
+        matches[tie.id] = {
+          round: "r16",
+          seed1: tie.seed,
+          from: tie.from,
+          team1: seedTeam(tie.seed),
+          team2: resolveWinner(matches[tie.from], state.playoffWinner[tie.from])
+        };
+      });
+
+      [...QF_IDS, ...SF_IDS, "final"].forEach(id => {
+        matches[id] = { round: id === "final" ? "final" : id.slice(0, 2), team1: null, team2: null };
+      });
+
+      // Feed each decided winner into the tie it unlocks. The ids are already
+      // in dependency order, so one pass fills the whole tree.
+      [...R16_IDS, ...QF_IDS, ...SF_IDS].forEach(id => {
+        const flow = MATCH_FLOW[id];
+        matches[flow.parent][flow.slot] = resolveWinner(matches[id], state.bracketWinner[id]);
+      });
+
+      return matches;
+    }
+
+    // A recorded winner only counts while it is still one of the two clubs in
+    // the tie — reordering the table can invalidate it.
+    function resolveWinner(match, winnerName) {
+      if (!match || !winnerName) return null;
+      if (match.team1 && match.team1.name === winnerName) return match.team1;
+      if (match.team2 && match.team2.name === winnerName) return match.team2;
+      return null;
+    }
+
+    // Drop any pick that no longer matches the tie it was made in. The ids run
+    // in dependency order, so clearing one round exposes the next round's stale
+    // picks on the same pass.
+    function validateTree() {
+      let matches = calculateMatchesData();
+      let changed = false;
+
+      const prune = (store, ids) => {
+        ids.forEach(id => {
+          if (!store[id] || resolveWinner(matches[id], store[id])) return;
+          delete store[id];
+          changed = true;
+          matches = calculateMatchesData();
+        });
+      };
+
+      prune(state.playoffWinner, PLAYOFF_IDS);
+      prune(state.bracketWinner, BRACKET_IDS);
+
+      return changed;
+    }
+
+    // ---------------------------------------------------------------------
+    // STAGE 1 — LEAGUE PHASE TABLE
+    // ---------------------------------------------------------------------
+    function zoneFor(rank) {
+      if (rank <= 8) return { cls: "zone-r16", badge: "advances", label: "Round of 16" };
+      if (rank <= 24) return { cls: "zone-po", badge: "playoff", label: "Play-off" };
+      return { cls: "zone-out", badge: "eliminated", label: "Eliminated" };
+    }
+
+    function renderLeaguePhase() {
+      const container = document.getElementById("standings-container");
+      container.innerHTML = "";
+
+      state.order.forEach((teamIndex, i) => {
+        const rank = i + 1;
+        const team = LEAGUE_TEAMS[teamIndex];
+        const zone = zoneFor(rank);
+
+        if (rank === 9 || rank === 25) {
+          const divider = document.createElement("li");
+          divider.className = "zone-divider";
+          divider.setAttribute("aria-hidden", "true");
+          divider.textContent = rank === 9 ? "Knockout play-off places" : "Eliminated";
+          container.appendChild(divider);
+        }
+
+        const row = document.createElement("li");
+        row.className = `lp-row ${zone.cls}`;
+        row.setAttribute("draggable", "true");
+        row.setAttribute("data-index", i);
+        row.setAttribute("tabindex", "0");
+        row.setAttribute("aria-label",
+          `${team.name}, predicted ${ordinal(rank)}. ${zone.label}. Use the arrow keys to move this club.`);
+
+        row.innerHTML = `
+          <div class="reorder-controls">
+            <button class="reorder-btn reorder-up" ${rank === 1 ? "disabled" : ""}
+              aria-label="Move ${escapeHtml(team.name)} up" title="Move up"><i class="fas fa-chevron-up"></i></button>
+            <button class="reorder-btn reorder-down" ${rank === TEAM_COUNT ? "disabled" : ""}
+              aria-label="Move ${escapeHtml(team.name)} down" title="Move down"><i class="fas fa-chevron-down"></i></button>
+          </div>
+          <div class="lp-rank">${rank}</div>
+          <img class="team-flag" src="${getFlagUrl(team.code)}" alt="" onerror="this.style.visibility='hidden'">
+          <span class="lp-name">${escapeHtml(team.name)}</span>
+          <span class="pot-chip">Pot ${team.pot}</span>
+          <span class="status-badge ${zone.badge}">${zone.label}</span>
+          <i class="fas fa-grip-vertical drag-handle" title="Drag to reorder" aria-hidden="true"></i>
+        `;
+
+        row.querySelector(".reorder-up").addEventListener("click", e => {
+          e.stopPropagation();
+          moveTeam(i, i - 1);
+        });
+        row.querySelector(".reorder-down").addEventListener("click", e => {
+          e.stopPropagation();
+          moveTeam(i, i + 1);
+        });
+        row.addEventListener("keydown", e => {
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            moveTeam(i, i - 1);
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            moveTeam(i, i + 1);
+          }
+        });
+
+        container.appendChild(row);
+      });
+
+      renderRailSeeds();
+      restorePendingFocus();
+    }
+
+    function renderRailSeeds() {
+      const list = document.getElementById("rail-seeds");
+      list.innerHTML = "";
+
+      for (let rank = 1; rank <= 8; rank++) {
+        const team = seedTeam(rank);
+        if (!team) continue;
+        const li = document.createElement("li");
+        li.className = "rail-seed";
+        li.innerHTML = `
+          <span class="seed-no">${rank}</span>
+          <img class="team-flag" src="${getFlagUrl(team.code)}" alt="" onerror="this.style.visibility='hidden'">
+          <span class="seed-name">${escapeHtml(team.name)}</span>
+        `;
+        list.appendChild(li);
+      }
+    }
+
+    // Reordering re-renders the list, so put focus back on the row that moved.
+    function restorePendingFocus() {
+      if (pendingFocusRank === null) return;
+      const target = document.querySelector(`.lp-row[data-index="${pendingFocusRank}"]`);
+      pendingFocusRank = null;
+      if (!target) return;
+      target.focus({ preventScroll: true });
+      if (typeof target.scrollIntoView === "function") target.scrollIntoView({ block: "nearest" });
+    }
+
+    function moveTeam(fromIndex, toIndex) {
+      if (toIndex < 0 || toIndex >= TEAM_COUNT || fromIndex === toIndex) return;
+
+      const moved = state.order.splice(fromIndex, 1)[0];
+      state.order.splice(toIndex, 0, moved);
+
+      pendingFocusRank = toIndex;
+      const dropped = validateTree();
+
+      saveStateToLocalStorage();
+      renderAllViews();
+
+      if (dropped) showToast("Standings changed — affected knockout picks were cleared.", "warning");
+    }
+
+    let dragSrcIndex = null;
+
+    function setupDragDropListeners() {
+      const container = document.getElementById("standings-container");
+
+      container.addEventListener("dragstart", e => {
+        const row = e.target.closest(".lp-row");
+        if (!row) return;
+        dragSrcIndex = parseInt(row.getAttribute("data-index"), 10);
+        row.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", String(dragSrcIndex));
+      });
+
+      container.addEventListener("dragend", () => {
+        dragSrcIndex = null;
+        clearDragMarkers();
+      });
+
+      container.addEventListener("dragover", e => {
+        if (dragSrcIndex === null) return;
+        e.preventDefault();
+        const row = e.target.closest(".lp-row");
+        if (!row) return;
+
+        clearDragMarkers();
+        const rect = row.getBoundingClientRect();
+        const above = (e.clientY - rect.top) < rect.height / 2;
+        row.classList.add(above ? "drag-over-top" : "drag-over-bottom");
+      });
+
+      container.addEventListener("drop", e => {
+        e.preventDefault();
+        const row = e.target.closest(".lp-row");
+        if (!row || dragSrcIndex === null) return;
+
+        const targetIndex = parseInt(row.getAttribute("data-index"), 10);
+        clearDragMarkers();
+        if (targetIndex === dragSrcIndex) return;
+
+        const rect = row.getBoundingClientRect();
+        const above = (e.clientY - rect.top) < rect.height / 2;
+
+        let finalIndex = targetIndex;
+        if (dragSrcIndex < targetIndex && above) finalIndex = targetIndex - 1;
+        else if (dragSrcIndex > targetIndex && !above) finalIndex = targetIndex + 1;
+
+        const from = dragSrcIndex;
+        dragSrcIndex = null;
+        moveTeam(from, finalIndex);
+      });
+    }
+
+    function clearDragMarkers() {
+      document.querySelectorAll(".lp-row").forEach(el => {
+        el.classList.remove("dragging", "drag-over-top", "drag-over-bottom");
+      });
+    }
+
+    // ---------------------------------------------------------------------
+    // STAGE 2 — KNOCKOUT PLAY-OFFS
+    // ---------------------------------------------------------------------
+    function renderPlayoffs() {
+      const container = document.getElementById("playoff-container");
+      const matches = calculateMatchesData();
+      container.innerHTML = "";
+
+      PLAYOFF_TIES.forEach(tie => {
+        container.appendChild(createMatchCard(tie.id, matches[tie.id], { store: state.playoffWinner }));
+      });
+
+      const decided = PLAYOFF_IDS.filter(id => state.playoffWinner[id]).length;
+      const counter = document.getElementById("playoff-counter");
+      counter.textContent = `Decided: ${decided} of 8`;
+      counter.classList.toggle("complete", decided === 8);
+    }
+
+    function selectPlayoffWinner(tieId, team) {
+      if (state.playoffWinner[tieId] === team.name) return;
+      state.playoffWinner[tieId] = team.name;
+
+      validateTree();
+      saveStateToLocalStorage();
+      renderPlayoffs();
+      renderKnockoutBracket();
+    }
+
+    // ---------------------------------------------------------------------
+    // STAGE 3 — KNOCKOUT BRACKET
+    // ---------------------------------------------------------------------
+    function advanceWinner(matchId, team) {
+      if (state.bracketWinner[matchId] === team.name) return;
+      state.bracketWinner[matchId] = team.name;
+
+      validateTree();
+      saveStateToLocalStorage();
+      renderKnockoutBracket();
+
+      if (matchId === "final") triggerChampionCelebration();
+    }
+
+    // Full name, for screen readers and the exported summary.
+    function matchTitle(matchId) {
+      if (matchId === "final") return "Final";
+      const [round, num] = matchId.split("-");
+      return `${ROUND_LABELS[round]} ${num}`;
+    }
+
+    // Abbreviated name, for the card chrome — a bracket column is too narrow
+    // for "Quarter-final 1" to sit on one line.
+    function matchTag(matchId) {
+      if (matchId === "final") return "Final";
+      const [round, num] = matchId.split("-");
+      return `${{ po: "PO", r16: "R16", qf: "QF", sf: "SF" }[round]} ${num}`;
+    }
+
+    function feedersOf(matchId) {
+      return Object.keys(MATCH_FLOW).filter(id => MATCH_FLOW[id].parent === matchId);
+    }
+
+    // The right-hand caption saying where each side of the tie comes from.
+    function matchSubtitle(matchId, matchData) {
+      if (matchData.round === "po") return `${ordinal(matchData.seed1)} v ${ordinal(matchData.seed2)}`;
+      if (matchData.round === "r16") return `${ordinal(matchData.seed1)} v ${matchTag(matchData.from)} winner`;
+      return feedersOf(matchId).map(matchTag).join(" v ");
+    }
+
+    function placeholderText(matchId, matchData, isTeam2) {
+      if (matchData.round === "r16" && isTeam2) return `${matchTag(matchData.from)} winner`;
+      const feeder = feedersOf(matchId)[isTeam2 ? 1 : 0];
+      return feeder ? `${matchTag(feeder)} winner` : "To be decided";
+    }
+
+    function createMatchCard(matchId, matchData, options = {}) {
+      const store = options.store || state.bracketWinner;
+      const card = document.createElement("div");
+      card.className = "match-card";
+      if (store[matchId]) card.classList.add("decided");
+
+      const header = document.createElement("div");
+      header.className = "match-info-label";
+      header.innerHTML =
+        `<span>${escapeHtml(matchTag(matchId))}</span><span>${escapeHtml(matchSubtitle(matchId, matchData))}</span>`;
+      card.appendChild(header);
+
+      const renderRow = (team, isTeam2) => {
+        const row = document.createElement("div");
+
+        if (!team) {
+          row.className = "match-team placeholder";
+          row.textContent = placeholderText(matchId, matchData, isTeam2);
+          return row;
+        }
+
+        const isWinner = store[matchId] === team.name;
+
+        row.className = `match-team${isWinner ? " winner" : ""}`;
+        row.setAttribute("tabindex", "0");
+        row.setAttribute("role", "button");
+        row.setAttribute("aria-pressed", String(isWinner));
+        row.setAttribute("aria-label", `${matchTitle(matchId)}: pick ${team.name} to go through`);
+        row.innerHTML = `
+          <img class="match-team-flag" src="${getFlagUrl(team.code)}" alt="" onerror="this.style.visibility='hidden'">
+          <span class="match-team-name" title="${escapeHtml(team.name)}">${escapeHtml(team.name)}</span>
+        `;
+
+        const pick = () => {
+          if (matchData.round === "po") selectPlayoffWinner(matchId, team);
+          else advanceWinner(matchId, team);
+        };
+
+        row.addEventListener("click", pick);
+        row.addEventListener("keydown", e => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            pick();
+          }
+        });
+
+        return row;
+      };
+
+      card.appendChild(renderRow(matchData.team1, false));
+      card.appendChild(renderRow(matchData.team2, true));
+      return card;
+    }
+
+    function renderKnockoutBracket() {
+      const matches = calculateMatchesData();
+
+      BRACKET_IDS.forEach(id => {
+        const slot = document.getElementById(`d-${id}`);
+        if (!slot) return;
+        slot.innerHTML = "";
+        slot.appendChild(createMatchCard(id, matches[id]));
+      });
+
+      const champion = resolveWinner(matches.final, state.bracketWinner.final);
+      const runnerUp = getFinalLoser(matches);
+
+      document.getElementById("d-champion").innerHTML = championCardHtml(champion, runnerUp);
+      document.getElementById("mobile-champion-container").innerHTML = championCardHtml(champion, runnerUp);
+
+      renderMobileBracketView(matches);
+    }
+
+    function getFinalLoser(matches) {
+      const winnerName = state.bracketWinner.final;
+      if (!winnerName) return null;
+      const { team1, team2 } = matches.final;
+      if (team1 && team1.name === winnerName) return team2;
+      if (team2 && team2.name === winnerName) return team1;
+      return null;
+    }
+
+    function championCardHtml(champion, runnerUp) {
+      const slot = (team, label) => team
+        ? `<div class="champion-slot">
+             <div class="champion-team">
+               <img src="${getFlagUrl(team.code)}" alt="" onerror="this.style.visibility='hidden'">
+               <span>${escapeHtml(team.name)}</span>
+             </div>
+             <div class="champion-label">${label}</div>
+           </div>`
+        : `<div class="champion-slot">
+             <div class="champion-empty">Not decided yet</div>
+             <div class="champion-label">${label}</div>
+           </div>`;
+
+      return `
+        <div class="champion-card">
+          <div class="champion-title">Your Champion</div>
+          <i class="fas fa-trophy trophy" aria-hidden="true"></i>
+          ${slot(champion, "Winner")}
+          ${slot(runnerUp, "Runner-up")}
+          <div class="champion-venue">Estadio Metropolitano<br>Madrid · 5 June 2027</div>
+        </div>
+      `;
+    }
+
+    function renderMobileBracketView(matches) {
+      const container = document.getElementById("mobile-bracket-list-container");
+      container.innerHTML = "";
+
+      const roundIds = {
+        r16: R16_IDS,
+        qf: QF_IDS,
+        sf: SF_IDS,
+        final: ["final"]
+      }[activeMobileRound] || R16_IDS;
+
+      roundIds.forEach(id => container.appendChild(createMatchCard(id, matches[id])));
+
+      document.getElementById("mobile-champion-container").style.display =
+        activeMobileRound === "final" ? "" : "none";
+    }
+
+    function renderAllViews() {
+      renderLeaguePhase();
+      renderPlayoffs();
+      renderKnockoutBracket();
+    }
+
+    // ---------------------------------------------------------------------
+    // PERSISTENCE
+    // The share code is three dash-separated fields:
+    //   1. the finishing order, 36 base-36 digits (one per club)
+    //   2. the eight play-off picks
+    //   3. the fifteen bracket picks (8 R16, 4 QF, 2 SF, 1 final)
+    // Each pick is 0 for the home/higher-seeded side, 1 for the other, x for
+    // undecided.
+    // ---------------------------------------------------------------------
+    function pickBit(match, winnerName) {
+      if (!winnerName || !match) return "x";
+      if (match.team1 && match.team1.name === winnerName) return "0";
+      if (match.team2 && match.team2.name === winnerName) return "1";
+      return "x";
+    }
+
+    function serializeState() {
+      const matches = calculateMatchesData();
+      const orderCode = state.order.map(i => i.toString(36)).join("");
+      const playoffBits = PLAYOFF_IDS.map(id => pickBit(matches[id], state.playoffWinner[id])).join("");
+      const bracketBits = BRACKET_IDS.map(id => pickBit(matches[id], state.bracketWinner[id])).join("");
+      return `${orderCode}-${playoffBits}-${bracketBits}`;
+    }
+
+    function deserializeState(serial) {
+      try {
+        const parts = String(serial).split("-");
+        if (parts.length !== 3) return false;
+
+        const [orderCode, playoffBits, bracketBits] = parts;
+        if (orderCode.length !== TEAM_COUNT) return false;
+        if (playoffBits.length !== PLAYOFF_IDS.length) return false;
+        if (bracketBits.length !== BRACKET_IDS.length) return false;
+
+        // The order field has to be a genuine permutation of all 36 clubs.
+        const order = [];
+        const seen = new Set();
+        for (const ch of orderCode) {
+          const idx = parseInt(ch, 36);
+          if (Number.isNaN(idx) || idx < 0 || idx >= TEAM_COUNT || seen.has(idx)) return false;
+          seen.add(idx);
+          order.push(idx);
+        }
+
+        state.order = order;
+        state.playoffWinner = {};
+        state.bracketWinner = {};
+
+        // Picks are read round by round: a later round only resolves once the
+        // ties feeding it have been filled in.
+        const readPicks = (store, ids, bits) => {
+          ids.forEach((id, i) => {
+            const team = pickTeam(calculateMatchesData()[id], bits[i]);
+            if (team) store[id] = team.name;
+          });
+        };
+
+        readPicks(state.playoffWinner, PLAYOFF_IDS, playoffBits);
+        readPicks(state.bracketWinner, BRACKET_IDS, bracketBits);
+
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    function pickTeam(match, bit) {
+      if (!match || (bit !== "0" && bit !== "1")) return null;
+      return bit === "0" ? match.team1 : match.team2;
+    }
+
+    function saveStateToLocalStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, serializeState());
+      } catch (err) {
+        /* Private browsing or a full quota — the session simply is not saved. */
+      }
+    }
+
+    function loadStateFromLocalStorage() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? deserializeState(saved) : false;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    function loadStateFromUrl() {
+      const serial = new URLSearchParams(window.location.search).get("s");
+      if (!serial) return false;
+      if (!deserializeState(serial)) return false;
+      saveStateToLocalStorage();
+      return true;
+    }
+
+    function createShareableUrl() {
+      return `${window.location.origin}${window.location.pathname}?s=${serializeState()}`;
+    }
+
+    function resetToDefaults(showFeedback = true) {
+      // Seeding-pot order is the starting table: pot 1 first, pot 4 last.
+      state.order = LEAGUE_TEAMS.map((_, i) => i);
+      state.playoffWinner = {};
+      state.bracketWinner = {};
+      saveStateToLocalStorage();
+
+      if (showFeedback) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        renderAllViews();
+        showToast("Bracket reset to the seeding-pot order.", "success");
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // EXPORT
+    // ---------------------------------------------------------------------
+    function exportPredictions() {
+      const matches = calculateMatchesData();
+      const champion = resolveWinner(matches.final, state.bracketWinner.final);
+      const runnerUp = getFinalLoser(matches);
+
+      const tieLine = (id, store) => {
+        const m = matches[id];
+        const t1 = m.team1 ? m.team1.name : "?";
+        const t2 = m.team2 ? m.team2.name : "?";
+        return `${t1} v ${t2} --> ${store[id] || "Undecided"}`;
+      };
+
+      let doc = "=================================================\n";
+      doc += "  2026/27 UEFA CHAMPIONS LEAGUE BRACKET PREDICTION\n";
+      doc += "=================================================\n\n";
+
+      doc += "--- LEAGUE PHASE TABLE ---\n";
+      state.order.forEach((teamIndex, i) => {
+        const rank = i + 1;
+        const marker = rank <= 8 ? "[R16]" : rank <= 24 ? "[PO] " : "[OUT]";
+        doc += `${String(rank).padStart(2, " ")}. ${marker} ${LEAGUE_TEAMS[teamIndex].name}\n`;
+      });
+
+      doc += "\n--- KNOCKOUT PLAY-OFFS ---\n";
+      PLAYOFF_TIES.forEach((tie, i) => {
+        doc += `  Play-off ${i + 1} (${ordinal(tie.seedA)} v ${ordinal(tie.seedB)}): ${tieLine(tie.id, state.playoffWinner)}\n`;
+      });
+
+      doc += "\n--- ROUND OF 16 ---\n";
+      R16_IDS.forEach((id, i) => { doc += `  Tie ${i + 1}: ${tieLine(id, state.bracketWinner)}\n`; });
+
+      doc += "\n--- QUARTER-FINALS ---\n";
+      QF_IDS.forEach((id, i) => { doc += `  QF ${i + 1}: ${tieLine(id, state.bracketWinner)}\n`; });
+
+      doc += "\n--- SEMI-FINALS ---\n";
+      SF_IDS.forEach((id, i) => { doc += `  SF ${i + 1}: ${tieLine(id, state.bracketWinner)}\n`; });
+
+      doc += "\n--- FINAL (Estadio Metropolitano, Madrid, 5 June 2027) ---\n";
+      doc += `  ${tieLine("final", state.bracketWinner)}\n\n`;
+
+      doc += "--- RESULT ---\n";
+      doc += `Champion:   ${champion ? champion.name : "Undecided"}\n`;
+      doc += `Runner-up:  ${runnerUp ? runnerUp.name : "Undecided"}\n\n`;
+      doc += `Generated at: ${new Date().toLocaleString()}\n`;
+      doc += `Share link: ${createShareableUrl()}\n`;
+
+      const blob = new Blob([doc], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `RJ_UCL_2627_Bracket_${Date.now()}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast("Prediction summary downloaded.", "success");
+    }
+
+    // ---------------------------------------------------------------------
+    // CELEBRATION
+    // ---------------------------------------------------------------------
+    function triggerChampionCelebration() {
+      const canvas = document.getElementById("celebration-canvas");
+      const reduceMotion = typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      showToast("Champion of Europe crowned!", "success");
+      if (reduceMotion) return;
+
+      const ctx = canvas.getContext && canvas.getContext("2d");
+      if (!ctx) return;
+
+      canvas.style.display = "block";
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const colors = ["#476be1", "#7de8ff", "#e2c275", "#ffffff", "#c0c8e8"];
+      const particles = [];
+
+      for (let i = 0; i < 150; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height - canvas.height,
+          size: Math.random() * 8 + 6,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vx: Math.random() * 4 - 2,
+          vy: Math.random() * 5 + 4,
+          rotation: Math.random() * 360,
+          rotationSpeed: Math.random() * 4 - 2
+        });
+      }
+
+      let framesLeft = 130;
+      function frame() {
+        if (framesLeft <= 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          canvas.style.display = "none";
+          return;
+        }
+        framesLeft--;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rotation += p.rotationSpeed;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size / 2);
+          ctx.restore();
+        });
+
+        requestAnimationFrame(frame);
+      }
+      frame();
+    }
+
+    // ---------------------------------------------------------------------
+    // UI WIRING
+    // ---------------------------------------------------------------------
+    function setupThemeToggle() {
+      const btn = document.getElementById("theme-toggle-btn");
+      btn.addEventListener("click", () => {
+        const goingLight = !document.body.classList.contains("light-theme");
+        document.body.classList.toggle("light-theme", goingLight);
+        btn.querySelector("i").className = goingLight ? "fas fa-sun" : "fas fa-moon";
+        try {
+          localStorage.setItem(THEME_KEY, goingLight ? "light" : "dark");
+        } catch (err) {
+          /* Theme preference just will not persist. */
+        }
+        showToast(goingLight ? "Light mode enabled" : "Dark mode enabled");
+      });
+    }
+
+    function setupTabs() {
+      const tabBtns = document.querySelectorAll(".tab-btn");
+      const panels = document.querySelectorAll(".view-panel");
+
+      tabBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+          tabBtns.forEach(b => b.classList.remove("active"));
+          panels.forEach(p => p.classList.remove("active"));
+          btn.classList.add("active");
+          document.getElementById(btn.getAttribute("data-tab")).classList.add("active");
+        });
+      });
+
+      document.querySelectorAll(".mobile-tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".mobile-tab-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          activeMobileRound = btn.getAttribute("data-round");
+          renderMobileBracketView(calculateMatchesData());
+        });
+      });
+    }
+
+    function copyToClipboard(text) {
+      const fallback = () => {
+        const input = document.createElement("input");
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        try {
+          document.execCommand("copy");
+          showToast("Share link copied to your clipboard.", "success");
+        } catch (err) {
+          window.prompt("Copy this share link:", text);
+        }
+        document.body.removeChild(input);
+      };
+
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text)
+          .then(() => showToast("Share link copied to your clipboard.", "success"))
+          .catch(fallback);
+      } else {
+        fallback();
+      }
+    }
+
+    function setupUtilityButtons() {
+      document.getElementById("reset-btn").addEventListener("click", () => {
+        if (window.confirm("Reset the whole bracket? Every pick you have made will be cleared.")) {
+          resetToDefaults(true);
+        }
+      });
+
+      document.getElementById("share-btn").addEventListener("click", () => copyToClipboard(createShareableUrl()));
+      document.getElementById("download-btn").addEventListener("click", exportPredictions);
+    }
+
+    function initSystem() {
+      let savedTheme = "dark";
+      try {
+        savedTheme = localStorage.getItem(THEME_KEY) || "dark";
+      } catch (err) {
+        /* Storage is unavailable; fall back to the dark default. */
+      }
+      if (savedTheme === "light") {
+        document.body.classList.add("light-theme");
+        document.querySelector("#theme-toggle-btn i").className = "fas fa-sun";
+      }
+
+      // A shared link wins over whatever this browser had saved.
+      if (!loadStateFromUrl() && !loadStateFromLocalStorage()) {
+        resetToDefaults(false);
+      }
+
+      setupThemeToggle();
+      setupTabs();
+      setupUtilityButtons();
+      setupDragDropListeners();
+
+      renderAllViews();
+    }
+
+    window.addEventListener("DOMContentLoaded", initSystem);
+  </script>
+</body>
+
+</html>

@@ -52,6 +52,7 @@ Jest, no bundler.
 | `terminal.test.js` | 271 | Output builders escaping by construction; history (repeat collapsing, navigation, oversized entries, unparseable storage, flush persistence); individual commands; completion (common prefix, arguments, ambiguity, hidden commands never completed); keymap intents |
 | `analytics-queue.test.js` | 127 | **BUG-08 regression.** The queue key is namespaced per session; `initAnalytics` discards another session's persisted queue; a restored queue is filtered to the owning session's events |
 | `auth-refresh.test.js` | 144 | **BUG-03 regression.** Concurrent 401s share one refresh instead of racing rotation; a later 401 starts a fresh refresh; a genuinely failed refresh signs the user out exactly once |
+| `ucl-bracket.test.js` | 172 | The Champions League predictor end to end in jsdom: the 36-row table renders in its three qualification zones, the play-off ties pair seeds 9–16 against 17–24, the round of 16 seeds the top eight against the reserved bands, a chalk bracket crowns the top seed, the `?s=` share code round-trips, reordering the table clears picks that no longer exist, and a malformed share code falls back to the default table |
 | `contact-form.test.js` | 246 | Accessible invalid-field feedback; the FormSubmit honeypot is excluded from validation but forwarded in the payload; offline submissions blocked; loading state set and reset; a timed-out request does **not** fall through to a native resubmission |
 
 The two regression files exist because both bugs were silent and expensive: one
@@ -163,7 +164,7 @@ There is no coverage gate on the frontend suite.
 | :--- | :--- | :--- |
 | ESLint | `frontend/*.js`, `frontend/js/*.js`, `frontend/js/terminal/*.js` | `.eslintrc.json` — `no-undef: error`, `no-unused-vars: warn` (ignoring `^_`), `DOMPurify`/`marked` as read-only globals, service-worker env override for `sw.js`, `dist/**` ignored |
 | Stylelint | `frontend/**/*.css` | `.stylelintrc.json` — `stylelint-config-standard` with cosmetic rules disabled; `frontend/vendor/**` ignored |
-| Prettier | `**/*.{html,css,js,json,md,yml,yaml}` | `.prettierignore` excludes `frontend/index.html` (CSP-hashed inline scripts), `worldcup.html`, the generated locks, `fonts.css`/`fonts/`, and `vendor/` |
+| Prettier | `**/*.{html,css,js,json,md,yml,yaml}` | `.prettierignore` excludes `frontend/index.html` (CSP-hashed inline scripts), `worldcup.html`, `ucl.html`, the generated locks, `fonts.css`/`fonts/`, and `vendor/` |
 | ruff | `server`, `tests` | `ruff.toml` — `F`, `E`, `W`, `B`, `ASYNC`, `C4`; ignores `E501`, `B008` (FastAPI's dependency idiom is a call in a default argument) and `E712` (`Column == False` builds SQL, and ruff's fix would silently break the query) |
 
 The backend had no linting at all while the frontend ran two linters. `F821`

@@ -67,7 +67,8 @@ renderer.
 │   │   └── terminal/            # Command prompt: registry, output, history, keymap, palette
 │   ├── vendor/                  # DOMPurify + marked, copied verbatim from npm
 │   ├── tests/                   # Node test runner + jsdom suites
-│   └── worldcup.html            # Standalone side project (2026 World Cup bracket predictor)
+│   ├── worldcup.html            # Standalone side project (2026 World Cup bracket predictor, retired)
+│   └── ucl.html                 # Standalone side project (2026/27 Champions League bracket predictor)
 ├── server/                      # FastAPI service — see docs/BACKEND.md
 │   ├── main.py                  # App factory, middleware stack, dual-prefix router mounting
 │   ├── config/                  # env readers, settings, Bedrock clients + concurrency slots
