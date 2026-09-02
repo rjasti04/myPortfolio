@@ -284,7 +284,8 @@ missing, so a failed update is visible but not dangerous.
 | `rajeev_jasti.pdf.pdf` | Downloadable résumé (the doubled extension is the actual filename) |
 | `robots.txt` | Allows everything except `/api/`; points at the sitemap |
 | `sitemap.xml` | Single URL entry with an image annotation |
-| `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build |
+| `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none` |
+| `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. Linked from the header as `#ucl-link`; covered by `frontend/tests/ucl-bracket.test.js` |
 
 `assets/master-icon.png` lives **outside** `frontend/` deliberately, so the
 deploy's `rsync` never publishes it to the web root.
@@ -323,7 +324,7 @@ file from an unchanged one.
 | `app-logic.js` | Built separately as an **IIFE** (it is a classic script). Its `module.exports` block, present for the Node test runner, is silenced via `logOverride` |
 | `theme-bootstrap.js` | Built separately as an IIFE — it runs before first paint as a plain script |
 | CSS | `styles.css`, `auth-modal.css`, `fonts.css` bundled and minified, `.woff2` emitted as hashed file assets with `url()` references rewritten |
-| Static | Copied by extension allowlist; `tests/` skipped; `fonts/` skipped (the hashed copies come from the CSS build); vendor scripts, `.htaccess` and `worldcup.html` copied explicitly |
+| Static | Copied by extension allowlist; `tests/` skipped; `fonts/` skipped (the hashed copies come from the CSS build); vendor scripts, `.htaccess`, `worldcup.html` and `ucl.html` copied explicitly |
 | `index.html` | Asset `src`/`href` attributes rewritten to hashed paths. **Inline `<script>` bodies are never touched.** Throws if no reference was rewritten |
 | `sw.js` | `CACHE_NAME` and `PRECACHE_URLS` rewritten from what was actually built. Throws if neither substitution matched |
 

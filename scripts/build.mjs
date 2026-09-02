@@ -189,7 +189,7 @@ async function main() {
     copied.push(rel);
   }
 
-  for (const extra of [".htaccess", "worldcup.html"]) {
+  for (const extra of [".htaccess", "worldcup.html", "ucl.html"]) {
     if (existsSync(join(SRC, extra))) {
       await cp(join(SRC, extra), join(OUT, extra));
       copied.push(extra);

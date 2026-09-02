@@ -8,9 +8,10 @@
 # format` from causing it in the first place.
 frontend/index.html
 
-# 80 KB, one large inline script, no CSP of its own. Reformatting it is a large
-# diff with no benefit.
+# The standalone bracket predictors: ~75-80 KB each, one large inline script,
+# no CSP of their own. Reformatting them is a large diff with no benefit.
 frontend/worldcup.html
+frontend/ucl.html
 
 # Generated locks and coverage artefacts.
 package-lock.json
