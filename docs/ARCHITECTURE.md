@@ -118,14 +118,14 @@ fire-and-forget tasks are awaited, and the SQLAlchemy engine is disposed.
 | `fonts.css`, `fonts/` | **Generated** by `scripts/vendor_fonts.py` — subset Plus Jakarta Sans + Font Awesome |
 | `sw.js` | Service worker: precache install, network-first for documents, stale-while-revalidate for hashed assets, API responses never cached |
 | `manifest.json` | PWA metadata (`standalone`, dark background, two icons) |
-| `.htaccess` | Apache compression, cache headers (immutable for hashed assets), security headers |
+| `.htaccess` | Apache canonical-URL rewrites (extensionless paths, apex host), compression, cache headers (immutable for hashed assets), security headers |
 | `three-bg.js` | Full-viewport animated plexus background — plain 2D canvas despite the name |
 | `js/` | ES modules; see [`JAVASCRIPT.md`](JAVASCRIPT.md) |
 | `js/terminal/` | The command prompt, split into data (`registry`), DOM builders (`output`), `history`, `keymap`, `palette` and the `index` that owns all wiring |
 | `vendor/` | DOMPurify + marked, copied verbatim from the npm packages pinned in `package.json` |
 | `tests/` | Node test runner + jsdom suites (excluded from `dist/`) |
-| `worldcup.html` | Standalone side project, unrelated to the portfolio SPA (retired — the header link is hidden) |
-| `ucl.html` | Standalone side project, unrelated to the portfolio SPA — the 2026/27 Champions League bracket predictor |
+| `worldcup.html` | Standalone side project, unrelated to the portfolio SPA, served at `/worldcup` (retired — the header link is hidden) |
+| `ucl.html` | Standalone side project, unrelated to the portfolio SPA — the 2026/27 Champions League bracket predictor, served at `/ucl` |
 
 ### `server/` — the API tier
 
@@ -155,7 +155,7 @@ domain logic for auth, Bedrock, chat history, ingest, breach checks and email.
 | Path | Role |
 | :--- | :--- |
 | `tests/backend/` | pytest suites — `unit/` (6 files) and `integration/` (6 files) |
-| `scripts/` | `build.mjs`, `check_csp_hashes.py`, `vendor_fonts.py`, three Pillow image helpers |
+| `scripts/` | `build.mjs`, `check_csp_hashes.py`, `vendor_fonts.py`, four Pillow image helpers (one of them, `generate_social_previews.py`, renders the cards in `scripts/social-previews/`) |
 | `docs/` | This documentation set |
 | `assets/` | `master-icon.png` — kept outside `frontend/` so the deploy never publishes it |
 | `.github/workflows/` | `deploy.yml` — the whole CI/CD pipeline |

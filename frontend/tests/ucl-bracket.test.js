@@ -10,7 +10,7 @@ const html = readFileSync("frontend/ucl.html", "utf8");
 function boot(search = "") {
   const dom = new JSDOM(html, {
     runScripts: "dangerously",
-    url: "https://rjasti.com/ucl.html" + search,
+    url: "https://rjasti.com/ucl" + search,
     pretendToBeVisual: true,
   });
 

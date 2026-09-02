@@ -1,0 +1,156 @@
+/* Shared skeleton for the three 1200x630 Open Graph cards.
+   Rendered to PNG by scripts/generate_social_previews.py.
+
+   The fonts are the site's own self-hosted subsets, referenced straight out
+   of frontend/fonts/ so a card can never drift from the typeface the page
+   uses. All four weights share two files - Plus Jakarta Sans ships as a
+   variable font - which is why every @font-face below names the same src. */
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  src: url(../../frontend/fonts/plus-jakarta-sans-latin-153fc85b.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  src: url(../../frontend/fonts/plus-jakarta-sans-latin-153fc85b.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  src: url(../../frontend/fonts/plus-jakarta-sans-latin-153fc85b.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 800;
+  src: url(../../frontend/fonts/plus-jakarta-sans-latin-153fc85b.woff2) format('woff2');
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 1200px;
+  height: 630px;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The card is the crop. generate_social_previews.py screenshots a taller
+   viewport and trims to exactly 1200x630, so nothing may sit outside this. */
+.card {
+  position: relative;
+  width: 1200px;
+  height: 630px;
+  padding: 66px 68px 60px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ambient wash. Each card positions and colours its own. */
+.glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.body {
+  position: relative;
+  display: flex;
+  gap: 52px;
+  flex: 1;
+  min-height: 0;
+}
+
+.left {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rule {
+  width: 84px;
+  height: 8px;
+  border-radius: 4px;
+  margin-bottom: 26px;
+}
+
+.eyebrow {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: 74px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+  margin-top: 16px;
+}
+
+.title .thin {
+  display: block;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin-bottom: 2px;
+}
+
+.lead {
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1.48;
+  margin-top: 22px;
+}
+
+.chips {
+  display: flex;
+  gap: 13px;
+  margin-top: auto;
+  padding-top: 30px;
+}
+
+.chip {
+  font-size: 19px;
+  font-weight: 700;
+  padding: 11px 20px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Footer sits outside .body so it pins to the bottom edge of the card. */
+.footer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 30px;
+  padding-top: 22px;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.footer .url {
+  letter-spacing: -0.01em;
+}
+
+.footer .meta {
+  font-size: 19px;
+  font-weight: 600;
+}

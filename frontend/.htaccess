@@ -1,3 +1,39 @@
+# Canonical URLs
+#
+# One hostname and one address per page. Requires AllowOverride FileInfo on
+# the document root — the same grant the mod_headers block below already
+# depends on. `curl -sI https://rjasti.com/ucl` must answer 200 with the
+# no-store Cache-Control set at the bottom of this file; if it 404s, the
+# override is off and these rules need to move into the vhost.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # 1. Extensionless addresses. THE_REQUEST is the raw request line, so these
+  #    match only what the browser actually asked for and never the internal
+  #    rewrite in rule 3 — no redirect loop. The target is absolute so a
+  #    request to www.rjasti.com/ucl.html lands on rjasti.com/ucl in one hop
+  #    instead of chaining through rule 2. mod_rewrite re-appends the original
+  #    query string, so a ?s= share code survives the redirect.
+  RewriteCond %{THE_REQUEST} \s/+index\.html[\s?] [NC]
+  RewriteRule ^ https://rjasti.com/ [R=301,L]
+
+  RewriteCond %{THE_REQUEST} \s/+([^?\s]+)\.html[\s?] [NC]
+  RewriteRule ^ https://rjasti.com/%1 [R=301,L]
+
+  # 2. Apex host. sitemap.xml, robots.txt and the canonical tags all name
+  #    rjasti.com; without this, www serves a duplicate of every page and
+  #    ucl.html's share links inherit whichever host the visitor arrived on.
+  RewriteCond %{HTTP_HOST} ^www\. [NC]
+  RewriteRule ^ https://rjasti.com%{REQUEST_URI} [R=301,L]
+
+  # 3. Serve /ucl from ucl.html without changing the address bar. Guarded on
+  #    the file existing, so /api and every real asset fall straight through.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME}.html -f
+  RewriteRule ^(.*)$ $1.html [L]
+</IfModule>
+
 # Enable Gzip Compression
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml

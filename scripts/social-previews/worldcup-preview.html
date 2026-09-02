@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Open Graph card — World Cup predictor</title>
+  <link rel="stylesheet" href="card.css">
+  <style>
+    /* Tokens lifted from :root in frontend/worldcup.html. */
+    .card {
+      background: hsl(222, 47%, 10%);
+      color: hsl(210, 40%, 98%);
+    }
+
+    .glow-ruby {
+      width: 700px;
+      height: 700px;
+      top: -320px;
+      right: -170px;
+      background: radial-gradient(circle, hsla(348, 85%, 53%, 0.30), transparent 66%);
+    }
+
+    .glow-pitch {
+      width: 520px;
+      height: 520px;
+      bottom: -270px;
+      left: -150px;
+      background: radial-gradient(circle, hsla(212, 100%, 50%, 0.20), transparent 66%);
+    }
+
+    .rule {
+      background: linear-gradient(90deg, hsl(348, 85%, 53%), hsl(212, 100%, 50%));
+    }
+
+    .eyebrow {
+      color: hsl(348, 85%, 63%);
+    }
+
+    .left {
+      width: 640px;
+    }
+
+    .title {
+      font-size: 70px;
+    }
+
+    .title .thin {
+      color: hsl(215, 20%, 65%);
+    }
+
+    .lead {
+      color: hsl(215, 20%, 65%);
+      max-width: 600px;
+    }
+
+    .chip {
+      background: hsl(223, 30%, 18%);
+      border-color: hsl(223, 20%, 26%);
+      color: hsl(210, 40%, 98%);
+    }
+
+    .chip.ruby {
+      background: rgba(235, 35, 75, 0.18);
+      border-color: rgba(235, 35, 75, 0.5);
+      color: hsl(348, 85%, 70%);
+    }
+
+    .table {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      font-size: 15px;
+      font-weight: 600;
+      color: hsl(215, 20%, 65%);
+    }
+
+    .legend span {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .legend i {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+    }
+
+    .footer {
+      border-top: 1px solid hsl(223, 20%, 26%);
+    }
+
+    .footer .url {
+      color: hsl(210, 40%, 98%);
+    }
+
+    .footer .meta {
+      color: hsl(215, 20%, 65%);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="glow glow-ruby"></div>
+    <div class="glow glow-pitch"></div>
+
+    <div class="body">
+      <div class="left">
+        <div class="rule"></div>
+        <div class="eyebrow">Bracket Predictor</div>
+        <h1 class="title"><span class="thin">2026 FIFA</span>World Cup</h1>
+        <p class="lead">Predict the group stages, advance the best third-place
+          wildcards, and simulate the knockout stage to crown your champion.</p>
+        <div class="chips">
+          <span class="chip">48 teams</span>
+          <span class="chip">12 groups</span>
+          <span class="chip ruby">8 third-place wildcards</span>
+        </div>
+      </div>
+
+      <!-- A group table, the artefact this page is built around. The rows are
+           deliberately abstract - a predictor card should not ship a
+           prediction - but the status colours are the page's own. -->
+      <div class="table">
+        <svg width="300" height="232" viewBox="0 0 300 232" fill="none" aria-hidden="true">
+          <rect x="0.75" y="0.75" width="298.5" height="230.5" rx="18" fill="hsl(223, 40%, 14%)"
+            stroke="hsl(223, 20%, 26%)" stroke-width="1.5" />
+          <line x1="0" y1="46" x2="300" y2="46" stroke="hsl(223, 20%, 26%)" stroke-width="1.5" />
+
+          <text x="20" y="31" fill="hsl(210, 40%, 98%)" font-family="'Plus Jakarta Sans'" font-size="15"
+            font-weight="800" letter-spacing="1.6">GROUP A</text>
+          <text x="280" y="31" fill="hsl(215, 20%, 65%)" font-family="'Plus Jakarta Sans'" font-size="13"
+            font-weight="700" letter-spacing="1.2" text-anchor="end">PTS</text>
+
+          <!-- 1st and 2nd advance, 3rd goes to the wildcard pool, 4th is out. -->
+          <g>
+            <rect x="20" y="62" width="26" height="26" rx="8" fill="rgba(16, 185, 129, 0.18)" />
+            <rect x="20" y="106" width="26" height="26" rx="8" fill="rgba(16, 185, 129, 0.18)" />
+            <rect x="20" y="150" width="26" height="26" rx="8" fill="rgba(245, 158, 11, 0.18)" />
+            <rect x="20" y="194" width="26" height="26" rx="8" fill="rgba(248, 113, 113, 0.16)" />
+          </g>
+          <g font-family="'Plus Jakarta Sans'" font-size="14" font-weight="800" text-anchor="middle">
+            <text x="33" y="80" fill="#10b981">1</text>
+            <text x="33" y="124" fill="#10b981">2</text>
+            <text x="33" y="168" fill="#f59e0b">3</text>
+            <text x="33" y="212" fill="#f87171">4</text>
+          </g>
+
+          <!-- Flag block plus a name bar per row. -->
+          <g fill="hsl(215, 20%, 65%)" fill-opacity="0.5">
+            <rect x="58" y="68" width="22" height="15" rx="3" />
+            <rect x="58" y="112" width="22" height="15" rx="3" />
+            <rect x="58" y="156" width="22" height="15" rx="3" />
+            <rect x="58" y="200" width="22" height="15" rx="3" />
+            <rect x="90" y="71" width="112" height="9" rx="4" />
+            <rect x="90" y="115" width="86" height="9" rx="4" />
+            <rect x="90" y="159" width="98" height="9" rx="4" />
+            <rect x="90" y="203" width="74" height="9" rx="4" />
+          </g>
+          <g fill="hsl(210, 40%, 98%)" fill-opacity="0.75">
+            <rect x="252" y="71" width="28" height="9" rx="4" />
+            <rect x="252" y="115" width="28" height="9" rx="4" />
+            <rect x="252" y="159" width="28" height="9" rx="4" />
+            <rect x="252" y="203" width="28" height="9" rx="4" />
+          </g>
+        </svg>
+
+        <div class="legend">
+          <span><i style="background:#10b981"></i>Advance</span>
+          <span><i style="background:#f59e0b"></i>Wildcard</span>
+          <span><i style="background:#f87171"></i>Out</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="url">rjasti.com/worldcup</span>
+      <span class="meta">Groups &bull; Wildcards &bull; Knockouts</span>
+    </div>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Open Graph card — portfolio</title>
+  <link rel="stylesheet" href="card.css">
+  <style>
+    /* Light theme tokens, lifted from :root in frontend/styles.css. */
+    .card {
+      background: radial-gradient(ellipse at top left, #ffffff, hsl(38, 55%, 95%) 35%, hsl(68, 50%, 96%) 70%, #fdfdfd);
+      color: #0f172a;
+    }
+
+    .glow-amber {
+      width: 640px;
+      height: 640px;
+      top: -280px;
+      right: -180px;
+      background: radial-gradient(circle, hsla(38, 92%, 50%, 0.20), transparent 66%);
+    }
+
+    .glow-olive {
+      width: 560px;
+      height: 560px;
+      bottom: -300px;
+      left: -160px;
+      background: radial-gradient(circle, hsla(68, 100%, 30%, 0.14), transparent 66%);
+    }
+
+    .rule {
+      background: hsl(38, 92%, 50%);
+    }
+
+    .eyebrow {
+      color: hsl(38, 92%, 30%);
+    }
+
+    .left {
+      width: 620px;
+    }
+
+    .kicker {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 20px;
+      font-size: 22px;
+      font-weight: 700;
+      color: #3f4b5a;
+    }
+
+    .kicker .dot {
+      color: hsl(38, 92%, 50%);
+      font-size: 16px;
+    }
+
+    .lead {
+      color: #3f4b5a;
+      max-width: 560px;
+    }
+
+    /* Three of the six stat cards on the page, in page order. */
+    .stats {
+      display: flex;
+      gap: 14px;
+      margin-top: auto;
+      padding-top: 34px;
+    }
+
+    .stat {
+      flex: 1;
+      padding: 16px 18px 15px;
+      border-radius: 16px;
+      background: hsl(0, 0%, 100%, 0.92);
+      border: 1px solid hsl(220, 39%, 11%, 0.13);
+      box-shadow: 0 4px 12px hsl(220, 39%, 11%, 0.07);
+    }
+
+    .stat .num {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: hsl(38, 92%, 30%);
+    }
+
+    .stat .label {
+      margin-top: 3px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #3f4b5a;
+    }
+
+    /* The hero's glass-dark command prompt, at card scale. */
+    .terminal {
+      width: 392px;
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      border-radius: 20px;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid #313244;
+      box-shadow: 0 24px 56px hsl(220, 39%, 11%, 0.22);
+      overflow: hidden;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 18px;
+      border-bottom: 1px solid #313244;
+    }
+
+    .terminal-bar .d {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+    }
+
+    .terminal-bar .name {
+      margin-left: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #bac2de;
+    }
+
+    .terminal-body {
+      flex: 1;
+      padding: 18px;
+      font: 400 15px/1.85 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+      color: #cdd6f4;
+      white-space: pre;
+    }
+
+    .terminal-body .p {
+      color: #a6e3a1;
+      font-weight: 700;
+    }
+
+    .terminal-body .k {
+      color: #bac2de;
+    }
+
+    .terminal-body .caret {
+      display: inline-block;
+      width: 9px;
+      height: 17px;
+      vertical-align: -3px;
+      background: hsl(38, 92%, 55%);
+    }
+
+    .footer {
+      border-top: 1px solid hsl(220, 39%, 11%, 0.13);
+    }
+
+    .footer .url {
+      color: #0f172a;
+    }
+
+    .footer .meta {
+      color: #3f4b5a;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="glow glow-amber"></div>
+    <div class="glow glow-olive"></div>
+
+    <div class="body">
+      <div class="left">
+        <div class="rule"></div>
+        <div class="eyebrow">Principal Data Engineer</div>
+        <h1 class="title">Rajeev Jasti</h1>
+        <div class="kicker">
+          <span>Data Engineering</span><span class="dot">&bull;</span>
+          <span>DBA</span><span class="dot">&bull;</span>
+          <span>Backend</span><span class="dot">&bull;</span>
+          <span>Cloud</span>
+        </div>
+
+        <p class="lead">Distributed high-throughput services, enterprise
+          OLAP/OLTP databases and supply chain data platforms.</p>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="num">8+</div>
+            <div class="label">Years Experience</div>
+          </div>
+          <div class="stat">
+            <div class="num">1M+</div>
+            <div class="label">Events/Second</div>
+          </div>
+          <div class="stat">
+            <div class="num">99.9%</div>
+            <div class="label">Uptime</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="d" style="background:#f38ba8"></span>
+          <span class="d" style="background:#fab387"></span>
+          <span class="d" style="background:#a6e3a1"></span>
+          <span class="name">command prompt</span>
+        </div>
+        <div class="terminal-body"><span class="p">$</span> whoami
+<span class="k">Name:</span>      Rajeev Jasti
+<span class="k">Role:</span>      Principal Data
+          Engineer &amp; Architect
+<span class="k">Exp:</span>       8+ Years
+<span class="p">$</span> skills
+<span class="k">Backend:</span>   Python, FastAPI,
+          SQLAlchemy, boto3
+<span class="k">Data:</span>      PostgreSQL, Redshift,
+          Kafka, PySpark
+<span class="p">$</span> <span class="caret"></span></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="url">rjasti.com</span>
+      <span class="meta">Resume &bull; Skills &bull; Ask AI</span>
+    </div>
+  </div>
+</body>
+
+</html>

@@ -13,6 +13,7 @@ libraries and the build output. For the ES modules themselves see
 - [Fonts](#fonts)
 - [Vendored libraries](#vendored-libraries)
 - [Static assets](#static-assets)
+- [Open Graph cards](#open-graph-cards)
 - [Apache configuration](#apache-configuration)
 - [The build](#the-build)
 - [Accessibility](#accessibility)
@@ -280,15 +281,52 @@ missing, so a failed update is visible but not dangerous.
 | `profile-pic-160.{jpg,webp}`, `profile-pic-360.{jpg,webp}`, `profile-pic.{jpeg,webp}` | Three widths × two formats, from `scripts/generate_profile_pics.py` |
 | `android-chrome-192x192.png`, `android-chrome-512x512.png` | PWA icons, generated from `assets/master-icon.png` |
 | `apple-touch-icon.png`, `favicon.ico` | iOS and browser icons |
-| `social-preview.png` | Open Graph / Twitter card image |
+| `social-preview.png`, `ucl-preview.png`, `worldcup-preview.png` | The three 1200x630 Open Graph cards, one per shareable page. **Generated** by `scripts/generate_social_previews.py` — see [Open Graph cards](#open-graph-cards) |
 | `rajeev_jasti.pdf.pdf` | Downloadable résumé (the doubled extension is the actual filename) |
 | `robots.txt` | Allows everything except `/api/`; points at the sitemap |
-| `sitemap.xml` | Single URL entry with an image annotation |
-| `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none` |
-| `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Linked from the header as `#ucl-link`; covered by `frontend/tests/ucl-bracket.test.js` |
+| `sitemap.xml` | Three URL entries — `/`, `/ucl` and `/worldcup`, each with its Open Graph card as an image annotation |
+| `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup`, with its own canonical and Open Graph tags — see [Apache configuration](#apache-configuration) |
+| `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the header as `#ucl-link`; covered by `frontend/tests/ucl-bracket.test.js` |
 
 `assets/master-icon.png` lives **outside** `frontend/` deliberately, so the
 deploy's `rsync` never publishes it to the web root.
+
+---
+
+## Open Graph cards
+
+`social-preview.png`, `ucl-preview.png` and `worldcup-preview.png` are the link
+previews for `/`, `/ucl` and `/worldcup`. They are **generated**, not drawn:
+
+```bash
+python3 scripts/generate_social_previews.py            # all three
+python3 scripts/generate_social_previews.py ucl        # just one
+```
+
+The source is `scripts/social-previews/` — one HTML file per card over a shared
+`card.css`. Headless Chromium renders each at 1200x630 and Pillow trims and
+flattens the result. The point of building them as HTML is that they cannot
+drift: `card.css` pulls the typeface straight out of `frontend/fonts/`, and
+each card's own `<style>` block carries the tokens copied from the page it
+advertises — the portfolio card is the light amber/olive palette down to the
+hero's command prompt, the two predictor cards are their own dark grounds.
+
+Two things to know before regenerating:
+
+- The script needs a Chromium or Chrome binary. It searches `CHROME_BIN`, then
+  the usual install paths; `--chrome` points it at one directly.
+- The portfolio card's terminal panel resolves the site's own monospace stack,
+  so the browser's fallback decides it. The checked-in PNG came from Liberation
+  Mono.
+
+The bracket and group-table motifs are deliberately abstract — a bracket
+predictor should not ship a prediction in its own link preview.
+
+`.htaccess` serves `.png` as `immutable` for a year, so **replacing** a card
+under the same filename leaves stale copies in intermediary caches, and the
+social networks cache their own scrape regardless. After changing one, re-scrape
+it in the platform's debugger (Facebook Sharing Debugger, LinkedIn Post
+Inspector, X Card Validator).
 
 ---
 
@@ -296,6 +334,15 @@ deploy's `rsync` never publishes it to the web root.
 
 `frontend/.htaccess` ships with the site:
 
+- **Canonical URLs** — `mod_rewrite` gives every page one address. A request
+  for `/ucl.html` is `301`ed to `/ucl` (and `/index.html` to `/`), a request
+  on `www.` is `301`ed to the apex, and `/ucl` is then rewritten *internally*
+  to `ucl.html` so the address bar keeps the clean form. The redirect matches
+  on `THE_REQUEST` — the raw request line — so it sees only what the browser
+  asked for and never the internal rewrite, which is what keeps it from
+  looping. mod_rewrite re-appends the query string, so a `?s=` share code
+  survives. The internal rewrite is guarded on the `.html` file existing, so
+  `/api` and every real asset fall straight through.
 - **Compression** — gzip (`mod_deflate`) and Brotli (`mod_brotli`) for text types.
 - **Expiry** — images and fonts one year; CSS/JS one hour; HTML zero.
 - **Security headers** — `X-Content-Type-Options: nosniff`,
@@ -373,6 +420,12 @@ needed to develop against either.
 
 Service-worker caching can mask changes during development. Use a hard reload,
 or "Update on reload" in the browser's Application panel.
+
+`http.server` does not read `.htaccess`, so the extensionless paths do not
+exist locally: open the predictors at `/ucl.html` and `/worldcup.html` while
+developing. The header links point at `/ucl` and `/worldcup` and will 404 on
+the local server — that is expected, and the only part of the URL change that
+cannot be exercised without Apache.
 
 To exercise the built output instead:
 
