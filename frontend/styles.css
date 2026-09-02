@@ -784,9 +784,17 @@ body.dark-theme #nav-menu {
   box-sizing: border-box;
   text-decoration: none;
   border-radius: 999px;
+
+  /* The active pill is the only nav state with a visible border. Adding that
+     border only on .active grew the link by 2px - these are auto-width
+     inline-flex items, so border-box does not absorb it - and every link to
+     the right of the current section jumped 2px on each navigation. The
+     inactive state now reserves the same box and only the colour changes. */
+  border: 1px solid transparent;
   transition:
     color var(--motion-base) var(--ease-standard),
     background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
     box-shadow var(--motion-base) var(--ease-standard),
     transform var(--motion-base) var(--ease-standard);
   cursor: pointer;
@@ -798,7 +806,7 @@ body.dark-theme #nav-menu {
 #nav-menu a.active {
   background: var(--accent-soft);
   color: var(--accent-text);
-  border: 1px solid var(--accent-mild);
+  border-color: var(--accent-mild);
   box-shadow: 0 0 14px var(--accent-soft), inset 0 0 8px var(--accent-soft);
   font-weight: 700;
 }
@@ -4930,8 +4938,14 @@ body.dark-theme .skill-tag.primary .fas {
     border-width: 2px;
   }
 
+  /* Matches the inactive width too, or the active pill resizes - see the
+     transparent base border in the HEADER & NAVIGATION region. */
+  #nav-menu a {
+    border-width: 2px;
+  }
+
   #nav-menu a.active {
-    border: 2px solid var(--on-accent);
+    border-color: var(--on-accent);
   }
 }
 
@@ -5742,6 +5756,12 @@ body.dark-theme .chat-message.bot .msg-actions {
   font-size: var(--text-sm);
   border-radius: 6px;
   opacity: 0.85;
+
+  /* .copy-tooltip is position: absolute with top: -32px; left: 50%. Without a
+     containing block here it resolved against .chat-message, so "Copied!"
+     surfaced above the middle of the whole bubble instead of over the button -
+     on a long answer, hundreds of pixels from the pointer. */
+  position: relative;
   transition: background-color 0.2s ease, transform 0.1s ease, color 0.2s ease, opacity 0.2s ease;
 }
 
@@ -5780,6 +5800,15 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
 
 .warning-icon {
   color: var(--color-warning);
+}
+
+/* Regenerate replaces the most recent reply, so it is only offered there.
+   On any earlier message the button was still clickable and silently rewrote
+   a different bubble further down the transcript. A bot message stops being
+   the last child the moment the next turn is appended. */
+.chat-messages .chat-message.bot:not(:last-child) .msg-retry-btn,
+.ai-messages .chat-message.bot:not(:last-child) .msg-retry-btn {
+  display: none;
 }
 
 /* Floating copy tooltip */
