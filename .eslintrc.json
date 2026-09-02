@@ -31,5 +31,8 @@
         "browser": false
       }
     }
+  ],
+  "ignorePatterns": [
+    "dist/**"
   ]
 }

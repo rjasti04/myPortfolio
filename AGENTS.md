@@ -3,6 +3,7 @@
 ## Environment Context
 - **Platform**: Static single-page portfolio/PWA frontend, optional FastAPI backend, PostgreSQL database, AWS Amazon Bedrock
 - **Hosting/runtime**: Static web hosting or Apache-compatible server for frontend; ASGI/Uvicorn for API; production API target is `https://rjasti.com/api`
+- **Build**: `npm run build` (esbuild) emits `dist/` - bundled, minified, content-hashed - and the deploy ships that, not `frontend/`. `frontend/` stays the source of truth and still runs standalone. Fonts and the two vendored libraries are local: the page loads nothing from a third-party origin.
 - **Languages**: HTML, CSS, JavaScript ES modules, Python 3.10+
 - **Tooling**: Node.js 18+, npm, ESLint, Stylelint, Prettier, Node test runner, jsdom
 - **Backend stack**: FastAPI, Pydantic v2, asyncpg, boto3/botocore, orjson, structlog

@@ -129,6 +129,7 @@ host.
 ## Available Scripts
 
 ```bash
+npm run build         # Build the optimised site into dist/ (what the deploy ships)
 npm run lint          # Run JavaScript and CSS linters
 npm run lint:js       # Lint frontend/js/*.js
 npm run lint:css      # Lint CSS files
@@ -178,6 +179,25 @@ python scripts/optimize_images.py
 
 `optimize_images.py` writes optimized image files and creates timestamped backups
 under `backups/`.
+
+## Fonts
+
+Fonts are self-hosted and subset, so no third-party origin sits in the critical
+rendering path. `frontend/fonts.css` and `frontend/fonts/` are generated - do not
+edit them by hand. After adding an icon that is not already used anywhere:
+
+```bash
+python -m pip install "fonttools[woff]"
+python scripts/vendor_fonts.py
+```
+
+The script scans the source for `fa-*` classes, cuts the Font Awesome faces down
+to just those glyphs, and fetches only the latin subsets of Plus Jakarta Sans.
+It needs network access, so it is a maintenance step rather than part of the
+build; its output is committed.
+
+`frontend/vendor/` holds DOMPurify and marked, copied verbatim from the npm
+packages pinned in `package.json`. See `frontend/vendor/README.md`.
 
 ## Data and AWS Impact
 

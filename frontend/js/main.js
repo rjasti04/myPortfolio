@@ -246,7 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // New service worker available
-                showUpdateNotification();
+                showUpdateNotification(registration);
               }
             });
           });
@@ -256,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-function showUpdateNotification() {
+function showUpdateNotification(registration) {
   const updateBanner = document.createElement('div');
   updateBanner.className = 'update-banner';
   updateBanner.setAttribute('role', 'alert');
@@ -285,6 +285,16 @@ function showUpdateNotification() {
   document.body.appendChild(updateBanner);
 
   document.getElementById('update-refresh-btn').addEventListener('click', () => {
-    window.location.reload();
+    // Tell the waiting worker to take over, then reload once it has. The worker
+    // used to call skipWaiting() during install, so it activated before this
+    // banner was ever shown and a plain reload could still land on the old
+    // asset set.
+    const waiting = registration?.waiting;
+    if (waiting) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true });
+      waiting.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      window.location.reload();
+    }
   });
 }

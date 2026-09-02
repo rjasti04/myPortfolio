@@ -14,7 +14,10 @@ which is why they are in .prettierignore.
 Exits non-zero when a script has no matching hash, or when a declared hash
 matches no script (dead entries in the allowlist).
 
-    python scripts/check_csp_hashes.py
+    python scripts/check_csp_hashes.py [page.html ...]
+
+With no arguments it checks frontend/index.html and, when present, the built
+dist/index.html.
 """
 
 from __future__ import annotations
@@ -26,7 +29,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PAGES = [ROOT / "frontend" / "index.html"]
+
+# The build rewrites asset references in index.html. It must not touch inline
+# script bodies, so the built page is checked too - if a minifier ever reaches
+# them, the deployed site breaks silently while the source still passes.
+DEFAULT_PAGES = [ROOT / "frontend" / "index.html", ROOT / "dist" / "index.html"]
 
 # <script> with neither src= nor type= (a type makes it a data block, e.g.
 # application/ld+json, which is not executed and so is not hash-checked).
@@ -83,7 +90,8 @@ def check(page: Path) -> list[str]:
 
 def main() -> int:
     print("Checking CSP inline-script hashes...")
-    problems = [p for page in PAGES for p in check(page)]
+    pages = [Path(a).resolve() for a in sys.argv[1:]] or DEFAULT_PAGES
+    problems = [p for page in pages if page.exists() for p in check(page)]
     if problems:
         print("\nFAILED:")
         for p in problems:
