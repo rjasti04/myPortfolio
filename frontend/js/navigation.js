@@ -494,6 +494,17 @@ function updateMobileNavActive(target) {
   mobileNav.querySelectorAll('a').forEach(link => {
     const isActive = link.dataset.target === target;
     link.classList.toggle('active', isActive);
+
+    // This bar is the whole navigation on a phone, and the current section was
+    // signalled only by colour and a 3px rule - nothing a screen reader could
+    // read. The header nav has carried aria-current since app-logic.js:13; the
+    // bar is built after initNavigation() captures `navLinks`, so it is not in
+    // that list and has to set it here.
+    if (isActive) {
+      link.setAttribute('aria-current', 'page');
+    } else {
+      link.removeAttribute('aria-current');
+    }
   });
 }
 

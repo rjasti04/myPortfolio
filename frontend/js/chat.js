@@ -588,6 +588,10 @@ export function initChat() {
     }
   }
 
+  // One hide timer per button. Two copies inside 1.4s used to leave the first
+  // timer running, so the tooltip vanished while the second one was still up.
+  const copyTooltipTimers = new WeakMap();
+
   function showCopyTooltip(targetBtn) {
     let tooltip = targetBtn.querySelector('.copy-tooltip');
     if (!tooltip) {
@@ -598,12 +602,38 @@ export function initChat() {
     }
     void tooltip.offsetWidth;
     tooltip.classList.add('show');
-    setTimeout(() => {
+    clearTimeout(copyTooltipTimers.get(targetBtn));
+    copyTooltipTimers.set(targetBtn, setTimeout(() => {
       tooltip.classList.remove('show');
-    }, 1400);
+      copyTooltipTimers.delete(targetBtn);
+    }, 1400));
   }
 
-  function createMessageActions(getText, isBot = true, isTruncated = false, msgElement = null) {
+  /**
+   * Action buttons swap their icon to show state. Doing that through innerHTML
+   * also destroys everything else the button owns - the copy tooltip is a child
+   * of the copy button, so the icon restore was deleting it mid-fade. The icon
+   * is a stable element now and only its class changes.
+   */
+  function createActionButton(className, title, iconClass) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `msg-action-btn ${className}`;
+    btn.title = title;
+    btn.setAttribute('aria-label', title);
+    const icon = document.createElement('i');
+    icon.className = iconClass;
+    icon.setAttribute('aria-hidden', 'true');
+    btn.appendChild(icon);
+    return btn;
+  }
+
+  function setActionIcon(btn, iconClass) {
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = iconClass;
+  }
+
+  function createMessageActions(getText, isBot = true, isTruncated = false, msgElement = null, metrics = null) {
     const container = document.createElement('div');
     container.className = 'msg-actions';
 
@@ -617,71 +647,53 @@ export function initChat() {
     }
 
     if (isBot) {
-      // Thumbs Up
-      const thumbUpBtn = document.createElement('button');
-      thumbUpBtn.type = 'button';
-      thumbUpBtn.className = 'msg-action-btn msg-thumb-up';
-      thumbUpBtn.title = 'Good response';
-      thumbUpBtn.innerHTML = '<i class="far fa-thumbs-up"></i>';
+      const thumbUpBtn = createActionButton('msg-thumb-up', 'Good response', 'far fa-thumbs-up');
+      const thumbDownBtn = createActionButton('msg-thumb-down', 'Bad response', 'far fa-thumbs-down');
+
+      // These are toggles, and the only thing that announced their state was
+      // the swap between the outline and solid icon - invisible to a screen
+      // reader, which read both as "Good response, button" either way.
+      thumbUpBtn.setAttribute('aria-pressed', 'false');
+      thumbDownBtn.setAttribute('aria-pressed', 'false');
+
+      const setFeedback = (choice) => {
+        const isUp = choice === 'up';
+        const isDown = choice === 'down';
+        thumbUpBtn.classList.toggle('active', isUp);
+        thumbDownBtn.classList.toggle('active', isDown);
+        thumbUpBtn.setAttribute('aria-pressed', String(isUp));
+        thumbDownBtn.setAttribute('aria-pressed', String(isDown));
+        setActionIcon(thumbUpBtn, isUp ? 'fas fa-thumbs-up' : 'far fa-thumbs-up');
+        setActionIcon(thumbDownBtn, isDown ? 'fas fa-thumbs-down' : 'far fa-thumbs-down');
+      };
+
       thumbUpBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const isSelected = thumbUpBtn.classList.contains('active');
-        container.querySelectorAll('.msg-thumb-up, .msg-thumb-down').forEach(b => {
-          b.classList.remove('active');
-          if (b.classList.contains('msg-thumb-up')) b.innerHTML = '<i class="far fa-thumbs-up"></i>';
-          if (b.classList.contains('msg-thumb-down')) b.innerHTML = '<i class="far fa-thumbs-down"></i>';
-        });
-        if (!isSelected) {
-          thumbUpBtn.classList.add('active');
-          thumbUpBtn.innerHTML = '<i class="fas fa-thumbs-up"></i>';
-        }
+        setFeedback(thumbUpBtn.classList.contains('active') ? null : 'up');
       });
       container.appendChild(thumbUpBtn);
 
-      // Thumbs Down
-      const thumbDownBtn = document.createElement('button');
-      thumbDownBtn.type = 'button';
-      thumbDownBtn.className = 'msg-action-btn msg-thumb-down';
-      thumbDownBtn.title = 'Bad response';
-      thumbDownBtn.innerHTML = '<i class="far fa-thumbs-down"></i>';
       thumbDownBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const isSelected = thumbDownBtn.classList.contains('active');
-        container.querySelectorAll('.msg-thumb-up, .msg-thumb-down').forEach(b => {
-          b.classList.remove('active');
-          if (b.classList.contains('msg-thumb-up')) b.innerHTML = '<i class="far fa-thumbs-up"></i>';
-          if (b.classList.contains('msg-thumb-down')) b.innerHTML = '<i class="far fa-thumbs-down"></i>';
-        });
-        if (!isSelected) {
-          thumbDownBtn.classList.add('active');
-          thumbDownBtn.innerHTML = '<i class="fas fa-thumbs-down"></i>';
-        }
+        setFeedback(thumbDownBtn.classList.contains('active') ? null : 'down');
       });
       container.appendChild(thumbDownBtn);
 
       // Regenerate / Retry Button
-      const regenBtn = document.createElement('button');
-      regenBtn.type = 'button';
-      regenBtn.className = 'msg-action-btn msg-retry-btn';
-      regenBtn.title = 'Regenerate response';
-      regenBtn.innerHTML = '<i class="fas fa-rotate-right"></i>';
+      const regenBtn = createActionButton('msg-retry-btn', 'Regenerate response', 'fas fa-rotate-right');
       regenBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (isGenerating) return;
         const session = getActiveSession();
         const lastUserMsg = [...session.messages].reverse().find(m => m.sender === 'user');
         if (lastUserMsg && lastUserMsg.text) {
-          await handleChatSubmit(lastUserMsg.text);
+          await handleChatSubmit(lastUserMsg.text, { regenerate: true });
         }
       });
       container.appendChild(regenBtn);
     } else {
       // User Message: Edit Button
-      const editBtn = document.createElement('button');
-      editBtn.type = 'button';
-      editBtn.className = 'msg-action-btn msg-edit-btn';
-      editBtn.title = 'Edit prompt';
-      editBtn.innerHTML = '<i class="fas fa-pen"></i>';
+      const editBtn = createActionButton('msg-edit-btn', 'Edit prompt', 'fas fa-pen');
       editBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const textVal = typeof getText === 'function' ? getText() : getText;
@@ -699,13 +711,9 @@ export function initChat() {
     }
 
     // Info / Inspector Button (Progressive Disclosure)
-    const infoBtn = document.createElement('button');
-    infoBtn.type = 'button';
-    infoBtn.className = 'msg-action-btn msg-info-btn';
-    infoBtn.title = 'Message Info & Dev Metrics';
+    const infoBtn = createActionButton('msg-info-btn', 'Message Info & Dev Metrics', 'fas fa-circle-info');
     infoBtn.setAttribute('aria-label', 'Toggle message info and metrics');
     infoBtn.setAttribute('aria-expanded', 'false');
-    infoBtn.innerHTML = '<i class="fas fa-circle-info"></i>';
 
     infoBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -722,8 +730,14 @@ export function initChat() {
 
       const textVal = typeof getText === 'function' ? getText() : getText;
       const tokens = estimateTokens(textVal);
-      const metrics = window.lastStreamMetrics || {};
-      const latency = metrics.latency_ms ? `${metrics.latency_ms}ms` : '~240ms';
+
+      // Metrics belong to the stream that produced *this* message and are
+      // passed in when there are any. Reading window.lastStreamMetrics showed
+      // every drawer in the transcript the latency of the newest reply, and
+      // the '~240ms' fallback was not a measurement at all - it reported a
+      // number for user messages and for history restored from a past session.
+      const latencyMs = metrics && typeof metrics.latency_ms === 'number' ? metrics.latency_ms : null;
+      const latency = latencyMs === null ? 'Not recorded' : `${latencyMs} ms`;
 
       drawer = document.createElement('div');
       drawer.className = 'msg-info-drawer';
@@ -744,22 +758,24 @@ export function initChat() {
     container.appendChild(infoBtn);
 
     // Copy Button
-    const copyBtn = document.createElement('button');
-    copyBtn.type = 'button';
-    copyBtn.className = 'msg-action-btn msg-copy-btn';
-    copyBtn.title = 'Copy text';
-    copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+    const copyBtn = createActionButton('msg-copy-btn', 'Copy text', 'fas fa-copy');
+    let copyResetTimer = null;
     copyBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       try {
         const textToCopy = typeof getText === 'function' ? getText() : getText;
         await copyText(textToCopy);
         copyBtn.classList.add('copied');
-        copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+        setActionIcon(copyBtn, 'fas fa-check');
         showCopyTooltip(copyBtn);
-        setTimeout(() => {
+        // A second copy inside 1.5s used to be cut short by the first timer,
+        // dropping the tick back to the clipboard icon while the tooltip for
+        // the newer copy was still on screen.
+        clearTimeout(copyResetTimer);
+        copyResetTimer = setTimeout(() => {
+          copyResetTimer = null;
           copyBtn.classList.remove('copied');
-          copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+          setActionIcon(copyBtn, 'fas fa-copy');
         }, 1500);
       } catch (err) {
         console.error('Copy failed', err);
@@ -1009,19 +1025,22 @@ export function initChat() {
       return indicator;
     }
 
+    // Steps are addressed by data-step, not by id: every turn builds two of
+    // these indicators - one in the widget, one on the AI page - so ids put
+    // three duplicate ids in the document for the length of each request.
     indicator.innerHTML = `
       <div class="thinking-container">
         <div class="thinking-header">
           <i class="fas fa-cog fa-spin" aria-hidden="true"></i> Processing request...
         </div>
         <ul class="thinking-steps">
-          <li class="thinking-step active" id="thinking-step-0">
+          <li class="thinking-step active" data-step="0">
             <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Initializing context
           </li>
-          <li class="thinking-step" id="thinking-step-1">
+          <li class="thinking-step" data-step="1">
             <i class="far fa-circle" aria-hidden="true"></i> Fetching profile data
           </li>
-          <li class="thinking-step" id="thinking-step-2">
+          <li class="thinking-step" data-step="2">
             <i class="far fa-circle" aria-hidden="true"></i> Querying Bedrock LLM
           </li>
         </ul>
@@ -1029,14 +1048,16 @@ export function initChat() {
     `;
 
     const steps = [
-      { id: 'thinking-step-0', activeIcon: 'fas fa-circle-notch fa-spin', doneIcon: 'fas fa-check-circle' },
-      { id: 'thinking-step-1', activeIcon: 'fas fa-circle-notch fa-spin', doneIcon: 'fas fa-check-circle' },
-      { id: 'thinking-step-2', activeIcon: 'fas fa-cog fa-spin', doneIcon: 'fas fa-check-circle' }
+      { activeIcon: 'fas fa-circle-notch fa-spin', doneIcon: 'fas fa-check-circle' },
+      { activeIcon: 'fas fa-circle-notch fa-spin', doneIcon: 'fas fa-check-circle' },
+      { activeIcon: 'fas fa-cog fa-spin', doneIcon: 'fas fa-check-circle' }
     ];
+
+    const stepEl = (index) => indicator.querySelector(`[data-step="${index}"]`);
 
     let currentStep = 0;
     const interval = setInterval(() => {
-      const currentEl = indicator.querySelector(`#${steps[currentStep].id}`);
+      const currentEl = stepEl(currentStep);
       if (currentEl) {
         currentEl.className = 'thinking-step completed';
         const icon = currentEl.querySelector('i');
@@ -1049,7 +1070,7 @@ export function initChat() {
         return;
       }
 
-      const nextEl = indicator.querySelector(`#${steps[currentStep].id}`);
+      const nextEl = stepEl(currentStep);
       if (nextEl) {
         nextEl.className = 'thinking-step active';
         const icon = nextEl.querySelector('i');
@@ -1066,7 +1087,18 @@ export function initChat() {
     return indicator;
   }
 
-  async function handleChatSubmit(text) {
+  /**
+   * Drops the reply at the end of a transcript column so a regenerate can put
+   * a new one in its place. Typing indicators also carry `.chat-message bot`,
+   * hence the exclusion - though none exists this early in a turn.
+   */
+  function removeTrailingBotMessage(container) {
+    if (!container) return;
+    const replies = container.querySelectorAll(':scope > .chat-message.bot:not(.typing-indicator)');
+    replies[replies.length - 1]?.remove();
+  }
+
+  async function handleChatSubmit(text, { regenerate = false } = {}) {
     if (!isApiConfigured()) {
       appendMessage("AI service is not configured.", 'bot', { save: false, showCopy: false });
       return;
@@ -1077,7 +1109,24 @@ export function initChat() {
     }
 
 
-    appendMessage(text, 'user', { save: true, showCopy: true });
+    if (regenerate) {
+      // Regenerate re-runs the last turn, so the prompt is already in the
+      // transcript. This used to call handleChatSubmit like a fresh submit,
+      // which appended the prompt a second time: the transcript grew a
+      // duplicate user bubble, that duplicate was persisted to localStorage
+      // and re-sent as context on every later turn, and the reply being
+      // regenerated stayed on screen above its replacement.
+      const currentSession = getActiveSession();
+      const lastEntry = currentSession.messages[currentSession.messages.length - 1];
+      if (lastEntry && lastEntry.sender === 'bot') {
+        currentSession.messages.pop();
+        saveSessions();
+      }
+      removeTrailingBotMessage(messagesContainer);
+      removeTrailingBotMessage(aiPageMessages);
+    } else {
+      appendMessage(text, 'user', { save: true, showCopy: true });
+    }
     setInputState(true);
 
     let widgetIndicator = null;
@@ -1209,6 +1258,7 @@ export function initChat() {
 
       let botFullText = '';
       let parseTimer = null;
+      let streamMetrics = null;
 
       const flushParse = () => {
         if (parseTimer) clearTimeout(parseTimer);
@@ -1226,6 +1276,10 @@ export function initChat() {
       };
 
       const handleMetrics = (metricsData) => {
+        // Kept per turn as well as globally: the info drawer of the message
+        // this stream produces reads the local copy, so it keeps reporting its
+        // own latency after later turns have moved the global on.
+        streamMetrics = metricsData;
         if (typeof window !== "undefined") {
           window.lastStreamMetrics = metricsData;
         }
@@ -1360,10 +1414,10 @@ export function initChat() {
         if (aiMsgEl) aiMsgEl.innerHTML = emptyErrorMsg;
       } else {
         if (widgetMsgEl) {
-          widgetMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated, widgetMsgEl));
+          widgetMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated, widgetMsgEl, streamMetrics));
         }
         if (aiMsgEl) {
-          aiMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated, aiMsgEl));
+          aiMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated, aiMsgEl, streamMetrics));
         }
 
         // The turn succeeded, so the compaction (if any) is now safe to keep.
