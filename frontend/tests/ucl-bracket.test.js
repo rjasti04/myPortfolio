@@ -250,3 +250,361 @@ test("mobile round tabs swap the rendered round", async () => {
     "",
   );
 });
+
+test("quick fill settles every remaining tie with the higher seed", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const click = (el) =>
+    el.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+  assert.equal(
+    doc.getElementById("progress-label").textContent,
+    "0 of 23 ties decided",
+  );
+
+  click(doc.getElementById("autofill-btn"));
+
+  assert.equal(
+    doc.getElementById("progress-label").textContent,
+    "Bracket complete",
+  );
+  assert.equal(
+    doc.getElementById("progress-track").getAttribute("aria-valuenow"),
+    "23",
+  );
+  assert.equal(
+    doc.getElementById("playoff-counter").textContent,
+    "Decided: 8 of 8",
+  );
+
+  const names = [...doc.querySelectorAll(".lp-row .lp-name")].map(
+    (e) => e.textContent,
+  );
+  assert.equal(
+    doc.querySelector("#d-champion .champion-team span").textContent,
+    names[0],
+  );
+
+  // A pick already made by hand is left alone.
+  const [, po, ko] = window.localStorage
+    .getItem("ucl-predictor-state")
+    .split("-");
+  assert.equal(po.includes("x"), false);
+  assert.equal(ko.includes("x"), false);
+});
+
+test("quick fill preserves picks already made", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const click = (el) =>
+    el.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+  // Send the lower seed through play-off 1, then fill the rest.
+  click(
+    doc
+      .querySelectorAll("#playoff-container .match-card")[0]
+      .querySelectorAll(".match-team")[1],
+  );
+  click(doc.getElementById("autofill-btn"));
+
+  const names = [...doc.querySelectorAll(".lp-row .lp-name")].map(
+    (e) => e.textContent,
+  );
+  const po1Winner = doc.querySelector(
+    "#playoff-container .match-card .match-team.winner .match-team-name",
+  );
+  assert.equal(
+    po1Winner.textContent,
+    names[23],
+    "the 24th seed keeps the upset it was given",
+  );
+});
+
+test("the rank pill swaps to a number field that moves a club", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const click = (el) =>
+    el.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+  const before = [...doc.querySelectorAll(".lp-row .lp-name")].map(
+    (e) => e.textContent,
+  );
+  click(doc.querySelectorAll(".lp-row")[30].querySelector(".lp-rank"));
+
+  const input = doc.querySelector(".lp-jump");
+  assert.ok(input, "the pill became an input");
+  assert.equal(input.value, "31");
+
+  input.value = "1";
+  input.dispatchEvent(
+    new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+  );
+
+  const after = [...doc.querySelectorAll(".lp-row .lp-name")].map(
+    (e) => e.textContent,
+  );
+  assert.equal(after[0], before[30], "the club moved to the top");
+  assert.equal(after[1], before[0], "everyone else shifted down");
+  assert.equal(doc.querySelectorAll(".lp-row").length, 36);
+});
+
+test("an out-of-range jump is clamped, and Escape cancels", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const click = (el) =>
+    el.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  const before = [...doc.querySelectorAll(".lp-row .lp-name")].map(
+    (e) => e.textContent,
+  );
+
+  click(doc.querySelectorAll(".lp-row")[5].querySelector(".lp-rank"));
+  let input = doc.querySelector(".lp-jump");
+  input.value = "999";
+  input.dispatchEvent(
+    new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+  );
+  assert.equal(
+    [...doc.querySelectorAll(".lp-row .lp-name")][35].textContent,
+    before[5],
+    "clamped to last place",
+  );
+
+  click(doc.querySelectorAll(".lp-row")[2].querySelector(".lp-rank"));
+  input = doc.querySelector(".lp-jump");
+  input.value = "1";
+  input.dispatchEvent(
+    new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+  );
+  assert.equal(doc.querySelector(".lp-jump"), null, "the field closed");
+  assert.equal(
+    [...doc.querySelectorAll(".lp-row .lp-name")][2].textContent,
+    before[2],
+    "Escape left the order alone",
+  );
+});
+
+test("the league table row carries the club's association", async () => {
+  const { window } = await boot();
+  const rows = window.document.querySelectorAll(".lp-row");
+  assert.equal(rows[0].querySelector(".lp-country").textContent, "France");
+  assert.equal(rows[3].querySelector(".lp-country").textContent, "England");
+  const blanks = [...rows].filter(
+    (r) => !r.querySelector(".lp-country").textContent.trim(),
+  );
+  assert.deepEqual(blanks, [], "every club resolves to an association");
+});
+
+// jsdom has no PointerEvent constructor, so build the event from MouseEvent and
+// carry the pointer fields the page reads. Listeners key off the type name.
+function pointerEvent(
+  window,
+  type,
+  clientY,
+  pointerId = 7,
+  pointerType = "touch",
+) {
+  const event = new window.MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    clientY,
+    button: 0,
+  });
+  Object.defineProperty(event, "pointerId", { value: pointerId });
+  Object.defineProperty(event, "pointerType", { value: pointerType });
+  return event;
+}
+
+// Reordering has to work from a finger, so drive the real pointer sequence
+// rather than calling the reorder helpers directly.
+function grab(window, handle, pointerId = 7) {
+  handle.setPointerCapture = () => {};
+  handle.releasePointerCapture = () => {};
+  return (type, clientY) =>
+    handle.dispatchEvent(pointerEvent(window, type, clientY, pointerId));
+}
+
+// jsdom does no layout, so the rows need measurable geometry.
+function stubRowGeometry(doc, rowHeight = 50) {
+  [...doc.querySelectorAll(".lp-row")].forEach((row, i) => {
+    row.getBoundingClientRect = () => ({
+      top: i * rowHeight,
+      bottom: i * rowHeight + rowHeight,
+      height: rowHeight,
+    });
+  });
+  doc.getElementById("standings-container").getBoundingClientRect = () => ({
+    top: 0,
+    height: 36 * rowHeight,
+  });
+  return rowHeight;
+}
+
+test("a touch drag on the handle reorders the table", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const names = () =>
+    [...doc.querySelectorAll(".lp-row")].map(
+      (r) => r.querySelector(".lp-name").textContent,
+    );
+  const before = names();
+  const ROW_H = stubRowGeometry(doc);
+
+  // Drag the top club down past the midpoints of the next two rows.
+  const fire = grab(window, doc.querySelector(".lp-row .drag-handle"));
+  fire("pointerdown", 25);
+  fire("pointermove", 35);
+  fire("pointermove", 2 * ROW_H + 40);
+  fire("pointerup", 2 * ROW_H + 40);
+
+  const after = names();
+  assert.equal(after[2], before[0], "the dragged club landed third");
+  assert.equal(after[0], before[1]);
+  assert.equal(after.length, 36);
+  assert.equal(
+    doc.body.classList.contains("is-dragging"),
+    false,
+    "drag state cleaned up",
+  );
+});
+
+test("a tap does not reorder, and Escape abandons a drag", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const names = () =>
+    [...doc.querySelectorAll(".lp-row")].map(
+      (r) => r.querySelector(".lp-name").textContent,
+    );
+  const before = names();
+  stubRowGeometry(doc);
+
+  const fire = grab(window, doc.querySelector(".lp-row .drag-handle"), 3);
+
+  // Under the slop threshold: a tap, not a drag.
+  fire("pointerdown", 20);
+  fire("pointermove", 22);
+  fire("pointerup", 22);
+  assert.deepEqual(names(), before, "a tap changed nothing");
+
+  // A real drag, abandoned with Escape before release.
+  fire("pointerdown", 20);
+  fire("pointermove", 300);
+  window.dispatchEvent(
+    new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+  );
+  fire("pointerup", 300);
+
+  assert.deepEqual(names(), before, "Escape abandoned the drag");
+  assert.equal(doc.body.classList.contains("is-dragging"), false);
+});
+
+test("hovering a club lights its rows and the edges it won", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const click = (el) =>
+    el.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+  click(doc.getElementById("autofill-btn"));
+  const champion = doc.querySelector(
+    "#d-champion .champion-team span",
+  ).textContent;
+
+  const row = [...doc.querySelectorAll("#d-r16-1 .match-team")].find(
+    (el) => el.dataset.team === champion,
+  );
+  assert.ok(row, "the champion appears in its round-of-16 tie");
+
+  row.dispatchEvent(new window.MouseEvent("mouseover", { bubbles: true }));
+
+  const lit = [...doc.querySelectorAll(".match-team.route")].map(
+    (el) => el.dataset.team,
+  );
+  assert.equal(new Set(lit).size, 1, "only one club is lit");
+  assert.equal(lit[0], champion);
+  // R16, QF, SF and the final, on both the desktop bracket and the mobile list.
+  assert.ok(
+    lit.length >= 4,
+    `expected the whole run to light up, saw ${lit.length}`,
+  );
+
+  assert.equal(
+    doc.getElementById("desktop-bracket-stage").classList.contains("routing"),
+    true,
+  );
+  assert.ok(doc.querySelectorAll(".match-card.on-route").length >= 4);
+
+  row.dispatchEvent(
+    new window.MouseEvent("mouseout", {
+      bubbles: true,
+      relatedTarget: doc.body,
+    }),
+  );
+  assert.equal(
+    doc.querySelectorAll(".match-team.route").length,
+    0,
+    "highlight cleared",
+  );
+  assert.equal(
+    doc.getElementById("desktop-bracket-stage").classList.contains("routing"),
+    false,
+  );
+});
+
+test("every club's flag code resolves to its own country, with a text fallback", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+
+  const EXPECTED = {
+    "Paris Saint-Germain": ["fr", "France", "FRA"],
+    Liverpool: ["gb-eng", "England", "ENG"],
+    "Manchester City": ["gb-eng", "England", "ENG"],
+    "Bayern München": ["de", "Germany", "GER"],
+    "Real Madrid": ["es", "Spain", "ESP"],
+    Inter: ["it", "Italy", "ITA"],
+    "Sporting CP": ["pt", "Portugal", "POR"],
+    "Club Brugge": ["be", "Belgium", "BEL"],
+    Feyenoord: ["nl", "Netherlands", "NED"],
+    "Bodø/Glimt": ["no", "Norway", "NOR"],
+    Galatasaray: ["tr", "Türkiye", "TUR"],
+    "Shakhtar Donetsk": ["ua", "Ukraine", "UKR"],
+    "Slavia Praha": ["cz", "Czechia", "CZE"],
+    "Slovan Bratislava": ["sk", "Slovakia", "SVK"],
+    "AEK Athens": ["gr", "Greece", "GRE"],
+    LASK: ["at", "Austria", "AUT"],
+    Sabah: ["az", "Azerbaijan", "AZE"],
+  };
+
+  const rows = [...doc.querySelectorAll(".lp-row")];
+  assert.equal(rows.length, 36);
+
+  for (const row of rows) {
+    const club = row.querySelector(".lp-name").textContent;
+    const img = row.querySelector("img.team-flag");
+    assert.ok(img, `${club} has a flag`);
+
+    const code = img.getAttribute("src").match(/\/w40\/([a-z-]+)\.png$/)[1];
+    assert.equal(
+      img.getAttribute("src").startsWith("https://flagcdn.com/"),
+      true,
+    );
+
+    const expected = EXPECTED[club];
+    if (expected) {
+      assert.equal(code, expected[0], `${club} flies the ${expected[1]} flag`);
+      assert.equal(img.getAttribute("alt"), expected[1]);
+      assert.equal(img.dataset.abbr, expected[2]);
+    }
+    // The row's association label and the flag must agree.
+    assert.equal(
+      row.querySelector(".lp-country").textContent,
+      img.getAttribute("alt"),
+    );
+  }
+
+  // A flag that fails to load leaves the country code behind, not a hole.
+  const broken = rows[3].querySelector("img.team-flag");
+  broken.dispatchEvent(new window.Event("error"));
+  const badge = rows[3].querySelector(".flag-fallback");
+  assert.ok(badge, "the broken flag became a badge");
+  assert.equal(badge.textContent, "ENG");
+  assert.equal(rows[3].querySelector("img.team-flag"), null);
+});

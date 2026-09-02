@@ -204,6 +204,36 @@
       color: var(--primary);
     }
 
+    .progress-wrap {
+      max-width: 420px;
+      margin: 18px auto 0 auto;
+    }
+
+    .progress-track {
+      height: 6px;
+      border-radius: 999px;
+      background-color: var(--surface-card);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .progress-label {
+      margin-top: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
     /* BUTTONS */
     .btn {
       display: inline-flex;
@@ -347,6 +377,10 @@
       letter-spacing: 0.5px;
     }
 
+    .mobile-hint {
+      display: none;
+    }
+
     /* LEAGUE PHASE VIEW */
     .league-layout {
       display: grid;
@@ -395,19 +429,21 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      position: relative;
     }
 
     .lp-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 26px 30px 24px minmax(0, 1fr) auto auto 12px;
       align-items: center;
       gap: 10px;
       background-color: var(--surface-card);
       border: 1px solid var(--border);
       border-left: 3px solid var(--border);
       border-radius: var(--radius-md);
-      padding: 8px 12px;
+      padding: 5px 12px;
       user-select: none;
-      transition: var(--transition-base);
+      transition: border-color 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
       position: relative;
     }
 
@@ -429,40 +465,68 @@
       opacity: 1;
     }
 
-    .lp-row.dragging {
-      opacity: 0.4;
-      background-color: var(--border);
-      border-style: dashed;
+    .lp-row.drag-active {
+      z-index: 30;
+      cursor: grabbing;
+      border-color: var(--primary);
+      background-color: var(--surface);
+      box-shadow: var(--shadow-lg);
+      transition: none;
     }
 
-    .lp-row.drag-over-top {
-      box-shadow: inset 0 2px 0 0 var(--primary);
+    /* Nothing else should react to the pointer mid-drag, and the text must not
+       select as the finger travels. */
+    body.is-dragging {
+      cursor: grabbing;
+      user-select: none;
     }
 
-    .lp-row.drag-over-bottom {
-      box-shadow: inset 0 -2px 0 0 var(--primary);
+    body.is-dragging .lp-row:not(.drag-active) {
+      pointer-events: none;
+    }
+
+    .drop-indicator {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 3px;
+      border-radius: 999px;
+      background-color: var(--primary);
+      box-shadow: 0 0 10px rgba(var(--primary-rgb), 0.7);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 25;
     }
 
     .reorder-controls {
       display: flex;
       flex-direction: column;
-      gap: 3px;
-      flex-shrink: 0;
+      gap: 2px;
     }
 
     .reorder-btn {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 5px;
+      border-radius: 4px;
       color: var(--text-muted);
       cursor: pointer;
-      font-size: 10px;
+      font-size: 9px;
       width: 26px;
-      height: 20px;
+      height: 15px;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: var(--transition-base);
+      position: relative;
+    }
+
+    /* The buttons stay visually small so 36 rows fit on a phone, but each one
+       claims a finger-sized hit area around itself. */
+    .reorder-btn::after {
+      content: '';
+      position: absolute;
+      inset: -7px -6px;
     }
 
     .reorder-btn:hover:not(:disabled) {
@@ -477,18 +541,49 @@
     }
 
     .lp-rank {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
+      width: 30px;
+      height: 26px;
+      border-radius: 999px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 12px;
       font-weight: 800;
+      font-family: var(--font-family);
       border: 1px solid var(--border);
       background-color: var(--surface);
       color: var(--text-muted);
-      flex-shrink: 0;
+      cursor: pointer;
+      padding: 0;
+      transition: var(--transition-base);
+    }
+
+    .lp-rank:hover {
+      border-color: var(--primary);
+      color: var(--text);
+    }
+
+    /* Typing a position beats tapping the arrows 35 times to move a club from
+       36th to 1st. */
+    .lp-jump {
+      width: 30px;
+      height: 26px;
+      border-radius: 999px;
+      border: 1px solid var(--primary);
+      background-color: var(--surface);
+      color: var(--text);
+      font-family: var(--font-family);
+      font-size: 12px;
+      font-weight: 800;
+      text-align: center;
+      padding: 0 2px;
+      -moz-appearance: textfield;
+    }
+
+    .lp-jump::-webkit-outer-spin-button,
+    .lp-jump::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
 
     .zone-r16 .lp-rank {
@@ -521,11 +616,18 @@
     .lp-name {
       font-size: 14px;
       font-weight: 600;
-      flex-grow: 1;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .lp-country {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+      text-align: right;
     }
 
     .pot-chip {
@@ -536,11 +638,12 @@
       color: var(--text-muted);
       border: 1px solid var(--border);
       border-radius: 999px;
-      padding: 2px 8px;
+      padding: 1px 7px;
       white-space: nowrap;
-      flex-shrink: 0;
     }
 
+    /* The zone is already carried by the row's left edge and its rank pill, so
+       in the table it only needs to be a quiet marker, not a third label. */
     .status-badge {
       font-size: 10px;
       font-weight: 700;
@@ -570,9 +673,22 @@
     .drag-handle {
       color: var(--text-muted);
       font-size: 13px;
-      padding: 4px 2px;
+      opacity: 0.45;
       cursor: grab;
-      flex-shrink: 0;
+      touch-action: none;
+      transition: var(--transition-base);
+      position: relative;
+    }
+
+    .drag-handle::after {
+      content: '';
+      position: absolute;
+      inset: -10px -8px;
+    }
+
+    .lp-row:hover .drag-handle,
+    .lp-row.drag-active .drag-handle {
+      opacity: 1;
     }
 
     .drag-handle:active {
@@ -731,8 +847,20 @@
 
     .playoff-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 16px;
+    }
+
+    @media (max-width: 1280px) {
+      .playoff-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .playoff-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
     }
 
     /* KNOCKOUT BRACKET VIEW */
@@ -753,13 +881,63 @@
       background-attachment: local, local, scroll, scroll;
     }
 
+    .bracket-stage {
+      position: relative;
+      min-width: 1280px;
+    }
+
     .bracket-layout {
       display: grid;
       grid-template-columns: repeat(7, minmax(0, 1fr));
       gap: 18px;
       align-items: center;
       width: 100%;
-      min-width: 1280px;
+    }
+
+    /* Connector lines are drawn from the cards' measured positions rather than
+       guessed at in CSS, so they stay true at any column width. */
+    .bracket-lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      overflow: visible;
+    }
+
+    .bracket-lines path {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: stroke 0.3s ease;
+    }
+
+    .bracket-lines path.live {
+      stroke: var(--primary);
+      opacity: 0.85;
+    }
+
+    .bracket-lines path.route {
+      stroke: var(--secondary);
+      stroke-width: 3.5;
+      opacity: 1;
+    }
+
+    /* Everything off the hovered route steps back so the path stands out. */
+    .bracket-stage.routing .bracket-lines path:not(.route) {
+      opacity: 0.3;
+    }
+
+    .bracket-stage.routing .match-card {
+      opacity: 0.55;
+      transition: opacity 0.2s ease;
+    }
+
+    .bracket-stage.routing .match-card.on-route {
+      opacity: 1;
     }
 
     .bracket-column {
@@ -853,6 +1031,11 @@
       font-weight: 700;
     }
 
+    .match-team.route {
+      box-shadow: inset 0 0 0 2px var(--secondary);
+      background-color: rgba(var(--primary-rgb), 0.1);
+    }
+
     .match-team.winner::after {
       content: '\f058';
       font-family: 'Font Awesome 6 Free';
@@ -927,6 +1110,8 @@
       white-space: nowrap;
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
+      mask-image: linear-gradient(to right, #000 88%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to right, #000 88%, transparent 100%);
     }
 
     .mobile-bracket-tabs::-webkit-scrollbar {
@@ -965,10 +1150,10 @@
       background: linear-gradient(135deg, var(--surface), var(--surface-card));
       border: 2px solid var(--primary);
       border-radius: var(--radius-lg);
-      padding: 22px 18px;
+      padding: 20px 14px;
       text-align: center;
       width: 100%;
-      max-width: 240px;
+      max-width: 250px;
       box-shadow: 0 0 26px rgba(var(--primary-rgb), 0.18);
     }
 
@@ -1009,15 +1194,36 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 800;
+      line-height: 1.3;
+      text-wrap: balance;
     }
 
-    .champion-team img {
+    .champion-team img,
+    .champion-team .champion-flag {
       width: 20px;
       height: 14px;
       object-fit: cover;
       border-radius: 1px;
+      flex-shrink: 0;
+    }
+
+    /* Stands in for a flag that failed to load, at the same footprint so the
+       table's columns do not shift. */
+    .flag-fallback {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      color: var(--text-muted);
+      font-size: 7px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      line-height: 1;
+      overflow: hidden;
     }
 
     .champion-label {
@@ -1220,24 +1426,52 @@
     }
 
     @media (max-width: 768px) {
+      .app-container {
+        padding: 16px 12px 64px 12px;
+      }
+
       header {
-        padding: 16px;
+        padding: 12px 8px 18px 8px;
+        margin-bottom: 24px;
+      }
+
+      .header-top {
+        gap: 8px;
       }
 
       .brand-title {
-        font-size: 16px;
+        font-size: 15px;
+        white-space: nowrap;
       }
 
       .brand-logo {
-        font-size: 22px;
+        font-size: 20px;
+      }
+
+      .header-actions {
+        gap: 6px;
+      }
+
+      .btn {
+        padding: 9px 12px;
+      }
+
+      .btn-icon-only {
+        width: 38px;
+        height: 38px;
       }
 
       .hero-title-section h1 {
-        font-size: 26px;
+        font-size: 24px;
+        letter-spacing: -0.5px;
       }
 
       .hero-title-section p {
-        font-size: 14px;
+        font-size: 13px;
+      }
+
+      .progress-wrap {
+        margin-top: 14px;
       }
 
       .navigation-tabs {
@@ -1246,28 +1480,57 @@
       }
 
       .tab-btn {
-        padding: 10px 10px;
+        padding: 10px 6px;
         font-size: 12px;
         min-height: 44px;
+        white-space: nowrap;
+      }
+
+      /* The icons are decoration; on a phone the labels need the room. */
+      .tab-btn i {
+        display: none;
       }
 
       .card {
-        padding: 14px;
+        padding: 12px 10px;
+      }
+
+      .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .desktop-hint {
+        display: none;
+      }
+
+      .mobile-hint {
+        display: inline;
       }
 
       .lp-row {
+        grid-template-columns: 26px 30px 22px minmax(0, 1fr) auto 14px;
         gap: 8px;
-        padding: 8px 10px;
+        padding: 6px 10px;
       }
 
-      .reorder-btn {
-        width: 30px;
-        height: 24px;
+      .lp-name {
+        font-size: 13px;
       }
 
-      .pot-chip,
-      .drag-handle {
+      .lp-country {
+        font-size: 11px;
+      }
+
+      .pot-chip {
         display: none;
+      }
+
+      /* Bigger target, since a finger has to find it. */
+      .drag-handle {
+        font-size: 15px;
+        opacity: 0.6;
       }
 
       .sr-only-mobile {
@@ -1282,8 +1545,12 @@
       }
     }
 
-    @media (max-width: 420px) {
-      .status-badge {
+    @media (max-width: 430px) {
+      .lp-row {
+        grid-template-columns: 26px 30px 22px minmax(0, 1fr) 14px;
+      }
+
+      .lp-country {
         display: none;
       }
     }
@@ -1306,6 +1573,10 @@
             title="Toggle light/dark theme">
             <i class="fas fa-moon"></i>
           </button>
+          <button id="autofill-btn" class="btn btn-outline"
+            aria-label="Fill every undecided tie with the higher-seeded club">
+            <i class="fas fa-wand-magic-sparkles"></i> <span class="sr-only-mobile">Fill</span>
+          </button>
           <button id="reset-btn" class="btn btn-outline" aria-label="Reset all bracket predictions">
             <i class="fas fa-rotate-left"></i> <span class="sr-only-mobile">Reset</span>
           </button>
@@ -1325,6 +1596,13 @@
           <span class="hero-chip"><i class="fas fa-table-list"></i> 36 clubs · 8 matchdays</span>
           <span class="hero-chip"><i class="fas fa-shuffle"></i> Swiss league phase</span>
           <span class="hero-chip"><i class="fas fa-location-dot"></i> Final · Madrid · 5 Jun 2027</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="23" aria-valuenow="0"
+            aria-label="Ties decided" id="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <div class="progress-label" id="progress-label">0 of 23 ties decided</div>
         </div>
       </div>
     </header>
@@ -1353,7 +1631,10 @@
             <div class="card-header">
               <div>
                 <div class="card-title">Final League Phase Table</div>
-                <div class="card-subtitle">Drag or use the arrows to reorder all 36 clubs</div>
+                <div class="card-subtitle">
+                  <span class="desktop-hint">Drag, use the arrows, or tap a position to reorder all 36 clubs</span>
+                  <span class="mobile-hint">Tap a number to jump · arrows to nudge</span>
+                </div>
               </div>
               <div class="zone-legend" aria-hidden="true">
                 <span class="zone-key"><span class="zone-dot r16"></span>1–8</span>
@@ -1433,7 +1714,9 @@
 
         <!-- Desktop mirrored bracket -->
         <div class="bracket-container" id="desktop-bracket-container">
-          <div class="bracket-layout" id="desktop-bracket-layout">
+          <div class="bracket-stage" id="desktop-bracket-stage">
+            <svg class="bracket-lines" id="bracket-lines" aria-hidden="true" focusable="false"></svg>
+            <div class="bracket-layout" id="desktop-bracket-layout">
 
             <div class="bracket-column">
               <div class="round-heading" aria-hidden="true">Round of 16</div>
@@ -1481,6 +1764,7 @@
               <div id="d-r16-8"></div>
             </div>
 
+            </div>
           </div>
         </div>
       </section>
@@ -1551,6 +1835,22 @@
     ];
 
     const TEAM_COUNT = LEAGUE_TEAMS.length; // 36
+
+    // UEFA three-letter codes, shown when a flag image cannot be fetched.
+    const COUNTRY_ABBR = {
+      "at": "AUT", "az": "AZE", "be": "BEL", "cz": "CZE",
+      "de": "GER", "es": "ESP", "fr": "FRA", "gb-eng": "ENG",
+      "gr": "GRE", "it": "ITA", "nl": "NED", "no": "NOR",
+      "pt": "POR", "sk": "SVK", "tr": "TUR", "ua": "UKR"
+    };
+
+    // Association names, keyed by the flag code already on each club.
+    const COUNTRIES = {
+      "at": "Austria", "az": "Azerbaijan", "be": "Belgium", "cz": "Czechia",
+      "de": "Germany", "es": "Spain", "fr": "France", "gb-eng": "England",
+      "gr": "Greece", "it": "Italy", "nl": "Netherlands", "no": "Norway",
+      "pt": "Portugal", "sk": "Slovakia", "tr": "Türkiye", "ua": "Ukraine"
+    };
 
     // Knockout play-offs: seeds 9-16 are drawn against seeds 17-24 in fixed
     // seeding bands (9/10 v 23/24, 11/12 v 21/22, 13/14 v 19/20, 15/16 v
@@ -1634,6 +1934,27 @@
       if (!code) return "";
       return `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
     }
+
+    // A flag that will not load leaves the club unidentified, so fall back to
+    // its association's three-letter code rather than a hole in the row. This
+    // covers a blocked CDN, an offline visitor, and any code the CDN does not
+    // carry.
+    function flagHtml(team, className) {
+      const abbr = COUNTRY_ABBR[team.code] || team.code.slice(0, 3).toUpperCase();
+      return `<img class="${className}" src="${getFlagUrl(team.code)}" alt="${escapeHtml(COUNTRIES[team.code] || "")}"
+        loading="lazy" data-abbr="${escapeHtml(abbr)}" onerror="uclFlagFallback(this)">`;
+    }
+
+    // Called from the img's onerror; swaps the broken image for a text badge
+    // that keeps the row's column widths.
+    window.uclFlagFallback = function (img) {
+      if (!img || !img.parentNode) return;
+      const badge = document.createElement("span");
+      badge.className = `flag-fallback ${img.className}`;
+      badge.textContent = img.dataset.abbr || "?";
+      badge.title = img.alt || "";
+      img.replaceWith(badge);
+    };
 
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, ch => ({
@@ -1771,7 +2092,6 @@
 
         const row = document.createElement("li");
         row.className = `lp-row ${zone.cls}`;
-        row.setAttribute("draggable", "true");
         row.setAttribute("data-index", i);
         row.setAttribute("tabindex", "0");
         row.setAttribute("aria-label",
@@ -1784,14 +2104,19 @@
             <button class="reorder-btn reorder-down" ${rank === TEAM_COUNT ? "disabled" : ""}
               aria-label="Move ${escapeHtml(team.name)} down" title="Move down"><i class="fas fa-chevron-down"></i></button>
           </div>
-          <div class="lp-rank">${rank}</div>
-          <img class="team-flag" src="${getFlagUrl(team.code)}" alt="" onerror="this.style.visibility='hidden'">
+          <button type="button" class="lp-rank" aria-label="${escapeHtml(team.name)} is ${ordinal(rank)}. Move it to another position"
+            title="Move to a position">${rank}</button>
+          ${flagHtml(team, "team-flag")}
           <span class="lp-name">${escapeHtml(team.name)}</span>
+          <span class="lp-country">${escapeHtml(COUNTRIES[team.code] || "")}</span>
           <span class="pot-chip">Pot ${team.pot}</span>
-          <span class="status-badge ${zone.badge}">${zone.label}</span>
           <i class="fas fa-grip-vertical drag-handle" title="Drag to reorder" aria-hidden="true"></i>
         `;
 
+        row.querySelector(".lp-rank").addEventListener("click", e => {
+          e.stopPropagation();
+          openJumpInput(row, i);
+        });
         row.querySelector(".reorder-up").addEventListener("click", e => {
           e.stopPropagation();
           moveTeam(i, i - 1);
@@ -1828,11 +2153,47 @@
         li.className = "rail-seed";
         li.innerHTML = `
           <span class="seed-no">${rank}</span>
-          <img class="team-flag" src="${getFlagUrl(team.code)}" alt="" onerror="this.style.visibility='hidden'">
+          ${flagHtml(team, "team-flag")}
           <span class="seed-name">${escapeHtml(team.name)}</span>
         `;
         list.appendChild(li);
       }
+    }
+
+    // Swaps the rank pill for a number field so a club can be sent straight to
+    // a position instead of being walked there one row at a time.
+    function openJumpInput(row, index) {
+      const pill = row.querySelector(".lp-rank");
+      if (!pill) return;
+
+      const input = document.createElement("input");
+      input.type = "number";
+      input.className = "lp-jump";
+      input.min = "1";
+      input.max = String(TEAM_COUNT);
+      input.value = String(index + 1);
+      input.setAttribute("aria-label", `Move to a position between 1 and ${TEAM_COUNT}`);
+
+      let settled = false;
+      const commit = apply => {
+        if (settled) return;
+        settled = true;
+        const target = Math.round(Number(input.value));
+        input.replaceWith(pill);
+        if (!apply || !Number.isFinite(target)) return;
+        const clamped = Math.min(Math.max(target, 1), TEAM_COUNT);
+        moveTeam(index, clamped - 1);
+      };
+
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); commit(true); }
+        else if (e.key === "Escape") { e.preventDefault(); commit(false); }
+      });
+      input.addEventListener("blur", () => commit(true));
+
+      pill.replaceWith(input);
+      input.focus();
+      input.select();
     }
 
     // Reordering re-renders the list, so put focus back on the row that moved.
@@ -1860,63 +2221,155 @@
       if (dropped) showToast("Standings changed — affected knockout picks were cleared.", "warning");
     }
 
-    let dragSrcIndex = null;
+    // Reordering runs on pointer events rather than HTML5 drag-and-drop, which
+    // never fires on touch. One code path now serves mouse, pen and finger.
+    let drag = null;
 
-    function setupDragDropListeners() {
+    function setupDragListeners() {
       const container = document.getElementById("standings-container");
 
-      container.addEventListener("dragstart", e => {
-        const row = e.target.closest(".lp-row");
-        if (!row) return;
-        dragSrcIndex = parseInt(row.getAttribute("data-index"), 10);
-        row.classList.add("dragging");
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", String(dragSrcIndex));
-      });
+      container.addEventListener("pointerdown", e => {
+        const handle = e.target.closest(".drag-handle");
+        if (!handle) return;
+        if (e.pointerType === "mouse" && e.button !== 0) return;
 
-      container.addEventListener("dragend", () => {
-        dragSrcIndex = null;
-        clearDragMarkers();
-      });
-
-      container.addEventListener("dragover", e => {
-        if (dragSrcIndex === null) return;
-        e.preventDefault();
-        const row = e.target.closest(".lp-row");
+        const row = handle.closest(".lp-row");
         if (!row) return;
 
-        clearDragMarkers();
-        const rect = row.getBoundingClientRect();
-        const above = (e.clientY - rect.top) < rect.height / 2;
-        row.classList.add(above ? "drag-over-top" : "drag-over-bottom");
+        const rows = [...container.querySelectorAll(".lp-row")];
+        drag = {
+          pointerId: e.pointerId,
+          handle,
+          row,
+          index: rows.indexOf(row),
+          startPageY: e.clientY + window.scrollY,
+          pointerY: e.clientY,
+          target: rows.indexOf(row),
+          started: false,
+          frame: null
+        };
+
+        // Claim the pointer so the gesture survives leaving the row, and stop
+        // the touch from scrolling the page instead of dragging.
+        handle.setPointerCapture(e.pointerId);
+        e.preventDefault();
       });
 
-      container.addEventListener("drop", e => {
-        e.preventDefault();
-        const row = e.target.closest(".lp-row");
-        if (!row || dragSrcIndex === null) return;
+      container.addEventListener("pointermove", e => {
+        if (!drag || e.pointerId !== drag.pointerId) return;
+        drag.pointerY = e.clientY;
 
-        const targetIndex = parseInt(row.getAttribute("data-index"), 10);
-        clearDragMarkers();
-        if (targetIndex === dragSrcIndex) return;
+        if (!drag.started) {
+          // A few pixels of slop keeps a tap from registering as a drag.
+          if (Math.abs(e.clientY + window.scrollY - drag.startPageY) < 4) return;
+          drag.started = true;
+          drag.row.classList.add("drag-active");
+          document.body.classList.add("is-dragging");
+          startAutoScroll();
+        }
+        updateDrag();
+      });
 
-        const rect = row.getBoundingClientRect();
-        const above = (e.clientY - rect.top) < rect.height / 2;
+      const release = commit => {
+        if (!drag) return;
+        const { started, index, target, row, handle, pointerId, frame } = drag;
 
-        let finalIndex = targetIndex;
-        if (dragSrcIndex < targetIndex && above) finalIndex = targetIndex - 1;
-        else if (dragSrcIndex > targetIndex && !above) finalIndex = targetIndex + 1;
+        if (frame) cancelAnimationFrame(frame);
+        try { handle.releasePointerCapture(pointerId); } catch (err) { /* already gone */ }
 
-        const from = dragSrcIndex;
-        dragSrcIndex = null;
-        moveTeam(from, finalIndex);
+        row.classList.remove("drag-active");
+        row.style.transform = "";
+        document.body.classList.remove("is-dragging");
+        hideDropIndicator();
+        drag = null;
+
+        if (started && commit && target !== index) moveTeam(index, target);
+      };
+
+      container.addEventListener("pointerup", e => {
+        if (drag && e.pointerId === drag.pointerId) release(true);
+      });
+      container.addEventListener("pointercancel", e => {
+        if (drag && e.pointerId === drag.pointerId) release(false);
+      });
+      // Escape abandons the drag without reordering.
+      window.addEventListener("keydown", e => {
+        if (e.key === "Escape" && drag) release(false);
       });
     }
 
-    function clearDragMarkers() {
-      document.querySelectorAll(".lp-row").forEach(el => {
-        el.classList.remove("dragging", "drag-over-top", "drag-over-bottom");
-      });
+    // Follows the pointer, works out where the row would land, and moves the
+    // insertion marker there. Rects are read live so the maths stays right
+    // while the page auto-scrolls underneath.
+    function updateDrag() {
+      if (!drag || !drag.started) return;
+
+      drag.row.style.transform =
+        `translateY(${drag.pointerY + window.scrollY - drag.startPageY}px)`;
+
+      const container = document.getElementById("standings-container");
+      const others = [...container.querySelectorAll(".lp-row")].filter((_, i) => i !== drag.index);
+
+      let target = 0;
+      for (const other of others) {
+        const box = other.getBoundingClientRect();
+        if (box.top + box.height / 2 >= drag.pointerY) break;
+        target++;
+      }
+      drag.target = target;
+
+      showDropIndicator(container, others, target);
+    }
+
+    function showDropIndicator(container, others, target) {
+      let marker = document.getElementById("drop-indicator");
+      if (!marker) {
+        marker = document.createElement("div");
+        marker.id = "drop-indicator";
+        marker.className = "drop-indicator";
+        marker.setAttribute("aria-hidden", "true");
+        container.appendChild(marker);
+      }
+
+      const containerBox = container.getBoundingClientRect();
+      let y;
+      if (target < others.length) {
+        y = others[target].getBoundingClientRect().top - containerBox.top - 3;
+      } else if (others.length) {
+        y = others[others.length - 1].getBoundingClientRect().bottom - containerBox.top + 1;
+      } else {
+        y = 0;
+      }
+
+      marker.style.transform = `translateY(${y}px)`;
+      marker.style.opacity = "1";
+    }
+
+    function hideDropIndicator() {
+      const marker = document.getElementById("drop-indicator");
+      if (marker) marker.style.opacity = "0";
+    }
+
+    // A finger held still near the edge of the screen fires no pointermove, so
+    // the scroll has to run on its own frame loop.
+    function startAutoScroll() {
+      const step = () => {
+        if (!drag || !drag.started) return;
+
+        const margin = 90;
+        const y = drag.pointerY;
+        let delta = 0;
+        if (y < margin) delta = -Math.ceil((margin - y) / 5);
+        else if (y > window.innerHeight - margin) delta = Math.ceil((y - (window.innerHeight - margin)) / 5);
+
+        if (delta) {
+          const before = window.scrollY;
+          window.scrollBy(0, delta);
+          if (window.scrollY !== before) updateDrag();
+        }
+        drag.frame = requestAnimationFrame(step);
+      };
+      drag.frame = requestAnimationFrame(step);
     }
 
     // ---------------------------------------------------------------------
@@ -1945,6 +2398,7 @@
       saveStateToLocalStorage();
       renderPlayoffs();
       renderKnockoutBracket();
+      renderProgress();
     }
 
     // ---------------------------------------------------------------------
@@ -1957,6 +2411,7 @@
       validateTree();
       saveStateToLocalStorage();
       renderKnockoutBracket();
+      renderProgress();
 
       if (matchId === "final") triggerChampionCelebration();
     }
@@ -2021,8 +2476,9 @@
         row.setAttribute("role", "button");
         row.setAttribute("aria-pressed", String(isWinner));
         row.setAttribute("aria-label", `${matchTitle(matchId)}: pick ${team.name} to go through`);
+        row.dataset.team = team.name;
         row.innerHTML = `
-          <img class="match-team-flag" src="${getFlagUrl(team.code)}" alt="" onerror="this.style.visibility='hidden'">
+          ${flagHtml(team, "match-team-flag")}
           <span class="match-team-name" title="${escapeHtml(team.name)}">${escapeHtml(team.name)}</span>
         `;
 
@@ -2064,6 +2520,118 @@
       document.getElementById("mobile-champion-container").innerHTML = championCardHtml(champion, runnerUp);
 
       renderMobileBracketView(matches);
+      drawBracketConnectors();
+    }
+
+    // Each feeder card is joined to the tie it unlocks with an elbow: out of
+    // the card's inner edge, across to the halfway point, up or down, and in.
+    // Lines whose feeder already has a winner are drawn in the accent colour,
+    // so a filled path reads as a route rather than eight separate cards.
+    function drawBracketConnectors() {
+      const svg = document.getElementById("bracket-lines");
+      const stage = document.getElementById("desktop-bracket-stage");
+      if (!svg || !stage) return;
+
+      const stageBox = stage.getBoundingClientRect();
+      // The panel is display:none until its tab is open, and hidden elements
+      // measure zero — there is nothing to draw against yet.
+      if (stageBox.width === 0 || stageBox.height === 0) {
+        svg.innerHTML = "";
+        applyRouteHighlight();
+        return;
+      }
+
+      svg.setAttribute("viewBox", `0 0 ${stageBox.width} ${stageBox.height}`);
+
+      const box = id => {
+        const card = document.querySelector(`#d-${id} .match-card`);
+        if (!card) return null;
+        const r = card.getBoundingClientRect();
+        return {
+          left: r.left - stageBox.left,
+          right: r.right - stageBox.left,
+          mid: r.top - stageBox.top + r.height / 2
+        };
+      };
+
+      // Ties 1-4 sit in the left half and flow rightwards; 5-8 mirror them.
+      const leftHalf = new Set(["r16-1", "r16-2", "r16-3", "r16-4", "qf-1", "qf-2", "sf-1"]);
+      const paths = [];
+
+      Object.keys(MATCH_FLOW).forEach(feederId => {
+        const parentId = MATCH_FLOW[feederId].parent;
+        const from = box(feederId);
+        const to = box(parentId);
+        if (!from || !to) return;
+
+        const goingRight = leftHalf.has(feederId);
+        const startX = goingRight ? from.right : from.left;
+        const endX = goingRight ? to.left : to.right;
+        const midX = (startX + endX) / 2;
+        const live = Boolean(state.bracketWinner[feederId]);
+
+        const winner = state.bracketWinner[feederId];
+        paths.push(
+          `<path d="M ${startX} ${from.mid} H ${midX} V ${to.mid} H ${endX}"` +
+          `${live ? ' class="live"' : ""}${winner ? ` data-team="${escapeHtml(winner)}"` : ""} />`
+        );
+      });
+
+      svg.innerHTML = paths.join("");
+      applyRouteHighlight();
+    }
+
+    // Hovering a club lights up the ties it appears in and the edges it won to
+    // get there, so a run through the bracket reads as one path instead of
+    // eight unrelated cards.
+    let hoveredTeam = null;
+
+    function applyRouteHighlight() {
+      document.querySelectorAll(".match-team.route, .bracket-lines path.route")
+        .forEach(el => el.classList.remove("route"));
+      document.querySelectorAll(".match-card.on-route")
+        .forEach(el => el.classList.remove("on-route"));
+
+      const stage = document.getElementById("desktop-bracket-stage");
+      if (stage) stage.classList.toggle("routing", Boolean(hoveredTeam));
+      if (!hoveredTeam) return;
+
+      document.querySelectorAll(".match-team").forEach(el => {
+        if (el.dataset.team !== hoveredTeam) return;
+        el.classList.add("route");
+        const card = el.closest(".match-card");
+        if (card) card.classList.add("on-route");
+      });
+      document.querySelectorAll(".bracket-lines path").forEach(el => {
+        if (el.dataset.team === hoveredTeam) el.classList.add("route");
+      });
+    }
+
+    function setRouteHighlight(team) {
+      if (hoveredTeam === team) return;
+      hoveredTeam = team;
+      applyRouteHighlight();
+    }
+
+    function setupRouteHighlighting() {
+      const panel = document.getElementById("knockout-tab");
+      if (!panel) return;
+
+      const enter = e => {
+        const row = e.target.closest(".match-team[data-team]");
+        if (row) setRouteHighlight(row.dataset.team);
+      };
+      const leave = e => {
+        const row = e.target.closest(".match-team[data-team]");
+        // Ignore moves that stay inside the same row.
+        if (row && !row.contains(e.relatedTarget)) setRouteHighlight(null);
+      };
+
+      panel.addEventListener("mouseover", enter);
+      panel.addEventListener("mouseout", leave);
+      // Keyboard users get the same view when a row takes focus.
+      panel.addEventListener("focusin", enter);
+      panel.addEventListener("focusout", leave);
     }
 
     function getFinalLoser(matches) {
@@ -2079,7 +2647,7 @@
       const slot = (team, label) => team
         ? `<div class="champion-slot">
              <div class="champion-team">
-               <img src="${getFlagUrl(team.code)}" alt="" onerror="this.style.visibility='hidden'">
+               ${flagHtml(team, "champion-flag")}
                <span>${escapeHtml(team.name)}</span>
              </div>
              <div class="champion-label">${label}</div>
@@ -2117,10 +2685,66 @@
         activeMobileRound === "final" ? "" : "none";
     }
 
+    const ALL_TIE_IDS = [...PLAYOFF_IDS, ...BRACKET_IDS]; // 8 + 15 = 23
+
+    function decidedCount() {
+      return PLAYOFF_IDS.filter(id => state.playoffWinner[id]).length +
+        BRACKET_IDS.filter(id => state.bracketWinner[id]).length;
+    }
+
+    function renderProgress() {
+      const done = decidedCount();
+      const total = ALL_TIE_IDS.length;
+      document.getElementById("progress-fill").style.width = `${(done / total) * 100}%`;
+      document.getElementById("progress-track").setAttribute("aria-valuenow", String(done));
+      document.getElementById("progress-label").textContent = done === total
+        ? "Bracket complete"
+        : `${done} of ${total} ties decided`;
+    }
+
+    // Settles every remaining tie in favour of the club that finished higher in
+    // the league phase — a starting point to argue with, not a prediction.
+    function autoFillBracket() {
+      const before = decidedCount();
+
+      PLAYOFF_TIES.forEach(tie => {
+        if (state.playoffWinner[tie.id]) return;
+        const m = calculateMatchesData()[tie.id];
+        if (m.team1) state.playoffWinner[tie.id] = m.team1.name;
+      });
+
+      // Round by round: a tie only has two clubs once the ones feeding it do.
+      BRACKET_IDS.forEach(id => {
+        if (state.bracketWinner[id]) return;
+        const m = calculateMatchesData()[id];
+        const higher = seedRankOf(m.team1) <= seedRankOf(m.team2) ? m.team1 : m.team2;
+        if (higher) state.bracketWinner[id] = higher.name;
+      });
+
+      saveStateToLocalStorage();
+      renderAllViews();
+
+      const added = decidedCount() - before;
+      if (added > 0) {
+        showToast(`Filled ${added} ${added === 1 ? "tie" : "ties"} with the higher seed.`, "success");
+      } else {
+        showToast("Every tie was already decided.", "warning");
+      }
+    }
+
+    // Where a club finished in the league phase; unknown clubs sort last.
+    function seedRankOf(team) {
+      if (!team) return Number.MAX_SAFE_INTEGER;
+      const idx = LEAGUE_TEAMS.indexOf(team);
+      const pos = state.order.indexOf(idx);
+      return pos === -1 ? Number.MAX_SAFE_INTEGER : pos;
+    }
+
     function renderAllViews() {
       renderLeaguePhase();
       renderPlayoffs();
       renderKnockoutBracket();
+      renderProgress();
     }
 
     // ---------------------------------------------------------------------
@@ -2389,6 +3013,8 @@
           panels.forEach(p => p.classList.remove("active"));
           btn.classList.add("active");
           document.getElementById(btn.getAttribute("data-tab")).classList.add("active");
+          // The bracket panel had no dimensions while it was hidden.
+          if (btn.getAttribute("data-tab") === "knockout-tab") drawBracketConnectors();
         });
       });
 
@@ -2433,6 +3059,7 @@
         }
       });
 
+      document.getElementById("autofill-btn").addEventListener("click", autoFillBracket);
       document.getElementById("share-btn").addEventListener("click", () => copyToClipboard(createShareableUrl()));
       document.getElementById("download-btn").addEventListener("click", exportPredictions);
     }
@@ -2456,10 +3083,17 @@
 
       setupThemeToggle();
       setupTabs();
+      setupRouteHighlighting();
       setupUtilityButtons();
-      setupDragDropListeners();
+      setupDragListeners();
 
       renderAllViews();
+
+      let redrawTimer = null;
+      window.addEventListener("resize", () => {
+        clearTimeout(redrawTimer);
+        redrawTimer = setTimeout(drawBracketConnectors, 120);
+      });
     }
 
     window.addEventListener("DOMContentLoaded", initSystem);
