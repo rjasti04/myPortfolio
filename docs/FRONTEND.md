@@ -283,9 +283,9 @@ missing, so a failed update is visible but not dangerous.
 | `social-preview.png` | Open Graph / Twitter card image |
 | `rajeev_jasti.pdf.pdf` | Downloadable résumé (the doubled extension is the actual filename) |
 | `robots.txt` | Allows everything except `/api/`; points at the sitemap |
-| `sitemap.xml` | Single URL entry with an image annotation |
-| `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none` |
-| `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Linked from the header as `#ucl-link`; covered by `frontend/tests/ucl-bracket.test.js` |
+| `sitemap.xml` | Two URL entries — `/` with an image annotation, and `/ucl` |
+| `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup` — see [Apache configuration](#apache-configuration) |
+| `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the header as `#ucl-link`; covered by `frontend/tests/ucl-bracket.test.js` |
 
 `assets/master-icon.png` lives **outside** `frontend/` deliberately, so the
 deploy's `rsync` never publishes it to the web root.
@@ -296,6 +296,15 @@ deploy's `rsync` never publishes it to the web root.
 
 `frontend/.htaccess` ships with the site:
 
+- **Canonical URLs** — `mod_rewrite` gives every page one address. A request
+  for `/ucl.html` is `301`ed to `/ucl` (and `/index.html` to `/`), a request
+  on `www.` is `301`ed to the apex, and `/ucl` is then rewritten *internally*
+  to `ucl.html` so the address bar keeps the clean form. The redirect matches
+  on `THE_REQUEST` — the raw request line — so it sees only what the browser
+  asked for and never the internal rewrite, which is what keeps it from
+  looping. mod_rewrite re-appends the query string, so a `?s=` share code
+  survives. The internal rewrite is guarded on the `.html` file existing, so
+  `/api` and every real asset fall straight through.
 - **Compression** — gzip (`mod_deflate`) and Brotli (`mod_brotli`) for text types.
 - **Expiry** — images and fonts one year; CSS/JS one hour; HTML zero.
 - **Security headers** — `X-Content-Type-Options: nosniff`,
@@ -373,6 +382,12 @@ needed to develop against either.
 
 Service-worker caching can mask changes during development. Use a hard reload,
 or "Update on reload" in the browser's Application panel.
+
+`http.server` does not read `.htaccess`, so the extensionless paths do not
+exist locally: open the predictors at `/ucl.html` and `/worldcup.html` while
+developing. The header links point at `/ucl` and `/worldcup` and will 404 on
+the local server — that is expected, and the only part of the URL change that
+cannot be exercised without Apache.
 
 To exercise the built output instead:
 
