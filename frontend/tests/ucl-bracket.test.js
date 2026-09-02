@@ -250,3 +250,146 @@ test("mobile round tabs swap the rendered round", async () => {
     "",
   );
 });
+
+test("quick fill settles every remaining tie with the higher seed", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const click = (el) =>
+    el.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+  assert.equal(
+    doc.getElementById("progress-label").textContent,
+    "0 of 23 ties decided",
+  );
+
+  click(doc.getElementById("autofill-btn"));
+
+  assert.equal(
+    doc.getElementById("progress-label").textContent,
+    "Bracket complete",
+  );
+  assert.equal(
+    doc.getElementById("progress-track").getAttribute("aria-valuenow"),
+    "23",
+  );
+  assert.equal(
+    doc.getElementById("playoff-counter").textContent,
+    "Decided: 8 of 8",
+  );
+
+  const names = [...doc.querySelectorAll(".lp-row .lp-name")].map(
+    (e) => e.textContent,
+  );
+  assert.equal(
+    doc.querySelector("#d-champion .champion-team span").textContent,
+    names[0],
+  );
+
+  // A pick already made by hand is left alone.
+  const [, po, ko] = window.localStorage
+    .getItem("ucl-predictor-state")
+    .split("-");
+  assert.equal(po.includes("x"), false);
+  assert.equal(ko.includes("x"), false);
+});
+
+test("quick fill preserves picks already made", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const click = (el) =>
+    el.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+  // Send the lower seed through play-off 1, then fill the rest.
+  click(
+    doc
+      .querySelectorAll("#playoff-container .match-card")[0]
+      .querySelectorAll(".match-team")[1],
+  );
+  click(doc.getElementById("autofill-btn"));
+
+  const names = [...doc.querySelectorAll(".lp-row .lp-name")].map(
+    (e) => e.textContent,
+  );
+  const po1Winner = doc.querySelector(
+    "#playoff-container .match-card .match-team.winner .match-team-name",
+  );
+  assert.equal(
+    po1Winner.textContent,
+    names[23],
+    "the 24th seed keeps the upset it was given",
+  );
+});
+
+test("the rank pill swaps to a number field that moves a club", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const click = (el) =>
+    el.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+  const before = [...doc.querySelectorAll(".lp-row .lp-name")].map(
+    (e) => e.textContent,
+  );
+  click(doc.querySelectorAll(".lp-row")[30].querySelector(".lp-rank"));
+
+  const input = doc.querySelector(".lp-jump");
+  assert.ok(input, "the pill became an input");
+  assert.equal(input.value, "31");
+
+  input.value = "1";
+  input.dispatchEvent(
+    new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+  );
+
+  const after = [...doc.querySelectorAll(".lp-row .lp-name")].map(
+    (e) => e.textContent,
+  );
+  assert.equal(after[0], before[30], "the club moved to the top");
+  assert.equal(after[1], before[0], "everyone else shifted down");
+  assert.equal(doc.querySelectorAll(".lp-row").length, 36);
+});
+
+test("an out-of-range jump is clamped, and Escape cancels", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const click = (el) =>
+    el.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  const before = [...doc.querySelectorAll(".lp-row .lp-name")].map(
+    (e) => e.textContent,
+  );
+
+  click(doc.querySelectorAll(".lp-row")[5].querySelector(".lp-rank"));
+  let input = doc.querySelector(".lp-jump");
+  input.value = "999";
+  input.dispatchEvent(
+    new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+  );
+  assert.equal(
+    [...doc.querySelectorAll(".lp-row .lp-name")][35].textContent,
+    before[5],
+    "clamped to last place",
+  );
+
+  click(doc.querySelectorAll(".lp-row")[2].querySelector(".lp-rank"));
+  input = doc.querySelector(".lp-jump");
+  input.value = "1";
+  input.dispatchEvent(
+    new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+  );
+  assert.equal(doc.querySelector(".lp-jump"), null, "the field closed");
+  assert.equal(
+    [...doc.querySelectorAll(".lp-row .lp-name")][2].textContent,
+    before[2],
+    "Escape left the order alone",
+  );
+});
+
+test("the league table row carries the club's association", async () => {
+  const { window } = await boot();
+  const rows = window.document.querySelectorAll(".lp-row");
+  assert.equal(rows[0].querySelector(".lp-country").textContent, "France");
+  assert.equal(rows[3].querySelector(".lp-country").textContent, "England");
+  const blanks = [...rows].filter(
+    (r) => !r.querySelector(".lp-country").textContent.trim(),
+  );
+  assert.deepEqual(blanks, [], "every club resolves to an association");
+});
