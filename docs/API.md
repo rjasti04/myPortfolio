@@ -1,350 +1,631 @@
-# API Documentation
+# API Reference
 
-## Overview
+FastAPI service `rjWebApp API`, version 2.0.0 (`server/main.py`).
 
-The rjWebApp backend is a FastAPI service that provides activity tracking and AI chat functionality powered by Amazon Bedrock.
+- **Production base**: `https://rjasti.com/api`
+- **Local base**: `http://localhost:8000`
+- **Interactive docs**: `<base>/docs` · **Schema**: `<base>/openapi.json`
 
-**Base URL**: `https://rjasti.com/api` (production)
+Every router is mounted **twice** — at `/api/...` and at `/...` — because
+whether the reverse proxy strips the `/api` prefix decides which copy serves
+production. The root copy is excluded from the OpenAPI schema, so each endpoint
+is documented once while both continue to route.
+
+- [Authentication models](#authentication-models)
+- [Rate limits](#rate-limits)
+- [Common headers](#common-headers)
+- [System endpoints](#system-endpoints)
+- [Auth endpoints](#auth-endpoints)
+- [Analytics session endpoints](#analytics-session-endpoints)
+- [Event endpoints](#event-endpoints)
+- [Live activity stream (SSE)](#live-activity-stream-sse)
+- [Chat endpoints](#chat-endpoints)
+- [Error shapes](#error-shapes)
+- [Endpoint / caller matrix](#endpoint--caller-matrix)
 
 ---
 
-## Authentication
+## Authentication models
 
-⚠️ **WARNING**: The API currently has NO authentication. This is a security risk and should be addressed before production use.
+The API uses **two independent** credential systems. They do not overlap and
+neither substitutes for the other.
+
+### 1. JWT bearer tokens — user accounts
+
+`Authorization: Bearer <access_token>`, HS256, signed with `JWT_SECRET`.
+
+| Token type | `type` claim | Lifetime | Carries `jti` | Purpose |
+| :--- | :--- | :--- | :--- | :--- |
+| Access | `access` | 30 minutes | no | Authenticates account-scoped calls |
+| Refresh | `refresh` | 30 days | yes (in `refresh_tokens`) | Exchanged for a new pair; rotated and revoked on use |
+| 2FA pre-auth | `2fa_pre_auth` | 5 minutes | yes (in `one_time_tokens`) | Half-authenticated state between password and TOTP |
+| Password reset | `password_reset` | 15 minutes | yes (in `one_time_tokens`) | Emailed reset link |
+| Magic link | `magic_link` | 10 minutes | yes (in `one_time_tokens`) | Emailed passwordless sign-in |
+
+Single-use tokens are validated **and** burned against `one_time_tokens`, with a
+`purpose` check, so a token minted for one flow cannot be redeemed in another.
+
+### 2. Session capability tokens — anonymous analytics
+
+Activity endpoints track visitors who are not signed in, so they cannot require
+a login. `POST /sessions` issues an HMAC-SHA256 capability token over the
+session id (`hmac(JWT_SECRET, "analytics-session:{session_id}")`), returned in
+the response body **and** set as a cookie:
+
+```
+Set-Cookie: rj_session_token=<hex>; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400
+```
+
+Present it on every session-scoped call, in this precedence order:
+
+1. `X-Session-Token: <token>` — preferred for `fetch`
+2. `rj_session_token` cookie — automatic, and the only option for `EventSource`
+3. `?session_token=<token>` — **deprecated**, still accepted for clients cached
+   from before the cookie existed; nothing issues one any more
+
+A missing or wrong token returns **403 with an identical body whether or not the
+session exists**, so the endpoint cannot be used to discover valid session ids.
 
 ---
 
-## Endpoints
+## Rate limits
 
-### Health Check
+Sliding windows keyed by client IP (`server/middlewares/rate_limit.py`). The
+path is normalised first, so `/api/auth/login` and `/auth/login` share a budget.
+Client IP honours `X-Forwarded-For` only when the direct peer is in
+`TRUSTED_PROXY_IPS`.
 
-#### `GET /health`
+| Budget | Paths | Limit | Configurable |
+| :--- | :--- | :--- | :--- |
+| Chat | `/chat`, `/chat/`, `/chat/stream`, `/chat/summarize` | `CHAT_RATE_LIMIT_PER_MINUTE` (default **12/min**) | yes |
+| Auth | `/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/2fa/verify`, `/auth/magic-link/request` | **5/min** | no (hardcoded) |
+| General | everything else | **60/min** | constructor argument |
 
-Check API and database health status.
+All limiting is skipped when `TESTING=true`. Additional ceilings:
 
-**Response** (200 OK):
+- Request bodies above `MAX_BODY_BYTES` (default 1 MiB) → **413**
+- Concurrent Bedrock streams above `CHAT_MAX_CONCURRENCY` (default 4) → **429**
+- Concurrent SSE streams per session above `MAX_STREAMS_PER_SESSION` (default 2) → **429**
+
+---
+
+## Common headers
+
+| Header | Direction | Meaning |
+| :--- | :--- | :--- |
+| `X-Request-ID` | response | UUID assigned by the outermost middleware; appears in every structured log line for that request |
+| `Server-Timing: app;dur=<ms>` | response | Handler wall time only, excluding the middleware above it. Explicitly CORS-exposed |
+| `X-Session-Token` | request | Analytics session capability token |
+| `X-Session-ID` | request | Optional on `/chat/stream`; attributes LLM telemetry to an activity session (also read from a `session_id` cookie) |
+| `Last-Event-ID` | request | Sent automatically by `EventSource` on reconnect; drives SSE replay |
+
+CORS: `settings.origins` (from `CORS_ORIGINS`, plus a localhost dev list when
+unset) with `https://rjasti.com` and `https://www.rjasti.com` always appended.
+Credentials allowed; all methods and headers allowed; `Server-Timing` and
+`X-Request-ID` exposed.
+
+---
+
+## System endpoints
+
+### `GET /health`
+
+Liveness plus a real database round trip (`SELECT 1`). The deploy gates on this.
+
+**200**
 ```json
-{
-  "status": "ok",
-  "db": "connected",
-  "pool_free": 8,
-  "pool_size": 10
-}
+{ "status": "ok", "db": "connected" }
 ```
 
----
-
-### Session Management
-
-#### `POST /sessions`
-
-Create a new user session for activity tracking.
-
-**Request Body**:
+**503**
 ```json
-{
-  "user_agent": "Mozilla/5.0...",
-  "device_type": "desktop"
-}
+{ "status": "error", "detail": "Database unavailable" }
 ```
 
-**Response** (201 Created):
+---
+
+### `GET /system/pipeline`
+
+Per-stage health of the activity ingest pipeline, read from in-process counters
+— no database round trip, safe to poll. Clients holding an SSE connection get
+the same payload pushed on the `pipeline` channel and need not call this.
+
+**Top-level fields**
+
+| Field | Values |
+| :--- | :--- |
+| `mode` | `kafka` (a broker is attached) · `simulator` (mock generator running) · `simulated` (no broker; figures modelled — default) · `bypass` (no broker, modelling disabled) |
+| `fanout` | `postgres` when cross-instance `LISTEN/NOTIFY` relay is active, else `local` |
+| `generated_at` | ISO-8601 UTC |
+| `stages` | `ingress`, `kafka`, `fastapi`, `postgres` |
+
+**Stage fields**
+
+| Stage | Fields |
+| :--- | :--- |
+| `ingress` | `health`, `events`, `last_event_at`, `flush_reasons` |
+| `kafka` | `health`, `mode`, `simulated`, `messages`, `lag`, `topic`; in `simulated` mode also `throughput`, `consumer_group`, `partitions[]` |
+| `fastapi` | `health`, `listeners`, `queued_frames`, `dropped_frames` |
+| `postgres` | `health`, `rows_written`, `buffer_depth`, `flushes`, `flush_failures`, `last_flush_ms`, `last_error`, `dropped_overflow`, `dropped_rejected` |
+
+In `simulated` mode the numbers are **derived from real throughput**, not
+invented: `messages` is the true count of events processed, partition offsets
+sum to it, `throughput` is the observed rolling-minute rate, and `lag` rises
+with arrivals then drains geometrically against wall time (so poll rate does not
+move it). The stage always carries a `simulated` boolean so a consumer can tell
+modelled figures from broker-reported ones.
+
+---
+
+### `GET /models`
+
+Bedrock foundation models available in `AWS_REGION`.
+
+**200**
 ```json
-{
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
-  "session_token": "9f2c...e41a",
-  "started_at": "2024-01-15T10:30:00Z"
-}
+{ "models": [ { "modelId": "...", "modelName": "...", "provider": "...",
+                "inputModalities": ["TEXT"], "outputModalities": ["TEXT"] } ] }
 ```
 
-`session_token` is issued once, here, and is the only thing that authorises
-access to this session afterwards. Store it with the id.
+**500** — `{"detail": "Unable to list models"}` if the Bedrock control-plane call fails.
 
 ---
 
-### Session capability tokens
+## Auth endpoints
 
-Every endpoint scoped to a `session_id` requires the token issued when that
-session was created. Without it the session id alone granted full access, so any
-party holding or guessing an id could read a visitor's behavioural trail and
-device metadata, or write events attributed to them.
+All under `/auth`. Bodies are JSON. `🔒` marks endpoints requiring a bearer
+access token.
 
-Send it as a header:
+| Method | Path | Auth | Purpose |
+| :--- | :--- | :--- | :--- |
+| POST | `/auth/register` | — | Create an account |
+| POST | `/auth/login` | — | Password sign-in; may return a 2FA challenge |
+| POST | `/auth/refresh` | refresh token in body | Rotate the token pair |
+| GET | `/auth/me` | 🔒 | Current user |
+| POST | `/auth/logout` | 🔒 | Revoke all refresh tokens and end sessions |
+| POST | `/auth/2fa/setup` | 🔒 | Generate a TOTP secret + QR code |
+| POST | `/auth/2fa/enable` | 🔒 | Confirm a code and enable TOTP |
+| POST | `/auth/2fa/disable` | 🔒 | Disable TOTP (password **and** code required) |
+| POST | `/auth/2fa/verify` | pre-auth token in body | Complete a 2FA sign-in |
+| POST | `/auth/magic-link/request` | — | Email a passwordless sign-in link |
+| POST | `/auth/magic-link/verify` | token in body | Redeem a magic link |
+| POST | `/auth/change-password` | 🔒 | Change password |
+| POST | `/auth/forgot-password` | — | Email a reset link |
+| POST | `/auth/reset-password` | token in body | Complete a reset |
+| DELETE | `/auth/account` | 🔒 | Soft-delete the account |
+| POST | `/auth/delete-account` | 🔒 | Same handler; the path the frontend uses |
+| GET | `/auth/sessions` | 🔒 | List the caller's active sessions |
+| POST | `/auth/sessions/revoke-others` | 🔒 | End every session except the named one |
+| DELETE | `/auth/sessions/{session_id}` | 🔒 | End one named session |
 
+### `POST /auth/register` → 201
+
+```json
+{ "email": "you@example.com", "password": "at least 8 chars", "username": "optional, 3-50" }
 ```
-X-Session-Token: <session_token>
+Returns a `UserResponse` (`id`, `email`, `username`, `created_at`, `is_active`,
+`is_totp_enabled`). Email is normalised to lowercase. **400** — `"Email already
+registered"`. An account soft-deleted more than 30 days ago is purged and the
+address freed.
+
+> Registration does **not** run the Have I Been Pwned check. That check applies
+> to `/auth/change-password` and `/auth/reset-password`.
+
+### `POST /auth/login` → 200 `TokenResponseOr2FA`
+
+```json
+{ "email": "you@example.com", "password": "…" }
 ```
 
-`GET /sessions/{session_id}/stream` also accepts `?session_token=...`, because
-`EventSource` cannot set request headers. Prefer the header everywhere else -
-a query parameter is liable to end up in access logs.
+Without 2FA:
+```json
+{ "requires_2fa": false, "access_token": "…", "refresh_token": "…", "token_type": "bearer" }
+```
+With 2FA:
+```json
+{ "requires_2fa": true, "pre_auth_token": "…" }
+```
 
-A missing or wrong token returns **403** with an identical body whether or not
-the session exists, so the endpoint cannot be used to discover valid ids.
+- **401** `"Incorrect email or password"` — wrong credentials *or* unknown
+  address. The unknown-address path deliberately spends one bcrypt verification
+  so response time is not an account-existence oracle.
+- **400** — account locked (5 failed attempts → 15-minute lock), or inactive.
+- A legacy password hash (bcrypt over the raw password) is transparently
+  upgraded to the current scheme on a successful login.
+- Lockout counters are **not** cleared when 2FA is pending — only
+  `/auth/2fa/verify` clears them, so failed second factors accumulate.
 
----
+### `POST /auth/refresh` → 200 `Token`
 
-#### `PATCH /sessions/{session_id}/heartbeat`
+`{"refresh_token": "…"}`. Rotates: the presented `jti` is revoked and a new pair
+issued. **401** if revoked, expired, unknown, or the user is inactive. Because
+rotation is destructive, clients must serialise concurrent refreshes —
+`js/auth.js` does this with a single-flight guard.
 
-Update session last_active_at timestamp. Call every 60 seconds to keep session alive.
+### `POST /auth/2fa/setup` → 200 `Setup2FAResponse`
 
----
+`{"secret": "BASE32", "qr_code": "data:image/png;base64,…"}`.
+**400** if 2FA is already enabled — re-enrolling would overwrite the secret the
+authenticator already holds and lock the account behind a factor nobody can
+produce.
 
-#### `PATCH /sessions/{session_id}/end`
+### `POST /auth/2fa/verify` → 200 `TokenResponseOr2FA`
 
-Mark a session as ended.
+`{"pre_auth_token": "…", "code": "123456"}`. The pre-auth `jti` is burned on
+use. Failed codes increment the lockout counter; 5 → 15-minute lock.
+**400** — `"This sign-in attempt has expired. Please log in again."` on replay.
 
----
+### `POST /auth/magic-link/request` · `POST /auth/forgot-password` → 200
 
-#### `GET /sessions/{session_id}`
+Both answer with a generic message regardless of whether the address exists or
+is active, so neither can be used to enumerate accounts. Email delivery is a
+background task and its failure is never surfaced to the caller.
 
-Retrieve session details.
+### `POST /auth/reset-password` → 200
 
----
+`{"token": "…", "new_password": "…"}`. In order: verify and burn the one-time
+token → HIBP breach check → reuse check against the current hash plus the last
+5 in `password_history` → archive the old hash → set the new one → clear lockout
+→ revoke all refresh tokens, end sessions and void pending one-time tokens →
+email a security notification.
 
-### Event Tracking
+### `POST /auth/change-password` → 200
 
-#### `POST /events`
+`{"current_password": "…", "new_password": "…"}`. Same pipeline as above, with
+the current password verified first instead of a token.
 
-Record a single activity event.
+### `DELETE /auth/account` · `POST /auth/delete-account` → 200
 
-**Constraints**:
-- `event_data` must be ≤ 4KB when serialized to JSON
-- `page_path` max length: 256 characters
+`{"current_password": "…", "confirmation_phrase": "DELETE"}` (case-insensitive,
+trimmed). Soft delete: `deleted_at` set, `is_active` cleared, all tokens
+revoked. Signing in within 30 days automatically reactivates the account.
 
----
+### `GET /auth/sessions` → 200 `[UserSessionResponse]`
 
-#### `POST /events/bulk`
+Active `user_sessions` rows for the caller, newest activity first. `is_current`
+is always `false` — the API cannot correlate a bearer token with an analytics
+session row.
 
-Record multiple events in a single transaction (up to 500 events).
+### `POST /auth/sessions/revoke-others` → 200
 
-**Body**:
-- `events` (required): 1-500 event objects, same shape as `POST /events`
-- `client_ts` (optional): client clock at flush time, diagnostic only - never
-  trusted for ordering
-- `flush_reason` (optional): what triggered the batch, one of `threshold`,
-  `timer`, `unload`, `hidden`, `manual`. Tallied per reason and reported by
-  `GET /system/pipeline`; a high `unload` share means the timed flush is not
-  keeping up and data is riding the unreliable path.
-
----
-
-#### `GET /sessions/{session_id}/events`
-
-List events for a specific session with pagination.
-
-**Query Parameters**:
-- `limit` (optional): Number of events to return (1-500, default: 100)
-- `offset` (optional): Number of events to skip (0-1,000,000, default: 0)
-- `event_type` (optional): restrict to one declared event type
-
----
-
-#### `GET /sessions/{session_id}/events/summary`
-
-Aggregate counts by event type, plus the session-wide span (distinct paths,
-first and last event). Every declared type is zero-filled so the client tile
-grid does not reflow as counts land.
-
----
-
-#### `GET /sessions/{session_id}/events/funnel`
-
-Path funnel and transition edges for a session, computed in a single
-window-function pass.
-
-**Query Parameters**:
-- `limit` (optional): Maximum paths to return (1-25, default: 8)
-
-**Response**: `steps` (path, hits, first_at, last_at, share) ordered by hits,
-and `transitions` (from, to, weight) for the most common path-to-path moves.
+`{"current_session_id": "<uuid>"}` (optional, embedded). With no id, **every**
+session is ended — the safe reading of the request. Declared before
+`DELETE /auth/sessions/{session_id}` so the literal path segment is not captured
+as a UUID.
 
 ---
 
-#### `GET /sessions/{session_id}/stream`
+## Analytics session endpoints
 
-Server-sent events for the live activity dashboard. Three named channels share
-one connection:
+### `POST /sessions` → 201
+
+```json
+{ "user_agent": "Mozilla/5.0…", "device_type": "desktop" }
+```
+`device_type` ∈ `desktop` · `mobile` · `tablet` · `unknown` (optional).
+`user_agent` is capped at 2048 characters by the schema and truncated to 512
+before storage.
+
+```json
+{ "session_id": "550e8400-…", "session_token": "9f2c…e41a", "started_at": "2026-01-15T10:30:00Z" }
+```
+
+Also sets the `rj_session_token` cookie. Client IP is resolved server-side
+(`X-Forwarded-For` honoured only from a trusted proxy) — it is never accepted
+from the body. **The token is issued exactly once, here.** Store it with the id.
+
+### `PATCH /sessions/{session_id}/heartbeat` → 200
+
+Requires the session token. Bumps `last_active_at`, re-marks the session active
+and clears `ended_at`/`end_reason`. Call roughly every 60s.
+`{"status": "ok", "last_active_at": "…"}`. **404** if the session does not exist.
+
+### `PATCH /sessions/{session_id}/end` → 200
+
+Requires the session token. Body: `{"end_reason": "tab_closed_or_hidden"}` —
+one of `logout`, `timeout`, `closed`, `tab_closed_or_hidden`, `unknown`.
+`{"status": "ended", "ended_at": "…"}`.
+
+### `GET /sessions/{session_id}` → 200
+
+Requires the session token. Returns `session_id`, `started_at`, `ended_at`,
+`is_active`, `device_type`, `user_agent`, `last_active_at`, `end_reason`.
+
+---
+
+## Event endpoints
+
+### Event vocabulary
+
+Declared in `server/schemas/event.py` as `EVENT_TYPES`:
+
+| Type | Emitted by |
+| :--- | :--- |
+| `page_view` | `analytics.js` on session start, reload and `hashchange` |
+| `click` | delegated handler on `a`, `button`, `[data-track]` |
+| `scroll_depth` | 25 / 50 / 75 / 90 / 100 % thresholds, once each |
+| `terminal_command` | `js/terminal/index.js` |
+| `theme_change` | `js/theme.js` |
+| `copy_email` | `js/form.js` |
+| `contact_submission` | `js/form.js` |
+| `contact_prompt` | `js/form.js` when a prompt chip is used |
+| `ai_llm_telemetry` | written **server-side** by `chat_routes` after a stream completes |
+| `client_error` | `js/error-handler.js` — uncaught errors and unhandled rejections |
+
+`event_data` must serialise to ≤ 4096 bytes; `page_path` ≤ 256 characters.
+
+### `POST /events` → 201
+
+Requires the session token for `payload.session_id`.
+
+```json
+{ "session_id": "…", "event_type": "click", "page_path": "/#about",
+  "event_data": { "element_id": "cta" } }
+```
+→ `{"event_id": 10432, "created_at": "…"}`. Broadcasts to live SSE listeners.
+**404** if the session row does not exist. **422** for an undeclared
+`event_type` — this endpoint types it as a strict `Literal`.
+
+### `POST /events/bulk` → 201 `BulkEventResult`
+
+```json
+{ "events": [ … 1-500 items … ], "client_ts": 1756570000123, "flush_reason": "timer" }
+```
+
+- `client_ts` — client clock at flush time. **Diagnostic only**, never trusted
+  for ordering.
+- `flush_reason` ∈ `threshold` · `timer` · `unload` · `hidden` · `manual`.
+  Tallied per reason and reported by `GET /system/pipeline`; a high `unload`
+  share means the timed flush is not keeping up and data is riding the
+  unreliable path.
+
+```json
+{ "inserted": 9, "rejected": [ { "index": 4, "event_type": "wat", "reason": "unknown event_type" } ] }
+```
+
+**Partial acceptance is deliberate.** `BulkEventItem` types `event_type` as a
+plain string so an unrecognised value costs *that one event* rather than
+returning 422 for the whole request — a client running ahead of a server deploy
+would otherwise lose every valid event flushed alongside it, and `analytics.js`
+only re-queues on 5xx/429.
+
+Everything structural stays strict: **400** for an empty list or more than 500
+items, **403** if any row names a session the caller does not hold the token for
+(one batch, one session — an authorisation boundary, not schema drift),
+**422** for structurally invalid rows or a failed insert.
+
+### `GET /sessions/{session_id}/events` → 200
+
+Requires the session token.
+
+| Query | Default | Range |
+| :--- | :--- | :--- |
+| `limit` | 100 | 1–500 |
+| `offset` | 0 | 0–1,000,000 |
+| `event_type` | — | must be a declared type, else **422** |
+
+Ordered by `created_at DESC, event_id DESC` — the tiebreak matters because bulk
+inserts share a `created_at`, and without it the same row can appear on two
+pages. The composite index `ix_events_session_created` mirrors this ordering
+exactly, so pagination is an index scan.
+
+Returns an array of `{event_id, event_type, page_path, event_data, created_at}`.
+
+### `GET /sessions/{session_id}/events/summary` → 200 `SessionEventSummary`
+
+Requires the session token. Two indexed round trips: one `GROUP BY` for
+per-type counts, one scalar row for the session-wide span.
+
+```json
+{ "session_id": "…", "total_events": 128, "distinct_paths": 6,
+  "first_event_at": "…", "last_event_at": "…",
+  "by_type": [ { "event_type": "page_view", "count": 12, "last_at": "…" } ] }
+```
+
+Every declared type is **zero-filled** so the client tile grid does not reflow
+as counts land; legacy or since-removed types already in the table are appended
+after the known ones.
+
+### `GET /sessions/{session_id}/events/funnel` → 200
+
+Requires the session token. `limit` (1–25, default 8) caps the returned paths.
+
+Computed in a single window-function pass (`LEAD` over `created_at, event_id`),
+which is what makes the transition edges computable without pulling the whole
+event set into the application.
+
+```json
+{ "session_id": "…", "total_hits": 91,
+  "steps": [ { "path": "/#about", "hits": 40, "first_at": "…", "last_at": "…", "share": 0.4396 } ],
+  "transitions": [ { "from": "/#about", "to": "/#ai", "weight": 7 } ] }
+```
+
+---
+
+## Live activity stream (SSE)
+
+### `GET /sessions/{session_id}/stream`
+
+`text/event-stream`. Requires the session token — cookie for `EventSource`, or
+the header/deprecated query parameter. Three named channels share one
+connection:
 
 | Channel | Payload |
 | :--- | :--- |
-| `hello` | Bootstrap: server time, `resumed_from`, pipeline snapshot |
-| `activity` | One event, compact shape, carrying `id:` for resume |
+| `hello` | Bootstrap: `server_time`, `resumed_from`, `pipeline` snapshot |
+| `activity` | One event in compact form, carrying an `id:` for resume |
 | `pipeline` | Per-stage health snapshot, every 2s |
 
-The compact activity frame drops `session_id` (implicit in the stream) and
-sends epoch millis rather than an ISO string:
+The compact activity frame drops `session_id` (implicit in the stream) and sends
+epoch millis rather than an ISO string:
+
+```
+id: 10432
+event: activity
+data: {"i":10432,"t":1756570000123,"e":"click","p":"/#activity","d":{"element_id":"cta"}}
+```
+
+Field map: `i` = `event_id`, `t` = epoch ms, `e` = `event_type`,
+`p` = `page_path`, `d` = `event_data`.
+
+- **Reconnect** — `retry: 3000` is advertised on connect. The browser sends
+  `Last-Event-ID` automatically and the server replays the gap from a
+  per-session ring buffer (`SSE_REPLAY_BUFFER` entries, retained for
+  `SSE_REPLAY_TTL` seconds after disconnect).
+- **Keep-alive** — a `: keep-alive` comment after `SSE_KEEPALIVE_SECONDS` (15s)
+  of genuine silence.
+- **Backpressure** — each listener queue is bounded by `SSE_QUEUE_MAXSIZE`; at
+  the cap the **oldest** frame is dropped and `frames_dropped` increments.
+- **429** — the session already holds `MAX_STREAMS_PER_SESSION` open streams.
+  429 rather than 403: the caller is authorised, just over its allowance, and
+  `EventSource` will retry on its own backoff.
+
+> Historical note: an unnamed `data:` frame carrying the verbose shape was once
+> emitted alongside each `activity` frame for clients using
+> `EventSource.onmessage`. It has been removed — the only client subscribes to
+> the named channels.
+
+---
+
+## Chat endpoints
+
+### `POST /chat` · `POST /chat/` · `POST /chat/stream`
+
+Three paths, one handler. Streams a Bedrock completion as SSE. Authentication is
+**optional**; a bearer token lifts the free-message cap and enables transcript
+persistence.
+
+**Request** (`ChatStreamRequest`)
 
 ```json
-{"i": 10432, "t": 1756570000123, "e": "click", "p": "/#activity", "d": {"element_id": "cta"}}
+{ "messages": [ { "role": "user", "content": "…" } ],
+  "conversation_id": "optional-uuid-string",
+  "model_id": "optional-allowlisted-model",
+  "stream": true }
 ```
 
-An unnamed `data:` frame carrying the verbose shape is emitted alongside each
-`activity` frame, so a client using `EventSource.onmessage` still works. Both
-are deduplicated by `event_id` client-side.
+| Constraint | Value | Source |
+| :--- | :--- | :--- |
+| Messages per request | 1–60 | `MAX_MESSAGES` |
+| Characters per message | ≤ 8,000 | `MAX_MESSAGE_CHARS` |
+| Total characters | ≤ 24,000 | `MAX_TOTAL_CONTENT_CHARS` |
+| `role` | `user` or `assistant` only | `Literal` |
+| Anonymous user-role messages | ≤ `CHAT_FREE_MESSAGE_LIMIT` (6) | server-enforced |
+| Concurrent streams | ≤ `CHAT_MAX_CONCURRENCY` (4) | semaphore |
 
-**Resume**: each `activity` frame carries an `id:`. On reconnect the browser
-sends `Last-Event-ID` automatically and the server replays the gap from a
-per-session ring buffer (`SSE_REPLAY_BUFFER`, retained for `SSE_REPLAY_TTL`
-after disconnect). `retry: 3000` is advertised on connect.
+`system_prompt` is **not accepted**. It was once passed straight through,
+unauthenticated and unbounded, which both replaced the portfolio persona and
+billed arbitrary input tokens. The server owns the persona
+(`bedrock_service.DEFAULT_SYSTEM_PROMPT`).
 
-**Backpressure**: each listener queue is bounded (`SSE_QUEUE_MAXSIZE`); at the
-cap the oldest frame is dropped, since a live tail beats a stale backlog.
+Roles are normalised before dispatch (`ensure_alternating_roles`): empty
+messages dropped, consecutive same-role turns merged with a blank line, and a
+synthetic `[conversation context]` user turn prepended if the conversation
+starts with an assistant message.
+
+**Response** — `text/event-stream` with `Cache-Control: no-cache`,
+`X-Accel-Buffering: no`:
+
+```
+data: {"text": "Hello"}
+data: {"text": " there"}
+data: {"type":"metrics","metrics":{"model_id":"…","input_tokens":812,"output_tokens":140,
+       "cache_read_tokens":768,"cache_creation_tokens":0,"cache_hit":true,"latency_ms":1834.2}}
+```
+An in-band `data: {"error": "…"}` frame carries a Bedrock failure; the HTTP
+status is still 200 because the stream has already begun.
+
+**Errors** — **400** unsupported model (not in `ALLOWED_MODEL_IDS`), **401**
+anonymous free-message limit reached (`WWW-Authenticate: Bearer`), **422**
+schema violation, **429** over the chat rate budget or all concurrency slots
+busy.
+
+**Side effects**
+- If `X-Session-ID` (or a `session_id` cookie) names a valid session, an
+  `ai_llm_telemetry` activity event records the metrics.
+- If the caller is signed in and produced text, the transcript is zlib-compressed
+  and upserted into `ai_conversations`.
+
+**Model routing** — models whose id starts with `anthropic.`, `us.anthropic.` or
+`eu.anthropic.` use `invoke_model_with_response_stream` (the API that supports
+ephemeral prompt caching for the system prompt); everything else uses
+`converse_stream`. `max_tokens` 2048, `temperature` 0.7.
+
+### `POST /chat/summarize` → 200
+
+Same request schema. Takes a concurrency slot exactly like the streaming route.
+
+```json
+{ "summary": "…" }
+```
+Falls back to `"Summary of preceding conversation."` if the model returns
+nothing. `chat.js` calls this once its own token estimate crosses
+`SUMMARIZE_TOKEN_THRESHOLD` (~6000).
+
+### `GET /chat/history` 🔒 → 200
+
+`limit` (1–100, default 50). Summaries only — the compressed payload is never
+sent:
+
+```json
+{ "conversations": [ { "id": "…", "title": "…", "model_id": "…",
+                       "message_count": 12, "created_at": "…", "updated_at": "…" } ] }
+```
+
+### `GET /chat/history/{conversation_id}` 🔒 → 200
+
+Full transcript, decompressed. **404** if it does not exist *or* belongs to
+another user — ownership is part of the `WHERE` clause, so the two are
+indistinguishable.
+
+### `DELETE /chat/history/{conversation_id}` 🔒 → 200
+
+`{"detail": "Conversation deleted successfully"}`. **404** as above.
 
 ---
 
-### System
+## Error shapes
 
-#### `GET /system/pipeline`
+FastAPI's default envelope throughout:
 
-Per-stage health for the activity dashboard's ETL visualiser. Read-only over
-in-process counters, so it costs no database round trip.
+```json
+{ "detail": "Human-readable message" }
+```
 
-`mode` is one of:
+Validation errors carry the standard array form:
 
-| Mode | Meaning |
+```json
+{ "detail": [ { "type": "…", "loc": ["body", "messages", 0, "content"], "msg": "…" } ] }
+```
+
+| Status | Typical cause |
 | :--- | :--- |
-| `kafka` | A broker is attached; figures are its own |
-| `simulator` | The mock event generator is running |
-| `simulated` | No broker; queue figures are modelled (default) |
-| `bypass` | No broker and modelling disabled |
-
-The Kafka stage always carries a `simulated` boolean, so a consumer can tell
-modelled figures from broker-reported ones. In `simulated` mode the numbers are
-derived from the API's real throughput rather than invented: `messages` is the
-true count of events processed, partition offsets sum to it, `throughput` is
-the observed rolling-minute rate, and `lag` rises with arrivals then drains
-geometrically against wall time (so poll rate does not move it). Set
-`SIMULATE_KAFKA_METRICS=false` for the `bypass` report instead.
-
-`fanout` is `postgres` when cross-instance LISTEN/NOTIFY relay is active,
-otherwise `local`.
-
-Stages report: `ingress` (events, last_event_at, flush_reasons), `kafka`
-(mode, messages, lag, topic), `fastapi` (listeners, queued_frames,
-dropped_frames), `postgres` (rows_written, buffer_depth, flushes,
-flush_failures, last_flush_ms, last_error).
+| 400 | Bad request state — already-registered email, locked account, spent token, empty or oversized bulk list, unsupported model |
+| 401 | Missing/invalid/expired bearer token, wrong credentials, anonymous free-message limit |
+| 403 | Missing or wrong analytics session token (identical body whether or not the session exists) |
+| 404 | Unknown session, user, or conversation |
+| 413 | Body above `MAX_BODY_BYTES` |
+| 422 | Pydantic validation failure, unknown `event_type` on the single-event route, failed bulk insert |
+| 429 | Rate budget exceeded, Bedrock slots saturated, or too many SSE streams for the session |
+| 500 | Unhandled server error (e.g. Bedrock control-plane failure on `/models`) |
+| 503 | `/health` only — database unreachable |
 
 ---
 
-### AI Chat (Amazon Bedrock)
+## Endpoint / caller matrix
 
-#### `POST /chat`
+Which endpoints the deployed frontend actually calls.
+`tests/backend/integration/test_frontend_api_contract.py` asserts that every
+endpoint in the left column exists on the backend.
 
-Stream a chat response from Amazon Bedrock.
-
-**Constraints**:
-- `messages`: 1-24 messages
-- Each message `content`: 1-8,000 characters
-- Messages must alternate between user/assistant roles
-- First message must be from user
-
-**Concurrency Limit**: 4 concurrent chat streams
-
----
-
-#### `POST /chat/summarize`
-
-Summarize a conversation history using Amazon Bedrock.
-
----
-
-#### `GET /models`
-
-List available Amazon Bedrock foundation models in the configured region.
-
----
-
-## Rate Limiting
-
-**Global Rate Limit**: 60 requests per minute per IP address
-
----
-
-## Environment Variables
-
-### Required
-- `DATABASE_URL`: PostgreSQL connection string (asyncpg format)
-- `AWS_REGION`: AWS region for Bedrock (e.g., `us-east-1`)
-- `DEFAULT_MODEL_ID`: Default Bedrock model ID
-
-### Optional
-- `ALLOWED_MODEL_IDS`: Comma-separated allowlist of model IDs
-- `CORS_ORIGINS`: Comma-separated allowed origins
-- `TRUSTED_PROXY_IPS`: Comma-separated proxy IPs/CIDRs
-- `MAX_BODY_BYTES`: Request body limit (default: 1048576)
-- `CHAT_MAX_CONCURRENCY`: Max concurrent chat streams (default: 4)
-- `LOG_LEVEL`: Python logging level (default: INFO)
-- `KAFKA_BOOTSTRAP_SERVERS`: Broker list. Empty (default) runs the pipeline in
-  `simulated` mode - see `GET /system/pipeline`
-- `SIMULATE_KAFKA_METRICS`: Model queue figures from real throughput when no
-  broker is attached (default: true). False reports `bypass`
-- `SIMULATED_KAFKA_PARTITIONS`: Partitions the modelled topic presents
-  (default: 3)
-- `SIMULATED_KAFKA_GROUP`: Modelled consumer group (default: activity-dashboard)
-- `KAFKA_TOPIC`: Activity topic (default: session-activity)
-- `KAFKA_BATCH_SIZE`: Rows buffered before an eager flush (default: 10)
-- `KAFKA_BATCH_TIMEOUT`: Periodic flush interval in seconds (default: 3.0)
-- `ENABLE_EVENT_SIMULATOR`: Generate mock events when no broker is configured
-  (default: false)
-- `SSE_QUEUE_MAXSIZE`: Per-listener frame backlog cap (default: 100)
-- `SSE_REPLAY_BUFFER`: Per-session Last-Event-ID resume ring (default: 200)
-- `SSE_REPLAY_TTL`: Seconds a disconnected session's resume ring is kept
-  (default: 300)
-- `ENABLE_PG_FANOUT`: Relay SSE broadcasts between API instances over Postgres
-  LISTEN/NOTIFY. Only needed with more than one process; pure overhead on a
-  single instance (default: false)
-- `PG_FANOUT_CHANNEL`: NOTIFY channel name (default: activity_events)
-
----
-
-## Security Considerations
-
-⚠️ **CRITICAL SECURITY ISSUES**:
-
-1. **No Authentication**: API is completely open
-2. **Recommended Mitigations**:
-   - Implement API key authentication
-   - Add JWT-based session tokens
-   - Implement per-session rate limiting
-
-3. **Current Protections**:
-   - Rate limiting (60 req/min per IP)
-   - Request body size limits
-   - Input validation via Pydantic
-   - Parameterized SQL queries
-   - CORS restrictions
-
----
-
-## Client Example
-
-```javascript
-import { API_BASE, apiFetch } from './config.js';
-
-// Create session
-const session = await apiFetch(`${API_BASE}/sessions`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    user_agent: navigator.userAgent,
-    device_type: 'desktop'
-  })
-}).then(r => r.json());
-
-// Track event
-await apiFetch(`${API_BASE}/events`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    session_id: session.session_id,
-    event_type: 'page_view',
-    page_path: window.location.pathname
-  })
-});
-```
-
----
-
-**Last Updated**: 2024
-**API Version**: 1.0.0
+| Endpoint | Called by |
+| :--- | :--- |
+| `GET /health` | `analytics.js` (localhost fallback probe) |
+| `POST /sessions` · `PATCH …/heartbeat` · `PATCH …/end` | `analytics.js` |
+| `POST /events/bulk` | `analytics.js` |
+| `GET /sessions/{id}/events` · `…/summary` · `…/funnel` · `…/stream` | `activity.js` |
+| `POST /chat/stream` · `POST /chat/summarize` | `chat.js` |
+| All 19 `/auth/*` routes | `auth.js` / `auth-ui.js` |
+| `POST /events` (single) | — server/API consumers only |
+| `GET /models` · `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |
+| `GET/DELETE /chat/history*` | — the chat UI persists sessions in `localStorage`; server-side history is API-only today |

@@ -1,210 +1,556 @@
-# JavaScript Module Documentation
+# JavaScript Module Reference
 
-## Core Modules
+Every ES module under `frontend/js/`, plus `frontend/three-bg.js`, with its real
+exports and responsibilities. Modules are plain ES modules with no build-time
+syntax; `frontend/` runs directly in a browser.
 
-### analytics.js
-**Purpose**: Session tracking and event analytics
+- [Module graph](#module-graph)
+- [Entry points](#entry-points)
+- [Core services](#core-services)
+- [Feature modules](#feature-modules)
+- [The command prompt](#the-command-prompt)
+- [UI and interaction](#ui-and-interaction)
+- [Visual effects](#visual-effects)
+- [Browser storage keys](#browser-storage-keys)
+- [Conventions](#conventions)
 
-**Key Functions**:
-- `initAnalytics()` - Initialize analytics tracking with session management
-- `trackEvent(eventType, eventData)` - Track custom events
-- `ensureSession()` - Ensure valid session exists
-- `apiFetch(url, options)` - Wrapper for fetch with analytics context
+---
 
-**Usage**:
-```javascript
-import { initAnalytics, trackEvent } from './analytics.js';
+## Module graph
 
-// Initialize on page load
-initAnalytics();
-
-// Track custom events
-trackEvent('button_click', { button_id: 'cta-main' });
+```
+  index.html
+     ├── vendor/purify.min.js          (classic, defer → global DOMPurify)
+     ├── vendor/marked.min.js          (classic, defer → global marked)
+     ├── js/app-logic.js               (classic, defer → window.AppLogic)
+     ├── js/theme-bootstrap.js         (classic → replays custom palette)
+     ├── js/auth-ui.js   ── module entry ──► auth.js ──► analytics.js
+     │                                        modal.js, navigation.js
+     └── js/main.js      ── module entry ──► navigation, theme, form, animations,
+                                             hero-title, tilt, terminal/, analytics,
+                                             skills-carousel, ripple, scroll-to-top,
+                                             theme-customizer, error-handler
+                                               │
+                                               ├─ dynamic ─► chat.js       (first AI interaction)
+                                               ├─ dynamic ─► activity.js   (first Activity interaction)
+                                               ├─ dynamic ─► three-bg.js   (capable devices, idle)
+                                               └─ static  ─► particles-config.js (fallback layer)
 ```
 
----
-
-### activity.js
-**Purpose**: The Session Activity dashboard - what the site has recorded about
-the current visit
-
-**Key Functions**:
-- `initActivity()` - Wire up controls and bind to the section's active state
-- `loadActivity()` - Fetch the whole session in one request (the API caps a page
-  at 500 events) and hold it in memory
-- `loadActivitySummary()` / `loadActivityFunnel()` - Server-side aggregates for
-  the headline figures and the path list
-- `describeEvent(event)` - Turn a stored event into one plain sentence
-
-**Features**:
-- All filtering is local: search, event family, time slice and path
-- Four event families (Navigation / Interaction / Preference / Contact) carry
-  the colour encoding across the strip, chips, dots and bars
-- One list renderer for every viewport - no separate table, card or drawer path
-- SSE stream appends live events without a refetch
-
-### activity-charts.js
-**Purpose**: Pure paint helpers for the dashboard; `activity.js` owns all state
-
-**Key Functions**:
-- `bucketSession(samples, from, to)` - Per-family counts across the session span
-- `renderTimeline(root, buckets, options)` - The brushable session strip
-- `renderPaths(root, funnel, options)` - Ranked path rows
-- `percentile(values, fraction)` / `latencyBand(ms)` - Pipeline chain health
+`analytics.js` is the hub: it owns `API_BASE`, `apiFetch`, the session and its
+capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ---
 
-### chat.js
-**Purpose**: AI chat interface with Amazon Bedrock integration
+## Entry points
 
-**Key Functions**:
-- `initChat()` - Initialize chat widget and AI page
-- Session management with localStorage persistence
-- Streaming response handling
-- Token counting and limits
+### `main.js` (300 lines)
 
-**Features**:
-- Multi-session support (up to 50 sessions)
-- Markdown rendering with syntax highlighting
-- Voice input on mobile devices
-- Automatic context summarization
-- Connection status indicator
+Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
+
+- Installs `window.onerror` and `unhandledrejection` handlers that forward to
+  `reportClientError`. `preventDefault()` is called **only** for the network
+  case it actually handles with a toast — calling it unconditionally suppressed
+  every unhandled rejection from the console.
+- Eager init: theme, navigation, contact form, hero title, animations, tilt,
+  terminal, analytics, skills carousel, ripple, scroll-to-top, theme customizer.
+- Lazy loaders for `chat.js` and `activity.js`, triggered by a click on the
+  relevant nav target, by the section gaining `.active` (via `MutationObserver`),
+  or by the matching location hash. Each delegated document listener is bound to
+  an `AbortController` and removed once its module resolves — otherwise the
+  listener runs on every click in the viewport forever.
+- Background layer selection: exactly one animated layer mounts. The plexus
+  (`three-bg.js`) if `hardwareConcurrency` and `deviceMemory` clear a threshold,
+  otherwise the cheaper hero particle field. Neither under
+  `prefers-reduced-motion`, and the fallback is torn down if the preference is
+  enabled mid-session.
+- Service-worker registration, an update check every 60 s, and the update
+  banner whose button posts `SKIP_WAITING` and reloads on `controllerchange`.
+
+### `auth-ui.js` (1,189 lines)
+
+`export async function initAuthUI()` — one large function owning the entire
+account surface: modal tabs (login / register / forgot), password strength
+meter and requirement checklist, confirm-password matching, visibility toggles,
+2FA enrolment with the QR code, active-session list with per-session and
+"log out everywhere else" revocation, change password, delete account, magic-link
+and reset-token handling from query parameters, and the injected profile
+dropdown in the header (`setupNavUI`).
+
+Loaded as its own esbuild entry so the account UI is available without waiting
+for `main.js`.
+
+### `app-logic.js` (42 lines)
+
+A **classic script**, not a module. Assigns `window.AppLogic` and also exports
+via `module.exports` so the Node test runner can `require` it.
+
+| Export | Role |
+| :--- | :--- |
+| `setActiveSection(target, sections, navLinks)` | Toggle `.active` and manage `aria-current` |
+| `getValidHashTarget(hash, getElementById, fallback = "about")` | Resolve a hash to a real section id |
+
+### `theme-bootstrap.js` (19 lines)
+
+Classic script. Replays a saved custom palette from
+`localStorage.rj_theme_palette` onto `document.body` inline properties before
+the modules run.
 
 ---
 
-### utils.js
-**Purpose**: Shared utility functions
+## Core services
 
-**Key Functions**:
-- `escapeHTML(value)` - Escape HTML special characters
-- `copyText(text)` - Copy text to clipboard
-- `showToast(message, type, duration)` - Display toast notifications
-- `estimateTokens(text)` - Estimate token count for text
-- `lazyLoadImages(selector)` - Lazy load images with IntersectionObserver
-- `debounce(func, wait)` - Debounce function calls
-- `throttle(func, limit)` - Throttle function calls
+### `config.js` (11 lines)
+
+Media queries and the contact address. **Does not** hold `API_BASE`.
+
+| Export | Value |
+| :--- | :--- |
+| `CONTACT_EMAIL` | `inboxtorj@gmail.com` — also hardcoded in `index.html` (mailto links, structured data, connect menu); keep them in sync |
+| `prefersReducedMotion` | `(prefers-reduced-motion: reduce)` |
+| `prefersDarkScheme` | `(prefers-color-scheme: dark)` |
+| `compactViewport` | `(max-width: 1150px)` |
+| `supportsHover` | `(hover: hover) and (pointer: fine)` |
+| `mobileDevice` | `(pointer: coarse) and (max-width: 768px)` — phones only; iPads are 768px+ in portrait and laptops always have a fine pointer |
+
+### `analytics.js` (566 lines)
+
+API base resolution, session lifecycle, the event queue, and request telemetry.
+
+| Export | Role |
+| :--- | :--- |
+| `API_BASE` | `let` binding from `getApiBaseUrl()`; reassigned if a localhost health check fails |
+| `isApiConfigured()` | Whether a base URL is set at all |
+| `apiFetch(url, options)` | `fetch` with `mode: "cors"` and the `X-Session-Token` header attached centrally, so no call site can forget it |
+| `ensureSession()` | Start a session if needed; resolves `true` even when tracking is blocked, so chat still works |
+| `trackEvent(type, data)` | Queue an event; flush at the size threshold |
+| `initAnalytics()` | Attach global listeners, restore or start a session |
+| `onTelemetry(observer)` | Subscribe to per-request timing samples; returns an unsubscribe function |
+| `withSessionToken(url)` | **Identity function.** Kept as the single place that decides how the stream authenticates — it used to append `?session_token=`, which put a bearer credential into access logs and browser history |
+
+**API base resolution** — `localhost`/`127.0.0.1`/`[::1]` →
+`http://localhost:8000` (with a `/health` probe that falls back to production);
+hostname containing `staging` → `https://staging-api.rjasti.com/api`; origin
+containing `www.` → `https://www.rjasti.com/api`; otherwise
+`https://rjasti.com/api`.
+
+**Queue** — max 200 events, flushed at 10 queued, on a 2 s timer, on
+`visibilitychange` → hidden, and on `pagehide` (with `keepalive`). Persisted to
+`localStorage` under `rj_event_queue:<session_id>`. Namespacing matters: the
+session id lives in `sessionStorage` (per tab) while the queue lives in
+`localStorage` (shared), and each queued event carries a baked-in `session_id` —
+under one shared key a second tab would restore the first tab's events, flush
+them with its own token, and lose the whole batch to a 403. `initAnalytics`
+purges foreign and legacy queues before restoring its own.
+
+**Retry policy** — only `5xx` and `429` re-queue (bounded at 200). A `4xx` drops
+the batch and logs which event types were lost.
+
+**Auto-tracked events** — `page_view` (start, reload, `hashchange`), `click`
+(delegated over `a, button, [data-track]`), `scroll_depth` (25/50/75/90/100 %,
+once each, debounced 500 ms). Heartbeat every 60 s, with a `404` clearing the
+stale session and starting a fresh one.
+
+**Telemetry** — every bulk flush publishes `{roundTripMs, serverMs, networkMs,
+count, reason, ok, at}` to `onTelemetry` subscribers. `serverMs` is parsed from
+the `Server-Timing: app;dur=…` header; `networkMs` is the remainder.
+
+### `auth.js` (364 lines)
+
+Token storage and every authenticated call.
+
+| Export | Role |
+| :--- | :--- |
+| `AUTH_TOKEN_KEY`, `REFRESH_TOKEN_KEY` | `rj_access_token`, `rj_refresh_token` |
+| `getAuthToken()`, `setTokens(a, r)`, `clearTokens()` | `localStorage` accessors |
+| `getErrorMessage(errorData, fallback)` | Normalises FastAPI's string / array `detail` shapes |
+| `loginUser`, `registerUser`, `logoutUser` | Credential flows; register auto-logs-in |
+| `setup2FA`, `enable2FA`, `disable2FA`, `verify2FA` | TOTP enrolment and challenge |
+| `requestMagicLink`, `verifyMagicLink` | Passwordless sign-in |
+| `requestPasswordReset`, `resetPassword`, `changePassword` | Password flows |
+| `deleteAccount` | Soft delete |
+| `fetchActiveSessions`, `revokeOtherSessions`, `revokeSpecificSession` | Session management |
+| `authenticatedFetch(url, options)` | Bearer-attached fetch with a single-flight 401 refresh and retry |
+
+`authenticatedFetch` is the important one. The server **rotates** refresh
+tokens, so concurrent 401s each sending the same refresh token would have the
+first win and the rest told the token was revoked — signing the user out
+mid-session, with the last loser also overwriting the winner's new pair. A
+module-level `refreshInFlight` promise makes every concurrent 401 share one
+refresh, and it is cleared before awaiting callers resume so a later 401 starts
+a fresh attempt. Guarded by `frontend/tests/auth-refresh.test.js`.
+
+### `utils.js` (155 lines)
+
+| Export | Role |
+| :--- | :--- |
+| `escapeHTML(value)` | Escapes `& < > " '` by regex, not by DOM round-trip — six call sites interpolate into double-quoted attributes, and `page_path` reaching `activity-charts.js` is visitor-controlled *and persisted*, so a missed quote was a stored injection |
+| `copyText(text)` | Clipboard API with a hidden-textarea fallback |
+| `showToast(message, type)` | `role="status"` toast, auto-dismissed after 3.2 s |
+| `debounce(fn, delay)` / `throttle(fn, interval)` | Standard |
+| `estimateTokens(text)` | Heuristic token count, weighted for words, punctuation, code fences and URLs |
+| `onOnline(cb)` / `onOffline(cb)` / `isNetworkOnline()` | Connectivity observers |
+
+### `error-handler.js` (198 lines)
+
+| Export | Role |
+| :--- | :--- |
+| `AppError`, `NetworkError`, `APIError`, `ValidationError` | Typed error classes with `code`, `details`, `timestamp` |
+| `handleError(error, options)` | Map an error to a user-facing message, log it, optionally toast it |
+| `withErrorHandling(fn, options)` | Wrap an async function |
+| `retryWithBackoff(fn, options)` | Exponential backoff with a `shouldRetry` predicate |
+| `reportClientError(error, context)` | Forward one client error to the analytics pipeline as a `client_error` event |
+
+`reportClientError` rides the existing analytics pipeline rather than a
+dedicated endpoint — no new surface, no new auth, no new table. It caps at
+**10 reports per page load** and deduplicates by `name:message` signature,
+because an error inside a render loop would otherwise become the outage. The
+reported path is `pathname + hash`, never the query string: that can carry a
+reset or magic-link token, and this payload is persisted.
 
 ---
 
-### modal-utils.js
-**Purpose**: Reusable modal dialog utilities
+## Feature modules
 
-**Key Functions**:
-- `openModal(modal, options)` - Open modal with focus trap
-- `closeModal(modal)` - Close modal and restore focus
-- `closeAllModals()` - Close all open modals
-- `isModalOpen()` - Check if any modal is open
+### `chat.js` (1,590 lines, lazy)
 
-**Options**:
-```javascript
-{
-  initialFocus: HTMLElement,  // Element to focus on open
-  onClose: Function,          // Callback when closed
-  closeOnEscape: boolean,     // Allow ESC to close (default: true)
-  closeOnBackdrop: boolean    // Allow backdrop click (default: true)
-}
+`export function initChat()` — one large initialiser driving **two surfaces**
+from the same state: the floating chat widget and the full-page `#ai` section.
+
+Constants: `MAX_SESSIONS = 50`, `TOKEN_LIMIT = 2000` (warn at 1500, error at
+1950), `SUMMARIZE_TOKEN_THRESHOLD = 6000`, `MARKDOWN_PARSE_THROTTLE_MS = 100`,
+`FREE_MESSAGE_LIMIT = 6` (**must match `CHAT_FREE_MESSAGE_LIMIT` server-side**).
+
+Internals worth knowing:
+
+| Area | Behaviour |
+| :--- | :--- |
+| Rendering | `renderBotHTML` = `DOMPurify.sanitize(marked.parse(text))`, degrading to escaped text with `<br>` if either global is missing |
+| Code blocks | A custom `marked` renderer injects a copy button carrying the source as a URI-encoded `data-code` attribute; a delegated document listener handles the copy |
+| Highlighting | `syntax-highlighter.js`, not a library |
+| Sessions | Up to 50 conversations in `localStorage` (`rj_chat_sessions`, `rj_chat_active_session`), with a sidebar for rename/delete/switch |
+| Streaming | `authenticatedFetch` → `response.body.getReader()`, manual SSE line parsing, throttled markdown re-parse, `AbortController` for stop-generation |
+| Metrics | The `{"type":"metrics"}` frame is kept **per turn** as well as on `window.lastStreamMetrics`, so a message's info drawer keeps reporting its own latency after later turns move the global on |
+| Summarisation | At `SUMMARIZE_TOKEN_THRESHOLD` estimated tokens, everything before the current message is sent to `/chat/summarize` and replaced by the summary |
+| Auth | A `401` while signed out dispatches `request-login-modal` rather than showing a raw error |
+| Voice | Separate `SpeechRecognition` instances per input — a shared singleton had both mic buttons overwriting each other's `onresult` and routing transcripts to the wrong field. Buttons are hidden entirely when unsupported |
+| Accessibility | `announceToScreenReader` for streamed replies |
+
+### `activity.js` (1,095 lines, lazy)
+
+`initActivity()`, `loadActivity()`, `loadActivitySummary()`,
+`loadActivityFunnel()`.
+
+The section answers one question for the reader: *what has this site recorded
+about my visit?* The whole session is fetched once (`limit=500`, the API's own
+page ceiling) and held in memory, so every filter — search, family, time slice,
+path — is local and instant, and the session strip has the complete series it
+needs.
+
+**Four families over ten event types**, because four hues are learnable at a
+glance and seven are a legend: `nav` (page_view, scroll_depth), `tap` (click,
+terminal_command), `pref` (theme_change and other preferences), `reach`
+(copy_email, contact_submission, contact_prompt). The grouping carries the
+colour encoding across the strip, chips, dots and bars.
+
+Also owns: the live SSE connection (`EventSource` with `withCredentials: true`
+so the `HttpOnly` session cookie is sent even when the API is on another port),
+frame normalisation between the compact and verbose shapes, the pipeline DAG
+painted from `pipeline`/`hello` frames, a rolling 200-sample latency reservoir
+fed by `onTelemetry`, focus restoration across re-renders, and paginated
+grouped rows (`PAGE_SIZE = 20`).
+
+### `activity-charts.js` (194 lines)
+
+Pure paint helpers — `activity.js` owns all state; every export here renders
+from a snapshot passed in.
+
+| Export | Role |
+| :--- | :--- |
+| `TIMELINE_BUCKETS` (48), `FAMILY_ORDER`, `TIMELINE_PEAK_FLOOR` (3) | Shared constants |
+| `bucketSession(samples, from, to, buckets)` | Per-family counts across the session span |
+| `renderTimeline(root, buckets, options)` | The brushable session strip |
+| `moveTimelineFocus(root, key)` | Keyboard navigation across buckets |
+| `percentile(values, fraction)`, `latencyBand(ms)` | Pipeline chain health figures |
+| `renderPaths(root, funnel, options)` | Ranked path rows |
+
+Deliberately dependency-free: a bucketed strip and a ranked bar list are a loop
+and some positioned elements, while a charting library would add 45–200 KB to a
+PWA that precaches its whole shell. DOM rather than canvas, because every bar is
+a filter control that needs to be a real focusable, labelled element. Colours
+come from CSS custom properties, so both themes and any accent change flow
+through without touching this file.
+
+### `form.js` (323 lines)
+
+`export function initContactForm()` — the contact section.
+
+Validation with accessible per-field error elements, a live message counter
+(warning at 90 % of the limit), a copy-email control, prompt chips that prefill
+the message (emitting `contact_prompt`), and AJAX submission to
+`https://formsubmit.co/ajax/<CONTACT_EMAIL>` with a 10 s timeout
+(`SUBMIT_TIMEOUT_MS`). Offline submissions are blocked with a message rather
+than attempted. The FormSubmit honeypot is excluded from validation but
+forwarded in the payload. A timeout must not fall through to a native
+resubmission — `frontend/tests/contact-form.test.js` guards that. Success fires
+confetti and tracks `contact_submission`.
+
+### `analytics`-adjacent: `syntax-highlighter.js` (67 lines)
+
+`highlightCode(code, lang)` — regex highlighting for Python, JavaScript, SQL,
+JSON, HTML and Bash/Shell, escaping first. Small enough to ship instead of a
+highlighting library.
+
+---
+
+## The command prompt
+
+`frontend/js/terminal/` — the interactive prompt in the About section, plus the
+`Ctrl+K` command palette. Six modules.
+
+### `registry.js` (294 lines)
+
+**Commands are data, not behaviour bolted onto a DOM closure.** Each descriptor
+carries everything three surfaces need — the terminal, the mobile chip row and
+the palette — so `help`, tab completion and the palette can never drift from
+what is implemented.
+
+```
+name      string   the word typed
+summary   string   one line, shown by `help` and the palette
+usage     string   argument form, shown on misuse
+hidden    boolean  omitted from help, completion and the palette
+chip      boolean  surfaced as a tappable starter chip
+complete  (ctx, partial, argIndex) => string[]
+run       (ctx, args) => Node | Promise<Node> | void
 ```
 
----
+`run` never touches `document` outside the output builders — every side effect
+goes through the injected `ctx`, so a nav or theme refactor cannot silently
+break a command the way a hardcoded `querySelector` once did.
 
-### animation-utils.js
-**Purpose**: Shared animation utilities
+Commands: `help`, `whoami`, `skills`, `stats`, `ls`, `cd`, `ask`, `ai`, `wget`,
+`calc`, `echo`, `cowsay`, `fortune`, `history`, `matrix`, `theme`, `date`,
+`clear`, `sudo`. `export const commands` is the list; `createRegistry(list)`
+builds the lookup/completion surface.
 
-**Key Functions**:
-- `animateCounter(element, target, duration, suffix)` - Animate number counter
-- `fadeIn(element, duration)` - Fade in element
-- `fadeOut(element, duration)` - Fade out element
-- `slideDown(element, duration)` - Slide down element
-- `slideUp(element, duration)` - Slide up element
-- `staggerAnimation(elements, animationFn, delay)` - Stagger animations
-- `parallaxScroll(element, speed)` - Apply parallax effect
-- `smoothScrollTo(target, offset)` - Smooth scroll to element
-- `revealOnScroll(selector, options)` - Reveal elements on scroll
+### `output.js` (104 lines)
 
----
+DOM-node builders — `line`, `text`, `err`, `pre`, `list`, `columns`, `tags`,
+`frag`, `echoLine`. Every builder writes user-controlled strings through
+`textContent`, **never `innerHTML`**, so escaping is structural: a command
+handler cannot inject markup even if it forgets to sanitise.
 
+### `history.js` (118 lines)
 
-## Configuration
+`createHistory({storage, key})` — bounded (100 entries), sanitised (non-strings
+rejected, entries truncated at 500 characters individually so one oversized
+entry never discards the list), debounced persistence (400 ms), and a one-time
+migration from the v1 key. `export const STORAGE_KEY = "rj_terminal_history_v2"`.
 
-### config.js
-**Purpose**: Application configuration and constants
+### `keymap.js` (106 lines)
 
-**Exports**:
-- `CONTACT_EMAIL` - Contact email address
-- `API_BASE` - API base URL (environment-aware)
-- `isApiConfigured()` - Check if API is configured
-- `prefersReducedMotion` - Media query for reduced motion
-- `prefersDarkScheme` - Media query for dark color scheme
-- `compactViewport` - Media query for compact viewport
-- `supportsHover` - Media query for hover support
-- `mobileDevice` - Media query for mobile devices
+`Intent` (`SUBMIT`, `HIST_PREV`, `HIST_NEXT`, `COMPLETE`, `CLEAR`, `ABORT`,
+`NONE`), `intentFor(event)`, `commonPrefix(candidates)`,
+`completeInput(raw, registry, ctx)`. Kept away from the DOM so the binding table
+is testable and the palette can reuse the same vocabulary.
 
-**Environment Detection**:
-- Localhost: `http://localhost:8000`
-- Staging: `https://staging-api.rjasti.com/api`
-- Production: `https://rjasti.com/api`
+### `palette.js` (177 lines)
 
----
+`initPalette({registry, run, panel})` — the `Ctrl+K` overlay. A second renderer
+over the same registry, which is the payoff for modelling commands as data:
+every terminal command is reachable site-wide with no duplicated list.
+`role="dialog"`, `aria-modal`, focus restoration on close.
 
-## Service Worker
+### `index.js` (316 lines)
 
-### sw.js
-**Purpose**: PWA service worker with caching strategies
-
-**Features**:
-- App shell caching (stale-while-revalidate)
-- CDN resource caching (cache-first)
-- SRI (Subresource Integrity) verification
-- Cache expiration (7 days)
-- Offline fallback
-
-**Cache Strategy**:
-1. External CDN resources: Cache-first with SRI verification
-2. Local app assets: Stale-while-revalidate
-3. API responses: Never cached
+`initTerminal()` — owns all DOM wiring, the output log (capped at
+`MAX_BLOCKS = 200`, because unbounded output left hundreds of nodes under a
+`backdrop-filter` ancestor), rotating placeholders, the mobile chip row, the
+matrix toggle (`rj_terminal_matrix`), and the `ctx` object handed to commands
+(navigation via `navigateToSection`, theme via `toggleTheme`, analytics via
+`trackEvent`).
 
 ---
 
-## Testing
+## UI and interaction
 
-### Running Tests
-```bash
-npm test
-```
+### `navigation.js` (538 lines)
 
-**Test Files**:
-- `tests/app-logic.test.js` - Core application logic tests
-- `tests/utils.test.js` - Utility function tests
+`initNavigation()`, `setActiveSection(target)`,
+`navigateToSection(target, {updateHash})`, `syncSectionWithHash(hash)`,
+`closeAllDropdowns()`.
 
-**Coverage**:
-- Unit tests for utility functions
-- Integration tests for modal utilities
-- Animation utility tests
+Hash-based section routing, header state on scroll, the hamburger menu, dropdown
+menus, the image modal, keyboard shortcuts, the mobile bottom nav, swipe
+gestures between sections, and online/offline banners. `isModalOpen()` checks
+**both** dialog implementations — `.image-modal.active` and
+`#auth-modal:not(.hidden)` — or shortcuts would fire through an open dialog.
+
+### `modal.js` (124 lines)
+
+`openModal(modal, {initialFocus, onClose})`, `closeModal(modal, {restoreFocus})`,
+`getFocusableElements(container)`, `handleFocusTrap(event, modal)`.
+
+Focus trapping, focus return via a `WeakMap`, per-modal teardown callbacks, and
+a **reference-counted** body scroll lock — nested opens must not each stash
+their own scroll position, so only the outermost close restores the page.
+Integrates `ModalSwipeDismiss` for touch.
+
+### `swipe-handler.js` (249 lines)
+
+`SwipeHandler`, `PullToRefresh`, `ModalSwipeDismiss`. `SwipeHandler` records
+whether `touchstart` accepted the gesture, because `touchstart` and `touchend`
+filtering independently on their own targets (which differ) produced phantom
+swipes.
+
+### `skills-carousel.js` (268 lines)
+
+`initSkillsCarousel()` — a carousel below 640 px and a static grid above.
+Autoplay at 4.5 s, 40 px swipe threshold, dot navigation, paused under
+`prefers-reduced-motion`. Initialises after two `requestAnimationFrame` ticks so
+measurements happen on a painted layout.
+
+### `ripple.js` (31 lines)
+
+`initRipple()` — **one** delegated `pointerdown` listener on `document` for
+`.btn`, `.contact-copy-btn`, `.contact-prompt`. Binding per element was both
+memory overhead and blind to dynamically created nodes.
+
+### `scroll-to-top.js` (36 lines)
+
+`initScrollToTop()` — injects the button, shows at 500 px and hides at 300 px
+(hysteresis avoids flicker), and honours `prefers-reduced-motion` for the scroll
+itself.
+
+### `tilt.js` (56 lines)
+
+`initTilt()` — pointer-tracked 3D tilt on `.tilt-card`, `requestAnimationFrame`
+batched, and a complete no-op without hover support or with reduced motion.
+
+### `theme.js` (68 lines)
+
+`initTheme()`, `applyTheme(isDark)`, `toggleTheme()`. `toggleTheme` is exported
+so callers (the command prompt) need not synthesise a click on `#theme-toggle`.
+Updates the `theme-color` meta from the **computed** `--accent-fill`, so a
+custom accent is reflected in the browser chrome.
+
+### `theme-customizer.js` (540 lines)
+
+`initThemeCustomizer()`, `reapplyCustomTheme(isDark)`. Derives a full palette
+from one hex accent (`hexToHsl`, `generateVariants`), checks contrast
+(`getLuminance`, `getContrast`) before applying, writes CSS custom properties
+onto `document.body`, and persists to `localStorage.rj_theme_palette`.
+`clearCustomPalette()` restores the defaults.
 
 ---
 
-## Best Practices
+## Visual effects
 
-### Performance
-1. Use `debounce` for input handlers
-2. Use `throttle` for scroll handlers
-3. Lazy load images with `lazyLoadImages()`
-4. Use incremental DOM updates where possible
+### `three-bg.js` (1,507 lines, lazy)
 
-### Accessibility
-1. All modals use proper ARIA attributes
-2. Focus management with focus traps
-3. Keyboard navigation support
-4. Screen reader announcements for dynamic content
+`export function initThreeBackground()` — the full-viewport animated plexus:
+drifting nodes joined by proximity lines, with glass facets between close
+triples.
 
-### Security
-1. All user input is escaped with `escapeHTML()`
-2. CSP headers prevent XSS attacks
-3. SRI verification for CDN resources
-4. No inline scripts (except bootstrap)
+**The filename is historical.** It is a plain 2D-canvas renderer
+(`getContext("2d")`) and there is no Three.js anywhere in this repository. A
+1.3 MB unreferenced `three.module.js` was published to the web root on every
+deploy until it was removed; nothing had ever imported it. Renaming the module
+would churn `main.js` and the service-worker precache for no functional gain.
 
-### Code Organization
-1. Separate concerns into modules
-2. Export reusable utilities
-3. Use JSDoc comments for documentation
-4. Follow consistent naming conventions
+Notable internals: spatial-grid neighbour search rather than an O(n²) sweep,
+sprite caching keyed by a palette signature so a theme change rebuilds sprites
+once, device-profile-driven particle counts, zone-based seeding that keeps the
+centre of the viewport clear (so the hero text stays readable), pointer
+interaction, and a full teardown when reduced motion is enabled mid-session.
+It mounts itself on import and manages its own listeners.
+
+### `particles-config.js` (255 lines)
+
+`initParticles(containerId)` → a teardown function. The **cheap fallback** for
+the same idea, scoped to the hero. Mutually exclusive with the plexus:
+`MAX_PARTICLES = 90`, one particle per 18,000 px², 120 px link distance.
+Never animates off-screen or on a hidden tab, motion is time-based so it looks
+identical at 60 Hz and 120 Hz, a resize rescales the field in place rather than
+reseeding it, and everything it attaches is removable via the returned teardown.
+
+### `animations.js` (331 lines)
+
+`initAnimations()` — scroll reveals via `IntersectionObserver` (all revealed
+immediately under reduced motion or without the API), animated stat counters,
+the terminal intro sequence, a matrix-style text decode effect, spring-driven
+hover states, and page transitions.
+
+### `hero-title.js` (175 lines)
+
+`initHeroTitle()` — tokenises the hero title into words and characters
+(preserving wrapping), plays a staggered 3D roll-up entrance, and adds a
+magnetic pointer tilt with a specular highlight. Fully reduced-motion aware.
+
+### `physics.js` (75 lines)
+
+`Spring` (stiffness / damping / mass / rest thresholds) and
+`animateSpring({from, to, onUpdate, onComplete, config})` — a small spring
+integrator that gives `animations.js` framework-quality motion without a
+framework.
+
+### `confetti.js` (144 lines)
+
+`triggerConfetti(options)` and `confettiPresets`. Canvas-based, self-removing,
+colours read from CSS custom properties so it matches the active accent.
+
+---
+
+## Browser storage keys
+
+| Key | Store | Written by | Holds |
+| :--- | :--- | :--- | :--- |
+| `theme` | localStorage | `theme.js`, inline bootstrap | `"dark"` / `"light"` |
+| `rj_theme_palette` | localStorage | `theme-customizer.js` | Custom accent palette |
+| `rj_access_token` | localStorage | `auth.js` | JWT access token |
+| `rj_refresh_token` | localStorage | `auth.js` | JWT refresh token |
+| `rj_chat_sessions` | localStorage | `chat.js` | Up to 50 conversations |
+| `rj_chat_active_session` | localStorage | `chat.js` | Active conversation id |
+| `rj_sidebar_hidden` | localStorage | `chat.js` | AI page sidebar state |
+| `rj_terminal_history_v2` | localStorage | `terminal/history.js` | Last 100 commands |
+| `rj_terminal_matrix` | localStorage | `terminal/index.js` | Matrix effect toggle |
+| `rj_event_queue:<session_id>` | localStorage | `analytics.js` | Pending analytics events |
+| `rj_session_id` | **sessionStorage** | `analytics.js` | Analytics session id (per tab) |
+| `rj_session_token` | **sessionStorage** | `analytics.js` | Capability token (per tab) |
+| `rj_session_token` | **cookie** | the API | Same token, `HttpOnly; SameSite=Strict` — what `EventSource` sends |
+
+A session stored before capability tokens existed is discarded on load, so a
+fresh one is created rather than issuing calls that will be refused.
+
+---
+
+## Conventions
+
+**One initialiser per module.** Modules export `initX()` and keep their state in
+the closure. There is no global store.
+
+**Delegate, don't bind per element.** Ripples, code-copy buttons, click tracking
+and the lazy-load triggers are all single delegated listeners.
+
+**Abort what you attach.** Lazy-load listeners use `AbortController`; the
+particle layer returns a teardown; modals register `onClose` callbacks.
+
+**Escape at the boundary.** Prefer building DOM nodes with `textContent`. Where
+an HTML string is unavoidable, `escapeHTML()` first — it escapes both quote
+forms because the results land inside double-quoted attributes.
+
+**Respect the user's preferences.** `prefers-reduced-motion` is checked at init
+**and** on change; every animated surface can be torn down mid-session.
+
+**Fail quietly on the network.** Analytics, chat and activity all treat an
+unreachable API as a no-op with a console warning, never a broken page.
+
+**Keep the client and server limits in sync.** `FREE_MESSAGE_LIMIT` in `chat.js`
+must match `CHAT_FREE_MESSAGE_LIMIT`; the client-side summarisation threshold
+must stay under `MAX_TOTAL_CONTENT_CHARS`.
+
+**Linting** — ESLint (`.eslintrc.json`) covers `frontend/*.js`,
+`frontend/js/*.js` and `frontend/js/terminal/*.js` with `no-undef: error`,
+`DOMPurify` and `marked` declared as read-only globals, and a service-worker
+environment override for `sw.js`. `dist/**` is ignored.

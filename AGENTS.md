@@ -7,7 +7,7 @@
 - **Languages**: HTML, CSS, JavaScript ES modules, Python 3.10+
 - **Tooling**: Node.js 18+, npm, ESLint, Stylelint, Prettier, Node test runner, jsdom
 - **Backend stack**: FastAPI, Pydantic v2, asyncpg, boto3/botocore, orjson, structlog
-- **Frontend stack**: Vanilla JS modules, 2D-canvas background, service worker, web app manifest, DOMPurify, marked, Font Awesome, Google Fonts
+- **Frontend stack**: Vanilla JS modules, 2D-canvas background, service worker, web app manifest, DOMPurify and marked (vendored from npm), Font Awesome and Plus Jakarta Sans (self-hosted, subset - no Google Fonts or cdnjs request)
 - **Key integrations**: Amazon Bedrock chat API, PostgreSQL activity tracking, FormSubmit contact form, browser `localStorage`/`sessionStorage`, PWA cache storage
 - **Database expectations**: PostgreSQL tables `users`, `refresh_tokens`, `one_time_tokens`, `password_history`, `user_sessions`, `user_activity_events`, `ai_conversations`; schemas/migrations are managed in-repo via Alembic under `server/alembic/` (raw SQL files are excluded). CI applies the full chain against Postgres and runs `alembic check`, so a model changed without a migration fails before deploy
 - **Constraints**: SQLAlchemy ORM (async engine + asyncpg driver); API requires `DATABASE_URL`, `AWS_REGION`, and `DEFAULT_MODEL_ID`; frontend API base is hardcoded in `js/analytics.js`
@@ -43,10 +43,18 @@ Do not preload these. Each entry states its trigger.
 
 | Doc | Read it before... |
 | :--- | :--- |
-| `docs/ARCHITECTURE.md` | you need the directory map / how modules interact |
-| `docs/ADR.md` | changing DB schema, the ORM layer, or auth flow |
-| `docs/API.md` | adding or modifying a FastAPI route |
+| `docs/ARCHITECTURE.md` | you need the repo map, the request lifecycle, or how the tiers interact |
+| `docs/API.md` | adding or modifying a FastAPI route, or calling one from the client |
+| `docs/BACKEND.md` | changing anything under `server/` - it is the package-by-package reference |
+| `docs/DATABASE.md` | changing a model, an index, or writing a migration |
 | `docs/JAVASCRIPT.md` | adding or refactoring a frontend ES module |
+| `docs/FRONTEND.md` | touching `index.html`, the CSS, the service worker, the fonts, or the build |
+| `docs/CONFIGURATION.md` | adding or interpreting an environment variable |
+| `docs/SECURITY.md` | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist |
+| `docs/OPERATIONS.md` | changing CI/CD, diagnosing a deploy, or running a manual procedure |
+| `docs/TESTING.md` | writing tests, or checking whether something is actually covered |
+| `docs/ADR.md` | you want to know why a decision was made and whether it still holds |
+| `docs/README.md` | you want the doc index and a task-to-document map |
 | `README.md` | human onboarding only; the stack summary above supersedes it |
 
 ## 1. Contextual Persona
