@@ -737,7 +737,7 @@ export function initChat() {
       // the '~240ms' fallback was not a measurement at all - it reported a
       // number for user messages and for history restored from a past session.
       const latencyMs = metrics && typeof metrics.latency_ms === 'number' ? metrics.latency_ms : null;
-      const latency = latencyMs === null ? 'Not recorded' : `${latencyMs} ms`;
+      const latency = latencyMs === null ? 'Not recorded' : `${Math.round(latencyMs)} ms`;
 
       drawer = document.createElement('div');
       drawer.className = 'msg-info-drawer';
@@ -1110,20 +1110,34 @@ export function initChat() {
 
 
     if (regenerate) {
-      // Regenerate re-runs the last turn, so the prompt is already in the
-      // transcript. This used to call handleChatSubmit like a fresh submit,
-      // which appended the prompt a second time: the transcript grew a
-      // duplicate user bubble, that duplicate was persisted to localStorage
-      // and re-sent as context on every later turn, and the reply being
-      // regenerated stayed on screen above its replacement.
+      // Re-runs a prompt that is already in the transcript, so it must not be
+      // appended a second time. Both entry points - the regenerate button on a
+      // reply and Retry on an error card - used to call this like a fresh
+      // submit, which grew a duplicate user bubble, persisted that duplicate to
+      // localStorage and re-sent it as context on every later turn, while the
+      // reply being replaced sat on screen above its replacement.
       const currentSession = getActiveSession();
-      const lastEntry = currentSession.messages[currentSession.messages.length - 1];
+      const history = currentSession.messages;
+      const lastEntry = history[history.length - 1];
+
+      // The stored reply and its two bubbles come off together. Retry arrives
+      // here with no reply to replace - the turn that failed never saved one -
+      // so dropping the bubbles unconditionally would delete the previous
+      // reply, which is still in the history and still sent as context.
       if (lastEntry && lastEntry.sender === 'bot') {
-        currentSession.messages.pop();
+        history.pop();
         saveSessions();
+        removeTrailingBotMessage(messagesContainer);
+        removeTrailingBotMessage(aiPageMessages);
       }
-      removeTrailingBotMessage(messagesContainer);
-      removeTrailingBotMessage(aiPageMessages);
+
+      // A session cleared while its error card was still on screen leaves
+      // nothing to re-run: append the prompt rather than send a request whose
+      // transcript never held it.
+      const trailing = history[history.length - 1];
+      if (!(trailing && trailing.sender === 'user' && trailing.text === text)) {
+        appendMessage(text, 'user', { save: true, showCopy: true });
+      }
     } else {
       appendMessage(text, 'user', { save: true, showCopy: true });
     }
@@ -1506,7 +1520,10 @@ export function initChat() {
     document.querySelectorAll('.retry-btn').forEach((button) => {
       button.closest('.chat-message')?.remove();
     });
-    handleChatSubmit(retryText);
+    // The failed turn appended and saved this prompt already, so it re-runs
+    // through the same path as regenerate. Sent fresh, it duplicated the user
+    // bubble in the transcript, in localStorage and in every later payload.
+    handleChatSubmit(retryText, { regenerate: true });
   });
 
   if (chatForm) {
