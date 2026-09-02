@@ -5755,7 +5755,7 @@ body.dark-theme .chat-message.bot .msg-actions {
   justify-content: center;
   font-size: var(--text-sm);
   border-radius: 6px;
-  opacity: 0.85;
+  opacity: 0.9;
 
   /* .copy-tooltip is position: absolute with top: -32px; left: 50%. Without a
      containing block here it resolved against .chat-message, so "Copied!"
@@ -5763,6 +5763,12 @@ body.dark-theme .chat-message.bot .msg-actions {
      on a long answer, hundreds of pixels from the pointer. */
   position: relative;
   transition: background-color 0.2s ease, transform 0.1s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.msg-action-btn i {
+  font-family: "Font Awesome 6 Free", sans-serif;
+  font-style: normal;
+  font-weight: 900;
 }
 
 .chat-message.user .msg-action-btn:hover,
@@ -8483,26 +8489,8 @@ body.dark-theme .mobile-bottom-nav {
   position: relative;
 }
 
-.mobile-bottom-nav a::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 32px;
-  height: 3px;
-  background: var(--accent-fill);
-  border-radius: 0 0 3px 3px;
-  opacity: 0;
-  transition: opacity var(--motion-base) var(--ease-standard);
-}
-
 .mobile-bottom-nav a.active {
   color: var(--accent-text);
-}
-
-.mobile-bottom-nav a.active::after {
-  opacity: 1;
 }
 
 .mobile-bottom-nav a:active {

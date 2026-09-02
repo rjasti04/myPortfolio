@@ -84,7 +84,9 @@
 }
 /* stylelint-disable font-family-no-missing-generic-family-keyword */
 .fas,
-.fa-solid {
+.fa-solid,
+.far,
+.fa-regular {
   font-family: "Font Awesome 6 Free";
   font-weight: 900;
 }
@@ -98,8 +100,10 @@
 
 .fa,
 .fas,
+.far,
 .fab,
 .fa-solid,
+.fa-regular,
 .fa-brands {
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
