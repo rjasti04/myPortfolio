@@ -22,7 +22,7 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import * as esbuild from "esbuild";
@@ -35,6 +35,11 @@ const OUT = join(ROOT, "dist");
 const COPY_EXTENSIONS = new Set([
   ".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg", ".pdf",
   ".json", ".txt", ".xml", ".woff", ".woff2",
+]);
+
+/** Binary/static files whose URLs can safely carry content hashes. */
+const HASHED_COPY_EXTENSIONS = new Set([
+  ".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg", ".pdf",
 ]);
 
 /** Never shipped: tests are excluded from the deploy already, .htaccess is copied explicitly. */
@@ -51,6 +56,28 @@ async function walk(dir, base = dir) {
       out.push(...(await walk(join(dir, entry.name), base)));
     } else {
       out.push(relative(base, join(dir, entry.name)));
+    }
+  }
+  return out;
+}
+
+function hashedPath(rel, contents) {
+  const extension = extname(rel);
+  const withoutExtension = rel.slice(0, -extension.length);
+  return `${withoutExtension}-${hash8(contents)}${extension}`;
+}
+
+function rewriteReferences(text, rewrites) {
+  let out = text;
+  for (const [from, to] of rewrites) {
+    for (const form of [
+      from,
+      `./${from}`,
+      `/${from}`,
+      `https://rjasti.com/${from}`,
+    ]) {
+      out = out.split(`"${form}"`).join(`"${to}"`);
+      out = out.split(`'${form}'`).join(`'${to}'`);
     }
   }
   return out;
@@ -176,10 +203,16 @@ async function main() {
     if (!COPY_EXTENSIONS.has(ext)) continue;
     // Fonts ship as the hashed copies esbuild emitted next to fonts.css.
     if (rel.startsWith("fonts/")) continue;
-    const dest = join(OUT, rel);
+
+    const source = join(SRC, rel);
+    const contents = await readFile(source);
+    const outputRel = HASHED_COPY_EXTENSIONS.has(ext) ? hashedPath(rel, contents) : rel;
+    const dest = join(OUT, outputRel);
     await mkdir(dirname(dest), { recursive: true });
-    await cp(join(SRC, rel), dest);
-    copied.push(rel);
+    await cp(source, dest);
+    copied.push(outputRel);
+
+    if (outputRel !== rel) rewrites.set(rel, outputRel);
   }
   // Vendored third-party scripts, copied verbatim: they are already minified
   // and their filenames are referenced from index.html unchanged.
@@ -189,28 +222,45 @@ async function main() {
     copied.push(rel);
   }
 
-  for (const extra of [".htaccess", "worldcup.html", "ucl.html"]) {
+  // --- Text references -----------------------------------------------------
+  // Rewrite every HTML page that ships, not just index.html. This is required
+  // because hashed image/PDF URLs can be referenced from the shareable pages.
+  const textFiles = [
+    "index.html",
+    "manifest.json",
+    ...(await walk(SRC)).filter((rel) => rel.endsWith(".html") && rel !== "index.html"),
+  ].filter((rel, i, all) => all.indexOf(rel) === i && existsSync(join(SRC, rel)));
+
+  for (const rel of textFiles) {
+    let text = await readFile(join(SRC, rel), "utf8");
+    const before = text;
+    text = rewriteReferences(text, rewrites);
+    if (rel === "index.html") {
+      // The module entries are hashed, so the browser can hold them forever.
+      text = text.replace(
+        /<link rel="preload" href="(assets\/styles-[^"]+\.css)" as="style" \/>/,
+        '<link rel="preload" href="$1" as="style" />'
+      );
+      if (text === before) throw new Error("index.html: no asset references were rewritten");
+    }
+    await writeFile(join(OUT, rel), text);
+  }
+
+  for (const extra of [".htaccess"]) {
     if (existsSync(join(SRC, extra))) {
       await cp(join(SRC, extra), join(OUT, extra));
       copied.push(extra);
     }
   }
 
-  // --- index.html ----------------------------------------------------------
-  let html = await readFile(join(SRC, "index.html"), "utf8");
-  const before = html;
-  for (const [from, to] of rewrites) {
-    for (const form of [from, `./${from}`, `/${from}`]) {
-      html = html.split(`"${form}"`).join(`"${to}"`);
+  for (const extra of ["worldcup.html", "ucl.html"]) {
+    if (!textFiles.includes(extra) && existsSync(join(SRC, extra))) {
+      let text = await readFile(join(SRC, extra), "utf8");
+      text = rewriteReferences(text, rewrites);
+      await writeFile(join(OUT, extra), text);
+      copied.push(extra);
     }
   }
-  // The module entries are hashed, so the browser can hold them forever.
-  html = html.replace(
-    /<link rel="preload" href="(assets\/styles-[^"]+\.css)" as="style" \/>/,
-    '<link rel="preload" href="$1" as="style" />'
-  );
-  if (html === before) throw new Error("index.html: no asset references were rewritten");
-  await writeFile(join(OUT, "index.html"), html);
 
   // --- Service worker ------------------------------------------------------
   // The precache list is generated from what was actually built, rather than
@@ -232,8 +282,21 @@ async function main() {
     "/manifest.json",
     "/profile-pic-160.webp",
   ].filter((p, i, all) => !p.endsWith(".map") && all.indexOf(p) === i);
+
   const swSource = await readFile(join(SRC, "sw.js"), "utf8");
-  const version = hash8(shell.join("|") + swSource).toLowerCase();
+  // Version the worker from the bytes of every generated shipped file. This
+  // means a change to an un-hashed metadata file or vendored script bumps the
+  // worker even when the precache URL list itself is unchanged.
+  const shippedFiles = (await walk(OUT))
+    .filter((rel) => rel !== "sw.js")
+    .sort();
+  const shippedFingerprints = [];
+  for (const rel of shippedFiles) {
+    const contents = await readFile(join(OUT, rel));
+    shippedFingerprints.push(`${rel}:${hash8(contents)}`);
+  }
+  const version = hash8(`${swSource}|${shippedFingerprints.join("|")}`).toLowerCase();
+
   const sw = swSource
     .replace(/const CACHE_NAME = '[^']*';/, `const CACHE_NAME = 'rj-portfolio-${version}';`)
     .replace(
