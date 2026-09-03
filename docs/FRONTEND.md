@@ -282,7 +282,7 @@ missing, so a failed update is visible but not dangerous.
 | `android-chrome-192x192.png`, `android-chrome-512x512.png` | PWA icons, generated from `assets/master-icon.png` |
 | `apple-touch-icon.png`, `favicon.ico` | iOS and browser icons |
 | `social-preview.png`, `ucl-preview.png`, `worldcup-preview.png` | The three 1200x630 Open Graph cards, one per shareable page. **Generated** by `scripts/generate_social_previews.py` — see [Open Graph cards](#open-graph-cards) |
-| `rajeev_jasti.pdf.pdf` | Downloadable résumé (the doubled extension is the actual filename) |
+| `rjasti_resume.pdf` | Downloadable résumé (the doubled extension is the actual filename) |
 | `robots.txt` | Allows everything except `/api/`; points at the sitemap |
 | `sitemap.xml` | Three URL entries — `/`, `/ucl` and `/worldcup`, each with its Open Graph card as an image annotation |
 | `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup`, with its own canonical and Open Graph tags — see [Apache configuration](#apache-configuration) |

@@ -170,7 +170,7 @@ export const commands = [
       if (!args.length) return out.text("wget: missing URL");
       const target = args[0].toLowerCase();
       if (target === "resume" || target.includes("pdf")) {
-        ctx.download("rajeev_jasti.pdf", "Rajeev_Jasti_Resume.pdf");
+        ctx.download("rjasti_resume.pdf", "Rajeev_Jasti_Resume.pdf");
         return out.frag(
           out.text("Resolving resume... connected."),
           out.text("Downloading 'Rajeev_Jasti_Resume.pdf'..."),
