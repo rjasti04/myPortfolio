@@ -461,15 +461,27 @@
             <div class="hero-buttons">
               <a href="#resume" data-target="resume" class="nav-cta btn" data-spring-hover>Resume
                 <i class="fas fa-chevron-right"></i></a>
+              <!-- Split button: View PDF is the whole left segment, the caret holds
+                   the secondary action. Two controls in one silhouette, so the PDF
+                   no longer needs a stacked line of its own under the row. -->
+              <div class="split-btn" id="hero-resume-split" data-spring-hover>
+                <a href="rjasti_resume.pdf" target="_blank" rel="noopener noreferrer"
+                  class="btn split-btn-main" id="hero-pdf-view" data-pdf-view>View PDF
+                  <i class="fas fa-file-lines"></i></a>
+                <button type="button" class="btn split-btn-toggle" id="hero-pdf-more" aria-haspopup="true"
+                  aria-expanded="false" aria-controls="hero-pdf-menu" aria-label="More resume actions">
+                  <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+                <div class="split-btn-menu" id="hero-pdf-menu" role="menu" aria-hidden="true">
+                  <a href="rjasti_resume.pdf" download="Rajeev_Jasti_Resume.pdf" target="_blank"
+                    rel="noopener noreferrer" class="split-btn-item" role="menuitem">
+                    <i class="fas fa-download" aria-hidden="true"></i>Download PDF
+                  </a>
+                </div>
+              </div>
               <a href="#ai" data-target="ai" class="nav-cta btn hero-chat-btn" id="hero-chat-btn" aria-label="Ask AI"
                 data-spring-hover>Ask AI <i class="fas fa-robot"></i></a>
             </div>
-            <p class="hero-resume-download">
-              <a href="rjasti_resume.pdf" download="Rajeev_Jasti_Resume.pdf" target="_blank" rel="noopener noreferrer"
-                class="pdf-download-link">
-                <i class="fas fa-download" aria-hidden="true"></i>Download PDF
-              </a>
-            </p>
           </div>
           <aside class="terminal-panel glass-dark no-swipe" aria-label="Command prompt panel">
             <div class="terminal-topbar">
@@ -649,7 +661,7 @@
 
         <p class="section-actions">
           <a href="rjasti_resume.pdf" target="_blank" rel="noopener noreferrer" class="btn" id="resume-pdf-view"
-            data-spring-hover>
+            data-pdf-view data-spring-hover>
             <i class="fas fa-file-lines" aria-hidden="true"></i>View PDF
           </a>
           <a href="rjasti_resume.pdf" download="Rajeev_Jasti_Resume.pdf" target="_blank" rel="noopener noreferrer"
