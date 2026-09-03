@@ -1,6 +1,6 @@
 # Vendored third-party scripts
 
-`purify.min.js` (DOMPurify 3.2.5) and `marked.min.js` (marked 15.0.12), copied
+`purify.min.js` (DOMPurify 3.4.14) and `marked.min.js` (marked 15.0.12), copied
 verbatim from the npm packages of the same versions pinned in `package.json`.
 
 They are vendored rather than loaded from a CDN because they were the last
