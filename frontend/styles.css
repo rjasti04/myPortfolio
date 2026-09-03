@@ -1803,158 +1803,53 @@ main {
   text-align: left;
 }
 
-/* Two nav CTAs across the top, the PDF split button across the bottom.
-   Measured, not guessed: the hero text column is 572px at 1440 and 488px at
-   1024, so three of these buttons on one line leave 176px each - and the split
-   button alone needs 125px of label after its 48px caret. It wrapped, badly.
-   Explicit placement for the split button so auto-placement fills row one with
-   the two CTAs instead of orphaning one of them. */
 .hero-buttons {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  /* The hero column lays its children out shrink-to-fit, so the grid needs an
-     explicit width or it collapses to the buttons' max-content sum. */
-  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
   max-width: 560px;
   align-items: center;
   gap: 16px;
   margin-top: 8px;
 }
 
-#hero-resume-split {
-  grid-column: 1 / -1;
-  grid-row: 2;
-}
-
 /* NOTE: .hero-buttons .btn is also declared in BUTTONS & LOGO - change both. */
 .hero-buttons .btn {
-  min-width: 0;
+  flex: 1 1 calc(50% - 8px);
+  min-width: 160px;
   justify-content: center;
 }
 
-/* The PDF actions, as one control rather than a button plus a stacked link:
-   View PDF fills the left segment, the caret holds Download PDF. */
-.split-btn {
-  position: relative;
-  display: flex;
-  min-width: 0;
-  align-items: stretch;
+/* The PDF is the secondary action now that the Resume button opens the
+   Experience section. Deliberately not a third .btn: .hero-buttons is a
+   two-column grid below 768px, so a third button leaves an orphan on the
+   second row. */
+.hero-resume-download {
+  margin: 14px 0 0;
 }
 
-/* The two segments read as one button, so only the outer corners round and
-   only the outer edge carries the shadow.
-   `.hero-buttons .split-btn X` rather than `.hero-buttons X` throughout: the
-   BUTTONS & LOGO region declares `.hero-buttons .btn { width: 100%; border-radius:
-   var(--radius-full) }` further down the file, which ties on specificity and
-   wins on order - it made the caret half the row and rounded the seam away. */
-.hero-buttons .split-btn .btn {
-  flex: 1 1 auto;
-  min-width: 0;
-  box-shadow: none;
-}
-
-.hero-buttons .split-btn .split-btn-main {
-  border-start-end-radius: 0;
-  border-end-end-radius: 0;
-  white-space: nowrap;
-}
-
-.hero-buttons .split-btn .split-btn-toggle {
-  flex: 0 0 auto;
-  width: 48px;
-  min-width: 0;
-  padding: 0;
-  gap: 0;
-  border-start-start-radius: 0;
-  border-end-start-radius: 0;
-  /* The seam. A border would add a pixel to the button's height and knock the
-     segments out of alignment with the rest of the row. */
-  box-shadow: inset 1px 0 0 hsl(0, 0%, 100%, 0.35);
-}
-
-.split-btn:hover,
-.split-btn:focus-within {
-  box-shadow: var(--glow-md);
-  border-radius: var(--radius-full);
-}
-
-/* The row's other buttons wear a 42px ringed circle around their icon. The
-   caret is a chevron in a 48px segment - it needs none of that. */
-.hero-buttons .split-btn .split-btn-toggle i {
-  width: auto;
-  height: auto;
-  margin: 0;
-  border: none;
-  border-radius: 0;
-  font-size: var(--text-sm);
-}
-
-.hero-buttons .split-btn .split-btn-toggle:hover i {
-  transform: none;
-  box-shadow: none;
-}
-
-/* Same chain length as the `:hover i` reset above and declared after it, or
-   hovering the caret while the menu is open snaps the chevron back down. */
-.hero-buttons .split-btn.is-open .split-btn-toggle i {
-  transform: rotate(180deg);
-}
-
-.split-btn-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 20;
-  min-width: max(100%, 210px);
-  padding: 6px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--card-bg);
-  box-shadow: var(--elev-3);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-6px);
-  transition:
-    opacity var(--motion-base) var(--ease-standard),
-    visibility var(--motion-base) var(--ease-standard),
-    transform var(--motion-base) var(--ease-enter);
-}
-
-.split-btn.is-open .split-btn-menu {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
-.split-btn-item {
-  display: flex;
+.pdf-download-link {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  color: var(--text);
+  gap: 8px;
+  padding: 4px 2px;
+  color: var(--muted);
   font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
-  transition:
-    background-color var(--motion-base) var(--ease-standard),
-    color var(--motion-base) var(--ease-standard);
+  border-radius: var(--radius-sm);
+  transition: color var(--motion-base) var(--ease-standard);
 }
 
-.split-btn-item i {
+.pdf-download-link:hover,
+.pdf-download-link:focus-visible {
   color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.split-btn-item:hover,
-.split-btn-item:focus-visible {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
-.split-btn-item:focus-visible,
-.split-btn-toggle:focus-visible {
+.pdf-download-link:focus-visible {
   outline: 3px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 .hero-chat-btn {
@@ -8962,9 +8857,12 @@ body.dark-theme .mobile-bottom-nav {
 
   /* Balanced Row Option for CTAs */
   .hero-buttons {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
     width: 100%;
     gap: 12px;
     justify-content: center;
+    align-items: center;
   }
 
   .hero-buttons .btn {

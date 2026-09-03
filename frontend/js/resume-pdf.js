@@ -3,14 +3,14 @@ import { closeModal, openModal } from "./modal.js";
 import { getResumeUrl } from "./utils.js";
 
 /**
- * In-page preview for the resume PDF, plus the hero's split button.
+ * In-page preview for the resume PDF, opened from the Experience section.
  *
- * Every trigger is a plain `[data-pdf-view]` link in the markup and stays one:
- * without JS, on a touch device, or on iOS it navigates to the file and the
- * browser's own viewer takes over. Only where an embedded viewer actually
- * works does the click get intercepted and turned into a dialog.
+ * The button is a plain link in the markup and stays one: without JS, on a
+ * touch device, or on iOS it navigates to the file and the browser's own
+ * viewer takes over. Only where an embedded viewer actually works does the
+ * click get intercepted and turned into a dialog.
  *
- * Two constraints shape the viewer:
+ * Two constraints shape this:
  *
  *  1. `<embed>`/`<object>` are dead on arrival - index.html's CSP sets
  *     `object-src 'none'`. An <iframe> is what is allowed, under the
@@ -38,60 +38,12 @@ function supportsEmbeddedPdf() {
   return !isIOS;
 }
 
-/**
- * The hero's split button: one silhouette, two controls. The caret opens the
- * secondary action rather than spending a second full-width button on it.
- *
- * Deliberately not built on `.header-dropdown`: that machinery belongs to the
- * header bar and carries its panel chrome, its body `.dropdown-open` dimming,
- * and a Tab trap sized for the theme customiser's whole form. This is one menu
- * item, so it borrows the aria contract and nothing else.
- */
-function initSplitButton() {
-  const split = document.getElementById("hero-resume-split");
-  const toggle = document.getElementById("hero-pdf-more");
-  const menu = document.getElementById("hero-pdf-menu");
-  if (!split || !toggle || !menu) return () => {};
-
-  const setOpen = (open) => {
-    split.classList.toggle("is-open", open);
-    toggle.setAttribute("aria-expanded", String(open));
-    menu.setAttribute("aria-hidden", String(!open));
-  };
-
-  toggle.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const willOpen = !split.classList.contains("is-open");
-    setOpen(willOpen);
-    // rAF because the menu transitions out of visibility:hidden and cannot
-    // take focus until that has applied - the same reason the header panels do.
-    if (willOpen) requestAnimationFrame(() => menu.querySelector("a")?.focus());
-  });
-
-  // Any choice made, or any click landing elsewhere, closes it.
-  menu.addEventListener("click", () => setOpen(false));
-  document.addEventListener("click", (event) => {
-    if (!split.contains(event.target)) setOpen(false);
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || !split.classList.contains("is-open")) return;
-    setOpen(false);
-    toggle.focus();
-  });
-
-  return () => setOpen(false);
-}
-
 export function initResumePdf() {
-  // The main segment sits inside the split button, so its click never counts as
-  // "outside" - the menu would be left hanging open behind the dialog.
-  const closeSplitMenu = initSplitButton();
-
-  const triggers = Array.from(document.querySelectorAll("[data-pdf-view]"));
+  const trigger = document.getElementById("resume-pdf-view");
   const modal = document.getElementById("resume-pdf-modal");
   const frame = document.getElementById("resume-pdf-frame");
   const closeButton = document.getElementById("resume-pdf-modal-close");
-  if (triggers.length === 0 || !modal || !frame) return;
+  if (!trigger || !modal || !frame) return;
 
   const teardown = () => {
     // Dropping the element rather than blanking its src: a same-origin
@@ -100,21 +52,18 @@ export function initResumePdf() {
     frame.replaceChildren();
   };
 
-  triggers.forEach((trigger) => {
-    trigger.addEventListener("click", (event) => {
-      if (!supportsEmbeddedPdf()) return; // let the link navigate
+  trigger.addEventListener("click", (event) => {
+    if (!supportsEmbeddedPdf()) return; // let the link navigate
 
-      event.preventDefault();
-      closeSplitMenu();
-      const iframe = document.createElement("iframe");
-      iframe.className = "pdf-modal-iframe";
-      iframe.title = "Resume of Rajeev Jasti";
-      // The href, not a hardcoded name: the build content-hashes the PDF.
-      iframe.src = trigger.getAttribute("href") || getResumeUrl();
-      frame.replaceChildren(iframe);
+    event.preventDefault();
+    const iframe = document.createElement("iframe");
+    iframe.className = "pdf-modal-iframe";
+    iframe.title = "Resume of Rajeev Jasti";
+    // The href, not a hardcoded name: the build content-hashes the PDF.
+    iframe.src = trigger.getAttribute("href") || getResumeUrl();
+    frame.replaceChildren(iframe);
 
-      openModal(modal, { initialFocus: closeButton || modal, onClose: teardown });
-    });
+    openModal(modal, { initialFocus: closeButton || modal, onClose: teardown });
   });
 
   closeButton?.addEventListener("click", () => closeModal(modal));
