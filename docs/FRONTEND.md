@@ -191,8 +191,17 @@ called from `applyTheme` so a light/dark flip re-derives the right variant set.
 ### `manifest.json`
 
 `name`, `short_name: "RJ"`, `start_url: "/"`, `display: standalone`,
-`background_color: #0a0e14`, `theme_color: #05a8e6`, `orientation: any`, and the
+`background_color: #0a0e14`, `theme_color: #F59E0B`, `orientation: any`, and the
 two `android-chrome-*` icons.
+
+`theme_color` matches the light-theme `--accent-fill` and the `<meta
+name="theme-color">` in `index.html`; `applyTheme()` retargets that meta tag per
+theme, but a manifest holds one static value, so it stays on the light accent.
+
+`background_color` paints the launch splash and is deliberately the **dark**
+`--bg`, not the light one, even though the no-JS default is light. A manifest
+supports no media query, so one of the two audiences sees a mismatch either way;
+dark-to-light is the gentler transition, and it costs no runtime machinery.
 
 ### `sw.js`
 

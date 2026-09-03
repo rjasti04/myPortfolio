@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-xQj/yp5+mHgSmC/IFw1oam/lHOJe6+eJ6Zlhzs7vQPE='; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://staging-api.rjasti.com http://localhost:8000 http://127.0.0.1:8000 https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;" />
+    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-6XuTA/BFxDvJqIm0o2k13VOhDx9nZ5JDPwYSgDaaFdQ='; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://staging-api.rjasti.com http://localhost:8000 http://127.0.0.1:8000 https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="Rajeev Jasti" />
@@ -142,6 +142,12 @@
       if (dark) {
         document.body.classList.add('dark-theme');
       }
+      // The theme class goes on <body>, but the browser reads color-scheme off
+      // the ROOT element to pick the palette for the viewport scrollbars and
+      // the canvas it paints before the stylesheet lands. Set it here, in the
+      // same pre-paint pass, or a dark visitor gets a white scrollbar until
+      // applyTheme() runs at DOMContentLoaded.
+      document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
     }());
   </script>
   <script src="js/theme-bootstrap.js"></script>

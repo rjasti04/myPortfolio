@@ -6,6 +6,11 @@ let themeBtn, themeIcon, themeColorMeta;
 
 export function applyTheme(isDark) {
   document.body.classList.toggle("dark-theme", isDark);
+  // The class lives on <body>, but the browser resolves the palette for the
+  // viewport scrollbars and the canvas from the ROOT element, so body alone
+  // leaves a white scrollbar on a dark page. Mirrors the inline bootstrap in
+  // index.html, which sets the same property before first paint.
+  document.documentElement.style.colorScheme = isDark ? "dark" : "light";
   if (themeIcon) {
     themeIcon.className = isDark ? "fas fa-sun" : "fas fa-moon";
   }
