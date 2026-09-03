@@ -2529,10 +2529,25 @@ body.dark-theme #resume .item {
   line-height: var(--leading-body);
 }
 
+/* The resume groups its bullets under subheadings, so the card does too. The
+   list keeps its own class and styling; the heading just sits between lists. */
+#resume .item-bullets-group {
+  margin: 22px 0 0;
+  color: var(--accent-text);
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+#resume .item-bullets-group:first-of-type {
+  margin-top: 18px;
+}
+
 #resume .item-bullets {
   display: grid;
   gap: 8px;
-  margin: 18px 0 0;
+  margin: 10px 0 0;
 }
 
 #resume .item-bullets li {
