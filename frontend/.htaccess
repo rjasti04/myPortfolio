@@ -11,7 +11,7 @@
   # 1. Extensionless addresses. THE_REQUEST is the raw request line, so these
   #    match only what the browser actually asked for and never the internal
   #    rewrite in rule 3 — no redirect loop. The target is absolute so a
-  #    request to www.rjasti.com/ucl.html lands on rjasti.com/ucl in one hop
+  #    request to www.rjasti.com/ucl.html lands at rjasti.com/ucl in one hop
   #    instead of chaining through rule 2. mod_rewrite re-appends the original
   #    query string, so a ?s= share code survives the redirect.
   RewriteCond %{THE_REQUEST} \s/+index\.html[\s?] [NC]
@@ -41,7 +41,7 @@
 
 # Enable Brotli Compression (if available)
 <IfModule mod_brotli.c>
-  AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml
+  AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/xml text/css text/javascript application/javascript application/xml
 </IfModule>
 
 # Cache-Control Headers
@@ -68,8 +68,19 @@
   # HTML
   ExpiresByType text/html "access plus 0 seconds"
   
-  # Manifest
-  ExpiresByType application/manifest+json "access plus 1 week"
+  # Manifest and metadata
+  ExpiresByType application/manifest+json "access plus 1 hour"
+  ExpiresByType application/json "access plus 1 hour"
+  ExpiresByType text/xml "access plus 1 hour"
+  ExpiresByType text/plain "access plus 1 hour"
+  ExpiresByType application/pdf "access plus 1 hour"
+  ExpiresByType application/octet-stream "access plus 1 hour"
+</IfModule>
+
+# `manifest.json` is the PWA manifest; make its media type explicit because
+# Apache's stock mime.types normally serves .json as application/json.
+<IfModule mod_mime.c>
+  AddType application/manifest+json .json
 </IfModule>
 
 # Security Headers
@@ -80,9 +91,17 @@
   Header set Referrer-Policy "strict-origin-when-cross-origin"
   Header set Content-Security-Policy "frame-ancestors 'self'"
   
-  # Cache-Control for fingerprintable static assets
-  <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf)$">
-    Header set Cache-Control "public, max-age=31536000, immutable"
+  # Un-hashed static assets must revalidate. This is deliberately broader than
+  # the fingerprinted rule below so a stable URL can never receive a year of
+  # immutable freshness after its bytes change.
+  <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf|pdf)$">
+    Header set Cache-Control "public, max-age=3600, must-revalidate"
+  </FilesMatch>
+
+  # JSON/XML/TXT/sourcemaps and other metadata are not fingerprinted. Keep a
+  # modest freshness window and require revalidation instead of heuristics.
+  <FilesMatch "\.(json|xml|txt|map)$">
+    Header set Cache-Control "public, max-age=3600, must-revalidate"
   </FilesMatch>
 
   # Un-hashed CSS/JS keeps revalidating.
@@ -92,11 +111,8 @@
 
   # Build output is content-hashed (main-7SKJSAC6.js), so the filename changes
   # whenever the bytes do and the old URL is never requested again. That makes
-  # it safe to cache forever, which is the point of hashing: a returning
-  # visitor previously revalidated ~30 files an hour because nothing here could
-  # tell a changed file from an unchanged one.
-  # Declared after the rule above so it wins for the files it matches.
-  <FilesMatch "-[A-Za-z0-9_-]{8}\.(css|js)$">
+  # it safe to cache forever, which is the point of hashing.
+  <FilesMatch "-[A-Za-z0-9_-]{8}\.(css|js|jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf|pdf)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 
