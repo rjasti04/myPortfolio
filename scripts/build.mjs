@@ -249,6 +249,16 @@ async function main() {
   }
 
   // --- Service worker ------------------------------------------------------
+  // Copied assets are content-hashed now, so a precache entry for one cannot be
+  // written as a literal path - it has to be looked up. Throws rather than
+  // returning undefined: a bad entry is otherwise invisible (see the check
+  // below).
+  const shellUrl = (rel) => {
+    const out = rewrites.get(rel);
+    if (!out) throw new Error(`sw.js: no build output for precache entry '${rel}'`);
+    return `/${out}`;
+  };
+
   // The precache list is generated from what was actually built, rather than
   // hand-maintained. The old list named 40 files by hand, which both defeated
   // the lazy-loading in main.js and made a single renamed file able to fail
@@ -266,8 +276,20 @@ async function main() {
     "/vendor/purify.min.js",
     "/vendor/marked.min.js",
     "/manifest.json",
-    "/profile-pic-160.webp",
+    // The LCP image, and the only hashed static asset in the shell.
+    shellUrl("profile-pic-160.webp"),
   ].filter((p, i, all) => !p.endsWith(".map") && all.indexOf(p) === i);
+
+  // A precache URL with no file behind it is silent in production: the worker
+  // adds each entry separately under Promise.allSettled specifically so one
+  // 404 cannot fail the install, which also means one 404 reports nothing and
+  // the shell just quietly loses a file. Fail the build instead.
+  for (const url of shell) {
+    if (url === "/") continue;
+    if (!existsSync(join(OUT, url.slice(1)))) {
+      throw new Error(`sw.js: precache URL '${url}' has no matching file in dist/`);
+    }
+  }
 
   const swSource = await readFile(join(SRC, "sw.js"), "utf8");
   // Version the worker from the bytes of every generated shipped file. This
