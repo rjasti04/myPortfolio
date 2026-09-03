@@ -1,5 +1,17 @@
 /* #region DESIGN TOKENS & THEMES --------------------------------------*/
 :root {
+  /* Tells the browser which palette its OWN surfaces should use: viewport
+     scrollbars, form controls, and the canvas painted before the stylesheet
+     applies. Without it those stayed light under `body.dark-theme` - a white
+     scrollbar down the side of a dark page.
+
+     The theme class lives on `body`, but the used value for the scrollbars and
+     the canvas is read off the ROOT element, so `body.dark-theme` alone cannot
+     flip them. applyTheme() in js/theme.js writes documentElement.style
+     .colorScheme to keep this in sync; this declaration is the no-JS default
+     and must stay light, matching the light --bg below. */
+  color-scheme: light;
+
   /* Vibrant Solarized System - Amber & Olive */
   --accent-hue: 38;
   --accent-fill: hsl(38, 92%, 50%);
@@ -198,6 +210,10 @@
 }
 
 body.dark-theme {
+  /* Covers controls inside the body; the scrollbars and the canvas follow the
+     root element, which applyTheme() sets. See the :root note above. */
+  color-scheme: dark;
+
   --bg: #0a0e14;
   --bg-gradient: radial-gradient(ellipse at 20% 40%, #0f1419 0%, #0a0e14 50%, #0d0b1a 100%);
   --text: #f0f4f8;
