@@ -12,7 +12,15 @@
  * session strip has the complete series it needs to draw a shape.
  */
 
-import { API_BASE, apiFetch, ensureSession, isApiConfigured, onTelemetry, withSessionToken } from "./analytics.js";
+import {
+  API_BASE,
+  apiFetch,
+  ensureSession,
+  getSessionStartedAt,
+  isApiConfigured,
+  onTelemetry,
+  withSessionToken,
+} from "./analytics.js";
 import { copyText, escapeHTML } from "./utils.js";
 import {
   TIMELINE_BUCKETS,
@@ -30,6 +38,11 @@ const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 140;
 const COPY_RESET_DELAY_MS = 1600;
 const CLOCK_TICK_MS = 15000;
+// "Time on site" is the one figure on the page that changes on its own, so it
+// runs on its own second-by-second clock rather than waiting for the 15s
+// repaint or a manual refresh: a stopwatch that only moves when you poke it
+// reads as broken.
+const DURATION_TICK_MS = 1000;
 // Rolling reservoir of request timings behind the chain's latency figure.
 const LATENCY_SAMPLE_LIMIT = 200;
 // Floor on the strip's span. Without it a session seconds old draws its whole
@@ -83,6 +96,7 @@ const expandedRows = new Set();
 
 let searchDebounce = null;
 let clockTimer = null;
+let durationTimer = null;
 let prefersReducedMotion = false;
 let activityStreamSource = null;
 let latencySamples = [];
@@ -112,6 +126,25 @@ function formatDuration(fromMs, toMs) {
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ${String(seconds % 60).padStart(2, "0")}s`;
   return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`;
+}
+
+/**
+ * Running "12s" / "4m 09s" / "1h 04m 09s" for the live counter.
+ *
+ * Every field below the leading one is zero-padded, and the stat is set in
+ * tabular figures, so the number ticks in place instead of shuffling its
+ * neighbours sideways once a second. Seconds stay visible past the hour for the
+ * same reason the counter exists: a stopwatch that stops moving looks stopped.
+ */
+function formatElapsed(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return "-";
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const ss = String(seconds % 60).padStart(2, "0");
+  if (seconds < 60) return `${seconds}s`;
+  if (minutes < 60) return `${minutes}m ${ss}s`;
+  return `${hours}h ${String(minutes % 60).padStart(2, "0")}m ${ss}s`;
 }
 
 function formatRelativeTime(ms) {
@@ -226,6 +259,28 @@ function sessionWindow() {
   const candidates = [summaryStart, oldestLoaded].filter(Number.isFinite);
   const earliest = candidates.length ? Math.min(...candidates) : to;
   return { from: Math.min(earliest, to - MIN_TIMELINE_SPAN_MS), to };
+}
+
+/**
+ * When this visit began, best source first.
+ *
+ * The server's first event is the honest answer and survives a reload, but it
+ * only lands with the summary; the local session start covers the gap before
+ * that (and the case where tracking is blocked and no summary is ever coming),
+ * so the counter can start at the moment the visitor connected rather than at
+ * the moment the API answered.
+ */
+function sessionStartMs() {
+  const summaryStart = summaryState?.first_event_at
+    ? new Date(summaryState.first_event_at).getTime()
+    : NaN;
+  if (Number.isFinite(summaryStart)) return summaryStart;
+
+  const oldestLoaded = sessionEvents.length ? eventTime(sessionEvents[sessionEvents.length - 1]) : NaN;
+  if (Number.isFinite(oldestLoaded)) return oldestLoaded;
+
+  const localStart = getSessionStartedAt();
+  return Number.isFinite(localStart) ? localStart : NaN;
 }
 
 function bucketIndexOf(ms) {
@@ -394,18 +449,18 @@ export async function loadActivityFunnel() {
 
 // ── Painting ──
 
+/** The one stat that moves by itself; see startDurationClock. */
+function paintDuration() {
+  const started = sessionStartMs();
+  setText("act-stat-duration", Number.isFinite(started) ? formatElapsed(Date.now() - started) : "-");
+}
+
 function paintHeadline() {
   const total = summaryState?.total_events ?? sessionEvents.length;
-  const { from } = sessionWindow();
-  const started = summaryState?.first_event_at
-    ? new Date(summaryState.first_event_at).getTime()
-    : sessionEvents.length
-      ? from
-      : NaN;
   const paths = summaryState?.distinct_paths ?? new Set(sessionEvents.map((e) => e.page_path)).size;
 
   setText("act-stat-total", formatCount(total));
-  setText("act-stat-duration", Number.isFinite(started) ? formatDuration(started, Date.now()) : "-");
+  paintDuration();
   setText("act-stat-paths", String(paths || 0));
 
   const grid = document.getElementById("act-stats");
@@ -780,6 +835,28 @@ function tickClocks() {
   setLiveStatus(document.getElementById("act-live")?.dataset.status || "disconnected");
 }
 
+/**
+ * The counter's own clock.
+ *
+ * It is anchored to a timestamp rather than counting its own ticks, so a
+ * throttled background tab or a missed frame costs nothing: the next repaint is
+ * still right. Hidden tabs are clamped to roughly one tick a minute by the
+ * browser, which is why returning to the tab repaints immediately instead of
+ * waiting for the interval to come around.
+ */
+function startDurationClock() {
+  stopDurationClock();
+  paintDuration();
+  durationTimer = setInterval(paintDuration, DURATION_TICK_MS);
+}
+
+function stopDurationClock() {
+  if (durationTimer) {
+    clearInterval(durationTimer);
+    durationTimer = null;
+  }
+}
+
 // ── Streaming ──
 
 function startActivityStream() {
@@ -909,6 +986,8 @@ async function enterActivitySection() {
   loadActivityFunnel();
   startActivityStream();
 
+  startDurationClock();
+
   if (clockTimer) clearInterval(clockTimer);
   clockTimer = setInterval(() => {
     tickClocks();
@@ -922,6 +1001,7 @@ async function enterActivitySection() {
 
 function leaveActivitySection() {
   stopActivityStream();
+  stopDurationClock();
   pipelineHealth = null;
   lastEventAt = null;
   if (clockTimer) {
@@ -966,6 +1046,12 @@ export function initActivity() {
     if (!sample.ok) return;
     recordApiLatency(sample.roundTripMs, sample.serverMs);
     if (document.getElementById("activity")?.classList.contains("active")) paintChain();
+  });
+
+  // Coming back to a backgrounded tab: repaint before the throttled interval
+  // next fires, so the counter is never caught showing a minute-old figure.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && durationTimer) paintDuration();
   });
 
   const search = document.getElementById("act-search-input");

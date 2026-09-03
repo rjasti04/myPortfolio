@@ -51,12 +51,20 @@ const SCROLL_DEBOUNCE_MS = 500;
 // for the whole batch - taking its own valid events with it.
 const EVENT_QUEUE_STORAGE_PREFIX = 'rj_event_queue';
 const LEGACY_EVENT_QUEUE_STORAGE_KEY = 'rj_event_queue';
+const SESSION_START_STORAGE_KEY = 'rj_session_started_at';
 
 let sessionId = null;
 // Capability token handed out when the session is created. Every request scoped
 // to this session must present it; without it the API cannot tell us apart from
 // anyone else who happens to know the id.
 let sessionToken = null;
+// When this visit started, by the client's own clock. The dashboard's "Time on
+// site" prefers the server's first event, but that only arrives with the
+// summary; this is what lets the counter start ticking on the first frame, and
+// what keeps it ticking when tracking is blocked entirely. It lives beside the
+// id in sessionStorage so a reload continues the same visit rather than
+// restarting it.
+let sessionStartedAt = null;
 try {
   sessionId = sessionStorage.getItem("rj_session_id");
   sessionToken = sessionStorage.getItem("rj_session_token");
@@ -66,6 +74,8 @@ try {
     sessionStorage.removeItem("rj_session_id");
     sessionId = null;
   }
+  const storedStart = Number(sessionStorage.getItem(SESSION_START_STORAGE_KEY));
+  sessionStartedAt = sessionId && Number.isFinite(storedStart) && storedStart > 0 ? storedStart : null;
 } catch (e) {
   console.warn("Analytics: sessionStorage not available");
 }
@@ -73,10 +83,17 @@ try {
 function setSessionId(id, token) {
   sessionId = id;
   sessionToken = token || null;
+  sessionStartedAt = Date.now();
   try {
     sessionStorage.setItem("rj_session_id", id);
     if (token) sessionStorage.setItem("rj_session_token", token);
+    sessionStorage.setItem(SESSION_START_STORAGE_KEY, String(sessionStartedAt));
   } catch (e) {}
+}
+
+/** Client-clock start of this visit, or null if no session has begun. */
+export function getSessionStartedAt() {
+  return sessionStartedAt;
 }
 
 function clearSessionId() {
@@ -88,9 +105,11 @@ function clearSessionId() {
   eventQueue.length = 0;
   sessionId = null;
   sessionToken = null;
+  sessionStartedAt = null;
   try {
     sessionStorage.removeItem("rj_session_id");
     sessionStorage.removeItem("rj_session_token");
+    sessionStorage.removeItem(SESSION_START_STORAGE_KEY);
   } catch (e) {}
 }
 
