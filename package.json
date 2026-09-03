@@ -12,7 +12,7 @@
     "lint:css": "stylelint \"frontend/**/*.css\"",
     "format": "prettier --write \"**/*.{html,css,js,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{html,css,js,json,md,yml,yaml}\"",
-    "test": "node --test frontend/tests/*.test.js",
+    "test": "node --test frontend/tests/*.test.js scripts/tests/*.test.js",
     "audit": "npm audit --audit-level=high",
     "build": "node scripts/build.mjs",
     "check:csp": "node --version >/dev/null && python3 scripts/check_csp_hashes.py"
