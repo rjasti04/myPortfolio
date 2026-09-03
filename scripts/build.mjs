@@ -70,15 +70,10 @@ function hashedPath(rel, contents) {
 function rewriteReferences(text, rewrites) {
   let out = text;
   for (const [from, to] of rewrites) {
-    for (const form of [
-      from,
-      `./${from}`,
-      `/${from}`,
-      `https://rjasti.com/${from}`,
-    ]) {
-      out = out.split(`"${form}"`).join(`"${to}"`);
-      out = out.split(`'${form}'`).join(`'${to}'`);
-    }
+    out = out.split(`https://rjasti.com/${from}`).join(`https://rjasti.com/${to}`);
+    out = out.split(`./${from}`).join(to);
+    out = out.split(`/${from}`).join(`/${to}`);
+    out = out.split(from).join(to);
   }
   return out;
 }
@@ -249,15 +244,6 @@ async function main() {
   for (const extra of [".htaccess"]) {
     if (existsSync(join(SRC, extra))) {
       await cp(join(SRC, extra), join(OUT, extra));
-      copied.push(extra);
-    }
-  }
-
-  for (const extra of ["worldcup.html", "ucl.html"]) {
-    if (!textFiles.includes(extra) && existsSync(join(SRC, extra))) {
-      let text = await readFile(join(SRC, extra), "utf8");
-      text = rewriteReferences(text, rewrites);
-      await writeFile(join(OUT, extra), text);
       copied.push(extra);
     }
   }
