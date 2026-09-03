@@ -256,7 +256,7 @@ the hashed copies esbuild emits.
 
 ## Vendored libraries
 
-`frontend/vendor/` holds `purify.min.js` (DOMPurify 3.2.5) and `marked.min.js`
+`frontend/vendor/` holds `purify.min.js` (DOMPurify 3.4.14) and `marked.min.js`
 (marked 15.0.12), copied verbatim from the npm packages pinned in
 `package.json`. They are vendored rather than CDN-loaded because they were the
 last third-party origin in the page; with them local, `script-src` is `'self'`

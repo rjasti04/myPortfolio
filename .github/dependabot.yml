@@ -1,0 +1,46 @@
+# Dependabot keeps the three dependency surfaces of this repo current: the npm
+# devDependencies at the root, the Python requirements the API server installs,
+# and the actions the deploy workflow pins by major tag.
+#
+# Note that npm updates do NOT reach `frontend/vendor/`. Those files are copied
+# out of node_modules by hand (see frontend/vendor/README.md); after merging a
+# bump for `dompurify` or `marked`, re-run the copy or the shipped bundle stays
+# on the old version.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Everything here is a build/lint/test tool, so a single PR per week is
+      # easier to review than a stream of one-line bumps.
+      dev-tooling:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: pip
+    directory: /server
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      python-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
