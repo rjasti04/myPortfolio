@@ -35,6 +35,7 @@ import { initContactForm } from "./form.js";
 import { initAnimations } from "./animations.js";
 import { initHeroTitle } from "./hero-title.js";
 import { initTilt } from "./tilt.js";
+import { initResumePdf } from "./resume-pdf.js";
 import { initTerminal } from "./terminal/index.js";
 import { initAnalytics } from "./analytics.js";
 import { initSkillsCarousel } from "./skills-carousel.js";
@@ -88,6 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initHeroTitle();
   initAnimations();
   initTilt();
+  initResumePdf();
   initTerminal();
   initAnalytics();
   initSkillsCarousel();

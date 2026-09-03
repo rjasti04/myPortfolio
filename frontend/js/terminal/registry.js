@@ -20,6 +20,7 @@
 
 import * as out from "./output.js";
 import { evaluateMathExpression } from "./math.js";
+import { getResumeUrl } from "../utils.js";
 
 const FORTUNES = [
   "The best way to predict the future is to implement it. — David Heinemeier Hansson",
@@ -170,7 +171,9 @@ export const commands = [
       if (!args.length) return out.text("wget: missing URL");
       const target = args[0].toLowerCase();
       if (target === "resume" || target.includes("pdf")) {
-        ctx.download("rjasti_resume.pdf", "Rajeev_Jasti_Resume.pdf");
+        // Not a literal filename: the build content-hashes the PDF and rewrites
+        // references in the HTML only, so a hardcoded name 404s in dist/.
+        ctx.download(getResumeUrl(), "Rajeev_Jasti_Resume.pdf");
         return out.frag(
           out.text("Resolving resume... connected."),
           out.text("Downloading 'Rajeev_Jasti_Resume.pdf'..."),
