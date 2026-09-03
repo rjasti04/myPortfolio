@@ -176,6 +176,35 @@
     </picture>
   </div>
 
+  <!-- Resume preview. The <iframe> is created on open and destroyed on close: the
+       PDF is 66 KB that most visitors never ask for, and a live PDF viewer left
+       in the DOM keeps rendering behind the closed dialog. Only ever opened on
+       hover-capable, non-iOS pointers - see js/resume-pdf.js. -->
+  <div class="pdf-modal" id="resume-pdf-modal" role="dialog" aria-modal="true"
+    aria-labelledby="resume-pdf-modal-title" aria-hidden="true">
+    <div class="pdf-modal-panel">
+      <div class="pdf-modal-bar">
+        <h2 class="pdf-modal-title" id="resume-pdf-modal-title">
+          <i class="fas fa-file-lines" aria-hidden="true"></i>Rajeev Jasti &mdash; Resume
+        </h2>
+        <div class="pdf-modal-actions">
+          <a class="pdf-modal-action" id="resume-pdf-modal-tab" href="rjasti_resume.pdf" target="_blank"
+            rel="noopener noreferrer">
+            <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>Open in new tab
+          </a>
+          <a class="pdf-modal-action" href="rjasti_resume.pdf" download="Rajeev_Jasti_Resume.pdf" target="_blank"
+            rel="noopener noreferrer">
+            <i class="fas fa-download" aria-hidden="true"></i>Download
+          </a>
+          <button type="button" class="pdf-modal-close" id="resume-pdf-modal-close" aria-label="Close resume preview">
+            <i class="fas fa-times" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      <div class="pdf-modal-frame" id="resume-pdf-frame"></div>
+    </div>
+  </div>
+
 
 
   <div class="layout">
@@ -619,6 +648,10 @@
           full-stack web applications, and generative AI solutions.</p>
 
         <p class="section-actions">
+          <a href="rjasti_resume.pdf" target="_blank" rel="noopener noreferrer" class="btn" id="resume-pdf-view"
+            data-spring-hover>
+            <i class="fas fa-file-lines" aria-hidden="true"></i>View PDF
+          </a>
           <a href="rjasti_resume.pdf" download="Rajeev_Jasti_Resume.pdf" target="_blank" rel="noopener noreferrer"
             class="btn btn-outline" data-spring-hover>
             <i class="fas fa-download" aria-hidden="true"></i>Download PDF

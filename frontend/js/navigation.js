@@ -8,13 +8,14 @@ let hamburger, navMenu, navLinks, sections, imageModal, imageModalCloseButton, p
 /**
  * True while any dialog is on screen.
  *
- * `.image-modal` is shown by modal.js adding `.active`; the auth modal is a
- * separate implementation that toggles `.hidden` instead. Keyboard shortcuts
- * have to respect both, or they fire through an open dialog.
+ * `.image-modal` and `.pdf-modal` are shown by modal.js adding `.active`; the
+ * auth modal is a separate implementation that toggles `.hidden` instead.
+ * Keyboard shortcuts have to respect all of them, or they fire through an open
+ * dialog.
  */
 function isModalOpen() {
   return Boolean(
-    document.querySelector(".image-modal.active") ||
+    document.querySelector(".image-modal.active, .pdf-modal.active") ||
       document.querySelector("#auth-modal:not(.hidden)")
   );
 }

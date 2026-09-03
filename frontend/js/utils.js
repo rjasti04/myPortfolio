@@ -125,6 +125,27 @@ export function estimateTokens(text) {
   return baseTokens + wordBonus + specialBonus + codeBonus + urlBonus;
 }
 
+/**
+ * The resume PDF's URL, taken from a link the build rewrote.
+ *
+ * scripts/build.mjs content-hashes the PDF into dist/ as
+ * `rjasti_resume-<hash>.pdf` and rewrites references in the HTML pages and
+ * manifest.json - never in the bundled JS. A literal "rjasti_resume.pdf" in a
+ * module therefore 404s in production while working perfectly against
+ * `frontend/`, so every caller has to read the href off the markup instead.
+ *
+ * Falls back to the source filename when no such link is in the DOM, which is
+ * the un-built case and the only one where that name is correct.
+ */
+export function getResumeUrl() {
+  if (typeof document === "undefined") return "rjasti_resume.pdf";
+  // The download links keep their `download` attribute verbatim through the
+  // build - only the href is rewritten - so they are a stable handle on it.
+  const link = document.getElementById("resume-pdf-view")
+    || document.querySelector('a[download$="Resume.pdf"]');
+  return link?.getAttribute("href") || "rjasti_resume.pdf";
+}
+
 // Offline detection
 let isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 const onlineCallbacks = [];
