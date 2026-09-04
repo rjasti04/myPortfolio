@@ -16,14 +16,12 @@ jobs:
   frontend-check:
     name: Frontend Lint & Tests
     runs-on: ubuntu-latest
-    # 20, not 10. Every step here finishes in seconds except `npm ci`, which is
-    # bounded by registry throughput rather than by anything in this repository:
-    # it took 2m09s on the run before this budget was written and 7m01s on two
-    # consecutive attempts an hour later, from an unchanged lockfile and so an
-    # identical cache key. At 10 minutes that variance alone cancelled the job -
-    # and a cancelled quality gate skips the deploy, so a slow registry silently
-    # cost a release. The timeout is here to catch a hang, not to hold npm to a
-    # schedule it does not control.
+    # 20, not 10. Headroom to catch a hang, not a schedule for npm to meet: the
+    # real work here is seconds (see Install Dependencies), and the two things
+    # that can still block are registry calls nothing in this repository
+    # controls. Ten minutes was tight enough that one slow afternoon cancelled
+    # the job outright - and a cancelled quality gate skips the deploy, so a
+    # slow registry silently cost a release.
     timeout-minutes: 20
     # Superseded runs on the same branch are cancelled. Safe here, unlike the
     # deploy job, because nothing these jobs do is stateful.
@@ -40,8 +38,25 @@ jobs:
           node-version: 18
           cache: 'npm'
 
+      # --no-audit is what makes this step fast, and it is not a weakening of
+      # anything: `npm ci` runs its own security audit by default, against the
+      # same registry advisory endpoint the dedicated Audit step below calls a
+      # minute later. That implicit audit is the step's entire cost. Run #193
+      # restored a 19 MB cache hit - every tarball local, nothing to download -
+      # and npm still reported "added 231 packages in 2m". Measured off the
+      # same lockfile and a warm cache, `npm ci` is 5m42s with the audit and
+      # 3.0s without it.
+      #
+      # So the frontend gate was paying for the same advisory lookup twice per
+      # run, and only the second one was ever reported. On the afternoon the
+      # endpoint went slow that doubled cost blew the job's budget: 7m01s here
+      # plus 2m38s in the Audit step, past ten minutes, run cancelled, deploy
+      # skipped. Auditing belongs in the explicit step - it is bounded, its
+      # result is visible, and continue-on-error makes it non-blocking. Here it
+      # is duplicated work on the critical path. --no-fund drops one more
+      # registry round trip that prints a line nobody reads.
       - name: Install Dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: Run JavaScript & CSS Linters
         run: npm run lint
@@ -330,9 +345,15 @@ jobs:
       # The frontend is deployed from dist/, so it has to exist before the
       # emptiness check below - which is the guard that stops `rsync --delete`
       # mirroring an empty directory over the live document root.
+      # --no-audit --no-fund for the reason spelled out on the quality gate's
+      # install step: the audit `npm ci` runs by default is a registry call
+      # that can take minutes and is already covered there. This job has no
+      # audit step of its own - it deploys a commit the gate has already
+      # audited - so here the call buys nothing at all, on a job holding the
+      # production-deploy concurrency lock.
       - name: Build Frontend
         run: |
-          npm ci
+          npm ci --no-audit --no-fund
           npm run build
 
       - name: Verify Deploy Sources Are Not Empty
