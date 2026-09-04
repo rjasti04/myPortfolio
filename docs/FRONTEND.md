@@ -39,20 +39,28 @@ libraries and the build output. For the ES modules themselves see
 
 ## `index.html`
 
-One page, ~1570 lines. It contains the DOM for **all six sections**, which are
+One page. It contains the DOM for **all eight sections**, which are
 shown and hidden by class rather than fetched:
 
 | Section id | Content |
 | :--- | :--- |
+| `home` | The landing view — identity treatment, three calls to action (About, Resume, Contact), and an icon row of three outbound profiles plus an in-site shortcut to `#ai` |
 | `about` | Hero, profile, stat counters, skills carousel, the interactive command prompt |
 | `resume` | Experience timeline, downloadable résumé |
 | `hobbies` | Personal interests |
+| `apps` | Launcher shelf for the standalone side projects. Its tiles are ordinary anchors out to their own URLs (`/ucl` today) opened in a new tab — they carry no `data-target`, so the section router never sees them |
 | `activity` | The session activity dashboard (live stream, timeline strip, path funnel, pipeline DAG) |
 | `contact` | Contact form, prompt chips, copy-email control |
 | `ai` | Full-page AI chat with a conversation sidebar |
 
-`about` carries `class="active"` in the markup so the first paint is correct
+`home` carries `class="active"` in the markup so the first paint is correct
 before any JavaScript runs.
+
+The section list is duplicated in four places that have to move together: the
+`<section>` markup, the header nav rows above it (their order also sets the
+`1`–`8` keyboard shortcuts) — both in `index.html` — and, in
+`js/navigation.js`, the `navItems` array behind the mobile bottom bar and the
+`sectionOrder` array behind phone swipe navigation.
 
 **Head, in order:** meta CSP → viewport/robots/author/theme-color → Open Graph
 and Twitter cards → canonical → JSON-LD `Person` structured data → icons and
@@ -151,7 +159,7 @@ header & navigation · code blocks & syntax highlighting · layout & page shell 
 hero & terminal panel · section titles & card primitives · experience ·
 contact & forms · header info & stat counters · buttons & logo · skills &
 skills carousel · modals & toasts · responsive global breakpoints ·
-accessibility & print · hobbies · section router & view transitions · chat
+accessibility & print · hobbies · apps · section router & view transitions · chat
 widget · activity section · AI page · overlays, ripple & scroll-to-top ·
 mobile bottom nav & mobile fixes · command palette (Ctrl+K) · backdrop-filter
 fallbacks.
@@ -324,12 +332,12 @@ missing, so a failed update is visible but not dangerous.
 | `android-chrome-maskable-512x512.png` | The same badge inset into the maskable safe zone, on the manifest `background_color`. **Generated** by `scripts/generate_launch_images.py` — see [Launch screens](#launch-screens) |
 | `launch/launch-<w>x<h>-<dpr>x.png` | 17 portrait `apple-touch-startup-image` bitmaps, one per iOS device resolution. **Generated** by the same script — see [Launch screens](#launch-screens) |
 | `apple-touch-icon.png`, `favicon.ico` | iOS and browser icons |
-| `social-preview.png`, `ucl-preview.png`, `worldcup-preview.png` | The three 1200x630 Open Graph cards, one per shareable page. **Generated** by `scripts/generate_social_previews.py` — see [Open Graph cards](#open-graph-cards) |
+| `social-preview.png`, `ucl-preview.png`, `worldcup-preview.png` | The three 1200x630 Open Graph cards, one per shareable page. **Generated** by `scripts/generate_social_previews.py` — see [Open Graph cards](#open-graph-cards). `ucl-preview.png` doubles as the display image for the Champions League tile in the Apps section |
 | `rjasti_resume.pdf` | Downloadable résumé (the doubled extension is the actual filename) |
 | `robots.txt` | Allows everything except `/api/`; points at the sitemap |
 | `sitemap.xml` | Three URL entries — `/`, `/ucl` and `/worldcup`, each with its Open Graph card as an image annotation |
 | `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup`, with its own canonical and Open Graph tags — see [Apache configuration](#apache-configuration) |
-| `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the header as `#ucl-link`; covered by `frontend/tests/ucl-bracket.test.js` |
+| `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the **Apps** section of the SPA as a tile in `.app-grid` — `#ucl-link` in the header is a second, hidden entry point kept only as a fallback; covered by `frontend/tests/ucl-bracket.test.js` |
 
 `assets/master-icon.png` lives **outside** `frontend/` deliberately, so the
 deploy's `rsync` never publishes it to the web root.
