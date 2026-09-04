@@ -459,17 +459,9 @@
               Redshift.
             </p>
             <div class="hero-buttons">
-              <a href="#resume" data-target="resume" class="nav-cta btn" data-spring-hover>Resume
-                <i class="fas fa-chevron-right"></i></a>
               <a href="#ai" data-target="ai" class="nav-cta btn hero-chat-btn" id="hero-chat-btn" aria-label="Ask AI"
                 data-spring-hover>Ask AI <i class="fas fa-robot"></i></a>
             </div>
-            <p class="hero-resume-download">
-              <a href="rjasti_resume.pdf" download="Rajeev_Jasti_Resume.pdf" target="_blank" rel="noopener noreferrer"
-                class="pdf-download-link">
-                <i class="fas fa-download" aria-hidden="true"></i>Download PDF
-              </a>
-            </p>
           </div>
           <aside class="terminal-panel glass-dark no-swipe" aria-label="Command prompt panel">
             <div class="terminal-topbar">
@@ -674,148 +666,76 @@
               <span class="role-period">(Feb 2018 &mdash; Oct 2022)</span>
             </div>
           </div>
-          <h4 class="item-bullets-group">OLTP Architecture &amp; Enterprise Pricing</h4>
+          <h4 class="item-bullets-group">Pricing &amp; Order-to-Cash (SQL Server OLTP)</h4>
           <ul class="item-bullets">
-            <li>Own OLTP database development and administration for the systems running order-to-cash &mdash; pricing,
-              rebates, commissions, and the integration layer connecting ERP, WMS, and TMS.</li>
-            <li>Architected and delivered the enterprise pricing engine in SQL Server, resolving sales-rep overrides,
-              customer contract pricing, commodity pricing, COGS, and discount layers into a real-time
-              customer&ndash;item&ndash;DC price through ACID-compliant T-SQL procedures and functions.</li>
-            <li>Scaled the pricing API to sustain 100,000&ndash;200,000 executions per minute at sub-100 ms latency with
-              zero deadlocks under heavy concurrent load, serving internal e-commerce, external order entry, and ERP.</li>
-            <li>Modeled pricing and customer master data as SCD Type 2, enabling point-in-time price reconstruction for
-              any customer&ndash;item&ndash;DC combination across past, current, and future effective dates for audit
-              and dispute resolution.</li>
-            <li>Built PriceIQ, a statistical pricing subsystem that derives sales margins from three years of
-              transaction history using IQR outlier fencing and skew-adjusted distribution analysis, intelligently
-              pricing customer&ndash;item combinations that fall outside any custom pricing setup.</li>
-            <li>Built the vendor rebate calculation and reporting platform, computing earned rebates across multiple
-              program structures from purchasing and sales transaction history and giving Finance auditable accrual
-              figures.</li>
-            <li>Delivered commission-based payroll for the sales organization from transaction-level sales and margin
-              data, and activity-based incentive payroll for warehouse and transportation teams sourced from WMS and
-              TMS activity.</li>
-            <li>Developed inbound and outbound feed processing for customers and suppliers covering sales orders,
-              customer rebates, purchase orders, and receiving confirmations, with transactional ingestion and error
-              handling.</li>
+            <li>Own OLTP development and administration for order-to-cash: pricing, rebates, commissions, and the ERP,
+              WMS, and TMS feeds carrying orders, POs, and receiving confirmations.</li>
+            <li>Architected the enterprise pricing engine in T-SQL, resolving rep overrides, contract and commodity
+              pricing, COGS, and discounts into one real-time customer&ndash;item&ndash;DC price.</li>
+            <li>Scaled the pricing API to 100,000&ndash;200,000 executions per minute at sub-100 ms and zero deadlocks,
+              serving e-commerce, external order entry, and ERP.</li>
+            <li>Modeled pricing and customer master as SCD Type 2, making any past, current, or future price
+              reconstructable for audits and disputes.</li>
+            <li>Built PriceIQ, which fences outliers with IQR and skew-adjusted analysis over three years of history to
+              price the combinations no contract covers.</li>
+            <li>Built the vendor rebate platform for auditable Finance accruals, plus commission payroll for sales and
+              activity-based incentive payroll from WMS and TMS data.</li>
           </ul>
-          <h4 class="item-bullets-group">Backend &amp; Middleware Microservices</h4>
+          <h4 class="item-bullets-group">Serverless Order Pipeline &amp; APIs</h4>
           <ul class="item-bullets">
-            <li>Architected and deployed enterprise-grade serverless REST APIs using AWS API Gateway, Lambda, and Step
-              Functions, serving high-throughput, sub-second reads and writes for core commerce entities across
-              customers, items, orders, payments, balances, and invoices.</li>
-            <li>Constructed an asynchronous, serverless order ingestion middleware using Lambda, SQS FIFO queues, and
-              Step Functions (Saga pattern) to reliably process and fan out B2B/B2C orders to legacy ERP, WMS, and
-              Inventory Distribution Systems.</li>
-            <li>Engineered a distributed DynamoDB caching layer using SHA-256 payload fingerprinting and native TTL
-              eviction, bypassing downstream relational database calls on identical requests and reducing primary
-              database load by 30&ndash;50%.</li>
-            <li>Implemented idempotent request handling and API Gateway throttling controls, eliminating duplicate order
-              submissions across both internal e-commerce storefronts and high-volume third-party order entry
-              channels.</li>
-            <li>Designed fault-tolerant integration pipelines with automated Dead-Letter Queue redrive policies,
-              exponential backoff, and circuit breakers, sustaining 99.9% transaction completion and insulating
-              upstream checkout from downstream ERP batch-processing windows.</li>
-            <li>Streamlined end-to-end order lifecycle workflows, transforming raw multi-channel order payloads into
-              canonical distribution formats for automated picking, packing, and billing dispatch.</li>
-            <li>Developed a high-concurrency inventory allocation and reservation microservice managing real-time
-              Available-to-Promise stock reservations, preventing stockouts, phantom inventory, and overselling during
-              peak transaction surges.</li>
-            <li>Enforced strict transactional integrity and concurrency control using atomic conditional writes and
-              distributed locks, ensuring multi-item, multi-warehouse order lines were reserved atomically prior to
-              fulfillment handoff.</li>
-            <li>Optimized allocation strategies for warehouse routing, factoring in stock proximity, fulfillment node
-              priorities, and partial shipment rules to reduce fulfillment cycle times and split-shipment overhead.</li>
-            <li>Implemented a dual-engine search strategy leveraging Elasticsearch for low-latency full-text catalog and
-              order queries and SQL Server for complex relational filtering, with near-real-time indexing pipelines
-              powering sub-second customer self-service search across millions of historical invoices and orders.</li>
+            <li>Architected serverless REST APIs on API Gateway, Lambda, and Step Functions for customers, items,
+              orders, payments, balances, and invoices.</li>
+            <li>Built asynchronous order ingestion on SQS FIFO and Step Functions (Saga), fanning B2B and B2C orders
+              out to legacy ERP, WMS, and inventory systems.</li>
+            <li>Cut primary database load 30&ndash;50% with a DynamoDB cache keyed on SHA-256 payload fingerprints and
+              evicted by native TTL.</li>
+            <li>Held 99.9% transaction completion through idempotent request handling, API Gateway throttling, DLQ
+              redrive, exponential backoff, and circuit breakers.</li>
+            <li>Built a high-concurrency Available-to-Promise reservation service where atomic conditional writes and
+              distributed locks hold multi-warehouse order lines without overselling.</li>
+            <li>Paired Elasticsearch full-text search with SQL Server relational filtering for sub-second self-service
+              search across millions of historical invoices and orders.</li>
           </ul>
-          <h4 class="item-bullets-group">SQL Server Administration &amp; Performance Engineering</h4>
+          <h4 class="item-bullets-group">SQL Server &amp; Redshift Administration</h4>
           <ul class="item-bullets">
-            <li>Eliminated high-frequency lock-conversion deadlocks and write skew on concurrent composite-key updates
-              by pairing targeted locking hints (UPDLOCK, HOLDLOCK, ROWLOCK) with deterministic execution ordering in
-              UPSERT and batch routines, removing index traversal races and PK violation errors.</li>
-            <li>Enabled and tuned Read Committed Snapshot Isolation to remove reader-writer blocking and cut transaction
-              contention across high-throughput OLTP workloads.</li>
-            <li>Tuned execution plans to eliminate tempdb spills by correcting memory grant allocations, parameter
-              sniffing behavior, and stale statistics.</li>
-            <li>Redesigned composite clustered and covering non-clustered indexes to remove bookmark lookup bottlenecks
-              and cross-index deadlock graphs; managed fill factors and selective index and heap rebuilds, and
-              partitioned large tables to improve partition elimination as data volume grew.</li>
-            <li>Automated enterprise database maintenance, index defragmentation, and statistics updates using Ola
-              Hallengren's solution orchestrated through SQL Server Agent.</li>
-            <li>Administered Always On Availability Groups and automated backup and recovery routines as part of the
-              HA/DR strategy, and configured and tuned CDC to support low-latency replication into the enterprise data
-              warehouse.</li>
-            <li>Built monitoring and alerting in SolarWinds covering blocking, waits, and resource pressure; authored
-              custom T-SQL administrative scripts auditing index fragmentation, connection pooling efficiency, and
-              storage utilization; managed database roles, permissions, and least-privilege access.</li>
+            <li>Removed lock-conversion deadlocks, write skew, and reader&ndash;writer blocking with targeted locking
+              hints, deterministic UPSERT ordering, and Read Committed Snapshot Isolation.</li>
+            <li>Cleared tempdb spills and bookmark lookups by correcting memory grants, parameter sniffing, and
+              stale statistics; partitioned large tables as volume grew.</li>
+            <li>Ran HA/DR on Always On Availability Groups with automated backups, CDC replication into the warehouse,
+              and Ola Hallengren maintenance jobs.</li>
+            <li>Monitored blocking, waits, and resource pressure in SolarWinds, backed by T-SQL audit scripts and
+              least-privilege role management.</li>
+            <li>Tuned Redshift storage with distribution styles, compound sort keys, and AZ64/ZSTD encoding, and sized
+              WLM queues so batch ETL never blocks BI dashboards.</li>
+            <li>Accelerated Redshift queries with materialized views and scheduled ANALYZE and VACUUM; hardened
+              clusters with PII encryption, RBAC, and CloudWatch alarms.</li>
           </ul>
-          <h4 class="item-bullets-group">Semantic Layer, Master Data &amp; Application Platform</h4>
+          <h4 class="item-bullets-group">Data Warehouse &amp; Analytics Platform</h4>
           <ul class="item-bullets">
-            <li>Engineered enterprise LookML semantic models and Explores, defining standardized business logic and KPIs
-              across core supply chain dimensions including inventory turns, dock-to-stock cycle times, order fill
-              rates, and transportation freight spend.</li>
-            <li>Set up Google's Model Context Protocol (MCP) server integration in Looker, exposing curated semantic
-              definitions to generative AI agents to enable natural-language-to-SQL querying and prompt-driven
-              dashboard generation.</li>
-            <li>Implemented granular RBAC and user attribute-based row- and column-level security in Looker, restricting
-              sensitive financial data and PII to authorized user groups, and administered the instance environment
-              covering user provisioning, content and space curation, schedule delivery alerts, and usage monitoring.</li>
-            <li>Optimized database workload and dashboard render speeds by configuring Looker datagroups, caching
-              strategies, and persistent derived table lifecycle policies, eliminating redundant query execution
-              against underlying database engines.</li>
-            <li>Architected a scalable Master Data Management ecosystem across Zoho, establishing governed golden
-              records for customer, item, and supplier entities with automated distribution to tier-1 ERP, WMS, and
-              TMS systems.</li>
-            <li>Designed an event-driven, decoupled integration pipeline using Zoho webhooks and resilient message
-              queuing, eliminating data discrepancies and synchronization lag across warehouse fulfillment and freight
-              routing networks.</li>
-            <li>Engineered high-throughput, asynchronous FastAPI backend microservices with strict Pydantic schema
-              validation, standardizing departmental custom data capture and preventing operational data corruption
-              across downstream pipelines.</li>
-            <li>Built and provisioned a fault-tolerant, auto-scaled internal application tier on AWS (EC2 in multi-AZ
-              VPCs, Auto Scaling, hardened security groups, Apache HTTPD reverse proxies, Route 53) with automated
-              open-source TLS rotation, unifying departmental data capture portals.</li>
+            <li>Architected multi-source ingestion into Redshift with PySpark, Matillion, and Boomi &mdash; CDC and
+              watermark extracts, SaaS APIs, and third-party flat files.</li>
+            <li>Decoupled batch and near-real-time pipelines with SQS, automating staging, deduplication, cleansing,
+              and business logic in SQL.</li>
+            <li>Designed star and snowflake dimensional models for Looker reporting, with reverse-ETL pushing curated
+              metrics back into Salesforce and Zoho.</li>
+            <li>Engineered LookML semantic models for inventory turns, fill rates, and freight spend, exposed to AI
+              agents through Looker's MCP server.</li>
+            <li>Enforced row- and column-level security on financial data and PII, and tuned datagroups, caching, and
+              PDT policies for dashboard render speed.</li>
+            <li>Delivered fulfillment, throughput, shipment, and inventory-variance dashboards with Operations,
+              Transportation, Sales, and Finance, standardizing KPI definitions across departments.</li>
           </ul>
-          <h4 class="item-bullets-group">Data Warehouse Development</h4>
+          <h4 class="item-bullets-group">Master Data &amp; Internal Applications</h4>
           <ul class="item-bullets">
-            <li>Architected multi-source ingestion pipelines using PySpark, Matillion, and Boomi to ingest structured
-              and semi-structured data from relational databases (via CDC and watermark extracts), SaaS APIs, and
-              third-party flat files into Amazon Redshift.</li>
-            <li>Engineered hybrid batch and near-real-time streaming architectures decoupled via Amazon SQS, automating
-              data staging, deduplication, cleansing, and complex business logic in SQL.</li>
-            <li>Designed and maintained dimensional models (star and snowflake schemas), populating enterprise fact and
-              dimension tables to power downstream BI analytics and executive reporting in Looker.</li>
-            <li>Implemented reverse-ETL pipelines to operationalize curated warehouse data, pushing enriched analytical
-              metrics back into operational SaaS platforms including Salesforce and Zoho.</li>
-          </ul>
-          <h4 class="item-bullets-group">Redshift Administration, Performance Tuning &amp; Governance</h4>
-          <ul class="item-bullets">
-            <li>Optimized physical storage architecture by configuring optimal distribution styles (KEY, ALL, EVEN),
-              compound sort keys, and column compression encodings (AZ64, ZSTD), reducing cluster storage footprint
-              and network slice data redistribution (DS_DIST_BOTH).</li>
-            <li>Configured Workload Management parameter groups, memory allocations, query monitoring rules, and user
-              priority queues to prevent heavy batch ETL from bottlenecking high-priority BI dashboard queries.</li>
-            <li>Accelerated query execution by implementing materialized views, refactoring complex query patterns, and
-              scheduling automated maintenance procedures (ANALYZE, VACUUM) for zone-map refresh and disk space
-              reclamation.</li>
-            <li>Hardened cluster security and observability by enforcing PII data encryption, implementing role-based
-              access control, and deploying CloudWatch dashboards and alarms for disk spill, CPU utilization, and
-              concurrency metrics.</li>
-          </ul>
-          <h4 class="item-bullets-group">Analytics Delivery &amp; Cross-Functional Partnership</h4>
-          <ul class="item-bullets">
-            <li>Partnered with supply chain stakeholders across Procurement, Receiving, Inventory Control, Warehouse
-              Operations, Transportation, Sales, and Finance to identify operational bottlenecks and translate complex
-              requirements into intuitive reporting suites.</li>
-            <li>Delivered end-to-end Looker dashboards tracking daily order fulfillment, warehouse throughput, shipment
-              status, and inventory variance, driving measurable efficiency improvements across distribution centers.</li>
-            <li>Designed hybrid analytical architectures merging historical trend analysis with real-time operational
-              reporting to give floor managers and executives unified visibility into daily logistics and distribution
-              workflows.</li>
-            <li>Standardized cross-departmental reporting definitions, eliminating data silos and KPI discrepancies
-              across inventory accounting, sales performance, and logistics operations.</li>
+            <li>Architected Zoho-based Master Data Management, governing golden records for customer, item, and
+              supplier entities and distributing them to ERP, WMS, and TMS.</li>
+            <li>Designed event-driven Zoho webhook and message-queue integrations, removing synchronization lag across
+              warehouse fulfillment and freight routing.</li>
+            <li>Engineered asynchronous FastAPI microservices with Pydantic validation, standardizing departmental data
+              capture and preventing downstream corruption.</li>
+            <li>Provisioned the internal application tier on AWS &mdash; multi-AZ EC2, Auto Scaling, Apache reverse
+              proxies, Route 53, and automated TLS rotation.</li>
           </ul>
           <div class="item-tags">
             <span>Amazon Redshift</span>
