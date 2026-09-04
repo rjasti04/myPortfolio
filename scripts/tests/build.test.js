@@ -81,13 +81,37 @@ describe("build: caching contract", () => {
     });
 
     it("precaches the hashed LCP image, not a bare filename", () => {
-      const lcp = sw.precache.filter((u) => u.includes("profile-pic-160"));
+      const lcp = sw.precache.filter((u) => u.includes("profile-cutout-380"));
       assert.strictEqual(
         lcp.length,
         1,
-        "expected exactly one profile-pic-160 precache entry",
+        "expected exactly one profile-cutout-380 precache entry",
       );
-      assert.match(lcp[0], /^\/profile-pic-160-[A-Za-z0-9_-]{8}\.webp$/);
+      assert.match(lcp[0], /^\/profile-cutout-380-[A-Za-z0-9_-]{8}\.webp$/);
+    });
+
+    // The precached width and the preloaded width have to be the same file:
+    // they are two halves of one optimisation, and they drifted apart once
+    // already - the build precached the 160w headshot while index.html
+    // preloaded the 360w one, so the shell warmed a file the page never asked
+    // for and the LCP image was fetched cold on every first paint.
+    //
+    // Asserted against `href` rather than the whole tag: the preload also
+    // carries an `imagesrcset` naming every width, so a substring match over
+    // the tag passes no matter which one `href` points at - which is exactly
+    // the drift this case exists to catch.
+    it("precaches the width index.html preloads", () => {
+      const html = readFileSync(join(DIST, "index.html"), "utf8");
+      const preload = html.match(/<link rel="preload"[^>]*as="image"[^>]*>/);
+      assert.ok(preload, "expected an image preload in dist/index.html");
+      const href = preload[0].match(/\shref="([^"]+)"/);
+      assert.ok(href, "image preload has no href");
+      const lcp = sw.precache.find((u) => u.includes("profile-cutout-380"));
+      assert.strictEqual(
+        `/${href[1]}`,
+        lcp,
+        `preload href ${href[1]} is not the precached ${lcp}`,
+      );
     });
   });
 

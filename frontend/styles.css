@@ -2149,35 +2149,113 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   padding-block: 0;
 }
 
-.home-avatar {
+/* ── Portrait ──
+   Free-form, not a disc. The sources are background-removed
+   (scripts/generate_profile_cutout.py), so the page's own gradient and the
+   plexus canvas run behind the silhouette rather than stopping at a circle's
+   edge, and the shape on the page is the person.
+
+   Three rules follow from having no frame. The image can carry no background,
+   no border-radius and no box-shadow - a box-shadow would draw the rectangle
+   the cutout exists to hide. Its depth has to come from `drop-shadow`, which
+   follows the alpha. And a cutout dropped straight onto a gradient reads as
+   pasted, so `::before` puts something deliberate behind it.
+
+   Plain container, not a control: the portrait does not open a lightbox, so it
+   carries no hover glow, no focus ring and nothing in the tab order. */
+.home-portrait {
+  position: relative;
   justify-self: end;
+
+  /* Sized here rather than on the `width`/`height` attributes so the portrait
+     tracks the viewport; the attributes stay on the element to reserve the
+     aspect ratio before the image decodes. A step wider than the circle it
+     replaces - a silhouette occupies far less of its box than a filled disc,
+     so at the old 340px cap the head read a size smaller than the name. */
+  width: clamp(250px, 27vw, 380px);
+
+  /* Pins the blob to this element. It is `z-index: -1`, which without a
+     stacking context here resolves against whichever ancestor happens to make
+     one - today the section the router animates, which is why it still paints.
+     That is a coincidence, not a contract: drop the section's transform and
+     the blob sinks behind --bg-gradient with nothing here to say why. */
+  isolation: isolate;
 }
 
-/* Sized here rather than on the `width`/`height` attributes so the circle
-   tracks the viewport; the attributes stay on the element to reserve the
-   aspect ratio before the image decodes. */
-.home-avatar-img {
-  display: block;
-  width: clamp(240px, 24vw, 340px);
-  height: auto;
+/* ── The shape behind ──
+   Four unequal corner pairs rather than a circle: at 50% this is a badge the
+   portrait is pinned to, and the cutout is back in the frame it just left.
+   Off-centre and smaller than the image, so the head clears its top and the
+   shoulders run past both sides - the overlap is what makes the pair read as
+   one composition instead of a sticker on a dot.
+
+   Sized from the container's own width so the aspect ratio holds at every
+   step of the clamp above. */
+.home-portrait::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: 4%;
+  bottom: 14%;
+  width: 84%;
   aspect-ratio: 1;
-  object-fit: cover;
+  border-radius: 62% 38% 44% 56% / 52% 48% 52% 48%;
 
-  /* The sources are already square, cropped to the circle's framing by
-     scripts/generate_profile_pics.py, so `cover` is a no-op here and the
-     centred window is the right one. The pair stays declared because the
-     element still has to survive a source swapped in at another ratio. */
-  object-position: 50% 50%;
-  border-radius: 50%;
-  background: var(--surface-soft);
-  box-shadow: var(--elev-3);
+  /* Built from the accent tokens rather than literal amber: the theme
+     customiser writes --accent-soft and --accent-mild to body.style, so a
+     recoloured palette carries the shape with it. Strength is set by `opacity`
+     below for the same reason - baking it into the colours here would freeze
+     the shape at this palette's alpha. */
+  background: linear-gradient(158deg, var(--accent-soft) 0%, var(--accent-mild) 100%);
+
+  /* Enough to soften the shape's edge, not enough to dissolve it: at a larger
+     radius it stops reading as a shape and becomes an ambient glow, which is
+     the version that leaves the cutout looking pasted on. */
+  filter: blur(3px);
+  opacity: 0.5;
 }
 
-/* Plain container, not a control: the portrait no longer opens a lightbox, so
-   it carries no hover glow, no focus ring and nothing in the tab order. */
-.home-avatar {
+/* Amber on a near-black ground carries much further than the same wash on the
+   light one, and the shape starts competing with the portrait. */
+body.dark-theme .home-portrait::before {
+  opacity: 0.42;
+}
+
+/* The shadow is on the <picture>, not the <img>, because the mask below is
+   what gives the image its final alpha: a filter on the same element is
+   applied BEFORE its mask, so a drop-shadow declared there would be cast by
+   the un-faded rectangle and then sliced off at the fade line. On the parent
+   it sees the masked result and the shadow fades out with the torso.
+
+   Warm rather than neutral: --shadow-ambient is the blue-grey used under
+   cards, and under a silhouette on this amber ground it reads as a cold
+   smudge. */
+.home-portrait picture {
   display: block;
-  border-radius: 50%;
+  filter: drop-shadow(0 18px 26px hsla(28, 45%, 18%, 0.28));
+}
+
+/* On the dark ground a dark shadow is invisible; the accent halo does the
+   separating instead, and keeps the dark hair off the near-black background. */
+body.dark-theme .home-portrait picture {
+  filter: drop-shadow(0 14px 30px hsla(38, 92%, 55%, 0.16));
+}
+
+.home-portrait-img {
+  display: block;
+  width: 100%;
+  height: auto;
+
+  /* The master frames the subject from the chest up, so the silhouette runs
+     flush to the bottom edge of its own file. Left hard, that edge is a
+     horizontal cut across the torso hanging in the middle of the viewport.
+     The fade dissolves it into the page instead, which is also why the sources
+     are generated bottom-flush rather than padded.
+
+     The mask goes here and the drop-shadow on the parent because an element's
+     filter is applied BEFORE its own mask - declared together, the shadow is
+     cast by the un-faded rectangle and then sliced off at the fade line. */
+  mask-image: linear-gradient(to bottom, #000 68%, transparent 97%);
 }
 
 .home-intro {
@@ -2366,7 +2444,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 /* ── Stacked layout ──
    The portrait leads on a phone, as in the two-column form; below this width
    the text column can no longer hold "Principal Data Engineer" on one line
-   beside a 240px circle. */
+   beside a 250px portrait. */
 @media (width <=900px) {
   .home-hero {
     grid-template-columns: minmax(0, 1fr);
@@ -2375,12 +2453,9 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
     min-height: 0;
   }
 
-  .home-avatar {
+  .home-portrait {
     justify-self: center;
-  }
-
-  .home-avatar-img {
-    width: min(58vw, 260px);
+    width: min(62vw, 300px);
   }
 }
 
