@@ -2739,7 +2739,7 @@ body.dark-theme #resume .item {
 .contact-description {
   margin-bottom: 32px;
   color: var(--muted);
-  font-size: var(--text-body-lg);
+  font-size: var(--text-body);
   line-height: var(--leading-body);
   text-align: left;
   max-width: 52ch;

@@ -669,6 +669,108 @@
           </div>
           <h4 class="item-bullets-group">Pricing &amp; Order-to-Cash (SQL Server OLTP)</h4>
           <ul class="item-bullets">
+            <li><strong>Enterprise Data Engineering &amp; Modeling (OLAP):</strong> Architected multi-source ingestion
+              pipelines using PySpark, Matillion, and Boomi (CDC, watermark extracts, SaaS APIs, flat files) into Amazon
+              Redshift, decoupling batch and near-real-time streaming via Amazon SQS for automated staging,
+              deduplication, cleansing, and SQL business transformations; designed enterprise star and snowflake
+              dimensional models, developed LookML semantic models and Explores for core supply chain metrics (inventory
+              turns, dock-to-stock cycle times, order fill rates, freight spend) with optimized datagroups and PDT
+              lifecycle policies, implemented reverse-ETL pipelines syncing curated data back into Salesforce and Zoho,
+              and partnered with cross-functional stakeholders (Operations, Sales, Finance) to deliver executive Looker
+              dashboards standardizing KPIs across departments.</li>
+            <li><strong>Backend &amp; Middleware:</strong> Architected enterprise-grade serverless REST APIs and
+              asynchronous order ingestion middleware using AWS API Gateway, Lambda, SQS FIFO, and Step Functions (Saga
+              pattern), reliably fanning out multi-channel B2B/B2C orders to legacy ERP, WMS, and inventory distribution
+              systems; engineered a distributed DynamoDB caching layer with SHA-256 payload fingerprinting and native
+              TTL eviction (cutting primary database load by 30&ndash;50%), sustained 99.9% transaction completion through
+              idempotent request handling, API Gateway throttling, DLQ redrive policies, exponential backoff, and circuit
+              breakers; developed a high-concurrency Available-to-Promise (ATP) inventory reservation microservice using
+              atomic conditional writes and distributed locks to prevent overselling, and implemented a dual-engine
+              search strategy combining Elasticsearch with SQL Server for sub-second search across millions of historical
+              orders and invoices.</li>
+            <li><strong>Database Systems (OLTP):</strong> Owned OLTP database architecture and administration running
+              mission-critical order-to-cash operations across pricing, rebates, commissions, and ERP/WMS/TMS integration
+              feeds; architected the enterprise pricing engine in SQL Server, resolving sales-rep overrides, customer
+              contract pricing, commodity pricing, COGS, and discount layers into real-time customer&ndash;item&ndash;DC
+              prices via ACID-compliant T-SQL procedures; scaled the pricing API to sustain 100,000&ndash;200,000
+              executions/min at sub-100 ms latency with zero deadlocks under heavy concurrent load; modeled SCD Type 2
+              temporal pricing for point-in-time auditability, engineered PriceIQ statistical pricing using IQR outlier
+              fencing and skew-adjusted distribution analysis to intelligently price custom setups, and built the vendor
+              rebate calculation platform, sales commission payroll, and WMS/TMS activity-based incentive payroll.</li>
+            <li><strong>Database Administration &amp; Reliability (OLTP &amp; OLAP):</strong> Eliminated high-frequency
+              lock-conversion deadlocks, write skew, and reader&ndash;writer blocking across high-throughput OLTP workloads
+              by pairing targeted locking hints (UPDLOCK, HOLDLOCK, ROWLOCK) with deterministic UPSERT ordering and tuning
+              Read Committed Snapshot Isolation (RCSI); resolved tempdb spills, parameter sniffing, and bookmark lookups
+              through execution plan profiling, memory grant tuning, composite clustered/covering index redesigns, and table
+              partitioning; automated enterprise maintenance, index defragmentation, and statistics via Ola Hallengren on
+              SQL Server Agent, administered Always On Availability Groups (HA/DR), and tuned CDC replication; optimized
+              Amazon Redshift storage architectures (KEY/ALL/EVEN distribution, sort keys, AZ64/ZSTD compression), WLM
+              parameter queues, materialized views, PII data encryption, RBAC, and CloudWatch performance alarms.</li>
+            <li><strong>Cloud Architecture &amp; Modernization:</strong> Architected and provisioned an enterprise-scale,
+              fault-tolerant AWS cloud foundation spanning multi-AZ VPCs, API Gateway, Lambda, Step Functions, SQS FIFO,
+              DynamoDB, and Amazon Redshift; deployed a secure, auto-scaled internal application tier on AWS (EC2 in
+              multi-AZ VPCs, Auto Scaling, hardened security groups, Route 53, Apache HTTPD reverse proxies) with automated
+              open-source TLS rotation; engineered an event-driven Master Data Management (MDM) ecosystem across Zoho,
+              establishing governed golden records for customer, item, and supplier entities with automated webhook and
+              message-queued distribution to tier-1 ERP, WMS, and TMS systems to eliminate synchronization lag and
+              discrepancies across warehouse fulfillment and freight routing networks.</li>
+            <li><strong>DevOps &amp; Infrastructure:</strong> Established end-to-end operational reliability, automated
+              maintenance, and proactive infrastructure observability across distributed cloud microservices and database
+              clusters; automated enterprise SQL Server maintenance, index defragmentation, and statistics updates using
+              Ola Hallengren orchestrated via SQL Server Agent; built robust monitoring and alerting in SolarWinds (waits,
+              blocking, resource pressure) and AWS CloudWatch (disk spill, CPU utilization, concurrency metrics);
+              authored custom T-SQL health audit scripts, enforced least-privilege RBAC, and implemented resilient
+              fault-tolerance mechanisms including automated Dead-Letter Queue (DLQ) redrives, exponential backoff, circuit
+              breakers, and zero-downtime automated TLS certificate rotations.</li>
+            <li><strong>Generative AI &amp; Web Applications:</strong> Integrated Google's Model Context Protocol (MCP)
+              server in Looker, exposing curated semantic definitions, Explores, and supply chain KPIs to generative AI
+              agents to enable natural-language-to-SQL querying and prompt-driven analytical dashboard generation;
+              engineered high-throughput, asynchronous FastAPI backend microservices with strict Pydantic schema
+              validation, standardizing departmental custom data capture and preventing operational data corruption across
+              downstream pipelines; delivered responsive, high-performance web applications and internal portals
+              featuring seamless API integrations and granular role-based access control.</li>
+            <!--
+                <li><strong>Enterprise Data Engineering &amp; Modeling (OLAP):</strong> Accelerated analytics delivery and
+              unified fragmented operational reporting across ERP, WMS, and TMS domains into a centralized Amazon
+              Redshift data warehouse, substantially reducing query latency and pipeline SLA delivery times, by
+              architecting high-throughput batch/streaming pipelines, designing dimensional Star/Snowflake schemas, and
+              establishing a governed Looker semantic modeling layer.</li>
+            <li><strong>Backend &amp; Middleware:</strong> Scaled enterprise event telemetry ingestion and
+              distributed middleware integrations across heterogeneous systems, sustaining high-volume event throughput
+              with low-latency API response times and zero data loss, by engineering non-blocking Python/FastAPI REST
+              APIs with <code>asyncpg</code> connection pooling, building AWS Lambda &amp; Boomi iPaaS integration
+              layers, and designing relational event stores with structured telemetry schemas.</li>
+            <li><strong>Database Systems (OLTP):</strong> Eliminated pricing discrepancies and accelerated transactional
+              calculation throughput for mission-critical pricing and rebate engines, significantly cutting batch
+              calculation runtimes while guaranteeing strict ACID compliance under heavy transactional concurrency,
+              by designing optimized relational schemas, implementing robust stored procedures/triggers, managing
+              pessimistic/optimistic concurrency control, and automating declarative schema migrations with Alembic.
+            </li>
+            <li><strong>Database Administration &amp; Reliability (OLTP &amp; OLAP):</strong> Maintained
+              high-availability database operations and optimized query efficiency across hybrid multi-database clusters
+              (PostgreSQL, SQL Server, Amazon Redshift, Aurora), significantly reducing P95 query execution latency and
+              eliminating system deadlocks, by implementing multi-AZ failover and automated disaster recovery,
+              structuring indexing/vacuum maintenance routines, and performing execution plan profiling with
+              fine-grained lock tuning.</li>
+            <li><strong>Cloud Architecture &amp; Modernization:</strong> Modernized legacy on-premises infrastructure
+              into an elastic, event-driven AWS cloud platform, reducing infrastructure overhead and completing
+              migrations with zero cutover downtime across enterprise-scale data assets, by
+              architecting cloud topologies leveraging Amazon Redshift, AWS Glue ETL, Lambda, Athena, S3 data lake
+              tiers, DynamoDB, RDS Aurora, and containerized ECS workloads.</li>
+            <li><strong>DevOps &amp; Infrastructure:</strong> Accelerated release velocity and reinforced
+              production reliability across distributed message-driven services, dramatically shortening deployment
+              cycle times while achieving high test coverage and zero regression escapes, by orchestrating containerized
+              workloads on Docker/EKS/ECS, provisioning Kafka and RabbitMQ event brokers on Linux, and establishing
+              GitHub Actions CI/CD pipelines with automated Pytest, Node.js/JSDOM, ESLint, and Stylelint quality gates.
+            </li>
+            <li><strong>Generative AI & Web Applications:</strong> Delivered responsive Progressive Web
+              Apps (PWAs) with interactive 3D visualizations and conversational AI capabilities, achieving
+              ultra-low time-to-first-token (TTFT) streaming latency and high platform availability, by engineering
+              asynchronous FastAPI microservices, streaming Amazon Bedrock LLM inference over Server-Sent
+              Events/WebSockets,rendering Three.js GPU-accelerated graphics, and developing zero-dependency ES module
+              frontends.</li>  
+            -->
+            <!--Below text is from my resume
             <li>Own OLTP development and administration for order-to-cash: pricing, rebates, commissions, and the ERP,
               WMS, and TMS feeds carrying orders, POs, and receiving confirmations.</li>
             <li>Architected the enterprise pricing engine in T-SQL, resolving rep overrides, contract and commodity
@@ -737,6 +839,7 @@
               capture and preventing downstream corruption.</li>
             <li>Provisioned the internal application tier on AWS &mdash; multi-AZ EC2, Auto Scaling, Apache reverse
               proxies, Route 53, and automated TLS rotation.</li>
+              -->
           </ul>
           <div class="item-tags">
             <span>Amazon Redshift</span>
