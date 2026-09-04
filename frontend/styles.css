@@ -1803,10 +1803,13 @@ main {
   text-align: left;
 }
 
+/* One CTA left in the hero, so the row is capped at a single button's width
+   instead of the old two-up 560px split - a lone flex child with grow would
+   otherwise stretch across the whole hero column. */
 .hero-buttons {
   display: flex;
   flex-wrap: wrap;
-  max-width: 560px;
+  max-width: 272px;
   align-items: center;
   gap: 16px;
   margin-top: 8px;
@@ -1814,17 +1817,9 @@ main {
 
 /* NOTE: .hero-buttons .btn is also declared in BUTTONS & LOGO - change both. */
 .hero-buttons .btn {
-  flex: 1 1 calc(50% - 8px);
+  flex: 1 1 auto;
   min-width: 160px;
   justify-content: center;
-}
-
-/* The PDF is the secondary action now that the Resume button opens the
-   Experience section. Deliberately not a third .btn: .hero-buttons is a
-   two-column grid below 768px, so a third button leaves an orphan on the
-   second row. */
-.hero-resume-download {
-  margin: 14px 0 0;
 }
 
 .pdf-download-link {
@@ -8870,11 +8865,12 @@ body.dark-theme .mobile-bottom-nav {
     padding: 1.25rem;
   }
 
-  /* Balanced Row Option for CTAs */
+  /* Single full-width CTA on narrow screens. */
   .hero-buttons {
     display: grid;
-    grid-template-columns: 1.2fr 1fr;
+    grid-template-columns: 1fr;
     width: 100%;
+    max-width: none;
     gap: 12px;
     justify-content: center;
     align-items: center;
