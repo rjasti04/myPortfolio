@@ -2379,10 +2379,19 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   line-height: var(--leading-body);
 }
 
-/* Where the Resume links now land, so the PDF stays one tap away. */
+/* Where the Resume links now land, so the PDF stays one tap away.
+
+   View PDF and Download PDF are a pair, so they are sized as one: equal grid
+   columns, never each button's own label width. `width: fit-content` is what
+   keeps that honest on desktop - the columns resolve to the wider button's
+   max-content width and the row hugs the pair instead of stretching across the
+   section. The mobile override drops the cap so the same two columns split the
+   screen 50/50 on one line. */
 .section-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  width: fit-content;
   gap: 12px;
   margin: 0 0 32px;
 }
@@ -2391,12 +2400,32 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   padding: 12px 26px;
   font-size: var(--text-sm);
   gap: 10px;
+  min-width: 0;
+  justify-content: center;
 }
 
 @media (width <= 768px) {
-  .section-actions .btn {
+  .section-actions {
     width: 100%;
-    justify-content: center;
+    gap: 10px;
+  }
+
+  /* 26px of side padding puts "Download PDF" over a half-width column on a
+     360px screen and wraps the label. */
+  .section-actions .btn {
+    padding: 12px 12px;
+  }
+}
+
+/* At the 12px padding above, "Download PDF" needs ~355px of viewport to hold
+   one line in a half-width column; below that the label wraps and the pair
+   grows a row taller than every other button on the page. Small phones get
+   tighter metrics instead. */
+@media (width <= 360px) {
+  .section-actions .btn {
+    padding: 12px 8px;
+    gap: 6px;
+    font-size: var(--text-xs);
   }
 }
 
