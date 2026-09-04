@@ -1803,13 +1803,10 @@ main {
   text-align: left;
 }
 
-/* One CTA left in the hero, so the row is capped at a single button's width
-   instead of the old two-up 560px split - a lone flex child with grow would
-   otherwise stretch across the whole hero column. */
 .hero-buttons {
   display: flex;
   flex-wrap: wrap;
-  max-width: 272px;
+  max-width: 560px;
   align-items: center;
   gap: 16px;
   margin-top: 8px;
@@ -1817,7 +1814,7 @@ main {
 
 /* NOTE: .hero-buttons .btn is also declared in BUTTONS & LOGO - change both. */
 .hero-buttons .btn {
-  flex: 1 1 auto;
+  flex: 1 1 calc(50% - 8px);
   min-width: 160px;
   justify-content: center;
 }
@@ -8894,12 +8891,11 @@ body.dark-theme .mobile-bottom-nav {
     padding: 1.25rem;
   }
 
-  /* Single full-width CTA on narrow screens. */
+  /* Balanced Row Option for CTAs */
   .hero-buttons {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1.2fr 1fr;
     width: 100%;
-    max-width: none;
     gap: 12px;
     justify-content: center;
     align-items: center;
