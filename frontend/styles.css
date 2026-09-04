@@ -31,12 +31,6 @@
   --on-accent-inverse: #fff;
   /* Aliases for names referenced in CSS/HTML but never defined. Without
      these the declarations were invalid and silently dropped. */
-  --text-muted: var(--muted);
-  /* Referenced by auth-modal.css and inline styles; previously undefined,
-     so their Catppuccin fallbacks (#a6adc8, #cdd6f4, #89b4fa) rendered
-     instead of this palette. */
-  --text-primary: var(--text);
-  --border-color: var(--border);
   --bg: #f8fafb;
   --bg-gradient: radial-gradient(ellipse at top left, #ffffff, hsl(38, 55%, 95%) 35%, hsl(68, 50%, 96%) 70%, #fdfdfd);
   --text: #0f172a;
@@ -299,6 +293,15 @@ body {
      palette entirely. */
   --primary-strong: var(--accent-text);
   --color-accent: var(--accent-text);
+
+  /* Referenced by auth-modal.css and inline styles; previously undefined, so
+     their Catppuccin fallbacks (#a6adc8, #cdd6f4, #89b4fa) rendered instead
+     of this palette. Here rather than on :root for the same substitution
+     reason: aliased there they froze at the light values, and the auth modal
+     drew dark-slate muted text and a near-black rule on its dark surface. */
+  --text-muted: var(--muted);
+  --text-primary: var(--text);
+  --border-color: var(--border);
 
   --glow-sm: 0 2px 8px var(--accent-soft);
   --glow-md: 0 4px 14px var(--accent-soft);
@@ -2315,10 +2318,6 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   opacity: 1;
 }
 
-.item:not(.tilt-card):hover {
-  /* transform handled by JS spring in animations.js */
-}
-
 .item-header {
   display: flex;
   justify-content: space-between;
@@ -2391,10 +2390,6 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   margin-inline: auto;
 }
 
-#resume .section-title {
-  margin-bottom: 40px;
-}
-
 /* Where the Resume links now land, so the PDF stays one tap away.
 
    View PDF and Download PDF are a pair, so they are sized as one: equal grid
@@ -2446,17 +2441,23 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 }
 
 #resume .item {
+  /* The accent rail below is inset to match the block padding, so the two
+     have to move together - a literal 24px on the rail stopped tracking the
+     moment the padding became a clamp. */
+  --card-pad-block: clamp(24px, 3vw, 32px);
+  --card-pad-inline: clamp(24px, 3vw, 32px);
   position: relative;
   overflow: hidden;
   margin: 0;
-  padding: clamp(24px, 3vw, 32px);
-  border-radius: 18px;
+  padding: var(--card-pad-block) var(--card-pad-inline);
+  border-radius: var(--radius);
   background: linear-gradient(145deg, color-mix(in srgb, var(--card-bg) 92%, var(--bg)), var(--card-bg));
   box-shadow: var(--elev-3);
+  /* No background-color here: this card paints a gradient, which is a
+     background-IMAGE and does not transition. */
   transition:
     border-color var(--motion-medium) var(--ease-standard),
-    box-shadow var(--motion-medium) var(--ease-standard),
-    background-color var(--motion-medium) var(--ease-standard);
+    box-shadow var(--motion-medium) var(--ease-standard);
 }
 
 #resume .item+.item {
@@ -2466,7 +2467,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 #resume .item::before {
   content: "";
   position: absolute;
-  inset: 24px auto 24px 0;
+  inset: var(--card-pad-block) auto var(--card-pad-block) 0;
   width: 6px;
   border-radius: 999px;
   background: var(--accent-fill);
@@ -2486,10 +2487,6 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 #resume .item:hover::before {
   transform: scaleX(1);
   opacity: 1;
-}
-
-body.dark-theme #resume .item {
-  box-shadow: var(--elev-4);
 }
 
 #resume .item-header {
@@ -2591,6 +2588,7 @@ body.dark-theme #resume .item {
 }
 
 #resume .item-bullets li {
+  max-width: 68ch;
   padding-left: 26px;
   margin: 0;
   color: var(--text);
@@ -2608,11 +2606,41 @@ body.dark-theme #resume .item {
   box-shadow: none;
 }
 
+/* 48 tags in one undifferentiated strip read as a wall, so they are grouped
+   and labelled. The <dl> stacks the groups; each <dd> keeps the flex-wrap row
+   the flat list used to be, so .item-tags span styling carries over. */
 #resume .item-tags {
-  gap: 8px;
+  display: grid;
+  gap: 14px;
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+}
+
+/* Label beside its row, not above it: six stacked labels cost six extra line
+   boxes on a card that is already long. Stacks below 768px, where a label
+   column would leave the pills too narrow. */
+#resume .tag-group {
+  display: grid;
+  grid-template-columns: minmax(0, 120px) 1fr;
+  gap: 8px 16px;
+  align-items: start;
+}
+
+#resume .item-tags dt {
+  padding-top: 6px;
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  font-weight: 800;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+#resume .item-tags dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
 }
 
 #resume .item-tags span {
@@ -2640,8 +2668,9 @@ body.dark-theme #resume .item {
   }
 
   #resume .item {
-    padding: 24px 20px;
-    border-radius: 16px;
+    --card-pad-block: 24px;
+    --card-pad-inline: 20px;
+    border-radius: var(--radius-lg);
   }
 
   #resume .item+.item {
@@ -2657,8 +2686,17 @@ body.dark-theme #resume .item {
   }
 
   #resume .item-tags {
-    flex-wrap: wrap;
+    gap: 12px;
     padding-bottom: 4px;
+  }
+
+  #resume .tag-group {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  #resume .item-tags dt {
+    padding-top: 0;
   }
 
   #resume .item-tags span {
@@ -2678,11 +2716,11 @@ body.dark-theme #resume .item {
 
 @media (width <=480px) {
   #resume .item {
-    padding: 20px 16px;
+    --card-pad-block: 20px;
+    --card-pad-inline: 16px;
   }
 
   #resume .item::before {
-    inset-block: 20px;
     width: 3px;
   }
 }
@@ -2773,7 +2811,7 @@ body.dark-theme #resume .item {
   padding: 14px 16px;
   background: var(--surface-soft);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   color: var(--text);
   text-decoration: none;
   transition:
@@ -2863,7 +2901,7 @@ body.dark-theme #resume .item {
   padding: 8px;
   background: var(--surface-soft);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   color: var(--muted);
   font-family: inherit;
   font-size: var(--text-2xs);
@@ -3010,7 +3048,7 @@ body.dark-theme #resume .item {
   padding: 28px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius);
 }
 
 /* The form panel carried no heading at all, so the right column read as a
@@ -3160,7 +3198,7 @@ body.dark-theme #resume .item {
   padding: 16px;
   font-size: var(--text-base);
   font-weight: 700;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -3171,8 +3209,8 @@ body.dark-theme #resume .item {
   border: none;
   box-shadow: var(--glow-md);
   cursor: pointer;
+  /* No background-color: the face is a gradient and nothing swaps it. */
   transition:
-    background-color var(--motion-base) var(--ease-standard),
     box-shadow var(--motion-base) var(--ease-standard),
     transform var(--motion-base) var(--ease-standard),
     filter var(--motion-base) var(--ease-standard);
@@ -3668,30 +3706,21 @@ body.dark-theme .stat-card:hover {
 }
 
 /* NOTE: .hero-buttons .btn is also declared in HERO & TERMINAL PANEL - change both. */
+/* Only what differs from .btn: a pill, tighter metrics, and a flat accent
+   face in place of the gradient. */
 .hero-buttons .btn {
-  color: var(--on-accent);
   border-radius: var(--radius-full);
   padding: 10px 24px;
   gap: 16px;
   background: var(--accent-fill);
   border: none;
-  box-shadow: var(--glow-md);
-  position: relative;
-  overflow: hidden;
-  display: inline-flex;
   justify-content: center;
-  align-items: center;
   box-sizing: border-box;
 }
 
-/* Shine effect pseudo-element */
+/* Shine effect pseudo-element. Only what differs from .btn::before. */
 .hero-buttons .btn::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 50%;
-  height: 100%;
   background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.5), transparent);
   transform: translateX(-150%) skewX(-25deg);
   pointer-events: none;
@@ -4383,18 +4412,16 @@ body.dark-theme .skill-tag.primary .fas {
   transition: transform var(--motion-medium) var(--ease-enter);
 }
 
-.image-modal .modal-content {
-  transform: scale(0.96);
-}
 
 .image-modal.active .modal-content {
   transform: scale(1);
 }
 
 /* PDF viewer dialog.
-   Deliberately not rendered inside `#resume .item`: that card is a .tilt-card,
-   and mousemove does not cross an iframe boundary, so the tilt would freeze
-   mid-rotation with the pointer inside the viewer. See js/resume-pdf.js. */
+   Deliberately not rendered inside `#resume .item`: a dialog can size itself
+   to the viewport, and mousemove does not cross an iframe boundary, so a
+   viewer embedded in the card would trap any pointer effect on it.
+   See js/resume-pdf.js. */
 .pdf-modal {
   position: fixed;
   inset: 0;
@@ -5923,7 +5950,7 @@ section {
   position: relative;
   overflow: visible;
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: var(--text-body-sm);
   line-height: var(--leading-body);
   animation: slide-up var(--motion-medium) var(--ease-enter) forwards;
@@ -6020,7 +6047,6 @@ body:not(.dark-theme) .chat-message.user {
 body.dark-theme .chat-message.bot .msg-actions {
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.1);
-  color: var(--muted);
 }
 
 .chat-message:hover .msg-actions,
@@ -6187,7 +6213,6 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
 body.dark-theme .chat-message.bot .msg-info-drawer {
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.1);
-  color: var(--muted);
 }
 
 .msg-info-drawer-row {
@@ -6231,7 +6256,7 @@ body.dark-theme .chat-message.bot .msg-info-drawer {
 .chat-input {
   flex: 1;
   padding: 10px 15px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   border: 1px solid var(--control-border);
   background: var(--bg);
   color: var(--text);
@@ -7913,7 +7938,7 @@ body.dark-theme .ai-sidebar {
   height: 72px;
   background: var(--accent-soft);
   color: var(--accent-text);
-  border-radius: 20px;
+  border-radius: var(--radius);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -8000,16 +8025,12 @@ body.dark-theme .ai-sidebar {
 }
 
 /* AI-page scoped message overrides */
+/* Only what the page-sized bubble changes about the widget's .chat-message:
+   roomier metrics and its own entrance. */
 #ai .chat-message {
-  min-width: 96px;
-  display: flex;
-  flex-direction: column;
-  max-width: 75%;
   padding: 14px 18px;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   font-size: var(--text-base);
-  line-height: var(--leading-body);
-  position: relative;
   animation: messageFade var(--motion-medium) var(--ease-enter) both;
 }
 
@@ -8025,18 +8046,17 @@ body.dark-theme .ai-sidebar {
   }
 }
 
+/* The tail corners are re-asserted, not repeated: #ai .chat-message sets the
+   border-radius SHORTHAND at higher specificity than .chat-message.bot/.user,
+   so it resets the 4px corner those rules give the bubble. */
 #ai .chat-message.user {
-  align-self: flex-end;
   background: var(--accent-fill);
   color: var(--on-accent);
   border-bottom-right-radius: 4px;
 }
 
 #ai .chat-message.bot {
-  align-self: flex-start;
   background: hsl(0, 0%, 0%, 0.05);
-  border: 1px solid var(--border);
-  color: var(--text);
   border-bottom-left-radius: 4px;
 }
 
@@ -8166,7 +8186,7 @@ body.dark-theme .ai-input-container {
   position: relative;
   background: var(--card-bg);
   border: 1px solid var(--control-border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 6px 10px;
   display: flex;
   align-items: flex-end;
@@ -8221,7 +8241,7 @@ body.dark-theme .ai-input-container {
   background: var(--accent-fill);
   color: var(--on-accent);
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition:
     background-color var(--motion-base) var(--ease-standard),
@@ -8378,22 +8398,17 @@ body.dark-theme .ai-input-container {
 }
 
 /* ── Markdown in messages ── */
+/* Only what differs from the widget's .chat-message.bot pre. */
 #ai .chat-message.bot pre {
-  background: var(--bg);
   padding: 14px 16px;
   border-radius: 10px;
-  margin: 12px 0;
-  border: 1px solid var(--border);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: var(--text-xs);
-  overflow-x: auto;
   position: relative;
 }
 
 #ai .chat-message.bot code:not(pre code) {
   background: var(--accent-soft);
-  color: var(--accent-text);
-  padding: 2px 6px;
   border-radius: 6px;
   font-size: var(--text-xs);
 }

@@ -15,11 +15,11 @@ import { getResumeUrl } from "./utils.js";
  *  1. `<embed>`/`<object>` are dead on arrival - index.html's CSP sets
  *     `object-src 'none'`. An <iframe> is what is allowed, under the
  *     `default-src 'self'` fallback.
- *  2. The viewer cannot live inside `#resume .item`. That card is a
- *     `.tilt-card`, and mousemove does not cross an iframe boundary, so
- *     tilt.js would freeze it mid-rotation with the pointer stuck inside a
- *     document that never reports moving. The dialog sits outside the card
- *     and leaves the tilt alone.
+ *  2. The viewer stays outside `#resume .item`. A dialog can size itself to
+ *     the viewport, while an iframe inside a card several screens tall would
+ *     be scrolled past rather than read - and mousemove does not cross an
+ *     iframe boundary, so any pointer effect on the card would stick while
+ *     the pointer sat inside the viewer.
  */
 
 /**
