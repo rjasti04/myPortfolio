@@ -2215,7 +2215,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
       var(--accent-mild) 28%,
       var(--accent-soft) 56%,
       transparent 84%);
-  opacity: 0.62;
+  opacity: 0.31;
 }
 
 /* The same wash reads stronger on the light theme than the dark one - amber
@@ -2223,7 +2223,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    down towards the ground it sits on. Dark also asks more of it: here it is
    most of what separates near-black hair from a near-black background. */
 body.dark-theme .home-portrait::before {
-  opacity: 0.85;
+  opacity: 0.425;
 }
 
 /* The shadow is on the <picture>, not the <img>, because the mask below is
