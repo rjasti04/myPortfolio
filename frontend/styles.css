@@ -1882,8 +1882,14 @@ main {
     transform var(--motion-base) var(--ease-standard);
 }
 
-/* Hide floating chat toggle on the About page to avoid duplication */
-body:has(main > #about.active) .chat-toggle-btn {
+/* Hide floating chat toggle on the About page to avoid duplication.
+   #home is listed for a different reason: its stack is short and fixed, so on a
+   320x720 viewport the fixed button lands on top of the "Contact Info" pill -
+   measured overlap, not a near miss - and the landing is meant to carry the
+   four controls in the layout and nothing else. AI stays one tap away in both
+   navs. Drop the #home half of this selector to put the button back. */
+body:has(main > #about.active) .chat-toggle-btn,
+body:has(main > #home.active) .chat-toggle-btn {
   display: none !important;
 }
 
@@ -2240,6 +2246,236 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   background: hsl(135, 100%, 53%, 0.1) !important;
   font-family: "Courier New", Courier, monospace !important;
   text-shadow: none !important;
+}
+
+/* #endregion */
+
+/* #region HOME HERO ---------------------------------------------------*/
+/* The landing view: portrait, name, and two routes into the site. It shares no
+   rules with `.hero` in #about - that one is a two-column grid built around the
+   terminal panel, and every metric in it is tuned to that panel's height. */
+.home-hero {
+  display: grid;
+
+  /* Both tracks size to their content so `justify-content` can centre the pair
+     as a unit. A `1fr` text column instead absorbs the whole remainder, which
+     leaves the portrait and the name centred in their own halves and drifting
+     apart on a wide viewport. `minmax(0, auto)` keeps the column shrinkable
+     below its content width rather than forcing an overflow. */
+  grid-template-columns: auto minmax(0, auto);
+  align-items: center;
+  justify-content: center;
+  gap: clamp(24px, 5vw, 72px);
+  min-height: min(70vh, 620px);
+  padding: clamp(8px, 3vh, 40px) 0;
+}
+
+.home-avatar {
+  justify-self: end;
+}
+
+/* Sized here rather than on the `width`/`height` attributes so the circle
+   tracks the viewport; the attributes stay on the element to reserve the
+   aspect ratio before the image decodes. */
+.home-avatar-img {
+  display: block;
+  width: clamp(240px, 24vw, 340px);
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 50%;
+  background: var(--surface-soft);
+  box-shadow: var(--elev-3);
+}
+
+.home-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.home-greeting {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-fluid-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+}
+
+.home-name {
+  margin: 0;
+  font-size: var(--text-hero);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text);
+
+  /* Long enough to overflow the column at 320px if it cannot break. */
+  overflow-wrap: anywhere;
+}
+
+.home-role {
+  margin: 0 0 clamp(16px, 3vh, 28px);
+  color: var(--muted);
+  font-size: var(--text-fluid-2xl);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* ── Actions ── */
+.home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(12px, 2vw, 20px);
+}
+
+.home-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  /* The 44px floor is the tap target, not the visual height - padding sets the
+     latter and stays the larger of the two at every step of the type ramp. */
+  min-height: 44px;
+  padding: 12px 30px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--text);
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+}
+
+.home-btn--outline {
+  background: transparent;
+  color: var(--text);
+}
+
+/* Filled with the theme's foreground, so the pair reads as outline + solid in
+   both themes. The label is a literal rather than a surface token because
+   `--surface`/`--card-bg` are translucent and would show the page through it. */
+.home-btn--solid {
+  background: var(--text);
+  color: #fff;
+}
+
+body.dark-theme .home-btn--solid {
+  color: #0f172a;
+}
+
+.home-btn:hover {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
+  box-shadow: var(--glow-md);
+  transform: translateY(-2px);
+}
+
+.home-btn:active {
+  transform: translateY(0);
+}
+
+.home-btn:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* ── Social links ── */
+.home-socials {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: clamp(16px, 3vh, 26px);
+}
+
+.home-social {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--text);
+  color: #fff;
+  font-size: var(--text-xl);
+  text-decoration: none;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+}
+
+body.dark-theme .home-social {
+  color: #0f172a;
+}
+
+.home-social:hover {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  box-shadow: var(--glow-md);
+  transform: translateY(-2px);
+}
+
+.home-social:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* ── Stacked layout ──
+   The portrait leads on a phone, as in the two-column form; below this width
+   the text column can no longer hold "Principal Data Engineer" on one line
+   beside a 240px circle. */
+@media (width <=900px) {
+  .home-hero {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: clamp(20px, 4vh, 36px);
+    min-height: 0;
+  }
+
+  .home-avatar {
+    justify-self: center;
+  }
+
+  .home-avatar-img {
+    width: min(58vw, 260px);
+  }
+}
+
+@media (width <=380px) {
+
+  /* Both buttons on one row leaves ~130px each at this width, which clips
+     "Contact Info". One per row, full width, reads as a deliberate stack. */
+  .home-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .home-btn,
+  .home-social {
+    transition: none;
+  }
+
+  .home-btn:hover,
+  .home-social:hover {
+    transform: none;
+  }
 }
 
 /* #endregion */
@@ -5688,7 +5924,7 @@ section {
 
 /* Disable initial animation for the first view on mobile/load if desired,
    or just make it instant for the about section to prevent "popping" feel */
-.js-enabled #about.active {
+.js-enabled #home.active {
   animation: none;
   opacity: 1;
   transform: none;
@@ -8815,6 +9051,22 @@ body.dark-theme .mobile-bottom-nav {
   font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: var(--tracking-wide);
+}
+
+/* Seven entries divide a 320px bar into 45px columns, or 37px of content box
+   once padding is taken - under the ~48px "Activity" needs at the default
+   label size, so it wrapped and pushed the icons off-centre. Dropping the ramp
+   and the tracking fits the longest label with 2px to spare. The row stays a
+   44px-high tap target; only the type shrinks. */
+@media (width <=380px) {
+  .mobile-bottom-nav a {
+    padding: 8px 2px;
+  }
+
+  .mobile-bottom-nav-label {
+    font-size: 0.625rem;
+    letter-spacing: normal;
+  }
 }
 
 /* ── Mobile View Fixes (≤768px) ── */

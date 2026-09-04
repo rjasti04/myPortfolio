@@ -96,7 +96,7 @@ export function navigateToSection(target, { updateHash = true } = {}) {
 
 export function syncSectionWithHash(hash = window.location.hash) {
   if (!window.AppLogic?.getValidHashTarget) return;
-  const target = window.AppLogic.getValidHashTarget(hash, (id) => document.getElementById(id), "about");
+  const target = window.AppLogic.getValidHashTarget(hash, (id) => document.getElementById(id), "home");
   setActiveSection(target);
 }
 
@@ -176,7 +176,7 @@ export function initNavigation() {
   document.querySelectorAll(".logo-text[data-target], #logo-home-link").forEach((link) => {
     link.addEventListener("click", (event) => {
       event.preventDefault();
-      navigateToSection(link.dataset.target || "about");
+      navigateToSection(link.dataset.target || "home");
     });
   });
 
@@ -451,13 +451,19 @@ function initMobileBottomNav() {
   //
   // This listed four of the six, so Hobbies and Activity were reachable on a
   // phone only through the hamburger - and on a phone the bottom bar *is* the
-  // navigation. Six fits: measured at 320px, the narrowest width still worth
-  // supporting, each item is 54px wide with no label clipping and no horizontal
-  // overflow.
+  // navigation.
+  //
+  // Seven entries since Home became the landing section. At 320px, the
+  // narrowest width still worth supporting, `flex: 1 1 0` divides the bar into
+  // 45px columns - down from 54px at six, and too narrow for "Activity" at the
+  // default label size. The <=380px block in the MOBILE BOTTOM NAV region drops
+  // the label ramp to fit; an eighth entry would not, and should go behind an
+  // overflow affordance rather than a further shrink.
   //
   // Portfolio is deliberately absent: its nav link is still `hidden` pending
   // the decision recorded as BUG-02.
   const navItems = [
+    { target: 'home', icon: 'fa-home', label: 'Home' },
     { target: 'about', icon: 'fa-user', label: 'About' },
     { target: 'resume', icon: 'fa-briefcase', label: 'Work' },
     { target: 'hobbies', icon: 'fa-heart', label: 'Hobbies' },
@@ -487,7 +493,7 @@ function initMobileBottomNav() {
   document.body.appendChild(mobileNav);
 
   // Set initial active state
-  const currentSection = document.querySelector('main section.active')?.id || 'about';
+  const currentSection = document.querySelector('main section.active')?.id || 'home';
   updateMobileNavActive(currentSection);
 }
 
@@ -513,7 +519,7 @@ function updateMobileNavActive(target) {
 }
 
 function initSwipeGestures() {
-  const sectionOrder = ['about', 'resume', 'hobbies', 'activity', 'ai', 'contact'];
+  const sectionOrder = ['home', 'about', 'resume', 'hobbies', 'activity', 'ai', 'contact'];
 
   // Returned so the caller can tear it down when the viewport stops being a
   // phone; the handler binds to document, so leaving it attached would keep
