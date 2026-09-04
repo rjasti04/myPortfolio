@@ -2159,7 +2159,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    no border-radius and no box-shadow - a box-shadow would draw the rectangle
    the cutout exists to hide. Its depth has to come from `drop-shadow`, which
    follows the alpha. And a cutout dropped straight onto a gradient reads as
-   pasted, so `::before` puts something deliberate behind it.
+   pasted, so `::before` lays a wash of light behind it.
 
    Plain container, not a control: the portrait does not open a lightbox, so it
    carries no hover glow, no focus ring and nothing in the tab order. */
@@ -2174,51 +2174,56 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
      so at the old 340px cap the head read a size smaller than the name. */
   width: clamp(250px, 27vw, 380px);
 
-  /* Pins the blob to this element. It is `z-index: -1`, which without a
+  /* Pins the wash to this element. It is `z-index: -1`, which without a
      stacking context here resolves against whichever ancestor happens to make
      one - today the section the router animates, which is why it still paints.
      That is a coincidence, not a contract: drop the section's transform and
-     the blob sinks behind --bg-gradient with nothing here to say why. */
+     the wash sinks behind --bg-gradient with nothing here to say why. */
   isolation: isolate;
 }
 
-/* ── The shape behind ──
-   Four unequal corner pairs rather than a circle: at 50% this is a badge the
-   portrait is pinned to, and the cutout is back in the frame it just left.
-   Off-centre and smaller than the image, so the head clears its top and the
-   shoulders run past both sides - the overlap is what makes the pair read as
-   one composition instead of a sticker on a dot.
+/* ── The light behind ──
+   A wash, not a shape. The gradient holds its colour flat across the core and
+   then falls to transparent well inside its own box, so there is no edge
+   anywhere for the eye to read as a second object sitting behind the first.
 
-   Sized from the container's own width so the aspect ratio holds at every
-   step of the clamp above. */
+   That is why there is no `border-radius` and no `blur()` here: a shape
+   softened by a large blur still has a boundary, only an indistinct one, and
+   it costs a filter pass to get there. This has no boundary to soften.
+
+   The plateau is load-bearing. A radial gradient that starts falling off at
+   its centre concentrates everything in one spot and reads as almost nothing
+   by the time it clears the silhouette - which is the version that leaves the
+   dark hair sitting on the dark ground with nothing between them.
+
+   Inset past the portrait on three sides so the light spills around the
+   silhouette rather than stopping at it, and held at the bottom edge, where
+   the torso is already fading into the page.
+
+   Built from the accent tokens rather than literal amber: the theme
+   customiser writes --accent-soft and --accent-mild to body.style, so a
+   recoloured palette carries the light with it. Strength is set by `opacity`
+   for the same reason - baking it into the colours would freeze the wash at
+   this palette's alpha. */
 .home-portrait::before {
   content: "";
   position: absolute;
   z-index: -1;
-  right: 4%;
-  bottom: 14%;
-  width: 84%;
-  aspect-ratio: 1;
-  border-radius: 62% 38% 44% 56% / 52% 48% 52% 48%;
-
-  /* Built from the accent tokens rather than literal amber: the theme
-     customiser writes --accent-soft and --accent-mild to body.style, so a
-     recoloured palette carries the shape with it. Strength is set by `opacity`
-     below for the same reason - baking it into the colours here would freeze
-     the shape at this palette's alpha. */
-  background: linear-gradient(158deg, var(--accent-soft) 0%, var(--accent-mild) 100%);
-
-  /* Enough to soften the shape's edge, not enough to dissolve it: at a larger
-     radius it stops reading as a shape and becomes an ambient glow, which is
-     the version that leaves the cutout looking pasted on. */
-  filter: blur(3px);
-  opacity: 0.5;
+  inset: -10% -12% 0;
+  background: radial-gradient(62% 50% at 48% 36%,
+      var(--accent-mild) 0%,
+      var(--accent-mild) 28%,
+      var(--accent-soft) 56%,
+      transparent 84%);
+  opacity: 0.62;
 }
 
-/* Amber on a near-black ground carries much further than the same wash on the
-   light one, and the shape starts competing with the portrait. */
+/* The same wash reads stronger on the light theme than the dark one - amber
+   against cream is a chroma contrast, while against near-black it composites
+   down towards the ground it sits on. Dark also asks more of it: here it is
+   most of what separates near-black hair from a near-black background. */
 body.dark-theme .home-portrait::before {
-  opacity: 0.42;
+  opacity: 0.85;
 }
 
 /* The shadow is on the <picture>, not the <img>, because the mask below is
