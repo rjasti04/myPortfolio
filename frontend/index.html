@@ -180,8 +180,8 @@
        PDF is 66 KB that most visitors never ask for, and a live PDF viewer left
        in the DOM keeps rendering behind the closed dialog. Only ever opened on
        hover-capable, non-iOS pointers - see js/resume-pdf.js. -->
-  <div class="pdf-modal" id="resume-pdf-modal" role="dialog" aria-modal="true"
-    aria-labelledby="resume-pdf-modal-title" aria-hidden="true">
+  <div class="pdf-modal" id="resume-pdf-modal" role="dialog" aria-modal="true" aria-labelledby="resume-pdf-modal-title"
+    aria-hidden="true">
     <div class="pdf-modal-panel">
       <div class="pdf-modal-bar">
         <h2 class="pdf-modal-title" id="resume-pdf-modal-title">
@@ -459,10 +459,10 @@
               Redshift.
             </p>
             <div class="hero-buttons">
-              <a href="#ai" data-target="ai" class="nav-cta btn hero-chat-btn" id="hero-chat-btn" aria-label="Ask AI"
-                data-spring-hover>Ask AI <i class="fas fa-robot"></i></a>
               <a href="#resume" data-target="resume" class="nav-cta btn hero-resume-btn" id="hero-resume-btn"
                 aria-label="Resume" data-spring-hover>Resume <i class="fas fa-file-lines"></i></a>
+              <a href="#ai" data-target="ai" class="nav-cta btn hero-chat-btn" id="hero-chat-btn" aria-label="Ask AI"
+                data-spring-hover>Ask AI <i class="fas fa-robot"></i></a>
             </div>
           </div>
           <aside class="terminal-panel glass-dark no-swipe" aria-label="Command prompt panel">
@@ -639,8 +639,7 @@
       <section id="resume">
         <h2 class="section-title">Experience</h2>
         <p class="section-intro">Track record of architecting scalable data platforms, enterprise OLTP/OLAP systems,
-          full-stack web applications, and generative AI solutions.</p>
-
+          backend microservices</p>
         <p class="section-actions">
           <a href="rjasti_resume.pdf" target="_blank" rel="noopener noreferrer" class="btn" id="resume-pdf-view"
             data-spring-hover>
@@ -852,7 +851,7 @@
       <section id="activity">
         <h2 class="section-title">Session Activity</h2>
         <p class="section-intro">Everything this site has recorded about your visit, as it happens. It stays with your
-          session &mdash; no accounts, no third-party trackers, nothing that follows you off the page.</p>
+          session &mdash; no third-party trackers, nothing that follows you off the page.</p>
 
         <!-- Zone 1: who you are to the site right now, and whether it is listening.
              The four pipeline stages are real (browser -> Kafka -> FastAPI -> Postgres)
@@ -1132,8 +1131,7 @@
               <div class="ai-empty-view">
                 <div class="ai-hero-icon"><i class="fas fa-robot"></i></div>
                 <h2 class="ai-heading" id="ai-page-heading">How can I help you?</h2>
-                <p class="ai-subtitle" id="ai-page-subtitle">Ask about Rajeev's work &mdash; his projects, stack,
-                  and architecture decisions.</p>
+                <p class="ai-subtitle" id="ai-page-subtitle">Powered by Gemma 3-4B running on Ollama</p>
 
                 <div class="ai-suggestions" id="ai-suggested-prompts">
                   <button type="button" class="ai-suggestion-card"
