@@ -243,6 +243,8 @@ body.dark-theme {
   --accent-hover: hsl(38, 92%, 45%);
   --accent-soft: hsla(38, 92%, 55%, 0.20);
   --accent-mild: hsla(38, 92%, 55%, 0.58);
+  /* 9.12:1 on this ground - see the note on body's declaration. */
+  --control-accent-border: var(--accent-fill);
   --secondary-text: hsl(68, 100%, 45%);
   --data-text: hsl(45, 100%, 50%);
   --color-success: #34d399;
@@ -290,6 +292,17 @@ body {
      under the 3:1 WCAG 1.4.11 requires. --accent-text measures 5.17:1 light
      and 9.59:1 dark. */
   --focus-ring: var(--accent-text);
+
+  /* The edge of an outline control - the .home-* pills and icon discs, whose
+     border IS the affordance since they have no fill to read instead.
+     Measured against the light page ground --accent-fill is 1.94:1, under the
+     3:1 WCAG 2.2 SC 1.4.11 requires of a control's visual boundary;
+     --accent-text is 4.93:1. On the dark ground the fill is already 9.12:1
+     and is the warmer edge, so the two themes diverge rather than share one
+     value. Resolved on body for the same substitution reason as --focus-ring:
+     both source tokens are overridden on body.dark-theme and written to
+     body.style by the theme customiser. */
+  --control-accent-border: var(--accent-text);
 
   /* Accent aliases, resolved here for the same reason as --focus-ring above.
      On :root they substituted the light amber once and never tracked
@@ -1550,11 +1563,28 @@ main {
   width: 0.32em;
 }
 
+/* ── Colour ──
+   `color: inherit`, so the tokenised title paints in whatever ink its host
+   element declares - `.home-name` says var(--text).
+
+   This carried its own `background-clip: text` accent gradient until it was
+   measured. Three things were wrong with it. It overrode `.home-name`'s
+   `color` completely, so the rule that looks like it sets the name's colour
+   never painted. It measured 4.48-5.00:1 against the light ground where ink
+   is ~15:1. And because the background is per-SPAN, the whole amber-olive-gold
+   ramp replayed inside every letter instead of running across the word, so
+   adjacent glyphs disagreed in hue.
+
+   It also put a second accent-gradient line directly above `.home-role` -
+   the exact flattening `.home-greeting` was demoted to muted ink to avoid.
+   Exactly one line on the landing view is in accent again, and it is the one
+   that says what the work is.
+
+   The amber drop-shadow stays: on ink it reads as a warm bloom rather than as
+   the glyph's own colour, and it is what lifts the name off the dark ground. */
 .hero-char {
   display: inline-block;
   position: relative;
-  cursor: pointer;
-  user-select: none;
   text-align: center;
   transform-style: preserve-3d;
   transform-origin: 50% 90%;
@@ -1564,13 +1594,7 @@ main {
   overflow: visible;
   opacity: 0;
   will-change: transform, filter, opacity;
-  background: linear-gradient(135deg, var(--accent-text) 0%, var(--secondary-text) 50%, var(--data-text) 100%);
-  background-size: 200% 200%;
-  animation: gradient-shift 1.2s var(--ease-enter) 1 both;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+  color: inherit;
   filter: drop-shadow(0 0 18px var(--accent-soft));
   transition:
     transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2),
@@ -1578,18 +1602,19 @@ main {
 }
 
 .hero-char.kinetic-entering {
-  animation:
-    kinetic-optical-rollup 0.78s cubic-bezier(0.16, 1.08, 0.38, 1.02) both,
-    gradient-shift 1.2s var(--ease-enter) 1 both;
-  animation-delay: var(--stagger-delay, 0ms), 0ms;
+  animation: kinetic-optical-rollup 0.78s cubic-bezier(0.16, 1.08, 0.38, 1.02) both;
+  animation-delay: var(--stagger-delay, 0ms);
 }
 
+/* The entrance is over by the time this lands, so the promotion hint goes
+   with it - `will-change: transform` here held 11 composited layers on the
+   landing view for an animation that had already finished. The tilt on hover
+   is pointer-driven and rare; it does not need a standing layer. */
 .hero-char.kinetic-settled {
   opacity: 1;
   transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg);
   filter: drop-shadow(0 0 18px var(--accent-soft));
-  animation: gradient-shift 1.2s var(--ease-enter) 1 both;
-  will-change: transform;
+  will-change: auto;
 }
 
 .hero-char.is-hovered {
@@ -2079,10 +2104,10 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 /* #endregion */
 
 /* #region HOME HERO ---------------------------------------------------*/
-/* The landing view: portrait, name, three routes into the site, and an icon
-   row. It shares no rules with `.hero` in #about - that one is a two-column
-   grid built around the terminal panel, and every metric in it is tuned to
-   that panel's height. */
+/* The landing view: portrait, name, two buttons into the site, and an icon row
+   carrying two more routes plus the outbound profiles. It shares no rules with
+   `.hero` in #about - that one is a two-column grid built around the terminal
+   panel, and every metric in it is tuned to that panel's height. */
 .home-hero {
   display: grid;
 
@@ -2165,7 +2190,6 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    carries no hover glow, no focus ring and nothing in the tab order. */
 .home-portrait {
   position: relative;
-  justify-self: end;
 
   /* Sized here rather than on the `width`/`height` attributes so the portrait
      tracks the viewport; the attributes stay on the element to reserve the
@@ -2375,7 +2399,7 @@ body.dark-theme .home-portrait picture {
      widest label sets the width for both, so neither is clipped. */
   min-width: 168px;
   border-radius: var(--radius-full);
-  border: 2px solid var(--accent-fill);
+  border: 2px solid var(--control-accent-border);
   font-size: var(--text-base);
   font-weight: 700;
   line-height: 1;
@@ -2395,10 +2419,13 @@ body.dark-theme .home-portrait picture {
   color: var(--accent-text);
 }
 
+/* Dark ink on the amber face, matching `.btn.btn-outline:hover` and
+   `.home-social:hover`. White measured 3.29:1 light and 2.63:1 dark - the
+   last survivor of the failure --on-accent was introduced to fix. */
 .home-btn:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
-  color: var(--on-accent-inverse);
+  color: var(--on-accent);
   box-shadow: var(--glow-md);
   transform: translateY(-2px);
 }
@@ -2430,7 +2457,7 @@ body.dark-theme .home-portrait picture {
   height: 44px;
   border-radius: 50%;
   background: transparent;
-  border: 2px solid var(--accent-fill);
+  border: 2px solid var(--control-accent-border);
   color: var(--accent-text);
   font-size: var(--text-lg);
   text-decoration: none;
@@ -2471,12 +2498,13 @@ body.dark-theme .home-portrait picture {
   }
 }
 
-/* ── Three-pill row, narrowing ──
-   Three buttons at the 168px floor need 528px of row. Below that the flex row
-   wraps 2+1, which reads as a mistake rather than as a stack - the worst of
-   both layouts. Trimming the floor and the inline padding holds all three on
-   one line for another ~90px; 140px still clears "Contact" at this type size
-   by ~15px, so nothing is clipped. */
+/* ── Two-pill row, narrowing ──
+   The pair at the 168px floor needs 348px of row plus the column's own
+   padding. Trimming the floor and the inline padding buys another ~60px;
+   140px still clears "Resume" at this type size by a wide margin.
+
+   Was written for three buttons - Contact is an icon in `.home-socials` now,
+   which is also why the 380px stack below it is gone. */
 @media (width <=560px) {
   .home-btn {
     min-width: 140px;
@@ -2484,18 +2512,16 @@ body.dark-theme .home-portrait picture {
   }
 }
 
-/* Past here even the trimmed floor breaks the row, so stop defending it: one
-   per row, full width, which reads as a deliberate stack. The padding goes
-   back because width is no longer the constraint. */
+/* The last step that keeps the two on one line. It used to stack them full
+   width here, which is what a THIRD button needed; with two it cost 56px of
+   column height for nothing, and that was the whole overflow on a short
+   phone - 320x568 scrolled by 36px, 360x640 by 4px. At 126px the pair plus
+   its gap is 264px against the 274px the column has at 320px, and "Resume"
+   still has ~30px of slack inside the pill. */
 @media (width <=380px) {
-  .home-actions {
-    width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .home-btn {
-    padding: 12px 30px;
+    min-width: 126px;
+    padding: 12px 16px;
   }
 }
 

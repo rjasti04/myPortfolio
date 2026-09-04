@@ -44,7 +44,7 @@ shown and hidden by class rather than fetched:
 
 | Section id | Content |
 | :--- | :--- |
-| `home` | The landing view — identity treatment, three calls to action (About, Resume, Contact), and an icon row of three outbound profiles plus an in-site shortcut to `#ai` |
+| `home` | The landing view — identity treatment, two calls to action (About, Resume), and an icon row of two outbound profiles (LinkedIn, GitHub) plus in-site shortcuts to `#contact` and `#ai` |
 | `about` | Hero, profile, stat counters, skills carousel, the interactive command prompt |
 | `resume` | Experience timeline, downloadable résumé |
 | `hobbies` | Personal interests |
