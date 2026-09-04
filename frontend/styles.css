@@ -2279,11 +2279,10 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   min-height: 44px;
   padding: 12px 30px;
 
-  /* Content sizing gave the row three different pills - "About" and "Resume"
-     are narrower words than "Contact", so they came out short of the solid
-     one and the row read as a mistake. A shared floor makes them identical
-     while the padding above still sets the height; the widest label sets the
-     width for all three, so none is clipped. */
+  /* Content sizing gave the row pills of different widths - "About" is a
+     narrower word than "Resume", so the row read as a mistake. A shared floor
+     makes them identical while the padding above still sets the height; the
+     widest label sets the width for both, so neither is clipped. */
   min-width: 168px;
   border-radius: var(--radius-full);
   border: 2px solid var(--accent-fill);
@@ -2304,15 +2303,6 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 .home-btn--outline {
   background: transparent;
   color: var(--accent-text);
-}
-
-/* Matches `.hero-buttons .btn`: the flat accent face, not the gradient the
-   bare `.btn` carries. Keeps the mock's emphasis - Contact Info is the filled
-   half of the pair - in the site's palette. */
-.home-btn--solid {
-  background: var(--accent-fill);
-  color: var(--on-accent);
-  box-shadow: var(--glow-md);
 }
 
 .home-btn:hover {
@@ -2409,9 +2399,8 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 
 /* Past here even the trimmed floor breaks the row, so stop defending it: one
    per row, full width, which reads as a deliberate stack. The padding goes
-   back because width is no longer the constraint. Was <=380px when the row
-   held two. */
-@media (width <=500px) {
+   back because width is no longer the constraint. */
+@media (width <=380px) {
   .home-actions {
     width: 100%;
     flex-direction: column;
