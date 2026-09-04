@@ -1803,13 +1803,13 @@ main {
   text-align: left;
 }
 
-/* One CTA left in the hero, so the row is capped at a single button's width
-   instead of the old two-up 560px split - a lone flex child with grow would
-   otherwise stretch across the whole hero column. */
+/* Two CTAs in the hero (Ask AI, Resume), so the row is capped at the two-up
+   560px split instead of a single button's width - flex children with grow
+   would otherwise stretch across the whole hero column. */
 .hero-buttons {
   display: flex;
   flex-wrap: wrap;
-  max-width: 272px;
+  max-width: 560px;
   align-items: center;
   gap: 16px;
   margin-top: 8px;
@@ -1847,7 +1847,8 @@ main {
   outline-offset: 3px;
 }
 
-.hero-chat-btn {
+.hero-chat-btn,
+.hero-resume-btn {
   color: var(--on-accent);
   cursor: pointer;
   transition:
