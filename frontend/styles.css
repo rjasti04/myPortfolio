@@ -2223,11 +2223,11 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
      hair vs ground 44px out         1.16     1.47
      share of hairline under 1.5:1     89%      55%
 
-   So it was not load-bearing; a close halo on the drop-shadow below does the
-   job the diffuse wash was credited with, and does it better. Those are the
+   So it was not load-bearing; the close halo that replaced it did the job the
+   diffuse wash was credited with, and did it better. Those are the
    conservative numbers - the plexus behind the silhouette only adds to them.
-   If it ever stops separating, raise the halo's alpha before reinstating
-   anything here. */
+   That halo is gone too now (see the dark-theme note below) - the wash is
+   still not the thing to reinstate if the hairline ever needs lifting. */
 
 /* The shadow is on the <picture>, not the <img>, because the mask below is
    what gives the image its final alpha: a filter on the same element is
@@ -2243,17 +2243,26 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   filter: drop-shadow(0 18px 26px hsla(28, 45%, 18%, 0.28));
 }
 
-/* On the dark ground a dark shadow is invisible; the accent halo does the
-   separating instead, and keeps the dark hair off the near-black background.
-   It is doing that alone now that the wash is gone. The first shadow is the
-   old one and still sits under the torso; the second is a close halo that hugs
-   the hair line, which is where the wash used to put its light and where the
-   contrast is actually needed. Both numbers above the removed wash are the
-   before/after of adding it. */
+/* ── No glow behind the silhouette on dark ──
+   Two accent drop-shadows used to sit here: a wide one under the torso and a
+   close halo hugging the hair line. Together they traced the cutout's alpha,
+   so on the dark ground they read as an amber aura outlining the person -
+   a lit edge around a shape that is otherwise unframed. Removed.
+
+   They were the last thing separating near-black hair from the near-black
+   background; the numbers in the wash note above are the halo's. Without
+   either, that separation now comes from the page gradient and the plexus
+   canvas alone, so most of the hairline sits near 1.1:1 against the ground.
+   That is a deliberate look, not an oversight - the silhouette is meant to
+   sink into the page here. If it ever needs lifting again, bring back only
+   the close halo (`drop-shadow(0 0 18px hsla(38, 92%, 55%, 0.34))`), which
+   measured better than the diffuse forms.
+
+   `none` rather than deleting the rule: the base declaration above is a warm
+   dark shadow tuned to the light ground, and it is invisible-to-muddy on
+   near-black. Nothing should paint here. */
 body.dark-theme .home-portrait picture {
-  filter:
-    drop-shadow(0 14px 30px hsla(38, 92%, 55%, 0.16))
-    drop-shadow(0 0 18px hsla(38, 92%, 55%, 0.34));
+  filter: none;
 }
 
 .home-portrait-img {
