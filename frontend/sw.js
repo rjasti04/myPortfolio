@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v25';
+const CACHE_NAME = 'rj-portfolio-v26';
 const CACHE_EXPIRATION_DAYS = 7;
 const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -18,7 +18,7 @@ const PRECACHE_URLS = [
   '/android-chrome-192x192.png',
   '/android-chrome-512x512.png',
   '/android-chrome-maskable-512x512.png',
-  '/profile-pic-360.webp',
+  '/profile-cutout-380.webp',
   '/js/app-logic.js',
   '/js/main.js',
   '/js/auth.js',

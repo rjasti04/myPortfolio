@@ -276,8 +276,11 @@ async function main() {
     "/vendor/purify.min.js",
     "/vendor/marked.min.js",
     "/manifest.json",
-    // The LCP image, and the only hashed static asset in the shell.
-    shellUrl("profile-pic-160.webp"),
+    // The LCP image, and the only hashed static asset in the shell. This is the
+    // landing portrait cutout, and it has to stay the one index.html preloads -
+    // precaching a width the page never requests costs the install a fetch and
+    // still leaves the real LCP image cold.
+    shellUrl("profile-cutout-380.webp"),
   ].filter((p, i, all) => !p.endsWith(".map") && all.indexOf(p) === i);
 
   // A precache URL with no file behind it is silent in production: the worker

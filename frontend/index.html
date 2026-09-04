@@ -162,7 +162,13 @@
   <script>
     document.documentElement.classList.add("js-enabled");
   </script>
-  <link rel="preload" href="profile-pic-360.webp" as="image" type="image/webp" />
+  <!-- The landing portrait, and the LCP element. imagesrcset/imagesizes repeat
+       the <picture> below verbatim: a bare href preloads the 380w file while a
+       2x screen then goes on to fetch the 760w one, so the preload costs a
+       round trip instead of saving one. -->
+  <link rel="preload" href="profile-cutout-380.webp" as="image" type="image/webp"
+    imagesrcset="profile-cutout-380.webp 380w, profile-cutout.webp 760w"
+    imagesizes="(width <= 900px) min(62vw, 300px), clamp(250px, 27vw, 380px)" />
   <link rel="preload" href="styles.css" as="style" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="./auth-modal.css" />
@@ -452,14 +458,21 @@
            rather than "opens in a new tab". -->
       <section id="home" class="active">
         <div class="home-hero">
-          <div class="home-avatar">
+          <!-- Free-form portrait, not an avatar disc. The sources are
+               background-removed (scripts/generate_profile_cutout.py), so the
+               page's own gradient and plexus canvas run behind the silhouette
+               and the shape on the page is the person rather than a circle.
+               The PNG fallback is the `img` src because JPEG cannot carry an
+               alpha channel; the width/height pair is the intrinsic ratio of
+               the sources, and styles.css sets the rendered width. -->
+          <div class="home-portrait">
             <picture>
               <source
-                srcset="profile-pic-360.webp 360w, profile-pic.webp 725w"
-                sizes="(width <= 900px) min(58vw, 260px), clamp(240px, 24vw, 340px)" type="image/webp" />
-              <img src="profile-pic-360.jpg" srcset="profile-pic-360.jpg 360w, profile-pic.jpeg 725w"
-                sizes="(width <= 900px) min(58vw, 260px), clamp(240px, 24vw, 340px)"
-                alt="Rajeev Jasti" class="home-avatar-img" width="340" height="340" fetchpriority="high"
+                srcset="profile-cutout-380.webp 380w, profile-cutout.webp 760w"
+                sizes="(width <= 900px) min(62vw, 300px), clamp(250px, 27vw, 380px)" type="image/webp" />
+              <img src="profile-cutout-380.png" srcset="profile-cutout-380.png 380w, profile-cutout.png 760w"
+                sizes="(width <= 900px) min(62vw, 300px), clamp(250px, 27vw, 380px)"
+                alt="Rajeev Jasti" class="home-portrait-img" width="760" height="786" fetchpriority="high"
                 loading="eager" />
             </picture>
           </div>

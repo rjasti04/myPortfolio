@@ -65,7 +65,7 @@ The section list is duplicated in four places that have to move together: the
 **Head, in order:** meta CSP → viewport/robots/author/theme-color → Open Graph
 and Twitter cards → canonical → JSON-LD `Person` structured data → icons and
 manifest → standalone-launch meta and the `apple-touch-startup-image`
-links → `js-enabled` marker script → preloads (`profile-pic-160.webp`,
+links → `js-enabled` marker script → preloads (`profile-cutout-380.webp`,
 `styles.css`) → stylesheets (`styles.css`, `auth-modal.css`, `fonts.css`) →
 two font preloads.
 
@@ -327,7 +327,8 @@ missing, so a failed update is visible but not dangerous.
 
 | Path | Notes |
 | :--- | :--- |
-| `profile-pic-160.{jpg,webp}`, `profile-pic-360.{jpg,webp}`, `profile-pic.{jpeg,webp}` | Three widths × two formats, from `scripts/generate_profile_pics.py` |
+| `profile-cutout-380.{png,webp}`, `profile-cutout.{png,webp}` | The landing portrait, background-removed so the page's own gradient and plexus canvas show through the silhouette. Two widths × two formats, from `scripts/generate_profile_cutout.py`. PNG rather than JPEG because the fallback has to carry an alpha channel. `profile-cutout-380.webp` is the LCP image: `index.html` preloads it and the build precaches it, and `scripts/tests/build.test.js` asserts those two stay the same file |
+| `profile-pic-160.{jpg,webp}`, `profile-pic-360.{jpg,webp}`, `profile-pic.{jpeg,webp}` | Three widths × two formats of the un-cut headshot, from `scripts/generate_profile_pics.py`. Only `profile-pic.jpeg` is still referenced — by the JSON-LD `Person` image — since the landing view moved to the cutout above |
 | `android-chrome-192x192.png`, `android-chrome-512x512.png` | PWA icons, generated from `assets/master-icon.png` |
 | `android-chrome-maskable-512x512.png` | The same badge inset into the maskable safe zone, on the manifest `background_color`. **Generated** by `scripts/generate_launch_images.py` — see [Launch screens](#launch-screens) |
 | `launch/launch-<w>x<h>-<dpr>x.png` | 17 portrait `apple-touch-startup-image` bitmaps, one per iOS device resolution. **Generated** by the same script — see [Launch screens](#launch-screens) |
