@@ -2163,11 +2163,11 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   aspect-ratio: 1;
   object-fit: cover;
 
-  /* The source is a 725x1030 portrait, so squaring it discards 14% of the
-     height at each end. Centred, the top edge lands mid-hair. Biasing the
-     window upward puts the crop at 22% of the surplus instead, which clears
-     the crown with room to spare and still holds the collar. */
-  object-position: 50% 22%;
+  /* The sources are already square, cropped to the circle's framing by
+     scripts/generate_profile_pics.py, so `cover` is a no-op here and the
+     centred window is the right one. The pair stays declared because the
+     element still has to survive a source swapped in at another ratio. */
+  object-position: 50% 50%;
   border-radius: 50%;
   background: var(--surface-soft);
   box-shadow: var(--elev-3);
