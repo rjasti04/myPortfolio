@@ -162,7 +162,7 @@
   <script>
     document.documentElement.classList.add("js-enabled");
   </script>
-  <link rel="preload" href="profile-pic-160.webp" as="image" type="image/webp" />
+  <link rel="preload" href="profile-pic-360.webp" as="image" type="image/webp" />
   <link rel="preload" href="styles.css" as="style" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="./auth-modal.css" />
@@ -272,16 +272,7 @@
   <div class="layout">
     <header id="header">
       <div class="header-left">
-        <a href="profile-pic.jpeg" target="_blank" rel="noopener noreferrer" class="profile-trigger"
-          id="profile-trigger" aria-label="Open profile photo">
-          <picture>
-            <source srcset="profile-pic-160.webp 160w, profile-pic-360.webp 360w" sizes="80px" type="image/webp" />
-            <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w" sizes="80px"
-              alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" loading="eager" width="44"
-              height="44" />
-          </picture>
-        </a>
-        <a href="#about" class="logo-text" id="logo-home-link" data-target="about"
+        <a href="#home" class="logo-text" id="logo-home-link" data-target="home"
           aria-label="Rajeev Jasti - Home">RJ</a>
       </div>
 
@@ -298,7 +289,12 @@
           </button>
         </div>
         <div class="nav-menu-links">
-          <a href="#about" data-target="about" class="active" aria-current="page">
+          <a href="#home" data-target="home" class="active" aria-current="page">
+            <i class="fas fa-home nav-icon" aria-hidden="true"></i>
+            <span class="nav-label">Home</span>
+            <i class="fas fa-chevron-right nav-arrow" aria-hidden="true"></i>
+          </a>
+          <a href="#about" data-target="about">
             <i class="fas fa-user nav-icon" aria-hidden="true"></i>
             <span class="nav-label">About</span>
             <i class="fas fa-chevron-right nav-arrow" aria-hidden="true"></i>
@@ -498,11 +494,58 @@
     </header>
 
     <main id="main-content">
-      <section id="about" class="active">
+      <!-- Landing view. Deliberately short - avatar, name, the two routes into
+           the site, and the two profiles worth linking. Everything that used to
+           greet a visitor (intro copy, terminal, stats, skills) still lives in
+           #about, one click away. -->
+      <section id="home" class="active">
+        <div class="home-hero">
+          <a href="profile-pic.jpeg" target="_blank" rel="noopener noreferrer" class="home-avatar"
+            id="profile-trigger" aria-label="Open profile photo">
+            <picture>
+              <source
+                srcset="profile-pic-360.webp 360w, profile-pic.webp 725w"
+                sizes="(width <= 900px) min(58vw, 260px), clamp(240px, 24vw, 340px)" type="image/webp" />
+              <img src="profile-pic-360.jpg" srcset="profile-pic-360.jpg 360w, profile-pic.jpeg 725w"
+                sizes="(width <= 900px) min(58vw, 260px), clamp(240px, 24vw, 340px)"
+                alt="Rajeev Jasti" class="home-avatar-img" width="340" height="340" fetchpriority="high"
+                loading="eager" />
+            </picture>
+          </a>
+
+          <div class="home-intro">
+            <p class="home-greeting">Hello, I&#39;m</p>
+            <h1 class="home-name">Rajeev Jasti</h1>
+            <p class="home-role">Principal Data Engineer</p>
+
+            <div class="home-actions">
+              <a href="#resume" data-target="resume" class="nav-cta home-btn home-btn--outline" data-spring-hover>
+                Resume
+              </a>
+              <a href="#contact" data-target="contact" class="nav-cta home-btn home-btn--solid" data-spring-hover>
+                Contact Info
+              </a>
+            </div>
+
+            <div class="home-socials">
+              <a href="https://www.linkedin.com/in/rajeev-jasti-326080169" target="_blank" rel="noopener noreferrer"
+                class="home-social" aria-label="LinkedIn profile (opens in a new tab)">
+                <i class="fab fa-linkedin-in" aria-hidden="true"></i>
+              </a>
+              <a href="https://github.com/rjasti04" target="_blank" rel="noopener noreferrer" class="home-social"
+                aria-label="GitHub profile (opens in a new tab)">
+                <i class="fab fa-github" aria-hidden="true"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="about">
         <div class="hero">
           <div class="hero-text">
             <span class="hero-subtitle">Principal Data Engineer</span>
-            <h1 class="hero-title" id="hero-title">Rajeev Jasti</h1>
+            <h2 class="hero-title" id="hero-title">Rajeev Jasti</h2>
             <div class="hero-kicker">
               <span>Data Engineering</span>
               <span class="kicker-separator" aria-hidden="true">•</span>
