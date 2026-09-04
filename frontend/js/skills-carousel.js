@@ -23,8 +23,6 @@ export function initSkillsCarousel() {
 
 function initCarouselLogic(carousel, track, slides) {
 
-  const prevBtn = carousel.querySelector(".skills-carousel-arrow--prev");
-  const nextBtn = carousel.querySelector(".skills-carousel-arrow--next");
   const dotsContainer = carousel.querySelector(".skills-carousel-dots");
   const mq = window.matchMedia(MOBILE_QUERY);
 
@@ -107,16 +105,6 @@ function initCarouselLogic(carousel, track, slides) {
     render();
   }
 
-  function next() {
-    goTo(activeIdx + 1);
-    restartAutoplay();
-  }
-
-  function prev() {
-    goTo(activeIdx - 1);
-    restartAutoplay();
-  }
-
   function startAutoplay() {
     stopAutoplay();
     if (!isMobile || !visible || reduceMotion || carousel.matches(":focus-within")) return;
@@ -134,9 +122,6 @@ function initCarouselLogic(carousel, track, slides) {
     if (!isMobile) return;
     startAutoplay();
   }
-
-  prevBtn?.addEventListener("click", prev);
-  nextBtn?.addEventListener("click", next);
 
   let startX = null;
   let startY = null;

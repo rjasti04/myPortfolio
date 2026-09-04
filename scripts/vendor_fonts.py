@@ -161,10 +161,16 @@ def subset_font_awesome(icons: set[str]) -> str:
         # the specific glyph set - so that rule is disabled here rather than
         # satisfied with a fake one. Kept narrow: two declarations, by name.
         "/* stylelint-disable font-family-no-missing-generic-family-keyword */\n"
-        ".fas,\n.fa-solid {\n  font-family: \"Font Awesome 6 Free\";\n  font-weight: 900;\n}\n\n"
+        # `.far`/`.fa-regular` are mapped onto the solid face on purpose. The
+        # regular face is not vendored - the site uses exactly one regular
+        # glyph (`far fa-circle`, in the password checklists) and a second
+        # 100 KB download for it is not worth it. Dropping these selectors
+        # instead leaves that markup with no font-family at all, which renders
+        # as tofu.
+        ".fas,\n.fa-solid,\n.far,\n.fa-regular {\n  font-family: \"Font Awesome 6 Free\";\n  font-weight: 900;\n}\n\n"
         ".fab,\n.fa-brands {\n  font-family: \"Font Awesome 6 Brands\";\n  font-weight: 400;\n}\n"
         "/* stylelint-enable font-family-no-missing-generic-family-keyword */\n\n"
-        ".fa,\n.fas,\n.fab,\n.fa-solid,\n.fa-brands {\n"
+        ".fa,\n.fas,\n.far,\n.fab,\n.fa-solid,\n.fa-regular,\n.fa-brands {\n"
         "  -moz-osx-font-smoothing: grayscale;\n"
         "  -webkit-font-smoothing: antialiased;\n"
         "  display: var(--fa-display, inline-block);\n"

@@ -1,21 +1,20 @@
 import { compactViewport, mobileDevice, prefersReducedMotion, supportsHover } from "./config.js";
-import { closeModal, handleFocusTrap, openModal } from "./modal.js";
+import { handleFocusTrap } from "./modal.js";
 import { onOnline, onOffline, isNetworkOnline } from "./utils.js";
 import { SwipeHandler } from "./swipe-handler.js";
 
-let hamburger, navMenu, navLinks, sections, imageModal, imageModalCloseButton, profileTrigger;
+let hamburger, navMenu, navLinks, sections;
 
 /**
  * True while any dialog is on screen.
  *
- * `.image-modal` and `.pdf-modal` are shown by modal.js adding `.active`; the
- * auth modal is a separate implementation that toggles `.hidden` instead.
- * Keyboard shortcuts have to respect all of them, or they fire through an open
- * dialog.
+ * `.pdf-modal` is shown by modal.js adding `.active`; the auth modal is a
+ * separate implementation that toggles `.hidden` instead. Keyboard shortcuts
+ * have to respect both, or they fire through an open dialog.
  */
 function isModalOpen() {
   return Boolean(
-    document.querySelector(".image-modal.active, .pdf-modal.active") ||
+    document.querySelector(".pdf-modal.active") ||
       document.querySelector("#auth-modal:not(.hidden)")
   );
 }
@@ -105,9 +104,6 @@ export function initNavigation() {
   navMenu = document.getElementById("nav-menu");
   navLinks = Array.from(document.querySelectorAll("nav a[data-target]"));
   sections = Array.from(document.querySelectorAll("main section"));
-  imageModal = document.getElementById("image-modal");
-  imageModalCloseButton = document.getElementById("image-modal-close");
-  profileTrigger = document.getElementById("profile-trigger");
 
   if (hamburger) {
     hamburger.addEventListener("click", (event) => {
@@ -126,15 +122,6 @@ export function initNavigation() {
       event.stopPropagation();
       setMobileMenuState(false);
       hamburger?.focus();
-    });
-  }
-
-  const connectDropdownClose = document.getElementById("connect-dropdown-close");
-  if (connectDropdownClose) {
-    connectDropdownClose.addEventListener("click", (event) => {
-      event.stopPropagation();
-      closeAllDropdowns();
-      document.getElementById("connect-toggle")?.focus();
     });
   }
 
@@ -256,16 +243,6 @@ export function initNavigation() {
       const menu = openDropdown?.querySelector('.header-dropdown-menu');
       if (menu) handleFocusTrap(event, menu);
     }
-  });
-
-  profileTrigger?.addEventListener("click", (event) => {
-    event.preventDefault();
-    openModal(imageModal, { initialFocus: imageModalCloseButton || imageModal });
-  });
-
-  imageModalCloseButton?.addEventListener("click", () => closeModal(imageModal));
-  imageModal?.addEventListener("click", (event) => {
-    if (event.target === imageModal) closeModal(imageModal);
   });
 
   window.addEventListener("hashchange", () => syncSectionWithHash());

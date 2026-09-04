@@ -224,20 +224,6 @@
   <div class="toast-container js-only" id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
 
-  <div class="image-modal" id="image-modal" role="dialog" aria-modal="true" aria-label="Profile photo"
-    aria-hidden="true">
-    <button type="button" class="modal-close" id="image-modal-close" aria-label="Close profile photo">
-      <i class="fas fa-times"></i>
-    </button>
-    <picture>
-      <source srcset="profile-pic-360.webp 360w, profile-pic.webp 725w" sizes="(max-width: 540px) 90vw, 90vw"
-        type="image/webp" />
-      <img src="profile-pic-360.jpg" srcset="profile-pic-360.jpg 360w, profile-pic.jpeg 725w"
-        sizes="(max-width: 540px) 90vw, 90vw" alt="Rajeev Jasti" class="modal-content" loading="lazy" width="725"
-        height="1024" />
-    </picture>
-  </div>
-
   <!-- Resume preview. The <iframe> is created on open and destroyed on close: the
        PDF is 66 KB that most visitors never ask for, and a live PDF viewer left
        in the DOM keeps rendering behind the closed dialog. Only ever opened on
@@ -327,57 +313,15 @@
         </div>
       </nav>
 
-      <div class="header-actions">
-        <div class="header-dropdown js-only" id="connect-dropdown">
-          <button type="button" class="header-icon-btn" id="connect-toggle" aria-label="Open connect menu"
-            aria-controls="connect-dropdown-menu" aria-expanded="false">
-            <i class="fas fa-paper-plane"></i>
-          </button>
-          <div class="header-dropdown-menu" id="connect-dropdown-menu" aria-hidden="true">
-            <div class="header-dropdown-container">
-              <div class="dropdown-panel-header">
-                <div class="dropdown-panel-header-text">
-                  <h3 class="connect-title dropdown-panel-title">Connect</h3>
-                  <p class="connect-copy dropdown-panel-subtitle">Reach me by email, LinkedIn, GitHub, or resume.</p>
-                </div>
-                <button type="button" class="dropdown-panel-close" id="connect-dropdown-close"
-                  aria-label="Close connect menu">
-                  <i class="fas fa-times" aria-hidden="true"></i>
-                </button>
-              </div>
-              <div class="connect-actions">
-                <a href="mailto:inboxtorj@gmail.com" class="connect-link">
-                  <i class="fas fa-envelope connect-icon" aria-hidden="true"></i>
-                  <span class="connect-label">Email Me</span>
-                  <i class="fas fa-chevron-right connect-arrow" aria-hidden="true"></i>
-                </a>
-                <a href="https://www.linkedin.com/in/rajeev-jasti-326080169" target="_blank" rel="noopener noreferrer"
-                  class="connect-link">
-                  <i class="fab fa-linkedin-in connect-icon" aria-hidden="true"></i>
-                  <span class="connect-label">LinkedIn</span>
-                  <i class="fas fa-chevron-right connect-arrow" aria-hidden="true"></i>
-                </a>
-                <a href="https://github.com/rjasti04" target="_blank" rel="noopener noreferrer" class="connect-link">
-                  <i class="fab fa-github connect-icon" aria-hidden="true"></i>
-                  <span class="connect-label">GitHub</span>
-                  <i class="fas fa-chevron-right connect-arrow" aria-hidden="true"></i>
-                </a>
-                <a href="#resume" data-target="resume" class="connect-link nav-cta">
-                  <i class="fas fa-file-lines connect-icon" aria-hidden="true"></i>
-                  <span class="connect-label">Resume</span>
-                  <i class="fas fa-chevron-right connect-arrow" aria-hidden="true"></i>
-                </a>
-                <a href="rjasti_resume.pdf" download="Rajeev_Jasti_Resume.pdf" target="_blank" rel="noopener noreferrer"
-                  class="connect-link">
-                  <i class="fas fa-download connect-icon" aria-hidden="true"></i>
-                  <span class="connect-label">Download PDF</span>
-                  <i class="fas fa-chevron-right connect-arrow" aria-hidden="true"></i>
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- Outside .header-actions: on a phone this is the primary navigation
+           control and sits in its own centre slot, while the action icons stay
+           grouped on the right. See the HEADER & NAVIGATION region. -->
+      <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
+        aria-controls="nav-menu" aria-expanded="false">
+        <i class="fas fa-bars"></i>
+      </button>
 
+      <div class="header-actions">
         <div class="header-dropdown js-only" id="theme-customizer-dropdown">
           <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme"
             aria-label="Customize theme" aria-controls="theme-customizer-menu" aria-expanded="false">
@@ -486,10 +430,6 @@
           <i class="fas fa-moon" id="theme-icon"></i>
         </button>
 
-        <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
-          aria-controls="nav-menu" aria-expanded="false">
-          <i class="fas fa-bars"></i>
-        </button>
       </div>
     </header>
 
@@ -500,8 +440,7 @@
            #about, one click away. -->
       <section id="home" class="active">
         <div class="home-hero">
-          <a href="profile-pic.jpeg" target="_blank" rel="noopener noreferrer" class="home-avatar"
-            id="profile-trigger" aria-label="Open profile photo">
+          <div class="home-avatar">
             <picture>
               <source
                 srcset="profile-pic-360.webp 360w, profile-pic.webp 725w"
@@ -511,7 +450,7 @@
                 alt="Rajeev Jasti" class="home-avatar-img" width="340" height="340" fetchpriority="high"
                 loading="eager" />
             </picture>
-          </a>
+          </div>
 
           <div class="home-intro">
             <p class="home-greeting">Hello, I&#39;m</p>
@@ -528,6 +467,10 @@
             </div>
 
             <div class="home-socials">
+              <a href="mailto:inboxtorj@gmail.com" class="home-social"
+                aria-label="Send me an email">
+                <i class="fas fa-envelope" aria-hidden="true"></i>
+              </a>
               <a href="https://www.linkedin.com/in/rajeev-jasti-326080169" target="_blank" rel="noopener noreferrer"
                 class="home-social" aria-label="LinkedIn profile (opens in a new tab)">
                 <i class="fab fa-linkedin-in" aria-hidden="true"></i>
@@ -544,8 +487,6 @@
       <section id="about">
         <div class="hero">
           <div class="hero-text">
-            <span class="hero-subtitle">Principal Data Engineer</span>
-            <h2 class="hero-title" id="hero-title">Rajeev Jasti</h2>
             <div class="hero-kicker">
               <span>Data Engineering</span>
               <span class="kicker-separator" aria-hidden="true">•</span>
@@ -726,14 +667,6 @@
                 </div>
               </div>
             </div>
-            <button type="button" class="skills-carousel-arrow skills-carousel-arrow--prev"
-              aria-label="Previous skill group">
-              <i class="fas fa-chevron-left" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="skills-carousel-arrow skills-carousel-arrow--next"
-              aria-label="Next skill group">
-              <i class="fas fa-chevron-right" aria-hidden="true"></i>
-            </button>
             <div class="skills-carousel-dots" role="tablist" aria-label="Skill group navigation"></div>
           </div>
         </div>
@@ -1253,6 +1186,15 @@
                   <i class="fas fa-copy" aria-hidden="true"></i>
                   <span class="contact-method-value">Copy</span>
                 </button>
+
+                <a href="tel:+1980216851" class="contact-primary-link">
+                  <span class="contact-channel-icon"><i class="fas fa-phone" aria-hidden="true"></i></span>
+                  <span class="contact-channel-text">
+                    <span class="contact-channel-label">Call me</span>
+                    <span class="contact-channel-value">(+1)&nbsp;980-216-851</span>
+                  </span>
+                  <i class="fas fa-chevron-right contact-channel-go" aria-hidden="true"></i>
+                </a>
               </div>
               <span class="sr-only" id="copy-email-live" role="status" aria-live="polite"></span>
 
