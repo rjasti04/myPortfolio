@@ -2195,67 +2195,39 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
      tracks the viewport; the attributes stay on the element to reserve the
      aspect ratio before the image decodes. A step wider than the circle it
      replaces - a silhouette occupies far less of its box than a filled disc,
-     so at the old 340px cap the head read a size smaller than the name. */
-  width: clamp(250px, 27vw, 380px);
+     so at the old 340px cap the head read a size smaller than the name.
 
-  /* Pins the wash to this element. It is `z-index: -1`, which without a
-     stacking context here resolves against whichever ancestor happens to make
-     one - today the section the router animates, which is why it still paints.
-     That is a coincidence, not a contract: drop the section's transform and
-     the wash sinks behind --bg-gradient with nothing here to say why. */
-  isolation: isolate;
+     Half again as wide as that step: the two-column landing view has the
+     vertical room for it at every desktop height tested down to 700px, and a
+     cutout this size is the page's subject rather than an illustration beside
+     the name. 570px against the intro column's ~390px is the whole point -
+     the portrait leads and the type answers it. The phone cap below does NOT
+     scale with this; see the note there. */
+  width: clamp(375px, 40.5vw, 570px);
 }
 
-/* ── The light behind ──
-   A wash, not a shape. The gradient holds its colour flat across the core and
-   then falls to transparent well inside its own box, so there is no edge
-   anywhere for the eye to read as a second object sitting behind the first.
+/* ── No wash behind the silhouette ──
+   A radial `::before` used to lay a plateau of accent light behind the cutout,
+   inset past it on three sides, so the subject did not read as pasted onto the
+   gradient. It is gone. On the light ground it read as a warm stain sitting
+   behind him rather than as light - the exact failure a wash with no edge is
+   meant to avoid - and it scaled with the portrait, so it got worse here.
 
-   That is why there is no `border-radius` and no `blur()` here: a shape
-   softened by a large blur still has a boundary, only an indistinct one, and
-   it costs a filter pass to get there. This has no boundary to soften.
+   The note it replaces claimed the wash was most of what lifted near-black
+   hair off a near-black background on the dark theme. Measured at 1440x900
+   with the plexus canvas hidden, so the page's own gradient is the only ground
+   - sampling the hairline every 3px down the top 40% of the silhouette:
 
-   The plateau is load-bearing. A radial gradient that starts falling off at
-   its centre concentrates everything in one spot and reads as almost nothing
-   by the time it clears the silhouette - which is the version that leaves the
-   dark hair sitting on the dark ground with nothing between them.
+                                     wash    rim halo
+     hair vs just outside the edge   1.05     1.20
+     hair vs ground 44px out         1.16     1.47
+     share of hairline under 1.5:1     89%      55%
 
-   Inset past the portrait on three sides so the light spills around the
-   silhouette rather than stopping at it, and held at the bottom edge, where
-   the torso is already fading into the page.
-
-   Built from the accent tokens rather than literal amber: the theme
-   customiser writes --accent-soft and --accent-mild to body.style, so a
-   recoloured palette carries the light with it. Strength is set by `opacity`
-   for the same reason - baking it into the colours would freeze the wash at
-   this palette's alpha. */
-.home-portrait::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: -10% -12% 0;
-  background: radial-gradient(62% 50% at 48% 36%,
-      var(--accent-mild) 0%,
-      var(--accent-mild) 28%,
-      var(--accent-soft) 56%,
-      transparent 84%);
-  opacity: 0.31;
-}
-
-/* Held lower here than on light, which is the opposite of what the two grounds
-   ask for: amber against near-black composites down towards the ground it sits
-   on, so the same value already reads fainter here than it does against cream.
-   This is fainter again, and deliberately so - the wash is close to absent on
-   the dark theme now.
-
-   What that costs: the glow used to be most of what lifted near-black hair off
-   a near-black background. At this value the hair carries itself on its own
-   sheen, with the plexus canvas behind it doing the rest. It still reads, but
-   there is no margin left - this is the value to raise first if the silhouette
-   ever stops separating. */
-body.dark-theme .home-portrait::before {
-  opacity: 0.2125;
-}
+   So it was not load-bearing; a close halo on the drop-shadow below does the
+   job the diffuse wash was credited with, and does it better. Those are the
+   conservative numbers - the plexus behind the silhouette only adds to them.
+   If it ever stops separating, raise the halo's alpha before reinstating
+   anything here. */
 
 /* The shadow is on the <picture>, not the <img>, because the mask below is
    what gives the image its final alpha: a filter on the same element is
@@ -2272,9 +2244,16 @@ body.dark-theme .home-portrait::before {
 }
 
 /* On the dark ground a dark shadow is invisible; the accent halo does the
-   separating instead, and keeps the dark hair off the near-black background. */
+   separating instead, and keeps the dark hair off the near-black background.
+   It is doing that alone now that the wash is gone. The first shadow is the
+   old one and still sits under the torso; the second is a close halo that hugs
+   the hair line, which is where the wash used to put its light and where the
+   contrast is actually needed. Both numbers above the removed wash are the
+   before/after of adding it. */
 body.dark-theme .home-portrait picture {
-  filter: drop-shadow(0 14px 30px hsla(38, 92%, 55%, 0.16));
+  filter:
+    drop-shadow(0 14px 30px hsla(38, 92%, 55%, 0.16))
+    drop-shadow(0 0 18px hsla(38, 92%, 55%, 0.34));
 }
 
 .home-portrait-img {
@@ -2493,7 +2472,19 @@ body.dark-theme .home-portrait picture {
   }
 
   .home-portrait {
-    justify-self: center;
+    width: min(72vw, 450px);
+  }
+}
+
+/* ── Short viewports keep the old cap ──
+   The stacked layout spends height on the portrait that the two-column one
+   spends on width, so the desktop step cannot follow it down here: at the
+   naive +50% the landing view scrolled by 56-83px on every phone under 380px.
+   A tall phone or a portrait tablet has the room for a smaller bump; a short
+   one has none, so it keeps exactly the cap it had. 720px is where the
+   measurement flips - 375x812 clears a 270px portrait, 375x667 does not. */
+@media (width <=900px) and (height <=720px) {
+  .home-portrait {
     width: min(62vw, 300px);
   }
 }
