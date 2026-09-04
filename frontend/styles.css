@@ -32,13 +32,11 @@
   /* Aliases for names referenced in CSS/HTML but never defined. Without
      these the declarations were invalid and silently dropped. */
   --text-muted: var(--muted);
-  --primary-strong: var(--accent-text);
   /* Referenced by auth-modal.css and inline styles; previously undefined,
      so their Catppuccin fallbacks (#a6adc8, #cdd6f4, #89b4fa) rendered
      instead of this palette. */
   --text-primary: var(--text);
   --border-color: var(--border);
-  --color-accent: var(--accent-text);
   --bg: #f8fafb;
   --bg-gradient: radial-gradient(ellipse at top left, #ffffff, hsl(38, 55%, 95%) 35%, hsl(68, 50%, 96%) 70%, #fdfdfd);
   --text: #0f172a;
@@ -293,6 +291,15 @@ body {
      under the 3:1 WCAG 1.4.11 requires. --accent-text measures 5.17:1 light
      and 9.59:1 dark. */
   --focus-ring: var(--accent-text);
+
+  /* Accent aliases, resolved here for the same reason as --focus-ring above.
+     On :root they substituted the light amber once and never tracked
+     body.dark-theme or the customiser, so the experience role titles and the
+     auth modal stayed dark amber on the dark ground and ignored a recoloured
+     palette entirely. */
+  --primary-strong: var(--accent-text);
+  --color-accent: var(--accent-text);
+
   --glow-sm: 0 2px 8px var(--accent-soft);
   --glow-md: 0 4px 14px var(--accent-soft);
   --glow-lg: 0 8px 24px var(--accent-mild);
