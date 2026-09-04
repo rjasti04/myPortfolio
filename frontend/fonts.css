@@ -275,6 +275,9 @@
 .fa-linkedin-in::before {
   content: "\f0e1";
 }
+.fa-location-dot::before {
+  content: "\f3c5";
+}
 .fa-lock::before {
   content: "\f023";
 }
@@ -305,6 +308,9 @@
 .fa-pen::before {
   content: "\f304";
 }
+.fa-phone::before {
+  content: "\f095";
+}
 .fa-plus::before {
   content: "\2b";
 }
@@ -323,6 +329,9 @@
 .fa-rotate-right::before {
   content: "\f2f9";
 }
+.fa-scale-balanced::before {
+  content: "\f24e";
+}
 .fa-screwdriver-wrench::before {
   content: "\f7d9";
 }
@@ -337,6 +346,9 @@
 }
 .fa-shield-halved::before {
   content: "\f3ed";
+}
+.fa-shuffle::before {
+  content: "\f074";
 }
 .fa-sliders::before {
   content: "\f1de";
@@ -355,6 +367,9 @@
 }
 .fa-sync-alt::before {
   content: "\f2f1";
+}
+.fa-table-list::before {
+  content: "\f00b";
 }
 .fa-table-tennis-paddle-ball::before {
   content: "\f45d";

@@ -572,7 +572,7 @@ body.dropdown-open .mobile-bottom-nav {
 }
 
 /* Focus header interactions: dim non-essential header action icons when menu or dropdown is open */
-body.nav-open .header-actions>*:not(.hamburger-btn),
+body.nav-open .header-actions>*,
 body.dropdown-open .header-actions>*:not(.header-dropdown.is-open):not(.nav-auth-container) {
   opacity: 0.35;
   pointer-events: none;
@@ -854,7 +854,6 @@ body.dark-theme #nav-menu a:not(.active):hover {
 
 .dropdown-panel-title,
 .nav-menu-title,
-.connect-title,
 .customizer-title {
   font-size: var(--text-base);
   font-weight: 700;
@@ -866,7 +865,6 @@ body.dark-theme #nav-menu a:not(.active):hover {
 
 .dropdown-panel-subtitle,
 .nav-menu-subtitle,
-.connect-copy,
 .customizer-description {
   font-size: var(--text-xs);
   color: var(--muted);
@@ -974,115 +972,6 @@ body.dark-theme .header-dropdown-container {
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.52), 0 0 0 1px var(--border);
 }
 
-.connect-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-.connect-link {
-  width: 100%;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
-  padding: 10px 14px;
-  min-height: 48px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: var(--skill-bg);
-  color: var(--text);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-decoration: none;
-  text-align: left;
-  position: relative;
-  transition:
-    border-color 0.2s var(--ease-standard),
-    transform 0.15s var(--ease-standard),
-    background-color 0.2s var(--ease-standard),
-    box-shadow 0.2s var(--ease-standard),
-    color 0.2s var(--ease-standard);
-}
-
-.connect-link:active {
-  transform: scale(0.98);
-}
-
-.connect-link:hover,
-.connect-link:focus-visible {
-  border-color: var(--accent-mild);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  transform: translateY(-1px);
-}
-
-.connect-link .connect-icon {
-  font-size: var(--text-sm);
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface);
-  color: var(--accent-fill);
-  border: 1px solid var(--border);
-  margin-right: 0;
-  flex-shrink: 0;
-  transition:
-    transform 0.2s var(--ease-standard),
-    background-color 0.2s var(--ease-standard),
-    border-color 0.2s var(--ease-standard),
-    color 0.2s var(--ease-standard);
-}
-
-body.dark-theme .connect-link .connect-icon {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.connect-link:hover .connect-icon,
-.connect-link:focus-visible .connect-icon {
-  color: var(--accent-text);
-  border-color: var(--accent-mild);
-  transform: scale(1.06);
-}
-
-.connect-link .connect-label {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  flex: 1;
-  line-height: var(--leading-tight);
-}
-
-.connect-link .connect-arrow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: auto;
-  font-size: var(--text-xs);
-  color: var(--muted);
-  opacity: 0.55;
-  flex-shrink: 0;
-  transition:
-    transform 0.2s var(--ease-standard),
-    opacity 0.2s var(--ease-standard),
-    color 0.2s var(--ease-standard);
-}
-
-.connect-link:hover .connect-arrow,
-.connect-link:focus-visible .connect-arrow {
-  color: var(--accent-text);
-  opacity: 1;
-  transform: translateX(3px);
-}
-
 #nav-menu a:focus-visible,
 .header-left:focus-visible,
 .logo-text:focus-visible,
@@ -1090,7 +979,6 @@ body.dark-theme .connect-link .connect-icon {
 #palette-toggle:focus-visible,
 #worldcup-link:focus-visible,
 #ucl-link:focus-visible,
-.modal-close:focus-visible,
 .dropdown-panel-close:focus-visible,
 .nav-menu-close:focus-visible,
 .btn:focus-visible,
@@ -1125,7 +1013,6 @@ body.dark-theme .connect-link .connect-icon {
   #palette-toggle:focus-visible,
   #worldcup-link:focus-visible,
   #ucl-link:focus-visible,
-  .modal-close:focus-visible,
   .dropdown-panel-close:focus-visible,
   .nav-menu-close:focus-visible,
   .btn:focus-visible,
@@ -1631,24 +1518,12 @@ main {
   margin: 0;
 }
 
-.hero-subtitle {
-  font-weight: 800;
-  font-size: var(--text-body-xs);
-  letter-spacing: var(--tracking-caps);
-  display: block;
-  margin-bottom: 0;
-  text-transform: uppercase;
-  background: linear-gradient(135deg, var(--accent-text) 0%, var(--secondary-text) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  color: transparent;
-  /* Ran forever on every heading: a permanent repaint, and auto-updating
-     motion with no way to stop it (WCAG 2.2 SC 2.2.2). Now it plays once
-     on entry and settles. */
-  animation: gradient-shift var(--motion-reveal) var(--ease-enter) 1 both;
-  background-size: 200% 200%;
-}
+/* The eyebrow and the name that used to open this hero now live in #home,
+   which is the landing view and the only place the identity is stated. Their
+   treatments moved with them - see `.home-role` and `.home-name` in the HOME
+   HERO region. The kinetic primitives below (`.hero-word`, `.hero-char`, the
+   keyframes) stayed here: they are the shared 3D title machinery that
+   js/hero-title.js builds, and `.home-name` is what uses them now. */
 
 @keyframes gradient-shift {
 
@@ -1660,21 +1535,6 @@ main {
   50% {
     background-position: 100% 50%;
   }
-}
-
-.hero-title {
-  font-size: var(--text-hero);
-  letter-spacing: var(--tracking-normal);
-  line-height: var(--leading-snug);
-  margin-bottom: 0;
-  position: relative;
-  display: inline-block;
-  z-index: 2;
-  padding: 0.3em 0.8em;
-  margin: -0.1em -0.8em;
-  perspective: 1000px;
-  transform-style: preserve-3d;
-  overflow: visible;
 }
 
 /* Kinetic Optical Split & 3D Spring Lock Architecture */
@@ -2233,7 +2093,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   grid-template-columns: auto minmax(0, auto);
   align-items: center;
   justify-content: center;
-  gap: clamp(24px, 5vw, 72px);
+  gap: clamp(24px, 4vw, 56px);
   min-height: min(70vh, 620px);
   padding: clamp(8px, 3vh, 40px) 0;
 }
@@ -2265,7 +2125,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 /* Also declared in the SECTION ROUTER region, which suppresses the entrance
    animation for this section - change both. */
 .js-enabled #home.active {
-  --home-shell-gap: clamp(20px, 4vh, 44px);
+  --home-shell-gap: clamp(16px, 3vh, 36px);
 
   display: flex;
   flex: 1;
@@ -2312,20 +2172,11 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   box-shadow: var(--elev-3);
 }
 
+/* Plain container, not a control: the portrait no longer opens a lightbox, so
+   it carries no hover glow, no focus ring and nothing in the tab order. */
 .home-avatar {
   display: block;
   border-radius: 50%;
-  text-decoration: none;
-  transition: transform var(--motion-base) var(--ease-standard);
-}
-
-.home-avatar:hover .home-avatar-img {
-  box-shadow: var(--glow-md);
-}
-
-.home-avatar:focus-visible {
-  outline: 3px solid var(--focus-ring);
-  outline-offset: 6px;
 }
 
 .home-intro {
@@ -2333,51 +2184,80 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 4px;
+  gap: 0;
   min-width: 0;
+
+  /* The name is one unbreakable line and the role is three words, so the
+     column sizes itself in practice. The cap is here so a longer role or a
+     future line of copy wraps at a readable measure instead of tracking the
+     viewport out to 1280px. */
+  max-width: 34rem;
 }
 
-/* Same treatment as `.hero-subtitle` in #about - the site's eyebrow is an
-   uppercase accent-gradient line, not sentence-case grey. */
+/* ── Type hierarchy ──
+   Three lines, three levels of emphasis: a quiet lead-in, the name, then the
+   role. The greeting used to wear the same accent-gradient eyebrow the role
+   now carries; two identical gradient lines bracketing the name flattened the
+   hierarchy and left the role reading as a caption. It is muted ink now, so
+   exactly one line on the page is in accent. */
 .home-greeting {
-  margin: 0 0 4px;
+  margin: 0 0 6px;
   font-size: var(--text-body-xs);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The kinetic 3D title treatment that used to open #about, now the landing
+   view's own. js/hero-title.js tokenises this element into `.hero-word` and
+   `.hero-char` spans; their rules and keyframes stay in the HERO & TERMINAL
+   PANEL region, and `perspective`/`preserve-3d` have to sit on the element
+   that contains them. The block padding is the room the characters roll up
+   through - without it the entrance is clipped at the cap line.
+
+   No negative inline margin, unlike the `.hero-title` box this replaces: that
+   one sat in a left-aligned column with room to bleed into. This column is
+   centred and can be 292px wide at 320px, so the padding stays symmetrical
+   and grows the box instead. */
+.home-name {
+  margin: 0;
+  padding: 0.22em 0.1em;
+  font-size: var(--text-hero);
+  font-weight: 800;
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-normal);
+  color: var(--text);
+  perspective: 1000px;
+  transform-style: preserve-3d;
+  overflow: visible;
+
+  /* Only reachable before hero-title.js tokenises the name, or when reduced
+     motion leaves it as plain text - the `.hero-word-space` spans it builds
+     are non-breaking. Long enough to overflow the column at 320px otherwise. */
+  overflow-wrap: anywhere;
+}
+
+/* The eyebrow treatment that opened the About hero: uppercase, caps tracking,
+   and the accent-to-secondary gradient played once on entry rather than
+   looping (WCAG 2.2 SC 2.2.2). Held a step up the size ramp from About's
+   `--text-body-xs` - there it sat above a hero title as a label, here it sits
+   under the name and is the line that says what the work is. */
+.home-role {
+  margin: 0 0 clamp(14px, 2.5vh, 24px);
+  font-size: var(--text-fluid-lg);
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  line-height: var(--leading-snug);
+  text-transform: uppercase;
+  text-wrap: balance;
   background: linear-gradient(135deg, var(--accent-text) 0%, var(--secondary-text) 100%);
   background-size: 200% 200%;
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-}
-
-.home-name {
-  margin: 0;
-  /* `.hero-title`'s metrics. The class itself is not reused: hero-title.js
-     takes the first `#hero-title, .hero-title` match, and #home precedes
-     #about in the DOM, so sharing it would move the 3D entrance off About's
-     name instead of adding one here. */
-  font-size: var(--text-hero);
-  font-weight: 800;
-  line-height: var(--leading-snug);
-  letter-spacing: var(--tracking-normal);
-  color: var(--text);
-
-  /* Long enough to overflow the column at 320px if it cannot break. */
-  overflow-wrap: anywhere;
-}
-
-/* `.hero-kicker`'s weight, tracking and colour, one step up the ramp so it
-   still reads as the mock's second line. */
-.home-role {
-  margin: 0 0 clamp(16px, 3vh, 28px);
-  color: var(--secondary-text);
-  font-size: var(--text-fluid-xl);
-  font-weight: 700;
-  letter-spacing: var(--tracking-wide);
-  line-height: var(--leading-snug);
+  animation: gradient-shift var(--motion-reveal) var(--ease-enter) 1 both;
 }
 
 /* ── Actions ── */
@@ -2500,7 +2380,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   .home-hero {
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
-    gap: clamp(20px, 4vh, 36px);
+    gap: clamp(18px, 3vh, 30px);
     min-height: 0;
   }
 
@@ -2527,7 +2407,6 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 
 @media (prefers-reduced-motion: reduce) {
 
-  .home-avatar,
   .home-btn,
   .home-social {
     transition: none;
@@ -3093,8 +2972,13 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    is a modifier on the address, not a peer destination: one row, one primary
    target, one small secondary control docked to its right.
    ---------------------------------------------------------------------- */
+/* Two columns, one per channel row: the link takes the flexible column and the
+   Copy button the fixed one. A flex row instead sized the phone link - which
+   has no Copy button beside it - to the full width, so the two channels ended
+   at different x positions and read as a misalignment rather than a stack. */
 .contact-primary {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
   gap: 10px;
 }
@@ -4330,7 +4214,6 @@ body.dark-theme .skill-tag.primary .fas {
   position: relative;
 }
 
-.skills-carousel-arrow,
 .skills-carousel-dots {
   display: none;
 }
@@ -4431,51 +4314,6 @@ body.dark-theme .skill-tag.primary .fas {
 
   .skills-carousel.carousel-initialized .skills-grid .skill-group.is-prev:hover {
     transform: translateX(-110%) !important;
-  }
-
-  .skills-carousel-arrow {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    bottom: 8px;
-    top: auto;
-    min-width: var(--min-touch-target);
-    min-height: var(--min-touch-target);
-    width: var(--min-touch-target);
-    height: var(--min-touch-target);
-    padding: 0;
-    border-radius: 50%;
-    background: var(--accent-fill);
-    color: var(--on-accent);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    backdrop-filter: blur(var(--blur-sm));
-    -webkit-backdrop-filter: blur(var(--blur-sm));
-    cursor: pointer;
-    z-index: 5;
-    font-size: var(--text-2xs);
-    line-height: 1;
-    transition:
-      background-color var(--motion-base) var(--ease-standard),
-      transform var(--motion-fast) var(--ease-standard);
-  }
-
-  .skills-carousel-arrow--prev {
-    left: 14px;
-  }
-
-  .skills-carousel-arrow--next {
-    right: 14px;
-  }
-
-  .skills-carousel-arrow:active {
-    background: var(--accent-hover);
-    transform: scale(0.9);
-  }
-
-  .skills-carousel-arrow:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
   }
 
   .skills-carousel-dots {
@@ -4633,87 +4471,6 @@ body.dark-theme .skill-tag.primary .fas {
 }
 
 /* Modal */
-.image-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: hsl(0, 0%, 0%, 0.85);
-  backdrop-filter: blur(var(--blur-sm));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity var(--motion-medium) var(--ease-standard), visibility var(--motion-medium) var(--ease-standard);
-}
-
-.modal-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: var(--bg);
-  color: var(--text);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
-  font-family: inherit;
-  font-size: var(--text-lg);
-  transition: background-color var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard);
-}
-
-.modal-close:hover {
-  background: var(--accent-soft);
-  transform: scale(1.1);
-}
-
-@media (width <=768px) {
-  .modal-close {
-    width: 48px;
-    height: 48px;
-    font-size: var(--text-xl);
-  }
-}
-
-.image-modal .modal-close {
-  background: hsl(0, 0%, 0%, 0.55);
-  color: var(--on-accent-inverse);
-  border-color: hsl(0, 0%, 100%, 0.30);
-}
-
-.image-modal.active {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-}
-
-.modal-content {
-  width: auto;
-  height: auto;
-  max-width: 90vw;
-  max-height: 85vh;
-  object-fit: contain;
-  border-radius: 20px;
-  border: 4px solid var(--accent-fill);
-  box-shadow: 0 10px 40px hsl(0, 0%, 0%, 0.30);
-  transform: scale(0.96);
-  transition: transform var(--motion-medium) var(--ease-enter);
-}
-
-
-.image-modal.active .modal-content {
-  transform: scale(1);
-}
-
 /* PDF viewer dialog.
    Deliberately not rendered inside `#resume .item`: a dialog can size itself
    to the viewport, and mousemove does not cross an iframe boundary, so a
@@ -4925,13 +4682,11 @@ body.dark-theme .skill-tag.primary .fas {
     --header-height: 56px;
     --header-sticky-offset: 10px;
     scroll-padding-top: calc(var(--header-height) + 28px);
-    --mobile-bottom-nav-height: 56px;
-  }
-
-  .hero-title {
-    font-size: var(--text-fluid-3xl);
-    line-height: var(--leading-snug);
-    letter-spacing: var(--tracking-normal);
+    /* 0 while the bar is hidden - see MOBILE BOTTOM NAV. Every consumer of
+       this token (main's bottom padding, #home's block padding,
+       .scroll-to-top's offset) reserves space for a bar that never paints
+       otherwise. Restore to 56px together with the bar itself. */
+    --mobile-bottom-nav-height: 0px;
   }
 
   .section-title,
@@ -4974,15 +4729,46 @@ body.dark-theme .skill-tag.primary .fas {
     gap: 22px;
   }
 
+  /* Three slots: wordmark, navigation control, action icons. On a phone the
+     hamburger IS the navigation, so it gets the centre column, and the two
+     equal `1fr` side tracks centre it against the pill rather than against
+     whatever the two groups happen to measure.
+
+     `1fr` rather than `minmax(0, 1fr)` on purpose: the side tracks bottom out
+     at min-content, so on the narrowest phones - where six 44px action icons
+     already exceed half the pill - the icon row pushes the button off centre
+     instead of overlapping it.
+
+     #nav-menu is `position: fixed` at this width (see below) and so takes no
+     grid slot; above 1150px the header is still the flex row it was and the
+     hamburger is `display: none`. */
   header {
-    padding: 0 6px 0 16px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+
+    /* Symmetric, unlike the desktop pill: the grid centres its middle column
+       against the CONTENT box, so the 16px/6px asymmetry above would land the
+       hamburger 5px right of the pill's true centre. The wordmark keeps that
+       optical inset on itself instead - it is bare text with no icon box of
+       its own, which is what the asymmetry was for. */
+    padding: 0 6px;
     margin: 0 12px;
     border-radius: 999px;
     gap: 2px;
   }
 
   .header-left {
-    margin-right: auto;
+    justify-self: start;
+    padding-left: 10px;
+  }
+
+  .hamburger-btn {
+    justify-self: center;
+  }
+
+  .header-actions {
+    justify-self: end;
   }
 
   header.scrolled {
@@ -5272,14 +5058,6 @@ body.dark-theme .skill-tag.primary .fas {
     align-items: flex-end;
   }
 
-  .modal-content {
-    width: min(100%, 420px);
-  }
-
-  .modal-close {
-    top: 12px;
-    right: 12px;
-  }
 }
 
 /* Tablet-specific improvements */
@@ -5356,10 +5134,6 @@ body.dark-theme .skill-tag.primary .fas {
   .contact-form .floating-label-group textarea {
     padding-top: 26px;
     padding-bottom: 10px;
-  }
-
-  .image-modal {
-    padding: 14px;
   }
 
   #nav-menu,
@@ -5507,8 +5281,6 @@ body.dark-theme .skill-tag.primary .fas {
   }
 
   .js-enabled section.active,
-  .modal-content,
-  .image-modal.active .modal-content,
   .pdf-modal.active .pdf-modal-panel,
   .hero-char {
     animation: none !important;
@@ -5560,7 +5332,6 @@ body.dark-theme .skill-tag.primary .fas {
   .toast-container,
   .header-actions,
   .hamburger-btn,
-  .image-modal,
   .pdf-modal {
     display: none !important;
   }
@@ -5930,7 +5701,13 @@ body.dark-theme .skill-tag.primary .fas {
   outline: none;
 }
 
-#worldcup-link {
+/* Both predictors are hidden rather than deleted: /worldcup and /ucl still
+   build and still answer, and neither has an entry point anywhere else in the
+   UI - no nav-menu row, no dropdown, no command-palette entry - so `display:
+   none` takes them out of the tab order and the accessibility tree too.
+   Deleting either declaration puts the icon back in the header. */
+#worldcup-link,
+#ucl-link {
   display: none !important;
 }
 
@@ -9058,9 +8835,15 @@ body.dark-theme .mobile-bottom-nav {
   box-shadow: 0 -8px 32px 0 rgba(0, 0, 0, 0.4);
 }
 
+/* ── Currently hidden ──
+   The bar is still built on every load by initMobileBottomNav() in
+   js/navigation.js, and every rule in this region is intact: navigation on a
+   phone runs through the centred hamburger instead. Turning it back on is two
+   declarations - `display: flex` here, and --mobile-bottom-nav-height back to
+   56px in the RESPONSIVE region so the reserved space returns with it. */
 @media (width <=1150px) {
   .mobile-bottom-nav {
-    display: flex;
+    display: none;
     justify-content: space-around;
     align-items: center;
   }
@@ -9156,8 +8939,7 @@ body.dark-theme .mobile-bottom-nav {
     padding: 16px;
   }
 
-  #nav-menu a,
-  .connect-link {
+  #nav-menu a {
     padding: 10px 12px;
     min-height: 46px;
     border-radius: 12px;
@@ -9229,13 +9011,6 @@ body.dark-theme .mobile-bottom-nav {
     text-align: center;
     font-size: var(--text-xs);
     gap: 6px;
-  }
-
-  /* Fix name text wrapping and character breaking */
-  .hero-title {
-    font-size: var(--text-fluid-2xl);
-    letter-spacing: var(--tracking-normal);
-    white-space: nowrap;
   }
 
   /* Fix terminal body squished padding */
