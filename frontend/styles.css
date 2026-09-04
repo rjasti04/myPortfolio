@@ -2315,10 +2315,6 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   opacity: 1;
 }
 
-.item:not(.tilt-card):hover {
-  /* transform handled by JS spring in animations.js */
-}
-
 .item-header {
   display: flex;
   justify-content: space-between;
@@ -2391,10 +2387,6 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   margin-inline: auto;
 }
 
-#resume .section-title {
-  margin-bottom: 40px;
-}
-
 /* Where the Resume links now land, so the PDF stays one tap away.
 
    View PDF and Download PDF are a pair, so they are sized as one: equal grid
@@ -2446,17 +2438,23 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 }
 
 #resume .item {
+  /* The accent rail below is inset to match the block padding, so the two
+     have to move together - a literal 24px on the rail stopped tracking the
+     moment the padding became a clamp. */
+  --card-pad-block: clamp(24px, 3vw, 32px);
+  --card-pad-inline: clamp(24px, 3vw, 32px);
   position: relative;
   overflow: hidden;
   margin: 0;
-  padding: clamp(24px, 3vw, 32px);
-  border-radius: 18px;
+  padding: var(--card-pad-block) var(--card-pad-inline);
+  border-radius: var(--radius);
   background: linear-gradient(145deg, color-mix(in srgb, var(--card-bg) 92%, var(--bg)), var(--card-bg));
   box-shadow: var(--elev-3);
+  /* No background-color here: this card paints a gradient, which is a
+     background-IMAGE and does not transition. */
   transition:
     border-color var(--motion-medium) var(--ease-standard),
-    box-shadow var(--motion-medium) var(--ease-standard),
-    background-color var(--motion-medium) var(--ease-standard);
+    box-shadow var(--motion-medium) var(--ease-standard);
 }
 
 #resume .item+.item {
@@ -2466,7 +2464,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 #resume .item::before {
   content: "";
   position: absolute;
-  inset: 24px auto 24px 0;
+  inset: var(--card-pad-block) auto var(--card-pad-block) 0;
   width: 6px;
   border-radius: 999px;
   background: var(--accent-fill);
@@ -2486,10 +2484,6 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 #resume .item:hover::before {
   transform: scaleX(1);
   opacity: 1;
-}
-
-body.dark-theme #resume .item {
-  box-shadow: var(--elev-4);
 }
 
 #resume .item-header {
@@ -2591,6 +2585,7 @@ body.dark-theme #resume .item {
 }
 
 #resume .item-bullets li {
+  max-width: 68ch;
   padding-left: 26px;
   margin: 0;
   color: var(--text);
@@ -2608,11 +2603,41 @@ body.dark-theme #resume .item {
   box-shadow: none;
 }
 
+/* 48 tags in one undifferentiated strip read as a wall, so they are grouped
+   and labelled. The <dl> stacks the groups; each <dd> keeps the flex-wrap row
+   the flat list used to be, so .item-tags span styling carries over. */
 #resume .item-tags {
-  gap: 8px;
+  display: grid;
+  gap: 14px;
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+}
+
+/* Label beside its row, not above it: six stacked labels cost six extra line
+   boxes on a card that is already long. Stacks below 768px, where a label
+   column would leave the pills too narrow. */
+#resume .tag-group {
+  display: grid;
+  grid-template-columns: minmax(0, 120px) 1fr;
+  gap: 8px 16px;
+  align-items: start;
+}
+
+#resume .item-tags dt {
+  padding-top: 6px;
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  font-weight: 800;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+#resume .item-tags dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
 }
 
 #resume .item-tags span {
@@ -2640,8 +2665,9 @@ body.dark-theme #resume .item {
   }
 
   #resume .item {
-    padding: 24px 20px;
-    border-radius: 16px;
+    --card-pad-block: 24px;
+    --card-pad-inline: 20px;
+    border-radius: var(--radius-lg);
   }
 
   #resume .item+.item {
@@ -2657,8 +2683,17 @@ body.dark-theme #resume .item {
   }
 
   #resume .item-tags {
-    flex-wrap: wrap;
+    gap: 12px;
     padding-bottom: 4px;
+  }
+
+  #resume .tag-group {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  #resume .item-tags dt {
+    padding-top: 0;
   }
 
   #resume .item-tags span {
@@ -2678,11 +2713,11 @@ body.dark-theme #resume .item {
 
 @media (width <=480px) {
   #resume .item {
-    padding: 20px 16px;
+    --card-pad-block: 20px;
+    --card-pad-inline: 16px;
   }
 
   #resume .item::before {
-    inset-block: 20px;
     width: 3px;
   }
 }
@@ -4392,9 +4427,10 @@ body.dark-theme .skill-tag.primary .fas {
 }
 
 /* PDF viewer dialog.
-   Deliberately not rendered inside `#resume .item`: that card is a .tilt-card,
-   and mousemove does not cross an iframe boundary, so the tilt would freeze
-   mid-rotation with the pointer inside the viewer. See js/resume-pdf.js. */
+   Deliberately not rendered inside `#resume .item`: a dialog can size itself
+   to the viewport, and mousemove does not cross an iframe boundary, so a
+   viewer embedded in the card would trap any pointer effect on it.
+   See js/resume-pdf.js. */
 .pdf-modal {
   position: fixed;
   inset: 0;
