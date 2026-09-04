@@ -17,6 +17,7 @@ const PRECACHE_URLS = [
   '/manifest.json',
   '/android-chrome-192x192.png',
   '/android-chrome-512x512.png',
+  '/android-chrome-maskable-512x512.png',
   '/profile-pic-160.webp',
   '/js/app-logic.js',
   '/js/main.js',

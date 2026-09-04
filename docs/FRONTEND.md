@@ -56,7 +56,8 @@ before any JavaScript runs.
 
 **Head, in order:** meta CSP → viewport/robots/author/theme-color → Open Graph
 and Twitter cards → canonical → JSON-LD `Person` structured data → icons and
-manifest → `js-enabled` marker script → preloads (`profile-pic-160.webp`,
+manifest → standalone-launch meta and the `apple-touch-startup-image`
+links → `js-enabled` marker script → preloads (`profile-pic-160.webp`,
 `styles.css`) → stylesheets (`styles.css`, `auth-modal.css`, `fonts.css`) →
 two font preloads.
 
@@ -192,7 +193,8 @@ called from `applyTheme` so a light/dark flip re-derives the right variant set.
 
 `name`, `short_name: "RJ"`, `start_url: "/"`, `display: standalone`,
 `background_color: #0a0e14`, `theme_color: #F59E0B`, `orientation: any`, and the
-two `android-chrome-*` icons.
+three `android-chrome-*` icons — the 192 and 512 as `purpose: "any"`, plus
+`android-chrome-maskable-512x512.png` as `purpose: "maskable"`.
 
 `theme_color` matches the light-theme `--accent-fill` and the `<meta
 name="theme-color">` in `index.html`; `applyTheme()` retargets that meta tag per
@@ -202,6 +204,36 @@ theme, but a manifest holds one static value, so it stays on the light accent.
 `--bg`, not the light one, even though the no-JS default is light. A manifest
 supports no media query, so one of the two audiences sees a mismatch either way;
 dark-to-light is the gentler transition, and it costs no runtime machinery.
+
+### Launch screens
+
+`scripts/generate_launch_images.py` generates every asset a *standalone* launch
+needs, all from `assets/master-icon.png` on the manifest `background_color`. None
+of it affects an ordinary browser tab.
+
+| Platform | What it reads | Without the assets |
+| :--- | :--- | :--- |
+| Android / Chrome | `background_color` + the largest manifest icon | The full-bleed square icon has no `maskable` variant, so the launcher plates it and the rounded RJ badge picks up a second, mismatched backdrop |
+| iOS / Safari | `apple-touch-startup-image` only — **not** `background_color` | A blank frame until first paint, so a dark-theme visitor got a white flash and then a dark site |
+
+The launch images are portrait only. Landscape would double a 17-file set for an
+orientation almost nobody starts an installed portfolio in, and a device with no
+matching media query falls back to the same blank frame it had before — the set
+improves the launches it matches and regresses none of the ones it misses.
+
+Only the one image whose media query matches is ever fetched, and only by iOS, so
+the ~764 KB is deploy size rather than visitor bandwidth. The badge is composited
+with a feathered alpha ramp: `master-icon.png` is full-bleed on its own faint
+gradient, which pasted flat reads as a lighter square, and ramping it away also
+roughly halves each file.
+
+Re-run the script after changing `assets/master-icon.png` or `background_color`,
+then re-run `npm run build` — the build content-hashes the PNGs and rewrites the
+references in `index.html` and `manifest.json`.
+
+`index.html` also carries `mobile-web-app-capable` and its `apple-` counterpart:
+Safari needs the legacy name to honour the startup images on older iOS, and Chrome
+warns when only the legacy one is present.
 
 ### `sw.js`
 
@@ -289,6 +321,8 @@ missing, so a failed update is visible but not dangerous.
 | :--- | :--- |
 | `profile-pic-160.{jpg,webp}`, `profile-pic-360.{jpg,webp}`, `profile-pic.{jpeg,webp}` | Three widths × two formats, from `scripts/generate_profile_pics.py` |
 | `android-chrome-192x192.png`, `android-chrome-512x512.png` | PWA icons, generated from `assets/master-icon.png` |
+| `android-chrome-maskable-512x512.png` | The same badge inset into the maskable safe zone, on the manifest `background_color`. **Generated** by `scripts/generate_launch_images.py` — see [Launch screens](#launch-screens) |
+| `launch/launch-<w>x<h>-<dpr>x.png` | 17 portrait `apple-touch-startup-image` bitmaps, one per iOS device resolution. **Generated** by the same script — see [Launch screens](#launch-screens) |
 | `apple-touch-icon.png`, `favicon.ico` | iOS and browser icons |
 | `social-preview.png`, `ucl-preview.png`, `worldcup-preview.png` | The three 1200x630 Open Graph cards, one per shareable page. **Generated** by `scripts/generate_social_previews.py` — see [Open Graph cards](#open-graph-cards) |
 | `rjasti_resume.pdf` | Downloadable résumé (the doubled extension is the actual filename) |
