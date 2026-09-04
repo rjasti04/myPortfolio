@@ -42,6 +42,11 @@
   --card-bg: var(--surface);
   --skill-bg: hsl(38, 40%, 97%, 0.85);
   --header-height: 72px;
+  /* How far the sticky header floats below the top of the scrollport. It is
+     read back by the #home centring rules, which have to add it to main's
+     padding: the header paints this much lower than the flow box main starts
+     after, so without it the hero sits that much too high. */
+  --header-sticky-offset: 16px;
   scroll-padding-top: calc(var(--header-height) + 24px);
   --radius: var(--radius-xl);
   --select-bg: #fff;
@@ -624,7 +629,7 @@ body:not(.dark-theme) .webgl-canvas {
 /* Header & Nav */
 header {
   position: sticky;
-  top: 16px;
+  top: var(--header-sticky-offset);
   /* Match main's content column exactly: main is min(1280px, 100%) with
      clamp(14px, 4vw, 56px) inline padding. Percentage margins previously
      left the header 325px wider than the content on each side at 1920px. */
@@ -632,7 +637,11 @@ header {
   margin-inline: auto;
   border-radius: 999px;
   height: var(--header-height);
-  padding: 0 8px;
+  /* Asymmetric on purpose. The action icons on the right are 44px circles
+     whose glyphs already sit ~12px inside their own box, so 8px of shell
+     padding reads as generous there. The wordmark has no such box - "RJ" is
+     bare text - so the same 8px put it hard against the pill's border. */
+  padding: 0 8px 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1843,7 +1852,7 @@ main {
 
 /* Hide floating chat toggle on the About page to avoid duplication.
    #home is listed for a different reason: its stack is short and fixed, so on a
-   320x720 viewport the fixed button lands on top of the "Contact Info" pill -
+   320x720 viewport the fixed button lands on top of the "Contact" pill -
    measured overlap, not a near miss - and the landing is meant to carry the
    four controls in the layout and nothing else. AI stays one tap away in both
    navs. Drop the #home half of this selector to put the button back. */
@@ -2229,6 +2238,56 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   padding: clamp(8px, 3vh, 40px) 0;
 }
 
+/* ── Vertical centring ──
+   The landing view is deliberately short, so it belongs in the middle of the
+   free space rather than pinned under the header with a screen of dead air
+   below it - main carries a 40px bottom padding on desktop and
+   `bottom-nav + 120px` on a phone, against ~30px on top.
+
+   main is already `flex: 1` inside .layout's 100vh column, so making it a
+   flex parent and giving #home `flex: 1` hands the section exactly the height
+   between the header and the bottom of the viewport. The two paddings below
+   are what make the air EQUAL rather than merely centred: the header is
+   `position: sticky; top: var(--header-sticky-offset)`, so it paints that
+   much lower than the flow box main starts after, and the mobile bar is
+   `position: fixed` over the last --mobile-bottom-nav-height of the viewport.
+   Neither is inside main's box, so each is added back here.
+
+   Scoped to .js-enabled because #home keeps its `active` class in the markup:
+   without JS every section renders stacked, and an unscoped :has() would
+   match that one-page fallback too. */
+.js-enabled main:has(> #home.active) {
+  display: flex;
+  flex-direction: column;
+  padding-block: 0;
+}
+
+/* Also declared in the SECTION ROUTER region, which suppresses the entrance
+   animation for this section - change both. */
+.js-enabled #home.active {
+  --home-shell-gap: clamp(20px, 4vh, 44px);
+
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding-block: calc(var(--header-sticky-offset, 16px) + var(--home-shell-gap)) var(--home-shell-gap);
+}
+
+@media (width <=1150px) {
+  .js-enabled #home.active {
+    padding-bottom: calc(var(--home-shell-gap) + var(--mobile-bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* The section supplies the height now; the hero's own min-height and block
+   padding would add to it and push the pair back into a scroll. */
+.js-enabled #home.active .home-hero {
+  width: 100%;
+  min-height: 0;
+  padding-block: 0;
+}
+
 .home-avatar {
   justify-self: end;
 }
@@ -2338,6 +2397,13 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
      latter and stays the larger of the two at every step of the type ramp. */
   min-height: 44px;
   padding: 12px 30px;
+
+  /* Content sizing gave the pair two different pills - "Resume" is a
+     narrower word than "Contact", so the outline half came out ~14px short
+     of the solid one and the row read as a mistake. A shared floor makes
+     them identical while the padding above still sets the height; the wider
+     label sets the width for both, so neither is clipped. */
+  min-width: 168px;
   border-radius: var(--radius-full);
   border: 2px solid var(--accent-fill);
   font-size: var(--text-base);
@@ -2449,8 +2515,9 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 
 @media (width <=380px) {
 
-  /* Both buttons on one row leaves ~130px each at this width, which clips
-     "Contact Info". One per row, full width, reads as a deliberate stack. */
+  /* Both buttons on one row leaves ~130px each at this width, well under the
+     168px floor the pair now shares. One per row, full width, reads as a
+     deliberate stack rather than as two squeezed pills. */
   .home-actions {
     width: 100%;
     flex-direction: column;
@@ -4856,8 +4923,9 @@ body.dark-theme .skill-tag.primary .fas {
 @media (width <=1150px) {
   :root {
     --header-height: 56px;
+    --header-sticky-offset: 10px;
     scroll-padding-top: calc(var(--header-height) + 28px);
-    --mobile-bottom-nav-height: 64px;
+    --mobile-bottom-nav-height: 56px;
   }
 
   .hero-title {
@@ -4907,8 +4975,7 @@ body.dark-theme .skill-tag.primary .fas {
   }
 
   header {
-    padding: 0 6px;
-    top: 10px;
+    padding: 0 6px 0 16px;
     margin: 0 12px;
     border-radius: 999px;
     gap: 2px;
@@ -8943,7 +9010,7 @@ body.dark-theme .ai-input-container {
 
 @media (width <=1150px) {
   .scroll-to-top {
-    bottom: calc(var(--mobile-bottom-nav-height, 64px) + 20px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--mobile-bottom-nav-height, 56px) + 20px + env(safe-area-inset-bottom, 0px));
     left: calc(20px + env(safe-area-inset-left, 0px));
     right: auto;
     width: 46px;
@@ -8956,18 +9023,25 @@ body.dark-theme .ai-input-container {
 /* #region MOBILE BOTTOM NAV & MOBILE FIXES ----------------------------*/
 /* Mobile Bottom Navigation */
 .mobile-bottom-nav {
+  /* Idle glyphs are the header's action-icon colour, so the two bars agree on
+     what an untapped icon looks like. The current section drops to the
+     theme's plain ink - black on light, white on dark - which reads as "you
+     are here" instead of as an eighth accent glyph in a row of seven. */
+  --bottom-nav-idle: var(--accent-text);
+  --bottom-nav-active: #000;
+
   display: none;
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: var(--mobile-bottom-nav-height, 64px);
+  height: var(--mobile-bottom-nav-height, 56px);
   background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(var(--blur-md)) saturate(180%);
   -webkit-backdrop-filter: blur(var(--blur-md)) saturate(180%);
   border-top: 1px solid rgba(255, 255, 255, 0.35);
   z-index: 1000;
-  padding: 8px 0;
+  padding: 6px 0;
   box-shadow: 0 -8px 32px 0 rgba(0, 0, 0, 0.08);
   transition:
     transform var(--motion-base) var(--ease-standard),
@@ -8977,6 +9051,8 @@ body.dark-theme .ai-input-container {
 }
 
 body.dark-theme .mobile-bottom-nav {
+  --bottom-nav-active: #fff;
+
   background: rgba(15, 23, 42, 0.78);
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 -8px 32px 0 rgba(0, 0, 0, 0.4);
@@ -8990,7 +9066,7 @@ body.dark-theme .mobile-bottom-nav {
   }
 
   main {
-    padding-bottom: calc(var(--mobile-bottom-nav-height, 64px) + 120px);
+    padding-bottom: calc(var(--mobile-bottom-nav-height, 56px) + 120px);
   }
 }
 
@@ -8999,24 +9075,31 @@ body.dark-theme .mobile-bottom-nav {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
 
   /* `flex: 1` alone sizes from content, so a long label like "Activity" stole
      width from its neighbours and the narrowest target came out 36px at 320px.
      A zero basis with min-width: 0 divides the bar evenly instead. */
   flex: 1 1 0;
   min-width: 0;
-  padding: 8px 4px;
+  padding: 6px 4px;
 
-  /* The bar is 64px tall but its items are sized by their content, so each tap
-     target came out 38px high - inside WCAG 2.2 SC 2.5.8's 24px floor, but
-     under the 44px both Apple's and Google's guidance ask for. Stretching them
-     to fill the bar costs no layout and takes the target to 48px. */
+  /* The bar's items are sized by their content, so each tap target came out
+     38px high - inside WCAG 2.2 SC 2.5.8's 24px floor, but under the 44px
+     both Apple's and Google's guidance ask for. Stretching them to fill the
+     bar costs no layout, and the 56px bar less its 6px block padding lands
+     the target on exactly the 44px minimum. */
   align-self: stretch;
   min-height: 44px;
-  color: var(--muted);
+  color: var(--bottom-nav-idle);
   text-decoration: none;
-  font-size: var(--text-xl);
+
+  /* Seven columns of 20px glyphs over a 64px bar left the row looking packed.
+     One step down the ramp (16px) plus the tighter gap and the 1.0 leading
+     below stacks glyph and label in 28px, which clears the 44px tap target
+     the padding still guarantees. */
+  font-size: var(--text-base);
+  line-height: 1;
   transition:
     color var(--motion-base) var(--ease-standard),
     transform var(--motion-fast) var(--ease-standard);
@@ -9024,7 +9107,7 @@ body.dark-theme .mobile-bottom-nav {
 }
 
 .mobile-bottom-nav a.active {
-  color: var(--accent-text);
+  color: var(--bottom-nav-active);
 }
 
 .mobile-bottom-nav a:active {
@@ -9032,23 +9115,24 @@ body.dark-theme .mobile-bottom-nav {
 }
 
 .mobile-bottom-nav-label {
-  font-size: var(--text-2xs);
+  font-size: 0.625rem;
   font-weight: 600;
+  line-height: 1;
   letter-spacing: var(--tracking-wide);
 }
 
-/* Seven entries divide a 320px bar into 45px columns, or 37px of content box
-   once padding is taken - under the ~48px "Activity" needs at the default
-   label size, so it wrapped and pushed the icons off-centre. Dropping the ramp
-   and the tracking fits the longest label with 2px to spare. The row stays a
-   44px-high tap target; only the type shrinks. */
+/* Seven entries divide a 320px bar into 45px columns, or 41px of content box
+   once padding is taken - under the ~46px "Activity" needs even at the 10px
+   baseline above, so it wrapped and pushed the icons off-centre. One more
+   step down plus dropping the tracking fits the longest label with room to
+   spare. The row stays a 44px-high tap target; only the type shrinks. */
 @media (width <=380px) {
   .mobile-bottom-nav a {
-    padding: 8px 2px;
+    padding: 6px 2px;
   }
 
   .mobile-bottom-nav-label {
-    font-size: 0.625rem;
+    font-size: 0.5625rem;
     letter-spacing: normal;
   }
 }
