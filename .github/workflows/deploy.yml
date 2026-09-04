@@ -16,7 +16,15 @@ jobs:
   frontend-check:
     name: Frontend Lint & Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 20, not 10. Every step here finishes in seconds except `npm ci`, which is
+    # bounded by registry throughput rather than by anything in this repository:
+    # it took 2m09s on the run before this budget was written and 7m01s on two
+    # consecutive attempts an hour later, from an unchanged lockfile and so an
+    # identical cache key. At 10 minutes that variance alone cancelled the job -
+    # and a cancelled quality gate skips the deploy, so a slow registry silently
+    # cost a release. The timeout is here to catch a hang, not to hold npm to a
+    # schedule it does not control.
+    timeout-minutes: 20
     # Superseded runs on the same branch are cancelled. Safe here, unlike the
     # deploy job, because nothing these jobs do is stateful.
     concurrency:
@@ -60,9 +68,27 @@ jobs:
       # (postcss, ws, via stylelint and jsdom). Not blocking, because a
       # transitive dev advisory should not stop a portfolio deploy, but it has
       # to be visible rather than silently unrun.
+      #
+      # Bounded independently of the job. This step is the last one to run, so
+      # whenever the job overran it was the step holding the clock when the
+      # deadline arrived - reported as "The operation was canceled" under `npm
+      # audit`, which reads like an audit failure and is not one. `npm audit`
+      # reaches the registry's advisory endpoint and, when that endpoint is
+      # slow, sits through npm's own retry budget - 300s per attempt over two
+      # retries by default, so roughly a quarter of an hour on a job that had
+      # ten minutes. Cut to 60s over one retry it gives up in 2m00s, measured
+      # against an endpoint that never answers, well inside the 3-minute cap
+      # below. A step timeout is a step failure, which
+      # continue-on-error already absorbs: an unreachable advisory endpoint now
+      # leaves a red-x annotation on an otherwise green job instead of taking
+      # the deploy down with it.
       - name: Audit npm Dependencies
         run: npm run audit
         continue-on-error: true
+        timeout-minutes: 3
+        env:
+          npm_config_fetch_timeout: '60000'
+          npm_config_fetch_retries: '1'
 
   # ─── 2. BACKEND QUALITY GATE ──────────────────────────────────────────
   backend-check:
