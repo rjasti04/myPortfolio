@@ -18,7 +18,7 @@ const PRECACHE_URLS = [
   '/android-chrome-192x192.png',
   '/android-chrome-512x512.png',
   '/android-chrome-maskable-512x512.png',
-  '/profile-pic-160.webp',
+  '/profile-pic-360.webp',
   '/js/app-logic.js',
   '/js/main.js',
   '/js/auth.js',

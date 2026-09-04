@@ -162,7 +162,6 @@
   <script>
     document.documentElement.classList.add("js-enabled");
   </script>
-  <link rel="preload" href="profile-pic-160.webp" as="image" type="image/webp" />
   <link rel="preload" href="profile-pic-360.webp" as="image" type="image/webp" />
   <link rel="preload" href="styles.css" as="style" />
   <link rel="stylesheet" href="styles.css" />
@@ -273,15 +272,6 @@
   <div class="layout">
     <header id="header">
       <div class="header-left">
-        <a href="profile-pic.jpeg" target="_blank" rel="noopener noreferrer" class="profile-trigger"
-          id="profile-trigger" aria-label="Open profile photo">
-          <picture>
-            <source srcset="profile-pic-160.webp 160w, profile-pic-360.webp 360w" sizes="80px" type="image/webp" />
-            <img src="profile-pic-160.jpg" srcset="profile-pic-160.jpg 160w, profile-pic-360.jpg 360w" sizes="80px"
-              alt="Rajeev Jasti" class="profile-pic-small" fetchpriority="high" loading="eager" width="44"
-              height="44" />
-          </picture>
-        </a>
         <a href="#home" class="logo-text" id="logo-home-link" data-target="home"
           aria-label="Rajeev Jasti - Home">RJ</a>
       </div>
@@ -510,7 +500,8 @@
            #about, one click away. -->
       <section id="home" class="active">
         <div class="home-hero">
-          <div class="home-avatar">
+          <a href="profile-pic.jpeg" target="_blank" rel="noopener noreferrer" class="home-avatar"
+            id="profile-trigger" aria-label="Open profile photo">
             <picture>
               <source
                 srcset="profile-pic-360.webp 360w, profile-pic.webp 725w"
@@ -520,7 +511,7 @@
                 alt="Rajeev Jasti" class="home-avatar-img" width="340" height="340" fetchpriority="high"
                 loading="eager" />
             </picture>
-          </div>
+          </a>
 
           <div class="home-intro">
             <p class="home-greeting">Hello, I&#39;m</p>

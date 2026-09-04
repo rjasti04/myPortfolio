@@ -669,11 +669,6 @@ header.scrolled {
   border-color: rgba(255, 255, 255, 0.6);
 }
 
-header.scrolled .profile-pic-small {
-  width: 38px;
-  height: 38px;
-}
-
 body.dark-theme header {
   background: rgba(15, 23, 42, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -696,40 +691,6 @@ body.dark-theme header.scrolled {
   text-decoration: none;
   flex-shrink: 0;
   white-space: nowrap;
-}
-
-.profile-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--min-touch-target);
-  min-height: var(--min-touch-target);
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  text-decoration: none;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.profile-pic-small {
-  display: block;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 2px solid var(--accent-text);
-  object-fit: cover;
-  object-position: center 20%;
-  flex-shrink: 0;
-  transition:
-    transform var(--motion-medium) var(--ease-enter),
-    box-shadow var(--motion-medium) var(--ease-standard);
-}
-
-.profile-trigger:hover .profile-pic-small {
-  transform: scale(1.08);
-  box-shadow: none;
 }
 
 /* The action group carries no pill chrome of its own at any width. Its 999px
@@ -1115,7 +1076,6 @@ body.dark-theme .connect-link .connect-icon {
 
 #nav-menu a:focus-visible,
 .header-left:focus-visible,
-.profile-trigger:focus-visible,
 .logo-text:focus-visible,
 #theme-toggle:focus-visible,
 #palette-toggle:focus-visible,
@@ -1151,7 +1111,6 @@ body.dark-theme .connect-link .connect-icon {
 
   #nav-menu a:focus-visible,
   .header-left:focus-visible,
-  .profile-trigger:focus-visible,
   .logo-text:focus-visible,
   #theme-toggle:focus-visible,
   #palette-toggle:focus-visible,
@@ -2283,9 +2242,31 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   height: auto;
   aspect-ratio: 1;
   object-fit: cover;
+
+  /* The source is a 725x1030 portrait, so squaring it discards 14% of the
+     height at each end. Centred, the top edge lands mid-hair. Biasing the
+     window upward puts the crop at 22% of the surplus instead, which clears
+     the crown with room to spare and still holds the collar. */
+  object-position: 50% 22%;
   border-radius: 50%;
   background: var(--surface-soft);
   box-shadow: var(--elev-3);
+}
+
+.home-avatar {
+  display: block;
+  border-radius: 50%;
+  text-decoration: none;
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+
+.home-avatar:hover .home-avatar-img {
+  box-shadow: var(--glow-md);
+}
+
+.home-avatar:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 6px;
 }
 
 .home-intro {
@@ -2297,32 +2278,47 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   min-width: 0;
 }
 
+/* Same treatment as `.hero-subtitle` in #about - the site's eyebrow is an
+   uppercase accent-gradient line, not sentence-case grey. */
 .home-greeting {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--text-fluid-lg);
-  font-weight: 600;
-  letter-spacing: var(--tracking-wide);
+  margin: 0 0 4px;
+  font-size: var(--text-body-xs);
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  background: linear-gradient(135deg, var(--accent-text) 0%, var(--secondary-text) 100%);
+  background-size: 200% 200%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .home-name {
   margin: 0;
+  /* `.hero-title`'s metrics. The class itself is not reused: hero-title.js
+     takes the first `#hero-title, .hero-title` match, and #home precedes
+     #about in the DOM, so sharing it would move the 3D entrance off About's
+     name instead of adding one here. */
   font-size: var(--text-hero);
   font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-normal);
   color: var(--text);
 
   /* Long enough to overflow the column at 320px if it cannot break. */
   overflow-wrap: anywhere;
 }
 
+/* `.hero-kicker`'s weight, tracking and colour, one step up the ramp so it
+   still reads as the mock's second line. */
 .home-role {
   margin: 0 0 clamp(16px, 3vh, 28px);
-  color: var(--muted);
-  font-size: var(--text-fluid-2xl);
+  color: var(--secondary-text);
+  font-size: var(--text-fluid-xl);
   font-weight: 700;
-  line-height: 1.2;
+  letter-spacing: var(--tracking-wide);
+  line-height: var(--leading-snug);
 }
 
 /* ── Actions ── */
@@ -2343,7 +2339,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   min-height: 44px;
   padding: 12px 30px;
   border-radius: var(--radius-full);
-  border: 2px solid var(--text);
+  border: 2px solid var(--accent-fill);
   font-size: var(--text-base);
   font-weight: 700;
   line-height: 1;
@@ -2357,27 +2353,25 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
     transform var(--motion-base) var(--ease-standard);
 }
 
+/* Matches `.btn.btn-outline`. */
 .home-btn--outline {
   background: transparent;
-  color: var(--text);
+  color: var(--accent-text);
 }
 
-/* Filled with the theme's foreground, so the pair reads as outline + solid in
-   both themes. The label is a literal rather than a surface token because
-   `--surface`/`--card-bg` are translucent and would show the page through it. */
+/* Matches `.hero-buttons .btn`: the flat accent face, not the gradient the
+   bare `.btn` carries. Keeps the mock's emphasis - Contact Info is the filled
+   half of the pair - in the site's palette. */
 .home-btn--solid {
-  background: var(--text);
-  color: #fff;
-}
-
-body.dark-theme .home-btn--solid {
-  color: #0f172a;
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  box-shadow: var(--glow-md);
 }
 
 .home-btn:hover {
-  background: var(--accent-fill);
-  border-color: var(--accent-fill);
-  color: var(--on-accent);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--on-accent-inverse);
   box-shadow: var(--glow-md);
   transform: translateY(-2px);
 }
@@ -2399,6 +2393,8 @@ body.dark-theme .home-btn--solid {
   margin-top: clamp(16px, 3vh, 26px);
 }
 
+/* Outlined rather than filled: two more solid accent discs directly under an
+   accent pill made the column read as one amber block. */
 .home-social {
   display: inline-flex;
   align-items: center;
@@ -2406,19 +2402,16 @@ body.dark-theme .home-btn--solid {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--text);
-  color: #fff;
-  font-size: var(--text-xl);
+  background: transparent;
+  border: 2px solid var(--accent-fill);
+  color: var(--accent-text);
+  font-size: var(--text-lg);
   text-decoration: none;
   transition:
     background-color var(--motion-base) var(--ease-standard),
     color var(--motion-base) var(--ease-standard),
     box-shadow var(--motion-base) var(--ease-standard),
     transform var(--motion-base) var(--ease-standard);
-}
-
-body.dark-theme .home-social {
-  color: #0f172a;
 }
 
 .home-social:hover {
@@ -2467,6 +2460,7 @@ body.dark-theme .home-social {
 
 @media (prefers-reduced-motion: reduce) {
 
+  .home-avatar,
   .home-btn,
   .home-social {
     transition: none;
@@ -5234,11 +5228,6 @@ body.dark-theme .skill-tag.primary .fas {
     gap: 8px;
   }
 
-  .profile-pic-small {
-    width: 38px;
-    height: 38px;
-  }
-
   .logo-text {
     font-size: var(--text-2xl);
     font-weight: 800;
@@ -5331,16 +5320,12 @@ body.dark-theme .skill-tag.primary .fas {
     gap: 6px;
   }
 
-  .profile-pic-small {
-    width: 34px;
-    height: 34px;
-  }
-
-  /* Last slack in a 320-375px pill. Five 44px icons plus the 44px avatar
-     leave no room for the wordmark, and it is decoration here - the bottom
-     nav carries Home on every phone (the avatar link opens the photo). */
+  /* The wordmark used to be hidden at this tier to make room for the 44px
+     header portrait. With the portrait gone it is the only thing left in the
+     slot, so it stays and gives back the last few pixels by stepping down the
+     ramp instead - enough to clear the action row at 320px. */
   .logo-text {
-    display: none;
+    font-size: var(--text-xl);
   }
 
   #nav-menu,
@@ -5831,7 +5816,6 @@ body.dark-theme .skill-tag.primary .fas {
 }
 
 .header-left,
-.profile-trigger,
 .logo-text {
   text-decoration: none;
 }
