@@ -439,10 +439,17 @@
     </header>
 
     <main id="main-content">
-      <!-- Landing view. Deliberately short - avatar, name, the two routes into
-           the site, and the two profiles worth linking. Everything that used to
-           greet a visitor (intro copy, terminal, stats, skills) still lives in
-           #about, one click away. -->
+      <!-- Landing view. Deliberately short - avatar, name, the three routes into
+           the site, and the icon row. Everything that used to greet a visitor
+           (intro copy, terminal, stats, skills) still lives in #about, which is
+           why About leads the button row: this view is the door, not the
+           welcome.
+
+           The icon row is not purely outbound. Email, LinkedIn and GitHub leave
+           the site; the robot is an in-site shortcut to #ai. It carries
+           `nav-cta` + `data-target` so navigation.js routes it instead of
+           letting the hash reload the view, and its label says where it goes
+           rather than "opens in a new tab". -->
       <section id="home" class="active">
         <div class="home-hero">
           <div class="home-avatar">
@@ -463,6 +470,9 @@
             <p class="home-role">Principal Data Engineer</p>
 
             <div class="home-actions">
+              <a href="#about" data-target="about" class="nav-cta home-btn home-btn--outline" data-spring-hover>
+                About
+              </a>
               <a href="#resume" data-target="resume" class="nav-cta home-btn home-btn--outline" data-spring-hover>
                 Resume
               </a>
@@ -483,6 +493,9 @@
               <a href="https://github.com/rjasti04" target="_blank" rel="noopener noreferrer" class="home-social"
                 aria-label="GitHub profile (opens in a new tab)">
                 <i class="fab fa-github" aria-hidden="true"></i>
+              </a>
+              <a href="#ai" data-target="ai" class="home-social nav-cta" aria-label="Ask my AI assistant">
+                <i class="fas fa-robot" aria-hidden="true"></i>
               </a>
             </div>
           </div>

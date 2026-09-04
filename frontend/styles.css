@@ -2079,9 +2079,10 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 /* #endregion */
 
 /* #region HOME HERO ---------------------------------------------------*/
-/* The landing view: portrait, name, and two routes into the site. It shares no
-   rules with `.hero` in #about - that one is a two-column grid built around the
-   terminal panel, and every metric in it is tuned to that panel's height. */
+/* The landing view: portrait, name, three routes into the site, and an icon
+   row. It shares no rules with `.hero` in #about - that one is a two-column
+   grid built around the terminal panel, and every metric in it is tuned to
+   that panel's height. */
 .home-hero {
   display: grid;
 
@@ -2278,11 +2279,11 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   min-height: 44px;
   padding: 12px 30px;
 
-  /* Content sizing gave the pair two different pills - "Resume" is a
-     narrower word than "Contact", so the outline half came out ~14px short
-     of the solid one and the row read as a mistake. A shared floor makes
-     them identical while the padding above still sets the height; the wider
-     label sets the width for both, so neither is clipped. */
+  /* Content sizing gave the row three different pills - "About" and "Resume"
+     are narrower words than "Contact", so they came out short of the solid
+     one and the row read as a mistake. A shared floor makes them identical
+     while the padding above still sets the height; the widest label sets the
+     width for all three, so none is clipped. */
   min-width: 168px;
   border-radius: var(--radius-full);
   border: 2px solid var(--accent-fill);
@@ -2393,15 +2394,32 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   }
 }
 
-@media (width <=380px) {
+/* ── Three-pill row, narrowing ──
+   Three buttons at the 168px floor need 528px of row. Below that the flex row
+   wraps 2+1, which reads as a mistake rather than as a stack - the worst of
+   both layouts. Trimming the floor and the inline padding holds all three on
+   one line for another ~90px; 140px still clears "Contact" at this type size
+   by ~15px, so nothing is clipped. */
+@media (width <=560px) {
+  .home-btn {
+    min-width: 140px;
+    padding: 12px 20px;
+  }
+}
 
-  /* Both buttons on one row leaves ~130px each at this width, well under the
-     168px floor the pair now shares. One per row, full width, reads as a
-     deliberate stack rather than as two squeezed pills. */
+/* Past here even the trimmed floor breaks the row, so stop defending it: one
+   per row, full width, which reads as a deliberate stack. The padding goes
+   back because width is no longer the constraint. Was <=380px when the row
+   held two. */
+@media (width <=500px) {
   .home-actions {
     width: 100%;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .home-btn {
+    padding: 12px 30px;
   }
 }
 
