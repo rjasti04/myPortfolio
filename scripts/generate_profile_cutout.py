@@ -63,9 +63,15 @@ CONTAMINATED_ALPHA = 0.55
 # off the container rather than float a severed torso.
 MARGIN_PX = 6
 
+# 380 and 760 are the 1x and 2x of the portrait's old 380px cap. 1111 is the
+# matte's own width - the landing portrait renders up to 570px now, so a 2x
+# screen wants 1140w and there is no more master than this. Asking for more
+# would upscale, which is why the ladder stops on an odd number rather than a
+# round one.
 VARIANTS = [
     {"width": 380, "png_name": "profile-cutout-380.png", "webp_name": "profile-cutout-380.webp"},
     {"width": 760, "png_name": "profile-cutout.png", "webp_name": "profile-cutout.webp"},
+    {"width": 1111, "png_name": "profile-cutout-1111.png", "webp_name": "profile-cutout-1111.webp"},
 ]
 
 # Lossy WebP with alpha. 84 is where the lapel weave stops visibly blocking on

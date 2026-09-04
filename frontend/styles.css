@@ -243,6 +243,8 @@ body.dark-theme {
   --accent-hover: hsl(38, 92%, 45%);
   --accent-soft: hsla(38, 92%, 55%, 0.20);
   --accent-mild: hsla(38, 92%, 55%, 0.58);
+  /* 9.12:1 on this ground - see the note on body's declaration. */
+  --control-accent-border: var(--accent-fill);
   --secondary-text: hsl(68, 100%, 45%);
   --data-text: hsl(45, 100%, 50%);
   --color-success: #34d399;
@@ -290,6 +292,17 @@ body {
      under the 3:1 WCAG 1.4.11 requires. --accent-text measures 5.17:1 light
      and 9.59:1 dark. */
   --focus-ring: var(--accent-text);
+
+  /* The edge of an outline control - the .home-* pills and icon discs, whose
+     border IS the affordance since they have no fill to read instead.
+     Measured against the light page ground --accent-fill is 1.94:1, under the
+     3:1 WCAG 2.2 SC 1.4.11 requires of a control's visual boundary;
+     --accent-text is 4.93:1. On the dark ground the fill is already 9.12:1
+     and is the warmer edge, so the two themes diverge rather than share one
+     value. Resolved on body for the same substitution reason as --focus-ring:
+     both source tokens are overridden on body.dark-theme and written to
+     body.style by the theme customiser. */
+  --control-accent-border: var(--accent-text);
 
   /* Accent aliases, resolved here for the same reason as --focus-ring above.
      On :root they substituted the light amber once and never tracked
@@ -1550,11 +1563,28 @@ main {
   width: 0.32em;
 }
 
+/* ── Colour ──
+   `color: inherit`, so the tokenised title paints in whatever ink its host
+   element declares - `.home-name` says var(--text).
+
+   This carried its own `background-clip: text` accent gradient until it was
+   measured. Three things were wrong with it. It overrode `.home-name`'s
+   `color` completely, so the rule that looks like it sets the name's colour
+   never painted. It measured 4.48-5.00:1 against the light ground where ink
+   is ~15:1. And because the background is per-SPAN, the whole amber-olive-gold
+   ramp replayed inside every letter instead of running across the word, so
+   adjacent glyphs disagreed in hue.
+
+   It also put a second accent-gradient line directly above `.home-role` -
+   the exact flattening `.home-greeting` was demoted to muted ink to avoid.
+   Exactly one line on the landing view is in accent again, and it is the one
+   that says what the work is.
+
+   The amber drop-shadow stays: on ink it reads as a warm bloom rather than as
+   the glyph's own colour, and it is what lifts the name off the dark ground. */
 .hero-char {
   display: inline-block;
   position: relative;
-  cursor: pointer;
-  user-select: none;
   text-align: center;
   transform-style: preserve-3d;
   transform-origin: 50% 90%;
@@ -1564,13 +1594,7 @@ main {
   overflow: visible;
   opacity: 0;
   will-change: transform, filter, opacity;
-  background: linear-gradient(135deg, var(--accent-text) 0%, var(--secondary-text) 50%, var(--data-text) 100%);
-  background-size: 200% 200%;
-  animation: gradient-shift 1.2s var(--ease-enter) 1 both;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+  color: inherit;
   filter: drop-shadow(0 0 18px var(--accent-soft));
   transition:
     transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2),
@@ -1578,18 +1602,19 @@ main {
 }
 
 .hero-char.kinetic-entering {
-  animation:
-    kinetic-optical-rollup 0.78s cubic-bezier(0.16, 1.08, 0.38, 1.02) both,
-    gradient-shift 1.2s var(--ease-enter) 1 both;
-  animation-delay: var(--stagger-delay, 0ms), 0ms;
+  animation: kinetic-optical-rollup 0.78s cubic-bezier(0.16, 1.08, 0.38, 1.02) both;
+  animation-delay: var(--stagger-delay, 0ms);
 }
 
+/* The entrance is over by the time this lands, so the promotion hint goes
+   with it - `will-change: transform` here held 11 composited layers on the
+   landing view for an animation that had already finished. The tilt on hover
+   is pointer-driven and rare; it does not need a standing layer. */
 .hero-char.kinetic-settled {
   opacity: 1;
   transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg);
   filter: drop-shadow(0 0 18px var(--accent-soft));
-  animation: gradient-shift 1.2s var(--ease-enter) 1 both;
-  will-change: transform;
+  will-change: auto;
 }
 
 .hero-char.is-hovered {
@@ -2079,10 +2104,10 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 /* #endregion */
 
 /* #region HOME HERO ---------------------------------------------------*/
-/* The landing view: portrait, name, three routes into the site, and an icon
-   row. It shares no rules with `.hero` in #about - that one is a two-column
-   grid built around the terminal panel, and every metric in it is tuned to
-   that panel's height. */
+/* The landing view: portrait, name, two buttons into the site, and an icon row
+   carrying two more routes plus the outbound profiles. It shares no rules with
+   `.hero` in #about - that one is a two-column grid built around the terminal
+   panel, and every metric in it is tuned to that panel's height. */
 .home-hero {
   display: grid;
 
@@ -2165,73 +2190,44 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    carries no hover glow, no focus ring and nothing in the tab order. */
 .home-portrait {
   position: relative;
-  justify-self: end;
 
   /* Sized here rather than on the `width`/`height` attributes so the portrait
      tracks the viewport; the attributes stay on the element to reserve the
      aspect ratio before the image decodes. A step wider than the circle it
      replaces - a silhouette occupies far less of its box than a filled disc,
-     so at the old 340px cap the head read a size smaller than the name. */
-  width: clamp(250px, 27vw, 380px);
+     so at the old 340px cap the head read a size smaller than the name.
 
-  /* Pins the wash to this element. It is `z-index: -1`, which without a
-     stacking context here resolves against whichever ancestor happens to make
-     one - today the section the router animates, which is why it still paints.
-     That is a coincidence, not a contract: drop the section's transform and
-     the wash sinks behind --bg-gradient with nothing here to say why. */
-  isolation: isolate;
+     Half again as wide as that step: the two-column landing view has the
+     vertical room for it at every desktop height tested down to 700px, and a
+     cutout this size is the page's subject rather than an illustration beside
+     the name. 570px against the intro column's ~390px is the whole point -
+     the portrait leads and the type answers it. The phone cap below does NOT
+     scale with this; see the note there. */
+  width: clamp(375px, 40.5vw, 570px);
 }
 
-/* ── The light behind ──
-   A wash, not a shape. The gradient holds its colour flat across the core and
-   then falls to transparent well inside its own box, so there is no edge
-   anywhere for the eye to read as a second object sitting behind the first.
+/* ── No wash behind the silhouette ──
+   A radial `::before` used to lay a plateau of accent light behind the cutout,
+   inset past it on three sides, so the subject did not read as pasted onto the
+   gradient. It is gone. On the light ground it read as a warm stain sitting
+   behind him rather than as light - the exact failure a wash with no edge is
+   meant to avoid - and it scaled with the portrait, so it got worse here.
 
-   That is why there is no `border-radius` and no `blur()` here: a shape
-   softened by a large blur still has a boundary, only an indistinct one, and
-   it costs a filter pass to get there. This has no boundary to soften.
+   The note it replaces claimed the wash was most of what lifted near-black
+   hair off a near-black background on the dark theme. Measured at 1440x900
+   with the plexus canvas hidden, so the page's own gradient is the only ground
+   - sampling the hairline every 3px down the top 40% of the silhouette:
 
-   The plateau is load-bearing. A radial gradient that starts falling off at
-   its centre concentrates everything in one spot and reads as almost nothing
-   by the time it clears the silhouette - which is the version that leaves the
-   dark hair sitting on the dark ground with nothing between them.
+                                     wash    rim halo
+     hair vs just outside the edge   1.05     1.20
+     hair vs ground 44px out         1.16     1.47
+     share of hairline under 1.5:1     89%      55%
 
-   Inset past the portrait on three sides so the light spills around the
-   silhouette rather than stopping at it, and held at the bottom edge, where
-   the torso is already fading into the page.
-
-   Built from the accent tokens rather than literal amber: the theme
-   customiser writes --accent-soft and --accent-mild to body.style, so a
-   recoloured palette carries the light with it. Strength is set by `opacity`
-   for the same reason - baking it into the colours would freeze the wash at
-   this palette's alpha. */
-.home-portrait::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: -10% -12% 0;
-  background: radial-gradient(62% 50% at 48% 36%,
-      var(--accent-mild) 0%,
-      var(--accent-mild) 28%,
-      var(--accent-soft) 56%,
-      transparent 84%);
-  opacity: 0.31;
-}
-
-/* Held lower here than on light, which is the opposite of what the two grounds
-   ask for: amber against near-black composites down towards the ground it sits
-   on, so the same value already reads fainter here than it does against cream.
-   This is fainter again, and deliberately so - the wash is close to absent on
-   the dark theme now.
-
-   What that costs: the glow used to be most of what lifted near-black hair off
-   a near-black background. At this value the hair carries itself on its own
-   sheen, with the plexus canvas behind it doing the rest. It still reads, but
-   there is no margin left - this is the value to raise first if the silhouette
-   ever stops separating. */
-body.dark-theme .home-portrait::before {
-  opacity: 0.2125;
-}
+   So it was not load-bearing; a close halo on the drop-shadow below does the
+   job the diffuse wash was credited with, and does it better. Those are the
+   conservative numbers - the plexus behind the silhouette only adds to them.
+   If it ever stops separating, raise the halo's alpha before reinstating
+   anything here. */
 
 /* The shadow is on the <picture>, not the <img>, because the mask below is
    what gives the image its final alpha: a filter on the same element is
@@ -2248,9 +2244,16 @@ body.dark-theme .home-portrait::before {
 }
 
 /* On the dark ground a dark shadow is invisible; the accent halo does the
-   separating instead, and keeps the dark hair off the near-black background. */
+   separating instead, and keeps the dark hair off the near-black background.
+   It is doing that alone now that the wash is gone. The first shadow is the
+   old one and still sits under the torso; the second is a close halo that hugs
+   the hair line, which is where the wash used to put its light and where the
+   contrast is actually needed. Both numbers above the removed wash are the
+   before/after of adding it. */
 body.dark-theme .home-portrait picture {
-  filter: drop-shadow(0 14px 30px hsla(38, 92%, 55%, 0.16));
+  filter:
+    drop-shadow(0 14px 30px hsla(38, 92%, 55%, 0.16))
+    drop-shadow(0 0 18px hsla(38, 92%, 55%, 0.34));
 }
 
 .home-portrait-img {
@@ -2375,7 +2378,7 @@ body.dark-theme .home-portrait picture {
      widest label sets the width for both, so neither is clipped. */
   min-width: 168px;
   border-radius: var(--radius-full);
-  border: 2px solid var(--accent-fill);
+  border: 2px solid var(--control-accent-border);
   font-size: var(--text-base);
   font-weight: 700;
   line-height: 1;
@@ -2395,10 +2398,13 @@ body.dark-theme .home-portrait picture {
   color: var(--accent-text);
 }
 
+/* Dark ink on the amber face, matching `.btn.btn-outline:hover` and
+   `.home-social:hover`. White measured 3.29:1 light and 2.63:1 dark - the
+   last survivor of the failure --on-accent was introduced to fix. */
 .home-btn:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
-  color: var(--on-accent-inverse);
+  color: var(--on-accent);
   box-shadow: var(--glow-md);
   transform: translateY(-2px);
 }
@@ -2430,7 +2436,7 @@ body.dark-theme .home-portrait picture {
   height: 44px;
   border-radius: 50%;
   background: transparent;
-  border: 2px solid var(--accent-fill);
+  border: 2px solid var(--control-accent-border);
   color: var(--accent-text);
   font-size: var(--text-lg);
   text-decoration: none;
@@ -2466,17 +2472,30 @@ body.dark-theme .home-portrait picture {
   }
 
   .home-portrait {
-    justify-self: center;
+    width: min(72vw, 450px);
+  }
+}
+
+/* ── Short viewports keep the old cap ──
+   The stacked layout spends height on the portrait that the two-column one
+   spends on width, so the desktop step cannot follow it down here: at the
+   naive +50% the landing view scrolled by 56-83px on every phone under 380px.
+   A tall phone or a portrait tablet has the room for a smaller bump; a short
+   one has none, so it keeps exactly the cap it had. 720px is where the
+   measurement flips - 375x812 clears a 270px portrait, 375x667 does not. */
+@media (width <=900px) and (height <=720px) {
+  .home-portrait {
     width: min(62vw, 300px);
   }
 }
 
-/* ── Three-pill row, narrowing ──
-   Three buttons at the 168px floor need 528px of row. Below that the flex row
-   wraps 2+1, which reads as a mistake rather than as a stack - the worst of
-   both layouts. Trimming the floor and the inline padding holds all three on
-   one line for another ~90px; 140px still clears "Contact" at this type size
-   by ~15px, so nothing is clipped. */
+/* ── Two-pill row, narrowing ──
+   The pair at the 168px floor needs 348px of row plus the column's own
+   padding. Trimming the floor and the inline padding buys another ~60px;
+   140px still clears "Resume" at this type size by a wide margin.
+
+   Was written for three buttons - Contact is an icon in `.home-socials` now,
+   which is also why the 380px stack below it is gone. */
 @media (width <=560px) {
   .home-btn {
     min-width: 140px;
@@ -2484,18 +2503,16 @@ body.dark-theme .home-portrait picture {
   }
 }
 
-/* Past here even the trimmed floor breaks the row, so stop defending it: one
-   per row, full width, which reads as a deliberate stack. The padding goes
-   back because width is no longer the constraint. */
+/* The last step that keeps the two on one line. It used to stack them full
+   width here, which is what a THIRD button needed; with two it cost 56px of
+   column height for nothing, and that was the whole overflow on a short
+   phone - 320x568 scrolled by 36px, 360x640 by 4px. At 126px the pair plus
+   its gap is 264px against the 274px the column has at 320px, and "Resume"
+   still has ~30px of slack inside the pill. */
 @media (width <=380px) {
-  .home-actions {
-    width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .home-btn {
-    padding: 12px 30px;
+    min-width: 126px;
+    padding: 12px 16px;
   }
 }
 
