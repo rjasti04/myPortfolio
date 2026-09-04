@@ -430,12 +430,13 @@ function initMobileBottomNav() {
   // phone only through the hamburger - and on a phone the bottom bar *is* the
   // navigation.
   //
-  // Seven entries since Home became the landing section. At 320px, the
-  // narrowest width still worth supporting, `flex: 1 1 0` divides the bar into
-  // 45px columns - down from 54px at six, and too narrow for "Activity" at the
-  // default label size. The <=380px block in the MOBILE BOTTOM NAV region drops
-  // the label ramp to fit; an eighth entry would not, and should go behind an
-  // overflow affordance rather than a further shrink.
+  // Eight entries since Apps joined the header nav. At 320px, the narrowest
+  // width still worth supporting, `flex: 1 1 0` divides the bar into 40px
+  // columns - 36px of content box once padding is taken, and too narrow for
+  // "Activity" at the default label size. The <=380px block in the MOBILE
+  // BOTTOM NAV region drops the label ramp to fit. That block is now sized for
+  // eight and has no headroom left: a ninth entry needs an overflow affordance,
+  // not a further shrink.
   //
   // Portfolio is deliberately absent: its nav link is still `hidden` pending
   // the decision recorded as BUG-02.
@@ -444,6 +445,7 @@ function initMobileBottomNav() {
     { target: 'about', icon: 'fa-user', label: 'About' },
     { target: 'resume', icon: 'fa-briefcase', label: 'Work' },
     { target: 'hobbies', icon: 'fa-heart', label: 'Hobbies' },
+    { target: 'apps', icon: 'fa-cubes', label: 'Apps' },
     { target: 'activity', icon: 'fa-chart-line', label: 'Activity' },
     { target: 'ai', icon: 'fa-robot', label: 'AI' },
     { target: 'contact', icon: 'fa-envelope', label: 'Contact' }
@@ -496,7 +498,7 @@ function updateMobileNavActive(target) {
 }
 
 function initSwipeGestures() {
-  const sectionOrder = ['home', 'about', 'resume', 'hobbies', 'activity', 'ai', 'contact'];
+  const sectionOrder = ['home', 'about', 'resume', 'hobbies', 'apps', 'activity', 'ai', 'contact'];
 
   // Returned so the caller can tear it down when the viewport stops being a
   // phone; the handler binds to document, so leaving it attached would keep

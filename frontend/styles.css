@@ -5615,6 +5615,190 @@ body.dark-theme .skill-tag.primary .fas {
 
 /* #endregion */
 
+/* #region APPS -------------------------------------------------------*/
+/* ---- App launcher shelf -------------------------------------------------
+   Standalone side projects, one whole-tile link each, pointing out of the SPA
+   at their own URLs.
+
+   `auto-fill` rather than `auto-fit` is the load-bearing choice. auto-fit
+   collapses the empty tracks and stretches what is left, so today's two tiles
+   would each be ~550px wide and the 1200x630 previews would tower over the
+   page - then silently reflow to a third of that the day a third app lands.
+   auto-fill holds the track width constant, so a tile looks the same whether
+   there are two of them or eight, and adding one never restyles the others.
+   ---------------------------------------------------------------------- */
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 24px;
+  align-items: stretch;
+}
+
+.app-tile {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--elev-1);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    transform var(--motion-medium) var(--ease-enter),
+    border-color var(--motion-medium) var(--ease-standard),
+    box-shadow var(--motion-medium) var(--ease-standard);
+}
+
+/* Scoped to `a.app-tile` throughout: the placeholder below shares the shell
+   but is not a link, and lifting it on hover would promise a target that is
+   not there. */
+a.app-tile:hover,
+a.app-tile:focus-visible {
+  transform: translateY(-4px);
+  border-color: var(--accent-mild);
+  box-shadow: var(--elev-3);
+}
+
+a.app-tile:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* The preview is the tile's whole top half, so its box has to be reserved
+   before the image decodes - hence the ratio here and the width/height
+   attributes in the markup. Without both, every tile below the first jumps
+   when the PNGs arrive. */
+.app-tile-media {
+  display: block;
+  position: relative;
+  aspect-ratio: 1200 / 630;
+  overflow: hidden;
+  background: var(--skill-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-tile-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--motion-slow) var(--ease-enter);
+}
+
+a.app-tile:hover .app-tile-media img {
+  transform: scale(1.04);
+}
+
+.app-tile-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 22px 22px;
+}
+
+.app-tile-eyebrow {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 11px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.app-tile-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: var(--leading-snug);
+  color: var(--text);
+}
+
+.app-tile-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--muted);
+}
+
+/* `margin-top: auto` pins the call to action to the bottom edge, so tiles with
+   different blurb lengths still line their Launch rows up across the grid. */
+.app-tile-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--accent-text);
+}
+
+.app-tile-cta i {
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+
+a.app-tile:hover .app-tile-cta i,
+a.app-tile:focus-visible .app-tile-cta i {
+  transform: translate(2px, -2px);
+}
+
+/* The empty slot. Deliberately a <p> and not a link: it says the shelf is
+   unfinished without adding a tab stop that goes nowhere. Delete it - here and
+   in index.html - once a second real app makes the point on its own. */
+.app-tile--placeholder {
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 240px;
+  padding: 32px 24px;
+  background: transparent;
+  border-style: dashed;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.app-tile-placeholder-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+/* One column on a phone, so the placeholder stops being an empty slot beside
+   something and becomes a 240px block of nothing under it. It still earns its
+   place - it is the only thing saying the shelf will grow - but not at a third
+   of a screen. */
+@media (width <=640px) {
+  .app-tile--placeholder {
+    flex-direction: row;
+    min-height: 0;
+    padding: 18px 20px;
+    text-align: left;
+  }
+
+  .app-tile-placeholder-glyph {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* #endregion */
+
 /* #region SECTION ROUTER & VIEW TRANSITIONS ---------------------------*/
 /* ----------------------------------
    REFINEMENTS
@@ -5701,11 +5885,14 @@ body.dark-theme .skill-tag.primary .fas {
   outline: none;
 }
 
-/* Both predictors are hidden rather than deleted: /worldcup and /ucl still
-   build and still answer, and neither has an entry point anywhere else in the
-   UI - no nav-menu row, no dropdown, no command-palette entry - so `display:
-   none` takes them out of the tab order and the accessibility tree too.
-   Deleting either declaration puts the icon back in the header. */
+/* Both header icons are hidden rather than deleted: /worldcup and /ucl still
+   build and still answer. /ucl now has a real entry point - the Champions
+   League tile in the Apps section - so this pair of icons is redundant
+   chrome rather than the only way in, and `display: none` keeps them out of
+   the tab order and the accessibility tree. /worldcup has no entry point at
+   all; the 2026 tournament is over and the page is kept only so its shared
+   links keep resolving. Deleting either declaration puts the icon back in the
+   header, next to the Apps tile that already covers it. */
 #worldcup-link,
 #ucl-link {
   display: none !important;
@@ -8904,18 +9091,20 @@ body.dark-theme .mobile-bottom-nav {
   letter-spacing: var(--tracking-wide);
 }
 
-/* Seven entries divide a 320px bar into 45px columns, or 41px of content box
+/* Eight entries divide a 320px bar into 40px columns, or 36px of content box
    once padding is taken - under the ~46px "Activity" needs even at the 10px
-   baseline above, so it wrapped and pushed the icons off-centre. One more
-   step down plus dropping the tracking fits the longest label with room to
-   spare. The row stays a 44px-high tap target; only the type shrinks. */
+   baseline above, so it wrapped and pushed the icons off-centre. Two steps
+   down, dropping the tracking, and trimming the inline padding to a hairline
+   fits the longest label at ~34px. The row stays a 44px-high tap target; only
+   the type shrinks, and there is no room left for a ninth entry - that one
+   needs an overflow affordance. See the navItems comment in js/navigation.js. */
 @media (width <=380px) {
   .mobile-bottom-nav a {
-    padding: 6px 2px;
+    padding: 6px 1px;
   }
 
   .mobile-bottom-nav-label {
-    font-size: 0.5625rem;
+    font-size: 0.5rem;
     letter-spacing: normal;
   }
 }

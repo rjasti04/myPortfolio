@@ -112,7 +112,7 @@ fire-and-forget tasks are awaited, and the SQLAlchemy engine is disposed.
 
 | Path | Role |
 | :--- | :--- |
-| `index.html` | The whole page. Meta CSP (with two `sha256-` pinned inline scripts), JSON-LD structured data, and six sections: `about`, `resume`, `hobbies`, `activity`, `contact`, `ai` |
+| `index.html` | The whole page. Meta CSP (with two `sha256-` pinned inline scripts), JSON-LD structured data, and eight sections: `home`, `about`, `resume`, `hobbies`, `apps`, `activity`, `contact`, `ai` |
 | `styles.css` | Global stylesheet, ~8.8k lines across 24 `#region` blocks. `grep -n '#region' frontend/styles.css` gives a live map |
 | `auth-modal.css` | Account modal, profile dropdown, password meter, 2FA and session UI |
 | `fonts.css`, `fonts/` | **Generated** by `scripts/vendor_fonts.py` — subset Plus Jakarta Sans + Font Awesome |
@@ -125,7 +125,7 @@ fire-and-forget tasks are awaited, and the SQLAlchemy engine is disposed.
 | `vendor/` | DOMPurify + marked, copied verbatim from the npm packages pinned in `package.json` |
 | `tests/` | Node test runner + jsdom suites (excluded from `dist/`) |
 | `worldcup.html` | Standalone side project, unrelated to the portfolio SPA, served at `/worldcup` (retired — the header link is hidden) |
-| `ucl.html` | Standalone side project, unrelated to the portfolio SPA — the 2026/27 Champions League bracket predictor, served at `/ucl` |
+| `ucl.html` | Standalone side project, unrelated to the portfolio SPA — the 2026/27 Champions League bracket predictor, served at `/ucl`. Reached from the SPA's **Apps** section, which links out to it in a new tab rather than routing to it |
 
 ### `server/` — the API tier
 

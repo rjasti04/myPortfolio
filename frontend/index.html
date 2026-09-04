@@ -295,6 +295,11 @@
             <span class="nav-label">Hobbies</span>
             <i class="fas fa-chevron-right nav-arrow" aria-hidden="true"></i>
           </a>
+          <a href="#apps" data-target="apps">
+            <i class="fas fa-cubes nav-icon" aria-hidden="true"></i>
+            <span class="nav-label">Apps</span>
+            <i class="fas fa-chevron-right nav-arrow" aria-hidden="true"></i>
+          </a>
           <a href="#activity" data-target="activity">
             <i class="fas fa-chart-line nav-icon" aria-hidden="true"></i>
             <span class="nav-label">Activity</span>
@@ -1040,6 +1045,55 @@
             </ul>
             <i class="fas fa-utensils hobby-watermark" aria-hidden="true"></i>
           </article>
+        </div>
+      </section>
+
+      <!-- Apps: a launcher shelf for the standalone pages that live outside the
+           SPA. Every tile is a whole-tile anchor to a real URL opened in a new
+           tab, so nothing here goes through the section router in
+           js/navigation.js - the router only ever sees `data-target` links.
+
+           To add an app, copy one <a class="app-tile"> block and change five
+           things: the href, the aria-label (keep the "in a new tab" wording -
+           it is the only warning a screen-reader user gets), the preview image,
+           the eyebrow, and the copy. Notes on two of those:
+
+             * The preview is a 1200x630 PNG in frontend/, referenced by its
+               plain filename. scripts/build.mjs content-hashes it and rewrites
+               this reference, so do not hand-write a hashed path.
+             * The eyebrow icon must already exist in the Font Awesome subset.
+               fonts.css carries one `.fa-NAME::before` rule per vendored glyph
+               and nothing else; a name outside that list renders as empty
+               space with no error. Add glyphs by re-running
+               scripts/vendor_fonts.py.
+
+           The grid is `auto-fill`, so tiles wrap on their own and a new one
+           costs no CSS. Delete the placeholder tile once a second real app
+           lands. -->
+      <section id="apps">
+        <h2 class="section-title">Apps</h2>
+        <p class="section-intro">Side projects that live on their own pages, away from the portfolio. Pick one &mdash;
+          each opens in a new tab.</p>
+        <div class="app-grid">
+          <a class="app-tile reveal" href="/ucl" target="_blank" rel="noopener"
+            aria-label="Launch the 2026/27 Champions League Bracket Predictor in a new tab">
+            <span class="app-tile-media">
+              <img src="ucl-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
+            </span>
+            <span class="app-tile-body">
+              <span class="app-tile-eyebrow"><i class="fas fa-futbol" aria-hidden="true"></i>Football</span>
+              <h3 class="app-tile-title">Champions League Predictor</h3>
+              <p class="app-tile-text">Rank the 36-club league phase, settle the knockout play-offs, then run the
+                bracket through to the final in Madrid. Picks save in your browser and travel as a share link.</p>
+              <span class="app-tile-cta">Launch<i class="fas fa-arrow-up-right-from-square"
+                  aria-hidden="true"></i></span>
+            </span>
+          </a>
+
+          <p class="app-tile app-tile--placeholder">
+            <span class="app-tile-placeholder-glyph" aria-hidden="true"><i class="fas fa-plus"></i></span>
+            More apps land here as I build them.
+          </p>
         </div>
       </section>
 
@@ -1824,7 +1878,7 @@
       <ul class="shortcut-list">
         <li class="shortcut-item">
           <span>Navigate to Sections</span>
-          <span class="shortcut-key">1</span> - <span class="shortcut-key">5</span>
+          <span class="shortcut-key">1</span> - <span class="shortcut-key">8</span>
         </li>
         <li class="shortcut-item">
           <span>Show this overlay</span>
