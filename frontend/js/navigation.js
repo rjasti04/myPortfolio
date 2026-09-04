@@ -444,7 +444,10 @@ function initMobileBottomNav() {
   mobileNav.className = 'mobile-bottom-nav';
   mobileNav.setAttribute('aria-label', 'Mobile navigation');
 
-  // Every section a visitor can reach, in the same order as the header nav.
+  // Every section a visitor can reach, with the same icon, label, and order as
+  // the header nav - the About entry read "Home" behind a house icon here while
+  // the header called it "About" behind a person, so the two bars disagreed
+  // about what the first section was.
   //
   // This listed four of the six, so Hobbies and Activity were reachable on a
   // phone only through the hamburger - and on a phone the bottom bar *is* the
@@ -455,7 +458,7 @@ function initMobileBottomNav() {
   // Portfolio is deliberately absent: its nav link is still `hidden` pending
   // the decision recorded as BUG-02.
   const navItems = [
-    { target: 'about', icon: 'fa-home', label: 'Home' },
+    { target: 'about', icon: 'fa-user', label: 'About' },
     { target: 'resume', icon: 'fa-briefcase', label: 'Work' },
     { target: 'hobbies', icon: 'fa-heart', label: 'Hobbies' },
     { target: 'activity', icon: 'fa-chart-line', label: 'Activity' },
