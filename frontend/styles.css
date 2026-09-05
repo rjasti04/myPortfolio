@@ -7981,8 +7981,11 @@ nav a:hover .nav-shortcut {
    `main` drops its document padding for a gutter measured off the same token
    the header sticks to. The header is `position: sticky; top:
    var(--header-sticky-offset)`, so it PAINTS that far below the flow box
-   main starts after: without adding the offset back, the top of the panel
-   renders underneath it. Same reasoning as the #home shell in HOME HERO.
+   main starts after - sticky pushes DOWN as well as up, and with nothing to
+   scroll here the offset applies at rest. Without adding it back, the top of
+   the panel renders underneath the pill. Same reasoning as the #home shell in
+   HOME HERO. Whatever is added on top of that offset is the gap the eye
+   actually sees, which is why the top has a token of its own.
 
    Nothing here reads --header-height. `header.scrolled` rewrites that token
    to 56px on its own element, so any calc() against it outside the header
@@ -7997,14 +8000,22 @@ nav a:hover .nav-shortcut {
 }
 
 .js-enabled main:has(> #ai.active) {
-  /* What is left between the panel and the edge of the viewport. */
+  /* What is left between the panel and the side and bottom edges of the
+     viewport. */
   --ai-gutter: 12px;
+  /* The top is deliberately not the gutter. Both the header and the panel are
+     elevated surfaces with their own shadow, and at the gutter's 12px - 8px on
+     a phone - the two shadows almost meet and the pair reads as one stacked
+     slab rather than a bar above a panel. Measured against viewport height
+     like #home's --home-shell-gap, so a short landscape phone spends less of
+     what it has separating them. */
+  --ai-header-gap: clamp(14px, 2.2vh, 22px);
 
   display: flex;
   flex-direction: column;
   min-height: 0;
   padding-block:
-    calc(var(--header-sticky-offset, 16px) + var(--ai-gutter))
+    calc(var(--header-sticky-offset, 16px) + var(--ai-header-gap))
     calc(var(--ai-gutter) + var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom, 0px));
   /* Replaces the negative inline margins this section used to carry: the
      panel is inset by the gutter, not by main's document measure. At 1280px
