@@ -8802,10 +8802,10 @@ body.dark-theme .ai-subtitle {
 }
 
 /* ── AI-page transcript ──
-   The page-sized turn is not the widget's bubble scaled up. It drops the 75%
-   cap, the fill and the border for both roles, so a long answer is read as a
-   document column and the question above it shares that column's left edge
-   instead of hanging off the opposite one. */
+   The answer is not the widget's bubble scaled up: it drops the 75% cap, the
+   fill and the border, so a long reply reads as a document column. The question
+   keeps its bubble and stays on the right (below), so the two roles still land
+   on opposite sides of the transcript. */
 #ai .chat-message {
   max-width: 100%;
   min-width: 0;
@@ -8825,34 +8825,20 @@ body.dark-theme .ai-subtitle {
   }
 }
 
-/* The visitor's turn is not a bubble either: same block as the answer - full
-   measure, no fill, no border, no inset - and the accent carries the role on
-   its own. --accent-text rather than --accent-fill because this is body copy:
-   the fill measures 1.94:1 on the light ground, the text token 4.93:1.
-   The 600 weight is the non-colour half of that cue (WCAG 1.4.1): with the
-   bubble gone and no avatar or name in the transcript, hue alone would be the
-   only thing separating a question from an answer. */
+/* The visitor's turn keeps the widget's bubble and hangs off the right rail,
+   opposite the answer's left edge. Side is the role cue here, so the fill, the
+   border and the inset all carry over from the widget rules; only the two
+   sizing overrides above are undone - the 75% cap comes back so the bubble is
+   read against the answer's full measure, and `min-width` is dropped so a
+   one-word question is sized by its text rather than by a 96px floor.
+   `.chat-message.user .msg-actions` already pins the action bar to the same
+   edge, so it needs no AI-page override. */
 #ai .chat-message.user {
-  align-self: stretch;
-  width: 100%;
-  max-width: 100%;
-  padding: 0;
-  background: none;
-  border: none;
-  border-radius: 0;
-  color: var(--accent-text);
-  font-weight: 600;
-  box-shadow: none;
+  align-self: flex-end;
+  width: fit-content;
+  max-width: 75%;
   line-height: 1.7;
 }
-
-/* Follows the text to the left edge - `margin-left: auto` in the widget's
-   rules parked it against the right rail once the bubble stopped holding it. */
-#ai .chat-message.user .msg-actions {
-  align-self: flex-start;
-  margin-left: 0;
-}
-
 
 #ai .chat-message.bot {
   align-self: stretch;
@@ -9559,6 +9545,13 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 
   .ai-messages {
     gap: 22px;
+  }
+
+  /* 75% of a phone-width column leaves a question wrapping every few words
+     against a mostly empty right rail. The offset that carries the role only
+     has to be visible, so the bubble takes more of the line here. */
+  #ai .chat-message.user {
+    max-width: 88%;
   }
 
   .ai-suggestions {
