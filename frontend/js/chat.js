@@ -182,6 +182,9 @@ export function initChat() {
     const text = aiPageInput.value.trim();
     const tokens = estimateTokens(text);
     aiTokenCounter.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
+    // An empty composer has nothing to report, and the count sits inside the
+    // pill now - so it stays out of the resting bar and appears on first keypress.
+    aiTokenCounter.hidden = tokens === 0;
 
     // Disable send button if over limit
     const isOverLimit = tokens > TOKEN_LIMIT;

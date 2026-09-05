@@ -9093,26 +9093,35 @@ body.dark-theme #ai .chat-message.bot .msg-info-drawer {
 }
 
 /* ── Composer ──
-   Two rows inside one pill: the field spans the full measure, the controls
-   sit under it on the right. The field getting the whole width is the point -
-   a pasted paragraph now grows downward instead of squeezing itself into the
-   gap left by three buttons.
+   One row inside one pill: the field, then voice, then send, the way a
+   phone keyboard bar reads. The field is padded to exactly the height of
+   those two circles, so the row is a 44px control plus 5px of padding
+   either side and 1px of border - 56px - and `border-radius` is half of
+   that at rest, a true pill. It relaxes into a rounded rectangle only once
+   a long message wraps the field past that height.
 
-   `flex-wrap` also gives the token-limit error somewhere to land:
-   updateTokenCounter() appends it to the textarea's parent, which is this
-   form, and #token-error below claims a row of its own for it. */
+   `flex-wrap` stays for the token-limit error: updateTokenCounter() appends
+   it to the textarea's parent, which is this form, and #token-error below
+   claims a row of its own for it. `align-items: flex-end` is what a wrapped
+   message needs - the field grows upward, the two controls stay on the
+   bottom line next to the last row of text rather than drifting to the
+   middle of a paragraph. */
 .ai-input-form {
   max-width: var(--ai-measure);
   margin: 0 auto;
   position: relative;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  padding: 10px 10px 10px 16px;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 5px 8px 5px 20px;
   background: var(--surface);
   border: 1px solid var(--control-border);
-  border-radius: 26px;
+  /* Half the resting height, expressed rather than hard-coded: the send
+     circle is --min-touch-target tall and this row adds 5px of padding either
+     side plus 1px of border, so the pill stays exactly a pill when the token
+     grows to 48px on mobile. */
+  border-radius: calc((var(--min-touch-target) + 12px) / 2);
   box-shadow: var(--elev-2);
   transition:
     border-color var(--motion-base) var(--ease-standard),
@@ -9125,12 +9134,15 @@ body.dark-theme #ai .chat-message.bot .msg-info-drawer {
 }
 
 .ai-textarea {
-  flex: 1 1 100%;
+  /* One line of text, padded out to exactly the height of the circles beside
+     it, so the placeholder sits on their centre line - and it stays there
+     when --min-touch-target grows to 48px on mobile. */
+  flex: 1 1 auto;
   min-width: 0;
   border: none;
   background: transparent;
   color: var(--text);
-  padding: 6px 4px 2px;
+  padding: calc((var(--min-touch-target) - var(--leading-body) * 1em) / 2) 4px;
   font-family: inherit;
   font-size: var(--text-base);
   resize: none;
@@ -9150,8 +9162,8 @@ body.dark-theme #ai .chat-message.bot .msg-info-drawer {
 .ai-input-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-left: auto;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 .ai-tokens {
@@ -9161,7 +9173,7 @@ body.dark-theme #ai .chat-message.bot .msg-info-drawer {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  margin-right: 4px;
+  margin-right: 2px;
 }
 
 /* The error the token counter injects into this form, given its own row.
@@ -9517,13 +9529,14 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
     padding: 11px 14px;
   }
 
+  /* Only the gutters tighten - the vertical padding is what keeps the
+     border-radius above exactly half the height. */
   .ai-input-form {
-    padding: 8px 8px 8px 14px;
-    border-radius: 24px;
+    padding: 5px 6px 5px 16px;
   }
 
   .ai-textarea {
-    padding: 6px 2px 2px;
+    padding-inline: 2px;
     font-size: var(--text-base);
   }
 }
