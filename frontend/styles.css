@@ -8002,12 +8002,16 @@ nav a:hover .nav-shortcut {
    Every other section of this site is a document. This one is an app, and it
    is now built like one. Three decisions drive the whole region:
 
-     1. The shell owns the viewport. #ai bleeds back out of `main`'s padding
-        and sizes itself off 100dvh, so the panel stops one gutter above the
-        fold instead of leaving a dead band under it. The negative margins
-        below cancel exactly the padding `main` applies - keep the three
-        --ai-bleed-* values in step with the `main` rule in LAYOUT & PAGE
-        SHELL, and with the `main` overrides in RESPONSIVE and MOBILE.
+     1. The shell owns the viewport, and nothing outside the panel scrolls.
+        The page is sized, not measured: .layout is pinned to 100dvh, `main`
+        becomes a flex column that re-pads the section to a bare gutter, and
+        #ai takes `flex: 1` of what is left. That is the same mechanism the
+        #home shell uses (HOME HERO), and it replaces a
+        `height: calc(100dvh - --header-height - ...)` that had to restate
+        main's padding as negative margins and the header's height as a
+        number - both of which drifted, leaving the panel a few pixels under
+        the sticky header and the document a few pixels scrollable. Scroll
+        lives in .ai-content-area and .ai-sidebar-history, nowhere else.
      2. An assistant turn is not a bubble. A bubble capped the answer at 75%
         of an 800px column and re-wrapped the longest prose on the page into
         the narrowest box in it. Answers are now set as plain text across the
@@ -8022,12 +8026,6 @@ nav a:hover .nav-shortcut {
    untouched and every override here is #ai-scoped. */
 
 #ai {
-  /* `main`'s own padding, mirrored so the panel can bleed back out of it. */
-  --ai-bleed-x: clamp(14px, 4vw, 56px);
-  --ai-bleed-top: clamp(20px, 2.6vw, 34px);
-  --ai-bleed-bottom: 40px;
-  /* What is left between the panel and the edge of the viewport. */
-  --ai-gutter: 12px;
   /* The reading measure. 820px at 16px/1.7 is ~95 characters - the top of
      the comfortable range, and wide enough that a fenced code block or a
      four-column table stops needing its own scrollbar. */
@@ -8036,16 +8034,73 @@ nav a:hover .nav-shortcut {
   --ai-pad-x: clamp(16px, 3vw, 40px);
 
   position: relative;
-  height: calc(100vh - var(--header-height) - var(--ai-gutter) * 2);
-  height: calc(100dvh - var(--header-height) - var(--ai-gutter) * 2);
-  min-height: 520px;
-  margin-block: calc(var(--ai-gutter) - var(--ai-bleed-top)) calc(var(--ai-gutter) - var(--ai-bleed-bottom));
-  margin-inline: calc(var(--ai-gutter) - var(--ai-bleed-x));
+  /* A flex item's default `min-height: auto` is its content height, which is
+     what lets a long transcript push the panel past the fold instead of
+     handing the overflow to .ai-content-area. */
+  min-height: 0;
+}
+
+/* ── The panel is the page ──
+   Three rules, one per level of the shell, and no viewport arithmetic in any
+   of them.
+
+   .layout is `min-height: 100vh` for a document; here it is exactly 100dvh,
+   so a phone's collapsing address bar shrinks the panel rather than leaving
+   the last band of it under the toolbar. min-height has to go with it or it
+   wins on any viewport where 100vh > 100dvh.
+
+   `main` drops its document padding for a gutter measured off the same token
+   the header sticks to. The header is `position: sticky; top:
+   var(--header-sticky-offset)`, so it PAINTS that far below the flow box
+   main starts after: without adding the offset back, the top of the panel
+   renders underneath it. Same reasoning as the #home shell in HOME HERO.
+
+   Nothing here reads --header-height. `header.scrolled` rewrites that token
+   to 56px on its own element, so any calc() against it outside the header
+   was already a stale 72. Flex asks the browser for what is left instead.
+
+   Scoped to .js-enabled because #ai keeps no `active` class in the markup:
+   without JS every section renders stacked and the panel is one block in a
+   long document, which is the right fallback. */
+.js-enabled .layout:has(> main > #ai.active) {
+  height: 100dvh;
+  min-height: 0;
+}
+
+.js-enabled main:has(> #ai.active) {
+  /* What is left between the panel and the edge of the viewport. */
+  --ai-gutter: 12px;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-block:
+    calc(var(--header-sticky-offset, 16px) + var(--ai-gutter))
+    calc(var(--ai-gutter) + var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom, 0px));
+  /* Replaces the negative inline margins this section used to carry: the
+     panel is inset by the gutter, not by main's document measure. At 1280px
+     that is the same 1256px of panel the bleed produced. */
+  padding-inline: var(--ai-gutter);
+}
+
+.js-enabled #ai.active {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The document scrolls on every other section, so the lock is scoped to this
+   one. It is a guard rather than the mechanism - the flex chain above already
+   sizes the shell to the viewport - and it is what makes the transcript the
+   only thing on screen that moves. */
+.js-enabled body:has(main > #ai.active) {
+  overflow: hidden;
 }
 
 .ai-container {
   display: flex;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   width: 100%;
   position: relative;
   background: var(--card-bg);
@@ -8450,6 +8505,10 @@ body.dark-theme .history-item:hover {
   flex-direction: column;
   position: relative;
   min-width: 0;
+  /* Both axes: without min-height the column's `auto` floor is the top bar
+     plus the whole transcript plus the composer, and the panel grows past
+     the shell instead of handing the overflow to .ai-content-area. */
+  min-height: 0;
 }
 
 /* ── Top bar ──
@@ -8513,7 +8572,13 @@ body.dark-theme .ai-topbar-model {
 }
 
 .ai-content-area {
+  /* The only scrolling surface on this page, and the reason for every
+     `min-height: 0` above it: this is the box the transcript overflows into,
+     so it has to be the one that is allowed to be shorter than its content.
+     `overscroll-behavior: contain` keeps a flick at either end from chaining
+     out to the document. */
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 28px var(--ai-pad-x) 8px;
@@ -9019,6 +9084,10 @@ body.dark-theme #ai .chat-message.bot .msg-info-drawer {
 
 /* Input area */
 .ai-input-container {
+  /* The transcript yields, the composer does not: it is the control the
+     visitor is aiming at, so it keeps its height and .ai-content-area absorbs
+     whatever a short viewport takes away. */
+  flex-shrink: 0;
   padding: 6px var(--ai-pad-x) 14px;
   background: transparent;
 }
@@ -9065,7 +9134,10 @@ body.dark-theme #ai .chat-message.bot .msg-info-drawer {
   font-family: inherit;
   font-size: var(--text-base);
   resize: none;
-  max-height: 200px;
+  /* A pasted essay grows the field until it owns the panel. 200px is right on
+     a laptop and half the shell on a phone in landscape, so the cap is
+     whichever is smaller. */
+  max-height: min(200px, 32vh);
   outline: none;
   line-height: var(--leading-body);
 }
@@ -9345,22 +9417,15 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   }
 }
 
-/* ── The width where `main` stops flowing under the header ──
-   Below 1150px the header floats over `main` and `main` absorbs it with 48px
-   of top padding, so the panel starts where that padding ends and only the
-   bottom is reclaimed. The bottom is also where the mobile bar would paint if
-   it were ever re-enabled, so both figures read the same token `main` does
-   rather than hard-coding today's zero. */
+/* ── Below 1150px ──
+   Only the gutter changes. The header is shorter here and its sticky offset
+   drops to 10px; flex measures the first for itself and the shell rule above
+   reads the second from its token, so neither is restated. The mobile bar is
+   in that rule's bottom padding via --mobile-bottom-nav-height - 0px while
+   the bar is hidden, and correct again the day it comes back. */
 @media (width <=1150px) {
-  #ai {
-    --ai-bleed-x: 14px;
-    --ai-bleed-top: 0px;
-    --ai-bleed-bottom: calc(var(--mobile-bottom-nav-height, 56px) + 120px);
+  .js-enabled main:has(> #ai.active) {
     --ai-gutter: 8px;
-
-    height: calc(100vh - 63px - var(--ai-gutter) - var(--mobile-bottom-nav-height, 56px));
-    height: calc(100dvh - 63px - var(--ai-gutter) - var(--mobile-bottom-nav-height, 56px));
-    min-height: 460px;
   }
 }
 
