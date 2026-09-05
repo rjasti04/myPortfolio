@@ -1407,13 +1407,23 @@
           </aside>
 
           <div class="ai-main empty-state" id="ai-page-container">
-            <!-- Static chrome. Nothing here is wired to JS: it names the surface
-                 and keeps the model on screen after the empty state's chip
-                 scrolls away, and it gives the collapsed sidebar's toggle a
-                 strip of its own instead of leaving it floating over the first
-                 answer. -->
+            <!-- Keeps the model on screen after the empty state's chip scrolls
+                 away, gives the collapsed sidebar's toggle a strip of its own
+                 instead of leaving it floating over the first answer, and
+                 reports what this conversation has cost so far. chat.js fills
+                 the two figures from each turn's metrics frame; the values here
+                 are the empty-conversation state. -->
             <div class="ai-topbar">
-              <span class="ai-topbar-title">Rajeev's Assistant</span>
+              <div class="ai-usage" title="Totals for this conversation">
+                <span class="ai-usage-stat">
+                  <span class="ai-usage-label">Input / output</span>
+                  <span class="ai-usage-value" id="ai-usage-tokens">0 / 0</span>
+                </span>
+                <span class="ai-usage-stat">
+                  <span class="ai-usage-label">Avg latency</span>
+                  <span class="ai-usage-value" id="ai-usage-latency">&mdash;</span>
+                </span>
+              </div>
               <span class="ai-topbar-model">
                 <span class="ai-status-dot" aria-hidden="true"></span>Gemma 3-4B
               </span>

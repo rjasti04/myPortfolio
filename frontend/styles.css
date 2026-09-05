@@ -6620,80 +6620,6 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
   transform: translateX(-50%) translateY(0);
 }
 
-/* Collapsible Info / Inspector Drawer */
-.msg-info-drawer {
-  width: 100%;
-  box-sizing: border-box;
-  margin-top: 8px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: var(--text-xs);
-  line-height: var(--leading-snug);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 8px 16px;
-  max-height: 200px;
-  opacity: 1;
-  overflow: hidden;
-  transform: translateY(0);
-  transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, transform 0.25s ease, margin-top 0.25s ease, padding 0.25s ease;
-}
-
-.msg-info-drawer.hidden {
-  max-height: 0;
-  opacity: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  margin-top: 0;
-  transform: translateY(-6px);
-  pointer-events: none;
-  border-color: transparent !important;
-}
-
-.chat-message.user .msg-info-drawer {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.chat-message.bot .msg-info-drawer {
-  background: rgba(0, 0, 0, 0.04);
-  border: 1px solid var(--border);
-  color: var(--muted);
-}
-
-body.dark-theme .chat-message.bot .msg-info-drawer {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.msg-info-drawer-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.msg-info-label {
-  font-weight: 500;
-  opacity: 0.8;
-  font-size: var(--text-xs);
-}
-
-.msg-info-value {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-weight: 600;
-  font-size: var(--text-xs);
-}
-
-.chat-message.user .msg-info-value {
-  color: #ffffff;
-}
-
-.chat-message.bot .msg-info-value {
-  color: var(--text);
-}
-
 .msg-copy-btn.copied {
   color: var(--color-success, #10b981) !important;
 }
@@ -8512,10 +8438,12 @@ body.dark-theme .history-item:hover {
 }
 
 /* ── Top bar ──
-   Static chrome: it names the surface and keeps the model on screen after
-   the empty state's subtitle scrolls away, and it gives the collapsed rail's
-   toggle a strip of its own to sit in instead of floating over the first
-   answer. Nothing in it is wired to JS. */
+   Keeps the model on screen after the empty state's subtitle scrolls away,
+   gives the collapsed rail's toggle a strip of its own to sit in instead of
+   floating over the first answer, and carries this conversation's running
+   totals. `min-width: 0` on the usage strip is what lets the model chip keep
+   its full width on a narrow panel: without it the strip refuses to shrink
+   below its content and pushes the chip off the end. */
 .ai-topbar {
   display: flex;
   align-items: center;
@@ -8532,14 +8460,37 @@ body.dark-theme .history-item:hover {
   padding-left: 56px;
 }
 
-.ai-topbar-title {
+.ai-usage {
+  display: flex;
+  align-items: baseline;
+  gap: 6px 16px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ai-usage-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ai-usage-label {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  color: var(--muted);
+}
+
+.ai-usage-value {
   font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: var(--tracking-tight);
   color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* The output total gains a digit mid-conversation and the average moves on
+     every turn; tabular figures keep the pair from shuffling sideways as they
+     update. */
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-topbar-model {
@@ -9063,25 +9014,6 @@ body.dark-theme #ai .chat-message.bot th {
   }
 }
 
-/* The drawer inherited the widget's white-on-near-black treatment, which was
-   invisible once the visitor's bubble stopped being a dark slab. */
-#ai .chat-message.user .msg-info-drawer,
-#ai .chat-message.bot .msg-info-drawer {
-  background: hsl(0, 0%, 0%, 0.04);
-  border: 1px solid var(--border);
-  color: var(--muted);
-}
-
-body.dark-theme #ai .chat-message.user .msg-info-drawer,
-body.dark-theme #ai .chat-message.bot .msg-info-drawer {
-  background: hsl(0, 0%, 100%, 0.05);
-}
-
-#ai .chat-message.user .msg-info-value,
-#ai .chat-message.bot .msg-info-value {
-  color: var(--text);
-}
-
 /* Input area */
 .ai-input-container {
   /* The transcript yields, the composer does not: it is the control the
@@ -9477,6 +9409,24 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   .ai-topbar {
     height: 48px;
     padding-right: 12px;
+  }
+
+  /* Two labelled figures and the model chip do not fit beside the collapsed
+     rail's toggle on a phone. The figures are what this bar carries now, so
+     the labels go screen-reader-only rather than being clipped mid-word, and
+     the chip stands down - the empty state still names the model, and a
+     running total is the thing that changes. */
+  .ai-usage-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .ai-topbar-model {
+    display: none;
   }
 
   .ai-container.sidebar-hidden .ai-topbar {
