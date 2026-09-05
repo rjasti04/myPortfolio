@@ -2296,47 +2296,57 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    That halo is gone too now (see the dark-theme note below) - the wash is
    still not the thing to reinstate if the hairline ever needs lifting. */
 
-/* ── Arc ground behind the silhouette ──
-   The containment a disc would give, without the crop a disc would cost: an
-   accent circle sits behind the shoulders and the subject breaks out of it -
-   the crown clears its top edge, both shoulders run past its sides. The cutout
-   stays a cutout; the arc is only what it stands in front of.
+/* ── Paint stroke behind the silhouette ──
+   A real brush-stroke texture (brush-stroke.jpg) used as a luminance mask
+   over a solid accent fill. The bright amber of the source image maps to
+   opaque, the black background to transparent, so the irregular bristle
+   edges, dry-brush feathering and thick-to-thin taper all come through.
 
-   Deliberately EDGED, which is the whole difference from the radial wash the
-   note above buried. That one failed because a plateau with no boundary reads
-   as a stain behind the person. A stroked circle reads as a drawn shape, so
-   the same accent at a fraction of the coverage lands as geometry rather than
-   grime. Do not soften the border back into a gradient - the edge IS the
-   feature, and without it this is the wash again.
+   Uses --accent-fill as the background, so whatever accent the theme
+   customiser sets the stroke tracks it automatically — the image only
+   defines the SHAPE, not the colour.
 
-   The geometry is in percentages of `.home-portrait`, so all three width caps
-   further down inherit it with nothing to re-tune. 74% of a box whose subject
-   spans it almost edge to edge at the shoulders leaves ~13% of overhang a
-   side, and `top: 13%` puts the crest through the hair rather than clear above
-   it: the break-out has to cross the subject to read as one, and a disc tucked
-   entirely behind him is just a wash with an outline.
-
-   The bottom is masked away on roughly the torso's own schedule. Left closed,
-   the circle completes below the fade line where there is no subject in front
-   of it any more, and the shape stops being an arc behind a person and becomes
-   a ring with a person in it. */
+   The geometry is in percentages of `.home-portrait`, so all three width
+   caps further down inherit it with nothing to re-tune. */
 .home-portrait::before {
   content: "";
   position: absolute;
   z-index: 0;
-  top: 10%;
-  left: 44%;
-  width: 80%;
-  aspect-ratio: 1;
-  transform: translateX(-50%);
-  border: 1.5px solid color-mix(in srgb, var(--accent-fill) 34%, transparent);
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--accent-fill) 7%, transparent);
 
-  /* Ends higher than the portrait's own 68%/97% fade: the arc has to be gone
-     BEFORE the torso is, or its vanishing edge is the last thing left on the
-     page. */
-  mask-image: linear-gradient(to bottom, #000 60%, transparent 95%);
+  /* Doubled the size */
+  width: 125%;
+  height: 100%;
+
+  /* Adjusted position to cover shoulders */
+  top: -15%;
+  left: 50%;
+
+  /* Kept original rotation and centering */
+  transform: translateX(-50%) rotate(-3deg);
+
+  /* Solid accent fill — the mask reveals only the stroke shape */
+  background: var(--accent-fill);
+  opacity: 1;
+
+  /* The brush-stroke image as a luminance mask: bright pixels → opaque,
+     black pixels → transparent. This is what gives the organic, textured,
+     bristle-marked silhouette rather than a geometric CSS shape. */
+  -webkit-mask-image: url('brush-stroke.jpg');
+  mask-image: url('brush-stroke.jpg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-mode: luminance;
+  mask-mode: luminance;
+}
+
+/* On the dark ground, the stroke can be subtler — the near-black page
+   absorbs more, so a lower opacity keeps it as a warm glow. */
+body.dark-theme .home-portrait::before {
+  opacity: 1;
 }
 
 /* The shadow is on the <picture>, not the <img>, because the mask below is
@@ -2349,10 +2359,10 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    cards, and under a silhouette on this amber ground it reads as a cold
    smudge. */
 .home-portrait picture {
-  /* Stacked explicitly over the arc above. `picture` carries a filter, which
-     makes it a stacking context painted in flow order - that is EARLIER than a
-     positioned sibling with `z-index: auto`, so without this pair the arc
-     paints over the face. */
+  /* Stacked explicitly over the stroke above. `picture` carries a filter,
+     which makes it a stacking context painted in flow order - that is EARLIER
+     than a positioned sibling with `z-index: auto`, so without this pair the
+     stroke paints over the face. */
   position: relative;
   z-index: 1;
   display: block;
@@ -2360,34 +2370,10 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 }
 
 /* ── No glow behind the silhouette on dark ──
-   Two accent drop-shadows used to sit here: a wide one under the torso and a
-   close halo hugging the hair line. Together they traced the cutout's alpha,
-   so on the dark ground they read as an amber aura outlining the person -
-   a lit edge around a shape that is otherwise unframed. Removed.
-
-   They were the last thing separating near-black hair from the near-black
-   background; the numbers in the wash note above are the halo's. Without
-   either, that separation now comes from the page gradient and the plexus
-   canvas alone, so most of the hairline sits near 1.1:1 against the ground.
-   That is a deliberate look, not an oversight - the silhouette is meant to
-   sink into the page here. If it ever needs lifting again, bring back only
-   the close halo (`drop-shadow(0 0 18px hsla(38, 92%, 55%, 0.34))`), which
-   measured better than the diffuse forms.
-
-   `none` rather than deleting the rule: the base declaration above is a warm
-   dark shadow tuned to the light ground, and it is invisible-to-muddy on
-   near-black. Nothing should paint here. */
+   The base declaration above is a warm dark shadow tuned to the light ground,
+   and it is invisible-to-muddy on near-black. Nothing should paint here. */
 body.dark-theme .home-portrait picture {
   filter: none;
-}
-
-/* On this ground the arc is the only drawn edge anywhere near the hairline, so
-   it takes a heavier stroke and a thinner plate: the fill is what would light
-   the background the silhouette is meant to sink into, the stroke is what
-   gives the crown something to be seen against. */
-body.dark-theme .home-portrait::before {
-  border-color: color-mix(in srgb, var(--accent-fill) 46%, transparent);
-  background: color-mix(in srgb, var(--accent-fill) 4%, transparent);
 }
 
 .home-portrait-img {
@@ -5167,7 +5153,9 @@ body.dark-theme .skill-tag.primary .fas {
        optical inset on itself instead - it is bare text with no icon box of
        its own, which is what the asymmetry was for. */
     padding: 0 6px;
-    margin: 0 12px;
+    width: calc(100% - 24px);
+    margin-inline: auto;
+    align-self: center;
     border-radius: 999px;
     gap: 2px;
   }
@@ -8231,14 +8219,13 @@ nav a:hover .nav-shortcut {
      bar above a panel. Measured against viewport height like #home's
      --home-shell-gap, so a short landscape phone spends less of what it has
      separating them. */
-  --ai-header-gap: clamp(14px, 2.2vh, 22px);
+  --ai-header-gap: clamp(20px, 2.6vw, 34px);
 
   display: flex;
   flex-direction: column;
   min-height: 0;
   padding-block:
-    calc(var(--header-sticky-offset, 16px) + var(--ai-header-gap))
-    calc(var(--ai-gutter) + var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom, 0px));
+    calc(var(--header-sticky-offset, 16px) + var(--ai-header-gap)) calc(var(--ai-gutter) + var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom, 0px));
   padding-inline: var(--ai-gutter);
 }
 
@@ -8457,7 +8444,7 @@ body.dark-theme .sidebar-search-input {
    recency and labels each bucket, so "the one from yesterday" is a two-step
    lookup rather than a read of every row. The label is an eyebrow, not a
    heading: it names the bucket and gets out of the way. */
-.ai-history-group + .ai-history-group {
+.ai-history-group+.ai-history-group {
   margin-top: 14px;
 }
 
@@ -8804,9 +8791,9 @@ body.dark-theme .history-item:hover {
 }
 
 .ai-usage-value {
-  font-size: var(--text-sm);
+  font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: var(--tracking-tight);
+  letter-spacing: var(--tracking-wide);
   color: var(--text);
   /* The output total gains a digit mid-conversation and the average moves on
      every turn; tabular figures keep the pair from shuffling sideways as they
@@ -9243,7 +9230,7 @@ body.dark-theme .chat-message.bot tr:nth-child(even) {
 
 /* Page-sized answers get more air between blocks than a 350px widget can
    afford, and the first block never opens with a leading margin. */
-#ai .chat-message.bot > :first-child {
+#ai .chat-message.bot> :first-child {
   margin-top: 0;
 }
 
@@ -9517,7 +9504,8 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 
 .ai-input-form {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 4px;
   width: 100%;
   max-width: var(--ai-measure);
@@ -9538,7 +9526,8 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 }
 
 .ai-textarea {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 5px 6px 3px 0;
   border: none;
   background: transparent;
@@ -9566,14 +9555,13 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 .ai-input-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  flex-shrink: 0;
   gap: 4px;
 }
 
 /* Pushed to the far end of the control row, so the two circles stay where the
    thumb expects them however wide the count grows. */
 .ai-tokens {
-  margin-right: auto;
   padding-left: 2px;
   color: var(--muted);
   font-size: var(--text-2xs);
