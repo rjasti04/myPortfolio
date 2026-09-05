@@ -44,7 +44,7 @@ shown and hidden by class rather than fetched:
 
 | Section id | Content |
 | :--- | :--- |
-| `home` | The landing view — identity treatment, two calls to action (About, Resume), and an icon row of two outbound profiles (LinkedIn, GitHub) plus in-site shortcuts to `#contact` and `#ai` |
+| `home` | The landing view — identity treatment, the disciplines line (shared verbatim with the `#about` hero), two calls to action (About filled as the primary, Resume outlined), and an icon row grouped by destination: the in-site shortcuts to `#contact` and `#ai` (the latter labelled "Ask AI"), a hairline, then the two outbound profiles (LinkedIn, GitHub). The stack has almost no vertical slack — see the height-budget notes on `.home-portrait` and `.hero-kicker.home-kicker` in the HOME HERO region before adding to it |
 | `about` | Hero, profile, stat counters, skills carousel, the interactive command prompt |
 | `resume` | Experience timeline, downloadable résumé |
 | `hobbies` | Personal interests |

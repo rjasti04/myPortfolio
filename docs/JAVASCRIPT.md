@@ -527,11 +527,20 @@ immediately under reduced motion or without the API), animated stat counters,
 the terminal intro sequence, a matrix-style text decode effect, spring-driven
 hover states, and page transitions.
 
-### `hero-title.js` (179 lines)
+### `hero-title.js` (194 lines)
 
 `initHeroTitle()` — tokenises the hero title into words and characters
 (preserving wrapping), plays a staggered 3D roll-up entrance, and adds a
 magnetic pointer tilt with a specular highlight. Fully reduced-motion aware.
+
+The characters it builds start at `opacity: 0`, so this module is what makes
+the page's only `<h1>` visible. Two things bound that. The wait on
+`document.fonts.ready` is raced against `FONT_WAIT_CEILING_MS` (300 ms), so a
+slow or hanging font request delays the entrance rather than withholding the
+name; and `.hero-char` carries a `hero-char-failsafe` animation in
+`styles.css` that reveals the characters at 1.5 s from CSS alone, so a throw
+anywhere in this module cannot leave the hero blank. Keep the JS ceiling well
+under the CSS deadline.
 
 ### `physics.js` (75 lines)
 
