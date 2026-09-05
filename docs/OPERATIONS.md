@@ -95,14 +95,16 @@ migration or file sync is worse than waiting.
 
 ## Quality gates
 
-### `frontend-check` (10 min, Node 18)
+### `frontend-check` (20 min, Node 18)
 
 1. `npm ci`
 2. `npm run lint` — ESLint + Stylelint
 3. `npm test` — Node test runner + jsdom
 4. `npm run build` — a build failure is caught here rather than mid-deploy
 5. `python3 scripts/check_csp_hashes.py` — sees both the source and the built page
-6. `npm run audit` — `continue-on-error`, so transitive dev advisories are
+6. `python3 scripts/check_docs.py` — the counts the docs quote still match the
+   repository; `--fix` applies the corrections locally
+7. `npm run audit` — `continue-on-error`, so transitive dev advisories are
    visible without blocking a portfolio deploy
 
 ### `backend-check` (15 min, Python 3.10 **and** 3.12)
