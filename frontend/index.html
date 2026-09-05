@@ -467,6 +467,9 @@
                background-removed (scripts/generate_profile_cutout.py), so the
                page's own gradient and plexus canvas run behind the silhouette
                and the shape on the page is the person rather than a circle.
+               There IS a circle behind him - `.home-portrait::before`, an arc
+               the crown and both shoulders break out of - but nothing crops
+               the image to it; see the note on that rule.
                The PNG fallback is the `img` src because JPEG cannot carry an
                alpha channel; the width/height pair is the intrinsic ratio of
                the sources, and styles.css sets the rendered width. -->

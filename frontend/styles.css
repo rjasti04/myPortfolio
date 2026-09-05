@@ -2296,6 +2296,49 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    That halo is gone too now (see the dark-theme note below) - the wash is
    still not the thing to reinstate if the hairline ever needs lifting. */
 
+/* ── Arc ground behind the silhouette ──
+   The containment a disc would give, without the crop a disc would cost: an
+   accent circle sits behind the shoulders and the subject breaks out of it -
+   the crown clears its top edge, both shoulders run past its sides. The cutout
+   stays a cutout; the arc is only what it stands in front of.
+
+   Deliberately EDGED, which is the whole difference from the radial wash the
+   note above buried. That one failed because a plateau with no boundary reads
+   as a stain behind the person. A stroked circle reads as a drawn shape, so
+   the same accent at a fraction of the coverage lands as geometry rather than
+   grime. Do not soften the border back into a gradient - the edge IS the
+   feature, and without it this is the wash again.
+
+   The geometry is in percentages of `.home-portrait`, so all three width caps
+   further down inherit it with nothing to re-tune. 74% of a box whose subject
+   spans it almost edge to edge at the shoulders leaves ~13% of overhang a
+   side, and `top: 13%` puts the crest through the hair rather than clear above
+   it: the break-out has to cross the subject to read as one, and a disc tucked
+   entirely behind him is just a wash with an outline.
+
+   The bottom is masked away on roughly the torso's own schedule. Left closed,
+   the circle completes below the fade line where there is no subject in front
+   of it any more, and the shape stops being an arc behind a person and becomes
+   a ring with a person in it. */
+.home-portrait::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 10%;
+  left: 44%;
+  width: 80%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border: 1.5px solid color-mix(in srgb, var(--accent-fill) 34%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent-fill) 7%, transparent);
+
+  /* Ends higher than the portrait's own 68%/97% fade: the arc has to be gone
+     BEFORE the torso is, or its vanishing edge is the last thing left on the
+     page. */
+  mask-image: linear-gradient(to bottom, #000 60%, transparent 95%);
+}
+
 /* The shadow is on the <picture>, not the <img>, because the mask below is
    what gives the image its final alpha: a filter on the same element is
    applied BEFORE its mask, so a drop-shadow declared there would be cast by
@@ -2306,6 +2349,12 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    cards, and under a silhouette on this amber ground it reads as a cold
    smudge. */
 .home-portrait picture {
+  /* Stacked explicitly over the arc above. `picture` carries a filter, which
+     makes it a stacking context painted in flow order - that is EARLIER than a
+     positioned sibling with `z-index: auto`, so without this pair the arc
+     paints over the face. */
+  position: relative;
+  z-index: 1;
   display: block;
   filter: drop-shadow(0 18px 26px hsla(28, 45%, 18%, 0.28));
 }
@@ -2330,6 +2379,15 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    near-black. Nothing should paint here. */
 body.dark-theme .home-portrait picture {
   filter: none;
+}
+
+/* On this ground the arc is the only drawn edge anywhere near the hairline, so
+   it takes a heavier stroke and a thinner plate: the fill is what would light
+   the background the silhouette is meant to sink into, the stroke is what
+   gives the crown something to be seen against. */
+body.dark-theme .home-portrait::before {
+  border-color: color-mix(in srgb, var(--accent-fill) 46%, transparent);
+  background: color-mix(in srgb, var(--accent-fill) 4%, transparent);
 }
 
 .home-portrait-img {
