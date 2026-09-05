@@ -1407,6 +1407,18 @@
           </aside>
 
           <div class="ai-main empty-state" id="ai-page-container">
+            <!-- Static chrome. Nothing here is wired to JS: it names the surface
+                 and keeps the model on screen after the empty state's chip
+                 scrolls away, and it gives the collapsed sidebar's toggle a
+                 strip of its own instead of leaving it floating over the first
+                 answer. -->
+            <div class="ai-topbar">
+              <span class="ai-topbar-title">Rajeev's Assistant</span>
+              <span class="ai-topbar-model">
+                <span class="ai-status-dot" aria-hidden="true"></span>Gemma 3-4B
+              </span>
+            </div>
+
             <div class="ai-content-area">
               <!-- Empty State View -->
               <div class="ai-empty-view">
