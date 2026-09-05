@@ -57,7 +57,10 @@ JS_EXCLUDED = {
 
 
 def tokens(path: Path, divisor: float) -> int:
-    return math.ceil(path.stat().st_size / divisor / ROUND_TO) * ROUND_TO
+    # Measure bytes under normalized LF line endings so figures agree across
+    # platforms regardless of git autocrlf checkout settings.
+    size = len(path.read_bytes().replace(b"\r\n", b"\n"))
+    return math.ceil(size / divisor / ROUND_TO) * ROUND_TO
 
 
 def lines(path: Path) -> int:
