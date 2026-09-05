@@ -1371,80 +1371,98 @@
       </section>
 
       <section id="ai">
+        <!-- ── AI page ──
+             Three surfaces and one measure. The rail lists conversations, the
+             thread is a single left-aligned reading column, and the composer
+             is the anchor: it sits directly under the greeting while the
+             thread is empty and docks to the bottom edge the moment a turn
+             exists. The shell mechanics are documented in the AI PAGE region
+             of styles.css. -->
         <div class="ai-container sidebar-hidden" id="ai-layout">
           <div class="ai-sidebar-scrim" id="ai-sidebar-scrim" aria-hidden="true"></div>
 
-          <button type="button" class="ai-sidebar-toggle" id="sidebar-open-btn" aria-label="Open chat history"
-            aria-controls="ai-sidebar" aria-expanded="false">
-            <i class="fas fa-chevron-right"></i>
-          </button>
-
           <aside class="ai-sidebar" id="ai-sidebar" aria-label="Chat history">
             <div class="ai-sidebar-header">
-              <button type="button" class="btn btn-accent new-chat-btn" id="new-chat-btn" data-spring-hover>
-                <i class="fas fa-plus"></i> New Chat
+              <button type="button" class="new-chat-btn" id="new-chat-btn" data-spring-hover>
+                <i class="fas fa-plus" aria-hidden="true"></i><span>New chat</span>
               </button>
               <button type="button" class="ai-close-btn" id="sidebar-close-btn" aria-label="Close chat history"
                 aria-controls="ai-sidebar" aria-expanded="true">
-                <i class="fas fa-chevron-left"></i>
+                <i class="fas fa-chevron-left" aria-hidden="true"></i>
               </button>
             </div>
+
             <div class="ai-sidebar-search hidden" id="ai-sidebar-search-container">
               <div class="sidebar-search-wrapper">
                 <i class="fas fa-search search-icon" aria-hidden="true"></i>
-                <input type="text" id="sidebar-search-input" class="sidebar-search-input" placeholder="Search chats..."
+                <input type="search" id="sidebar-search-input" class="sidebar-search-input" placeholder="Search chats"
                   aria-label="Search conversation history" autocomplete="off">
               </div>
             </div>
+
             <div class="ai-sidebar-history" id="ai-sidebar-history">
-              <!-- Chat history injected here -->
+              <!-- renderSidebar() fills this: one .ai-history-group per time
+                   bucket, or .ai-history-empty when there is nothing to list. -->
             </div>
+
             <div class="ai-sidebar-footer">
               <button type="button" class="btn-clear" id="clear-all-btn">
-                <i class="fas fa-trash-alt"></i> Clear All History
+                <i class="fas fa-trash-alt" aria-hidden="true"></i><span>Clear all history</span>
               </button>
             </div>
           </aside>
 
           <div class="ai-main empty-state" id="ai-page-container">
-            <!-- Keeps the model on screen after the empty state's chip scrolls
-                 away, gives the collapsed sidebar's toggle a strip of its own
-                 instead of leaving it floating over the first answer, and
-                 reports what this conversation has cost so far. chat.js fills
-                 the two figures from each turn's metrics frame; the values here
-                 are the empty-conversation state. -->
+            <!-- The top bar answers "which conversation, on what model, at what
+                 cost" in that order - the same order a visitor asks them in.
+                 The rail toggle lives here rather than floating over the
+                 transcript, so the strip owns its own leading edge instead of
+                 reserving padding for a control positioned on top of it. -->
             <div class="ai-topbar">
-              <div class="ai-usage" title="Totals for this conversation">
-                <span class="ai-usage-stat">
-                  <span class="ai-usage-label">Input / output</span>
-                  <span class="ai-usage-value" id="ai-usage-tokens">0 / 0</span>
-                </span>
-                <span class="ai-usage-stat">
-                  <span class="ai-usage-label">Avg latency</span>
-                  <span class="ai-usage-value" id="ai-usage-latency">&mdash;</span>
+              <button type="button" class="ai-sidebar-toggle" id="sidebar-open-btn" aria-label="Open chat history"
+                aria-controls="ai-sidebar" aria-expanded="false">
+                <i class="fas fa-bars" aria-hidden="true"></i>
+              </button>
+              <p class="ai-thread-title" id="ai-thread-title">New chat</p>
+              <div class="ai-topbar-meta">
+                <!-- Hidden until a turn has actually been measured: on an empty
+                     conversation "0 / 0" and an em dash are the loudest thing
+                     on the bar and say nothing. renderUsageSummary() reveals it. -->
+                <dl class="ai-usage" id="ai-usage" hidden title="Totals for this conversation">
+                  <div class="ai-usage-stat">
+                    <dt class="ai-usage-label">In / out</dt>
+                    <dd class="ai-usage-value" id="ai-usage-tokens">0 / 0</dd>
+                  </div>
+                  <div class="ai-usage-stat">
+                    <dt class="ai-usage-label">Avg latency</dt>
+                    <dd class="ai-usage-value" id="ai-usage-latency">&mdash;</dd>
+                  </div>
+                </dl>
+                <span class="ai-topbar-model">
+                  <span class="ai-status-dot" aria-hidden="true"></span>Gemma 3-4B
                 </span>
               </div>
-              <span class="ai-topbar-model">
-                <span class="ai-status-dot" aria-hidden="true"></span>Gemma 3-4B
-              </span>
             </div>
 
             <div class="ai-content-area">
-              <!-- Empty State View -->
+              <!-- Empty state. Greeting, starters and composer read as one
+                   centred stack; see the auto-margin note in styles.css. -->
               <div class="ai-empty-view">
-                <div class="ai-hero-icon"><i class="fas fa-robot"></i></div>
-                <h2 class="ai-heading" id="ai-page-heading">How can I help you?</h2>
-                <p class="ai-subtitle" id="ai-page-subtitle">Powered by Gemma 3-4B running on Ollama</p>
+                <span class="ai-hero-icon" aria-hidden="true"><i class="fas fa-robot"></i></span>
+                <h2 class="ai-heading" id="ai-page-heading">Ask me anything</h2>
+                <p class="ai-subtitle" id="ai-page-subtitle">
+                  I can walk you through Rajeev's work &mdash; or take on whatever else you are curious about.
+                </p>
 
-                <div class="ai-suggestions" id="ai-suggested-prompts">
+                <div class="ai-suggestions" id="ai-suggested-prompts" role="group" aria-labelledby="ai-page-heading">
                   <button type="button" class="ai-suggestion-card"
                     data-prompt="What does Rajeev do as a Principal Data Engineer and Architect?">
-                    <i class="fas fa-user-tie"></i>
+                    <i class="fas fa-user-tie" aria-hidden="true"></i>
                     <span>What does Rajeev do day to day?</span>
                   </button>
                   <button type="button" class="ai-suggestion-card"
                     data-prompt="What are Rajeev's technical skills across data engineering, cloud, and full-stack development?">
-                    <i class="fas fa-layer-group"></i>
+                    <i class="fas fa-layer-group" aria-hidden="true"></i>
                     <span>What are Rajeev's technical skills?</span>
                   </button>
                   <!-- The two below are deliberately not about Rajeev: two
@@ -1453,33 +1471,40 @@
                        none of them ages into a wrong answer. -->
                   <button type="button" class="ai-suggestion-card"
                     data-prompt="How do large language models actually work, from tokens through to a generated answer?">
-                    <i class="fas fa-brain"></i>
+                    <i class="fas fa-brain" aria-hidden="true"></i>
                     <span>How do large language models work?</span>
                   </button>
                   <button type="button" class="ai-suggestion-card"
                     data-prompt="What can quantum computers do that classical computers cannot, and where are they still limited?">
-                    <i class="fas fa-atom"></i>
+                    <i class="fas fa-atom" aria-hidden="true"></i>
                     <span>What can quantum computers really do?</span>
                   </button>
                 </div>
               </div>
 
-              <!-- Message Display -->
+              <!-- Transcript -->
               <div class="ai-messages" id="ai-page-messages" aria-live="polite"></div>
             </div>
 
             <div class="ai-input-container">
+              <!-- Floats over the foot of the transcript rather than sitting in
+                   the composer's flow, and appears only once the transcript is
+                   scrolled off its own bottom edge; chat.js owns `hidden`. -->
+              <button type="button" class="ai-jump-btn" id="ai-jump-btn" hidden>
+                <i class="fas fa-arrow-down" aria-hidden="true"></i><span>Latest</span>
+              </button>
+
               <form class="ai-input-form" id="ai-page-form">
-                <textarea id="ai-page-input" class="ai-textarea" placeholder="Message AI..." autocomplete="off" rows="1"
-                  aria-label="Message AI assistant" required></textarea>
+                <textarea id="ai-page-input" class="ai-textarea" placeholder="Ask anything&hellip;" autocomplete="off"
+                  rows="1" aria-label="Message the AI assistant" required></textarea>
                 <div class="ai-input-actions">
                   <span class="ai-tokens" id="ai-token-counter" hidden>0 tokens</span>
                   <button type="button" class="ai-mic-btn" id="ai-page-mic-btn" aria-label="Use voice input"
                     title="Voice input">
-                    <i class="fas fa-microphone"></i>
+                    <i class="fas fa-microphone" aria-hidden="true"></i>
                   </button>
                   <button type="submit" class="ai-send-btn" id="ai-page-send-btn" aria-label="Send message">
-                    <i class="fas fa-arrow-up"></i>
+                    <i class="fas fa-arrow-up" aria-hidden="true"></i>
                   </button>
                 </div>
               </form>

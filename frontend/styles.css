@@ -7924,47 +7924,52 @@ nav a:hover .nav-shortcut {
 /* #endregion */
 
 /* #region AI PAGE -----------------------------------------------------*/
-/* ── AI Page ──
-   Every other section of this site is a document. This one is an app, and it
-   is now built like one. Three decisions drive the whole region:
+/* ── AI page ──
+   Every other section of this site is a document. This one is an app, and the
+   layout is built from four decisions:
 
-     1. The shell owns the viewport, and nothing outside the panel scrolls.
-        The page is sized, not measured: .layout is pinned to 100dvh, `main`
-        becomes a flex column that re-pads the section to a bare gutter, and
-        #ai takes `flex: 1` of what is left. That is the same mechanism the
-        #home shell uses (HOME HERO), and it replaces a
-        `height: calc(100dvh - --header-height - ...)` that had to restate
-        main's padding as negative margins and the header's height as a
-        number - both of which drifted, leaving the panel a few pixels under
-        the sticky header and the document a few pixels scrollable. Scroll
-        lives in .ai-content-area and .ai-sidebar-history, nowhere else.
-     2. No turn is a bubble. A bubble capped the answer at 75% of an 800px
-        column and re-wrapped the longest prose on the page into the narrowest
-        box in it. Both turns are now set as plain text across the full
-        measure, in one left-aligned column; the visitor's own turn is marked
-        by the accent and a heavier weight rather than by a box of its own.
-        That one change is most of the reading width this page gains.
-     3. One measure for everything. Transcript and composer both resolve to
-        --ai-measure, so question, answer and input share two edges down the
-        whole screen rather than three different ones.
+     1. The shell owns the viewport and nothing outside the panel scrolls.
+        `.layout` is pinned to 100dvh, `main` becomes a flex column that
+        re-pads the section to a bare gutter, and `#ai` takes `flex: 1` of what
+        is left - the same mechanism the #home shell uses. Nothing here does
+        viewport arithmetic, so nothing drifts when the header resizes. Scroll
+        lives in `.ai-content-area` and `.ai-sidebar-history`, nowhere else.
 
-   The corner widget keeps its bubbles: the shared `.chat-message` rules are
-   untouched and every override here is #ai-scoped. */
+     2. One reading column, and the question is its heading. Neither turn is a
+        bubble: the question is set one step up in size against an accent rule
+        on the left, the answer is plain prose underneath it, and both start on
+        the same edge. Scanning a long thread is then a matter of running the
+        eye down the amber rules - which is what alternating left/right bubbles
+        made impossible, because the two roles never shared a leading edge.
+
+     3. The composer is the anchor, not a footer. On an empty thread it sits
+        directly under the greeting in the middle of the panel, where the eye
+        already is; the moment a turn exists it docks to the bottom edge. Two
+        auto margins do that, with no second layout and no JS.
+
+     4. One measure for everything. Transcript, composer and empty state all
+        resolve to --ai-measure, so question, answer and input share two edges
+        down the whole screen rather than three different ones.
+
+   The corner widget keeps its bubbles: the shared `.chat-message` rules stay
+   untouched and every override in this region is #ai-scoped. */
 
 #ai {
-  /* The reading measure. 820px at 16px/1.7 is ~95 characters - the top of
-     the comfortable range, and wide enough that a fenced code block or a
-     four-column table stops needing its own scrollbar. */
-  --ai-measure: 820px;
-  --ai-rail: 272px;
-  --ai-pad-x: clamp(16px, 3vw, 40px);
-  /* Shared, because .ptr-indicator hangs off the bottom edge of the top bar
-     and the two have to agree at both sizes. */
-  --ai-topbar-h: 52px;
+  /* The reading measure. 780px at 16px is ~90 characters set in Plus Jakarta
+     Sans - the width ChatGPT and Claude both land on, and wide enough that a
+     fenced block or a four-column table stops needing its own scrollbar. */
+  --ai-measure: 780px;
+  --ai-rail: 280px;
+  --ai-pad-x: clamp(16px, 3vw, 44px);
+  --ai-topbar-h: 56px;
+  /* The space that opens a new question, and half of it under the answer that
+     closes the last one. One token, so the rhythm of the thread is edited in
+     one place. */
+  --ai-turn-gap: 32px;
 
   position: relative;
   /* A flex item's default `min-height: auto` is its content height, which is
-     what lets a long transcript push the panel past the fold instead of
+     what would let a long transcript push the panel past the fold instead of
      handing the overflow to .ai-content-area. */
   min-height: 0;
 }
@@ -7973,23 +7978,21 @@ nav a:hover .nav-shortcut {
    Three rules, one per level of the shell, and no viewport arithmetic in any
    of them.
 
-   .layout is `min-height: 100vh` for a document; here it is exactly 100dvh,
-   so a phone's collapsing address bar shrinks the panel rather than leaving
-   the last band of it under the toolbar. min-height has to go with it or it
-   wins on any viewport where 100vh > 100dvh.
+   .layout is `min-height: 100vh` for a document; here it is exactly 100dvh, so
+   a phone's collapsing address bar shrinks the panel rather than leaving the
+   last band of it under the toolbar. min-height has to go with it or it wins
+   on any viewport where 100vh > 100dvh.
 
    `main` drops its document padding for a gutter measured off the same token
    the header sticks to. The header is `position: sticky; top:
-   var(--header-sticky-offset)`, so it PAINTS that far below the flow box
-   main starts after - sticky pushes DOWN as well as up, and with nothing to
-   scroll here the offset applies at rest. Without adding it back, the top of
-   the panel renders underneath the pill. Same reasoning as the #home shell in
-   HOME HERO. Whatever is added on top of that offset is the gap the eye
-   actually sees, which is why the top has a token of its own.
+   var(--header-sticky-offset)`, so it PAINTS that far below the flow box main
+   starts after - sticky pushes DOWN as well as up, and with nothing to scroll
+   here the offset applies at rest. Without adding it back, the top of the
+   panel renders underneath the pill.
 
-   Nothing here reads --header-height. `header.scrolled` rewrites that token
-   to 56px on its own element, so any calc() against it outside the header
-   was already a stale 72. Flex asks the browser for what is left instead.
+   Nothing here reads --header-height. `header.scrolled` rewrites that token to
+   56px on its own element, so any calc() against it outside the header was
+   already a stale 72. Flex asks the browser for what is left instead.
 
    Scoped to .js-enabled because #ai keeps no `active` class in the markup:
    without JS every section renders stacked and the panel is one block in a
@@ -8004,11 +8007,11 @@ nav a:hover .nav-shortcut {
      viewport. */
   --ai-gutter: 12px;
   /* The top is deliberately not the gutter. Both the header and the panel are
-     elevated surfaces with their own shadow, and at the gutter's 12px - 8px on
-     a phone - the two shadows almost meet and the pair reads as one stacked
-     slab rather than a bar above a panel. Measured against viewport height
-     like #home's --home-shell-gap, so a short landscape phone spends less of
-     what it has separating them. */
+     elevated surfaces with their own shadow, and at the gutter's 12px the two
+     shadows almost meet and the pair reads as one stacked slab rather than a
+     bar above a panel. Measured against viewport height like #home's
+     --home-shell-gap, so a short landscape phone spends less of what it has
+     separating them. */
   --ai-header-gap: clamp(14px, 2.2vh, 22px);
 
   display: flex;
@@ -8017,9 +8020,6 @@ nav a:hover .nav-shortcut {
   padding-block:
     calc(var(--header-sticky-offset, 16px) + var(--ai-header-gap))
     calc(var(--ai-gutter) + var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom, 0px));
-  /* Replaces the negative inline margins this section used to carry: the
-     panel is inset by the gutter, not by main's document measure. At 1280px
-     that is the same 1256px of panel the bleed produced. */
   padding-inline: var(--ai-gutter);
 }
 
@@ -8052,14 +8052,17 @@ nav a:hover .nav-shortcut {
   box-shadow: var(--elev-3);
 }
 
-/* ── Sidebar ── */
+/* ── Rail ──
+   A list of conversations, and nothing else. Everything in it is quiet at
+   rest: the panel's job is the answer, and a 280px column of amber beside it
+   competes with the thing the visitor came for. */
 .ai-sidebar {
   width: var(--ai-rail);
   min-width: 0;
-  background: hsl(0, 0%, 0%, 0.035);
-  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  background: hsl(0, 0%, 0%, 0.035);
+  border-right: 1px solid var(--border);
   transition:
     width var(--motion-medium) var(--ease-standard),
     opacity var(--motion-medium) var(--ease-standard),
@@ -8089,122 +8092,92 @@ body.dark-theme .ai-sidebar {
   display: none;
 }
 
-/* Sits inside the top bar rather than over the transcript: 8px down the
-   52px bar centres a 36px control, and the bar reserves the width it needs
-   with its own padding while the rail is collapsed. */
-.ai-sidebar-toggle {
-  position: absolute;
-  top: 8px;
-  left: 10px;
-  z-index: 20;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--muted);
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition:
-    background-color var(--motion-base) var(--ease-standard),
-    border-color var(--motion-base) var(--ease-standard),
-    color var(--motion-base) var(--ease-standard);
-  font-size: var(--text-xs);
-}
-
-.ai-sidebar-toggle:hover {
-  background: var(--accent-soft);
-  border-color: var(--accent-mild);
-  color: var(--accent-text);
-}
-
-.ai-container.sidebar-hidden .ai-sidebar-toggle {
-  display: flex;
-}
-
 .ai-sidebar-header {
-  padding: 12px;
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 12px 12px 10px;
 }
 
-/* The rail's primary action, not the page's: `.btn`'s gradient face, glow and
-   sheen made a 240px slab the loudest thing on the screen, above the answer
-   it is meant to sit beside. Soft accent at rest, solid on hover - the same
-   promotion the history rows use. */
-#ai .new-chat-btn {
+/* The rail's primary action, not the page's. `.btn`'s gradient face, glow and
+   ripple made a 240px slab the loudest thing on screen, above the answer it is
+   meant to sit beside - so this button is not a `.btn` at all. Soft accent at
+   rest, solid on hover: the same promotion the history rows use. */
+.new-chat-btn {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 10px 14px;
   background: var(--accent-soft);
-  background-image: none;
   border: 1px solid color-mix(in srgb, var(--accent-fill) 34%, transparent);
   border-radius: 10px;
   color: var(--accent-text);
+  font-family: inherit;
   font-size: var(--text-sm);
   font-weight: 700;
-  box-shadow: none;
-  overflow: hidden;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
 }
 
-#ai .new-chat-btn::before,
-#ai .new-chat-btn::after {
-  content: none;
-}
-
-#ai .new-chat-btn:hover {
+.new-chat-btn:hover {
   background: var(--accent-fill);
   border-color: var(--accent-fill);
   color: var(--on-accent);
-  box-shadow: none;
-  transform: none;
 }
 
-.ai-close-btn {
-  background: transparent;
-  border: none;
-  color: var(--muted);
+.ai-close-btn,
+.ai-sidebar-toggle {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
-  cursor: pointer;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
   transition:
     background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
     color var(--motion-base) var(--ease-standard);
-  font-size: var(--text-xs);
-  flex-shrink: 0;
 }
 
-.ai-close-btn:hover {
+.ai-close-btn:hover,
+.ai-sidebar-toggle:hover {
   background: var(--accent-soft);
+  border-color: var(--accent-mild);
   color: var(--accent-text);
 }
 
-/* The page's own controls, on the same outline convention as the
-   .ai-send-btn / .ai-close-btn group in HEADER & NAVIGATION. A border or a
-   background change is not a focus indicator (WCAG 2.2 SC 2.4.11), and
-   several of these are now transparent at rest. */
+/* The page's own controls, on the same outline convention as the rest of the
+   file. A border or a background change is not a focus indicator (WCAG 2.2
+   SC 2.4.11), and most of these are transparent at rest. */
 .ai-sidebar-toggle:focus-visible,
+.ai-close-btn:focus-visible,
+.new-chat-btn:focus-visible,
+.btn-clear:focus-visible,
 .ai-mic-btn:focus-visible,
+.ai-jump-btn:focus-visible,
 .ai-suggestion-card:focus-visible,
-.history-item:focus-visible,
 .session-menu-btn:focus-visible,
 .session-dropdown-menu .dropdown-item:focus-visible,
+.sidebar-search-input:focus-visible,
 #ai .msg-action-btn:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
-/* Sidebar Search Filter */
+/* Sidebar search. renderSidebar() reveals this once the history is worth
+   filtering, so it is hidden rather than absent - the rail keeps one layout. */
 .ai-sidebar-search {
   padding: 0 12px 10px;
 }
@@ -8239,35 +8212,61 @@ body.dark-theme .ai-sidebar {
   outline: none;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard);
+    border-color var(--motion-fast) var(--ease-standard);
 }
 
 body.dark-theme .sidebar-search-input {
   background: hsl(0, 0%, 100%, 0.05);
 }
 
-/* A border-colour change alone is not a focus indicator: it fails WCAG 2.2
-   SC 2.4.11 and is invisible against several of the customiser's palettes.
-   Matches the outline convention used elsewhere in this file. */
-.sidebar-search-input:focus-visible {
-  outline: 3px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
 .sidebar-search-input:focus {
   border-color: var(--accent-fill);
-  box-shadow: var(--glow-ring);
 }
 
-/* Sidebar history */
 .ai-sidebar-history {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 4px 8px 8px;
+  padding: 0 8px 8px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+}
+
+/* ── History groups ──
+   A flat list of thirty titles is a wall. renderSidebar() buckets them by
+   recency and labels each bucket, so "the one from yesterday" is a two-step
+   lookup rather than a read of every row. The label is an eyebrow, not a
+   heading: it names the bucket and gets out of the way. */
+.ai-history-group + .ai-history-group {
+  margin-top: 14px;
+}
+
+.ai-history-group-label {
+  padding: 6px 10px 5px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Only reachable by clearing the history or filtering it to nothing, which is
+   exactly when a blank rail reads as a bug rather than as a state. */
+.ai-history-empty {
+  padding: 26px 14px;
+  text-align: center;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--muted);
+}
+
+.ai-history-empty i {
+  display: block;
+  margin-bottom: 8px;
+  font-size: var(--text-xl);
+  color: var(--accent-text);
+  opacity: 0.55;
 }
 
 .history-item {
@@ -8275,25 +8274,71 @@ body.dark-theme .sidebar-search-input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 8px 9px 11px;
+  gap: 4px;
+  margin-bottom: 1px;
+  padding-right: 6px;
   border-radius: 9px;
-  cursor: pointer;
   font-size: var(--text-sm);
   font-weight: 500;
   color: var(--muted);
   transition:
     background-color var(--motion-base) var(--ease-standard),
     color var(--motion-base) var(--ease-standard);
-  gap: 6px;
-  margin-bottom: 1px;
 }
 
-.history-item span {
+/* The title is the control. The row used to be a bare div with a click
+   listener - no tab stop, no role, nothing for a screen reader to announce -
+   which put the entire chat history out of reach of the keyboard. It is a
+   button now, carrying the row's own padding, and the ::after below stretches
+   its hit area over the whole row so nothing is lost by the change. */
+.history-item-open {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 2px 9px 14px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  min-width: 0;
+  cursor: pointer;
+}
+
+.history-item-open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+}
+
+/* On the stretched hit area, not on the text box, so the ring frames the row
+   the way the hover wash does. */
+.history-item-open:focus-visible {
+  outline: none;
+}
+
+.history-item-open:focus-visible::after {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: -3px;
+}
+
+/* "You are here" as a marker rather than as a fill. The open conversation used
+   to be a solid amber slab - one row of the rail painted louder than the
+   answer beside it. A short accent bar plus the weight change reads at a
+   glance and leaves the row the same colour as its neighbours. */
+.history-item::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 2px;
+  background: var(--accent-fill);
+  transform: translateY(-50%);
+  transition: height var(--motion-base) var(--ease-standard);
 }
 
 .history-item:hover {
@@ -8305,29 +8350,31 @@ body.dark-theme .history-item:hover {
   background: hsl(0, 0%, 100%, 0.06);
 }
 
-/* The open conversation used to be a solid amber slab - one row of the rail
-   painted louder than the answer beside it. A soft wash plus the weight
-   change reads as "you are here" at a glance and still passes as the only
-   filled row in the list. */
 .history-item.active {
   background: var(--accent-soft);
   color: var(--text);
   font-weight: 700;
 }
 
+.history-item.active::before {
+  height: 18px;
+}
+
 .session-menu-btn {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  padding: 4px 6px;
   background: none;
   border: none;
+  border-radius: 6px;
   color: inherit;
+  font-size: var(--text-xs);
   opacity: 0;
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 6px;
-  font-size: var(--text-xs);
   transition:
     opacity var(--motion-fast) var(--ease-standard),
     background-color var(--motion-fast) var(--ease-standard);
-  flex-shrink: 0;
 }
 
 .history-item:hover .session-menu-btn,
@@ -8341,19 +8388,27 @@ body.dark-theme .history-item:hover {
   background: var(--accent-soft);
 }
 
+/* Pointer-coarse devices have no hover to give, so the row's own menu has to
+   be permanently reachable there. */
+@media (hover: none) {
+  .session-menu-btn {
+    opacity: 0.7;
+  }
+}
+
 .session-dropdown-menu {
   position: absolute;
   right: 8px;
   top: 36px;
-  background: var(--select-bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 4px;
-  box-shadow: var(--elev-3);
   z-index: 50;
   display: flex;
   flex-direction: column;
   min-width: 128px;
+  padding: 4px;
+  background: var(--select-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--elev-3);
   animation: messageFade var(--motion-fast) var(--ease-enter) both;
 }
 
@@ -8369,18 +8424,18 @@ body.dark-theme .history-item:hover {
 }
 
 .session-dropdown-menu .dropdown-item {
-  background: none;
-  border: none;
-  color: var(--text);
-  padding: 7px 10px;
-  text-align: left;
-  font-family: inherit;
-  font-size: var(--text-sm);
-  border-radius: 6px;
-  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  text-align: left;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-standard);
 }
 
@@ -8394,7 +8449,10 @@ body.dark-theme .history-item:hover {
 }
 
 .session-rename-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  margin: 4px 0 4px 8px;
+  padding: 4px 6px;
   background: transparent;
   border: 1px solid var(--accent-fill);
   border-radius: 6px;
@@ -8402,7 +8460,6 @@ body.dark-theme .history-item:hover {
   font-family: inherit;
   font-size: var(--text-sm);
   font-weight: 500;
-  padding: 2px 6px;
   outline: none;
 }
 
@@ -8411,13 +8468,21 @@ body.dark-theme .history-item:hover {
   border-top: 1px solid var(--border);
 }
 
+/* Destructive, and permanently on screen, so it is drawn as the quietest
+   control in the rail and only takes the error colour once the pointer is on
+   it - the point at which the consequence is about to matter. */
 .btn-clear {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px;
   background: transparent;
   border: 1px solid transparent;
-  color: var(--muted);
-  padding: 9px;
   border-radius: 9px;
+  color: var(--muted);
+  font-family: inherit;
   font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
@@ -8425,20 +8490,15 @@ body.dark-theme .history-item:hover {
     background-color var(--motion-base) var(--ease-standard),
     border-color var(--motion-base) var(--ease-standard),
     color var(--motion-base) var(--ease-standard);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-family: inherit;
 }
 
 .btn-clear:hover {
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
   border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
   color: var(--color-error);
-  background: color-mix(in srgb, var(--color-error) 8%, transparent);
 }
 
-/* ── Main Chat Area ── */
+/* ── Main column ── */
 .ai-main {
   flex: 1;
   display: flex;
@@ -8446,40 +8506,68 @@ body.dark-theme .history-item:hover {
   position: relative;
   min-width: 0;
   /* Both axes: without min-height the column's `auto` floor is the top bar
-     plus the whole transcript plus the composer, and the panel grows past
-     the shell instead of handing the overflow to .ai-content-area. */
+     plus the whole transcript plus the composer, and the panel grows past the
+     shell instead of handing the overflow to .ai-content-area. */
   min-height: 0;
 }
 
 /* ── Top bar ──
-   Keeps the model on screen after the empty state's subtitle scrolls away,
-   gives the collapsed rail's toggle a strip of its own to sit in instead of
-   floating over the first answer, and carries this conversation's running
-   totals. `min-width: 0` on the usage strip is what lets the model chip keep
-   its full width on a narrow panel: without it the strip refuses to shrink
-   below its content and pushes the chip off the end. */
+   Which conversation, on what model, at what cost - in the order a visitor
+   asks them. The rail toggle is a flex item here rather than a control
+   floating over the transcript, so the strip owns its own leading edge instead
+   of reserving padding for something positioned on top of it.
+
+   `min-width: 0` on the title is what lets the meta cluster keep its full
+   width on a narrow panel: without it the title refuses to shrink below its
+   content and pushes the model chip off the end. */
 .ai-topbar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   height: var(--ai-topbar-h);
   flex-shrink: 0;
-  padding: 0 14px 0 18px;
+  padding: 0 16px 0 14px;
   border-bottom: 1px solid var(--border);
-  transition: padding-left var(--motion-medium) var(--ease-standard);
 }
 
-/* Clears the floating toggle, which only paints while the rail is closed. */
-.ai-container.sidebar-hidden .ai-topbar {
-  padding-left: 56px;
+.ai-sidebar-toggle {
+  display: none;
 }
 
+.ai-container.sidebar-hidden .ai-sidebar-toggle {
+  display: flex;
+}
+
+.ai-thread-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text);
+}
+
+.ai-topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+/* Hidden by renderUsageSummary() until a turn has actually been measured: on
+   an empty conversation "0 / 0" and an em dash are the loudest pair on the bar
+   and report nothing. */
 .ai-usage {
   display: flex;
   align-items: baseline;
-  gap: 6px 16px;
-  min-width: 0;
-  overflow: hidden;
+  gap: 16px;
+}
+
+.ai-usage[hidden] {
+  display: none;
 }
 
 .ai-usage-stat {
@@ -8508,14 +8596,13 @@ body.dark-theme .history-item:hover {
 }
 
 .ai-topbar-model {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   padding: 5px 11px;
+  background: hsl(0, 0%, 0%, 0.03);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
-  background: hsl(0, 0%, 0%, 0.03);
   color: var(--muted);
   font-size: var(--text-2xs);
   font-weight: 700;
@@ -8530,183 +8617,117 @@ body.dark-theme .ai-topbar-model {
 .ai-status-dot {
   width: 6px;
   height: 6px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: var(--color-success);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 20%, transparent);
-  flex-shrink: 0;
 }
 
+/* ── The scrolling surface ──
+   The only one on this page, and the reason for every `min-height: 0` above
+   it: this is the box the transcript overflows into, so it has to be the one
+   allowed to be shorter than its content. `overscroll-behavior: contain` keeps
+   a flick at either end from chaining out to the document. */
 .ai-content-area {
-  /* The only scrolling surface on this page, and the reason for every
-     `min-height: 0` above it: this is the box the transcript overflows into,
-     so it has to be the one that is allowed to be shorter than its content.
-     `overscroll-behavior: contain` keeps a flick at either end from chaining
-     out to the document. */
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 28px var(--ai-pad-x) 8px;
   display: flex;
   flex-direction: column;
+  padding: 30px var(--ai-pad-x) 6px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 
-/* ── Pull-to-refresh indicator ──
-   The panel is height-locked and .ai-content-area contains its overscroll, so
-   the browser's own pull-to-refresh never fires here; PullToRefresh in
-   swipe-handler.js replaces it and this is what it moves. It lives in
-   .ai-main, not in the scroller - an absolute child of a scroll box scrolls
-   away with the content - and hangs one full height above the top of the
-   transcript, so a pull slides it out from behind the top bar.
+/* ── Empty state: one centred stack ──
+   Greeting, starters and composer read as a single group in the middle of the
+   panel rather than as a headline stranded above a footer. Two auto margins do
+   it: with the scroller sized to its content (`flex: 0 1 auto`), the free
+   space left over splits evenly between the margin above the greeting and the
+   margin below the composer.
 
-   The module writes two custom properties and nothing else: --ptr-travel, how
-   far the finger has dragged it, and --ptr-progress, 0-1 against the release
-   threshold. Progress doubles as the fade, which is why the resting state
-   needs no rule of its own - at 0 the indicator is transparent. */
-.ptr-indicator {
-  position: absolute;
-  top: var(--ai-topbar-h);
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  z-index: 5;
-  pointer-events: none;
-  transform: translateY(calc(var(--ptr-travel, 0px) - 100%));
-  opacity: var(--ptr-progress, 0);
-}
-
-/* Only on the way back. During the drag the indicator has to track the finger
-   frame for frame, and a transition on transform lags it visibly. */
-.ptr-indicator.is-settling {
-  transition:
-    transform var(--motion-medium) var(--ease-standard),
-    opacity var(--motion-medium) var(--ease-standard);
-}
-
-.ptr-spinner {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  box-shadow: var(--elev-2);
-}
-
-/* The ring winds up with the pull and is already upright at the threshold, so
-   the release reads as a continuation rather than a state change. */
-.ptr-spinner::before {
-  content: "";
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid var(--accent-soft);
-  border-top-color: var(--accent-text);
-  transform: rotate(calc(var(--ptr-progress, 0) * 360deg));
-}
-
-.ptr-indicator.is-refreshing .ptr-spinner::before {
-  transform: none;
-  animation: ptr-spin 0.7s linear infinite;
-}
-
-@keyframes ptr-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Empty state */
+   Both keep `min-height: 0` and `flex-shrink: 1`, so on a viewport too short
+   to centre anything the free space goes negative, the auto margins resolve to
+   zero, and the scroller takes the overflow - which is the normal layout. */
 .ai-main.empty-state .ai-content-area {
-  justify-content: center;
-  align-items: center;
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-bottom: 22px;
+}
+
+.ai-main.empty-state .ai-input-container {
+  margin-bottom: auto;
+}
+
+/* The transcript is empty here, but its own bottom padding is not, and 20px of
+   it under the greeting throws the centred stack off. appendMessage() clears
+   `empty-state` before it appends, so nothing is ever hidden by this. */
+.ai-main.empty-state .ai-messages {
+  display: none;
 }
 
 .ai-empty-view {
-  text-align: center;
-  max-width: 720px;
-  width: 100%;
   display: none;
+  width: 100%;
+  max-width: var(--ai-measure);
+  margin-inline: auto;
+  text-align: center;
 }
 
 .ai-main.empty-state .ai-empty-view {
   display: flex;
   flex-direction: column;
   align-items: center;
-  animation: messageFade var(--motion-medium) var(--ease-enter) both;
+  animation: ai-turn-in var(--motion-medium) var(--ease-enter) both;
 }
 
 .ai-hero-icon {
-  width: 64px;
-  height: 64px;
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  border: 1px solid color-mix(in srgb, var(--accent-fill) 30%, transparent);
-  border-radius: var(--radius-lg);
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-3xl);
-  margin-bottom: 22px;
+  margin-bottom: 20px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent-fill) 30%, transparent);
+  border-radius: var(--radius-lg);
+  color: var(--accent-text);
+  font-size: var(--text-2xl);
   box-shadow: var(--glow-md);
-  transition: transform var(--motion-base) var(--ease-standard);
-}
-
-.ai-hero-icon:hover {
-  transform: translateY(-2px) rotate(-4deg);
 }
 
 .ai-heading {
-  font-size: var(--text-fluid-4xl);
+  margin-bottom: 10px;
+  font-size: var(--text-fluid-3xl);
   font-weight: 800;
   line-height: var(--leading-tight);
-  margin-bottom: 12px;
   letter-spacing: var(--tracking-tight);
   color: var(--text);
 }
 
-/* Reads as a status chip rather than a caption: the dot says the model is up,
-   which is the only thing a visitor wants from this line once they have read
-   it once. */
+/* Prose, not a status chip. The model and its health live in the top bar,
+   where they stay visible after this line scrolls away, so this line is free
+   to say what the assistant is actually for. */
 .ai-subtitle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  max-width: 46ch;
   margin-bottom: 30px;
-  padding: 6px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: hsl(0, 0%, 0%, 0.03);
   color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: 600;
+  font-size: var(--text-base);
   line-height: var(--leading-snug);
 }
 
-body.dark-theme .ai-subtitle {
-  background: hsl(0, 0%, 100%, 0.05);
-}
-
-.ai-subtitle::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-success);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 20%, transparent);
-  flex-shrink: 0;
-}
-
+/* ── Starters ──
+   Four openers: two about the owner of the site, then somewhere to go for a
+   visitor who is only curious. Each is evergreen, so none of them ages into a
+   wrong answer. */
 .ai-suggestions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  max-width: 720px;
+  text-align: left;
 }
 
 /* An odd number of cards leaves the last one alone in a two-column row with a
@@ -8718,39 +8739,39 @@ body.dark-theme .ai-subtitle {
 }
 
 .ai-suggestion-card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px 12px 12px;
   background: var(--surface-soft);
   border: 1px solid var(--border);
-  padding: 14px 14px 14px 12px;
   border-radius: var(--radius-md);
+  color: var(--text);
   text-align: left;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-snug);
   cursor: pointer;
   transition:
     background-color var(--motion-base) var(--ease-standard),
     border-color var(--motion-base) var(--ease-standard),
     box-shadow var(--motion-base) var(--ease-standard),
     transform var(--motion-base) var(--ease-standard);
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  color: var(--text);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  line-height: var(--leading-snug);
 }
 
 /* The glyph gets a tile of its own so four cards read as one row of objects
-   rather than four paragraphs that happen to start with an icon. */
+   rather than four sentences that happen to start with an icon. */
 .ai-suggestion-card i {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: var(--accent-soft);
-  color: var(--accent-text);
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  background: var(--accent-soft);
+  border-radius: 9px;
+  color: var(--accent-text);
   font-size: var(--text-sm);
   transition: background-color var(--motion-base) var(--ease-standard);
 }
@@ -8774,10 +8795,10 @@ body.dark-theme .ai-subtitle {
 }
 
 .ai-suggestion-card:hover {
-  border-color: color-mix(in srgb, var(--accent-fill) 45%, transparent);
   background: var(--surface);
-  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent-fill) 45%, transparent);
   box-shadow: var(--elev-2);
+  transform: translateY(-2px);
 }
 
 .ai-suggestion-card:hover i {
@@ -8790,29 +8811,29 @@ body.dark-theme .ai-subtitle {
   transform: translateX(0);
 }
 
-/* Messages */
+/* ── Transcript ── */
 .ai-messages {
   display: flex;
   flex-direction: column;
-  gap: 28px;
   width: 100%;
   max-width: var(--ai-measure);
-  margin: 0 auto;
-  padding-bottom: 16px;
+  margin-inline: auto;
+  padding-bottom: 20px;
 }
 
-/* ── AI-page transcript ──
-   The answer is not the widget's bubble scaled up: it drops the 75% cap, the
-   fill and the border, so a long reply reads as a document column. The question
-   keeps its bubble and stays on the right (below), so the two roles still land
-   on opposite sides of the transcript. */
-#ai .chat-message {
-  max-width: 100%;
-  min-width: 0;
-  font-size: var(--text-base);
-  animation: messageFade var(--motion-medium) var(--ease-enter) both;
+@keyframes ai-turn-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
+/* Kept under its original name: the session dropdown animates with it. */
 @keyframes messageFade {
   from {
     opacity: 0;
@@ -8825,36 +8846,80 @@ body.dark-theme .ai-subtitle {
   }
 }
 
-/* The visitor's turn keeps the widget's bubble and hangs off the right rail,
-   opposite the answer's left edge. Side is the role cue here, so the fill, the
-   border and the inset all carry over from the widget rules; only the two
-   sizing overrides above are undone - the 75% cap comes back so the bubble is
-   read against the answer's full measure, and `min-width` is dropped so a
-   one-word question is sized by its text rather than by a 96px floor.
-   `.chat-message.user .msg-actions` already pins the action bar to the same
-   edge, so it needs no AI-page override. */
-#ai .chat-message.user {
-  align-self: flex-end;
-  width: fit-content;
-  max-width: 75%;
-  line-height: 1.7;
-}
-
-#ai .chat-message.bot {
+/* Neither turn is a bubble here. Both are stretched to the measure and stripped
+   of the widget's fill, border, radius and 75% cap, so the two roles share one
+   leading edge and a long answer reads as a document column. */
+#ai .chat-message {
   align-self: stretch;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 0;
   background: none;
   border: none;
   border-radius: 0;
+  box-shadow: none;
   color: var(--text);
-  line-height: 1.7;
+  font-size: var(--text-base);
+  line-height: 1.75;
+  animation: ai-turn-in var(--motion-medium) var(--ease-enter) both;
 }
 
+/* ── The question is the heading of its own block ──
+   Which is what it is: everything below it until the next one is the answer to
+   it. Set one step up, at 600, against a 3px accent rule, so scanning a long
+   thread means running the eye down the left edge for the amber marks. The
+   widget's dark slate gradient does not come along - it is the one surface on
+   the site that belongs to no palette, and at full measure it would have been
+   a black slab across the reading column. */
+#ai .chat-message.user {
+  position: relative;
+  margin-top: var(--ai-turn-gap);
+  /* The right gutter is the action bar's: see the absolute rule further down.
+     It is reserved at every width so a long question never wraps under the
+     controls that overlay it. */
+  padding: 0 68px 0 16px;
+  border-left: 3px solid var(--accent-fill);
+  color: var(--text);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  /* A prompt typed across several lines keeps them. chat.js writes the
+     question with textContent, so without this every newline collapsed into a
+     space and a pasted list came back as one paragraph. */
+  white-space: pre-wrap;
+}
 
-/* Bot Markdown Typography & Formatting.
-   Single source of truth - a second copy of these rules used to sit in the
-   CHAT WIDGET region and fight this one. */
+#ai .chat-message.user:first-child {
+  margin-top: 0;
+}
+
+/* The block boundary. --ai-turn-gap alone separates the turns, but over a long
+   thread of similar-length answers a hairline is what makes the groups
+   countable at a glance. Never above the first question, which has no previous
+   block to be separated from. */
+#ai .chat-message.user:not(:first-child)::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--ai-turn-gap) / -2 - 2px);
+  left: -3px;
+  right: 0;
+  border-top: 1px solid var(--border);
+}
+
+#ai .chat-message.bot {
+  margin-top: 18px;
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+/* ── Bot markdown typography ──
+   Single source of truth for BOTH surfaces: these unscoped rules are what the
+   corner widget renders with, and the #ai block below only states what a
+   page-sized answer needs on top of them. Do not move them into the widget
+   region - a second copy there used to fight this one. */
 .chat-message.bot p {
   margin: 0 0 12px 0;
   line-height: var(--leading-body);
@@ -8888,7 +8953,7 @@ body.dark-theme .ai-subtitle {
 }
 
 .chat-message.bot h4 {
-  font-size: 1.0em;
+  font-size: 1em;
 }
 
 /* The other copy indented with margin-left: 24px while this one used
@@ -8964,15 +9029,15 @@ body.dark-theme .chat-message.bot tr:nth-child(even) {
 }
 
 #ai .chat-message.bot p {
-  margin-bottom: 14px;
-  line-height: 1.7;
+  margin-bottom: 15px;
+  line-height: 1.75;
 }
 
 #ai .chat-message.bot h1,
 #ai .chat-message.bot h2,
 #ai .chat-message.bot h3,
 #ai .chat-message.bot h4 {
-  margin-top: 24px;
+  margin-top: 26px;
   margin-bottom: 10px;
   letter-spacing: var(--tracking-tight);
 }
@@ -8985,7 +9050,7 @@ body.dark-theme .chat-message.bot tr:nth-child(even) {
 
 #ai .chat-message.bot li {
   margin-bottom: 7px;
-  line-height: 1.7;
+  line-height: 1.75;
 }
 
 #ai .chat-message.bot li::marker {
@@ -8993,16 +9058,40 @@ body.dark-theme .chat-message.bot tr:nth-child(even) {
 }
 
 #ai .chat-message.bot blockquote {
-  margin: 16px 0;
+  margin: 18px 0;
   padding: 10px 16px;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
+/* The widget's `display: block` is a scroll hack for a 350px column, and it
+   costs the cells their width: a block box does not stretch the anonymous
+   table inside it, so a three-column table drew its rules across half the
+   measure and left the rest of the bordered box empty. At 780px there is room
+   to lay the table out properly instead. */
 #ai .chat-message.bot table {
-  margin: 16px 0;
-  border-radius: var(--radius-sm);
+  display: table;
+  width: 100%;
+  margin: 18px 0;
   border: 1px solid var(--border);
-  overflow: hidden auto;
+  border-radius: var(--radius-sm);
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* `overflow: hidden` is not dependable on a table box, so the two corners that
+   carry a fill are rounded directly. The zebra wash goes: it would bleed past
+   the bottom corners, and with the header filled and every row ruled it is not
+   carrying anything the borders do not. */
+#ai .chat-message.bot th:first-child {
+  border-top-left-radius: calc(var(--radius-sm) - 1px);
+}
+
+#ai .chat-message.bot th:last-child {
+  border-top-right-radius: calc(var(--radius-sm) - 1px);
+}
+
+#ai .chat-message.bot tr:nth-child(even) {
+  background: none;
 }
 
 #ai .chat-message.bot th,
@@ -9030,16 +9119,45 @@ body.dark-theme #ai .chat-message.bot th {
 #ai .chat-message.bot hr {
   border: none;
   border-top: 1px solid var(--border);
-  margin: 22px 0;
+  margin: 24px 0;
+}
+
+#ai .chat-message.bot pre {
+  position: relative;
+  padding: 16px 18px;
+  margin: 18px 0;
+  background: hsl(0, 0%, 0%, 0.035);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: var(--text-xs);
+}
+
+body.dark-theme #ai .chat-message.bot pre {
+  background: hsl(0, 0%, 0%, 0.32);
+}
+
+#ai .chat-message.bot code:not(pre code) {
+  background: hsl(0, 0%, 0%, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent-text);
+  font-size: 0.85em;
+}
+
+body.dark-theme #ai .chat-message.bot code:not(pre code) {
+  background: hsl(0, 0%, 100%, 0.08);
 }
 
 /* ── Message action bar ──
    The widget paints this as a chip because it sits inside a bubble. Here it
-   sits on the page, so it is bare: muted glyphs that surface on hover and,
-   for anyone driving from the keyboard, on focus. Pointer-coarse devices
-   have no hover to give, so they keep it on permanently. */
+   sits on the page, so it is bare. The bar on the newest answer stays up: it
+   is the one carrying the actions a visitor reaches for - regenerate, rate,
+   copy - and a control that only exists on hover is a control most people
+   never find. Older turns keep theirs on hover and on focus, where the noise
+   of a permanently repeated toolbar is not worth it. */
 #ai .msg-actions {
-  margin-top: 10px;
+  margin-top: 12px;
   padding: 0;
   gap: 2px;
   opacity: 1;
@@ -9070,6 +9188,18 @@ body.dark-theme #ai .chat-message.bot th {
   opacity: 1;
 }
 
+/* Edit and Copy sit in the empty rail beside the question rather than under
+   it. In flow they added 42px of their own height to the block, which the
+   accent rule then had to run down - a one-line question wore a bar twice the
+   height of its text. The right padding above is the space they occupy. */
+#ai .chat-message.user .msg-actions {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  margin-top: 0;
+  transform: translateY(-50%);
+}
+
 #ai .chat-message.user .msg-action-btn:hover,
 #ai .chat-message.user .msg-action-btn:focus-visible,
 #ai .chat-message.bot .msg-action-btn:hover,
@@ -9092,51 +9222,91 @@ body.dark-theme #ai .chat-message.bot th {
   }
 
   #ai .chat-message:hover .msg-actions,
-  #ai .chat-message:focus-within .msg-actions {
+  #ai .chat-message:focus-within .msg-actions,
+  #ai .chat-message.bot:last-child .msg-actions {
     opacity: 1;
   }
 }
 
-/* Input area */
+/* ── Jump to latest ──
+   A transcript with no way back to the bottom traps anyone who scrolls up to
+   re-read something. Floats over the foot of the thread rather than taking a
+   row in the composer, so it costs nothing while the thread is at rest.
+   chat.js owns the `hidden` attribute. */
+.ai-jump-btn {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  padding: 7px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  box-shadow: var(--elev-3);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transform: translateX(-50%);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  animation: ai-turn-in var(--motion-base) var(--ease-enter) both;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
+}
+
+/* `display: flex` above out-specifies the UA's `[hidden] { display: none }`,
+   so the resting state has to be stated. */
+.ai-jump-btn[hidden] {
+  display: none;
+}
+
+.ai-jump-btn:hover {
+  border-color: var(--accent-mild);
+  color: var(--accent-text);
+}
+
+.ai-jump-btn i {
+  font-size: var(--text-2xs);
+}
+
+/* ── Composer ──
+   Two rows, not one pill. The field owns the top row on its own and the
+   controls sit under it, which is what a multi-line prompt needs: on the
+   single-row pill a wrapped message pushed the send button down the side of a
+   growing paragraph, and the token count had to be dropped entirely on a phone
+   for want of 60px. Here the count has a permanent home at the left of the
+   control row, at every width.
+
+   `#token-error` is appended by updateTokenCounter() to the textarea's parent,
+   which is this form, so it lands as a third row under the controls. */
 .ai-input-container {
   /* The transcript yields, the composer does not: it is the control the
      visitor is aiming at, so it keeps its height and .ai-content-area absorbs
      whatever a short viewport takes away. */
+  position: relative;
   flex-shrink: 0;
   padding: 6px var(--ai-pad-x) 14px;
-  background: transparent;
 }
 
-/* ── Composer ──
-   One row inside one pill: the field, then voice, then send, the way a
-   phone keyboard bar reads. The field is padded to exactly the height of
-   those two circles, so the row is a 44px control plus 5px of padding
-   either side and 1px of border - 56px - and `border-radius` is half of
-   that at rest, a true pill. It relaxes into a rounded rectangle only once
-   a long message wraps the field past that height.
-
-   `flex-wrap` stays for the token-limit error: updateTokenCounter() appends
-   it to the textarea's parent, which is this form, and #token-error below
-   claims a row of its own for it. `align-items: flex-end` is what a wrapped
-   message needs - the field grows upward, the two controls stay on the
-   bottom line next to the last row of text rather than drifting to the
-   middle of a paragraph. */
 .ai-input-form {
-  max-width: var(--ai-measure);
-  margin: 0 auto;
-  position: relative;
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  flex-direction: column;
   gap: 4px;
-  padding: 5px 8px 5px 20px;
+  width: 100%;
+  max-width: var(--ai-measure);
+  margin-inline: auto;
+  padding: 10px 10px 10px 16px;
   background: var(--surface);
   border: 1px solid var(--control-border);
-  /* Half the resting height, expressed rather than hard-coded: the send
-     circle is --min-touch-target tall and this row adds 5px of padding either
-     side plus 1px of border, so the pill stays exactly a pill when the token
-     grows to 48px on mobile. */
-  border-radius: calc((var(--min-touch-target) + 12px) / 2);
+  border-radius: var(--radius-lg);
   box-shadow: var(--elev-2);
   transition:
     border-color var(--motion-base) var(--ease-standard),
@@ -9149,58 +9319,59 @@ body.dark-theme #ai .chat-message.bot th {
 }
 
 .ai-textarea {
-  /* One line of text, padded out to exactly the height of the circles beside
-     it, so the placeholder sits on their centre line - and it stays there
-     when --min-touch-target grows to 48px on mobile. */
-  flex: 1 1 auto;
-  min-width: 0;
+  width: 100%;
+  padding: 5px 6px 3px 0;
   border: none;
   background: transparent;
   color: var(--text);
-  padding: calc((var(--min-touch-target) - var(--leading-body) * 1em) / 2) 4px;
   font-family: inherit;
   font-size: var(--text-base);
+  line-height: var(--leading-body);
   resize: none;
+  outline: none;
   /* A pasted essay grows the field until it owns the panel. 200px is right on
      a laptop and half the shell on a phone in landscape, so the cap is
      whichever is smaller. */
   max-height: min(200px, 32vh);
-  outline: none;
-  line-height: var(--leading-body);
 }
 
+/* `opacity` is the wrong lever for a placeholder: Firefox already applies its
+   own, and the 0.65 this used to carry took --muted from 8.9:1 down to about
+   2.8:1 on the light ground - under the 4.5:1 WCAG 1.4.3 requires. The colour
+   token is the whole treatment. */
 .ai-textarea::placeholder {
   color: var(--muted);
-  opacity: 0.65;
+  opacity: 1;
 }
 
 .ai-input-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
+/* Pushed to the far end of the control row, so the two circles stay where the
+   thumb expects them however wide the count grows. */
 .ai-tokens {
-  font-size: var(--text-2xs);
+  margin-right: auto;
+  padding-left: 2px;
   color: var(--muted);
-  opacity: 0.65;
+  font-size: var(--text-2xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  margin-right: 2px;
 }
 
-/* The error the token counter injects into this form, given its own row.
+/* The error the token counter injects into this form, given a row of its own.
    `visibility` is re-asserted because .form-error-message is the contact
    form's element: there it is a permanently reserved line that `data-active`
    reveals, while updateTokenCounter() creates this one only when the message
    is actually over the limit and removes it again afterwards - so it was
-   built, filled, announced to screen readers through its role="alert", and
-   never painted for anyone reading the screen. */
+   built, filled, announced through its role="alert", and never painted for
+   anyone reading the screen. */
 #ai .ai-input-form .form-error-message {
-  flex: 1 1 100%;
-  padding: 0 4px;
+  padding: 2px 4px 0;
   font-weight: 600;
   line-height: var(--leading-snug);
   visibility: visible;
@@ -9212,19 +9383,19 @@ body.dark-theme #ai .chat-message.bot th {
   height: var(--min-touch-target);
   min-width: var(--min-touch-target);
   min-height: var(--min-touch-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   border-radius: 50%;
+  font-size: var(--text-sm);
+  flex-shrink: 0;
   cursor: pointer;
   transition:
     background-color var(--motion-base) var(--ease-standard),
     color var(--motion-base) var(--ease-standard),
     transform var(--motion-fast) var(--ease-standard),
     opacity var(--motion-base) var(--ease-standard);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-sm);
-  flex-shrink: 0;
 }
 
 /* One filled control per composer. Voice input is an alternative to typing,
@@ -9246,8 +9417,8 @@ body.dark-theme #ai .chat-message.bot th {
 }
 
 .ai-send-btn:hover:not(:disabled) {
-  transform: scale(1.06);
   background: var(--accent-hover);
+  transform: scale(1.06);
 }
 
 .ai-send-btn:disabled,
@@ -9258,18 +9429,88 @@ body.dark-theme #ai .chat-message.bot th {
 
 .ai-mic-btn.listening {
   background: var(--color-error);
-  color: #fff;
+  color: var(--on-error);
 }
 
+/* Legal small print, and the only line on the page a visitor is entitled to
+   skip - but it still has to be readable. It used to be --muted at 0.6 opacity,
+   which measured 2.8:1 on the light ground against the 4.5:1 WCAG 1.4.3 asks
+   for. The size carries the hierarchy instead. */
 .ai-disclaimer {
-  text-align: center;
-  font-size: var(--text-2xs);
+  margin-top: 10px;
   color: var(--muted);
-  margin-top: 9px;
-  opacity: 0.6;
+  font-size: var(--text-2xs);
+  text-align: center;
 }
 
-/* ── Streaming & Typing ── */
+/* ── Pull-to-refresh indicator ──
+   The panel is height-locked and .ai-content-area contains its overscroll, so
+   the browser's own pull-to-refresh never fires here; PullToRefresh in
+   swipe-handler.js replaces it and this is what it moves. It lives in
+   .ai-main, not in the scroller - an absolute child of a scroll box scrolls
+   away with the content - and hangs one full height above the top of the
+   transcript, so a pull slides it out from behind the top bar.
+
+   The module writes two custom properties and nothing else: --ptr-travel, how
+   far the finger has dragged it, and --ptr-progress, 0-1 against the release
+   threshold. Progress doubles as the fade, which is why the resting state
+   needs no rule of its own - at 0 the indicator is transparent. */
+.ptr-indicator {
+  position: absolute;
+  top: var(--ai-topbar-h);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  transform: translateY(calc(var(--ptr-travel, 0px) - 100%));
+  opacity: var(--ptr-progress, 0);
+}
+
+/* Only on the way back. During the drag the indicator has to track the finger
+   frame for frame, and a transition on transform lags it visibly. */
+.ptr-indicator.is-settling {
+  transition:
+    transform var(--motion-medium) var(--ease-standard),
+    opacity var(--motion-medium) var(--ease-standard);
+}
+
+.ptr-spinner {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  box-shadow: var(--elev-2);
+}
+
+/* The ring winds up with the pull and is already upright at the threshold, so
+   the release reads as a continuation rather than a state change. */
+.ptr-spinner::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent-text);
+  transform: rotate(calc(var(--ptr-progress, 0) * 360deg));
+}
+
+.ptr-indicator.is-refreshing .ptr-spinner::before {
+  transform: none;
+  animation: ptr-spin 0.7s linear infinite;
+}
+
+@keyframes ptr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Streaming and typing ── */
 .streaming::after {
   content: '▋';
   display: inline-block;
@@ -9306,6 +9547,7 @@ body.dark-theme #ai .chat-message.bot th {
   align-self: flex-start;
   width: auto;
   max-width: 100%;
+  margin-top: 18px;
   background: hsl(0, 0%, 0%, 0.04);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -9323,12 +9565,12 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
 }
 
 .thinking-header {
-  font-weight: 700;
-  font-size: var(--text-xs);
-  color: var(--accent-text);
   display: flex;
   align-items: center;
   gap: 8px;
+  font-weight: 700;
+  font-size: var(--text-xs);
+  color: var(--accent-text);
 }
 
 .thinking-steps {
@@ -9359,11 +9601,11 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
 }
 
 .thinking-step i {
-  font-size: var(--text-2xs);
   width: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: var(--text-2xs);
 }
 
 .thinking-step.completed i {
@@ -9404,43 +9646,11 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
   }
 }
 
-/* ── Markdown in messages ── */
-/* Only what differs from the widget's .chat-message.bot pre. */
-#ai .chat-message.bot pre {
-  padding: 16px 18px;
-  margin: 16px 0;
-  background: hsl(0, 0%, 0%, 0.035);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: var(--text-xs);
-  position: relative;
-}
-
-body.dark-theme #ai .chat-message.bot pre {
-  background: hsl(0, 0%, 0%, 0.32);
-}
-
-#ai .chat-message.bot code:not(pre code) {
-  background: hsl(0, 0%, 0%, 0.05);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--accent-text);
-  font-size: 0.85em;
-}
-
-body.dark-theme #ai .chat-message.bot code:not(pre code) {
-  background: hsl(0, 0%, 100%, 0.08);
-}
-
-/* ── Tablet (769–1024px) ── */
+/* ── Tablet (769-1024px) ── */
 @media (width >=769px) and (width <=1024px) {
   #ai {
-    --ai-rail: 240px;
-  }
-
-  .ai-suggestions {
-    gap: 10px;
+    --ai-rail: 248px;
+    --ai-turn-gap: 32px;
   }
 }
 
@@ -9456,13 +9666,17 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   }
 }
 
-/* ── Mobile (≤768px) ── */
+/* ── Mobile (<=768px) ── */
 @media (width <=768px) {
   #ai {
     --ai-pad-x: 14px;
     --ai-measure: 100%;
+    --ai-topbar-h: 50px;
+    --ai-turn-gap: 28px;
   }
 
+  /* The rail becomes a drawer over the conversation, so it needs a scrim to
+     separate the two and a tap target to dismiss it. */
   .ai-sidebar {
     position: absolute;
     left: 0;
@@ -9474,8 +9688,10 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
     box-shadow: var(--elev-4);
   }
 
-  /* The drawer overlays the conversation here, so it needs a scrim to
-     separate the two and a tap target to dismiss it. */
+  body.dark-theme .ai-sidebar {
+    background: var(--bg);
+  }
+
   .ai-sidebar-scrim {
     display: block;
   }
@@ -9485,86 +9701,38 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
     pointer-events: auto;
   }
 
-  body.dark-theme .ai-sidebar {
-    background: var(--bg);
-  }
-
-  #ai {
-    --ai-topbar-h: 48px;
-  }
-
   .ai-topbar {
-    padding-right: 12px;
+    gap: 8px;
+    padding: 0 12px 0 8px;
   }
 
-  /* Two labelled figures and the model chip do not fit on ONE line beside the
-     collapsed rail's toggle on a phone: the four spans measure ~325px against
-     the ~310px the toggle and the right padding leave on a 375px screen. So
-     each label stacks over its own value instead - that drops the strip to the
-     width of its two widest spans and keeps both words legible rather than
-     screen-reader-only. The pair costs a second line, which the 48px bar
-     already has room for at these two sizes. */
-  .ai-usage {
-    align-items: center;
-    gap: 12px;
-  }
-
-  .ai-usage-stat {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0;
-    line-height: 1.25;
+  .ai-topbar-meta {
+    gap: 10px;
   }
 
   /* The chip stays, its pill does not. Measured in Chrome at these widths: the
      pill is 115px against 90px for the same dot and name set bare, and 90px is
-     what fits beside a full usage strip from 375px up. The 25px is the border
-     plus the 11px gutters, and it buys nothing here - the top bar is already
-     the container, which is the same argument .header-actions settled for the
-     header pill. */
+     what fits beside the title and the toggle on a 375px screen. The 25px is
+     the border plus the 11px gutters, and it buys nothing here - the top bar is
+     already the container, which is the same argument .header-actions settled
+     for the header pill. */
   .ai-topbar-model {
     background: none;
     border: none;
     padding: 0;
     gap: 6px;
-    /* Never the thing that gives way. The strip is `min-width: 0` and can. */
     flex-shrink: 0;
   }
 
-  .ai-container.sidebar-hidden .ai-topbar {
-    padding-left: 52px;
-  }
-
-  .ai-sidebar-toggle {
-    top: 6px;
-  }
-
   .ai-content-area {
-    padding: 18px var(--ai-pad-x) 6px;
-  }
-
-  .ai-messages {
-    gap: 22px;
-  }
-
-  /* 75% of a phone-width column leaves a question wrapping every few words
-     against a mostly empty right rail. The offset that carries the role only
-     has to be visible, so the bubble takes more of the line here. */
-  #ai .chat-message.user {
-    max-width: 88%;
-  }
-
-  .ai-suggestions {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    max-width: 100%;
+    padding: 20px var(--ai-pad-x) 4px;
   }
 
   .ai-hero-icon {
-    width: 56px;
-    height: 56px;
-    font-size: var(--text-2xl);
-    margin-bottom: 18px;
+    width: 50px;
+    height: 50px;
+    margin-bottom: 16px;
+    font-size: var(--text-xl);
   }
 
   .ai-heading {
@@ -9573,40 +9741,60 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 
   .ai-subtitle {
     margin-bottom: 22px;
+    font-size: var(--text-sm);
+  }
+
+  .ai-suggestions {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  #ai .chat-message.user {
+    padding-left: 13px;
+    font-size: var(--text-base);
+    font-weight: 700;
   }
 
   .ai-input-container {
     padding: 4px 12px 12px;
   }
 
-  .ai-tokens {
-    display: none;
-  }
-
-  /* Only the gutters tighten - the vertical padding is what keeps the
-     border-radius above exactly half the height. */
   .ai-input-form {
-    padding: 5px 6px 5px 16px;
+    padding: 8px 8px 8px 14px;
   }
 
   .ai-textarea {
-    padding-inline: 2px;
-    font-size: var(--text-base);
+    padding-right: 2px;
   }
 }
 
-/* Below this the strip and the chip genuinely cannot both fit once a
-   conversation runs long: at 360px the top bar leaves 178px for a strip that
-   wants 194px, and the chip is the thing the visitor asked to see. Latency is
-   what stands down - it is a derived average, where the token totals are the
-   figure that is actually accruing. From 375px up both stay. */
-@media (width <=360px) {
-  .ai-usage-stat:last-child {
+/* The action bar is permanent on a pointer-coarse device - there is no hover
+   to reveal it with - so on a narrow touch screen the question is set above it
+   rather than beside it: 68px of a 360px column is a quarter of the line, and
+   a phone has the vertical room a laptop is short of. Both halves are in one
+   block because the reserved gutter and the bar that occupies it have to move
+   together. */
+@media (width <=768px) and (hover: none) {
+  #ai .chat-message.user {
+    padding-right: 0;
+  }
+
+  #ai .chat-message.user .msg-actions {
+    position: static;
+    margin-top: 6px;
+    transform: none;
+  }
+}
+
+/* Below this the usage strip and the model chip cannot both fit beside a title
+   and a toggle: at 400px the bar leaves ~150px for a strip that wants 194px,
+   and the chip is the thing the visitor asked to see. The figures are a
+   developer read-out; the model is the answer to "what am I talking to". */
+@media (width <=400px) {
+  .ai-usage {
     display: none;
   }
 }
-
-/* (Activity styles consolidated above) */
 
 /* #endregion */
 
