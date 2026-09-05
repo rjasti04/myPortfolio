@@ -8,6 +8,11 @@ const HERO_TITLE_SELECTOR = ".home-name";
 const STAGGER_STEP_MS = 42;
 const ENTRANCE_DURATION_MS = 780;
 
+// How long the entrance will wait on document.fonts.ready before starting
+// anyway. Kept well under the CSS failsafe reveal so the animated path wins
+// the race in every case where this module is still running.
+const FONT_WAIT_CEILING_MS = 300;
+
 /**
  * Concept 2: Kinetic Optical Split & 3D Spring Lock
  * - Semantic structural tokenization (words & characters, preserving wrapping)
@@ -86,13 +91,23 @@ export function initHeroTitle() {
     });
   };
 
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => {
-      setTimeout(startKineticEntrance, 100);
-    });
-  } else {
-    setTimeout(startKineticEntrance, 250);
-  }
+  // Waiting on fonts.ready alone left the page's only <h1> - and its strongest
+  // LCP text candidate - at `opacity: 0` for as long as that promise took to
+  // settle, with no ceiling: a cold cache or a font request that never
+  // resolves held the name invisible indefinitely. Race it. The fonts are
+  // preloaded and `font-display: swap`, so the promise almost always wins and
+  // the entrance still starts on settled metrics; when it does not, the name
+  // rolls up in a fallback face and reflows, which beats a blank hero.
+  //
+  // This is the fast path only. The hard backstop is `hero-char-failsafe` in
+  // the HERO & TERMINAL PANEL region, which reveals the characters from CSS
+  // alone if this function throws between tokenising and here.
+  const fontsReady =
+    document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+  const deadline = new Promise((resolve) => setTimeout(resolve, FONT_WAIT_CEILING_MS));
+  Promise.race([fontsReady, deadline]).then(() => {
+    setTimeout(startKineticEntrance, 100);
+  });
 
   // Interactive 3D Magnetic Elastic Tilt on Hover
   if (supportsHover.matches) {

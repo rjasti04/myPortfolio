@@ -445,17 +445,22 @@
     </header>
 
     <main id="main-content">
-      <!-- Landing view. Deliberately short - avatar, name, the three routes into
-           the site, and the icon row. Everything that used to greet a visitor
-           (intro copy, terminal, stats, skills) still lives in #about, which is
-           why About leads the button row: this view is the door, not the
-           welcome.
+      <!-- Landing view. Deliberately short - portrait, name, the disciplines
+           line, the two routes into the site, and the icon row. Everything that
+           used to greet a visitor (intro copy, terminal, stats, skills) still
+           lives in #about, which is why About leads the button row AND is the
+           filled one: this view is the door, not the welcome.
 
-           The icon row is not purely outbound. Email, LinkedIn and GitHub leave
-           the site; the robot is an in-site shortcut to #ai. It carries
-           `nav-cta` + `data-target` so navigation.js routes it instead of
-           letting the hash reload the view, and its label says where it goes
-           rather than "opens in a new tab". -->
+           The icon row is not purely outbound, and is ordered to say so:
+           Contact and Ask AI route inside the site, then a hairline, then the
+           two profiles that leave it. The in-site pair carry `nav-cta` +
+           `data-target` so navigation.js routes them instead of letting the
+           hash reload the view, and their labels say where they go rather than
+           "opens in a new tab".
+
+           This view has almost no vertical slack - see the height-budget note
+           on `.home-portrait` in the HOME HERO region before adding a line to
+           it. -->
       <section id="home" class="active">
         <div class="home-hero">
           <!-- Free-form portrait, not an avatar disc. The sources are
@@ -478,7 +483,7 @@
                   profile-cutout.png 760w,
                   profile-cutout-1111.png 1111w"
                 sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 570px)"
-                alt="Rajeev Jasti" class="home-portrait-img" width="760" height="786" fetchpriority="high"
+                alt="" class="home-portrait-img" width="760" height="786" fetchpriority="high"
                 loading="eager" />
             </picture>
           </div>
@@ -488,8 +493,27 @@
             <h1 class="home-name">Rajeev Jasti</h1>
             <p class="home-role">Principal Data Engineer</p>
 
+            <!-- The disciplines line, shared verbatim with the #about hero and
+                 wearing the same `.hero-kicker` treatment - the landing view
+                 stated a name and a title and nothing about the work, so a
+                 visitor who bounced from here left knowing neither the domain
+                 nor its spread. `.home-intro` re-centres it; see HOME HERO. -->
+            <div class="hero-kicker home-kicker">
+              <span>Data Engineering</span>
+              <span class="kicker-separator" aria-hidden="true">&bull;</span>
+              <span>DBA</span>
+              <span class="kicker-separator" aria-hidden="true">&bull;</span>
+              <span>Backend</span>
+              <span class="kicker-separator" aria-hidden="true">&bull;</span>
+              <span>Cloud</span>
+            </div>
+
+            <!-- About is the filled primary: two outline pills of identical
+                 width and weight named the routes without saying which one the
+                 view wants taken, and this view is the door - About is what is
+                 behind it. Resume stays the outline secondary. -->
             <div class="home-actions">
-              <a href="#about" data-target="about" class="nav-cta home-btn home-btn--outline" data-spring-hover>
+              <a href="#about" data-target="about" class="nav-cta home-btn home-btn--solid" data-spring-hover>
                 About
               </a>
               <a href="#resume" data-target="resume" class="nav-cta home-btn home-btn--outline" data-spring-hover>
@@ -497,21 +521,36 @@
               </a>
             </div>
 
+            <!-- Grouped by destination, not by icon: the two in-site routes
+                 lead, then a hairline, then the two profiles that leave the
+                 site. Four identical circles gave a sighted pointer user no way
+                 to tell those apart, and no way to tell what the robot was -
+                 the aria-labels always did, which is why this row read as
+                 finished. `title` mirrors each label for the pointer, and the
+                 AI route carries a visible one: it is the site's own feature
+                 and the floating chat button is suppressed on this view
+                 (see the .chat-toggle-btn note in HERO & TERMINAL PANEL), so
+                 an unlabelled glyph was the whole of its signposting. The
+                 label collapses back to a circle under 380px. -->
             <div class="home-socials">
-              <a href="#contact" data-target="contact" class="home-social nav-cta"
+              <a href="#contact" data-target="contact" class="home-social nav-cta" title="Contact"
                 aria-label="Go to the contact section">
                 <i class="fas fa-envelope" aria-hidden="true"></i>
               </a>
+              <a href="#ai" data-target="ai" class="home-social home-social--labeled nav-cta" title="Ask my AI assistant"
+                aria-label="Ask my AI assistant">
+                <i class="fas fa-robot" aria-hidden="true"></i>
+                <span class="home-social-label">Ask AI</span>
+              </a>
+              <span class="home-socials-divider" aria-hidden="true"></span>
               <a href="https://www.linkedin.com/in/rajeev-jasti-326080169" target="_blank" rel="noopener noreferrer"
-                class="home-social" aria-label="LinkedIn profile (opens in a new tab)">
+                class="home-social" title="LinkedIn (opens in a new tab)"
+                aria-label="LinkedIn profile (opens in a new tab)">
                 <i class="fab fa-linkedin-in" aria-hidden="true"></i>
               </a>
               <a href="https://github.com/rjasti04" target="_blank" rel="noopener noreferrer" class="home-social"
-                aria-label="GitHub profile (opens in a new tab)">
+                title="GitHub (opens in a new tab)" aria-label="GitHub profile (opens in a new tab)">
                 <i class="fab fa-github" aria-hidden="true"></i>
-              </a>
-              <a href="#ai" data-target="ai" class="home-social nav-cta" aria-label="Ask my AI assistant">
-                <i class="fas fa-robot" aria-hidden="true"></i>
               </a>
             </div>
           </div>

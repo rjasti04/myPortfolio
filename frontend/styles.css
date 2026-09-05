@@ -1636,13 +1636,36 @@ main {
   margin: -0.12em -0.08em;
   box-sizing: content-box;
   overflow: visible;
-  opacity: 0;
-  will-change: transform, filter, opacity;
   color: inherit;
   filter: drop-shadow(0 0 18px var(--accent-soft));
   transition:
     transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2),
     filter 0.35s var(--ease-standard);
+
+  /* ── Why the zero opacity has a deadline ──
+     These spans start invisible so the roll-up below has something to fade in,
+     and js/hero-title.js is what takes them out of it. That made the page's
+     only <h1> - and its strongest LCP text candidate - contingent on that
+     module: an exception thrown between tokenising the name and starting the
+     entrance left the hero permanently blank, with the name present in the DOM
+     and readable by AT but painted nowhere.
+
+     The failsafe closes that. It is a zero-duration animation on a delay, so
+     it changes nothing on the normal path and simply flips opacity at the
+     deadline. `.kinetic-entering` below replaces it through the `animation`
+     shorthand and `.kinetic-settled` sets opacity outright, so whichever
+     lands first wins and they never fight. hero-title.js caps its own wait on
+     document.fonts.ready at 300ms, well inside this, so the animated path
+     wins whenever the module is alive at all. */
+  opacity: 0;
+  will-change: transform, filter, opacity;
+  animation: hero-char-failsafe 0s linear 1.5s forwards;
+}
+
+@keyframes hero-char-failsafe {
+  to {
+    opacity: 1;
+  }
 }
 
 .hero-char.kinetic-entering {
@@ -2391,7 +2414,9 @@ body.dark-theme .home-portrait picture {
    `--text-body-xs` - there it sat above a hero title as a label, here it sits
    under the name and is the line that says what the work is. */
 .home-role {
-  margin: 0 0 clamp(14px, 2.5vh, 24px);
+  /* The gap to the actions moved to `.home-kicker` below, which now sits
+     between them; what is left here is the tight pairing gap to that line. */
+  margin: 0 0 clamp(6px, 1.2vh, 12px);
   font-size: var(--text-fluid-lg);
   font-weight: 800;
   letter-spacing: var(--tracking-caps);
@@ -2405,6 +2430,29 @@ body.dark-theme .home-portrait picture {
   -webkit-text-fill-color: transparent;
   color: transparent;
   animation: gradient-shift var(--motion-reveal) var(--ease-enter) 1 both;
+}
+
+/* ── Disciplines ──
+   The same four chips as the #about hero, same markup, same `.hero-kicker`
+   treatment - only the axis differs, so this class carries the centring and
+   the spacing and nothing else. Kept as a second class rather than a copy so
+   the colour, weight and separator styling stay in one place (HERO & TERMINAL
+   PANEL); the base rule is left-aligned for About's column.
+
+   It is the one line of substance on the landing view: the name and the role
+   state who and what, and this states the spread of the work. It carries the
+   gap down to the actions that `.home-role` used to.
+
+   It must stay on ONE line at every width - it is measured to at 320px in the
+   <=380px block below, and the view has no room for a second. Note that the
+   shared base rule is `display: flex`, so the chips are flex items and
+   `text-wrap` does nothing here; `flex-wrap: wrap` is what would break them,
+   and the fix for a too-long row is the type ramp, not a text property. */
+.home-kicker {
+  justify-content: center;
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: clamp(12px, 2.5vh, 24px);
 }
 
 /* ── Actions ── */
@@ -2449,6 +2497,27 @@ body.dark-theme .home-portrait picture {
 .home-btn--outline {
   background: transparent;
   color: var(--accent-text);
+}
+
+/* ── The one filled control on the view ──
+   Two outline pills of identical width and weight named the two routes without
+   saying which the view wanted taken. About takes the fill because it is what
+   this door opens onto - everything the landing view dropped (intro copy,
+   terminal, stats, skills) is behind it.
+
+   A flat fill, not `.btn`: that one is an accent-to-secondary gradient at
+   `--radius-md` with sheen pseudo-elements and a glow, and dropping it in here
+   would break the pill geometry this row is built on. Face is `--accent-fill`
+   with `--on-accent` ink, which measures 8.86:1; `.home-btn:hover` already
+   moves both pills to `--accent-hover` (5.76:1 light, 7.20:1 dark), so the
+   hover state needs nothing of its own.
+
+   Exactly one fill on the view is the whole point - the note on `.home-social`
+   below records what two of them did to this column. */
+.home-btn--solid {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
 }
 
 /* Dark ink on the amber face, matching `.btn.btn-outline:hover` and
@@ -2512,6 +2581,42 @@ body.dark-theme .home-portrait picture {
   outline-offset: 3px;
 }
 
+/* ── The AI route wears its name ──
+   The chat widget's floating button is suppressed on this view (see the
+   `.chat-toggle-btn` note in HERO & TERMINAL PANEL - the fixed button lands on
+   the pill row at 320x720), so this control is the whole of the AI's
+   signposting on the landing page. As a bare glyph it was indistinguishable
+   from the two profile links beside it.
+
+   Same 44px block and the same border as its siblings, so the row still reads
+   as one set and the height of the row does not move - only the width grows.
+   The label collapses under 380px, where the row cannot afford it; `title` and
+   `aria-label` carry the meaning at every width. */
+.home-social--labeled {
+  width: auto;
+  gap: 8px;
+  padding: 0 18px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.home-social-label {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Splits the row by destination: in-site routes to the left of it, the two
+   profiles that leave the site to the right. Four identical circles gave a
+   sighted pointer user nothing to tell those apart - the `aria-label`s always
+   did, which is why the row read as finished. */
+.home-socials-divider {
+  align-self: center;
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+}
+
 /* ── Stacked layout ──
    The portrait leads on a phone, as in the two-column form; below this width
    the text column can no longer hold "Principal Data Engineer" on one line
@@ -2542,6 +2647,24 @@ body.dark-theme .home-portrait picture {
   }
 }
 
+/* ── One step further for the narrowest short phones ──
+   Same reasoning as the block above, one size down. The disciplines line added
+   a row to a stack that had ~0px of slack at 320x568, and trimming that line's
+   own ramp (see the <=380px block) recovered all but 2px of it. The portrait
+   is where the remaining height comes from: it is the only element here whose
+   height scales with WIDTH, so a viewport this narrow is already spending less
+   on it than the 300px cap allows, and 56vw costs the subject ~20px it does
+   not need at this size.
+
+   Deliberately narrower than the block above on both axes. 360x640 and
+   375x667 both clear the stack at 62vw with room left, and stepping them down
+   would shrink the portrait on phones that never needed it. */
+@media (width <=360px) and (height <=600px) {
+  .home-portrait {
+    width: min(56vw, 260px);
+  }
+}
+
 /* ── Two-pill row, narrowing ──
    The pair at the 168px floor needs 348px of row plus the column's own
    padding. Trimming the floor and the inline padding buys another ~60px;
@@ -2566,6 +2689,44 @@ body.dark-theme .home-portrait picture {
   .home-btn {
     min-width: 126px;
     padding: 12px 16px;
+  }
+
+  /* ── Keeping the disciplines line to one row ──
+     Measured, not guessed: at the ramp it inherits from the <=1150px block
+     (--text-xs, 6px gap) the four chips and three separators need ~296px
+     against the 292px the column has at 320px, so it wrapped to two lines and
+     the landing view scrolled by 26px - on the one viewport that had no slack
+     to give. A step down the ramp and a tighter gap buy back ~30px of row,
+     which lands it on one line with room to spare.
+
+     Check this at 320x568 after touching the chips, the type ramp or the
+     column's padding. Two lines here is 16px the view does not have.
+
+     Both classes in the selector on purpose. The shared `.hero-kicker` sets
+     this same pair inside the <=1150px block in RESPONSIVE - GLOBAL
+     BREAKPOINTS, which is thousands of lines BELOW this one, so at equal
+     specificity source order hands it the win and a bare `.home-kicker` here
+     does nothing at all. */
+  .hero-kicker.home-kicker {
+    font-size: var(--text-2xs);
+    gap: 4px;
+  }
+
+  /* The labelled AI control drops back to a circle here. At 320px the row is
+     44px of column short of holding it, and `title`/`aria-label` still say
+     what the glyph is. */
+  .home-social--labeled {
+    width: 44px;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .home-social-label {
+    display: none;
+  }
+
+  .home-socials {
+    gap: 10px;
   }
 }
 
