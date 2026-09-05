@@ -7958,6 +7958,9 @@ nav a:hover .nav-shortcut {
   --ai-measure: 820px;
   --ai-rail: 272px;
   --ai-pad-x: clamp(16px, 3vw, 40px);
+  /* Shared, because .ptr-indicator hangs off the bottom edge of the top bar
+     and the two have to agree at both sizes. */
+  --ai-topbar-h: 52px;
 
   position: relative;
   /* A flex item's default `min-height: auto` is its content height, which is
@@ -8448,7 +8451,7 @@ body.dark-theme .history-item:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 52px;
+  height: var(--ai-topbar-h);
   flex-shrink: 0;
   padding: 0 14px 0 18px;
   border-bottom: 1px solid var(--border);
@@ -8537,6 +8540,73 @@ body.dark-theme .ai-topbar-model {
   flex-direction: column;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+}
+
+/* ── Pull-to-refresh indicator ──
+   The panel is height-locked and .ai-content-area contains its overscroll, so
+   the browser's own pull-to-refresh never fires here; PullToRefresh in
+   swipe-handler.js replaces it and this is what it moves. It lives in
+   .ai-main, not in the scroller - an absolute child of a scroll box scrolls
+   away with the content - and hangs one full height above the top of the
+   transcript, so a pull slides it out from behind the top bar.
+
+   The module writes two custom properties and nothing else: --ptr-travel, how
+   far the finger has dragged it, and --ptr-progress, 0-1 against the release
+   threshold. Progress doubles as the fade, which is why the resting state
+   needs no rule of its own - at 0 the indicator is transparent. */
+.ptr-indicator {
+  position: absolute;
+  top: var(--ai-topbar-h);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: none;
+  transform: translateY(calc(var(--ptr-travel, 0px) - 100%));
+  opacity: var(--ptr-progress, 0);
+}
+
+/* Only on the way back. During the drag the indicator has to track the finger
+   frame for frame, and a transition on transform lags it visibly. */
+.ptr-indicator.is-settling {
+  transition:
+    transform var(--motion-medium) var(--ease-standard),
+    opacity var(--motion-medium) var(--ease-standard);
+}
+
+.ptr-spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--elev-2);
+}
+
+/* The ring winds up with the pull and is already upright at the threshold, so
+   the release reads as a continuation rather than a state change. */
+.ptr-spinner::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent-text);
+  transform: rotate(calc(var(--ptr-progress, 0) * 360deg));
+}
+
+.ptr-indicator.is-refreshing .ptr-spinner::before {
+  transform: none;
+  animation: ptr-spin 0.7s linear infinite;
+}
+
+@keyframes ptr-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Empty state */
@@ -9422,8 +9492,11 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
     background: var(--bg);
   }
 
+  #ai {
+    --ai-topbar-h: 48px;
+  }
+
   .ai-topbar {
-    height: 48px;
     padding-right: 12px;
   }
 
