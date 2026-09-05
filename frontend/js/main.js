@@ -43,6 +43,7 @@ import { initRipple } from "./ripple.js";
 import { initScrollToTop } from "./scroll-to-top.js";
 import { initThemeCustomizer } from "./theme-customizer.js";
 import { initParticles } from "./particles-config.js";
+import { PullToRefresh } from "./swipe-handler.js";
 
 // Lazy-load chat module on first interaction
 let chatLoaded = false;
@@ -96,6 +97,16 @@ document.addEventListener("DOMContentLoaded", () => {
   initRipple();
   initScrollToTop();
   initThemeCustomizer();
+
+  // The AI panel is a height-locked shell, so the browser's own
+  // pull-to-refresh never reaches it - see PullToRefresh for why. Give the
+  // gesture back on the one element there that actually scrolls. Wired here
+  // rather than in chat.js because that module is lazy: a visitor landing on
+  // /#ai can pull before their first click has loaded it.
+  const aiScroller = document.querySelector('#ai .ai-content-area');
+  if (aiScroller) {
+    new PullToRefresh(aiScroller, () => window.location.reload());
+  }
 
   // Lazy-load chat on first interaction with chat widget or AI section
   const chatToggle = document.getElementById('chat-toggle-btn');

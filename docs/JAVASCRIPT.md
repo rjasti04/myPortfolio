@@ -44,7 +44,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (310 lines)
+### `main.js` (321 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -53,7 +53,9 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   case it actually handles with a toast — calling it unconditionally suppressed
   every unhandled rejection from the console.
 - Eager init: theme, navigation, contact form, hero title, animations, tilt,
-  terminal, analytics, skills carousel, ripple, scroll-to-top, theme customizer.
+  terminal, analytics, skills carousel, ripple, scroll-to-top, theme customizer,
+  and `PullToRefresh` on `#ai .ai-content-area` — eager because `chat.js` is
+  lazy and a visitor landing on `/#ai` can pull before it has loaded.
 - Lazy loaders for `chat.js` and `activity.js`, triggered by a click on the
   relevant nav target, by the section gaining `.active` (via `MutationObserver`),
   or by the matching location hash. Each delegated document listener is bound to
@@ -426,12 +428,22 @@ a **reference-counted** body scroll lock — nested opens must not each stash
 their own scroll position, so only the outermost close restores the page.
 Integrates `ModalSwipeDismiss` for touch.
 
-### `swipe-handler.js` (249 lines)
+### `swipe-handler.js` (350 lines)
 
 `SwipeHandler`, `PullToRefresh`, `ModalSwipeDismiss`. `SwipeHandler` records
 whether `touchstart` accepted the gesture, because `touchstart` and `touchend`
 filtering independently on their own targets (which differ) produced phantom
 swipes.
+
+`PullToRefresh` exists because the AI panel blocks the browser's own gesture:
+`.layout` is `height: 100dvh`, `body` is `overflow: hidden` (which propagates
+to the viewport, as no rule sets `overflow` on `html`), and `.ai-content-area`
+sets `overscroll-behavior: contain` — so a downward drag never chains out to
+the viewport and Chrome never sees the overscroll its pull-to-refresh is built
+on. `main.js` mounts it on `#ai .ai-content-area`. Its `touchmove` is the only
+non-passive listener in the module, and cancels only while a pull that started
+at `scrollTop === 0` is still heading down; it is also the only version of the
+gesture that works once the site is installed to a home screen.
 
 ### `skills-carousel.js` (253 lines)
 

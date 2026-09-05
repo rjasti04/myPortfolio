@@ -7938,12 +7938,12 @@ nav a:hover .nav-shortcut {
         number - both of which drifted, leaving the panel a few pixels under
         the sticky header and the document a few pixels scrollable. Scroll
         lives in .ai-content-area and .ai-sidebar-history, nowhere else.
-     2. An assistant turn is not a bubble. A bubble capped the answer at 75%
-        of an 800px column and re-wrapped the longest prose on the page into
-        the narrowest box in it. Answers are now set as plain text across the
-        full measure; only the visitor's own turn keeps a bubble, on the
-        right, where the eye already looks for it. That one change is most of
-        the reading width this page gains.
+     2. No turn is a bubble. A bubble capped the answer at 75% of an 800px
+        column and re-wrapped the longest prose on the page into the narrowest
+        box in it. Both turns are now set as plain text across the full
+        measure, in one left-aligned column; the visitor's own turn is marked
+        by the accent and a heavier weight rather than by a box of its own.
+        That one change is most of the reading width this page gains.
      3. One measure for everything. Transcript and composer both resolve to
         --ai-measure, so question, answer and input share two edges down the
         whole screen rather than three different ones.
@@ -7958,6 +7958,9 @@ nav a:hover .nav-shortcut {
   --ai-measure: 820px;
   --ai-rail: 272px;
   --ai-pad-x: clamp(16px, 3vw, 40px);
+  /* Shared, because .ptr-indicator hangs off the bottom edge of the top bar
+     and the two have to agree at both sizes. */
+  --ai-topbar-h: 52px;
 
   position: relative;
   /* A flex item's default `min-height: auto` is its content height, which is
@@ -7978,8 +7981,11 @@ nav a:hover .nav-shortcut {
    `main` drops its document padding for a gutter measured off the same token
    the header sticks to. The header is `position: sticky; top:
    var(--header-sticky-offset)`, so it PAINTS that far below the flow box
-   main starts after: without adding the offset back, the top of the panel
-   renders underneath it. Same reasoning as the #home shell in HOME HERO.
+   main starts after - sticky pushes DOWN as well as up, and with nothing to
+   scroll here the offset applies at rest. Without adding it back, the top of
+   the panel renders underneath the pill. Same reasoning as the #home shell in
+   HOME HERO. Whatever is added on top of that offset is the gap the eye
+   actually sees, which is why the top has a token of its own.
 
    Nothing here reads --header-height. `header.scrolled` rewrites that token
    to 56px on its own element, so any calc() against it outside the header
@@ -7994,14 +8000,22 @@ nav a:hover .nav-shortcut {
 }
 
 .js-enabled main:has(> #ai.active) {
-  /* What is left between the panel and the edge of the viewport. */
+  /* What is left between the panel and the side and bottom edges of the
+     viewport. */
   --ai-gutter: 12px;
+  /* The top is deliberately not the gutter. Both the header and the panel are
+     elevated surfaces with their own shadow, and at the gutter's 12px - 8px on
+     a phone - the two shadows almost meet and the pair reads as one stacked
+     slab rather than a bar above a panel. Measured against viewport height
+     like #home's --home-shell-gap, so a short landscape phone spends less of
+     what it has separating them. */
+  --ai-header-gap: clamp(14px, 2.2vh, 22px);
 
   display: flex;
   flex-direction: column;
   min-height: 0;
   padding-block:
-    calc(var(--header-sticky-offset, 16px) + var(--ai-gutter))
+    calc(var(--header-sticky-offset, 16px) + var(--ai-header-gap))
     calc(var(--ai-gutter) + var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom, 0px));
   /* Replaces the negative inline margins this section used to carry: the
      panel is inset by the gutter, not by main's document measure. At 1280px
@@ -8448,7 +8462,7 @@ body.dark-theme .history-item:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 52px;
+  height: var(--ai-topbar-h);
   flex-shrink: 0;
   padding: 0 14px 0 18px;
   border-bottom: 1px solid var(--border);
@@ -8537,6 +8551,73 @@ body.dark-theme .ai-topbar-model {
   flex-direction: column;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+}
+
+/* ── Pull-to-refresh indicator ──
+   The panel is height-locked and .ai-content-area contains its overscroll, so
+   the browser's own pull-to-refresh never fires here; PullToRefresh in
+   swipe-handler.js replaces it and this is what it moves. It lives in
+   .ai-main, not in the scroller - an absolute child of a scroll box scrolls
+   away with the content - and hangs one full height above the top of the
+   transcript, so a pull slides it out from behind the top bar.
+
+   The module writes two custom properties and nothing else: --ptr-travel, how
+   far the finger has dragged it, and --ptr-progress, 0-1 against the release
+   threshold. Progress doubles as the fade, which is why the resting state
+   needs no rule of its own - at 0 the indicator is transparent. */
+.ptr-indicator {
+  position: absolute;
+  top: var(--ai-topbar-h);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: none;
+  transform: translateY(calc(var(--ptr-travel, 0px) - 100%));
+  opacity: var(--ptr-progress, 0);
+}
+
+/* Only on the way back. During the drag the indicator has to track the finger
+   frame for frame, and a transition on transform lags it visibly. */
+.ptr-indicator.is-settling {
+  transition:
+    transform var(--motion-medium) var(--ease-standard),
+    opacity var(--motion-medium) var(--ease-standard);
+}
+
+.ptr-spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--elev-2);
+}
+
+/* The ring winds up with the pull and is already upright at the threshold, so
+   the release reads as a continuation rather than a state change. */
+.ptr-spinner::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent-text);
+  transform: rotate(calc(var(--ptr-progress, 0) * 360deg));
+}
+
+.ptr-indicator.is-refreshing .ptr-spinner::before {
+  transform: none;
+  animation: ptr-spin 0.7s linear infinite;
+}
+
+@keyframes ptr-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Empty state */
@@ -8721,10 +8802,10 @@ body.dark-theme .ai-subtitle {
 }
 
 /* ── AI-page transcript ──
-   The page-sized turn is not the widget's bubble scaled up. It drops the
-   75% cap, the fill and the border for the assistant, and keeps a bubble
-   only for the visitor - so a long answer is read as a document column and a
-   short question still reads as something someone typed. */
+   The page-sized turn is not the widget's bubble scaled up. It drops the 75%
+   cap, the fill and the border for both roles, so a long answer is read as a
+   document column and the question above it shares that column's left edge
+   instead of hanging off the opposite one. */
 #ai .chat-message {
   max-width: 100%;
   min-width: 0;
@@ -8744,16 +8825,32 @@ body.dark-theme .ai-subtitle {
   }
 }
 
+/* The visitor's turn is not a bubble either: same block as the answer - full
+   measure, no fill, no border, no inset - and the accent carries the role on
+   its own. --accent-text rather than --accent-fill because this is body copy:
+   the fill measures 1.94:1 on the light ground, the text token 4.93:1.
+   The 600 weight is the non-colour half of that cue (WCAG 1.4.1): with the
+   bubble gone and no avatar or name in the transcript, hue alone would be the
+   only thing separating a question from an answer. */
 #ai .chat-message.user {
-  align-self: flex-end;
-  max-width: min(84%, 560px);
-  padding: 12px 16px;
-  background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent-fill) 28%, transparent);
-  border-radius: var(--radius-lg) var(--radius-lg) 6px var(--radius-lg);
-  color: var(--text);
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  color: var(--accent-text);
+  font-weight: 600;
   box-shadow: none;
-  line-height: var(--leading-body);
+  line-height: 1.7;
+}
+
+/* Follows the text to the left edge - `margin-left: auto` in the widget's
+   rules parked it against the right rail once the bubble stopped holding it. */
+#ai .chat-message.user .msg-actions {
+  align-self: flex-start;
+  margin-left: 0;
 }
 
 
@@ -9406,27 +9503,46 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
     background: var(--bg);
   }
 
+  #ai {
+    --ai-topbar-h: 48px;
+  }
+
   .ai-topbar {
-    height: 48px;
     padding-right: 12px;
   }
 
-  /* Two labelled figures and the model chip do not fit beside the collapsed
-     rail's toggle on a phone. The figures are what this bar carries now, so
-     the labels go screen-reader-only rather than being clipped mid-word, and
-     the chip stands down - the empty state still names the model, and a
-     running total is the thing that changes. */
-  .ai-usage-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+  /* Two labelled figures and the model chip do not fit on ONE line beside the
+     collapsed rail's toggle on a phone: the four spans measure ~325px against
+     the ~310px the toggle and the right padding leave on a 375px screen. So
+     each label stacks over its own value instead - that drops the strip to the
+     width of its two widest spans and keeps both words legible rather than
+     screen-reader-only. The pair costs a second line, which the 48px bar
+     already has room for at these two sizes. */
+  .ai-usage {
+    align-items: center;
+    gap: 12px;
   }
 
+  .ai-usage-stat {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    line-height: 1.25;
+  }
+
+  /* The chip stays, its pill does not. Measured in Chrome at these widths: the
+     pill is 115px against 90px for the same dot and name set bare, and 90px is
+     what fits beside a full usage strip from 375px up. The 25px is the border
+     plus the 11px gutters, and it buys nothing here - the top bar is already
+     the container, which is the same argument .header-actions settled for the
+     header pill. */
   .ai-topbar-model {
-    display: none;
+    background: none;
+    border: none;
+    padding: 0;
+    gap: 6px;
+    /* Never the thing that gives way. The strip is `min-width: 0` and can. */
+    flex-shrink: 0;
   }
 
   .ai-container.sidebar-hidden .ai-topbar {
@@ -9474,11 +9590,6 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
     display: none;
   }
 
-  #ai .chat-message.user {
-    max-width: 90%;
-    padding: 11px 14px;
-  }
-
   /* Only the gutters tighten - the vertical padding is what keeps the
      border-radius above exactly half the height. */
   .ai-input-form {
@@ -9488,6 +9599,17 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   .ai-textarea {
     padding-inline: 2px;
     font-size: var(--text-base);
+  }
+}
+
+/* Below this the strip and the chip genuinely cannot both fit once a
+   conversation runs long: at 360px the top bar leaves 178px for a strip that
+   wants 194px, and the chip is the thing the visitor asked to see. Latency is
+   what stands down - it is a derived average, where the token totals are the
+   figure that is actually accruing. From 375px up both stay. */
+@media (width <=360px) {
+  .ai-usage-stat:last-child {
+    display: none;
   }
 }
 
