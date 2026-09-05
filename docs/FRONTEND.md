@@ -422,8 +422,8 @@ file from an unchanged one.
 | Code splitting | Keeps `chat.js`, `activity.js` and `three-bg.js` as lazily-loaded chunks rather than folding them into the entry |
 | `app-logic.js` | Built separately as an **IIFE** (it is a classic script). Its `module.exports` block, present for the Node test runner, is silenced via `logOverride` |
 | `theme-bootstrap.js` | Built separately as an IIFE — it runs before first paint as a plain script |
-| CSS | `styles.css`, `auth-modal.css`, `fonts.css` bundled and minified, `.woff2` emitted as hashed file assets with `url()` references rewritten |
-| Static | Copied by extension allowlist; `tests/` skipped; `fonts/` skipped (the hashed copies come from the CSS build); vendor scripts, `.htaccess`, `worldcup.html` and `ucl.html` copied explicitly |
+| CSS | `styles.css`, `auth-modal.css`, `fonts.css` bundled and minified, font and image assets emitted as hashed file assets with `url()` references rewritten |
+| Static | Copied by extension allowlist; `tests/` skipped; `fonts/` and CSS assets skipped (the hashed copies come from the CSS build); vendor scripts, `.htaccess`, `worldcup.html` and `ucl.html` copied explicitly |
 | `index.html` | Asset `src`/`href` attributes rewritten to hashed paths. **Inline `<script>` bodies are never touched.** Throws if no reference was rewritten |
 | `sw.js` | `CACHE_NAME` and `PRECACHE_URLS` rewritten from what was actually built. Throws if neither substitution matched |
 

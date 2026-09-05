@@ -64,12 +64,12 @@ these files the number here has to move with it.
 
 | File | Lines | ~Tokens | How to navigate instead |
 | :--- | ---: | ---: | :--- |
-| `frontend/styles.css` | 10,706 | ~75,000 | `grep -n '#region' frontend/styles.css` returns a 26-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
-| `package-lock.json` | 3,453 | ~32,500 | Never read. `package.json` lists every direct dep in 25 lines. |
-| `frontend/index.html` | 2,024 | ~31,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
-| `frontend/js/chat.js` | 1,755 | ~18,000 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (32 hits). |
-| `frontend/js/auth-ui.js` | 1,189 | ~14,500 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (10 hits). |
-| `frontend/three-bg.js` | 1,507 | ~13,500 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
+| `frontend/styles.css` | 10,694 | ~77,500 | `grep -n '#region' frontend/styles.css` returns a 26-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
+| `package-lock.json` | 3,453 | ~33,500 | Never read. `package.json` lists every direct dep in 25 lines. |
+| `frontend/index.html` | 2,024 | ~32,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
+| `frontend/js/chat.js` | 1,755 | ~18,500 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (32 hits). |
+| `frontend/js/auth-ui.js` | 1,189 | ~15,000 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (10 hits). |
+| `frontend/three-bg.js` | 1,507 | ~14,000 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
 
 `server/.venv/` holds ~7,500 dependency files (136 MB) against 147 tracked
 files. It is gitignored, so ripgrep-backed `Grep`/`Glob` skip it — but plain
@@ -82,7 +82,7 @@ takes over two minutes.
 
 Do not preload these. Each entry states its trigger.
 
-**These docs are also too big to read whole.** Together they are ~63,000
+**These docs are also too big to read whole.** Together they are ~65,000
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -97,14 +97,14 @@ whole doc only when you genuinely need all of it.
 | Doc | ~Tokens | Read it before... | Jump to a section with |
 | :--- | ---: | :--- | :--- |
 | `docs/ARCHITECTURE.md` | ~7,000 | you need the repo map, the request lifecycle, or how the tiers interact | `grep -n '^#\{2,3\} '` (19 headings) |
-| `docs/API.md` | ~6,500 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (32 endpoint sections) |
+| `docs/API.md` | ~7,000 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (32 endpoint sections) |
 | `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
 | `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
 | `docs/JAVASCRIPT.md` | ~8,500 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (37 module sections) |
-| `docs/FRONTEND.md` | ~6,500 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (18 headings) |
+| `docs/FRONTEND.md` | ~7,000 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (18 headings) |
 | `docs/CONFIGURATION.md` | ~3,500 | adding or interpreting an environment variable | `grep -n '^## '` (14 headings), or just grep the variable name |
-| `docs/SECURITY.md` | ~5,000 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (17 headings) |
-| `docs/OPERATIONS.md` | ~4,000 | changing CI/CD, diagnosing a deploy, or running a manual procedure | `grep -n '^#\{2,3\} '` (25 headings) |
+| `docs/SECURITY.md` | ~5,500 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (17 headings) |
+| `docs/OPERATIONS.md` | ~4,500 | changing CI/CD, diagnosing a deploy, or running a manual procedure | `grep -n '^#\{2,3\} '` (25 headings) |
 | `docs/TESTING.md` | ~4,500 | writing tests, or checking whether something is actually covered | `grep -n '^#\{2,3\} '` (13 headings) |
 | `docs/ADR.md` | ~5,500 | you want to know why a decision was made and whether it still holds | Read the status table at the top (lines 1-36) first, then `sed -n` the one ADR you need |
 | `docs/README.md` | ~1,000 | you want the doc index and a task-to-document map | Small enough to read whole |

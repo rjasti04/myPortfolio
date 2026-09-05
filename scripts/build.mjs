@@ -165,28 +165,40 @@ async function main() {
   }
 
   // --- CSS -----------------------------------------------------------------
+  const cssAssets = new Set();
   for (const css of ["styles.css", "auth-modal.css", "fonts.css"]) {
     const result = await esbuild.build({
       entryPoints: [join(SRC, css)],
       bundle: true, minify: true, sourcemap: true,
       outdir: join(OUT, "assets"), entryNames: "[name]-[hash]",
       metafile: true, logLevel: "warning",
-      loader: { ".woff2": "file", ".woff": "file" },
+      loader: {
+        ".woff2": "file",
+        ".woff": "file",
+        ".png": "file",
+        ".jpg": "file",
+        ".jpeg": "file",
+        ".webp": "file",
+        ".svg": "file",
+        ".ico": "file",
+      },
       assetNames: "[name]-[hash]",
     });
     for (const [outPath, meta] of Object.entries(result.metafile.outputs)) {
+      if (outPath.endsWith(".map")) continue;
       if (meta.entryPoint) {
-        rewrites.set(css, relative(OUT, join(ROOT, outPath)));
+        rewrites.set(css, relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
         continue;
       }
-      // Fonts are hashed and emitted alongside the stylesheet, and esbuild
-      // rewrites the url() references to match. index.html preloads two of
-      // them by their source path, so those have to be rewritten too - a
-      // preload pointing at the un-hashed copy fetches the same font a second
-      // time and logs "preloaded but not used".
-      const input = Object.keys(meta.inputs ?? {})[0];
-      if (input && /\.woff2?$/.test(input)) {
-        rewrites.set(relative(SRC, join(ROOT, input)), relative(OUT, join(ROOT, outPath)));
+      // Fonts and assets referenced via url() in CSS are hashed and emitted
+      // alongside the stylesheet, and esbuild rewrites the url() references to
+      // match. index.html preloads two of them by their source path, so those
+      // have to be rewritten too - a preload pointing at the un-hashed copy
+      // fetches the same font a second time and logs "preloaded but not used".
+      for (const input of Object.keys(meta.inputs ?? {})) {
+        const relInput = relative(SRC, join(ROOT, input)).replace(/\\/g, "/");
+        cssAssets.add(relInput);
+        rewrites.set(relInput, relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
       }
     }
   }
@@ -196,8 +208,9 @@ async function main() {
   for (const rel of await walk(SRC)) {
     const ext = rel.slice(rel.lastIndexOf("."));
     if (!COPY_EXTENSIONS.has(ext)) continue;
-    // Fonts ship as the hashed copies esbuild emitted next to fonts.css.
-    if (rel.startsWith("fonts/")) continue;
+    // Fonts and CSS-referenced assets ship as the hashed copies esbuild emitted next to stylesheets.
+    const normalizedRel = rel.replace(/\\/g, "/");
+    if (normalizedRel.startsWith("fonts/") || cssAssets.has(normalizedRel)) continue;
 
     const source = join(SRC, rel);
     const contents = await readFile(source);
