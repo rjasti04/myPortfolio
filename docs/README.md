@@ -42,7 +42,16 @@ this repository, including context-efficient navigation of the large files.
 
 These files describe behaviour, not intentions. When a change makes one of them
 wrong, fix it in the same change — a confidently wrong document costs more than
-a missing one. The highest-drift areas, in practice:
+a missing one.
+
+The *numbers* drift faster than the prose, because a wrong sentence is obvious
+on the next read and a wrong line count is not. `scripts/check_docs.py` guards
+the derivable ones — file sizes, grep yields, per-module line counts, module and
+test-file coverage — and runs in the `frontend-check` gate. Run it with `--fix`
+to apply the corrections, then re-read what surrounds a number that moved a long
+way: the description above it is usually stale too.
+
+The highest-drift areas it cannot check, in practice:
 
 - **Endpoint lists** — `API.md` and `test_frontend_api_contract.py`.
 - **Environment variables** — `CONFIGURATION.md` and `.env.example`.

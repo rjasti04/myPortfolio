@@ -29,7 +29,7 @@ syntax; `frontend/` runs directly in a browser.
      └── js/main.js      ── module entry ──► navigation, theme, form, animations,
                                              hero-title, tilt, terminal/, analytics,
                                              skills-carousel, ripple, scroll-to-top,
-                                             theme-customizer, error-handler
+                                             theme-customizer, error-handler, resume-pdf
                                                │
                                                ├─ dynamic ─► chat.js       (first AI interaction)
                                                ├─ dynamic ─► activity.js   (first Activity interaction)
@@ -44,7 +44,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (300 lines)
+### `main.js` (302 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -113,7 +113,7 @@ Media queries and the contact address. **Does not** hold `API_BASE`.
 | `supportsHover` | `(hover: hover) and (pointer: fine)` |
 | `mobileDevice` | `(pointer: coarse) and (max-width: 768px)` — phones only; iPads are 768px+ in portrait and laptops always have a fine pointer |
 
-### `analytics.js` (566 lines)
+### `analytics.js` (585 lines)
 
 API base resolution, session lifecycle, the event queue, and request telemetry.
 
@@ -180,7 +180,7 @@ module-level `refreshInFlight` promise makes every concurrent 401 share one
 refresh, and it is cleared before awaiting callers resume so a later 401 starts
 a fresh attempt. Guarded by `frontend/tests/auth-refresh.test.js`.
 
-### `utils.js` (155 lines)
+### `utils.js` (176 lines)
 
 | Export | Role |
 | :--- | :--- |
@@ -236,7 +236,7 @@ Internals worth knowing:
 | Voice | Separate `SpeechRecognition` instances per input — a shared singleton had both mic buttons overwriting each other's `onresult` and routing transcripts to the wrong field. Buttons are hidden entirely when unsupported |
 | Accessibility | `announceToScreenReader` for streamed replies |
 
-### `activity.js` (1,095 lines, lazy)
+### `activity.js` (1,181 lines, lazy)
 
 `initActivity()`, `loadActivity()`, `loadActivitySummary()`,
 `loadActivityFunnel()`.
@@ -295,6 +295,24 @@ forwarded in the payload. A timeout must not fall through to a native
 resubmission — `frontend/tests/contact-form.test.js` guards that. Success fires
 confetti and tracks `contact_submission`.
 
+### `resume-pdf.js` (75 lines)
+
+`export function initResumePdf()` — the in-page preview for the resume PDF,
+opened from the Experience section.
+
+The trigger stays a plain link in the markup. Without JS, on a touch device or
+on iOS the click is left alone and the browser's own PDF viewer takes over;
+only where an embedded viewer actually works is it intercepted and turned into
+a dialog. Two constraints shape it: `index.html`'s CSP sets `object-src 'none'`,
+so the viewer is an `<iframe>` under the `default-src 'self'` fallback, not an
+`<embed>`; and the dialog lives outside `#resume .item` so it can size to the
+viewport. iPadOS reports itself as `MacIntel` with touch points, so
+`hover: hover` alone does not exclude it — `supportsEmbeddedPdf()` checks the
+user agent too. On close the iframe element is dropped rather than pointed at
+`about:blank`, which would leave the plugin's rendering surface alive behind
+the closed dialog. The `src` comes from the trigger's `href`, because the build
+content-hashes the PDF. Covered by `frontend/tests/resume-pdf.test.js`.
+
 ### `analytics`-adjacent: `syntax-highlighter.js` (67 lines)
 
 `highlightCode(code, lang)` — regex highlighting for Python, JavaScript, SQL,
@@ -306,9 +324,9 @@ highlighting library.
 ## The command prompt
 
 `frontend/js/terminal/` — the interactive prompt in the About section, plus the
-`Ctrl+K` command palette. Six modules.
+`Ctrl+K` command palette. Seven modules.
 
-### `registry.js` (294 lines)
+### `registry.js` (297 lines)
 
 **Commands are data, not behaviour bolted onto a DOM closure.** Each descriptor
 carries everything three surfaces need — the terminal, the mobile chip row and
@@ -333,6 +351,16 @@ Commands: `help`, `whoami`, `skills`, `stats`, `ls`, `cd`, `ask`, `ai`, `wget`,
 `calc`, `echo`, `cowsay`, `fortune`, `history`, `matrix`, `theme`, `date`,
 `clear`, `sudo`. `export const commands` is the list; `createRegistry(list)`
 builds the lookup/completion surface.
+
+### `math.js` (74 lines)
+
+`evaluateMathExpression(expr)` — the arithmetic behind the `calc` command.
+
+A recursive-descent parser over `+ - * / ( )` and numeric literals,
+**deliberately not `eval`**: the grammar is the entire language, so no
+identifier can ever be resolved and no visitor-supplied string can reach the JS
+evaluator. Rejects malformed numbers, unbalanced parens, trailing input and
+non-finite results by throwing.
 
 ### `output.js` (104 lines)
 
@@ -375,7 +403,7 @@ matrix toggle (`rj_terminal_matrix`), and the `ctx` object handed to commands
 
 ## UI and interaction
 
-### `navigation.js` (538 lines)
+### `navigation.js` (527 lines)
 
 `initNavigation()`, `setActiveSection(target)`,
 `navigateToSection(target, {updateHash})`, `syncSectionWithHash(hash)`,
@@ -404,7 +432,7 @@ whether `touchstart` accepted the gesture, because `touchstart` and `touchend`
 filtering independently on their own targets (which differ) produced phantom
 swipes.
 
-### `skills-carousel.js` (268 lines)
+### `skills-carousel.js` (253 lines)
 
 `initSkillsCarousel()` — a carousel below 640 px and a static grid above.
 Autoplay at 4.5 s, 40 px swipe threshold, dot navigation, paused under
@@ -423,12 +451,12 @@ memory overhead and blind to dynamically created nodes.
 (hysteresis avoids flicker), and honours `prefers-reduced-motion` for the scroll
 itself.
 
-### `tilt.js` (56 lines)
+### `tilt.js` (97 lines)
 
 `initTilt()` — pointer-tracked 3D tilt on `.tilt-card`, `requestAnimationFrame`
 batched, and a complete no-op without hover support or with reduced motion.
 
-### `theme.js` (68 lines)
+### `theme.js` (73 lines)
 
 `initTheme()`, `applyTheme(isDark)`, `toggleTheme()`. `toggleTheme` is exported
 so callers (the command prompt) need not synthesise a click on `#theme-toggle`.
@@ -482,7 +510,7 @@ immediately under reduced motion or without the API), animated stat counters,
 the terminal intro sequence, a matrix-style text decode effect, spring-driven
 hover states, and page transitions.
 
-### `hero-title.js` (175 lines)
+### `hero-title.js` (179 lines)
 
 `initHeroTitle()` — tokenises the hero title into words and characters
 (preserving wrapping), plays a staggered 3D roll-up entrance, and adds a
@@ -514,9 +542,11 @@ colours read from CSS custom properties so it matches the active accent.
 | `rj_chat_active_session` | localStorage | `chat.js` | Active conversation id |
 | `rj_sidebar_hidden` | localStorage | `chat.js` | AI page sidebar state |
 | `rj_terminal_history_v2` | localStorage | `terminal/history.js` | Last 100 commands |
+| `rj_terminal_history` | localStorage | *(v1, read-only)* | Superseded by the `_v2` key. `history.js` migrates it once on load and never writes it again |
 | `rj_terminal_matrix` | localStorage | `terminal/index.js` | Matrix effect toggle |
 | `rj_event_queue:<session_id>` | localStorage | `analytics.js` | Pending analytics events |
 | `rj_session_id` | **sessionStorage** | `analytics.js` | Analytics session id (per tab) |
+| `rj_session_started_at` | **sessionStorage** | `analytics.js` | Session start timestamp, so a reloaded tab keeps one session rather than starting another |
 | `rj_session_token` | **sessionStorage** | `analytics.js` | Capability token (per tab) |
 | `rj_session_token` | **cookie** | the API | Same token, `HttpOnly; SameSite=Strict` — what `EventSource` sends |
 

@@ -17,18 +17,59 @@
 > Refer to this context before proposing any solution. Do not suggest services or
 > patterns inconsistent with this stack without flagging it explicitly.
 
+## What This Project Is
+
+`rjWebApp` is Rajeev Jasti's personal portfolio at `rjasti.com`. Three audiences,
+in priority order:
+
+1. **Visitors and recruiters** — the SPA is the product. First paint, mobile
+   layout and accessibility outrank internal elegance.
+2. **The site as a work sample** — the code is itself a portfolio piece
+   (ADR-001), so "a framework would be less code" is not on its own an argument
+   here.
+3. **The owner** — the Activity dashboard and the AI chat are tools he uses and
+   demos, not a product with external users.
+
+The standalone predictors under `/ucl` and `/worldcup` are side projects that
+share the domain and the build, not part of the SPA.
+
+## Non-Goals
+
+Do not propose these without saying explicitly that you are arguing against a
+standing decision. Each is a recorded choice, not an oversight:
+
+| Not a goal | Why | Where it is decided |
+| :--- | :--- | :--- |
+| A frontend framework or component model | The vanilla ES-module tier is deliberate, and the long single initialisers in `chat.js` / `auth-ui.js` are its accepted cost | ADR-001 |
+| Any runtime third-party origin **in the SPA** | Self-hosted fonts, vendored DOMPurify and marked; `script-src` is `'self'` plus two pinned inline hashes, `object-src 'none'`, and the service worker's cross-origin allowlist is empty | ADR-016 |
+| App-level auth on the API surface | Protection is the reverse proxy, security groups, CORS and trusted-proxy settings — do not design as if the API were internet-hardened | Environment Context above |
+| Horizontal scaling of the API as it stands | Rate limiting is in-memory and single-instance; shared-store rate limiting is *proposed*, not built | ADR-012 (Proposed) |
+| Client-chosen models, system prompts or token ceilings | The server owns the chat persona and its cost ceilings; the client sends messages, nothing more | ADR-023 |
+| Raw SQL migrations | Alembic under `server/alembic/` is the only schema path, and CI runs `alembic check` | ADR-014 |
+| Server-side chat history in the UI | The chat UI persists conversations in `localStorage`; `/chat/history*` exists but no shipped caller uses it | `docs/API.md` endpoint matrix |
+
+The two standalone predictors are the one deliberate exception to the
+third-party rule: `ucl.html` and `worldcup.html` each load Google Fonts, Font
+Awesome and (for `ucl.html`) FlagCDN directly. They are single self-contained
+files outside the SPA's CSP, and that is intentional — do not "fix" them to
+match the SPA, and do not cite them as precedent for the SPA.
+
 ## Navigating This Repo Without Burning Context
 
-**Never read these files end-to-end.** Approximate cost of a full read:
+**Never read these files end-to-end.** Sizes are measured, not guessed: token
+figures are `bytes ÷ 3.7` for code and markup, `bytes ÷ 4.0` for markdown
+prose, rounded up to the next 500 — so they run slightly high rather than low.
+`scripts/check_docs.py` recomputes this table in CI, so if you change one of
+these files the number here has to move with it.
 
-| File | ~Tokens | How to navigate instead |
-| :--- | ---: | :--- |
-| `frontend/styles.css` | 46,000 | `grep -n '#region' frontend/styles.css` returns a 25-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
-| `package-lock.json` | 26,600 | Never read. `package.json` lists every direct dep in 25 lines. |
-| `frontend/index.html` | 21,200 | `grep -n '<section id=' frontend/index.html` for the section map. |
-| `frontend/js/chat.js` | 12,400 | One 1,310-line `initChat()`; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (17 hits). |
-| `frontend/js/auth-ui.js` | 12,500 | Same shape - one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (7 hits). |
-| `frontend/three-bg.js` | 10,100 | Animated plexus background. Despite the name it is plain 2D canvas - there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
+| File | Lines | ~Tokens | How to navigate instead |
+| :--- | ---: | ---: | :--- |
+| `frontend/styles.css` | 9,586 | ~63,500 | `grep -n '#region' frontend/styles.css` returns a 26-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
+| `package-lock.json` | 3,453 | ~32,500 | Never read. `package.json` lists every direct dep in 25 lines. |
+| `frontend/index.html` | 1,935 | ~29,500 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
+| `frontend/js/chat.js` | 1,590 | ~16,000 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (24 hits). |
+| `frontend/js/auth-ui.js` | 1,189 | ~14,500 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (10 hits). |
+| `frontend/three-bg.js` | 1,507 | ~13,500 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
 
 `server/.venv/` holds ~7,500 dependency files (136 MB) against 147 tracked
 files. It is gitignored, so ripgrep-backed `Grep`/`Glob` skip it — but plain
@@ -41,21 +82,33 @@ takes over two minutes.
 
 Do not preload these. Each entry states its trigger.
 
-| Doc | Read it before... |
-| :--- | :--- |
-| `docs/ARCHITECTURE.md` | you need the repo map, the request lifecycle, or how the tiers interact |
-| `docs/API.md` | adding or modifying a FastAPI route, or calling one from the client |
-| `docs/BACKEND.md` | changing anything under `server/` - it is the package-by-package reference |
-| `docs/DATABASE.md` | changing a model, an index, or writing a migration |
-| `docs/JAVASCRIPT.md` | adding or refactoring a frontend ES module |
-| `docs/FRONTEND.md` | touching `index.html`, the CSS, the service worker, the fonts, or the build |
-| `docs/CONFIGURATION.md` | adding or interpreting an environment variable |
-| `docs/SECURITY.md` | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist |
-| `docs/OPERATIONS.md` | changing CI/CD, diagnosing a deploy, or running a manual procedure |
-| `docs/TESTING.md` | writing tests, or checking whether something is actually covered |
-| `docs/ADR.md` | you want to know why a decision was made and whether it still holds |
-| `docs/README.md` | you want the doc index and a task-to-document map |
-| `README.md` | human onboarding only; the stack summary above supersedes it |
+**These docs are also too big to read whole.** Together they are ~62,000
+tokens, and every one is cleanly sectioned. Get the heading map first, then
+pull only the section you need:
+
+```bash
+grep -n '^#\{2,3\} ' docs/JAVASCRIPT.md   # ~40 headings, ~400 tokens
+sed -n '284,298p' docs/JAVASCRIPT.md      # just the module you are touching
+```
+
+That turns a 7,500-token read into roughly 500. Use it by default; read a
+whole doc only when you genuinely need all of it.
+
+| Doc | ~Tokens | Read it before... | Jump to a section with |
+| :--- | ---: | :--- | :--- |
+| `docs/ARCHITECTURE.md` | ~7,000 | you need the repo map, the request lifecycle, or how the tiers interact | `grep -n '^#\{2,3\} '` (19 headings) |
+| `docs/API.md` | ~6,500 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (32 endpoint sections) |
+| `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
+| `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
+| `docs/JAVASCRIPT.md` | ~7,500 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (37 module sections) |
+| `docs/FRONTEND.md` | ~6,500 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (18 headings) |
+| `docs/CONFIGURATION.md` | ~3,500 | adding or interpreting an environment variable | `grep -n '^## '` (14 headings), or just grep the variable name |
+| `docs/SECURITY.md` | ~5,000 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (17 headings) |
+| `docs/OPERATIONS.md` | ~4,000 | changing CI/CD, diagnosing a deploy, or running a manual procedure | `grep -n '^#\{2,3\} '` (25 headings) |
+| `docs/TESTING.md` | ~4,500 | writing tests, or checking whether something is actually covered | `grep -n '^#\{2,3\} '` (13 headings) |
+| `docs/ADR.md` | ~5,500 | you want to know why a decision was made and whether it still holds | Read the status table at the top (lines 1-36) first, then `sed -n` the one ADR you need |
+| `docs/README.md` | ~1,000 | you want the doc index and a task-to-document map | Small enough to read whole |
+| `README.md` | ~4,000 | human onboarding only; the stack summary above supersedes it | Small enough to read whole |
 
 ## 1. Contextual Persona
 You are a Senior Full Stack Developer and Architect. Your goal is to provide production-ready, performant, and cost-efficient solutions. Avoid "hello world" examples; focus on enterprise-grade patterns.
@@ -112,4 +165,8 @@ For every technical assessment, use this structure:
             and `node` will all fail with "command not found". Resolve the Node
             install path first, or skip JS lint/test and say so in the report.
             This applies to `npm run lint:js` and `npm run lint:css` too.
+*   **Documentation Counts:** The docs quote file sizes, grep yields and line
+    counts. If you changed a file the tables above describe, run
+    `python3 scripts/check_docs.py --fix` — CI runs the same check and fails on
+    drift.
 *   **Assumptions:** List any critical assumptions made about the existing code or environment.

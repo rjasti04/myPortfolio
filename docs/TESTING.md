@@ -19,7 +19,7 @@ and pytest for the backend. Both run in CI on every push and pull request to
 
 ```bash
 # Frontend
-npm test                                     # node --test frontend/tests/*.test.js
+npm test                                     # frontend/tests/*.test.js + scripts/tests/*.test.js
 
 # Backend
 PYTHONPATH=. pytest                          # pytest.ini sets testpaths
@@ -52,12 +52,27 @@ Jest, no bundler.
 | `terminal.test.js` | 271 | Output builders escaping by construction; history (repeat collapsing, navigation, oversized entries, unparseable storage, flush persistence); individual commands; completion (common prefix, arguments, ambiguity, hidden commands never completed); keymap intents |
 | `analytics-queue.test.js` | 127 | **BUG-08 regression.** The queue key is namespaced per session; `initAnalytics` discards another session's persisted queue; a restored queue is filtered to the owning session's events |
 | `auth-refresh.test.js` | 144 | **BUG-03 regression.** Concurrent 401s share one refresh instead of racing rotation; a later 401 starts a fresh refresh; a genuinely failed refresh signs the user out exactly once |
-| `ucl-bracket.test.js` | 395 | The Champions League predictor end to end in jsdom: the 36-row table renders in its three qualification zones with each club's association, the play-off ties pair seeds 9–16 against 17–24, the round of 16 seeds the top eight against the reserved bands, a chalk bracket crowns the top seed, the `?s=` share code round-trips, reordering the table clears picks that no longer exist, a malformed share code falls back to the default table, quick-fill settles the remaining ties without overwriting existing picks, and the rank pill's jump field clamps out-of-range positions and cancels on Escape |
+| `ucl-bracket.test.js` | 610 | The Champions League predictor end to end in jsdom: the 36-row table renders in its three qualification zones with each club's association, the play-off ties pair seeds 9–16 against 17–24, the round of 16 seeds the top eight against the reserved bands, a chalk bracket crowns the top seed, the `?s=` share code round-trips, reordering the table clears picks that no longer exist, a malformed share code falls back to the default table, quick-fill settles the remaining ties without overwriting existing picks, and the rank pill's jump field clamps out-of-range positions and cancels on Escape |
 | `contact-form.test.js` | 246 | Accessible invalid-field feedback; the FormSubmit honeypot is excluded from validation but forwarded in the payload; offline submissions blocked; loading state set and reset; a timed-out request does **not** fall through to a native resubmission |
+| `resume-pdf.test.js` | 164 | The resume preview dialog: a hover-capable pointer opens it and mounts an iframe pointed at the link's `href`; closing tears the iframe back out of the DOM; a backdrop click closes but a click inside the panel does not; Escape closes; and both a touch pointer and an iOS user agent leave the plain link alone so the native viewer takes over |
 
 The two regression files exist because both bugs were silent and expensive: one
 lost analytics batches to a 403 whenever a second tab was open, the other signed
 users out mid-session whenever three authenticated requests 401'd together.
+
+### Build tests
+
+`scripts/tests/*.test.js` — same runner, but they exercise `scripts/build.mjs`
+rather than the browser. `npm test` picks them up along with the frontend
+suite.
+
+| File | Lines | Covers |
+| :--- | ---: | :--- |
+| `build.test.js` | 213 | The caching contract, which is only observable after a build. Every service-worker precache URL resolves to a file that actually shipped; the precache lists the *hashed* LCP image and the width `index.html` preloads, not a bare filename; the `.htaccess` immutable rule matches only content-hashed names; every shipped image and PDF is hashed, so nothing gets a year of caching under a reusable name; no page or manifest points at an un-hashed asset; and `CACHE_NAME` is stable when nothing changes but moves when any precached input does |
+
+A stale precache entry or an unhashed asset cannot be caught by linting or by
+the frontend suite — both only appear once `dist/` exists, which is why these
+run against a real build.
 
 ---
 

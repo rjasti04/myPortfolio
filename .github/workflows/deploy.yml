@@ -78,6 +78,18 @@ jobs:
       - name: Verify CSP Inline-Script Hashes
         run: python3 scripts/check_csp_hashes.py
 
+      # The docs carry numbers an agent budgets against - file sizes, grep
+      # yields, per-module line counts - and every one of them decayed silently
+      # as the code grew. When this check was added the navigation table in
+      # AGENTS.md understated every file by 14-39%, all in the direction that
+      # makes a reader under-budget. Prose stays right because a wrong sentence
+      # is obvious; a wrong number is not. Runs after the build so it sees the
+      # same tree the rest of the gate does.
+      #
+      # Fails with the corrected values; `--fix` applies them locally.
+      - name: Verify Documentation Counts
+        run: python3 scripts/check_docs.py
+
       # `npm run audit` existed from the start and was never called by CI. It
       # currently reports high-severity advisories in the dev toolchain
       # (postcss, ws, via stylelint and jsdom). Not blocking, because a
