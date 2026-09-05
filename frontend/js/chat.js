@@ -71,6 +71,10 @@ export function initChat() {
   const aiPageSendBtn = document.getElementById('ai-page-send-btn');
   const aiTokenCounter = document.getElementById('ai-token-counter');
   const aiSidebarHistory = document.getElementById('ai-sidebar-history');
+  const aiContentArea = document.querySelector('#ai .ai-content-area');
+  const aiJumpBtn = document.getElementById('ai-jump-btn');
+  const aiThreadTitle = document.getElementById('ai-thread-title');
+  const usageEl = document.getElementById('ai-usage');
   const usageTokensEl = document.getElementById('ai-usage-tokens');
   const usageLatencyEl = document.getElementById('ai-usage-latency');
 
@@ -339,10 +343,13 @@ export function initChat() {
   }
 
   function createNewSession() {
+    const now = Date.now();
     const newSession = {
-      id: Date.now().toString(),
-      title: 'New Chat',
-      messages: []
+      id: now.toString(),
+      title: 'New chat',
+      messages: [],
+      createdAt: now,
+      updatedAt: now
     };
     sessions.unshift(newSession);
     setActiveSession(newSession.id);
@@ -352,6 +359,39 @@ export function initChat() {
 
   function getActiveSession() {
     return sessions.find(s => s.id === activeSessionId) || sessions[0];
+  }
+
+  /* ── When a conversation was last used ──
+     The rail groups by this and orders by it. Sessions stored before
+     `updatedAt` shipped have neither key, so the id is the last resort: it is
+     `Date.now().toString()` at creation, which is exactly the timestamp those
+     rows are missing. Hence a fallback rather than a migration. */
+  function sessionTime(session) {
+    if (!session) return 0;
+    const stamp = session.updatedAt || session.createdAt || Number(session.id);
+    return Number.isFinite(stamp) ? stamp : 0;
+  }
+
+  /* Boundaries are local midnights, not rolling 24-hour windows: "Yesterday"
+     has to mean the calendar day the visitor remembers, not "between 24 and 48
+     hours ago". */
+  const DAY_MS = 86400000;
+
+  function historyBucket(time, startOfToday) {
+    if (time >= startOfToday) return 'Today';
+    if (time >= startOfToday - DAY_MS) return 'Yesterday';
+    if (time >= startOfToday - 7 * DAY_MS) return 'Previous 7 days';
+    if (time >= startOfToday - 30 * DAY_MS) return 'Previous 30 days';
+    return 'Older';
+  }
+
+  /* The top bar says which conversation is open. Every path that swaps the
+     visible one already ends in renderSidebar() or restoreActiveSession(), so
+     this hangs off those two rather than off each call site. */
+  function renderConversationTitle() {
+    if (!aiThreadTitle) return;
+    const session = getActiveSession();
+    aiThreadTitle.textContent = (session && session.title) || 'New chat';
   }
 
   /* ── Conversation usage ──
@@ -371,6 +411,13 @@ export function initChat() {
   function renderUsageSummary() {
     if (!usageTokensEl && !usageLatencyEl) return;
     const usage = getUsage(getActiveSession());
+    // Nothing to report on an empty conversation, and "0 / 0" next to an em
+    // dash is the loudest pair on the top bar while saying exactly that. The
+    // strip earns its place on the first measured turn.
+    if (usageEl) {
+      usageEl.hidden = !usage
+        || (usage.inputTokens === 0 && usage.outputTokens === 0 && usage.timedTurns === 0);
+    }
     if (usageTokensEl) {
       const input = usage ? usage.inputTokens : 0;
       const output = usage ? usage.outputTokens : 0;
@@ -427,17 +474,63 @@ export function initChat() {
     }
 
     aiSidebarHistory.innerHTML = '';
-    const filteredSessions = searchQuery
+    renderConversationTitle();
+
+    const filteredSessions = (searchQuery
       ? sessions.filter(s => s.title.toLowerCase().includes(searchQuery))
-      : sessions;
+      : sessions.slice()
+    ).sort((a, b) => sessionTime(b) - sessionTime(a));
+
+    if (filteredSessions.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'ai-history-empty';
+      const icon = document.createElement('i');
+      icon.className = 'fas fa-file-lines';
+      icon.setAttribute('aria-hidden', 'true');
+      empty.appendChild(icon);
+      empty.appendChild(document.createTextNode(
+        searchQuery ? 'No chats match that search.' : 'No conversations yet.'
+      ));
+      aiSidebarHistory.appendChild(empty);
+      return;
+    }
+
+    // One container per recency bucket, created on first use so an empty
+    // bucket never paints its own heading.
+    const startOfToday = new Date().setHours(0, 0, 0, 0);
+    const groups = new Map();
+
+    function groupFor(session) {
+      const name = historyBucket(sessionTime(session), startOfToday);
+      let group = groups.get(name);
+      if (!group) {
+        group = document.createElement('div');
+        group.className = 'ai-history-group';
+        const label = document.createElement('p');
+        label.className = 'ai-history-group-label';
+        label.textContent = name;
+        group.appendChild(label);
+        groups.set(name, group);
+        aiSidebarHistory.appendChild(group);
+      }
+      return group;
+    }
 
     filteredSessions.forEach(session => {
       const item = document.createElement('div');
       item.className = `history-item ${session.id === activeSessionId ? 'active' : ''}`;
 
-      const titleSpan = document.createElement('span');
-      titleSpan.textContent = session.title;
-      item.appendChild(titleSpan);
+      // The row used to be a bare div with a click listener: unreachable by
+      // keyboard and invisible to assistive tech, which is most of a chat
+      // history unusable without a mouse. The title is a real button now, and
+      // the div is only the surface the hover and active states paint on.
+      const openBtn = document.createElement('button');
+      openBtn.type = 'button';
+      openBtn.className = 'history-item-open';
+      openBtn.textContent = session.title;
+      openBtn.title = session.title;
+      if (session.id === activeSessionId) openBtn.setAttribute('aria-current', 'true');
+      item.appendChild(openBtn);
 
       // Three-dot menu button replacing persistent delete icon
       const menuBtn = document.createElement('button');
@@ -459,12 +552,14 @@ export function initChat() {
         dropdown.classList.add('hidden');
         menuBtn.classList.remove('active');
 
-        // Convert titleSpan to inline input
+        // The open button steps aside for the field, and renderSidebar()
+        // puts it back on save or on Escape.
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'session-rename-input';
         input.value = session.title;
-        item.replaceChild(input, titleSpan);
+        input.setAttribute('aria-label', 'Rename conversation');
+        item.replaceChild(input, openBtn);
         input.focus();
         input.select();
 
@@ -523,14 +618,15 @@ export function initChat() {
         }
       });
 
-      item.addEventListener('click', () => {
+      openBtn.addEventListener('click', () => {
         if (isGenerating) return;
         setActiveSession(session.id);
         renderSidebar();
         restoreActiveSession();
         closeSidebarOnDrawerLayout();
       });
-      aiSidebarHistory.appendChild(item);
+
+      groupFor(session).appendChild(item);
     });
   }
 
@@ -630,6 +726,29 @@ export function initChat() {
     setSidebarHidden(storedHidden !== 'false', { persist: false });
   }
 
+  /* ── Jump to latest ──
+     Scrolling up to re-read an earlier answer used to be a one-way trip: the
+     only way back down was to drag the whole thread. The control appears once
+     the scroller is roughly a screenful clear of the bottom - far enough that
+     the gesture back is real work, near enough that a streaming reply growing
+     under a reader who is already at the foot never makes it flicker. */
+  const JUMP_THRESHOLD_PX = 260;
+
+  function syncJumpBtn() {
+    if (!aiContentArea || !aiJumpBtn) return;
+    const slack = aiContentArea.scrollHeight - aiContentArea.scrollTop - aiContentArea.clientHeight;
+    aiJumpBtn.hidden = slack < JUMP_THRESHOLD_PX;
+  }
+
+  if (aiContentArea && aiJumpBtn) {
+    aiContentArea.addEventListener('scroll', syncJumpBtn, { passive: true });
+    aiJumpBtn.addEventListener('click', () => {
+      aiContentArea.scrollTo({ top: aiContentArea.scrollHeight, behavior: 'smooth' });
+      aiJumpBtn.hidden = true;
+      aiPageInput?.focus();
+    });
+  }
+
   function scrollToBottom(container, force = false) {
     const target = container || document.getElementById('ai-page-messages')?.parentElement || document.getElementById('chat-messages');
     if (!target) return;
@@ -640,6 +759,10 @@ export function initChat() {
         behavior: 'smooth'
       });
     }
+    // A turn appended while the reader is scrolled up changes scrollHeight
+    // without producing a scroll event, so the button would otherwise stay in
+    // whatever state the last actual scroll left it in.
+    syncJumpBtn();
   }
 
   // One hide timer per button. Two copies inside 1.4s used to leave the first
@@ -839,6 +962,9 @@ export function initChat() {
       if (session.messages.length === 1 && sender === 'user') {
         session.title = text.slice(0, 30) + (text.length > 30 ? '...' : '');
       }
+      // What the rail buckets and orders by. Written on every saved turn, so a
+      // conversation reopened a week later moves back up to Today.
+      session.updatedAt = Date.now();
       saveSessions();
     }
     return { showCopy };
@@ -859,9 +985,11 @@ export function initChat() {
     }
 
     // Every path that swaps the visible conversation - New Chat, a sidebar
-    // pick, a delete - lands here, so the top bar's totals follow from one
-    // call site rather than three.
+    // pick, a delete - lands here, so the top bar's title and totals follow
+    // from one call site rather than three.
+    renderConversationTitle();
     renderUsageSummary();
+    syncJumpBtn();
   }
 
   // Auto-resize textarea
@@ -1490,19 +1618,28 @@ export function initChat() {
 
       // Store the original text for retry
       const retryText = text;
-      const errorMsg = `
-        <div class="chat-error-boundary">
-          <i class="fas fa-exclamation-triangle"></i>
-          <span>Connection to AI service failed. Check your internet connection and try again.</span>
-          <button type="button" class="btn btn-outline retry-btn" data-retry-text="${escapeHTML(retryText)}">
-            <i class="fas fa-sync-alt"></i> Retry
-          </button>
-        </div>
-      `;
+      // Written flat on purpose. This card is the one error path that goes
+      // through appendMessage(), so it is parsed as Markdown before it is
+      // rendered - and Markdown reads four leading spaces as a code fence. The
+      // indented template that used to be here reached the transcript as a
+      // syntax-highlighted dump of its own source, Retry button and all.
+      const errorMsg =
+        '<div class="chat-error-boundary">' +
+        '<i class="fas fa-exclamation-triangle"></i>' +
+        '<span>Connection to AI service failed. Check your internet connection and try again.</span>' +
+        `<button type="button" class="btn btn-outline retry-btn" data-retry-text="${escapeHTML(retryText)}">` +
+        '<i class="fas fa-sync-alt"></i> Retry' +
+        '</button>' +
+        '</div>';
       appendMessage(errorMsg, 'bot', { save: false, showCopy: false });
 
-      // Ensure widget and dialog are visible so user can see error & access retry button
-      if (dialog && dialog.classList.contains('hidden')) {
+      // Bring the widget forward so the error and its Retry are reachable - but
+      // only when the widget is the surface the visitor is on. appendMessage()
+      // has just rendered the same card into the AI page, and opening the
+      // dialog over it blurred the whole layout behind a second copy of an
+      // error the visitor was already reading.
+      const onAiPage = document.getElementById('ai')?.classList.contains('active');
+      if (!onAiPage && dialog && dialog.classList.contains('hidden')) {
         setChatOpen(true);
       }
       if (widget) {
@@ -1583,7 +1720,12 @@ export function initChat() {
   // Init UI
   loadSessions();
   renderSidebar();
-  renderUsageSummary();
+  // Nothing painted the stored conversation on load: loadSessions() only
+  // reaches restoreActiveSession() through createNewSession(), which it calls
+  // when there is no history at all. So a returning visitor arrived to the
+  // greeting and an empty widget while the rail listed the thread they had
+  // just been reading, and only a click on that row brought it back.
+  restoreActiveSession();
 }
 
 // Screen reader announcements

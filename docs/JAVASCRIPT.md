@@ -214,7 +214,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (1,613 lines, lazy)
+### `chat.js` (1,755 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -230,10 +230,14 @@ Internals worth knowing:
 | Rendering | `renderBotHTML` = `DOMPurify.sanitize(marked.parse(text))`, degrading to escaped text with `<br>` if either global is missing |
 | Code blocks | A custom `marked` renderer injects a copy button carrying the source as a URI-encoded `data-code` attribute; a delegated document listener handles the copy |
 | Highlighting | `syntax-highlighter.js`, not a library |
-| Sessions | Up to 50 conversations in `localStorage` (`rj_chat_sessions`, `rj_chat_active_session`), with a sidebar for rename/delete/switch |
+| Sessions | Up to 50 conversations in `localStorage` (`rj_chat_sessions`, `rj_chat_active_session`), with a sidebar for rename/delete/switch. Each carries `createdAt`/`updatedAt`; rows stored before those shipped fall back to `Number(session.id)`, which is the creation timestamp, so there is no migration |
+| History rail | Rows are ordered by `updatedAt` and bucketed into Today / Yesterday / Previous 7 days / Previous 30 days / Older against local midnights, with an empty state for a cleared or unmatched list. The row's title is a real `<button>` — as a bare `<div>` with a click listener the whole history was unreachable by keyboard |
+| Restore on load | `initChat()` ends in `restoreActiveSession()`. Without it, `loadSessions()` only reached that call through `createNewSession()`, so a returning visitor landed on the empty greeting while the rail listed the thread they had just been reading |
+| Thread title | `renderConversationTitle()` writes the active session's title into the `#ai` top bar, hung off `renderSidebar()` and `restoreActiveSession()` rather than off each call site |
+| Jump to latest | A scroll listener on `.ai-content-area` toggles `#ai-jump-btn` once the scroller is more than `JUMP_THRESHOLD_PX` clear of the bottom; `scrollToBottom()` re-syncs it, because a turn appended while the reader is scrolled up changes `scrollHeight` without firing a scroll event |
 | Streaming | `authenticatedFetch` → `response.body.getReader()`, manual SSE line parsing, throttled markdown re-parse, `AbortController` for stop-generation |
 | Metrics | The `{"type":"metrics"}` frame is kept **per turn** as well as on `window.lastStreamMetrics`. The per-turn copy is credited to the conversation once the turn produces text, so a later turn moving the global on cannot double-count it; the global stays for console debugging |
-| Usage totals | `session.usage` (`inputTokens`, `outputTokens`, `latencyMsTotal`, `timedTurns`) accumulates each turn's metrics frame and renders into the `#ai` top bar as `in / out` and a mean latency. It lives on the session, so it survives a reload, follows the sidebar's selection and starts at zero on a New Chat; turns that never report a latency (a stopped generation) are left out of the mean rather than counted as 0 ms. Sessions stored before this shipped get the key lazily, with no migration |
+| Usage totals | `session.usage` (`inputTokens`, `outputTokens`, `latencyMsTotal`, `timedTurns`) accumulates each turn's metrics frame and renders into the `#ai` top bar as `in / out` and a mean latency. The strip is `hidden` until a turn has actually been measured - on an empty conversation `0 / 0` beside an em dash is the loudest pair on the bar and reports nothing. It lives on the session, so it survives a reload, follows the sidebar's selection and starts at zero on a New Chat; turns that never report a latency (a stopped generation) are left out of the mean rather than counted as 0 ms. Sessions stored before this shipped get the key lazily, with no migration |
 | Summarisation | At `SUMMARIZE_TOKEN_THRESHOLD` estimated tokens, everything before the current message is sent to `/chat/summarize` and replaced by the summary |
 | Auth | A `401` while signed out dispatches `request-login-modal` rather than showing a raw error |
 | Voice | Separate `SpeechRecognition` instances per input — a shared singleton had both mic buttons overwriting each other's `onresult` and routing transcripts to the wrong field. Buttons are hidden entirely when unsupported |
