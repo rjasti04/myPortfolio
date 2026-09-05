@@ -212,7 +212,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (1,593 lines, lazy)
+### `chat.js` (1,613 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -230,7 +230,8 @@ Internals worth knowing:
 | Highlighting | `syntax-highlighter.js`, not a library |
 | Sessions | Up to 50 conversations in `localStorage` (`rj_chat_sessions`, `rj_chat_active_session`), with a sidebar for rename/delete/switch |
 | Streaming | `authenticatedFetch` → `response.body.getReader()`, manual SSE line parsing, throttled markdown re-parse, `AbortController` for stop-generation |
-| Metrics | The `{"type":"metrics"}` frame is kept **per turn** as well as on `window.lastStreamMetrics`, so a message's info drawer keeps reporting its own latency after later turns move the global on |
+| Metrics | The `{"type":"metrics"}` frame is kept **per turn** as well as on `window.lastStreamMetrics`. The per-turn copy is credited to the conversation once the turn produces text, so a later turn moving the global on cannot double-count it; the global stays for console debugging |
+| Usage totals | `session.usage` (`inputTokens`, `outputTokens`, `latencyMsTotal`, `timedTurns`) accumulates each turn's metrics frame and renders into the `#ai` top bar as `in / out` and a mean latency. It lives on the session, so it survives a reload, follows the sidebar's selection and starts at zero on a New Chat; turns that never report a latency (a stopped generation) are left out of the mean rather than counted as 0 ms. Sessions stored before this shipped get the key lazily, with no migration |
 | Summarisation | At `SUMMARIZE_TOKEN_THRESHOLD` estimated tokens, everything before the current message is sent to `/chat/summarize` and replaced by the summary |
 | Auth | A `401` while signed out dispatches `request-login-modal` rather than showing a raw error |
 | Voice | Separate `SpeechRecognition` instances per input — a shared singleton had both mic buttons overwriting each other's `onresult` and routing transcripts to the wrong field. Buttons are hidden entirely when unsupported |

@@ -71,6 +71,8 @@ export function initChat() {
   const aiPageSendBtn = document.getElementById('ai-page-send-btn');
   const aiTokenCounter = document.getElementById('ai-token-counter');
   const aiSidebarHistory = document.getElementById('ai-sidebar-history');
+  const usageTokensEl = document.getElementById('ai-usage-tokens');
+  const usageLatencyEl = document.getElementById('ai-usage-latency');
 
   // Voice input support for mobile & desktop
   // BUG FIX ROOT CAUSE: SpeechRecognition was using a shared singleton 'recognitionInstance'.
@@ -182,6 +184,9 @@ export function initChat() {
     const text = aiPageInput.value.trim();
     const tokens = estimateTokens(text);
     aiTokenCounter.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
+    // An empty composer has nothing to report, and the count sits inside the
+    // pill now - so it stays out of the resting bar and appears on first keypress.
+    aiTokenCounter.hidden = tokens === 0;
 
     // Disable send button if over limit
     const isOverLimit = tokens > TOKEN_LIMIT;
@@ -347,6 +352,55 @@ export function initChat() {
 
   function getActiveSession() {
     return sessions.find(s => s.id === activeSessionId) || sessions[0];
+  }
+
+  /* ── Conversation usage ──
+     The top bar reports what this conversation has cost so far, so the figures
+     live on the session next to its messages: they survive a reload, they
+     follow the sidebar's selection, and a New Chat starts them at zero
+     without any extra bookkeeping. Sessions stored before this shipped have no
+     `usage` key, hence the lazy default rather than a migration. */
+  function getUsage(session) {
+    if (!session) return null;
+    if (!session.usage) {
+      session.usage = { inputTokens: 0, outputTokens: 0, latencyMsTotal: 0, timedTurns: 0 };
+    }
+    return session.usage;
+  }
+
+  function renderUsageSummary() {
+    if (!usageTokensEl && !usageLatencyEl) return;
+    const usage = getUsage(getActiveSession());
+    if (usageTokensEl) {
+      const input = usage ? usage.inputTokens : 0;
+      const output = usage ? usage.outputTokens : 0;
+      usageTokensEl.textContent = `${input.toLocaleString()} / ${output.toLocaleString()}`;
+    }
+    if (usageLatencyEl) {
+      // An em dash until a turn has actually been timed: 0 ms is a measurement,
+      // and this is the absence of one.
+      usageLatencyEl.textContent = usage && usage.timedTurns > 0
+        ? `${Math.round(usage.latencyMsTotal / usage.timedTurns)} ms`
+        : '—';
+    }
+  }
+
+  function recordTurnUsage(session, metrics) {
+    const usage = getUsage(session);
+    if (!usage || !metrics) return;
+    const input = Number(metrics.input_tokens);
+    const output = Number(metrics.output_tokens);
+    const latency = Number(metrics.latency_ms);
+    if (Number.isFinite(input)) usage.inputTokens += input;
+    if (Number.isFinite(output)) usage.outputTokens += output;
+    // The mean is over the turns that reported a latency, not over every turn:
+    // a stopped generation never sends a metrics frame, and folding it in as
+    // 0 ms would report an average no request ever took.
+    if (Number.isFinite(latency)) {
+      usage.latencyMsTotal += latency;
+      usage.timedTurns += 1;
+    }
+    renderUsageSummary();
   }
 
   const sidebarSearchContainer = document.getElementById('ai-sidebar-search-container');
@@ -633,7 +687,7 @@ export function initChat() {
     if (icon) icon.className = iconClass;
   }
 
-  function createMessageActions(getText, isBot = true, isTruncated = false, msgElement = null, metrics = null) {
+  function createMessageActions(getText, isBot = true, isTruncated = false) {
     const container = document.createElement('div');
     container.className = 'msg-actions';
 
@@ -709,53 +763,6 @@ export function initChat() {
       container.appendChild(editBtn);
     }
 
-    // Info / Inspector Button (Progressive Disclosure)
-    const infoBtn = createActionButton('msg-info-btn', 'Message Info & Dev Metrics', 'fas fa-circle-info');
-    infoBtn.setAttribute('aria-label', 'Toggle message info and metrics');
-    infoBtn.setAttribute('aria-expanded', 'false');
-
-    infoBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const parentMsg = msgElement || container.closest('.chat-message');
-      if (!parentMsg) return;
-
-      let drawer = parentMsg.querySelector('.msg-info-drawer');
-      if (drawer) {
-        const isHidden = drawer.classList.toggle('hidden');
-        infoBtn.classList.toggle('active', !isHidden);
-        infoBtn.setAttribute('aria-expanded', String(!isHidden));
-        return;
-      }
-
-      const textVal = typeof getText === 'function' ? getText() : getText;
-      const tokens = estimateTokens(textVal);
-
-      // Metrics belong to the stream that produced *this* message and are
-      // passed in when there are any. Reading window.lastStreamMetrics showed
-      // every drawer in the transcript the latency of the newest reply, and
-      // the '~240ms' fallback was not a measurement at all - it reported a
-      // number for user messages and for history restored from a past session.
-      const latencyMs = metrics && typeof metrics.latency_ms === 'number' ? metrics.latency_ms : null;
-      const latency = latencyMs === null ? 'Not recorded' : `${Math.round(latencyMs)} ms`;
-
-      drawer = document.createElement('div');
-      drawer.className = 'msg-info-drawer';
-      drawer.innerHTML = `
-        <div class="msg-info-drawer-row">
-          <span class="msg-info-label">Tokens:</span>
-          <span class="msg-info-value">${tokens} token${tokens !== 1 ? 's' : ''}</span>
-        </div>
-        <div class="msg-info-drawer-row">
-          <span class="msg-info-label">Latency:</span>
-          <span class="msg-info-value">${latency}</span>
-        </div>
-      `;
-      parentMsg.appendChild(drawer);
-      infoBtn.classList.add('active');
-      infoBtn.setAttribute('aria-expanded', 'true');
-    });
-    container.appendChild(infoBtn);
-
     // Copy Button
     const copyBtn = createActionButton('msg-copy-btn', 'Copy text', 'fas fa-copy');
     let copyResetTimer = null;
@@ -802,7 +809,7 @@ export function initChat() {
       } else {
         msgEl.textContent = text;
       }
-      if (showCopy) msgEl.appendChild(createMessageActions(text, isBot, false, msgEl));
+      if (showCopy) msgEl.appendChild(createMessageActions(text, isBot));
       messagesContainer.appendChild(msgEl);
       scrollToBottom(messagesContainer, true);
     }
@@ -820,7 +827,7 @@ export function initChat() {
       } else {
         msgEl2.textContent = text;
       }
-      if (showCopy) msgEl2.appendChild(createMessageActions(text, isBot, false, msgEl2));
+      if (showCopy) msgEl2.appendChild(createMessageActions(text, isBot));
       aiPageMessages.appendChild(msgEl2);
       const aiScrollContainer = aiPageMessages.parentElement || aiPageMessages;
       scrollToBottom(aiScrollContainer, true);
@@ -850,6 +857,11 @@ export function initChat() {
       // Temporarily disable auto-scroll to avoid jumping while rendering
       session.messages.forEach(msg => appendMessage(msg.text, msg.sender, { save: false, showCopy: true }));
     }
+
+    // Every path that swaps the visible conversation - New Chat, a sidebar
+    // pick, a delete - lands here, so the top bar's totals follow from one
+    // call site rather than three.
+    renderUsageSummary();
   }
 
   // Auto-resize textarea
@@ -1293,9 +1305,10 @@ export function initChat() {
       };
 
       const handleMetrics = (metricsData) => {
-        // Kept per turn as well as globally: the info drawer of the message
-        // this stream produces reads the local copy, so it keeps reporting its
-        // own latency after later turns have moved the global on.
+        // Kept per turn as well as globally: the local copy is what the top
+        // bar's running totals are credited from once this turn completes, so
+        // a later turn moving the global on cannot double-count or overwrite
+        // it. The global stays for console debugging.
         streamMetrics = metricsData;
         if (typeof window !== "undefined") {
           window.lastStreamMetrics = metricsData;
@@ -1431,11 +1444,17 @@ export function initChat() {
         if (aiMsgEl) aiMsgEl.innerHTML = emptyErrorMsg;
       } else {
         if (widgetMsgEl) {
-          widgetMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated, widgetMsgEl, streamMetrics));
+          widgetMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated));
         }
         if (aiMsgEl) {
-          aiMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated, aiMsgEl, streamMetrics));
+          aiMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated));
         }
+
+        // Metrics arrive on the stream's last frame, so the totals are credited
+        // here rather than in handleMetrics(): by this point the turn has
+        // produced text, and the saveSessions() below persists the figures with
+        // the message they belong to.
+        recordTurnUsage(session, streamMetrics);
 
         // The turn succeeded, so the compaction (if any) is now safe to keep.
         // The reply goes in before the re-render, or restoreActiveSession()
@@ -1564,6 +1583,7 @@ export function initChat() {
   // Init UI
   loadSessions();
   renderSidebar();
+  renderUsageSummary();
 }
 
 // Screen reader announcements
