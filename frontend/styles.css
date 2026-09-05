@@ -182,6 +182,32 @@
   --glass-dark-blur: blur(var(--blur-lg)) saturate(var(--glass-saturate));
   --glass-dark-shadow: var(--elev-3);
 
+  /* ---- Sheen: the specular layer on glass ------------------------------
+     What makes a floating surface read as glass is its lit edge. That edge
+     was 44 hardcoded `rgba(255, 255, 255, a)` values across 20 distinct
+     alphas - the one visual layer never put on a scale while blur, elevation
+     and radius all were.
+
+     White is only specular ON A DARKER GROUND. The light page is #f8fafb and
+     every chrome surface floating over it is 65-92% white, so a white edge
+     there is white on white and paints nothing: the header, the nav menu,
+     the dropdown and the mobile bar all floated with no readable boundary,
+     carried only by --elev-2's 7% ambient shadow. The rule is the same in
+     both themes - the edge is lighter than the surface behind it - but the
+     sign flips, so the two themes need different values rather than one.
+
+     Every dark-theme value below is exactly what the rule it replaces already
+     painted, so the dark theme renders identically after this change; only
+     the light theme gains an edge it never had.
+
+     --sheen-wash lives on `body`, not here: it is accent-derived, and a
+     var() inside a custom property substitutes where the property is
+     DECLARED. On :root it would freeze at the light amber and ignore both
+     body.dark-theme and the theme customiser - the same trap documented on
+     --glow-* and --focus-ring below. */
+  --sheen-edge: hsl(220, 39%, 11%, 0.10);
+  --sheen-edge-strong: hsl(220, 39%, 11%, 0.14);
+
   /* Border Radius Scale */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -263,6 +289,11 @@ body.dark-theme {
   --code-action-hover: #fff;
   --glass-light-bg: rgba(30, 41, 59, 0.45);
   --glass-light-border: rgba(255, 255, 255, 0.14);
+  /* The values the hardcoded rules already painted - see the :root note. */
+  --sheen-edge: rgba(255, 255, 255, 0.12);
+  --sheen-edge-strong: rgba(255, 255, 255, 0.14);
+  --sheen-wash: rgba(255, 255, 255, 0.10);
+  --sheen-wash-strong: rgba(255, 255, 255, 0.16);
   /* Elevation on a dark ground needs a lighter ring and a deeper ambient,
      otherwise every surface reads flat. Redefining these two re-tunes all
      four --elev-* steps and both glass shadows at once. */
@@ -320,6 +351,13 @@ body {
   --text-muted: var(--muted);
   --text-primary: var(--text);
   --border-color: var(--border);
+
+  /* The wash of light laid across a face on hover. Accent-tinted on the
+     light theme rather than white: over a 92%-white card a white wash is
+     invisible, so the card hover sheen simply did not exist there. Resolved
+     on body for the substitution reason given on --sheen-edge in :root. */
+  --sheen-wash: var(--accent-soft);
+  --sheen-wash-strong: var(--accent-mild);
 
   --glow-sm: 0 2px 8px var(--accent-soft);
   --glow-md: 0 4px 14px var(--accent-soft);
@@ -669,7 +707,7 @@ header {
   background: rgba(255, 255, 255, 0.65);
   backdrop-filter: blur(var(--blur-md)) saturate(180%);
   -webkit-backdrop-filter: blur(var(--blur-md)) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--sheen-edge);
   box-shadow: var(--elev-2);
   z-index: 1000;
   /* `height` is a layout property: transitioning it reflowed the document
@@ -694,7 +732,7 @@ header.scrolled {
   height: var(--header-height);
   box-shadow: var(--elev-2);
   background: rgba(255, 255, 255, 0.85);
-  border-color: rgba(255, 255, 255, 0.6);
+  border-color: var(--sheen-edge-strong);
 }
 
 body.dark-theme header {
@@ -973,7 +1011,7 @@ body.dark-theme #nav-menu a:not(.active):hover {
   backdrop-filter: blur(var(--blur-lg)) saturate(180%);
   -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(180%);
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--sheen-edge-strong);
   display: flex;
   flex-direction: column;
   padding: 18px;
@@ -2604,7 +2642,7 @@ body.dark-theme .home-portrait picture {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+  background: linear-gradient(135deg, var(--sheen-wash) 0%, transparent 100%);
   opacity: 0;
   transition: opacity var(--motion-medium) var(--ease-standard);
   pointer-events: none;
@@ -3855,9 +3893,9 @@ body.dark-theme .home-portrait picture {
 
 .stat-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.65);
+  border-color: var(--accent-mild);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 0 24px var(--accent-soft);
-  background: rgba(255, 255, 255, 0.32);
+  background: var(--sheen-wash);
 }
 
 body.dark-theme .stat-card:hover {
@@ -3928,6 +3966,14 @@ body.dark-theme .stat-card:hover {
   overflow: hidden;
 }
 
+/* ── The sweep is an animation, not a transition ──
+   As a transition between translateX(-101%) and 101% it also ran on the way
+   OUT, dragging the highlight back across the face: every button played a
+   second, backwards shine on mouse-leave. An animation only runs on the way
+   in - dropping :hover removes it and the pseudo-element snaps back to its
+   off-screen base with nothing to see. `.hero-buttons .btn::before` has
+   always done it this way via btn-shine below; the base .btn never got the
+   same fix. */
 .btn::before {
   content: '';
   position: absolute;
@@ -3937,7 +3983,6 @@ body.dark-theme .stat-card:hover {
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
   transform: translateX(-101%);
-  transition: transform var(--motion-slow) var(--ease-standard);
 }
 
 .btn::after {
@@ -3955,7 +4000,17 @@ body.dark-theme .stat-card:hover {
 }
 
 .btn:hover::before {
-  transform: translateX(101%);
+  animation: sheen-sweep var(--motion-slow) var(--ease-standard) forwards;
+}
+
+@keyframes sheen-sweep {
+  from {
+    transform: translateX(-101%);
+  }
+
+  to {
+    transform: translateX(101%);
+  }
 }
 
 .btn:hover::after {
@@ -4100,8 +4155,22 @@ body.dark-theme .stat-card:hover {
   color: var(--accent-fill);
 }
 
+/* Scaled, not resized. This grew the wordmark 1.266rem -> 1.424rem at the
+   exact moment the header collapses 72px -> 56px, which inverts the
+   condense-on-scroll gesture the shrink exists to make. `font-size` is also
+   layout-affecting, so it reflowed the header on every scroll-state toggle -
+   the thing the note on .logo-text's transition above warns against, and the
+   reason `height` was taken off that transition in the first place. `scale`
+   is composited, already in the transition list, and condenses with the
+   pill rather than against it. */
 header.scrolled .logo-text {
-  font-size: var(--text-2xl);
+  transform: scale(0.94);
+}
+
+/* The hover lift has to stay a step above the scrolled resting scale, or
+   hovering the wordmark on a scrolled header reads as a shrink. */
+header.scrolled .logo-text:hover {
+  transform: scale(1);
 }
 
 /* #endregion */
@@ -4156,7 +4225,7 @@ header.scrolled .logo-text {
   transform: translateY(-4px);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.10), 0 0 20px var(--accent-soft);
   border-color: var(--accent-fill);
-  background: rgba(255, 255, 255, 0.32);
+  background: var(--sheen-wash);
 }
 
 body.dark-theme .skill-group:hover {
@@ -4274,13 +4343,13 @@ body.dark-theme .skill-tag.primary .fas {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background: linear-gradient(90deg, transparent, var(--sheen-wash-strong), transparent);
   transform: translateX(-105%);
-  transition: transform var(--motion-slow) var(--ease-standard);
 }
 
+/* Same one-way sweep as .btn::before - see the note there. */
 .skill-tag:hover::before {
-  transform: translateX(105%);
+  animation: sheen-sweep var(--motion-slow) var(--ease-standard) forwards;
 }
 
 .skill-tag:hover {
@@ -4987,7 +5056,7 @@ body.dark-theme .skill-tag.primary .fas {
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(var(--blur-lg)) saturate(180%);
     -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--sheen-edge-strong);
     border-radius: 20px;
     padding: 18px;
     display: flex;
@@ -9135,7 +9204,7 @@ body.dark-theme .ai-input-container {
   background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(var(--blur-md)) saturate(180%);
   -webkit-backdrop-filter: blur(var(--blur-md)) saturate(180%);
-  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  border-top: 1px solid var(--sheen-edge);
   z-index: 1000;
   padding: 6px 0;
   box-shadow: 0 -8px 32px 0 rgba(0, 0, 0, 0.08);

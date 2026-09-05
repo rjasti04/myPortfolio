@@ -185,7 +185,15 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const mountHeroParticles = () => {
-    const heroSection = document.querySelector('.hero');
+    // `.home-hero` first, `.hero` only as the fallback. `.hero` is the About
+    // section's two-column terminal layout; #home took over as the landing
+    // view and brought its own `.home-hero`. Querying `.hero` alone mounted
+    // the whole fallback field inside a `display: none` section, so every
+    // device that failed canAffordPlexus() - the mid-range phones this tier
+    // exists for - opened on a bare gradient and never saw a background at
+    // all. The container is `position: absolute; inset: 0`, so it needs a
+    // positioned ancestor either way; both hosts get one below.
+    const heroSection = document.querySelector('.home-hero') || document.querySelector('.hero');
     if (!heroSection || destroyHeroParticles) return;
 
     let particlesContainer = document.getElementById('particles-canvas');

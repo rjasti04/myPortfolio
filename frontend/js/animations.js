@@ -9,6 +9,17 @@ const TERMINAL_INTRO_STEP_MS = 180;
 const MATRIX_FRAME_MS = 28;
 const MATRIX_ITERATION_STEP = 0.2;
 
+/* The section fade lives entirely in CSS - `.js-enabled section.active` runs
+   `section-enter` at --motion-page in the SECTION ROUTER region. A JS
+   `initPageTransitions()` used to set an inline `transition` plus inline
+   opacity/transform on every section on top of that. It never rendered: a CSS
+   animation outranks an inline declaration in the cascade, and `forwards`
+   fill keeps it applied after the run, so the inline values were dead the
+   whole time. It also re-triggered every `.reveal` in the section on a
+   `100 + i * 80ms` timer, which fought the IntersectionObserver below and
+   stacked on top of the CSS `--reveal-delay`: #about has 12 of them, so the
+   last one began its 520ms transition well over a second after the click.
+   Do not reintroduce it - change the keyframes in styles.css instead. */
 function initReveals() {
   const revealElements = Array.from(document.querySelectorAll(".reveal"));
   if (revealElements.length === 0) return;
@@ -282,50 +293,4 @@ export function initAnimations() {
   initTerminalIntro();
   initMatrixDecode();
   initSpringHovers();
-  initPageTransitions();
-}
-
-// Enhanced page transition animations
-function initPageTransitions() {
-  if (prefersReducedMotion.matches) return;
-  
-  const sections = document.querySelectorAll('main section');
-  
-  sections.forEach(section => {
-    // Add transition classes
-    section.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-    
-    // Observe section activation
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'class') {
-          const isActive = section.classList.contains('active');
-          
-          if (isActive) {
-            // Entering animation
-            section.style.opacity = '0';
-            section.style.transform = 'translateY(20px)';
-            
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                section.style.opacity = '1';
-                section.style.transform = 'translateY(0)';
-              });
-            });
-            
-            // Re-trigger reveal animations for elements in this section
-            const reveals = section.querySelectorAll('.reveal');
-            reveals.forEach((el, index) => {
-              el.classList.remove('active');
-              setTimeout(() => {
-                el.classList.add('active');
-              }, 100 + (index * REVEAL_STAGGER_MS));
-            });
-          }
-        }
-      });
-    });
-    
-    observer.observe(section, { attributes: true });
-  });
 }

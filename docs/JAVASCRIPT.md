@@ -44,7 +44,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (302 lines)
+### `main.js` (310 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -503,7 +503,7 @@ Never animates off-screen or on a hidden tab, motion is time-based so it looks
 identical at 60 Hz and 120 Hz, a resize rescales the field in place rather than
 reseeding it, and everything it attaches is removable via the returned teardown.
 
-### `animations.js` (331 lines)
+### `animations.js` (296 lines)
 
 `initAnimations()` — scroll reveals via `IntersectionObserver` (all revealed
 immediately under reduced motion or without the API), animated stat counters,
