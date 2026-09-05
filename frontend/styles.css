@@ -9411,18 +9411,24 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
     padding-right: 12px;
   }
 
-  /* Two labelled figures and the model chip do not fit beside the collapsed
-     rail's toggle on a phone. The figures are what this bar carries now, so
-     the labels go screen-reader-only rather than being clipped mid-word, and
-     the chip stands down - the empty state still names the model, and a
-     running total is the thing that changes. */
-  .ai-usage-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+  /* Two labelled figures and the model chip do not fit on ONE line beside the
+     collapsed rail's toggle on a phone: the four spans measure ~325px against
+     the ~310px the toggle and the right padding leave on a 375px screen. So
+     each label stacks over its own value instead - that drops the strip to the
+     width of its two widest spans (~185px) and keeps both words legible rather
+     than screen-reader-only. The pair costs a second line, which the 48px bar
+     already has room for at these two sizes. The chip still stands down: the
+     empty state names the model, and a running total is what changes. */
+  .ai-usage {
+    align-items: center;
+    gap: 14px;
+  }
+
+  .ai-usage-stat {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    line-height: 1.25;
   }
 
   .ai-topbar-model {
