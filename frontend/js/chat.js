@@ -701,7 +701,6 @@ export function initChat() {
           aiPageInput.value = textVal;
           aiPageInput.dispatchEvent(new Event('input'));
           aiPageInput.focus();
-          aiPageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else if (chatInput) {
           chatInput.value = textVal;
           chatInput.focus();
@@ -1154,7 +1153,11 @@ export function initChat() {
     if (aiPageMessages) {
       aiIndicator = createTypingIndicator();
       aiPageMessages.appendChild(aiIndicator);
-      aiPageMessages.scrollTop = aiPageMessages.scrollHeight;
+      // #ai-page-messages is the transcript, not the scrollport - .ai-content-area
+      // above it is the element with `overflow-y: auto`. Setting scrollTop on the
+      // transcript did nothing, so the indicator could appear below the fold.
+      const aiScrollContainer = aiPageMessages.parentElement || aiPageMessages;
+      scrollToBottom(aiScrollContainer, true);
     }
 
     const apiUrl = `${API_BASE}/chat/stream`;
