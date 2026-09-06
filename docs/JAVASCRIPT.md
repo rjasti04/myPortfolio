@@ -214,7 +214,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (1,761 lines, lazy)
+### `chat.js` (1,851 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -241,7 +241,7 @@ Internals worth knowing:
 | Usage totals | `session.usage` (`inputTokens`, `outputTokens`, `latencyMsTotal`, `timedTurns`) accumulates each turn's metrics frame and renders into the `#ai` top bar as `in / out` and a mean latency. The strip is `hidden` until a turn has actually been measured - on an empty conversation `0 / 0` beside an em dash is the loudest pair on the bar and reports nothing. It lives on the session, so it survives a reload, follows the sidebar's selection and starts at zero on a New Chat; turns that never report a latency (a stopped generation) are left out of the mean rather than counted as 0 ms. Sessions stored before this shipped get the key lazily, with no migration |
 | Summarisation | At `SUMMARIZE_TOKEN_THRESHOLD` estimated tokens, everything before the current message is sent to `/chat/summarize` and replaced by the summary |
 | Auth | A `401` while signed out dispatches `request-login-modal` rather than showing a raw error |
-| Voice | Separate `SpeechRecognition` instances per input — a shared singleton had both mic buttons overwriting each other's `onresult` and routing transcripts to the wrong field. Buttons are hidden entirely when unsupported |
+| Voice | Separate `SpeechRecognition` instances per input — a shared singleton had both mic buttons overwriting each other's `onresult` and routing transcripts to the wrong field. Buttons are hidden entirely when unsupported. Both composers are wired by one `setupVoiceInput()`: the mic opens a `.voice-bar` over the composer (cancel, an animated waveform sized to the row, stop, send), and every run ends in `onend` with an intent — `insert` writes the transcript to the field, `send` writes it and calls `requestSubmit()`, `cancel` (the X, Escape, or a recognition error) discards it |
 | Accessibility | `announceToScreenReader` for streamed replies |
 
 ### `activity.js` (1,181 lines, lazy)

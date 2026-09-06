@@ -1549,6 +1549,25 @@
                     <i class="fas fa-arrow-up" aria-hidden="true"></i>
                   </button>
                 </div>
+                <!-- Voice capture bar. Replaces the composer's controls while speech
+                     recognition is live: cancel discards the transcript, stop commits it to
+                     the field, send commits it and submits. Built hidden; chat.js fills the
+                     waveform and toggles it. -->
+                <div class="voice-bar" id="ai-page-voice-bar" hidden>
+                  <button type="button" class="voice-btn voice-cancel-btn" data-voice="cancel"
+                    aria-label="Cancel voice input" title="Cancel">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                  </button>
+                  <div class="voice-wave" aria-hidden="true"></div>
+                  <button type="button" class="voice-btn voice-stop-btn" data-voice="stop"
+                    aria-label="Stop recording" title="Stop">
+                    <i class="fas fa-square" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="voice-btn voice-send-btn" data-voice="send"
+                    aria-label="Stop recording and send" title="Send">
+                    <i class="fas fa-arrow-up" aria-hidden="true"></i>
+                  </button>
+                </div>
               </form>
               <p class="ai-disclaimer">AI can make mistakes. Check important info.</p>
             </div>
@@ -1601,6 +1620,25 @@
           <button type="submit" class="chat-send-btn" aria-label="Send message">
             <i class="fas fa-arrow-up"></i>
           </button>
+          <!-- Voice capture bar. Replaces the composer's controls while speech
+               recognition is live: cancel discards the transcript, stop commits it to
+               the field, send commits it and submits. Built hidden; chat.js fills the
+               waveform and toggles it. -->
+          <div class="voice-bar" id="chat-voice-bar" hidden>
+            <button type="button" class="voice-btn voice-cancel-btn" data-voice="cancel"
+              aria-label="Cancel voice input" title="Cancel">
+              <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
+            <div class="voice-wave" aria-hidden="true"></div>
+            <button type="button" class="voice-btn voice-stop-btn" data-voice="stop"
+              aria-label="Stop recording" title="Stop">
+              <i class="fas fa-square" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="voice-btn voice-send-btn" data-voice="send"
+              aria-label="Stop recording and send" title="Send">
+              <i class="fas fa-arrow-up" aria-hidden="true"></i>
+            </button>
+          </div>
         </form>
       </div>
       <button type="button" class="chat-toggle-btn" id="chat-toggle-btn" aria-label="Open chat" aria-expanded="false">

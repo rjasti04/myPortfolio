@@ -78,11 +78,21 @@ export function initChat() {
   const usageTokensEl = document.getElementById('ai-usage-tokens');
   const usageLatencyEl = document.getElementById('ai-usage-latency');
 
-  // Voice input support for mobile & desktop
-  // BUG FIX ROOT CAUSE: SpeechRecognition was using a shared singleton 'recognitionInstance'.
-  // This caused both voice buttons to share/override the onresult callback, routing transcripts 
-  // to the wrong text inputs. We now instantiate a local SpeechRecognition inside each block
-  // for separate lifecycle tracking.
+  // Voice input support for mobile & desktop.
+  //
+  // BUG FIX ROOT CAUSE: SpeechRecognition was using a shared singleton
+  // 'recognitionInstance'. This caused both voice buttons to share/override the
+  // onresult callback, routing transcripts to the wrong text inputs. Each
+  // composer now gets its own recognition object and its own state, built by
+  // one helper rather than two copies of the same block.
+
+  // Bar geometry, kept in step with .voice-wave in styles.css: a 4px bar on a
+  // 3px gap. The count is measured from the composer rather than fixed, so the
+  // row fills the page's wide input and the widget's narrow one alike.
+  const VOICE_BAR_PITCH = 7;
+  const VOICE_BAR_MIN = 12;
+  const VOICE_BAR_MAX = 96;
+
   const initVoiceInput = () => {
     const aiPageMicBtn = document.getElementById('ai-page-mic-btn');
     const chatMicBtn = document.getElementById('chat-mic-btn');
@@ -100,85 +110,165 @@ export function initChat() {
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    if (chatMicBtn && chatInput) {
+    // Fills a .voice-wave with as many bars as its row holds. Every bar carries
+    // its index and its own peak height as custom properties; the CSS does the
+    // animating. The heights come off a fixed curve rather than Math.random(),
+    // so a row keeps one profile instead of reshuffling on every open.
+    //
+    // Call it while the bar is visible - a hidden element measures 0 - and it
+    // no-ops when the count is already right, so reopening rebuilds nothing.
+    function buildWave(wave) {
+      if (!wave) return;
+      const count = Math.max(
+        VOICE_BAR_MIN,
+        Math.min(VOICE_BAR_MAX, Math.floor(wave.clientWidth / VOICE_BAR_PITCH))
+      );
+      if (wave.childElementCount === count) return;
+
+      const bars = document.createDocumentFragment();
+      for (let i = 0; i < count; i++) {
+        const bar = document.createElement('span');
+        const height = 0.775 + 0.225 * Math.sin(i * 0.9) * Math.cos(i * 0.35);
+        bar.style.setProperty('--i', String(i));
+        bar.style.setProperty('--h', height.toFixed(3));
+        bars.appendChild(bar);
+      }
+      wave.replaceChildren(bars);
+    }
+
+    // One composer's worth of voice capture: the mic opens the recording bar
+    // over the composer, and the bar's three controls are the only ways out.
+    // Stop commits the transcript to the field, Send commits it and submits,
+    // Cancel (and Escape) throws it away.
+    function setupVoiceInput({ micBtn, input, form, bar }) {
+      if (!micBtn || !input || !form || !bar) return;
+
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
 
-      let isListening = false;
+      const wave = bar.querySelector('.voice-wave');
 
-      chatMicBtn.addEventListener('click', () => {
-        if (isListening) {
-          recognition.stop();
+      let isListening = false;
+      // What the run should do when it ends: 'insert', 'send' or 'cancel'. It is
+      // set before stop()/abort() rather than read from the click, because onend
+      // is the single place that applies a result - it also fires on silence, on
+      // a permission refusal and on the engine's own timeout, and all three have
+      // to land in the same restore path.
+      let endIntent = 'insert';
+      let transcript = '';
+
+      function setRecording(recording) {
+        isListening = recording;
+        form.classList.toggle('is-recording', recording);
+        bar.hidden = !recording;
+      }
+
+      function startRecording() {
+        if (isListening) return;
+        endIntent = 'insert';
+        transcript = '';
+        try {
+          recognition.start();
+        } catch {
+          // start() throws if the engine is already running - a double click on
+          // the mic, or a previous run still winding down. Nothing to recover.
           return;
         }
+        setRecording(true);
+        buildWave(wave);
+        announceToScreenReader('Listening. Speak your message.');
+        // Keyboard focus was on the mic, which the bar has just covered; Stop is
+        // the control that button became.
+        bar.querySelector('.voice-stop-btn')?.focus();
+      }
 
-        recognition.start();
-        isListening = true;
-        chatMicBtn.innerHTML = '<i class="fas fa-stop-circle"></i>';
-        chatMicBtn.classList.add('listening');
+      function endRecording(intent) {
+        if (!isListening) return;
+        endIntent = intent;
+        if (intent === 'cancel') {
+          // abort() drops whatever the engine is still holding. stop() would
+          // deliver it as one final result, which is the opposite of cancelling.
+          recognition.abort();
+        } else {
+          recognition.stop();
+        }
+      }
+
+      micBtn.addEventListener('click', startRecording);
+
+      bar.addEventListener('click', (e) => {
+        const intent = e.target.closest('[data-voice]')?.dataset.voice;
+        if (intent) endRecording(intent);
+      });
+
+      // The bar covers the composer while it is open, so Escape here cannot be
+      // meant for anything else.
+      bar.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          endRecording('cancel');
+        }
       });
 
       recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        chatInput.value = transcript;
-        chatInput.dispatchEvent(new Event('input'));
-        chatInput.focus();
+        transcript = Array.from(event.results)
+          .map((result) => result[0].transcript)
+          .join(' ')
+          .trim();
+      };
+
+      // onerror is always followed by onend, so it only has to record that the
+      // run is void and let the one restore path below run.
+      recognition.onerror = () => {
+        endIntent = 'cancel';
       };
 
       recognition.onend = () => {
-        isListening = false;
-        chatMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-        chatMicBtn.classList.remove('listening');
-      };
+        const intent = endIntent;
+        const text = transcript;
+        setRecording(false);
+        endIntent = 'insert';
+        transcript = '';
 
-      recognition.onerror = () => {
-        isListening = false;
-        chatMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-        chatMicBtn.classList.remove('listening');
-      };
-    }
-
-    if (aiPageMicBtn && aiPageInput) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
-
-      let isListening = false;
-
-      aiPageMicBtn.addEventListener('click', () => {
-        if (isListening) {
-          recognition.stop();
+        if (intent === 'cancel' || !text) {
+          micBtn.focus();
+          announceToScreenReader(intent === 'cancel' ? 'Voice input cancelled.' : 'No speech detected.');
           return;
         }
 
-        recognition.start();
-        isListening = true;
-        aiPageMicBtn.innerHTML = '<i class="fas fa-stop-circle"></i>';
-        aiPageMicBtn.classList.add('listening');
-      });
+        input.value = text;
+        // Autosize, the token counter and the send button's disabled state all
+        // hang off 'input', which a programmatic value assignment does not fire.
+        input.dispatchEvent(new Event('input'));
+        input.focus();
 
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        aiPageInput.value = transcript;
-        aiPageInput.dispatchEvent(new Event('input'));
-        aiPageInput.focus();
-      };
-
-      recognition.onend = () => {
-        isListening = false;
-        aiPageMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-        aiPageMicBtn.classList.remove('listening');
-      };
-
-      recognition.onerror = () => {
-        isListening = false;
-        aiPageMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-        aiPageMicBtn.classList.remove('listening');
+        if (intent === 'send') {
+          // requestSubmit() runs the form's submit handler and its validation;
+          // submit() would skip both and navigate.
+          if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+          } else {
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+          }
+        }
       };
     }
+
+    setupVoiceInput({
+      micBtn: chatMicBtn,
+      input: chatInput,
+      form: chatForm,
+      bar: document.getElementById('chat-voice-bar'),
+    });
+
+    setupVoiceInput({
+      micBtn: aiPageMicBtn,
+      input: aiPageInput,
+      form: aiPageForm,
+      bar: document.getElementById('ai-page-voice-bar'),
+    });
   };
 
   initVoiceInput();
