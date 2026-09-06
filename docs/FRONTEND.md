@@ -188,6 +188,18 @@ variants from one hex value, checks contrast, writes CSS custom properties onto
 `document.body`, and persists the palette. `reapplyCustomTheme(isDark)` is
 called from `applyTheme` so a light/dark flip re-derives the right variant set.
 
+The shipped defaults are amber `#F59E0B`, emerald `#10B981` and sky `#0284C7`,
+defined as the `--accent-*`, `--secondary-*` and `--data-*` tokens in the
+DESIGN TOKENS region of `styles.css`. Two notes on how they are written there.
+The fills are **hex, not `hsl()`**: rounding an `hsl()` triple back to 8 bits
+drifts a unit or two, the customiser's picker reports these as hex, and a
+default the picker names has to be the colour the page paints or applying the
+value already on screen shifts it. The `-text` variants stay in `hsl()`,
+because their content is "the fill's hue and saturation, darker", and they are
+chosen against measured contrast rather than a fixed offset — 5.78:1 and
+6.02:1 on `--bg` in light, 12.34:1 and 8.11:1 in dark. `.hero-kicker` renders
+`--secondary-text` at body size, so that is AA for normal text.
+
 The panel offers three ways in, all of which are **previews** until Apply — a
 MutationObserver restores the saved palette if it closes without one. Three
 terminal presets, a hex field per control, and a **Randomize** button that rolls
@@ -432,7 +444,7 @@ The source is `scripts/social-previews/` — one HTML file per card over a share
 flattens the result. The point of building them as HTML is that they cannot
 drift: `card.css` pulls the typeface straight out of `frontend/fonts/`, and
 each card's own `<style>` block carries the tokens copied from the page it
-advertises — the portfolio card is the light amber/olive palette down to the
+advertises — the portfolio card is the light amber/emerald palette down to the
 hero's command prompt, the two predictor cards are their own dark grounds.
 
 Two things to know before regenerating:

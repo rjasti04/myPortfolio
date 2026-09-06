@@ -12,19 +12,43 @@
      and must stay light, matching the light --bg below. */
   color-scheme: light;
 
-  /* Vibrant Solarized System - Amber & Olive */
+  /* Amber, emerald and sky. The secondary and the data colour used to be
+     Solarized's own green (#859900) and yellow (#B58900), which is where the
+     "Solarized" in the old name here came from; they are not Solarized any
+     more, and two of the three hues sitting inside 30 degrees of each other
+     was the reason to move. Amber against an olive that reads as dark amber
+     is one colour twice. */
   --accent-hue: 38;
-  --accent-fill: hsl(38, 92%, 50%);
+
+  /* Hex for the same reason the other two fills below are: `hsl(38, 92%, 50%)`
+     resolves to #F59F0A, and the picker has always reported this default as
+     #F59E0B. A unit per channel is invisible, but "the value the picker shows
+     is the value the page paints" is either true of every control or it is not
+     a property anyone can rely on. The variants stay in hsl(). */
+  --accent-fill: #f59e0b;
   --accent-text: hsl(38, 92%, 30%);
   --accent-hover: hsl(38, 92%, 40%);
   --accent: var(--accent-fill);
   --accent-soft: hsla(38, 92%, 50%, 0.15);
 
   --accent-mild: hsla(38, 92%, 50%, 0.58);
-  --secondary-fill: hsl(68, 100%, 30%);
-  --secondary-text: hsl(68, 100%, 22%);
-  --data-fill: hsl(45, 100%, 35%);
-  --data-text: hsl(45, 100%, 28%);
+  /* The two fills are hex rather than hsl() on purpose. Rounding an hsl()
+     triple back to 8 bits per channel drifts a unit or two - hsl(160, 84%,
+     39%) resolves to #10B77F, not #10B981 - and the theme customiser's own
+     picker shows these as hex. A default the picker reports and a default the
+     page paints have to be the same colour, or applying the value already on
+     screen shifts the page.
+
+     The `-text` variants stay in hsl() because their whole content is "the
+     fill's hue and saturation, darker": the numbers are only meaningful next
+     to the fill they came from. Both are set to clear WCAG AA against --bg -
+     5.78:1 and 6.02:1, against 5.23:1 and 4.70:1 for the colours they
+     replace. `.hero-kicker` renders --secondary-text at body size, so this is
+     AA for normal text and not the 3:1 large-text allowance. */
+  --secondary-fill: #10b981;
+  --secondary-text: hsl(160, 84%, 24%);
+  --data-fill: #0284c7;
+  --data-text: hsl(200, 98%, 30%);
   /* Ink on accent/secondary FILLS. Dark ink is 8.4:1 on amber in both
      themes; the previous #fff was 2.0:1 and failed WCAG AA sitewide. */
   --on-accent: #14100a;
@@ -32,7 +56,7 @@
   /* Aliases for names referenced in CSS/HTML but never defined. Without
      these the declarations were invalid and silently dropped. */
   --bg: #f8fafb;
-  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, hsl(38, 55%, 95%) 35%, hsl(68, 50%, 96%) 70%, #fdfdfd);
+  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, hsl(38, 55%, 95%) 35%, hsl(160, 50%, 96%) 70%, #fdfdfd);
   --text: #0f172a;
   --muted: #3f4b5a;
   --border: hsl(220, 39%, 11%, 0.13);
@@ -273,7 +297,7 @@ body.dark-theme {
   --card-bg: var(--surface);
   --skill-bg: hsl(210, 20%, 14%, 0.72);
   --select-bg: #0f1419;
-  /* Solarized dark theme accent colors */
+  /* Dark-theme accent ramp. */
   --accent-fill: hsl(38, 92%, 55%);
   --accent-text: hsl(38, 92%, 65%);
   --accent-hover: hsl(38, 92%, 45%);
@@ -281,8 +305,12 @@ body.dark-theme {
   --accent-mild: hsla(38, 92%, 55%, 0.58);
   /* 9.12:1 on this ground - see the note on body's declaration. */
   --control-accent-border: var(--accent-fill);
-  --secondary-text: hsl(68, 100%, 45%);
-  --data-text: hsl(45, 100%, 50%);
+  /* Same hue and saturation as the fills in :root, lifted for the near-black
+     ground: 12.34:1 and 8.11:1. The old chartreuse and yellow measured higher
+     still (13.53:1, 11.72:1) purely because those hues cannot be dark - sky
+     at h200 tops out lower and 8.11:1 is far above the 4.5:1 it has to make. */
+  --secondary-text: hsl(160, 84%, 50%);
+  --data-text: hsl(200, 98%, 55%);
   --color-success: #34d399;
   --color-warning: #fbbf24;
   --color-error: #fb7185;

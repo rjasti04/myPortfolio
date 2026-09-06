@@ -190,8 +190,8 @@ export function initThemeCustomizer() {
 
   const defaultColors = {
     primary: '#F59E0B',
-    secondary: '#859900',
-    accent: '#B58900'
+    secondary: '#10B981',
+    accent: '#0284C7'
   };
 
   const colorLabels = {
