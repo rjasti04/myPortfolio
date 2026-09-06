@@ -9612,16 +9612,18 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 
    Sized to the full touch target it overcorrected: the glyph inked the whole
    44px and towered over Send's arrow, which is only the ~15px icon inside a
-   44px disc. The 0.75 factor takes it back a quarter, so the mic reads as a
-   peer of the send BUTTON without out-inking the send ARROW. The button box
-   stays 44px, so nothing here moves the composer's height or its hit area.
+   44px disc. The 0.6375 factor takes it back by a bit over a third, so the
+   mic reads as a peer of the send BUTTON without out-inking the send ARROW.
+   That figure is the 0.75 this rule carried before, trimmed a further 15%.
+   The button box stays 44px, so nothing here moves the composer's height or
+   its hit area.
 
    fa-microphone inks ~1.02x its font-size, which is why the base figure is
-   stepped back by that much before the 0.75. */
+   stepped back by that much before the 0.6375. */
 .ai-mic-btn {
   background: transparent;
   color: var(--muted);
-  font-size: calc(var(--min-touch-target) / 1.023 * 0.75);
+  font-size: calc(var(--min-touch-target) / 1.023 * 0.6375);
   line-height: 1;
 }
 
@@ -10137,13 +10139,104 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
   }
 }
 
-/* Below this the usage strip and the model chip cannot both fit beside a title
-   and a toggle: at 400px the bar leaves ~150px for a strip that wants 194px,
-   and the chip is the thing the visitor asked to see. The figures are a
-   developer read-out; the model is the answer to "what am I talking to". */
-@media (width <=400px) {
-  .ai-usage {
+/* ── Top bar on phones and portrait screens ──
+   The strip used to carry a title it could not afford. Measured in Chrome with
+   a mid-conversation reading ("12,345 / 6,789", "1.24s"): the usage figures
+   want 256px and the bare model chip 89px, so the meta cluster wants 355px
+   while a 375px phone leaves 289px for everything after the rail toggle. The
+   title lost either way - it is the only flexible item on the bar, so it was
+   already squeezing to nothing between 400px and ~470px and shunting the chip
+   off the end below that, which is what the old rule here was papering over by
+   dropping the figures instead.
+
+   So on a bar this narrow the title is the item that goes. It is the one thing
+   on the strip that is answered elsewhere - the rail lists conversations by
+   the same name, and it is one tap away - while nothing else reports tokens or
+   latency at all. The freed slot goes to the figures, and the chip keeps the
+   trailing edge through `margin-left: auto` rather than `space-between`, so it
+   stays there on an empty conversation where renderUsageSummary() has not
+   revealed the strip yet.
+
+   Portrait is in the query on its own account: a tablet held upright has the
+   same crowded bar and the same spare height, so it gets the same treatment
+   whatever its width. */
+@media (width <=768px), (orientation: portrait) {
+  .ai-thread-title {
     display: none;
+  }
+
+  .ai-topbar-meta {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ai-topbar-model {
+    margin-left: auto;
+  }
+
+  /* Stacked rather than inline, which is what makes the pair fit: set label
+     beside value each stat is as wide as both, set label over value it is as
+     wide as the wider one - 169px for the two together against 256px inline.
+     Two 18px lines sit inside the 50px bar with room to spare, so this buys
+     the width out of height the portrait screen already has. `baseline` on the
+     row above still aligns the two labels with each other. */
+  .ai-usage {
+    gap: 14px;
+  }
+
+  .ai-usage-stat {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  /* Only the token stat grows - the output total gains digits all conversation
+     and the label under it is fixed - so it is the only one allowed to shrink,
+     and it ellipsises rather than pushing the chip off the bar. Latency keeps
+     its intrinsic width; clipping "Avg latency" to buy 4px would be the worse
+     trade. */
+  .ai-usage-stat:first-child {
+    min-width: 0;
+  }
+
+  .ai-usage-stat:first-child .ai-usage-value {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Under ~375px the stacked pair plus the chip is still over budget by about
+   the width of one gap, so the gaps are what pay for it rather than any of the
+   three items. */
+@media (width <=400px) {
+  .ai-topbar-meta {
+    gap: 8px;
+  }
+
+  .ai-usage {
+    gap: 12px;
+  }
+}
+
+/* 350px is where the gaps run out: measured, the chip keeps its own 12px
+   gutter down to 350 and then eats into it, touching the edge at 340 and
+   hanging 17px off the bar at 320. The labels are what pay from here, and they
+   are the cheap half of the pair - "Avg latency" is 69px against a 33px value,
+   so dropping the two labels buys 36px, twice what 320 is short by. They go to
+   .sr-only rather than `display: none`, so the dl still reads out as
+   "In / out, 12,345 / 6,789" and only the sighted reading is thinned; the
+   strip's own title attribute says what the figures are. */
+@media (width <350px) {
+  .ai-usage-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 
