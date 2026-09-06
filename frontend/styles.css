@@ -10061,8 +10061,18 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
      what fits beside the title and the toggle on a 375px screen. The 25px is
      the border plus the 11px gutters, and it buys nothing here - the top bar is
      already the container, which is the same argument .header-actions settled
-     for the header pill. */
-  .ai-topbar-model {
+     for the header pill.
+
+     The dark-theme branch is not redundant. A media query carries no
+     specificity of its own, so `.ai-topbar-model` here is 0-1-0 against the
+     0-2-0 of `body.dark-theme .ai-topbar-model` up in the base rules, and the
+     dark fill went on painting while the padding and border it was drawn to
+     sit behind were correctly removed. What that left on a dark phone was a
+     pill with no gutters: the name flush against its right edge and the status
+     dot's 3px halo hanging off its left. Matching the specificity is the fix -
+     shrinking the name would only make a smaller version of the same box. */
+  .ai-topbar-model,
+  body.dark-theme .ai-topbar-model {
     background: none;
     border: none;
     padding: 0;
