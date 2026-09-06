@@ -10335,6 +10335,7 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
 /* Chat Error Boundary */
 .chat-error-boundary {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   background: var(--accent-soft);
@@ -10345,14 +10346,35 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
   font-size: var(--text-body-sm);
 }
 
+/* The sentence asks for a measure before it asks for a row. Held on one line
+   with the button beside it, a 360px card gave the text 128px - five lines of
+   two or three words each, next to a button with room to spare. The basis is
+   the floor it will not wrap below: under it the button drops to its own line
+   (still trailing, on `margin-left: auto`) and the prose gets the full width
+   back. Above it - the widget on a laptop, the AI panel at any size - nothing
+   moves and the card is the single row it always was. */
+.chat-error-boundary span {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
 .chat-error-boundary i {
   color: var(--color-error);
 }
 
+/* `flex-shrink: 0` is load-bearing, not defensive. `.btn` carries
+   `overflow: hidden` for the ripple, and a flex item whose overflow is
+   anything but `visible` loses its automatic minimum size - `min-width: auto`
+   resolves to 0 instead of min-content. So the sentence beside it squeezed the
+   button to 42px of an 82px label on a 360px phone and the ripple's own clip
+   cut "Retry" off mid-word, with no ellipsis to say it had happened. The prose
+   is what should wrap here; the control keeps its width. */
 .chat-error-boundary .retry-btn {
   margin-left: auto;
+  flex-shrink: 0;
   padding: 6px 12px;
   font-size: var(--text-xs);
+  white-space: nowrap;
 }
 
 /* Keyboard Shortcuts Overlay */
