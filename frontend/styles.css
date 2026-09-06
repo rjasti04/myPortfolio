@@ -47,6 +47,16 @@
      padding: the header paints this much lower than the flow box main starts
      after, so without it the hero sits that much too high. */
   --header-sticky-offset: 16px;
+  /* main's top padding, hoisted out of the `main` rule because two other
+     places have to reach it: the ≤1150px override below, and #ai, which
+     replaces main's padding entirely and still has to land its panel on the
+     same line the document sections land theirs. */
+  --page-pad-block-start: clamp(20px, 2.6vw, 34px);
+  /* The extra step a section takes when it opens on an elevated card rather
+     than a heading - #contact's .contact-section and #ai's .ai-container.
+     A card carries its own border and shadow, so it needs more air under the
+     pill than a bare <h2> does. */
+  --page-card-offset: 24px;
   scroll-padding-top: calc(var(--header-height) + 24px);
   --radius: var(--radius-xl);
   --select-bg: #fff;
@@ -1493,7 +1503,7 @@ main {
   flex: 1;
   width: min(1280px, 100%);
   margin: 0 auto;
-  padding: clamp(20px, 2.6vw, 34px) clamp(14px, 4vw, 56px) 40px;
+  padding: var(--page-pad-block-start) clamp(14px, 4vw, 56px) 40px;
   position: relative;
 }
 
@@ -3280,7 +3290,7 @@ body.dark-theme .home-portrait picture {
   border-radius: var(--radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-md);
-  margin-top: 24px;
+  margin-top: var(--page-card-offset);
   position: relative;
   overflow: hidden;
 }
@@ -5081,6 +5091,11 @@ body.dark-theme .skill-tag.primary .fas {
   :root {
     --header-height: 56px;
     --header-sticky-offset: 10px;
+    /* Read by `main` below and by #ai's shell rule. A flat value rather than
+       the desktop clamp: below this width the pill is shorter but sits over a
+       full-bleed column, and the extra air is what keeps the first card from
+       reading as attached to it. */
+    --page-pad-block-start: 48px;
     scroll-padding-top: calc(var(--header-height) + 28px);
     /* 0 while the bar is hidden - see MOBILE BOTTOM NAV. Every consumer of
        this token (main's bottom padding, #home's block padding,
@@ -5122,7 +5137,7 @@ body.dark-theme .skill-tag.primary .fas {
   }
 
   main {
-    padding: 48px 14px 88px;
+    padding: var(--page-pad-block-start) 14px 88px;
   }
 
   #about.active {
@@ -8216,10 +8231,20 @@ nav a:hover .nav-shortcut {
   /* The top is deliberately not the gutter. Both the header and the panel are
      elevated surfaces with their own shadow, and at the gutter's 12px the two
      shadows almost meet and the pair reads as one stacked slab rather than a
-     bar above a panel. Measured against viewport height like #home's
-     --home-shell-gap, so a short landscape phone spends less of what it has
-     separating them. */
-  --ai-header-gap: clamp(20px, 2.6vw, 34px);
+     bar above a panel.
+
+     #contact is the only other section that opens on a card rather than a
+     heading, so it is the one to match: its .contact-section lands at main's
+     top padding plus --page-card-offset, and the header PAINTS
+     --header-sticky-offset below the flow box main starts after, so what a
+     visitor actually sees between the pill and the card is the first two
+     minus the third. Subtracting the offset here makes this rule's own
+     padding-block add it straight back - that is the point, and it is what
+     leaves the same measured gap on both pages. Hardcoding the result
+     instead was how the two drifted apart: 34 against contact's 42 on a
+     desktop, and 20 against 62 on a phone, where the panel's shadow ran into
+     the pill's. */
+  --ai-header-gap: calc(var(--page-pad-block-start) + var(--page-card-offset) - var(--header-sticky-offset, 16px));
 
   display: flex;
   flex-direction: column;
