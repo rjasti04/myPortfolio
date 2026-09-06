@@ -99,15 +99,32 @@ document.addEventListener("DOMContentLoaded", () => {
   initScrollToTop();
   initThemeCustomizer();
 
-  // The AI panel is a height-locked shell, so the browser's own
-  // pull-to-refresh never reaches it - see PullToRefresh for why. Give the
-  // gesture back on the one element there that actually scrolls. Wired here
-  // rather than in chat.js because that module is lazy: a visitor landing on
-  // /#ai can pull before their first click has loaded it.
+  // Pull-to-refresh, one implementation for the whole site.
+  //
+  // The AI panel is a height-locked shell, so the browser's own gesture never
+  // reaches it - see PullToRefresh for why - and it used to be the only page
+  // with this indicator. Every other section scrolled the document and got
+  // Chrome's native version instead: a different spinner, a different
+  // threshold, and nothing at all in an installed PWA. Two instances of the
+  // same class now cover both, so the pull reads identically wherever it
+  // starts, and styles.css turns the native one off for `.js-enabled` so the
+  // two can never both fire.
+  //
+  // Order matters. The AI scroller marks itself `[data-ptr-scroller]` in its
+  // constructor and the document instance skips any touch that starts inside
+  // one, so the nested scroller has to exist first.
+  //
+  // Wired here rather than in chat.js because that module is lazy: a visitor
+  // landing on /#ai can pull before their first click has loaded it.
   const aiScroller = document.querySelector('#ai .ai-content-area');
   if (aiScroller) {
     new PullToRefresh(aiScroller, () => window.location.reload());
   }
+
+  // scrollingElement is <html> in every browser that has shipped this decade;
+  // the fallback is for anything that has not, jsdom included.
+  const pageScroller = document.scrollingElement || document.documentElement;
+  new PullToRefresh(pageScroller, () => window.location.reload());
 
   // Lazy-load chat on first interaction with chat widget or AI section
   const chatToggle = document.getElementById('chat-toggle-btn');

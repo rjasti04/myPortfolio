@@ -3,9 +3,10 @@ import assert from 'node:assert';
 import { JSDOM } from 'jsdom';
 
 /**
- * PullToRefresh replaces a browser gesture the AI panel's shell blocks, so the
- * guards ARE the feature: anything that arms on the wrong gesture fires a
- * page reload under the visitor mid-scroll.
+ * PullToRefresh replaces a browser gesture - the AI panel's shell blocks it,
+ * and styles.css turns it off everywhere else so one implementation drives the
+ * whole site. The guards ARE the feature: anything that arms on the wrong
+ * gesture fires a page reload under the visitor mid-scroll.
  */
 describe('PullToRefresh', () => {
   let dom;
@@ -153,6 +154,160 @@ describe('PullToRefresh', () => {
     fire('touchstart', [finger(1, 100)]);
     fire('touchmove', [finger(1, 300)]);
     fire('touchend', [], [finger(1, 300)]);
+    await settle();
+    assert.strictEqual(refreshes, 0);
+  });
+
+  it('marks its scroller for the document instance to skip', () => {
+    assert.ok('ptrScroller' in scroller.dataset);
+    ptr.destroy();
+    assert.ok(!('ptrScroller' in scroller.dataset));
+  });
+
+  it('binds the scroll-blocking listener only while a pull is live', () => {
+    // Left bound, a non-passive touchmove makes every scroll on the page wait
+    // for JS. It is armed on touchstart and dropped the moment the pull ends.
+    assert.strictEqual(ptr.moveBound, false);
+    fire('touchstart', [finger(1, 100)]);
+    assert.strictEqual(ptr.moveBound, true);
+    fire('touchend', [], [finger(1, 100)]);
+    assert.strictEqual(ptr.moveBound, false);
+  });
+
+  it('drops the listener when the pull is cancelled, not just released', () => {
+    fire('touchstart', [finger(1, 300)]);
+    fire('touchmove', [finger(1, 200)]);       // upward: hands the gesture back
+    assert.strictEqual(ptr.moveBound, false);
+  });
+
+  it('keeps the listener when a stray finger ends', () => {
+    fire('touchstart', [finger(1, 100)]);
+    fire('touchend', [finger(1, 100)], [finger(9, 500)]);
+    assert.strictEqual(ptr.moveBound, true);
+  });
+});
+
+/**
+ * Document mode. The page scroller is not an element with a positioned parent,
+ * a page pull can start on anything, and the AI transcript runs its own
+ * instance inside the same document - so all three have to be handled
+ * differently from the nested case above.
+ */
+describe('PullToRefresh (document scroller)', () => {
+  let dom;
+  let ptr;
+  let pageScroller;
+  let nested;
+  let nestedPtr;
+  let indicator;
+  let refreshes;
+  let nestedRefreshes;
+
+  const finger = (identifier, clientY) => ({ identifier, clientY });
+
+  function fireOn(target, type, touches, changedTouches) {
+    const event = new dom.window.Event(type, { bubbles: true, cancelable: true });
+    event.touches = touches;
+    event.changedTouches = changedTouches || touches;
+    target.dispatchEvent(event);
+    return event;
+  }
+
+  const settle = () => new Promise(resolve => {
+    dom.window.requestAnimationFrame(() =>
+      dom.window.requestAnimationFrame(() =>
+        dom.window.requestAnimationFrame(resolve)));
+  });
+
+  beforeEach(async () => {
+    dom = new JSDOM(
+      '<!DOCTYPE html><body><main><p id="prose">text</p></main>' +
+      '<div class="ai-main"><div class="ai-content-area"><p id="turn">a</p></div></div></body>',
+      { pretendToBeVisual: true }
+    );
+    global.document = dom.window.document;
+    global.window = dom.window;
+    global.requestAnimationFrame = dom.window.requestAnimationFrame.bind(dom.window);
+
+    const { PullToRefresh } = await import('../js/swipe-handler.js');
+    // Same order as main.js: the nested scroller has to be marked before the
+    // document instance can skip a touch inside it.
+    nested = dom.window.document.querySelector('.ai-content-area');
+    nestedRefreshes = 0;
+    nestedPtr = new PullToRefresh(nested, () => { nestedRefreshes += 1; });
+    refreshes = 0;
+    // jsdom does not implement scrollingElement; main.js falls back the same way.
+    pageScroller = dom.window.document.scrollingElement || dom.window.document.documentElement;
+    ptr = new PullToRefresh(pageScroller, () => { refreshes += 1; });
+    indicator = dom.window.document.querySelector('.ptr-indicator--viewport');
+  });
+
+  afterEach(() => {
+    ptr?.destroy();
+    nestedPtr?.destroy();
+    delete global.document;
+    delete global.window;
+    delete global.requestAnimationFrame;
+  });
+
+  it('fixes its indicator to the body, not inside <html>', () => {
+    assert.ok(indicator);
+    assert.strictEqual(indicator.parentElement, dom.window.document.body);
+    assert.ok(indicator.querySelector('.ptr-spinner'));
+  });
+
+  it('refreshes on a pull that starts anywhere on the page', async () => {
+    const prose = dom.window.document.getElementById('prose');
+    fireOn(prose, 'touchstart', [finger(1, 100)]);
+    fireOn(prose, 'touchmove', [finger(1, 200)]);
+    fireOn(prose, 'touchend', [], [finger(1, 200)]);
+    await settle();
+    assert.strictEqual(refreshes, 1);
+  });
+
+  it('leaves a pull inside the AI transcript to that scroller', async () => {
+    // Both instances see this touch - the document one listens on `document`,
+    // so it bubbles - and only the nested one may act on it.
+    const turn = dom.window.document.getElementById('turn');
+    fireOn(turn, 'touchstart', [finger(1, 100)]);
+    fireOn(turn, 'touchmove', [finger(1, 200)]);
+    fireOn(turn, 'touchend', [], [finger(1, 200)]);
+    await settle();
+    assert.strictEqual(refreshes, 0);
+    assert.strictEqual(nestedRefreshes, 1);
+  });
+
+  it('ignores a pull that starts below the top of the page', async () => {
+    pageScroller.scrollTop = 40;
+    const prose = dom.window.document.getElementById('prose');
+    fireOn(prose, 'touchstart', [finger(1, 100)]);
+    const move = fireOn(prose, 'touchmove', [finger(1, 300)]);
+    fireOn(prose, 'touchend', [], [finger(1, 300)]);
+    await settle();
+    assert.strictEqual(refreshes, 0);
+    assert.strictEqual(move.defaultPrevented, false);
+  });
+
+  it('stands down while the document scroll is locked', async () => {
+    // What the AI shell does to body, and what an open nav does. The panel and
+    // the overlay own the gesture there; a second indicator must not appear.
+    dom.window.document.body.style.overflowY = 'hidden';
+    const prose = dom.window.document.getElementById('prose');
+    fireOn(prose, 'touchstart', [finger(1, 100)]);
+    const move = fireOn(prose, 'touchmove', [finger(1, 300)]);
+    fireOn(prose, 'touchend', [], [finger(1, 300)]);
+    await settle();
+    assert.strictEqual(refreshes, 0);
+    assert.strictEqual(move.defaultPrevented, false);
+  });
+
+  it('removes its listeners and its indicator on destroy', async () => {
+    ptr.destroy();
+    assert.strictEqual(dom.window.document.querySelector('.ptr-indicator--viewport'), null);
+    const prose = dom.window.document.getElementById('prose');
+    fireOn(prose, 'touchstart', [finger(1, 100)]);
+    fireOn(prose, 'touchmove', [finger(1, 300)]);
+    fireOn(prose, 'touchend', [], [finger(1, 300)]);
     await settle();
     assert.strictEqual(refreshes, 0);
   });

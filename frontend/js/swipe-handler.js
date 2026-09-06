@@ -94,22 +94,37 @@ export class SwipeHandler {
 }
 
 /**
- * Pull-to-refresh for a scroller the browser's own gesture cannot reach.
+ * Pull-to-refresh. The site's only one, on every page.
  *
- * The AI page does not scroll as a document: `.layout` is `height: 100dvh`,
- * `body` is `overflow: hidden` - which propagates to the viewport, since no
- * rule sets overflow on `html` - and the one scrolling surface,
- * `.ai-content-area`, sets `overscroll-behavior: contain`. A downward drag
- * therefore never chains out to the viewport, and the viewport overscroll is
- * exactly what Chrome's native pull-to-refresh is built on. This puts the
- * gesture back on the element that does scroll, and it is the only version
- * that works at all once the site is installed to a home screen, where the
+ * It started as a stand-in for the AI page alone. That page does not scroll as
+ * a document: `.layout` is `height: 100dvh`, `body` is `overflow: hidden` -
+ * which propagates to the viewport, since no rule sets overflow on `html` -
+ * and the one scrolling surface, `.ai-content-area`, sets
+ * `overscroll-behavior: contain`. A downward drag therefore never chains out
+ * to the viewport, and the viewport overscroll is exactly what Chrome's native
+ * pull-to-refresh is built on.
+ *
+ * Which left the gesture behaving one way on the AI page and another
+ * everywhere else - a different spinner, a different threshold, a different
+ * release. So the browser's own version is now off site-wide (see the
+ * `overscroll-behavior-y` rule in styles.css, scoped to `.js-enabled` so the
+ * no-JS page keeps it) and this drives all of them. It is also the only
+ * version that works once the site is installed to a home screen, where the
  * browser offers no gesture of its own.
  *
- * `touchmove` is the one non-passive listener: cancelling it is what stops the
- * scroller rubber-banding out from under the indicator. It bails on its first
- * comparison unless a pull is genuinely in progress, and only ever cancels
- * while one is.
+ * Two modes, and the constructor picks between them by looking at what it was
+ * handed. A NESTED scroller - the AI transcript - listens on itself and hangs
+ * its indicator on its positioned parent. The DOCUMENT scroller listens on
+ * `document`, because a page pull can start on anything, and fixes its
+ * indicator to the viewport, because <html> has no parent to hang it on. The
+ * document instance yields wherever the page is not the thing that scrolls -
+ * inside a nested scroller, or on a page whose document scroll is locked -
+ * so that exactly one indicator can answer any given pull.
+ *
+ * `touchmove` is the one non-passive listener, and it is bound only for the
+ * length of a live pull. Left bound, it would make every touch scroll on the
+ * page wait for JS - the exact cost the passive flag exists to avoid, and one
+ * that only mattered once this moved onto `document`.
  */
 export class PullToRefresh {
   constructor(element, onRefresh, options = {}) {
@@ -133,18 +148,44 @@ export class PullToRefresh {
     this.startY = 0;
     this.distance = 0;
     this.refreshing = false;
+    this.moveBound = false;
 
     if (!this.element || !this.onRefresh) return;
 
+    // Document mode. `document.scrollingElement` is <html> in standards mode,
+    // but a caller reaching for the page scroller could reasonably hand over
+    // any of these three.
+    this.isDocument =
+      this.element === document.scrollingElement ||
+      this.element === document.documentElement ||
+      this.element === document.body;
+
+    // A page pull can begin on any element, so document mode listens on
+    // `document` rather than on the scroller, which only covers where its own
+    // box paints.
+    this.eventTarget = this.isDocument ? document : this.element;
+
+    // What the document instance looks for to know a pull is not its own. Set
+    // on the element rather than kept in a module-level registry so it is
+    // visible in devtools next to the scroller it describes.
+    if (!this.isDocument) this.element.dataset.ptrScroller = '';
+
     this.indicator = document.createElement('div');
-    this.indicator.className = 'ptr-indicator js-only';
+    this.indicator.className = this.isDocument
+      ? 'ptr-indicator ptr-indicator--viewport js-only'
+      : 'ptr-indicator js-only';
     this.indicator.innerHTML =
       '<span class="ptr-spinner" aria-hidden="true"></span>' +
       '<span class="ptr-label sr-only" role="status" aria-live="polite"></span>';
     this.label = this.indicator.querySelector('.ptr-label');
     // The scroller cannot host it: an absolutely positioned child of a scroll
-    // box scrolls away with the content. Its parent is the positioned one.
-    (this.element.parentElement || this.element).appendChild(this.indicator);
+    // box scrolls away with the content, so it goes on the positioned parent.
+    // In document mode there is no parent to use and nothing to scroll away
+    // from - the indicator is fixed to the viewport - so body takes it.
+    const host = this.isDocument
+      ? document.body
+      : (this.element.parentElement || this.element);
+    host.appendChild(this.indicator);
 
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundTouchMove = this.handleTouchMove.bind(this);
@@ -154,10 +195,59 @@ export class PullToRefresh {
   }
 
   init() {
-    this.element.addEventListener('touchstart', this.boundTouchStart, { passive: true });
-    this.element.addEventListener('touchmove', this.boundTouchMove, { passive: false });
-    this.element.addEventListener('touchend', this.boundTouchEnd, { passive: true });
-    this.element.addEventListener('touchcancel', this.boundTouchEnd, { passive: true });
+    this.eventTarget.addEventListener('touchstart', this.boundTouchStart, { passive: true });
+    this.eventTarget.addEventListener('touchend', this.boundTouchEnd, { passive: true });
+    this.eventTarget.addEventListener('touchcancel', this.boundTouchEnd, { passive: true });
+  }
+
+  /**
+   * The non-passive listener, bound only while a pull is live. touchstart
+   * always precedes the first touchmove of a gesture, so arming it there
+   * misses nothing, and every path that clears touchId unbinds it again.
+   */
+  bindMove() {
+    if (this.moveBound) return;
+    this.moveBound = true;
+    this.eventTarget.addEventListener('touchmove', this.boundTouchMove, { passive: false });
+  }
+
+  unbindMove() {
+    if (!this.moveBound) return;
+    this.moveBound = false;
+    this.eventTarget.removeEventListener('touchmove', this.boundTouchMove);
+  }
+
+  /**
+   * True when a document-mode pull has to stand down. Two cases, and both say
+   * the same thing: the page is not what is scrolling here.
+   *
+   * 1. The touch began inside a scroller running its own instance.
+   * 2. The document scroll is locked - `body { overflow: hidden }`, which is
+   *    the AI shell while #ai is active, and also an open nav or dropdown.
+   *
+   * The second is not covered by the first. The AI panel's transcript is
+   * marked, but the strip above it, the composer and the gutter around the
+   * panel are not, and a pull starting on any of those would otherwise raise
+   * the page indicator on a page that already has one of its own - in a
+   * different place, on the same gesture. Which is the inconsistency this
+   * whole thing exists to remove.
+   *
+   * `instanceof Element` is deliberately not the target test: it has to hold
+   * in jsdom, where the global binding is not the document's.
+   */
+  documentPullBlocked(e) {
+    if (!this.isDocument) return false;
+
+    const target = e.target;
+    if (target && typeof target.closest === 'function' && target.closest('[data-ptr-scroller]')) {
+      return true;
+    }
+
+    const styles =
+      typeof window !== 'undefined' && typeof window.getComputedStyle === 'function' && document.body
+        ? window.getComputedStyle(document.body)
+        : null;
+    return styles ? styles.overflowY === 'hidden' : false;
   }
 
   /** The finger this pull is following, or null once it is gone. */
@@ -171,6 +261,8 @@ export class PullToRefresh {
 
   handleTouchStart(e) {
     if (this.refreshing || e.touches.length !== 1) return;
+    // The AI page runs its own, and a locked page is not pulling anywhere.
+    if (this.documentPullBlocked(e)) return;
     // The gesture has to START at the top. Arming it on any touch and testing
     // scrollTop later would turn a fast flick back to the top into a refresh.
     if (this.element.scrollTop > 0) return;
@@ -179,6 +271,7 @@ export class PullToRefresh {
     this.startY = e.touches[0].clientY;
     this.distance = 0;
     this.indicator.classList.remove('is-settling');
+    this.bindMove();
   }
 
   handleTouchMove(e) {
@@ -218,6 +311,7 @@ export class PullToRefresh {
     const passed = this.distance >= this.threshold;
     this.touchId = null;
     this.distance = 0;
+    this.unbindMove();
     this.indicator.classList.add('is-settling');
 
     if (passed) this.refresh();
@@ -227,6 +321,7 @@ export class PullToRefresh {
   cancel() {
     this.touchId = null;
     this.distance = 0;
+    this.unbindMove();
     this.indicator.classList.add('is-settling');
     this.setPull(0, 0);
   }
@@ -256,11 +351,14 @@ export class PullToRefresh {
   }
 
   destroy() {
-    if (!this.element) return;
-    this.element.removeEventListener('touchstart', this.boundTouchStart);
-    this.element.removeEventListener('touchmove', this.boundTouchMove);
-    this.element.removeEventListener('touchend', this.boundTouchEnd);
-    this.element.removeEventListener('touchcancel', this.boundTouchEnd);
+    // eventTarget too: the constructor bails before setting it when it was
+    // handed an element but no callback, and destroy() is still fair game.
+    if (!this.element || !this.eventTarget) return;
+    this.unbindMove();
+    this.eventTarget.removeEventListener('touchstart', this.boundTouchStart);
+    this.eventTarget.removeEventListener('touchend', this.boundTouchEnd);
+    this.eventTarget.removeEventListener('touchcancel', this.boundTouchEnd);
+    if (!this.isDocument) delete this.element.dataset.ptrScroller;
     this.indicator?.remove();
   }
 }

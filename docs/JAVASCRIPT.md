@@ -44,7 +44,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (341 lines)
+### `main.js` (358 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -54,8 +54,10 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   every unhandled rejection from the console.
 - Eager init: theme, navigation, contact form, hero title, animations, tilt,
   terminal, analytics, skills carousel, ripple, scroll-to-top, theme customizer,
-  and `PullToRefresh` on `#ai .ai-content-area` — eager because `chat.js` is
-  lazy and a visitor landing on `/#ai` can pull before it has loaded.
+  and both `PullToRefresh` instances — `#ai .ai-content-area` first (it marks
+  itself `[data-ptr-scroller]`, which the second one reads), then
+  `document.scrollingElement`. Eager because `chat.js` is lazy and a visitor
+  landing on `/#ai` can pull before it has loaded.
 - Lazy loaders for `chat.js` and `activity.js`, triggered by a click on the
   relevant nav target, by the section gaining `.active` (via `MutationObserver`),
   or by the matching location hash. Each delegated document listener is bound to
@@ -438,22 +440,43 @@ a **reference-counted** body scroll lock — nested opens must not each stash
 their own scroll position, so only the outermost close restores the page.
 Integrates `ModalSwipeDismiss` for touch.
 
-### `swipe-handler.js` (350 lines)
+### `swipe-handler.js` (448 lines)
 
 `SwipeHandler`, `PullToRefresh`, `ModalSwipeDismiss`. `SwipeHandler` records
 whether `touchstart` accepted the gesture, because `touchstart` and `touchend`
 filtering independently on their own targets (which differ) produced phantom
 swipes.
 
-`PullToRefresh` exists because the AI panel blocks the browser's own gesture:
+`PullToRefresh` is the site's **only** pull-to-refresh, on every page. It began
+as a stand-in for the AI panel, which blocks the browser's own gesture:
 `.layout` is `height: 100dvh`, `body` is `overflow: hidden` (which propagates
 to the viewport, as no rule sets `overflow` on `html`), and `.ai-content-area`
 sets `overscroll-behavior: contain` — so a downward drag never chains out to
 the viewport and Chrome never sees the overscroll its pull-to-refresh is built
-on. `main.js` mounts it on `#ai .ai-content-area`. Its `touchmove` is the only
-non-passive listener in the module, and cancels only while a pull that started
-at `scrollTop === 0` is still heading down; it is also the only version of the
-gesture that works once the site is installed to a home screen.
+on. That left the gesture reading one way there and another everywhere else, so
+the native one is now off site-wide (`overscroll-behavior-y: contain` on the
+root and `body`, scoped to `.js-enabled`) and this drives all of it. It is also
+the only version that works once the site is installed to a home screen.
+
+Two modes, picked in the constructor from the element it is handed:
+
+| | Nested scroller | Document scroller |
+| :--- | :--- | :--- |
+| Mounted on | `#ai .ai-content-area` | `document.scrollingElement` |
+| Listens on | the element | `document` — a page pull can start on anything |
+| Indicator | `.ptr-indicator`, absolute, on the positioned parent | `.ptr-indicator--viewport`, fixed under the header, on `body` |
+| Marks itself | `[data-ptr-scroller]` | — |
+
+The document instance stands down wherever the page is not what scrolls: a
+touch starting inside a `[data-ptr-scroller]`, or a `body` whose computed
+`overflow-y` is `hidden` (the AI shell, an open nav). Both would otherwise arm
+off one touch and raise a second indicator, in a different place, on a page
+that already has one.
+
+`touchmove` is the only non-passive listener in the module, and it is bound
+only for the length of a live pull — left bound on `document` it would make
+every touch scroll on the site wait for JS. It cancels only while a pull that
+started at `scrollTop === 0` is still heading down.
 
 ### `skills-carousel.js` (253 lines)
 

@@ -560,6 +560,26 @@ body {
   line-height: var(--leading-body);
 }
 
+/* The browser's own pull-to-refresh, off - PullToRefresh in swipe-handler.js
+   replaces it on every page. It had to: the AI panel's shell blocks the native
+   gesture outright, so leaving it on elsewhere meant one spinner, threshold and
+   release on that page and a different set on every other. Scoped to
+   .js-enabled because without JS there is no replacement to fall back to, and
+   the browser's version is then the only one there is.
+
+   Root AND body. The spec propagates the ROOT element's overscroll-behavior to
+   the viewport; Chrome, whose own guidance for this is `body { overscroll-
+   behavior-y: contain }`, honours either. Declaring both costs one selector
+   and does not depend on which reading a browser took - the values agree, so
+   whichever one wins propagates the same thing.
+
+   -y alone. `contain` on both axes would also stop horizontal chaining, and
+   navigation.js binds swipe-to-navigate on phones. */
+.js-enabled,
+.js-enabled body {
+  overscroll-behavior-y: contain;
+}
+
 body.nav-open {
   overflow: hidden;
 }
@@ -9831,73 +9851,6 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   text-align: center;
 }
 
-/* ── Pull-to-refresh indicator ──
-   The panel is height-locked and .ai-content-area contains its overscroll, so
-   the browser's own pull-to-refresh never fires here; PullToRefresh in
-   swipe-handler.js replaces it and this is what it moves. It lives in
-   .ai-main, not in the scroller - an absolute child of a scroll box scrolls
-   away with the content - and hangs one full height above the top of the
-   transcript, so a pull slides it out from behind the top bar.
-
-   The module writes two custom properties and nothing else: --ptr-travel, how
-   far the finger has dragged it, and --ptr-progress, 0-1 against the release
-   threshold. Progress doubles as the fade, which is why the resting state
-   needs no rule of its own - at 0 the indicator is transparent. */
-.ptr-indicator {
-  position: absolute;
-  top: var(--ai-topbar-h);
-  left: 0;
-  right: 0;
-  z-index: 5;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-  transform: translateY(calc(var(--ptr-travel, 0px) - 100%));
-  opacity: var(--ptr-progress, 0);
-}
-
-/* Only on the way back. During the drag the indicator has to track the finger
-   frame for frame, and a transition on transform lags it visibly. */
-.ptr-indicator.is-settling {
-  transition:
-    transform var(--motion-medium) var(--ease-standard),
-    opacity var(--motion-medium) var(--ease-standard);
-}
-
-.ptr-spinner {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  box-shadow: var(--elev-2);
-}
-
-/* The ring winds up with the pull and is already upright at the threshold, so
-   the release reads as a continuation rather than a state change. */
-.ptr-spinner::before {
-  content: "";
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid var(--accent-soft);
-  border-top-color: var(--accent-text);
-  transform: rotate(calc(var(--ptr-progress, 0) * 360deg));
-}
-
-.ptr-indicator.is-refreshing .ptr-spinner::before {
-  transform: none;
-  animation: ptr-spin 0.7s linear infinite;
-}
-
-@keyframes ptr-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* ── Streaming and typing ── */
 .streaming::after {
   content: '▋';
@@ -10254,6 +10207,98 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+}
+
+/* #endregion */
+
+/* #region PULL-TO-REFRESH ---------------------------------------------*/
+/* ── Pull-to-refresh indicator ──
+   Site-wide, and the only pull-to-refresh here: the browser's own is off (see
+   the `overscroll-behavior-y` rule in the BASE region) so that the gesture
+   does not read one way on the AI page and another everywhere else.
+
+   Two instances, two placements, one look. On the AI page the panel is
+   height-locked and .ai-content-area contains its overscroll, so nothing the
+   browser offers could fire there anyway; the indicator lives in .ai-main
+   rather than in the scroller - an absolute child of a scroll box scrolls away
+   with the content - and hangs one full height above the top of the
+   transcript, so a pull slides it out from behind the top bar. Everywhere else
+   the document is the scroller, and the indicator is fixed under the header
+   instead; see the modifier below.
+
+   The module writes two custom properties and nothing else: --ptr-travel, how
+   far the finger has dragged it, and --ptr-progress, 0-1 against the release
+   threshold. Progress doubles as the fade, which is why the resting state
+   needs no rule of its own - at 0 the indicator is transparent. */
+.ptr-indicator {
+  position: absolute;
+  top: var(--ai-topbar-h);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  transform: translateY(calc(var(--ptr-travel, 0px) - 100%));
+  opacity: var(--ptr-progress, 0);
+}
+
+/* ── The document instance ──
+   Fixed, because its scroller is the viewport: there is no positioned parent
+   to hang it on and nothing for it to scroll away from. It parks just below
+   the resting header - the gesture only exists at the top of the page, where
+   the pill is its full --header-height and has not yet shrunk to 56px - and at
+   z-index 900 against the header's 1000, so it emerges from behind the pill
+   the same way the AI one emerges from behind the top bar.
+
+   Both properties are overridden, so the modifier is written at two classes to
+   win on specificity rather than on source order alone. */
+.ptr-indicator.ptr-indicator--viewport {
+  position: fixed;
+  top: calc(var(--header-sticky-offset, 16px) + var(--header-height, 72px) + 8px);
+  z-index: 900;
+}
+
+/* Only on the way back. During the drag the indicator has to track the finger
+   frame for frame, and a transition on transform lags it visibly. */
+.ptr-indicator.is-settling {
+  transition:
+    transform var(--motion-medium) var(--ease-standard),
+    opacity var(--motion-medium) var(--ease-standard);
+}
+
+.ptr-spinner {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  box-shadow: var(--elev-2);
+}
+
+/* The ring winds up with the pull and is already upright at the threshold, so
+   the release reads as a continuation rather than a state change. */
+.ptr-spinner::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent-text);
+  transform: rotate(calc(var(--ptr-progress, 0) * 360deg));
+}
+
+.ptr-indicator.is-refreshing .ptr-spinner::before {
+  transform: none;
+  animation: ptr-spin 0.7s linear infinite;
+}
+
+@keyframes ptr-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
