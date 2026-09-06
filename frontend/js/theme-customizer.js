@@ -49,6 +49,88 @@ function getContrast(hex1, hex2) {
   return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 }
 
+function hslToHex(h, s, l) {
+  const sat = s / 100;
+  const lig = l / 100;
+  const a = sat * Math.min(lig, 1 - lig);
+  const channel = (n) => {
+    const k = (n + h / 30) % 12;
+    const value = lig - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(255 * value).toString(16).padStart(2, '0');
+  };
+  return `#${channel(0)}${channel(8)}${channel(4)}`.toUpperCase();
+}
+
+// The palette the site ships with. Mirrors the --accent-fill / --secondary-fill
+// / --data-fill tokens in styles.css, which are what the page paints when no
+// custom palette is stored; the picker reports these, so the two have to agree.
+const DEFAULT_COLORS = {
+  primary: '#F59E0B',
+  secondary: '#10B981',
+  accent: '#0284C7'
+};
+
+// ── Randomiser ──
+// Three hues this far apart on the wheel read as having been chosen together.
+// Three INDEPENDENTLY random hues do not - that is the whole difference
+// between a shuffle worth pressing twice and one that mostly produces noise.
+// Each entry is a set of offsets in degrees from one random base hue.
+const SHUFFLE_HARMONIES = [
+  [0, 28, -28],    // analogous - three neighbours, the calmest result
+  [0, 120, 240],   // triad - evenly spaced, the most energetic
+  [0, 150, 210],   // split complementary - a base against two near-opposites
+  [0, 35, 180]     // accented analogous - a close pair plus one opposite
+];
+
+// Saturation and lightness are deliberately NOT random across their full
+// range, because the picked colour is not what ships: `generateVariants`
+// derives a text, hover, soft and mild variant from it for BOTH themes, and
+// the source has to survive all of that. Above ~60% lightness the light
+// theme's text variant (l - 15) stops clearing its background; below ~40% the
+// dark theme's fills go to mud. The site's own defaults sit at l 30-50, so
+// this band is a slightly conservative version of the same territory.
+// Saturation starts high enough to read as a deliberate accent rather than a
+// grey that went slightly wrong.
+const SHUFFLE_SATURATION = [58, 88];
+const SHUFFLE_LIGHTNESS = [42, 58];
+
+// Minimum and maximum hue rotation from the palette already on screen. The
+// floor is the point: a shuffle that lands 10 degrees from where it started
+// looks like a button that does nothing, and the fix is to make "somewhere
+// else on the wheel" a guarantee rather than a probability.
+const SHUFFLE_MIN_ROTATION = 40;
+const SHUFFLE_MAX_ROTATION = 320;
+
+function randomInt(min, max) {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+/**
+ * A fresh primary/secondary/highlight triple, related by one of the harmonies
+ * above and constrained to the bands the variant generator can work with.
+ *
+ * @param {string} [currentPrimaryHex] the primary currently in the picker, so
+ *   the new base hue can be guaranteed to land somewhere visibly different.
+ * @returns {{primary: string, secondary: string, accent: string}} uppercase
+ *   six-digit hex, one per control.
+ */
+export function randomPalette(currentPrimaryHex) {
+  const currentHue = currentPrimaryHex ? hexToHsl(currentPrimaryHex)[0] : null;
+  const rotation = randomInt(SHUFFLE_MIN_ROTATION, SHUFFLE_MAX_ROTATION);
+  const base = currentHue === null ? randomInt(0, 359) : (currentHue + rotation) % 360;
+
+  const harmony = SHUFFLE_HARMONIES[randomInt(0, SHUFFLE_HARMONIES.length - 1)];
+  const [primary, secondary, accent] = harmony.map((offset) =>
+    hslToHex(
+      (base + offset + 360) % 360,
+      randomInt(SHUFFLE_SATURATION[0], SHUFFLE_SATURATION[1]),
+      randomInt(SHUFFLE_LIGHTNESS[0], SHUFFLE_LIGHTNESS[1])
+    )
+  );
+
+  return { primary, secondary, accent };
+}
+
 function generateVariants(primaryHex, isDark) {
   const [h, s, l] = hexToHsl(primaryHex);
   
@@ -70,6 +152,75 @@ function generateVariants(primaryHex, isDark) {
     mild: `hsla(${h}, ${s}%, ${fillL}%, 0.58)`,
     on: onColor
   };
+}
+
+/**
+ * The full CSS-custom-property set for one primary/secondary/highlight triple,
+ * derived for both themes. Module scope rather than inside the panel's
+ * initialiser because the home page's shuffle needs it too and it closes over
+ * nothing but the helpers above.
+ *
+ * @returns {{version: number, raw: object, light: object, dark: object}}
+ */
+function getDerivedPalette(rawPrimary, rawSecondary, rawAccent) {
+  const buildMode = (isDark) => {
+    const primary = generateVariants(rawPrimary, isDark);
+    const secondary = generateVariants(rawSecondary, isDark);
+    const accent = generateVariants(rawAccent, isDark);
+    
+    const [ph, ps] = hexToHsl(rawPrimary);
+    const [sh, ss] = hexToHsl(rawSecondary);
+    
+    const bgGradient = isDark
+      ? `radial-gradient(ellipse at 20% 40%, hsl(${ph}, 25%, 7%) 0%, #0a0e14 50%, hsl(${sh}, 25%, 8%) 100%)`
+      : `radial-gradient(ellipse at top left, #ffffff, hsl(${ph}, ${Math.min(ps, 55)}%, 95%) 35%, hsl(${sh}, ${Math.min(ss, 50)}%, 96%) 70%, #fdfdfd)`;
+    
+    const skillBg = isDark
+      ? `hsl(${ph}, 20%, 14%, 0.72)`
+      : `hsl(${ph}, 40%, 97%, 0.85)`;
+
+    return {
+      '--accent-fill': primary.fill,
+      '--accent-text': primary.text,
+      '--accent-hover': primary.hover,
+      '--accent-soft': primary.soft,
+      '--accent-mild': primary.mild,
+      '--on-accent': primary.on,
+      '--secondary-fill': secondary.fill,
+      '--secondary-text': secondary.text,
+      '--data-fill': accent.fill,
+      '--data-text': accent.text,
+      '--bg-gradient': bgGradient,
+      '--skill-bg': skillBg,
+    };
+  };
+
+  return {
+    version: 1,
+    raw: { primary: rawPrimary, secondary: rawSecondary, accent: rawAccent },
+    light: buildMode(false),
+    dark: buildMode(true)
+  };
+}
+
+// ── The palette that is showing but is not saved ──
+// A roll from the home page's shuffle, or from the panel's, is a PREVIEW: it
+// paints immediately and it is gone on reload. Holding it here rather than in
+// localStorage is what makes that true, and it is module state rather than
+// closure state because three things have to agree about it - the home button
+// that sets it, the panel that has to open showing it (otherwise Apply would
+// save colours the visitor never saw), and `reapplyCustomTheme`, which would
+// otherwise wipe the roll the moment someone flipped light/dark.
+let unsavedRawPalette = null;
+
+function readSavedPalette() {
+  const saved = localStorage.getItem('rj_theme_palette');
+  if (!saved) return null;
+  try {
+    return JSON.parse(saved);
+  } catch (e) {
+    return null;
+  }
 }
 
 function applyPaletteVariables(palette, isDark) {
@@ -96,13 +247,139 @@ function clearCustomPalette() {
 
 // Function to trigger on theme switch (dark/light)
 export function reapplyCustomTheme(isDark) {
-  const saved = localStorage.getItem('rj_theme_palette');
-  if (saved) {
-    try {
-      const palette = JSON.parse(saved);
-      applyPaletteVariables(palette, isDark);
-    } catch(e) {}
+  // An unsaved roll outranks the saved palette here. The two variant sets are
+  // derived per theme, so flipping light/dark has to re-derive SOMETHING - and
+  // if that something were always the saved palette, every roll from the home
+  // page would be destroyed by the theme toggle rather than by a reload.
+  if (unsavedRawPalette) {
+    const { primary, secondary, accent } = unsavedRawPalette;
+    applyPaletteVariables(getDerivedPalette(primary, secondary, accent), isDark);
+    return;
   }
+
+  const palette = readSavedPalette();
+  if (palette) applyPaletteVariables(palette, isDark);
+}
+
+/**
+ * Roll a new palette and paint it, WITHOUT persisting it.
+ *
+ * This is what the landing view's shuffle does, and not persisting is the
+ * whole design: a visitor who presses it out of curiosity gets their colours
+ * back by reloading, rather than having to find Reset inside a header
+ * dropdown. Keeping a roll is a deliberate second act - open the panel, where
+ * the controls are already filled with what is on screen, and press Apply.
+ *
+ * @returns {{primary: string, secondary: string, accent: string}} the roll.
+ */
+export function applyRandomTheme() {
+  const current = unsavedRawPalette?.primary
+    || readSavedPalette()?.raw?.primary
+    || DEFAULT_COLORS.primary;
+
+  const rolled = randomPalette(current);
+  unsavedRawPalette = rolled;
+  applyPaletteVariables(
+    getDerivedPalette(rolled.primary, rolled.secondary, rolled.accent),
+    document.body.classList.contains('dark-theme')
+  );
+  return rolled;
+}
+
+// ── Saved themes ──
+// A visitor's own named palettes, in localStorage beside the active one. No
+// account and no server: the site's auth exists for the owner's dashboard, so
+// gating this behind a login would hide it from everyone who actually uses the
+// page. The cost is honest and worth stating - these live in ONE browser, and
+// clearing site data takes them with it.
+const THEME_LIBRARY_KEY = 'rj_theme_library';
+
+// Twelve is a row of chips that still wraps to something readable inside a
+// 276px panel, not a storage limit; localStorage would hold thousands.
+export const THEME_LIBRARY_LIMIT = 12;
+export const THEME_NAME_MAX = 24;
+
+/**
+ * Every saved theme, oldest first. Never throws: a corrupt or hand-edited
+ * value reads as an empty library rather than taking the panel down with it,
+ * and entries that do not carry three usable hexes are dropped.
+ */
+export function readThemeLibrary() {
+  let parsed;
+  try {
+    parsed = JSON.parse(localStorage.getItem(THEME_LIBRARY_KEY) || '[]');
+  } catch (e) {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed
+    .filter((entry) => entry && typeof entry.name === 'string' && entry.raw
+      && ['primary', 'secondary', 'accent'].every((k) => /^#[0-9a-fA-F]{6}$/.test(entry.raw[k] || '')))
+    .slice(0, THEME_LIBRARY_LIMIT);
+}
+
+function writeThemeLibrary(entries) {
+  try {
+    localStorage.setItem(THEME_LIBRARY_KEY, JSON.stringify(entries.slice(0, THEME_LIBRARY_LIMIT)));
+    return true;
+  } catch (e) {
+    // A full or blocked quota (private browsing, storage disabled). The panel
+    // reports this rather than pretending the save worked.
+    return false;
+  }
+}
+
+/**
+ * Save a named palette, or replace the one already under that name.
+ *
+ * Overwrite rather than duplicate: two chips reading "Sunset" tell the visitor
+ * nothing about which is which, and re-saving under a name you already used is
+ * far more likely to mean "update it" than "make a second one".
+ *
+ * @returns {{ok: true, entries: object[], replaced: boolean} | {ok: false, reason: string}}
+ */
+export function saveTheme(name, raw) {
+  const trimmed = String(name || '').trim().slice(0, THEME_NAME_MAX);
+  if (!trimmed) return { ok: false, reason: 'empty' };
+
+  const entries = readThemeLibrary();
+  const at = entries.findIndex((entry) => entry.name.toLowerCase() === trimmed.toLowerCase());
+  if (at === -1 && entries.length >= THEME_LIBRARY_LIMIT) return { ok: false, reason: 'full' };
+
+  const entry = { id: `t${Date.now().toString(36)}`, name: trimmed, raw: { ...raw } };
+  if (at === -1) entries.push(entry);
+  else entries[at] = { ...entry, id: entries[at].id };
+
+  if (!writeThemeLibrary(entries)) return { ok: false, reason: 'storage' };
+  return { ok: true, entries, replaced: at !== -1 };
+}
+
+/** Remove one saved theme by id. Returns the library that remains. */
+export function deleteTheme(id) {
+  const entries = readThemeLibrary().filter((entry) => entry.id !== id);
+  writeThemeLibrary(entries);
+  return entries;
+}
+
+/**
+ * The landing view's shuffle. Separate from `initThemeCustomizer` because the
+ * header panel and this button are independent DOM - the panel's initialiser
+ * bails early when its dropdown is absent, and that must not take this with it.
+ */
+export function initHomeThemeShuffle() {
+  const button = document.getElementById('home-theme-shuffle');
+  const status = document.getElementById('home-theme-status');
+  if (!button) return;
+
+  button.addEventListener('click', () => {
+    const rolled = applyRandomTheme();
+    if (status) {
+      status.textContent =
+        `Theme randomized. Primary ${rolled.primary}, secondary ${rolled.secondary}, `
+        + `highlight ${rolled.accent}. Reload the page to restore the saved theme.`;
+    }
+  });
 }
 
 export function initThemeCustomizer() {
@@ -110,14 +387,18 @@ export function initThemeCustomizer() {
   const customizerDropdown = document.getElementById('theme-customizer-dropdown');
   const applyBtn = document.getElementById('theme-customizer-apply');
   const resetBtn = document.getElementById('theme-customizer-reset');
-  
+  const shuffleBtn = document.getElementById('theme-customizer-shuffle');
+  const shuffleStatus = document.getElementById('theme-customizer-status');
+  const themeChips = document.getElementById('theme-chips');
+  const saveBtn = document.getElementById('theme-customizer-save');
+  const saveForm = document.getElementById('theme-save-form');
+  const saveNameInput = document.getElementById('theme-save-name');
+  const saveConfirmBtn = document.getElementById('theme-save-confirm');
+  const saveCancelBtn = document.getElementById('theme-save-cancel');
+
   if (!paletteBtn || !customizerDropdown) return;
 
-  const defaultColors = {
-    primary: '#F59E0B',
-    secondary: '#859900',
-    accent: '#B58900'
-  };
+  const defaultColors = DEFAULT_COLORS;
 
   const colorLabels = {
     primary: 'Primary',
@@ -263,30 +544,27 @@ export function initThemeCustomizer() {
     }
   }
 
+  // Fill the controls with what the page is CURRENTLY painting, in priority
+  // order: an unsaved roll from either shuffle, then the saved palette, then
+  // the shipped defaults. The order matters - open the panel after rolling on
+  // the landing view and the controls have to show that roll, or Apply would
+  // quietly save a palette the visitor never saw.
   function loadDefaults() {
-    const saved = localStorage.getItem('rj_theme_palette');
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        if (data.raw) {
-          setColorValue('primary', data.raw.primary || defaultColors.primary);
-          setColorValue('secondary', data.raw.secondary || defaultColors.secondary);
-          setColorValue('accent', data.raw.accent || defaultColors.accent);
-        }
-      } catch (e) {
-        console.error("Invalid theme data");
-      }
-    } else {
-      setColorValue('primary', defaultColors.primary);
-      setColorValue('secondary', defaultColors.secondary);
-      setColorValue('accent', defaultColors.accent);
-    }
+    const active = unsavedRawPalette || readSavedPalette()?.raw || defaultColors;
+    setColorValue('primary', active.primary || defaultColors.primary);
+    setColorValue('secondary', active.secondary || defaultColors.secondary);
+    setColorValue('accent', active.accent || defaultColors.accent);
     updateHexDisplays();
   }
 
   paletteBtn.addEventListener('click', () => {
     loadDefaults();
     closeColorPopover();
+    closeSaveForm();
+    renderThemeLibrary();
+    // Drop the last announcement so re-opening the panel cannot read out hex
+    // codes, or a save confirmation, that no longer describe what is on screen.
+    if (shuffleStatus) shuffleStatus.textContent = '';
   });
 
   const closeModal = () => {
@@ -305,17 +583,16 @@ export function initThemeCustomizer() {
         const isOpen = customizerDropdown.classList.contains('is-open');
         if (wasOpen && !isOpen) {
           // Dropdown just closed (via click-outside, Escape, or Apply/Reset).
-          // Re-apply saved palette to discard any unsaved previews.
+          // Re-apply saved palette to discard any unsaved previews. This takes
+          // a roll made on the landing view with it, which is the intended
+          // reading: everything the panel shows is a preview, and closing it
+          // without Apply is how a visitor says no to all of them.
           closeColorPopover();
+          unsavedRawPalette = null;
           clearCustomPalette();
-          const saved = localStorage.getItem('rj_theme_palette');
-          if (saved) {
-            try {
-              applyPaletteVariables(JSON.parse(saved), document.body.classList.contains('dark-theme'));
-            } catch (e) {
-              localStorage.removeItem('rj_theme_palette');
-            }
-          }
+          const saved = readSavedPalette();
+          if (saved) applyPaletteVariables(saved, document.body.classList.contains('dark-theme'));
+          else if (localStorage.getItem('rj_theme_palette')) localStorage.removeItem('rj_theme_palette');
         }
         wasOpen = isOpen;
       }
@@ -323,53 +600,16 @@ export function initThemeCustomizer() {
   });
   observer.observe(customizerDropdown, { attributes: true });
 
-  const getDerivedPalette = (rawPrimary, rawSecondary, rawAccent) => {
-    const buildMode = (isDark) => {
-      const primary = generateVariants(rawPrimary, isDark);
-      const secondary = generateVariants(rawSecondary, isDark);
-      const accent = generateVariants(rawAccent, isDark);
-      
-      const [ph, ps] = hexToHsl(rawPrimary);
-      const [sh, ss] = hexToHsl(rawSecondary);
-      
-      const bgGradient = isDark
-        ? `radial-gradient(ellipse at 20% 40%, hsl(${ph}, 25%, 7%) 0%, #0a0e14 50%, hsl(${sh}, 25%, 8%) 100%)`
-        : `radial-gradient(ellipse at top left, #ffffff, hsl(${ph}, ${Math.min(ps, 55)}%, 95%) 35%, hsl(${sh}, ${Math.min(ss, 50)}%, 96%) 70%, #fdfdfd)`;
-      
-      const skillBg = isDark
-        ? `hsl(${ph}, 20%, 14%, 0.72)`
-        : `hsl(${ph}, 40%, 97%, 0.85)`;
-
-      return {
-        '--accent-fill': primary.fill,
-        '--accent-text': primary.text,
-        '--accent-hover': primary.hover,
-        '--accent-soft': primary.soft,
-        '--accent-mild': primary.mild,
-        '--on-accent': primary.on,
-        '--secondary-fill': secondary.fill,
-        '--secondary-text': secondary.text,
-        '--data-fill': accent.fill,
-        '--data-text': accent.text,
-        '--bg-gradient': bgGradient,
-        '--skill-bg': skillBg,
-      };
-    };
-
-    return {
-      version: 1,
-      raw: { primary: rawPrimary, secondary: rawSecondary, accent: rawAccent },
-      light: buildMode(false),
-      dark: buildMode(true)
-    };
-  };
-
   function previewPalette() {
     updateHexDisplays();
     const rawPrimary = getColorValue('primary');
     const rawSecondary = getColorValue('secondary');
     const rawAccent = getColorValue('accent');
-    
+
+    // Recorded as the unsaved palette for the same reason a roll is: a
+    // light/dark flip mid-edit must re-derive what the controls say, not throw
+    // the edit away and repaint the saved palette.
+    unsavedRawPalette = { primary: rawPrimary, secondary: rawSecondary, accent: rawAccent };
     const palette = getDerivedPalette(rawPrimary, rawSecondary, rawAccent);
     applyPaletteVariables(palette, document.body.classList.contains('dark-theme'));
   }
@@ -490,19 +730,188 @@ export function initThemeCustomizer() {
     dracula: { primary: '#BD93F9', secondary: '#FF79C6', accent: '#50FA7B' }
   };
 
-  const presetButtons = customizerDropdown.querySelectorAll('.preset-btn');
-  presetButtons.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const presetKey = btn.dataset.preset;
-      const colors = themePresets[presetKey];
-      if (colors) {
-        setColorValue('primary', colors.primary, { preview: false, syncPopover: false });
-        setColorValue('secondary', colors.secondary, { preview: false, syncPopover: false });
-        setColorValue('accent', colors.accent, { preview: true, syncPopover: false });
-        closeColorPopover();
-      }
+  /**
+   * Load one triple into the three controls and paint it. All three writes go
+   * in with `preview: false` and only the last previews, so the palette is
+   * derived and applied once rather than three times on the way to the colours
+   * that were asked for. Shared by the built-in presets, the saved themes and
+   * the shuffle, because from here they are the same gesture.
+   */
+  function applyRawTriple(colors) {
+    if (!colors) return;
+    setColorValue('primary', colors.primary, { preview: false, syncPopover: false });
+    setColorValue('secondary', colors.secondary, { preview: false, syncPopover: false });
+    setColorValue('accent', colors.accent, { preview: true, syncPopover: false });
+    closeColorPopover();
+  }
+
+  function announce(message) {
+    if (shuffleStatus) shuffleStatus.textContent = message;
+  }
+
+  // ── Saved themes ──
+  // Rendered rather than authored, so the row rebuilds from storage after every
+  // save and delete. The built-in chips are markup and are left alone; only the
+  // saved ones are torn down and rebuilt, which is also why they carry a class
+  // of their own rather than being told apart by position.
+  function renderThemeLibrary() {
+    if (!themeChips) return;
+    themeChips.querySelectorAll('.theme-chip').forEach((chip) => chip.remove());
+
+    readThemeLibrary().forEach((entry) => {
+      const chip = document.createElement('span');
+      chip.className = 'theme-chip';
+
+      // Two buttons rather than one with a nested control: a button inside a
+      // button is invalid, and "apply this" and "delete this" are genuinely
+      // two actions that each need their own accessible name.
+      const apply = document.createElement('button');
+      apply.type = 'button';
+      apply.className = 'preset-btn theme-chip-apply';
+      apply.dataset.themeId = entry.id;
+      apply.textContent = entry.name;
+      apply.title = `Apply ${entry.name}`;
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'theme-chip-remove';
+      remove.dataset.removeId = entry.id;
+      remove.title = `Delete ${entry.name}`;
+      remove.setAttribute('aria-label', `Delete saved theme ${entry.name}`);
+      remove.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+
+      chip.append(apply, remove);
+      themeChips.append(chip);
     });
+  }
+
+  // One delegated handler instead of binding each chip: the saved ones are
+  // created and destroyed as the library changes, and re-binding on every
+  // render is how listeners get left behind on detached nodes.
+  themeChips?.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    const remove = target.closest('[data-remove-id]');
+    if (remove) {
+      event.stopPropagation();
+      const entry = readThemeLibrary().find((item) => item.id === remove.dataset.removeId);
+      deleteTheme(remove.dataset.removeId);
+      renderThemeLibrary();
+      announce(entry ? `Deleted saved theme ${entry.name}.` : 'Saved theme deleted.');
+      return;
+    }
+
+    const saved = target.closest('[data-theme-id]');
+    if (saved) {
+      event.stopPropagation();
+      const entry = readThemeLibrary().find((item) => item.id === saved.dataset.themeId);
+      if (entry) {
+        applyRawTriple(entry.raw);
+        announce(`${entry.name} loaded. Press Apply to keep it.`);
+      }
+      return;
+    }
+
+    const preset = target.closest('[data-preset]');
+    if (preset) {
+      event.stopPropagation();
+      applyRawTriple(themePresets[preset.dataset.preset]);
+    }
+  });
+
+  function closeSaveForm({ restoreFocus = false } = {}) {
+    if (!saveForm) return;
+    saveForm.hidden = true;
+    if (saveNameInput) saveNameInput.value = '';
+    if (restoreFocus) saveBtn?.focus();
+  }
+
+  saveBtn?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (!saveForm) return;
+
+    if (!saveForm.hidden) {
+      closeSaveForm({ restoreFocus: true });
+      return;
+    }
+
+    closeColorPopover();
+    saveForm.hidden = false;
+    saveNameInput?.focus();
+  });
+
+  function commitSave() {
+    if (!saveNameInput) return;
+
+    const result = saveTheme(saveNameInput.value, {
+      primary: getColorValue('primary'),
+      secondary: getColorValue('secondary'),
+      accent: getColorValue('accent')
+    });
+
+    if (!result.ok) {
+      // Said out loud rather than swallowed: a save that silently does nothing
+      // is indistinguishable from a broken button.
+      const reason = result.reason === 'full'
+        ? `You can save ${THEME_LIBRARY_LIMIT} themes. Delete one first.`
+        : result.reason === 'empty'
+          ? 'Give the theme a name first.'
+          : 'This browser would not store the theme.';
+      announce(reason);
+      saveNameInput.focus();
+      return;
+    }
+
+    const name = saveNameInput.value.trim().slice(0, THEME_NAME_MAX);
+    closeSaveForm({ restoreFocus: true });
+    renderThemeLibrary();
+    announce(result.replaced ? `Updated saved theme ${name}.` : `Saved theme ${name}.`);
+  }
+
+  saveConfirmBtn?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    commitSave();
+  });
+
+  saveCancelBtn?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    closeSaveForm({ restoreFocus: true });
+  });
+
+  saveNameInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commitSave();
+    }
+    if (event.key === 'Escape') {
+      // Stopped here so Escape closes the name field rather than the whole
+      // panel - the visitor is cancelling one step, not the whole errand.
+      event.stopPropagation();
+      closeSaveForm({ restoreFocus: true });
+    }
+  });
+
+  renderThemeLibrary();
+
+  // Same shape as a preset click, and deliberately so: all three controls are
+  // set with `preview: false` and only the last one previews, so the palette
+  // is derived and applied ONCE rather than three times on the way to the
+  // colours the user actually asked for.
+  //
+  // Like the presets and like a hand-typed hex, this is a preview and not a
+  // commit - the MutationObserver above restores the saved palette if the
+  // panel closes without Apply. Pressing the button repeatedly costs nothing.
+  shuffleBtn?.addEventListener('click', (event) => {
+    event.stopPropagation();
+
+    const next = randomPalette(getColorValue('primary'));
+    unsavedRawPalette = next;
+    setColorValue('primary', next.primary, { preview: false, syncPopover: false });
+    setColorValue('secondary', next.secondary, { preview: false, syncPopover: false });
+    setColorValue('accent', next.accent, { preview: true, syncPopover: false });
+    closeColorPopover();
+    announce(`Random palette applied. Primary ${next.primary}, secondary ${next.secondary}, highlight ${next.accent}.`);
   });
 
   applyBtn?.addEventListener('click', () => {
@@ -512,6 +921,9 @@ export function initThemeCustomizer() {
     
     const palette = getDerivedPalette(rawPrimary, rawSecondary, rawAccent);
     localStorage.setItem('rj_theme_palette', JSON.stringify(palette));
+    // No longer unsaved - and clearing it before the close observer runs is
+    // what stops that observer from immediately reverting what was just saved.
+    unsavedRawPalette = null;
     applyPaletteVariables(palette, document.body.classList.contains('dark-theme'));
     
     const themeColorMeta = document.querySelector('meta[name="theme-color"]');
@@ -526,6 +938,7 @@ export function initThemeCustomizer() {
 
   resetBtn?.addEventListener('click', () => {
     localStorage.removeItem('rj_theme_palette');
+    unsavedRawPalette = null;
     clearCustomPalette();
     
     const themeColorMeta = document.querySelector('meta[name="theme-color"]');

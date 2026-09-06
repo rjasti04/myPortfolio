@@ -353,16 +353,67 @@
                 </button>
               </div>
 
+              <!-- One row for both kinds of theme: the three built-in terminal
+                   palettes and whatever the visitor has saved. Kept as one
+                   section rather than two so the panel does not grow a third
+                   block above the colour controls - the built-ins are
+                   permanent and unlabelled as such, the saved ones carry a
+                   delete. The heading was a `label` with nothing to label;
+                   it is a span naming a `role="group"` now. -->
               <div class="customizer-presets">
-                <label class="customizer-presets-label">Terminal Presets</label>
-                <div class="preset-buttons">
+                <div class="customizer-presets-head">
+                  <span class="customizer-presets-label" id="customizer-themes-label">Themes</span>
+                  <button type="button" class="customizer-shuffle" id="theme-customizer-save"
+                    title="Save the current colors as a named theme">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                    <span>Save</span>
+                  </button>
+                </div>
+
+                <!-- Revealed by Save. Inline rather than a prompt() so it can
+                     be styled, cancelled with Escape and read by a screen
+                     reader like the rest of the panel. -->
+                <div class="theme-save-form" id="theme-save-form" hidden>
+                  <input type="text" id="theme-save-name" class="theme-save-name" maxlength="24"
+                    placeholder="Name this theme" spellcheck="false" autocomplete="off"
+                    aria-label="Theme name" />
+                  <button type="button" class="theme-save-confirm" id="theme-save-confirm">Save</button>
+                  <button type="button" class="theme-save-cancel" id="theme-save-cancel"
+                    aria-label="Cancel saving theme">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                  </button>
+                </div>
+
+                <div class="preset-buttons" id="theme-chips" role="group"
+                  aria-labelledby="customizer-themes-label">
                   <button type="button" class="preset-btn" data-preset="matrix">Matrix</button>
                   <button type="button" class="preset-btn" data-preset="nord">Nord</button>
                   <button type="button" class="preset-btn" data-preset="dracula">Dracula</button>
                 </div>
               </div>
 
-              <div class="customizer-form">
+              <!-- The three pickers had no group label while the presets above
+                   them did, so the shuffle needed a home and the group needed
+                   a heading; one row solves both. `role="group"` is what makes
+                   the new label mean something to a screen reader rather than
+                   just being text floating above three buttons. -->
+              <div class="customizer-form-header">
+                <span class="customizer-presets-label" id="customizer-colors-label">Your Colors</span>
+                <button type="button" class="customizer-shuffle" id="theme-customizer-shuffle"
+                  title="Roll a random palette" aria-label="Randomize colors">
+                  <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>
+                  <span>Randomize</span>
+                </button>
+              </div>
+
+              <!-- The shuffle rewrites all three hex codes at once, and the
+                   only visible feedback is colour, which is no feedback at all
+                   to a screen reader. This reads the new codes out; it is
+                   written to ONLY by the shuffle, so typing in the hex field
+                   does not chatter. -->
+              <p class="sr-only" role="status" id="theme-customizer-status"></p>
+
+              <div class="customizer-form" role="group" aria-labelledby="customizer-colors-label">
                 <div class="color-picker-group">
                   <label for="color-primary">Primary</label>
                   <button type="button" class="color-input-wrapper" id="color-primary" data-color-key="primary"
@@ -375,19 +426,19 @@
                 <div class="color-picker-group">
                   <label for="color-secondary">Secondary</label>
                   <button type="button" class="color-input-wrapper" id="color-secondary" data-color-key="secondary"
-                    data-color-value="#859900" style="--selected-color: #859900;" aria-haspopup="dialog"
+                    data-color-value="#10B981" style="--selected-color: #10B981;" aria-haspopup="dialog"
                     aria-expanded="false" aria-controls="theme-color-popover">
                     <span class="color-preview" aria-hidden="true"></span>
-                    <span class="color-hex-display" id="hex-secondary">#859900</span>
+                    <span class="color-hex-display" id="hex-secondary">#10B981</span>
                   </button>
                 </div>
                 <div class="color-picker-group">
                   <label for="color-accent">Highlight</label>
                   <button type="button" class="color-input-wrapper" id="color-accent" data-color-key="accent"
-                    data-color-value="#B58900" style="--selected-color: #B58900;" aria-haspopup="dialog"
+                    data-color-value="#0284C7" style="--selected-color: #0284C7;" aria-haspopup="dialog"
                     aria-expanded="false" aria-controls="theme-color-popover">
                     <span class="color-preview" aria-hidden="true"></span>
-                    <span class="color-hex-display" id="hex-accent">#B58900</span>
+                    <span class="color-hex-display" id="hex-accent">#0284C7</span>
                   </button>
                 </div>
               </div>
@@ -555,7 +606,29 @@
                 title="GitHub (opens in a new tab)" aria-label="GitHub profile (opens in a new tab)">
                 <i class="fab fa-github" aria-hidden="true"></i>
               </a>
+
+              <!-- A second hairline, because this one is not a destination.
+                   The row's rule is that it groups by where a control takes
+                   you - in-site routes, then outbound profiles - and a shuffle
+                   takes you nowhere. Rather than let it pass as a fourth
+                   route, it gets its own group past its own divider, so the
+                   row still reads left to right as "here, away, and this".
+
+                   The roll is NOT persisted (see `applyRandomTheme`): a
+                   visitor who presses it out of curiosity gets the real
+                   palette back by reloading, instead of having to find Reset
+                   inside the header dropdown. -->
+              <span class="home-socials-divider js-only" aria-hidden="true"></span>
+              <button type="button" class="home-social home-social--action js-only" id="home-theme-shuffle"
+                title="Randomize the site colors" aria-label="Randomize the site colors">
+                <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>
+              </button>
             </div>
+
+            <!-- The roll's only feedback is colour, which is nothing to a
+                 screen reader, and the fact that it undoes itself on reload is
+                 not discoverable at all. Both are said here. -->
+            <p class="sr-only" role="status" id="home-theme-status"></p>
           </div>
         </div>
       </section>

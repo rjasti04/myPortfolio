@@ -188,10 +188,51 @@ variants from one hex value, checks contrast, writes CSS custom properties onto
 `document.body`, and persists the palette. `reapplyCustomTheme(isDark)` is
 called from `applyTheme` so a light/dark flip re-derives the right variant set.
 
+The shipped defaults are amber `#F59E0B`, emerald `#10B981` and sky `#0284C7`,
+defined as the `--accent-*`, `--secondary-*` and `--data-*` tokens in the
+DESIGN TOKENS region of `styles.css`. Two notes on how they are written there.
+The fills are **hex, not `hsl()`**: rounding an `hsl()` triple back to 8 bits
+drifts a unit or two, the customiser's picker reports these as hex, and a
+default the picker names has to be the colour the page paints or applying the
+value already on screen shifts it. The `-text` variants stay in `hsl()`,
+because their content is "the fill's hue and saturation, darker", and they are
+chosen against measured contrast rather than a fixed offset — 5.78:1 and
+6.02:1 on `--bg` in light, 12.34:1 and 8.11:1 in dark. `.hero-kicker` renders
+`--secondary-text` at body size, so that is AA for normal text.
+
+The panel offers four ways in, all of which are **previews** until Apply — a
+MutationObserver restores the saved palette if it closes without one. Three
+built-in terminal presets, the visitor's own saved themes, a hex field per
+control, and a **Randomize** button that rolls all three at once. The
+randomiser is constrained rather than uniform: full-range random produces
+colours the variant generator cannot derive a usable light *and* dark set from,
+and three independent hues do not read as a palette. See the `randomPalette`
+entry in [JAVASCRIPT.md](JAVASCRIPT.md) for the bands and the harmonies.
+
+There is a **second shuffle** in the landing view's `.home-socials` row, past a
+hairline of its own. That row groups by destination — in-site routes, then
+outbound profiles — and a shuffle is not a destination, so it gets its own
+group rather than passing as a fourth route. Its roll is **not persisted**:
+colours change instantly and survive navigation and a light/dark flip, but a
+reload restores whatever was saved. That asymmetry is the point. A recruiter
+who presses it out of curiosity has a free undo, and keeping a roll is a
+deliberate second act — open the panel, where the controls are already filled
+with what is on screen, and press Apply.
+
+**Saved themes** are named palettes in `localStorage.rj_theme_library`, up to
+12, available to every visitor with no account. The site has a full JWT/2FA
+system, but per [AGENTS.md](../AGENTS.md) it exists for the owner's dashboard
+rather than external users, so gating a theme library behind a login would hide
+it from everyone who actually browses the page. Cookies would be the wrong
+mechanism regardless: they ride along on every request for every asset and cap
+at ~4KB. The honest cost of the local-only choice is worth stating — saved
+themes live in one browser, and clearing site data takes them with it.
+
 | Storage key | Holds |
 | :--- | :--- |
 | `theme` | `"dark"` or `"light"` — an explicit user choice |
 | `rj_theme_palette` | `{light: {...}, dark: {...}}` custom accent palette |
+| `rj_theme_library` | Up to 12 `{id, name, raw}` themes the visitor saved and named |
 
 ---
 
@@ -328,6 +369,7 @@ missing, so a failed update is visible but not dangerous.
 | Path | Notes |
 | :--- | :--- |
 | `profile-cutout-380.{png,webp}`, `profile-cutout.{png,webp}` | The landing portrait, background-removed so the page's own gradient and plexus canvas show through the silhouette. Two widths × two formats, from `scripts/generate_profile_cutout.py`. PNG rather than JPEG because the fallback has to carry an alpha channel. `profile-cutout-380.webp` is the LCP image: `index.html` preloads it and the build precaches it, and `scripts/tests/build.test.js` asserts those two stay the same file |
+| `brush-backdrop.webp` | The painted panel the landing portrait stands in front of, used by `.home-portrait::before` as a *luminance mask* over a solid `--accent-fill` - it carries the shape, the theme carries the colour, so the customiser's accent paints it with nothing to re-tune. **Generated** by `scripts/generate_brush_backdrop.py` from the one photographed swipe in `assets/brush-stroke-master.jpg` - see [The painted panel](#the-painted-panel) |
 | `profile-pic-160.{jpg,webp}`, `profile-pic-360.{jpg,webp}`, `profile-pic.{jpeg,webp}` | Three widths × two formats of the un-cut headshot, from `scripts/generate_profile_pics.py`. Only `profile-pic.jpeg` is still referenced — by the JSON-LD `Person` image — since the landing view moved to the cutout above |
 | `android-chrome-192x192.png`, `android-chrome-512x512.png` | PWA icons, generated from `assets/master-icon.png` |
 | `android-chrome-maskable-512x512.png` | The same badge inset into the maskable safe zone, on the manifest `background_color`. **Generated** by `scripts/generate_launch_images.py` — see [Launch screens](#launch-screens) |
@@ -340,8 +382,70 @@ missing, so a failed update is visible but not dangerous.
 | `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup`, with its own canonical and Open Graph tags — see [Apache configuration](#apache-configuration) |
 | `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the **Apps** section of the SPA as a tile in `.app-grid` — `#ucl-link` in the header is a second, hidden entry point kept only as a fallback; covered by `frontend/tests/ucl-bracket.test.js` |
 
-`assets/master-icon.png` lives **outside** `frontend/` deliberately, so the
-deploy's `rsync` never publishes it to the web root.
+Every generator source lives **outside** `frontend/`, in `assets/` -
+`master-icon.png`, the headshot masters, and `brush-stroke-master.jpg` - so the
+deploy's `rsync frontend/` never publishes any of them to the web root.
+
+---
+
+## The painted panel
+
+`brush-backdrop.webp` is the block of paint behind the landing portrait. It is
+not a picture of paint on the page - it is a **luminance mask**: white in the
+file is opaque, black is bare page, every grey between is thinner paint, and
+`.home-portrait::before` fills the shape it describes with `var(--accent-fill)`.
+That split is what lets the theme customiser recolour the paint. The file never
+carries a colour.
+
+It is generated, and re-generating it is the way to change it:
+
+```bash
+python3 scripts/generate_brush_backdrop.py
+```
+
+The source is `assets/brush-stroke-master.jpg` - one photographed swipe of real
+paint on black, which is what the landing view used to show unprocessed. One
+swipe is a swipe: at 125% of the portrait's width it ran past the shoulder on
+one side and stopped in mid-air on the other, so it read as a smear the
+portrait happened to overlap. The script uses that same photograph as a
+**brush** instead, laying it down eleven times - upright, rescaled, flipped,
+cropped to its dry tail, at varying weights - and compositing lightest-wins.
+Every edge in the output is therefore a real dry-brush edge and the interior
+variation is real loaded-bristle variation, from a single source image.
+
+The `STROKES` table at the top of the script is the whole design; coordinates
+are fractions of the canvas, so the panel re-renders at any resolution and the
+three `.home-portrait` width caps inherit the geometry with nothing to re-tune.
+The CSS decides only where the panel sits and how big it is.
+
+**The one coupling to know about** is the bottom fade. The portrait in front of
+the panel does not end, it dissolves - `.home-portrait-img` carries
+`mask-image: linear-gradient(to bottom, #000 68%, transparent 97%)` - so from
+68% of its height down the figure is progressively transparent, and any paint
+still opaque behind it shows *through* the jacket. Not as a wash: as the
+panel's own bristle texture printed across the lapels in olive. The panel's
+fade is therefore computed rather than chosen. The script mirrors the four CSS
+values it needs (`::before` width and top, the box's aspect ratio, and that 68%
+line), derives a fade that finishes just above it, and prints the band on every
+run:
+
+```
+paint fades 39% -> 66% of the portrait box; the figure starts dissolving at 68%
+```
+
+Change the panel's `width` or `top` in `styles.css`, or the portrait's own mask
+line, and the mirrors in the script have to move with them - re-run it and read
+that line back.
+
+Two encoding notes, because both look like mistakes and are not. The output is
+**lossy** WebP: bristle texture is high-frequency noise, so the equivalent
+greyscale PNG is 485 KB against 74 KB here, on a layer that paints under the
+LCP element. And a lossy mask is normally a bad idea - ringing lifts the black
+field off zero, and a mask that is 2/255 everywhere is a wash of accent across
+the whole rectangle - but measured at q=80 the far corners come back at a mean
+of 0.01-0.12 of 255, so the lift stays on the pixels touching a bristle edge.
+Both figures are in the script's own comments; re-measure before lowering the
+quality.
 
 ---
 
@@ -360,7 +464,7 @@ The source is `scripts/social-previews/` — one HTML file per card over a share
 flattens the result. The point of building them as HTML is that they cannot
 drift: `card.css` pulls the typeface straight out of `frontend/fonts/`, and
 each card's own `<style>` block carries the tokens copied from the page it
-advertises — the portfolio card is the light amber/olive palette down to the
+advertises — the portfolio card is the light amber/emerald palette down to the
 hero's command prompt, the two predictor cards are their own dark grounds.
 
 Two things to know before regenerating:

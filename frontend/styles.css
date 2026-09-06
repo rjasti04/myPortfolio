@@ -12,19 +12,43 @@
      and must stay light, matching the light --bg below. */
   color-scheme: light;
 
-  /* Vibrant Solarized System - Amber & Olive */
+  /* Amber, emerald and sky. The secondary and the data colour used to be
+     Solarized's own green (#859900) and yellow (#B58900), which is where the
+     "Solarized" in the old name here came from; they are not Solarized any
+     more, and two of the three hues sitting inside 30 degrees of each other
+     was the reason to move. Amber against an olive that reads as dark amber
+     is one colour twice. */
   --accent-hue: 38;
-  --accent-fill: hsl(38, 92%, 50%);
+
+  /* Hex for the same reason the other two fills below are: `hsl(38, 92%, 50%)`
+     resolves to #F59F0A, and the picker has always reported this default as
+     #F59E0B. A unit per channel is invisible, but "the value the picker shows
+     is the value the page paints" is either true of every control or it is not
+     a property anyone can rely on. The variants stay in hsl(). */
+  --accent-fill: #f59e0b;
   --accent-text: hsl(38, 92%, 30%);
   --accent-hover: hsl(38, 92%, 40%);
   --accent: var(--accent-fill);
   --accent-soft: hsla(38, 92%, 50%, 0.15);
 
   --accent-mild: hsla(38, 92%, 50%, 0.58);
-  --secondary-fill: hsl(68, 100%, 30%);
-  --secondary-text: hsl(68, 100%, 22%);
-  --data-fill: hsl(45, 100%, 35%);
-  --data-text: hsl(45, 100%, 28%);
+  /* The two fills are hex rather than hsl() on purpose. Rounding an hsl()
+     triple back to 8 bits per channel drifts a unit or two - hsl(160, 84%,
+     39%) resolves to #10B77F, not #10B981 - and the theme customiser's own
+     picker shows these as hex. A default the picker reports and a default the
+     page paints have to be the same colour, or applying the value already on
+     screen shifts the page.
+
+     The `-text` variants stay in hsl() because their whole content is "the
+     fill's hue and saturation, darker": the numbers are only meaningful next
+     to the fill they came from. Both are set to clear WCAG AA against --bg -
+     5.78:1 and 6.02:1, against 5.23:1 and 4.70:1 for the colours they
+     replace. `.hero-kicker` renders --secondary-text at body size, so this is
+     AA for normal text and not the 3:1 large-text allowance. */
+  --secondary-fill: #10b981;
+  --secondary-text: hsl(160, 84%, 24%);
+  --data-fill: #0284c7;
+  --data-text: hsl(200, 98%, 30%);
   /* Ink on accent/secondary FILLS. Dark ink is 8.4:1 on amber in both
      themes; the previous #fff was 2.0:1 and failed WCAG AA sitewide. */
   --on-accent: #14100a;
@@ -32,7 +56,7 @@
   /* Aliases for names referenced in CSS/HTML but never defined. Without
      these the declarations were invalid and silently dropped. */
   --bg: #f8fafb;
-  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, hsl(38, 55%, 95%) 35%, hsl(68, 50%, 96%) 70%, #fdfdfd);
+  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, hsl(38, 55%, 95%) 35%, hsl(160, 50%, 96%) 70%, #fdfdfd);
   --text: #0f172a;
   --muted: #3f4b5a;
   --border: hsl(220, 39%, 11%, 0.13);
@@ -273,7 +297,7 @@ body.dark-theme {
   --card-bg: var(--surface);
   --skill-bg: hsl(210, 20%, 14%, 0.72);
   --select-bg: #0f1419;
-  /* Solarized dark theme accent colors */
+  /* Dark-theme accent ramp. */
   --accent-fill: hsl(38, 92%, 55%);
   --accent-text: hsl(38, 92%, 65%);
   --accent-hover: hsl(38, 92%, 45%);
@@ -281,8 +305,12 @@ body.dark-theme {
   --accent-mild: hsla(38, 92%, 55%, 0.58);
   /* 9.12:1 on this ground - see the note on body's declaration. */
   --control-accent-border: var(--accent-fill);
-  --secondary-text: hsl(68, 100%, 45%);
-  --data-text: hsl(45, 100%, 50%);
+  /* Same hue and saturation as the fills in :root, lifted for the near-black
+     ground: 12.34:1 and 8.11:1. The old chartreuse and yellow measured higher
+     still (13.53:1, 11.72:1) purely because those hues cannot be dark - sky
+     at h200 tops out lower and 8.11:1 is far above the 4.5:1 it has to make. */
+  --secondary-text: hsl(160, 84%, 50%);
+  --data-text: hsl(200, 98%, 55%);
   --color-success: #34d399;
   --color-warning: #fbbf24;
   --color-error: #fb7185;
@@ -1233,9 +1261,145 @@ body:not(.dark-theme) .token-number {
   text-transform: uppercase;
 }
 
+.customizer-presets-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Wraps now, because the row holds three built-in chips plus however many the
+   visitor has saved. `flex: 1` on the built-ins still splits the first line
+   into equal thirds when nothing is saved, which is the common case. */
 .preset-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ── A saved theme ──
+   Two controls in one pill: the name applies it, the cross deletes it. They
+   are separate buttons because a button inside a button is invalid markup and
+   because each genuinely needs its own accessible name. The pair is welded
+   into one shape by dropping the border radius where they meet. */
+.theme-chip {
+  display: inline-flex;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.theme-chip-apply {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0 12px 12px 0;
+  background: var(--skill-bg);
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease-standard),
+    background-color 0.2s var(--ease-standard),
+    color 0.2s var(--ease-standard);
+}
+
+/* Deleting is the destructive half of the pill, so it is the half that turns
+   red - and only on approach, so the row is not a wall of warning colour. */
+.theme-chip-remove:hover,
+.theme-chip-remove:focus-visible {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: var(--on-accent-inverse);
+}
+
+.theme-chip-remove:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ── Naming a theme ──
+   Replaces a `prompt()`: it can be styled, cancelled with Escape, and read out
+   with the rest of the panel. Hidden with the `hidden` attribute rather than a
+   class so it is removed from the accessibility tree when it is not in use. */
+.theme-save-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.theme-save-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-xs);
+}
+
+.theme-save-name:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.theme-save-confirm,
+.theme-save-cancel {
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--skill-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease-standard),
+    background-color 0.2s var(--ease-standard),
+    color 0.2s var(--ease-standard);
+}
+
+.theme-save-confirm {
+  padding: 6px 12px;
+}
+
+.theme-save-cancel {
+  width: 32px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.theme-save-confirm:hover,
+.theme-save-confirm:focus-visible,
+.theme-save-cancel:hover,
+.theme-save-cancel:focus-visible {
+  border-color: var(--accent-mild);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.theme-save-confirm:focus-visible,
+.theme-save-cancel:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .preset-btn {
@@ -1274,6 +1438,82 @@ body:not(.dark-theme) .token-number {
 .preset-btn:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
+}
+
+/* ── "Your Colors" heading, with the shuffle in it ──
+   The label matches `.customizer-presets-label` exactly so the panel reads as
+   two labelled groups rather than one labelled group and three loose rows. */
+.customizer-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+/* Quieter than `.preset-btn`: the presets are three equal choices and get
+   equal weight, but this sits beside a label rather than in a row of peers,
+   and a second full-weight button there competes with Apply at the bottom of
+   the panel for the same "press me" reading. Transparent until hovered. */
+.customizer-shuffle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+
+  /* 32px, not the 40px of `.preset-btn` - it is a secondary control and it
+     shares its row with a label rather than standing on its own. Still well
+     inside a comfortable target at this position. */
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease-standard),
+    background-color 0.2s var(--ease-standard),
+    color 0.2s var(--ease-standard),
+    transform 0.15s var(--ease-standard);
+}
+
+.customizer-shuffle:hover,
+.customizer-shuffle:focus-visible {
+  border-color: var(--accent-mild);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.customizer-shuffle:active {
+  transform: scale(0.96);
+}
+
+.customizer-shuffle:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* The wand turns on the press, which is the only feedback that distinguishes
+   "rolled a new palette" from "rolled one that looks like the last one". The
+   blanket prefers-reduced-motion rule in the ACCESSIBILITY region already
+   caps every animation at 0.001ms, so this needs no guard of its own. */
+.customizer-shuffle:active i {
+  animation: customizer-shuffle-spin 0.4s var(--ease-standard);
+}
+
+@keyframes customizer-shuffle-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .customizer-form {
@@ -2326,43 +2566,79 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    That halo is gone too now (see the dark-theme note below) - the wash is
    still not the thing to reinstate if the hairline ever needs lifting. */
 
-/* ── Paint stroke behind the silhouette ──
-   A real brush-stroke texture (brush-stroke.jpg) used as a luminance mask
-   over a solid accent fill. The bright amber of the source image maps to
-   opaque, the black background to transparent, so the irregular bristle
-   edges, dry-brush feathering and thick-to-thin taper all come through.
+/* ── Painted panel behind the silhouette ──
+   The subject stands in front of a block of paint, the way a studio portrait
+   stands in front of a painted flat. `brush-backdrop.webp` is that block used
+   as a LUMINANCE MASK over a solid `--accent-fill`: white in the file is
+   opaque paint, black is bare page, and every grey between is thinner paint.
+   So the file carries the shape and the theme carries the colour - whatever
+   accent the customiser sets, the paint follows it with nothing to re-tune.
 
-   Uses --accent-fill as the background, so whatever accent the theme
-   customiser sets the stroke tracks it automatically — the image only
-   defines the SHAPE, not the colour.
+   It is generated, not drawn: `scripts/generate_brush_backdrop.py` lays the
+   one photographed swipe in `assets/brush-stroke-master.jpg` down eleven
+   times - upright, rescaled, flipped, at varying weights, composited
+   lightest-wins. That is why the edges are real dry-brush edges and the
+   interior has real loaded-bristle variation. Re-tune the panel THERE; the
+   only things this rule decides are where it sits and how big it is.
 
-   The geometry is in percentages of `.home-portrait`, so all three width
-   caps further down inherit it with nothing to re-tune. */
+   What it replaces: the same master, unprocessed, as a single landscape
+   swipe. One swipe is a swipe - at 125% of the portrait's width it ran out
+   past the shoulder on one side and stopped in mid-air on the other, so it
+   read as a smear the portrait happened to overlap rather than as a ground
+   the portrait stands on. A panel has to be taller than it is wide to frame a
+   standing figure, and no rotation of a landscape stroke gets there.
+
+   Geometry is in percentages of `.home-portrait`, so all three width caps
+   further down inherit it with nothing to re-tune. `aspect-ratio` is the
+   generator's canvas, which keeps `mask-size: contain` from letterboxing the
+   panel inside a box of some other shape. */
 .home-portrait::before {
   content: "";
   position: absolute;
   z-index: 0;
 
-  /* Doubled the size */
-  width: 125%;
-  height: 100%;
+  /* Narrower than the portrait box, not wider. The cutout's box is mostly air
+     - the shoulders are the widest thing in it and they stop well short of
+     both edges - so a panel at the box's full width clears the figure by a
+     margin that reads as a rectangle with a man in the middle of it. At 88%
+     the paint ends just outside the shoulders, which is where a flat behind a
+     sitter ends.
 
-  /* Adjusted position to cover shoulders */
-  top: -15%;
-  left: 50%;
+     ── These two are mirrored in the generator ──
+     `width` and `top` below, plus this box's own aspect ratio, are restated as
+     constants in `scripts/generate_brush_backdrop.py`, which needs them to
+     work out where the panel's baked-in bottom fade lands on the portrait.
+     Change either here and change it there, then re-run the script: it prints
+     the band it computed, and the fade has to finish ABOVE the line where
+     `.home-portrait-img` starts dissolving. It is not a matter of taste. The
+     figure in front of the panel goes progressively transparent from 68% of
+     its height down, so any paint still opaque under it shows THROUGH the
+     jacket - not as a wash, but as the panel's own bristle texture printed
+     across the lapels in olive. */
+  width: 88%;
+  aspect-ratio: 1060 / 1120;
 
-  /* Kept original rotation and centering */
-  transform: translateX(-50%) rotate(-3deg);
+  /* Rises above the head, and stops at the chest rather than running to the
+     bottom of the figure - see the fade note above for why it has to. */
+  top: -6%;
 
-  /* Solid accent fill — the mask reveals only the stroke shape */
+  /* Centred on the FIGURE, not on the box. The cutout is not symmetrical - he
+     stands left of centre and the near shoulder runs out to the right - so a
+     panel centred at 50% hangs a hand's width off his ear on one side. 46% is
+     where the head sits near the middle of the paint and the shoulder still
+     has something behind it. */
+  left: 46%;
+
+  /* Off-square by a couple of degrees: hung by hand, not printed. Any more
+     and the fade at the bottom stops being horizontal, which is the one edge
+     that has to stay level against the portrait's own. */
+  transform: translateX(-50%) rotate(-2deg);
+
+  /* Solid accent fill - the mask is what gives it a shape. */
   background: var(--accent-fill);
-  opacity: 1;
-
-  /* The brush-stroke image as a luminance mask: bright pixels → opaque,
-     black pixels → transparent. This is what gives the organic, textured,
-     bristle-marked silhouette rather than a geometric CSS shape. */
-  -webkit-mask-image: url('brush-stroke.jpg');
-  mask-image: url('brush-stroke.jpg');
+  opacity: 0.92;
+  -webkit-mask-image: url("brush-backdrop.webp");
+  mask-image: url("brush-backdrop.webp");
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -2373,10 +2649,14 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   mask-mode: luminance;
 }
 
-/* On the dark ground, the stroke can be subtler — the near-black page
-   absorbs more, so a lower opacity keeps it as a warm glow. */
+/* On the dark ground the same panel is a far louder object: the light theme
+   sets accent against a cream that is already 90% of the way to it, while
+   near-black gives it the page's whole contrast range to itself. At full
+   strength it stops being the ground behind the subject and becomes the
+   subject. Two thirds is where it goes back to reading as a warm wall the
+   silhouette is lit against. */
 body.dark-theme .home-portrait::before {
-  opacity: 1;
+  opacity: 0.66;
 }
 
 /* The shadow is on the <picture>, not the <img>, because the mask below is
@@ -2680,10 +2960,37 @@ body.dark-theme .home-portrait picture {
   white-space: nowrap;
 }
 
+/* ── The action, not a route ──
+   Same 44px disc as its siblings so the row keeps one rhythm, but muted rather
+   than accent-outlined: everything else in the row goes somewhere, and this
+   one only changes how the page looks. Reading as slightly quieter than the
+   links is the point, not an oversight. */
+.home-social--action {
+  border-color: var(--border);
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.home-social--action:hover {
+  border-color: var(--accent-mild);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  box-shadow: none;
+}
+
+/* The wand turns on the press. The blanket prefers-reduced-motion rule in the
+   ACCESSIBILITY region caps every animation at 0.001ms, so no guard here. */
+.home-social--action:active i {
+  animation: customizer-shuffle-spin 0.4s var(--ease-standard);
+}
+
 /* Splits the row by destination: in-site routes to the left of it, the two
-   profiles that leave the site to the right. Four identical circles gave a
-   sighted pointer user nothing to tell those apart - the `aria-label`s always
-   did, which is why the row read as finished. */
+   profiles that leave the site to the right, and past a second one of these,
+   the shuffle - which is not a destination at all. Four identical circles gave
+   a sighted pointer user nothing to tell those apart - the `aria-label`s
+   always did, which is why the row read as finished. */
 .home-socials-divider {
   align-self: center;
   width: 1px;
@@ -6256,6 +6563,19 @@ a.app-tile:focus-visible .app-tile-cta i {
 .js-enabled #theme-toggle.js-only,
 .js-enabled #palette-toggle.js-only {
   display: flex !important;
+}
+
+/* The landing view's shuffle, and the hairline that sets it apart from the
+   profile links. Both carry `js-only` because the button does nothing without
+   JS - and a divider with nothing after it is just a stray line, so the two
+   have to appear and disappear together. The first divider in that row is not
+   `js-only` and keeps showing either way. */
+.js-enabled #home-theme-shuffle.js-only {
+  display: inline-flex !important;
+}
+
+.js-enabled .home-socials-divider.js-only {
+  display: block !important;
 }
 
 /* Animated background: desktops and wider screens only.

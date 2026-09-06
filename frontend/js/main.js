@@ -41,7 +41,7 @@ import { initAnalytics } from "./analytics.js";
 import { initSkillsCarousel } from "./skills-carousel.js";
 import { initRipple } from "./ripple.js";
 import { initScrollToTop } from "./scroll-to-top.js";
-import { initThemeCustomizer } from "./theme-customizer.js";
+import { initThemeCustomizer, initHomeThemeShuffle } from "./theme-customizer.js";
 import { initParticles } from "./particles-config.js";
 import { desktopBackground } from "./config.js";
 import { PullToRefresh } from "./swipe-handler.js";
@@ -98,6 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initRipple();
   initScrollToTop();
   initThemeCustomizer();
+  initHomeThemeShuffle();
 
   // Pull-to-refresh, one implementation for the whole site.
   //
