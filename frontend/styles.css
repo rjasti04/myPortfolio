@@ -9632,14 +9632,31 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 
 /* One filled control per composer. Voice input is an alternative to typing,
    not a second Send, and painting both in accent made the pair read as a
-   choice between two equal actions. */
+   choice between two equal actions.
+
+   The mic keeps no disc of its own, so the GLYPH has to hold the line the
+   send button holds with its circle. At the shared --text-sm it inked 15px
+   against Send's 44px control and read as the smaller, lesser action; sized
+   to the touch target it finishes on the same height, and the pair scans as
+   two controls of one size rather than an icon beside a button.
+
+   fa-microphone inks ~1.02x its font-size, so the size is stepped back by
+   that much to land the glyph exactly on the circle's diameter rather than a
+   pixel past it. line-height keeps the line box inside the 44px button, so
+   none of this moves the composer's height. */
 .ai-mic-btn {
   background: transparent;
   color: var(--muted);
+  font-size: calc(var(--min-touch-target) / 1.023);
+  line-height: 1;
 }
 
+/* Both states used to fill the button's circle behind the glyph. At the size
+   above they cannot: the circle is narrower than the mic's base bar where the
+   bar sits, so the fill cut across the glyph top and bottom instead of
+   framing it. Colour carries them now - which is what the rule above asks for
+   anyway, since the one filled control here is Send. */
 .ai-mic-btn:hover:not(:disabled) {
-  background: var(--accent-soft);
   color: var(--accent-text);
 }
 
@@ -9660,8 +9677,7 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 }
 
 .ai-mic-btn.listening {
-  background: var(--color-error);
-  color: var(--on-error);
+  color: var(--color-error);
 }
 
 /* Legal small print, and the only line on the page a visitor is entitled to
