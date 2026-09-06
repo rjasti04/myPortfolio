@@ -9981,18 +9981,17 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 
    Sized to the full touch target it overcorrected: the glyph inked the whole
    44px and towered over Send's arrow, which is only the ~15px icon inside a
-   44px disc. The 0.6375 factor takes it back by a bit over a third, so the
-   mic reads as a peer of the send BUTTON without out-inking the send ARROW.
-   That figure is the 0.75 this rule carried before, trimmed a further 15%.
-   The button box stays 44px, so nothing here moves the composer's height or
-   its hit area.
+   44px disc. The 0.51 factor takes it back by about half, so the mic reads as
+   a peer of the send BUTTON without out-inking the send ARROW. That figure is
+   the 0.6375 this rule carried before, trimmed a further 20%. The button box
+   stays 44px, so nothing here moves the composer's height or its hit area.
 
    fa-microphone inks ~1.02x its font-size, which is why the base figure is
-   stepped back by that much before the 0.6375. */
+   stepped back by that much before the 0.51. */
 .ai-mic-btn {
   background: transparent;
   color: var(--muted);
-  font-size: calc(var(--min-touch-target) / 1.023 * 0.6375);
+  font-size: calc(var(--min-touch-target) / 1.023 * 0.51);
   line-height: 1;
 }
 
