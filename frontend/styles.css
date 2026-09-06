@@ -2326,43 +2326,69 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    That halo is gone too now (see the dark-theme note below) - the wash is
    still not the thing to reinstate if the hairline ever needs lifting. */
 
-/* ── Paint stroke behind the silhouette ──
-   A real brush-stroke texture (brush-stroke.jpg) used as a luminance mask
-   over a solid accent fill. The bright amber of the source image maps to
-   opaque, the black background to transparent, so the irregular bristle
-   edges, dry-brush feathering and thick-to-thin taper all come through.
+/* ── Painted panel behind the silhouette ──
+   The subject stands in front of a block of paint, the way a studio portrait
+   stands in front of a painted flat. `brush-backdrop.webp` is that block used
+   as a LUMINANCE MASK over a solid `--accent-fill`: white in the file is
+   opaque paint, black is bare page, and every grey between is thinner paint.
+   So the file carries the shape and the theme carries the colour - whatever
+   accent the customiser sets, the paint follows it with nothing to re-tune.
 
-   Uses --accent-fill as the background, so whatever accent the theme
-   customiser sets the stroke tracks it automatically — the image only
-   defines the SHAPE, not the colour.
+   It is generated, not drawn: `scripts/generate_brush_backdrop.py` lays the
+   one photographed swipe in `assets/brush-stroke-master.jpg` down eleven
+   times - upright, rescaled, flipped, at varying weights, composited
+   lightest-wins. That is why the edges are real dry-brush edges and the
+   interior has real loaded-bristle variation. Re-tune the panel THERE; the
+   only things this rule decides are where it sits and how big it is.
 
-   The geometry is in percentages of `.home-portrait`, so all three width
-   caps further down inherit it with nothing to re-tune. */
+   What it replaces: the same master, unprocessed, as a single landscape
+   swipe. One swipe is a swipe - at 125% of the portrait's width it ran out
+   past the shoulder on one side and stopped in mid-air on the other, so it
+   read as a smear the portrait happened to overlap rather than as a ground
+   the portrait stands on. A panel has to be taller than it is wide to frame a
+   standing figure, and no rotation of a landscape stroke gets there.
+
+   Geometry is in percentages of `.home-portrait`, so all three width caps
+   further down inherit it with nothing to re-tune. `aspect-ratio` is the
+   generator's canvas, which keeps `mask-size: contain` from letterboxing the
+   panel inside a box of some other shape. */
 .home-portrait::before {
   content: "";
   position: absolute;
   z-index: 0;
 
-  /* Doubled the size */
-  width: 125%;
-  height: 100%;
+  /* Narrower than the portrait box, not wider. The cutout's box is mostly air
+     - the shoulders are the widest thing in it and they stop well short of
+     both edges - so a panel at the box's full width clears the figure by a
+     margin that reads as a rectangle with a man in the middle of it. At 88%
+     the paint ends just outside the shoulders, which is where a flat behind a
+     sitter ends. */
+  width: 88%;
+  aspect-ratio: 1060 / 1120;
 
-  /* Adjusted position to cover shoulders */
-  top: -15%;
-  left: 50%;
+  /* Rises above the head and runs behind the chest. The panel's own bottom is
+     faded in the file, so it dissolves into the page at roughly the height
+     the portrait's `mask-image` dissolves the torso - the two edges cancel
+     instead of drawing two separate lines across the view. */
+  top: -6%;
 
-  /* Kept original rotation and centering */
-  transform: translateX(-50%) rotate(-3deg);
+  /* Centred on the FIGURE, not on the box. The cutout is not symmetrical - he
+     stands left of centre and the near shoulder runs out to the right - so a
+     panel centred at 50% hangs a hand's width off his ear on one side. 46% is
+     where the head sits near the middle of the paint and the shoulder still
+     has something behind it. */
+  left: 46%;
 
-  /* Solid accent fill — the mask reveals only the stroke shape */
+  /* Off-square by a couple of degrees: hung by hand, not printed. Any more
+     and the fade at the bottom stops being horizontal, which is the one edge
+     that has to stay level against the portrait's own. */
+  transform: translateX(-50%) rotate(-2deg);
+
+  /* Solid accent fill - the mask is what gives it a shape. */
   background: var(--accent-fill);
-  opacity: 1;
-
-  /* The brush-stroke image as a luminance mask: bright pixels → opaque,
-     black pixels → transparent. This is what gives the organic, textured,
-     bristle-marked silhouette rather than a geometric CSS shape. */
-  -webkit-mask-image: url('brush-stroke.jpg');
-  mask-image: url('brush-stroke.jpg');
+  opacity: 0.92;
+  -webkit-mask-image: url("brush-backdrop.webp");
+  mask-image: url("brush-backdrop.webp");
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -2373,10 +2399,14 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   mask-mode: luminance;
 }
 
-/* On the dark ground, the stroke can be subtler — the near-black page
-   absorbs more, so a lower opacity keeps it as a warm glow. */
+/* On the dark ground the same panel is a far louder object: the light theme
+   sets accent against a cream that is already 90% of the way to it, while
+   near-black gives it the page's whole contrast range to itself. At full
+   strength it stops being the ground behind the subject and becomes the
+   subject. Two thirds is where it goes back to reading as a warm wall the
+   silhouette is lit against. */
 body.dark-theme .home-portrait::before {
-  opacity: 1;
+  opacity: 0.66;
 }
 
 /* The shadow is on the <picture>, not the <img>, because the mask below is
