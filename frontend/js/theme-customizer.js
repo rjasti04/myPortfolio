@@ -49,6 +49,79 @@ function getContrast(hex1, hex2) {
   return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 }
 
+function hslToHex(h, s, l) {
+  const sat = s / 100;
+  const lig = l / 100;
+  const a = sat * Math.min(lig, 1 - lig);
+  const channel = (n) => {
+    const k = (n + h / 30) % 12;
+    const value = lig - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(255 * value).toString(16).padStart(2, '0');
+  };
+  return `#${channel(0)}${channel(8)}${channel(4)}`.toUpperCase();
+}
+
+// ── Randomiser ──
+// Three hues this far apart on the wheel read as having been chosen together.
+// Three INDEPENDENTLY random hues do not - that is the whole difference
+// between a shuffle worth pressing twice and one that mostly produces noise.
+// Each entry is a set of offsets in degrees from one random base hue.
+const SHUFFLE_HARMONIES = [
+  [0, 28, -28],    // analogous - three neighbours, the calmest result
+  [0, 120, 240],   // triad - evenly spaced, the most energetic
+  [0, 150, 210],   // split complementary - a base against two near-opposites
+  [0, 35, 180]     // accented analogous - a close pair plus one opposite
+];
+
+// Saturation and lightness are deliberately NOT random across their full
+// range, because the picked colour is not what ships: `generateVariants`
+// derives a text, hover, soft and mild variant from it for BOTH themes, and
+// the source has to survive all of that. Above ~60% lightness the light
+// theme's text variant (l - 15) stops clearing its background; below ~40% the
+// dark theme's fills go to mud. The site's own defaults sit at l 30-50, so
+// this band is a slightly conservative version of the same territory.
+// Saturation starts high enough to read as a deliberate accent rather than a
+// grey that went slightly wrong.
+const SHUFFLE_SATURATION = [58, 88];
+const SHUFFLE_LIGHTNESS = [42, 58];
+
+// Minimum and maximum hue rotation from the palette already on screen. The
+// floor is the point: a shuffle that lands 10 degrees from where it started
+// looks like a button that does nothing, and the fix is to make "somewhere
+// else on the wheel" a guarantee rather than a probability.
+const SHUFFLE_MIN_ROTATION = 40;
+const SHUFFLE_MAX_ROTATION = 320;
+
+function randomInt(min, max) {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+/**
+ * A fresh primary/secondary/highlight triple, related by one of the harmonies
+ * above and constrained to the bands the variant generator can work with.
+ *
+ * @param {string} [currentPrimaryHex] the primary currently in the picker, so
+ *   the new base hue can be guaranteed to land somewhere visibly different.
+ * @returns {{primary: string, secondary: string, accent: string}} uppercase
+ *   six-digit hex, one per control.
+ */
+export function randomPalette(currentPrimaryHex) {
+  const currentHue = currentPrimaryHex ? hexToHsl(currentPrimaryHex)[0] : null;
+  const rotation = randomInt(SHUFFLE_MIN_ROTATION, SHUFFLE_MAX_ROTATION);
+  const base = currentHue === null ? randomInt(0, 359) : (currentHue + rotation) % 360;
+
+  const harmony = SHUFFLE_HARMONIES[randomInt(0, SHUFFLE_HARMONIES.length - 1)];
+  const [primary, secondary, accent] = harmony.map((offset) =>
+    hslToHex(
+      (base + offset + 360) % 360,
+      randomInt(SHUFFLE_SATURATION[0], SHUFFLE_SATURATION[1]),
+      randomInt(SHUFFLE_LIGHTNESS[0], SHUFFLE_LIGHTNESS[1])
+    )
+  );
+
+  return { primary, secondary, accent };
+}
+
 function generateVariants(primaryHex, isDark) {
   const [h, s, l] = hexToHsl(primaryHex);
   
@@ -110,7 +183,9 @@ export function initThemeCustomizer() {
   const customizerDropdown = document.getElementById('theme-customizer-dropdown');
   const applyBtn = document.getElementById('theme-customizer-apply');
   const resetBtn = document.getElementById('theme-customizer-reset');
-  
+  const shuffleBtn = document.getElementById('theme-customizer-shuffle');
+  const shuffleStatus = document.getElementById('theme-customizer-status');
+
   if (!paletteBtn || !customizerDropdown) return;
 
   const defaultColors = {
@@ -287,6 +362,9 @@ export function initThemeCustomizer() {
   paletteBtn.addEventListener('click', () => {
     loadDefaults();
     closeColorPopover();
+    // Drop last session's shuffle announcement so re-opening the panel cannot
+    // read out hex codes that are no longer in the controls.
+    if (shuffleStatus) shuffleStatus.textContent = '';
   });
 
   const closeModal = () => {
@@ -503,6 +581,29 @@ export function initThemeCustomizer() {
         closeColorPopover();
       }
     });
+  });
+
+  // Same shape as a preset click, and deliberately so: all three controls are
+  // set with `preview: false` and only the last one previews, so the palette
+  // is derived and applied ONCE rather than three times on the way to the
+  // colours the user actually asked for.
+  //
+  // Like the presets and like a hand-typed hex, this is a preview and not a
+  // commit - the MutationObserver above restores the saved palette if the
+  // panel closes without Apply. Pressing the button repeatedly costs nothing.
+  shuffleBtn?.addEventListener('click', (event) => {
+    event.stopPropagation();
+
+    const next = randomPalette(getColorValue('primary'));
+    setColorValue('primary', next.primary, { preview: false, syncPopover: false });
+    setColorValue('secondary', next.secondary, { preview: false, syncPopover: false });
+    setColorValue('accent', next.accent, { preview: true, syncPopover: false });
+    closeColorPopover();
+
+    if (shuffleStatus) {
+      shuffleStatus.textContent =
+        `Random palette applied. Primary ${next.primary}, secondary ${next.secondary}, highlight ${next.accent}.`;
+    }
   });
 
   applyBtn?.addEventListener('click', () => {

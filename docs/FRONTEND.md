@@ -188,6 +188,15 @@ variants from one hex value, checks contrast, writes CSS custom properties onto
 `document.body`, and persists the palette. `reapplyCustomTheme(isDark)` is
 called from `applyTheme` so a light/dark flip re-derives the right variant set.
 
+The panel offers three ways in, all of which are **previews** until Apply — a
+MutationObserver restores the saved palette if it closes without one. Three
+terminal presets, a hex field per control, and a **Randomize** button that rolls
+all three at once. The randomiser is constrained rather than uniform: full-range
+random produces colours the variant generator cannot derive a usable light *and*
+dark set from, and three independent hues do not read as a palette. See
+the `randomPalette` entry in [JAVASCRIPT.md](JAVASCRIPT.md) for the bands and
+the harmonies.
+
 | Storage key | Holds |
 | :--- | :--- |
 | `theme` | `"dark"` or `"light"` — an explicit user choice |

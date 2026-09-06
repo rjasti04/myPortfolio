@@ -509,13 +509,26 @@ so callers (the command prompt) need not synthesise a click on `#theme-toggle`.
 Updates the `theme-color` meta from the **computed** `--accent-fill`, so a
 custom accent is reflected in the browser chrome.
 
-### `theme-customizer.js` (540 lines)
+### `theme-customizer.js` (641 lines)
 
-`initThemeCustomizer()`, `reapplyCustomTheme(isDark)`. Derives a full palette
-from one hex accent (`hexToHsl`, `generateVariants`), checks contrast
-(`getLuminance`, `getContrast`) before applying, writes CSS custom properties
-onto `document.body`, and persists to `localStorage.rj_theme_palette`.
-`clearCustomPalette()` restores the defaults.
+`initThemeCustomizer()`, `reapplyCustomTheme(isDark)`, `randomPalette(hex)`.
+Derives a full palette from one hex accent (`hexToHsl`, `generateVariants`),
+checks contrast (`getLuminance`, `getContrast`) before applying, writes CSS
+custom properties onto `document.body`, and persists to
+`localStorage.rj_theme_palette`. `clearCustomPalette()` restores the defaults.
+
+`randomPalette(currentPrimaryHex)` backs the panel's **Randomize** button and is
+exported because it is the one piece here worth testing on its own
+(`theme-randomizer.test.js`). It is deliberately not uniform random: three
+independent hues read as noise, and a colour outside a narrow
+saturation/lightness band produces derived variants that fail against one theme
+or the other. So it rolls ONE base hue — guaranteed 40-320 degrees from the
+palette already on screen, because a shuffle that lands where it started looks
+like a broken button — picks one of four fixed harmonies (analogous, triad,
+split-complementary, accented analogous) for the other two, and constrains
+saturation to 58-88% and lightness to 42-58%. `hslToHex` is its inverse of
+`hexToHsl`. Like a preset click, the result is a **preview**: the panel's
+MutationObserver restores the saved palette unless Apply is pressed.
 
 ---
 

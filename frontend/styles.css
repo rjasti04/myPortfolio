@@ -1276,6 +1276,82 @@ body:not(.dark-theme) .token-number {
   outline-offset: 3px;
 }
 
+/* ── "Your Colors" heading, with the shuffle in it ──
+   The label matches `.customizer-presets-label` exactly so the panel reads as
+   two labelled groups rather than one labelled group and three loose rows. */
+.customizer-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+/* Quieter than `.preset-btn`: the presets are three equal choices and get
+   equal weight, but this sits beside a label rather than in a row of peers,
+   and a second full-weight button there competes with Apply at the bottom of
+   the panel for the same "press me" reading. Transparent until hovered. */
+.customizer-shuffle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+
+  /* 32px, not the 40px of `.preset-btn` - it is a secondary control and it
+     shares its row with a label rather than standing on its own. Still well
+     inside a comfortable target at this position. */
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease-standard),
+    background-color 0.2s var(--ease-standard),
+    color 0.2s var(--ease-standard),
+    transform 0.15s var(--ease-standard);
+}
+
+.customizer-shuffle:hover,
+.customizer-shuffle:focus-visible {
+  border-color: var(--accent-mild);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.customizer-shuffle:active {
+  transform: scale(0.96);
+}
+
+.customizer-shuffle:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* The wand turns on the press, which is the only feedback that distinguishes
+   "rolled a new palette" from "rolled one that looks like the last one". The
+   blanket prefers-reduced-motion rule in the ACCESSIBILITY region already
+   caps every animation at 0.001ms, so this needs no guard of its own. */
+.customizer-shuffle:active i {
+  animation: customizer-shuffle-spin 0.4s var(--ease-standard);
+}
+
+@keyframes customizer-shuffle-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .customizer-form {
   display: grid;
   gap: 8px;
