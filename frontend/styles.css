@@ -10008,13 +10008,19 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
    against the self-hosted subset, fa-microphone inks the full 1.0em of its
    font-size while fa-arrow-up inks only 0.875em, so the two glyphs set to the
    same font-size still read as different sizes. Dividing the mic's figure by
-   that 0.875 makes both glyphs ink the same height - about 22px of the 44px
-   control. The disc itself is untouched: the width/height/border-radius above
-   still come straight from --min-touch-target. */
+   that 0.875 is what puts the two on the same inked height.
+
+   Matched exactly, the arrow read a touch heavy against the mic - it is a
+   solid wedge where the mic is a slim outline, so equal height is not equal
+   weight. The trailing 0.85 takes 15% back off, landing the arrow near 19px
+   of ink inside the 44px control.
+
+   The disc itself is untouched: the width/height/border-radius above still
+   come straight from --min-touch-target. */
 .ai-send-btn {
   background: var(--accent-fill);
   color: var(--on-accent);
-  font-size: calc(var(--min-touch-target) / 1.023 * 0.51 / 0.875);
+  font-size: calc(var(--min-touch-target) / 1.023 * 0.51 / 0.875 * 0.85);
 }
 
 .ai-send-btn:hover:not(:disabled) {
