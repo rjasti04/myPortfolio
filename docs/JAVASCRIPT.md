@@ -214,7 +214,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (1,755 lines, lazy)
+### `chat.js` (1,761 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -228,6 +228,7 @@ Internals worth knowing:
 | Area | Behaviour |
 | :--- | :--- |
 | Rendering | `renderBotHTML` = `DOMPurify.sanitize(marked.parse(text))`, degrading to escaped text with `<br>` if either global is missing |
+| Message actions | `createMessageActions()` serves both surfaces, but the `#ai` page passes it only bot turns: a question there sits a scroll away from an always-visible composer, so Edit and Copy earned nothing beside it. The widget's bubbles still carry both on the visitor's own turns |
 | Code blocks | A custom `marked` renderer injects a copy button carrying the source as a URI-encoded `data-code` attribute; a delegated document listener handles the copy |
 | Highlighting | `syntax-highlighter.js`, not a library |
 | Sessions | Up to 50 conversations in `localStorage` (`rj_chat_sessions`, `rj_chat_active_session`), with a sidebar for rename/delete/switch. Each carries `createdAt`/`updatedAt`; rows stored before those shipped fall back to `Number(session.id)`, which is the creation timestamp, so there is no migration |

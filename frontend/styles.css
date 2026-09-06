@@ -47,6 +47,16 @@
      padding: the header paints this much lower than the flow box main starts
      after, so without it the hero sits that much too high. */
   --header-sticky-offset: 16px;
+  /* main's top padding, hoisted out of the `main` rule because two other
+     places have to reach it: the ≤1150px override below, and #ai, which
+     replaces main's padding entirely and still has to land its panel on the
+     same line the document sections land theirs. */
+  --page-pad-block-start: clamp(20px, 2.6vw, 34px);
+  /* The extra step a section takes when it opens on an elevated card rather
+     than a heading - #contact's .contact-section and #ai's .ai-container.
+     A card carries its own border and shadow, so it needs more air under the
+     pill than a bare <h2> does. */
+  --page-card-offset: 24px;
   scroll-padding-top: calc(var(--header-height) + 24px);
   --radius: var(--radius-xl);
   --select-bg: #fff;
@@ -1493,7 +1503,7 @@ main {
   flex: 1;
   width: min(1280px, 100%);
   margin: 0 auto;
-  padding: clamp(20px, 2.6vw, 34px) clamp(14px, 4vw, 56px) 40px;
+  padding: var(--page-pad-block-start) clamp(14px, 4vw, 56px) 40px;
   position: relative;
 }
 
@@ -3280,7 +3290,7 @@ body.dark-theme .home-portrait picture {
   border-radius: var(--radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-md);
-  margin-top: 24px;
+  margin-top: var(--page-card-offset);
   position: relative;
   overflow: hidden;
 }
@@ -5081,6 +5091,11 @@ body.dark-theme .skill-tag.primary .fas {
   :root {
     --header-height: 56px;
     --header-sticky-offset: 10px;
+    /* Read by `main` below and by #ai's shell rule. A flat value rather than
+       the desktop clamp: below this width the pill is shorter but sits over a
+       full-bleed column, and the extra air is what keeps the first card from
+       reading as attached to it. */
+    --page-pad-block-start: 48px;
     scroll-padding-top: calc(var(--header-height) + 28px);
     /* 0 while the bar is hidden - see MOBILE BOTTOM NAV. Every consumer of
        this token (main's bottom padding, #home's block padding,
@@ -5122,7 +5137,7 @@ body.dark-theme .skill-tag.primary .fas {
   }
 
   main {
-    padding: 48px 14px 88px;
+    padding: var(--page-pad-block-start) 14px 88px;
   }
 
   #about.active {
@@ -8216,10 +8231,20 @@ nav a:hover .nav-shortcut {
   /* The top is deliberately not the gutter. Both the header and the panel are
      elevated surfaces with their own shadow, and at the gutter's 12px the two
      shadows almost meet and the pair reads as one stacked slab rather than a
-     bar above a panel. Measured against viewport height like #home's
-     --home-shell-gap, so a short landscape phone spends less of what it has
-     separating them. */
-  --ai-header-gap: clamp(20px, 2.6vw, 34px);
+     bar above a panel.
+
+     #contact is the only other section that opens on a card rather than a
+     heading, so it is the one to match: its .contact-section lands at main's
+     top padding plus --page-card-offset, and the header PAINTS
+     --header-sticky-offset below the flow box main starts after, so what a
+     visitor actually sees between the pill and the card is the first two
+     minus the third. Subtracting the offset here makes this rule's own
+     padding-block add it straight back - that is the point, and it is what
+     leaves the same measured gap on both pages. Hardcoding the result
+     instead was how the two drifted apart: 34 against contact's 42 on a
+     desktop, and 20 against 62 on a phone, where the panel's shadow ran into
+     the pill's. */
+  --ai-header-gap: calc(var(--page-pad-block-start) + var(--page-card-offset) - var(--header-sticky-offset, 16px));
 
   display: flex;
   flex-direction: column;
@@ -9081,10 +9106,11 @@ body.dark-theme .ai-topbar-model {
 #ai .chat-message.user {
   position: relative;
   margin-top: var(--ai-turn-gap);
-  /* The right gutter is the action bar's: see the absolute rule further down.
-     It is reserved at every width so a long question never wraps under the
-     controls that overlay it. */
-  padding: 0 68px 0 16px;
+  /* A 68px right gutter used to be reserved here for the question's Edit and
+     Copy buttons, which overlaid it. Nothing renders there now, so the
+     question runs to the same right edge as the answer below it - the two
+     already shared a leading edge, and they share the trailing one too. */
+  padding: 0 0 0 16px;
   border-left: 3px solid var(--accent-fill);
   color: var(--text);
   font-size: var(--text-lg);
@@ -9369,22 +9395,13 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   opacity: 1;
 }
 
-/* Both class names: the widget paints the chip on `.chat-message.user
-   .msg-actions`, which one id alone does not out-specify. */
-#ai .chat-message.user .msg-actions,
+/* The widget paints a chip on `.chat-message.bot .msg-actions`; one id alone
+   does not out-specify that, so the reset states the class too. Only the bot
+   half is left - a question on this page has no action bar to reset. */
 #ai .chat-message.bot .msg-actions {
   background: none;
   border: none;
   color: var(--muted);
-}
-
-#ai .chat-message.user .msg-action-btn,
-#ai .chat-message.user .msg-actions span,
-#ai .chat-message.user .msg-actions div,
-#ai .chat-message.user .msg-actions i {
-  color: var(--muted);
-  fill: currentcolor;
-  stroke: none;
 }
 
 #ai .msg-action-btn {
@@ -9394,20 +9411,6 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   opacity: 1;
 }
 
-/* Edit and Copy sit in the empty rail beside the question rather than under
-   it. In flow they added 42px of their own height to the block, which the
-   accent rule then had to run down - a one-line question wore a bar twice the
-   height of its text. The right padding above is the space they occupy. */
-#ai .chat-message.user .msg-actions {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  margin-top: 0;
-  transform: translateY(-50%);
-}
-
-#ai .chat-message.user .msg-action-btn:hover,
-#ai .chat-message.user .msg-action-btn:focus-visible,
 #ai .chat-message.bot .msg-action-btn:hover,
 #ai .chat-message.bot .msg-action-btn:focus-visible {
   background: var(--accent-soft);
@@ -9415,7 +9418,6 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   transform: none;
 }
 
-#ai .chat-message.user .msg-action-btn.active,
 #ai .chat-message.bot .msg-action-btn.active {
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -9607,14 +9609,31 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 
 /* One filled control per composer. Voice input is an alternative to typing,
    not a second Send, and painting both in accent made the pair read as a
-   choice between two equal actions. */
+   choice between two equal actions.
+
+   The mic keeps no disc of its own, so the GLYPH has to hold the line the
+   send button holds with its circle. At the shared --text-sm it inked 15px
+   against Send's 44px control and read as the smaller, lesser action; sized
+   to the touch target it finishes on the same height, and the pair scans as
+   two controls of one size rather than an icon beside a button.
+
+   fa-microphone inks ~1.02x its font-size, so the size is stepped back by
+   that much to land the glyph exactly on the circle's diameter rather than a
+   pixel past it. line-height keeps the line box inside the 44px button, so
+   none of this moves the composer's height. */
 .ai-mic-btn {
   background: transparent;
   color: var(--muted);
+  font-size: calc(var(--min-touch-target) / 1.023);
+  line-height: 1;
 }
 
+/* Both states used to fill the button's circle behind the glyph. At the size
+   above they cannot: the circle is narrower than the mic's base bar where the
+   bar sits, so the fill cut across the glyph top and bottom instead of
+   framing it. Colour carries them now - which is what the rule above asks for
+   anyway, since the one filled control here is Send. */
 .ai-mic-btn:hover:not(:disabled) {
-  background: var(--accent-soft);
   color: var(--accent-text);
 }
 
@@ -9635,8 +9654,7 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 }
 
 .ai-mic-btn.listening {
-  background: var(--color-error);
-  color: var(--on-error);
+  color: var(--color-error);
 }
 
 /* Legal small print, and the only line on the page a visitor is entitled to
@@ -9972,24 +9990,6 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
 
   .ai-textarea {
     padding-right: 2px;
-  }
-}
-
-/* The action bar is permanent on a pointer-coarse device - there is no hover
-   to reveal it with - so on a narrow touch screen the question is set above it
-   rather than beside it: 68px of a 360px column is a quarter of the line, and
-   a phone has the vertical room a laptop is short of. Both halves are in one
-   block because the reserved gutter and the bar that occupies it have to move
-   together. */
-@media (width <=768px) and (hover: none) {
-  #ai .chat-message.user {
-    padding-right: 0;
-  }
-
-  #ai .chat-message.user .msg-actions {
-    position: static;
-    margin-top: 6px;
-    transform: none;
   }
 }
 
