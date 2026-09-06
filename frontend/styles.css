@@ -6268,6 +6268,13 @@ a.app-tile:focus-visible .app-tile-cta i {
    `.js-enabled` lands on <html>, which is well before the idle callback that
    decides whether any background belongs here. Specificity matches the
    `.js-enabled ... .js-only` rule above and this comes later, so it wins. */
+/* Animated background: hidden on the HOME landing view in desktops, and
+   hidden on all pages in vertical / mobile viewports. */
+.js-enabled body:has(#home.active) .webgl-canvas.js-only,
+.js-enabled body:has(#home.active) #particles-canvas {
+  display: none !important;
+}
+
 @media (width < 1024px), (pointer: coarse) {
   .js-enabled .webgl-canvas.js-only,
   #particles-canvas {

@@ -324,12 +324,32 @@ function getProfileName() {
   return "desktop";
 }
 
+function isHomeSectionActive() {
+  const homeSection = document.getElementById("home");
+  if (homeSection) {
+    const activeSection = document.querySelector("main section.active");
+    if (activeSection) {
+      return activeSection.id === "home";
+    }
+    if (homeSection.classList.contains("active")) {
+      return true;
+    }
+  }
+  const hash = (window.location.hash || "").replace(/^#/, "").trim();
+  return !hash || hash === "home";
+}
+
 function shouldEnableBackground() {
   if (reducedMotionQuery.matches) return false;
   // Desktops and wider screens only. Phones and tablets get no plexus: the
   // canvas stays hidden and any running field is torn down when the viewport
   // crosses the threshold mid-session.
   if (!desktopBackgroundQuery.matches) return false;
+  // The plexus animation is turned off on the landing home view in desktops:
+  // the portrait cutout and the textured accent wash own the ground there.
+  // Other sections (#about, #resume, #apps, #activity, #contact, #ai, etc.)
+  // keep the live animated background.
+  if (isHomeSectionActive()) return false;
   if (window.innerWidth < 320 || window.innerHeight < 420) return false;
   return Boolean(
     window.requestAnimationFrame &&
@@ -1456,9 +1476,15 @@ function mountPlexusBackground(canvas, profileName = getProfileName()) {
   };
 }
 
-function syncThreeBackground() {
+function syncThreeBackground(immediate = false) {
   if (syncThreeBackgroundTimeout) {
     clearTimeout(syncThreeBackgroundTimeout);
+    syncThreeBackgroundTimeout = null;
+  }
+
+  if (immediate) {
+    syncThreeBackgroundImpl();
+    return;
   }
 
   syncThreeBackgroundTimeout = setTimeout(() => {
@@ -1502,12 +1528,28 @@ function bindMediaQueryListener(query, handler) {
 }
 
 export function initThreeBackground() {
-  syncThreeBackground();
-  window.addEventListener("resize", syncThreeBackground, { passive: true });
-  bindMediaQueryListener(reducedMotionQuery, syncThreeBackground);
-  bindMediaQueryListener(compactViewportQuery, syncThreeBackground);
-  bindMediaQueryListener(desktopBackgroundQuery, syncThreeBackground);
-  bindMediaQueryListener(mobileDevice, syncThreeBackground);
+  syncThreeBackground(true);
+  window.addEventListener("resize", () => syncThreeBackground(false), { passive: true });
+  window.addEventListener("section-changed", () => syncThreeBackground(true));
+  window.addEventListener("hashchange", () => syncThreeBackground(true));
+  window.addEventListener("popstate", () => syncThreeBackground(true));
+
+  const mainEl = document.querySelector("main");
+  if (mainEl && typeof MutationObserver !== "undefined") {
+    const sectionObserver = new MutationObserver(() => {
+      syncThreeBackground(true);
+    });
+    sectionObserver.observe(mainEl, {
+      attributes: true,
+      attributeFilter: ["class"],
+      subtree: true
+    });
+  }
+
+  bindMediaQueryListener(reducedMotionQuery, () => syncThreeBackground(false));
+  bindMediaQueryListener(compactViewportQuery, () => syncThreeBackground(false));
+  bindMediaQueryListener(desktopBackgroundQuery, () => syncThreeBackground(false));
+  bindMediaQueryListener(mobileDevice, () => syncThreeBackground(false));
 }
 
 if (document.readyState === "loading") {

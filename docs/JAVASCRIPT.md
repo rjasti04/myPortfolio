@@ -418,7 +418,7 @@ matrix toggle (`rj_terminal_matrix`), and the `ctx` object handed to commands
 
 ## UI and interaction
 
-### `navigation.js` (527 lines)
+### `navigation.js` (528 lines)
 
 `initNavigation()`, `setActiveSection(target)`,
 `navigateToSection(target, {updateHash})`, `syncSectionWithHash(hash)`,
@@ -521,7 +521,7 @@ onto `document.body`, and persists to `localStorage.rj_theme_palette`.
 
 ## Visual effects
 
-### `three-bg.js` (1,517 lines, lazy)
+### `three-bg.js` (1,559 lines, lazy)
 
 `export function initThreeBackground()` — the full-viewport animated plexus:
 drifting nodes joined by proximity lines, with glass facets between close

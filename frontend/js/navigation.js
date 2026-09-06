@@ -78,6 +78,7 @@ export function setActiveSection(target) {
   if (!target || !window.AppLogic?.setActiveSection) return;
   window.AppLogic.setActiveSection(target, sections, navLinks);
   updateMobileNavActive(target);
+  window.dispatchEvent(new CustomEvent("section-changed", { detail: { target } }));
 }
 
 export function navigateToSection(target, { updateHash = true } = {}) {
