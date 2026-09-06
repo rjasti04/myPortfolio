@@ -950,7 +950,13 @@ export function initChat() {
       } else {
         msgEl2.textContent = text;
       }
-      if (showCopy) msgEl2.appendChild(createMessageActions(text, isBot));
+      // The page's questions carry no toolbar. Edit only retyped the prompt
+      // into a composer that is always on screen here, and Copy offered back
+      // text the visitor had just written - two controls hovering over every
+      // question to save work neither of them saved. Answers keep theirs.
+      // Widget-only: the corner bubbles above are a different surface and
+      // still show both.
+      if (showCopy && isBot) msgEl2.appendChild(createMessageActions(text, isBot));
       aiPageMessages.appendChild(msgEl2);
       const aiScrollContainer = aiPageMessages.parentElement || aiPageMessages;
       scrollToBottom(aiScrollContainer, true);

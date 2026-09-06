@@ -9106,10 +9106,11 @@ body.dark-theme .ai-topbar-model {
 #ai .chat-message.user {
   position: relative;
   margin-top: var(--ai-turn-gap);
-  /* The right gutter is the action bar's: see the absolute rule further down.
-     It is reserved at every width so a long question never wraps under the
-     controls that overlay it. */
-  padding: 0 68px 0 16px;
+  /* A 68px right gutter used to be reserved here for the question's Edit and
+     Copy buttons, which overlaid it. Nothing renders there now, so the
+     question runs to the same right edge as the answer below it - the two
+     already shared a leading edge, and they share the trailing one too. */
+  padding: 0 0 0 16px;
   border-left: 3px solid var(--accent-fill);
   color: var(--text);
   font-size: var(--text-lg);
@@ -9394,22 +9395,13 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   opacity: 1;
 }
 
-/* Both class names: the widget paints the chip on `.chat-message.user
-   .msg-actions`, which one id alone does not out-specify. */
-#ai .chat-message.user .msg-actions,
+/* The widget paints a chip on `.chat-message.bot .msg-actions`; one id alone
+   does not out-specify that, so the reset states the class too. Only the bot
+   half is left - a question on this page has no action bar to reset. */
 #ai .chat-message.bot .msg-actions {
   background: none;
   border: none;
   color: var(--muted);
-}
-
-#ai .chat-message.user .msg-action-btn,
-#ai .chat-message.user .msg-actions span,
-#ai .chat-message.user .msg-actions div,
-#ai .chat-message.user .msg-actions i {
-  color: var(--muted);
-  fill: currentcolor;
-  stroke: none;
 }
 
 #ai .msg-action-btn {
@@ -9419,20 +9411,6 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   opacity: 1;
 }
 
-/* Edit and Copy sit in the empty rail beside the question rather than under
-   it. In flow they added 42px of their own height to the block, which the
-   accent rule then had to run down - a one-line question wore a bar twice the
-   height of its text. The right padding above is the space they occupy. */
-#ai .chat-message.user .msg-actions {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  margin-top: 0;
-  transform: translateY(-50%);
-}
-
-#ai .chat-message.user .msg-action-btn:hover,
-#ai .chat-message.user .msg-action-btn:focus-visible,
 #ai .chat-message.bot .msg-action-btn:hover,
 #ai .chat-message.bot .msg-action-btn:focus-visible {
   background: var(--accent-soft);
@@ -9440,7 +9418,6 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   transform: none;
 }
 
-#ai .chat-message.user .msg-action-btn.active,
 #ai .chat-message.bot .msg-action-btn.active {
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -10013,24 +9990,6 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
 
   .ai-textarea {
     padding-right: 2px;
-  }
-}
-
-/* The action bar is permanent on a pointer-coarse device - there is no hover
-   to reveal it with - so on a narrow touch screen the question is set above it
-   rather than beside it: 68px of a 360px column is a quarter of the line, and
-   a phone has the vertical room a laptop is short of. Both halves are in one
-   block because the reserved gutter and the bar that occupies it have to move
-   together. */
-@media (width <=768px) and (hover: none) {
-  #ai .chat-message.user {
-    padding-right: 0;
-  }
-
-  #ai .chat-message.user .msg-actions {
-    position: static;
-    margin-top: 6px;
-    transform: none;
   }
 }
 
