@@ -6238,6 +6238,23 @@ a.app-tile:focus-visible .app-tile-cta i {
   display: flex !important;
 }
 
+/* Animated background: desktops and wider screens only.
+
+   `desktopBackground` in js/config.js - `(min-width: 1024px) and
+   (pointer: fine)` - is the real gate; both the full-viewport plexus
+   (#webgl-canvas) and the hero particle fallback (#particles-canvas) refuse to
+   mount below it. This mirrors the negation so a phone never paints the fixed
+   canvas at all: the element carries `.js-only` and is unhidden the moment
+   `.js-enabled` lands on <html>, which is well before the idle callback that
+   decides whether any background belongs here. Specificity matches the
+   `.js-enabled ... .js-only` rule above and this comes later, so it wins. */
+@media (width < 1024px), (pointer: coarse) {
+  .js-enabled .webgl-canvas.js-only,
+  #particles-canvas {
+    display: none !important;
+  }
+}
+
 /* The topic chips earn their keep on a wide contact layout, where they sit
    beside the form and cost nothing. On a phone held upright the column is
    already tall, and four full-width chips push the name/email/message fields

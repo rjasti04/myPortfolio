@@ -12,6 +12,7 @@
 import {
   prefersReducedMotion as reducedMotionQuery,
   compactViewport as compactViewportQuery,
+  desktopBackground as desktopBackgroundQuery,
   mobileDevice,
   supportsHover
 } from "./js/config.js";
@@ -310,6 +311,10 @@ function updateSpriteCache(themeColors) {
 }
 
 function getProfileName() {
+  // The mobile tier is unreachable while `desktopBackgroundQuery` gates the
+  // mount below - a coarse pointer or a sub-1024px viewport means no background
+  // at all now, not a cheaper one. The profile is kept because it is the tier
+  // this table would use again if that gate is ever widened.
   if (mobileDevice.matches || window.innerWidth <= 640) return "mobile";
   // The innerHeight test is deliberately skipped on touch devices: a URL bar
   // collapsing past 720px would otherwise flip the profile and trigger a full
@@ -321,6 +326,10 @@ function getProfileName() {
 
 function shouldEnableBackground() {
   if (reducedMotionQuery.matches) return false;
+  // Desktops and wider screens only. Phones and tablets get no plexus: the
+  // canvas stays hidden and any running field is torn down when the viewport
+  // crosses the threshold mid-session.
+  if (!desktopBackgroundQuery.matches) return false;
   if (window.innerWidth < 320 || window.innerHeight < 420) return false;
   return Boolean(
     window.requestAnimationFrame &&
@@ -1497,6 +1506,7 @@ export function initThreeBackground() {
   window.addEventListener("resize", syncThreeBackground, { passive: true });
   bindMediaQueryListener(reducedMotionQuery, syncThreeBackground);
   bindMediaQueryListener(compactViewportQuery, syncThreeBackground);
+  bindMediaQueryListener(desktopBackgroundQuery, syncThreeBackground);
   bindMediaQueryListener(mobileDevice, syncThreeBackground);
 }
 
