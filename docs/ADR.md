@@ -146,8 +146,8 @@ hashes before caching them.
 ### Why it was superseded
 The problem was removed rather than mitigated. With every asset self-hosted
 (ADR-016) there is no cross-origin resource to verify: `ALLOWED_ORIGINS` in
-`sw.js` is the empty set, and the CSP's `script-src` is `'self'` plus two pinned
-inline hashes. Maintaining SRI hashes for resources that no longer exist would
+`sw.js` is the empty set, and the CSP's `script-src` is `'self'` plus three
+pinned inline hashes. Maintaining SRI hashes for resources that no longer exist would
 be pure cost.
 
 ---
@@ -327,7 +327,7 @@ Self-host and subset the fonts (`scripts/vendor_fonts.py`); vendor DOMPurify and
 marked verbatim from the pinned npm packages.
 
 ### Consequences
-- `script-src` is `'self'` plus two pinned inline hashes; `font-src` is `'self'`.
+- `script-src` is `'self'` plus three pinned inline hashes; `font-src` is `'self'`.
 - The service worker's cross-origin allowlist is empty.
 - SRI verification became unnecessary (ADR-006 superseded).
 - Font and library updates are manual, committed steps rather than a version

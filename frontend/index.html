@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-6XuTA/BFxDvJqIm0o2k13VOhDx9nZ5JDPwYSgDaaFdQ='; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://staging-api.rjasti.com http://localhost:8000 http://127.0.0.1:8000 https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;" />
+    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-6XuTA/BFxDvJqIm0o2k13VOhDx9nZ5JDPwYSgDaaFdQ=' 'sha256-NBkhHa9X0mL2NpJraIg9aQSm6rJT6oEElI9g9KPP5co='; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://staging-api.rjasti.com http://localhost:8000 http://127.0.0.1:8000 https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="Rajeev Jasti" />
@@ -1657,6 +1657,74 @@
       </section>
 
     </main>
+
+    <!-- Pre-boot section router.
+
+         Routing is by fragment (`#resume`, `#activity`), and the fragment
+         never reaches the server: every URL is served this same document,
+         with #home carrying `active` in the markup. navigation.js fixes that
+         from the hash - but it arrives through main.js, a module, so it is
+         deferred by nature and does not run until DOMContentLoaded. Between
+         first paint and that call the browser showed the landing portrait on
+         every refresh of every other section, and it showed it fast: the
+         image is preloaded in <head> and carries fetchpriority="high"
+         because it is the LCP element of the page it does belong to.
+
+         So the swap happens here instead, in the same parse pass that built
+         the sections and well before any deferred script. It sets the same
+         `active` class the router sets, which is what keeps every layout
+         rule keyed on `.active` - #ai's height-locked shell, #about's grid -
+         applying to the first paint rather than to a second one.
+
+         `is-boot-target` suppresses the section entrance animation for this
+         one section: it is the page as loaded, not a transition into it, and
+         animating from opacity 0 would push LCP out by --motion-page for no
+         gain. navigation.js clears the marker on the first real navigation.
+
+         The header nav moves with it: its Home link carries `active` and
+         `aria-current="page"` in the markup too, and a highlighted Home above
+         someone else's section is the same bug one line up.
+
+         The target has to be a direct section child of <main>: the skip link
+         points at #main-content, and getElementById alone would happily
+         resolve that, or any other id in the page, into a "section" that
+         then matches nothing.
+
+         Inline, so it costs no request and cannot land late - which means its
+         sha256 is pinned in the CSP above. Editing even the indentation here
+         invalidates that hash and the browser drops the script silently;
+         `python scripts/check_csp_hashes.py` prints the value to paste back.
+         styles.css carries a :target guard for the same reason: if a slow
+         document paints before the parser reaches this point, home is hidden
+         rather than shown wrongly. -->
+    <script>
+      (function () {
+        var main = document.getElementById("main-content");
+        var home = document.getElementById("home");
+        if (!main || !home) return;
+
+        var id = (window.location.hash || "").replace(/^#/, "").trim();
+        if (!id || id === "home") return;
+
+        var next = document.getElementById(id);
+        if (!next || next.tagName !== "SECTION" || next.parentElement !== main) return;
+
+        home.classList.remove("active");
+        next.classList.add("active", "is-boot-target");
+
+        // The header marks Home `active` and `aria-current="page"` in the
+        // markup for the same reason #home does, and the mismatch is just as
+        // visible. Same selector and same pair of attributes as
+        // AppLogic.setActiveSection, so nothing moves when it runs.
+        var links = document.querySelectorAll("nav a[data-target]");
+        for (var i = 0; i < links.length; i++) {
+          var isActive = links[i].dataset.target === id;
+          links[i].classList.toggle("active", isActive);
+          if (isActive) links[i].setAttribute("aria-current", "page");
+          else links[i].removeAttribute("aria-current");
+        }
+      }());
+    </script>
 
     <!-- Chat Widget -->
     <div class="chat-widget js-only">

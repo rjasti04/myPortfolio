@@ -112,7 +112,7 @@ fire-and-forget tasks are awaited, and the SQLAlchemy engine is disposed.
 
 | Path | Role |
 | :--- | :--- |
-| `index.html` | The whole page. Meta CSP (with two `sha256-` pinned inline scripts), JSON-LD structured data, and eight sections: `home`, `about`, `resume`, `hobbies`, `apps`, `activity`, `contact`, `ai` |
+| `index.html` | The whole page. Meta CSP (with three `sha256-` pinned inline scripts), JSON-LD structured data, and eight sections: `home`, `about`, `resume`, `hobbies`, `apps`, `activity`, `contact`, `ai` |
 | `styles.css` | Global stylesheet, ~8.8k lines across 24 `#region` blocks. `grep -n '#region' frontend/styles.css` gives a live map |
 | `auth-modal.css` | Account modal, profile dropdown, password meter, 2FA and session UI |
 | `fonts.css`, `fonts/` | **Generated** by `scripts/vendor_fonts.py` — subset Plus Jakarta Sans + Font Awesome |
@@ -218,18 +218,23 @@ or `require_session_access` (analytics capability token) — before the handler.
    `js/theme-bootstrap.js` then replays any saved custom palette. `initTheme()`
    in `js/theme.js` must apply the identical rule or the theme visibly changes
    at `DOMContentLoaded`.
-2. **Deferred classic scripts** — `vendor/purify.min.js`, `vendor/marked.min.js`,
+2. **Pre-boot section routing** — an inline script straight after `</main>`
+   moves `active` from `#home` to the section the URL fragment names, so a
+   refresh on `#resume` never paints the landing portrait first. CSP-hashed,
+   like the theme bootstrap, and for the same reason: it has to beat the
+   deferred scripts below.
+3. **Deferred classic scripts** — `vendor/purify.min.js`, `vendor/marked.min.js`,
    `js/app-logic.js` (assigns `window.AppLogic`).
-3. **Module entries** — `js/auth-ui.js` and `js/main.js`, both `type="module"`.
+4. **Module entries** — `js/auth-ui.js` and `js/main.js`, both `type="module"`.
    These are the only two esbuild entry points.
-4. **`DOMContentLoaded`** — `main.js` initialises theme, navigation, contact
+5. **`DOMContentLoaded`** — `main.js` initialises theme, navigation, contact
    form, hero title, animations, tilt, terminal, analytics, skills carousel,
    ripple, scroll-to-top and the theme customizer.
-5. **Lazy modules** — `chat.js` loads on first interaction with the chat toggle
+6. **Lazy modules** — `chat.js` loads on first interaction with the chat toggle
    or the `#ai` section; `activity.js` on first interaction with `#activity`.
    Both use `AbortController` so the delegated document listeners are removed
    once the module has loaded.
-6. **Background layer** — on `requestIdleCallback`, and only on desktops and
+7. **Background layer** — on `requestIdleCallback`, and only on desktops and
    wider screens (`desktopBackground`: `(min-width: 1024px) and
    (pointer: fine)`), exactly one animated layer mounts: the full-viewport
    plexus (`three-bg.js`) when `hardwareConcurrency` and `deviceMemory` clear a
@@ -389,8 +394,8 @@ New dependencies need a real justification; two are vendored (DOMPurify, marked)
 and both have a degradation path.
 
 **Nothing third-party in the critical path.** Fonts are self-hosted and subset;
-libraries are vendored. The CSP's `script-src` is `'self'` plus two pinned inline
-hashes, and `style-src`/`font-src` are `'self'`.
+libraries are vendored. The CSP's `script-src` is `'self'` plus three pinned
+inline hashes, and `style-src`/`font-src` are `'self'`.
 
 **Output builders over `innerHTML`.** The terminal writes user-controlled
 strings through `textContent` (`js/terminal/output.js`), so escaping is

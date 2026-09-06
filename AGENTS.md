@@ -41,7 +41,7 @@ standing decision. Each is a recorded choice, not an oversight:
 | Not a goal | Why | Where it is decided |
 | :--- | :--- | :--- |
 | A frontend framework or component model | The vanilla ES-module tier is deliberate, and the long single initialisers in `chat.js` / `auth-ui.js` are its accepted cost | ADR-001 |
-| Any runtime third-party origin **in the SPA** | Self-hosted fonts, vendored DOMPurify and marked; `script-src` is `'self'` plus two pinned inline hashes, `object-src 'none'`, and the service worker's cross-origin allowlist is empty | ADR-016 |
+| Any runtime third-party origin **in the SPA** | Self-hosted fonts, vendored DOMPurify and marked; `script-src` is `'self'` plus three pinned inline hashes, `object-src 'none'`, and the service worker's cross-origin allowlist is empty | ADR-016 |
 | App-level auth on the API surface | Protection is the reverse proxy, security groups, CORS and trusted-proxy settings — do not design as if the API were internet-hardened | Environment Context above |
 | Horizontal scaling of the API as it stands | Rate limiting is in-memory and single-instance; shared-store rate limiting is *proposed*, not built | ADR-012 (Proposed) |
 | Client-chosen models, system prompts or token ceilings | The server owns the chat persona and its cost ceilings; the client sends messages, nothing more | ADR-023 |
@@ -64,9 +64,9 @@ these files the number here has to move with it.
 
 | File | Lines | ~Tokens | How to navigate instead |
 | :--- | ---: | ---: | :--- |
-| `frontend/styles.css` | 11,382 | ~82,500 | `grep -n '#region' frontend/styles.css` returns a 27-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
+| `frontend/styles.css` | 11,411 | ~83,000 | `grep -n '#region' frontend/styles.css` returns a 27-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
 | `package-lock.json` | 3,453 | ~32,500 | Never read. `package.json` lists every direct dep in 25 lines. |
-| `frontend/index.html` | 2,135 | ~33,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
+| `frontend/index.html` | 2,203 | ~34,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
 | `frontend/js/chat.js` | 1,851 | ~19,000 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (37 hits). |
 | `frontend/js/auth-ui.js` | 1,189 | ~14,500 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (10 hits). |
 | `frontend/three-bg.js` | 1,559 | ~14,000 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
@@ -82,7 +82,7 @@ takes over two minutes.
 
 Do not preload these. Each entry states its trigger.
 
-**These docs are also too big to read whole.** Together they are ~67,000
+**These docs are also too big to read whole.** Together they are ~67,500
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -101,7 +101,7 @@ whole doc only when you genuinely need all of it.
 | `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
 | `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
 | `docs/JAVASCRIPT.md` | ~10,000 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (37 module sections) |
-| `docs/FRONTEND.md` | ~8,500 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (19 headings) |
+| `docs/FRONTEND.md` | ~9,000 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (19 headings) |
 | `docs/CONFIGURATION.md` | ~3,500 | adding or interpreting an environment variable | `grep -n '^## '` (14 headings), or just grep the variable name |
 | `docs/SECURITY.md` | ~5,000 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (17 headings) |
 | `docs/OPERATIONS.md` | ~4,000 | changing CI/CD, diagnosing a deploy, or running a manual procedure | `grep -n '^#\{2,3\} '` (25 headings) |
