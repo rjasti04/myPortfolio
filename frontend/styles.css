@@ -560,6 +560,26 @@ body {
   line-height: var(--leading-body);
 }
 
+/* The browser's own pull-to-refresh, off - PullToRefresh in swipe-handler.js
+   replaces it on every page. It had to: the AI panel's shell blocks the native
+   gesture outright, so leaving it on elsewhere meant one spinner, threshold and
+   release on that page and a different set on every other. Scoped to
+   .js-enabled because without JS there is no replacement to fall back to, and
+   the browser's version is then the only one there is.
+
+   Root AND body. The spec propagates the ROOT element's overscroll-behavior to
+   the viewport; Chrome, whose own guidance for this is `body { overscroll-
+   behavior-y: contain }`, honours either. Declaring both costs one selector
+   and does not depend on which reading a browser took - the values agree, so
+   whichever one wins propagates the same thing.
+
+   -y alone. `contain` on both axes would also stop horizontal chaining, and
+   navigation.js binds swipe-to-navigate on phones. */
+.js-enabled,
+.js-enabled body {
+  overscroll-behavior-y: contain;
+}
+
 body.nav-open {
   overflow: hidden;
 }
@@ -6238,6 +6258,23 @@ a.app-tile:focus-visible .app-tile-cta i {
   display: flex !important;
 }
 
+/* Animated background: desktops and wider screens only.
+
+   `desktopBackground` in js/config.js - `(min-width: 1024px) and
+   (pointer: fine)` - is the real gate; both the full-viewport plexus
+   (#webgl-canvas) and the hero particle fallback (#particles-canvas) refuse to
+   mount below it. This mirrors the negation so a phone never paints the fixed
+   canvas at all: the element carries `.js-only` and is unhidden the moment
+   `.js-enabled` lands on <html>, which is well before the idle callback that
+   decides whether any background belongs here. Specificity matches the
+   `.js-enabled ... .js-only` rule above and this comes later, so it wins. */
+@media (width < 1024px), (pointer: coarse) {
+  .js-enabled .webgl-canvas.js-only,
+  #particles-canvas {
+    display: none !important;
+  }
+}
+
 /* The topic chips earn their keep on a wide contact layout, where they sit
    beside the form and cost nothing. On a phone held upright the column is
    already tall, and four full-width chips push the name/email/message fields
@@ -8810,9 +8847,14 @@ body.dark-theme .history-item:hover {
   color: var(--muted);
 }
 
+/* Same size as its label - both --text-2xs - and now the same weight too. At
+   700 against the label's 600 the figure read as the larger of the two even
+   though it never was: digits sit at cap height where "In / out" is mostly
+   x-height, and the extra weight compounded it. Colour carries the hierarchy
+   instead, which is the one axis that cannot be mistaken for size. */
 .ai-usage-value {
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: var(--tracking-wide);
   color: var(--text);
   /* The output total gains a digit mid-conversation and the average moves on
@@ -9814,73 +9856,6 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   text-align: center;
 }
 
-/* ── Pull-to-refresh indicator ──
-   The panel is height-locked and .ai-content-area contains its overscroll, so
-   the browser's own pull-to-refresh never fires here; PullToRefresh in
-   swipe-handler.js replaces it and this is what it moves. It lives in
-   .ai-main, not in the scroller - an absolute child of a scroll box scrolls
-   away with the content - and hangs one full height above the top of the
-   transcript, so a pull slides it out from behind the top bar.
-
-   The module writes two custom properties and nothing else: --ptr-travel, how
-   far the finger has dragged it, and --ptr-progress, 0-1 against the release
-   threshold. Progress doubles as the fade, which is why the resting state
-   needs no rule of its own - at 0 the indicator is transparent. */
-.ptr-indicator {
-  position: absolute;
-  top: var(--ai-topbar-h);
-  left: 0;
-  right: 0;
-  z-index: 5;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-  transform: translateY(calc(var(--ptr-travel, 0px) - 100%));
-  opacity: var(--ptr-progress, 0);
-}
-
-/* Only on the way back. During the drag the indicator has to track the finger
-   frame for frame, and a transition on transform lags it visibly. */
-.ptr-indicator.is-settling {
-  transition:
-    transform var(--motion-medium) var(--ease-standard),
-    opacity var(--motion-medium) var(--ease-standard);
-}
-
-.ptr-spinner {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  box-shadow: var(--elev-2);
-}
-
-/* The ring winds up with the pull and is already upright at the threshold, so
-   the release reads as a continuation rather than a state change. */
-.ptr-spinner::before {
-  content: "";
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid var(--accent-soft);
-  border-top-color: var(--accent-text);
-  transform: rotate(calc(var(--ptr-progress, 0) * 360deg));
-}
-
-.ptr-indicator.is-refreshing .ptr-spinner::before {
-  transform: none;
-  animation: ptr-spin 0.7s linear infinite;
-}
-
-@keyframes ptr-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* ── Streaming and typing ── */
 .streaming::after {
   content: '▋';
@@ -10086,8 +10061,18 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
      what fits beside the title and the toggle on a 375px screen. The 25px is
      the border plus the 11px gutters, and it buys nothing here - the top bar is
      already the container, which is the same argument .header-actions settled
-     for the header pill. */
-  .ai-topbar-model {
+     for the header pill.
+
+     The dark-theme branch is not redundant. A media query carries no
+     specificity of its own, so `.ai-topbar-model` here is 0-1-0 against the
+     0-2-0 of `body.dark-theme .ai-topbar-model` up in the base rules, and the
+     dark fill went on painting while the padding and border it was drawn to
+     sit behind were correctly removed. What that left on a dark phone was a
+     pill with no gutters: the name flush against its right edge and the status
+     dot's 3px halo hanging off its left. Matching the specificity is the fix -
+     shrinking the name would only make a smaller version of the same box. */
+  .ai-topbar-model,
+  body.dark-theme .ai-topbar-model {
     background: none;
     border: none;
     padding: 0;
@@ -10174,27 +10159,40 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
     margin-left: auto;
   }
 
-  /* Stacked rather than inline, which is what makes the pair fit: set label
-     beside value each stat is as wide as both, set label over value it is as
-     wide as the wider one - 169px for the two together against 256px inline.
-     Two 18px lines sit inside the 50px bar with room to spare, so this buys
-     the width out of height the portrait screen already has. `baseline` on the
-     row above still aligns the two labels with each other. */
+  /* Label beside value here as well, never stacked over it. What gives instead
+     is the row: the two stats sit side by side while they fit and drop onto
+     their own lines when they do not, so "In / out" and its figure stay
+     together either way.
+
+     The pair used to stack inside each stat - label over value - which fit the
+     bar (169px against 256px inline) but read as four items rather than two,
+     and put the figure on its own line looking like a heading over its own
+     caption. Wrapping spends the same height the portrait screen already has,
+     and spends it on the axis that keeps each pair intact: the widest single
+     stat is 149px at five-digit totals, against 298px for both inline, and
+     there is never less than ~195px here once the toggle and the chip have
+     taken theirs.
+
+     Zero row-gap and `align-content: center`: two 18px lines are 36px inside
+     the 50px bar, the same height the stacked version occupied. Without the
+     centring the default `stretch` pays the leftover 12px out between the two
+     lines instead, which pushes them onto the bar's top and bottom edges.
+
+     min-width lets the row actually shrink - without it `min-width: auto`
+     holds the strip at its content width and the model chip is what gets
+     pushed off the end instead. */
   .ai-usage {
-    gap: 14px;
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 0 12px;
+    min-width: 0;
   }
 
-  .ai-usage-stat {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0;
-  }
-
-  /* Only the token stat grows - the output total gains digits all conversation
-     and the label under it is fixed - so it is the only one allowed to shrink,
-     and it ellipsises rather than pushing the chip off the bar. Latency keeps
-     its intrinsic width; clipping "Avg latency" to buy 4px would be the worse
-     trade. */
+  /* The last valve, after the wrap above. Only the token stat grows - the
+     output total gains digits all conversation and the label beside it is
+     fixed - so it is the only one allowed to shrink, and it ellipsises rather
+     than pushing the chip off the bar. Latency keeps its intrinsic width;
+     clipping "Avg latency" to buy 4px would be the worse trade. */
   .ai-usage-stat:first-child {
     min-width: 0;
   }
@@ -10206,16 +10204,15 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
   }
 }
 
-/* Under ~375px the stacked pair plus the chip is still over budget by about
-   the width of one gap, so the gaps are what pay for it rather than any of the
-   three items. */
+/* Under ~375px the strip plus the chip is still over budget by about the width
+   of one gap, so the gap is what pays for it rather than any of the three
+   items. Only the one between the figures and the chip is left to give: the
+   strip's own column gap is already 12px from the block above, and it must not
+   be respecified here as the `gap` shorthand - that would reset the row gap
+   the wrapped lines depend on being zero. */
 @media (width <=400px) {
   .ai-topbar-meta {
     gap: 8px;
-  }
-
-  .ai-usage {
-    gap: 12px;
   }
 }
 
@@ -10242,10 +10239,103 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
 
 /* #endregion */
 
+/* #region PULL-TO-REFRESH ---------------------------------------------*/
+/* ── Pull-to-refresh indicator ──
+   Site-wide, and the only pull-to-refresh here: the browser's own is off (see
+   the `overscroll-behavior-y` rule in the BASE region) so that the gesture
+   does not read one way on the AI page and another everywhere else.
+
+   Two instances, two placements, one look. On the AI page the panel is
+   height-locked and .ai-content-area contains its overscroll, so nothing the
+   browser offers could fire there anyway; the indicator lives in .ai-main
+   rather than in the scroller - an absolute child of a scroll box scrolls away
+   with the content - and hangs one full height above the top of the
+   transcript, so a pull slides it out from behind the top bar. Everywhere else
+   the document is the scroller, and the indicator is fixed under the header
+   instead; see the modifier below.
+
+   The module writes two custom properties and nothing else: --ptr-travel, how
+   far the finger has dragged it, and --ptr-progress, 0-1 against the release
+   threshold. Progress doubles as the fade, which is why the resting state
+   needs no rule of its own - at 0 the indicator is transparent. */
+.ptr-indicator {
+  position: absolute;
+  top: var(--ai-topbar-h);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  transform: translateY(calc(var(--ptr-travel, 0px) - 100%));
+  opacity: var(--ptr-progress, 0);
+}
+
+/* ── The document instance ──
+   Fixed, because its scroller is the viewport: there is no positioned parent
+   to hang it on and nothing for it to scroll away from. It parks just below
+   the resting header - the gesture only exists at the top of the page, where
+   the pill is its full --header-height and has not yet shrunk to 56px - and at
+   z-index 900 against the header's 1000, so it emerges from behind the pill
+   the same way the AI one emerges from behind the top bar.
+
+   Both properties are overridden, so the modifier is written at two classes to
+   win on specificity rather than on source order alone. */
+.ptr-indicator.ptr-indicator--viewport {
+  position: fixed;
+  top: calc(var(--header-sticky-offset, 16px) + var(--header-height, 72px) + 8px);
+  z-index: 900;
+}
+
+/* Only on the way back. During the drag the indicator has to track the finger
+   frame for frame, and a transition on transform lags it visibly. */
+.ptr-indicator.is-settling {
+  transition:
+    transform var(--motion-medium) var(--ease-standard),
+    opacity var(--motion-medium) var(--ease-standard);
+}
+
+.ptr-spinner {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  box-shadow: var(--elev-2);
+}
+
+/* The ring winds up with the pull and is already upright at the threshold, so
+   the release reads as a continuation rather than a state change. */
+.ptr-spinner::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent-text);
+  transform: rotate(calc(var(--ptr-progress, 0) * 360deg));
+}
+
+.ptr-indicator.is-refreshing .ptr-spinner::before {
+  transform: none;
+  animation: ptr-spin 0.7s linear infinite;
+}
+
+@keyframes ptr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* #endregion */
+
 /* #region OVERLAYS, RIPPLE & SCROLL-TO-TOP ----------------------------*/
 /* Chat Error Boundary */
 .chat-error-boundary {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   background: var(--accent-soft);
@@ -10256,14 +10346,35 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
   font-size: var(--text-body-sm);
 }
 
+/* The sentence asks for a measure before it asks for a row. Held on one line
+   with the button beside it, a 360px card gave the text 128px - five lines of
+   two or three words each, next to a button with room to spare. The basis is
+   the floor it will not wrap below: under it the button drops to its own line
+   (still trailing, on `margin-left: auto`) and the prose gets the full width
+   back. Above it - the widget on a laptop, the AI panel at any size - nothing
+   moves and the card is the single row it always was. */
+.chat-error-boundary span {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
 .chat-error-boundary i {
   color: var(--color-error);
 }
 
+/* `flex-shrink: 0` is load-bearing, not defensive. `.btn` carries
+   `overflow: hidden` for the ripple, and a flex item whose overflow is
+   anything but `visible` loses its automatic minimum size - `min-width: auto`
+   resolves to 0 instead of min-content. So the sentence beside it squeezed the
+   button to 42px of an 82px label on a 360px phone and the ripple's own clip
+   cut "Retry" off mid-word, with no ellipsis to say it had happened. The prose
+   is what should wrap here; the control keeps its width. */
 .chat-error-boundary .retry-btn {
   margin-left: auto;
+  flex-shrink: 0;
   padding: 6px 12px;
   font-size: var(--text-xs);
+  white-space: nowrap;
 }
 
 /* Keyboard Shortcuts Overlay */

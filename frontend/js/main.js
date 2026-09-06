@@ -43,6 +43,7 @@ import { initRipple } from "./ripple.js";
 import { initScrollToTop } from "./scroll-to-top.js";
 import { initThemeCustomizer } from "./theme-customizer.js";
 import { initParticles } from "./particles-config.js";
+import { desktopBackground } from "./config.js";
 import { PullToRefresh } from "./swipe-handler.js";
 
 // Lazy-load chat module on first interaction
@@ -98,15 +99,32 @@ document.addEventListener("DOMContentLoaded", () => {
   initScrollToTop();
   initThemeCustomizer();
 
-  // The AI panel is a height-locked shell, so the browser's own
-  // pull-to-refresh never reaches it - see PullToRefresh for why. Give the
-  // gesture back on the one element there that actually scrolls. Wired here
-  // rather than in chat.js because that module is lazy: a visitor landing on
-  // /#ai can pull before their first click has loaded it.
+  // Pull-to-refresh, one implementation for the whole site.
+  //
+  // The AI panel is a height-locked shell, so the browser's own gesture never
+  // reaches it - see PullToRefresh for why - and it used to be the only page
+  // with this indicator. Every other section scrolled the document and got
+  // Chrome's native version instead: a different spinner, a different
+  // threshold, and nothing at all in an installed PWA. Two instances of the
+  // same class now cover both, so the pull reads identically wherever it
+  // starts, and styles.css turns the native one off for `.js-enabled` so the
+  // two can never both fire.
+  //
+  // Order matters. The AI scroller marks itself `[data-ptr-scroller]` in its
+  // constructor and the document instance skips any touch that starts inside
+  // one, so the nested scroller has to exist first.
+  //
+  // Wired here rather than in chat.js because that module is lazy: a visitor
+  // landing on /#ai can pull before their first click has loaded it.
   const aiScroller = document.querySelector('#ai .ai-content-area');
   if (aiScroller) {
     new PullToRefresh(aiScroller, () => window.location.reload());
   }
+
+  // scrollingElement is <html> in every browser that has shipped this decade;
+  // the fallback is for anything that has not, jsdom included.
+  const pageScroller = document.scrollingElement || document.documentElement;
+  new PullToRefresh(pageScroller, () => window.location.reload());
 
   // Lazy-load chat on first interaction with chat widget or AI section
   const chatToggle = document.getElementById('chat-toggle-btn');
@@ -178,21 +196,25 @@ document.addEventListener("DOMContentLoaded", () => {
     ensureActivityForActiveSection();
   }
 
-  // Animated background — exactly one layer, chosen by device capability.
+  // Animated background — desktop only, and then exactly one layer.
   //
   // The full-viewport plexus (three-bg.js) and the hero particle layer render
   // the same effect: drifting nodes joined by proximity lines. Both used to be
   // mounted unconditionally, stacking two independently animated canvases over
-  // the hero. The plexus is the richer of the two, so it takes capable devices
-  // and the hero layer becomes the cheap fallback for everything else.
+  // the hero. The plexus is the richer of the two, so it takes capable desktops
+  // and the hero layer becomes the cheap fallback for the rest.
+  //
+  // Neither runs on phones or tablets: `desktopBackground` requires a fine
+  // pointer and a >=1024px viewport, so a coarse-pointer device gets a plain
+  // gradient and never pays for a second animated canvas. styles.css hides both
+  // canvases under the same condition.
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let destroyHeroParticles = null;
 
   const canAffordPlexus = () => {
     const cores = navigator.hardwareConcurrency || 4;
     const memory = navigator.deviceMemory || 4;
-    const isMobileViewport = window.matchMedia('(pointer: coarse) and (max-width: 768px)').matches;
-    return (isMobileViewport ? cores >= 4 : cores >= 2) && memory >= 3;
+    return cores >= 2 && memory >= 3;
   };
 
   const mountHeroParticles = () => {
@@ -200,7 +222,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // section's two-column terminal layout; #home took over as the landing
     // view and brought its own `.home-hero`. Querying `.hero` alone mounted
     // the whole fallback field inside a `display: none` section, so every
-    // device that failed canAffordPlexus() - the mid-range phones this tier
+    // device that failed canAffordPlexus() - the low-core desktops this tier
     // exists for - opened on a bare gradient and never saw a background at
     // all. The container is `position: absolute; inset: 0`, so it needs a
     // positioned ancestor either way; both hosts get one below.
@@ -224,6 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const loadBackground = () => {
     if (reducedMotion.matches) return;
+    if (!desktopBackground.matches) return;
 
     if (canAffordPlexus()) {
       // three-bg.js mounts itself on import and manages its own reduced-motion
@@ -241,6 +264,20 @@ document.addEventListener("DOMContentLoaded", () => {
   // Reduced motion can be toggled mid-session; tear the fallback down when it is.
   reducedMotion.addEventListener('change', () => {
     if (!reducedMotion.matches) return;
+    destroyHeroParticles?.();
+    destroyHeroParticles = null;
+  });
+
+  // The desktop threshold is crossed mid-session too - a window resized down, a
+  // tablet docked to a mouse. Tear the fallback down on the way out and mount on
+  // the way in; three-bg.js listens for the same query and owns its own canvas,
+  // but it is only imported from here, so the first crossing has to trigger that
+  // import as well.
+  desktopBackground.addEventListener('change', () => {
+    if (desktopBackground.matches) {
+      loadBackground();
+      return;
+    }
     destroyHeroParticles?.();
     destroyHeroParticles = null;
   });

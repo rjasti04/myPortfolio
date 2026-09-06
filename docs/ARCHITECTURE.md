@@ -119,7 +119,7 @@ fire-and-forget tasks are awaited, and the SQLAlchemy engine is disposed.
 | `sw.js` | Service worker: precache install, network-first for documents, stale-while-revalidate for hashed assets, API responses never cached |
 | `manifest.json` | PWA metadata (`standalone`, dark splash background, amber `theme_color`, two icons) |
 | `.htaccess` | Apache canonical-URL rewrites (extensionless paths, apex host), compression, cache headers (immutable for hashed assets), security headers |
-| `three-bg.js` | Full-viewport animated plexus background — plain 2D canvas despite the name |
+| `three-bg.js` | Full-viewport animated plexus background, desktop-only — plain 2D canvas despite the name |
 | `js/` | ES modules; see [`JAVASCRIPT.md`](JAVASCRIPT.md) |
 | `js/terminal/` | The command prompt, split into data (`registry`), DOM builders (`output`), `history`, `keymap`, `palette` and the `index` that owns all wiring |
 | `vendor/` | DOMPurify + marked, copied verbatim from the npm packages pinned in `package.json` |
@@ -229,10 +229,13 @@ or `require_session_access` (analytics capability token) — before the handler.
    or the `#ai` section; `activity.js` on first interaction with `#activity`.
    Both use `AbortController` so the delegated document listeners are removed
    once the module has loaded.
-6. **Background layer** — on `requestIdleCallback`, exactly one animated layer
-   mounts: the full-viewport plexus (`three-bg.js`) when
-   `hardwareConcurrency` and `deviceMemory` clear a threshold, otherwise the
-   cheaper hero particle field (`js/particles-config.js`). Neither mounts under
+6. **Background layer** — on `requestIdleCallback`, and only on desktops and
+   wider screens (`desktopBackground`: `(min-width: 1024px) and
+   (pointer: fine)`), exactly one animated layer mounts: the full-viewport
+   plexus (`three-bg.js`) when `hardwareConcurrency` and `deviceMemory` clear a
+   threshold, otherwise the cheaper hero particle field
+   (`js/particles-config.js`). Phones and tablets get the plain gradient and
+   never fetch the plexus chunk. Neither mounts under
    `prefers-reduced-motion`.
 7. **Service worker** — registered on `load`, then `registration.update()` every
    60s. A waiting worker surfaces an update banner; only the banner's button
