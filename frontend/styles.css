@@ -1261,9 +1261,145 @@ body:not(.dark-theme) .token-number {
   text-transform: uppercase;
 }
 
+.customizer-presets-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Wraps now, because the row holds three built-in chips plus however many the
+   visitor has saved. `flex: 1` on the built-ins still splits the first line
+   into equal thirds when nothing is saved, which is the common case. */
 .preset-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ── A saved theme ──
+   Two controls in one pill: the name applies it, the cross deletes it. They
+   are separate buttons because a button inside a button is invalid markup and
+   because each genuinely needs its own accessible name. The pair is welded
+   into one shape by dropping the border radius where they meet. */
+.theme-chip {
+  display: inline-flex;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.theme-chip-apply {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0 12px 12px 0;
+  background: var(--skill-bg);
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease-standard),
+    background-color 0.2s var(--ease-standard),
+    color 0.2s var(--ease-standard);
+}
+
+/* Deleting is the destructive half of the pill, so it is the half that turns
+   red - and only on approach, so the row is not a wall of warning colour. */
+.theme-chip-remove:hover,
+.theme-chip-remove:focus-visible {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: var(--on-accent-inverse);
+}
+
+.theme-chip-remove:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ── Naming a theme ──
+   Replaces a `prompt()`: it can be styled, cancelled with Escape, and read out
+   with the rest of the panel. Hidden with the `hidden` attribute rather than a
+   class so it is removed from the accessibility tree when it is not in use. */
+.theme-save-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.theme-save-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-xs);
+}
+
+.theme-save-name:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.theme-save-confirm,
+.theme-save-cancel {
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--skill-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease-standard),
+    background-color 0.2s var(--ease-standard),
+    color 0.2s var(--ease-standard);
+}
+
+.theme-save-confirm {
+  padding: 6px 12px;
+}
+
+.theme-save-cancel {
+  width: 32px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.theme-save-confirm:hover,
+.theme-save-confirm:focus-visible,
+.theme-save-cancel:hover,
+.theme-save-cancel:focus-visible {
+  border-color: var(--accent-mild);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.theme-save-confirm:focus-visible,
+.theme-save-cancel:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .preset-btn {
@@ -2824,10 +2960,37 @@ body.dark-theme .home-portrait picture {
   white-space: nowrap;
 }
 
+/* ── The action, not a route ──
+   Same 44px disc as its siblings so the row keeps one rhythm, but muted rather
+   than accent-outlined: everything else in the row goes somewhere, and this
+   one only changes how the page looks. Reading as slightly quieter than the
+   links is the point, not an oversight. */
+.home-social--action {
+  border-color: var(--border);
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.home-social--action:hover {
+  border-color: var(--accent-mild);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  box-shadow: none;
+}
+
+/* The wand turns on the press. The blanket prefers-reduced-motion rule in the
+   ACCESSIBILITY region caps every animation at 0.001ms, so no guard here. */
+.home-social--action:active i {
+  animation: customizer-shuffle-spin 0.4s var(--ease-standard);
+}
+
 /* Splits the row by destination: in-site routes to the left of it, the two
-   profiles that leave the site to the right. Four identical circles gave a
-   sighted pointer user nothing to tell those apart - the `aria-label`s always
-   did, which is why the row read as finished. */
+   profiles that leave the site to the right, and past a second one of these,
+   the shuffle - which is not a destination at all. Four identical circles gave
+   a sighted pointer user nothing to tell those apart - the `aria-label`s
+   always did, which is why the row read as finished. */
 .home-socials-divider {
   align-self: center;
   width: 1px;
@@ -6400,6 +6563,19 @@ a.app-tile:focus-visible .app-tile-cta i {
 .js-enabled #theme-toggle.js-only,
 .js-enabled #palette-toggle.js-only {
   display: flex !important;
+}
+
+/* The landing view's shuffle, and the hairline that sets it apart from the
+   profile links. Both carry `js-only` because the button does nothing without
+   JS - and a divider with nothing after it is just a stray line, so the two
+   have to appear and disappear together. The first divider in that row is not
+   `js-only` and keeps showing either way. */
+.js-enabled #home-theme-shuffle.js-only {
+  display: inline-flex !important;
+}
+
+.js-enabled .home-socials-divider.js-only {
+  display: block !important;
 }
 
 /* Animated background: desktops and wider screens only.

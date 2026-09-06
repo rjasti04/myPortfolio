@@ -44,7 +44,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (358 lines)
+### `main.js` (359 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -509,7 +509,7 @@ so callers (the command prompt) need not synthesise a click on `#theme-toggle`.
 Updates the `theme-color` meta from the **computed** `--accent-fill`, so a
 custom accent is reflected in the browser chrome.
 
-### `theme-customizer.js` (641 lines)
+### `theme-customizer.js` (953 lines)
 
 `initThemeCustomizer()`, `reapplyCustomTheme(isDark)`, `randomPalette(hex)`.
 Derives a full palette from one hex accent (`hexToHsl`, `generateVariants`),
@@ -517,7 +517,33 @@ checks contrast (`getLuminance`, `getContrast`) before applying, writes CSS
 custom properties onto `document.body`, and persists to
 `localStorage.rj_theme_palette`. `clearCustomPalette()` restores the defaults.
 
-`randomPalette(currentPrimaryHex)` backs the panel's **Randomize** button and is
+`initHomeThemeShuffle()` wires the wand in the landing view's `.home-socials`
+row. It calls `applyRandomTheme()`, which rolls, derives and paints **without
+persisting** — a visitor who presses it out of curiosity gets the real palette
+back by reloading rather than hunting for Reset in a header dropdown. It is a
+separate initialiser from `initThemeCustomizer()` because that one bails early
+when its dropdown is absent, and that must not take the home button with it.
+
+The unsaved roll lives in one module-level `unsavedRawPalette`, and three
+things have to agree about it. The home button sets it. `loadDefaults()` reads
+it *before* localStorage, so opening the panel after a roll shows the roll —
+otherwise Apply would save colours the visitor never saw. And
+`reapplyCustomTheme` prefers it, so flipping light/dark re-derives the roll
+instead of destroying it. Apply, Reset, and closing the panel without applying
+all clear it; that last one is deliberate — everything the panel shows is a
+preview, and closing without Apply is how a visitor declines all of them.
+
+`readThemeLibrary()`, `saveTheme(name, raw)`, `deleteTheme(id)` and the
+`THEME_LIBRARY_LIMIT` / `THEME_NAME_MAX` bounds are the saved-theme library,
+kept in `localStorage.rj_theme_library` with no account behind it: the site's
+auth exists for the owner's dashboard, so gating this behind a login would hide
+it from everyone who actually uses the page. `readThemeLibrary` never throws —
+it is called on every panel open, and a hand-edited value has to read as an
+empty list rather than take the customiser down. Saving under an existing name
+overwrites it rather than adding a second chip. Covered by
+`theme-library.test.js`.
+
+`randomPalette(currentPrimaryHex)` backs both shuffles and is
 exported because it is the one piece here worth testing on its own
 (`theme-randomizer.test.js`). It is deliberately not uniform random: three
 independent hues read as noise, and a colour outside a narrow

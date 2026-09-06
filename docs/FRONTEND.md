@@ -200,19 +200,39 @@ chosen against measured contrast rather than a fixed offset — 5.78:1 and
 6.02:1 on `--bg` in light, 12.34:1 and 8.11:1 in dark. `.hero-kicker` renders
 `--secondary-text` at body size, so that is AA for normal text.
 
-The panel offers three ways in, all of which are **previews** until Apply — a
+The panel offers four ways in, all of which are **previews** until Apply — a
 MutationObserver restores the saved palette if it closes without one. Three
-terminal presets, a hex field per control, and a **Randomize** button that rolls
-all three at once. The randomiser is constrained rather than uniform: full-range
-random produces colours the variant generator cannot derive a usable light *and*
-dark set from, and three independent hues do not read as a palette. See
-the `randomPalette` entry in [JAVASCRIPT.md](JAVASCRIPT.md) for the bands and
-the harmonies.
+built-in terminal presets, the visitor's own saved themes, a hex field per
+control, and a **Randomize** button that rolls all three at once. The
+randomiser is constrained rather than uniform: full-range random produces
+colours the variant generator cannot derive a usable light *and* dark set from,
+and three independent hues do not read as a palette. See the `randomPalette`
+entry in [JAVASCRIPT.md](JAVASCRIPT.md) for the bands and the harmonies.
+
+There is a **second shuffle** in the landing view's `.home-socials` row, past a
+hairline of its own. That row groups by destination — in-site routes, then
+outbound profiles — and a shuffle is not a destination, so it gets its own
+group rather than passing as a fourth route. Its roll is **not persisted**:
+colours change instantly and survive navigation and a light/dark flip, but a
+reload restores whatever was saved. That asymmetry is the point. A recruiter
+who presses it out of curiosity has a free undo, and keeping a roll is a
+deliberate second act — open the panel, where the controls are already filled
+with what is on screen, and press Apply.
+
+**Saved themes** are named palettes in `localStorage.rj_theme_library`, up to
+12, available to every visitor with no account. The site has a full JWT/2FA
+system, but per [AGENTS.md](../AGENTS.md) it exists for the owner's dashboard
+rather than external users, so gating a theme library behind a login would hide
+it from everyone who actually browses the page. Cookies would be the wrong
+mechanism regardless: they ride along on every request for every asset and cap
+at ~4KB. The honest cost of the local-only choice is worth stating — saved
+themes live in one browser, and clearing site data takes them with it.
 
 | Storage key | Holds |
 | :--- | :--- |
 | `theme` | `"dark"` or `"light"` — an explicit user choice |
 | `rj_theme_palette` | `{light: {...}, dark: {...}}` custom accent palette |
+| `rj_theme_library` | Up to 12 `{id, name, raw}` themes the visitor saved and named |
 
 ---
 
