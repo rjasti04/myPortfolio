@@ -6932,11 +6932,6 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
   background: var(--accent-hover);
 }
 
-.chat-mic-btn.listening {
-  background: var(--color-error, #ff4d4d) !important;
-  color: #fff !important;
-}
-
 .chat-send-btn:disabled {
   background: var(--accent-mild);
   cursor: not-allowed;
@@ -9613,26 +9608,28 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
 
    The mic keeps no disc of its own, so the GLYPH has to hold the line the
    send button holds with its circle. At the shared --text-sm it inked 15px
-   against Send's 44px control and read as the smaller, lesser action; sized
-   to the touch target it finishes on the same height, and the pair scans as
-   two controls of one size rather than an icon beside a button.
+   against Send's 44px control and read as the smaller, lesser action.
 
-   fa-microphone inks ~1.02x its font-size, so the size is stepped back by
-   that much to land the glyph exactly on the circle's diameter rather than a
-   pixel past it. line-height keeps the line box inside the 44px button, so
-   none of this moves the composer's height. */
+   Sized to the full touch target it overcorrected: the glyph inked the whole
+   44px and towered over Send's arrow, which is only the ~15px icon inside a
+   44px disc. The 0.75 factor takes it back a quarter, so the mic reads as a
+   peer of the send BUTTON without out-inking the send ARROW. The button box
+   stays 44px, so nothing here moves the composer's height or its hit area.
+
+   fa-microphone inks ~1.02x its font-size, which is why the base figure is
+   stepped back by that much before the 0.75. */
 .ai-mic-btn {
   background: transparent;
   color: var(--muted);
-  font-size: calc(var(--min-touch-target) / 1.023);
+  font-size: calc(var(--min-touch-target) / 1.023 * 0.75);
   line-height: 1;
 }
 
-/* Both states used to fill the button's circle behind the glyph. At the size
-   above they cannot: the circle is narrower than the mic's base bar where the
-   bar sits, so the fill cut across the glyph top and bottom instead of
-   framing it. Colour carries them now - which is what the rule above asks for
-   anyway, since the one filled control here is Send. */
+/* Hover used to fill the button's circle behind the glyph, and could not: the
+   circle is narrower than the mic's base bar where that bar sits, so the fill
+   cut across the glyph top and bottom instead of framing it. Colour carries
+   the state instead - which is what the rule above asks for anyway, since the
+   one filled control here is Send. */
 .ai-mic-btn:hover:not(:disabled) {
   color: var(--accent-text);
 }
@@ -9653,8 +9650,155 @@ body.dark-theme #ai .chat-message.bot code:not(pre code) {
   cursor: not-allowed;
 }
 
-.ai-mic-btn.listening {
+/* ── Voice capture bar ──
+   One treatment, both composers: the widget's .chat-input-area and the AI
+   page's .ai-input-form. While speech recognition is live the composer's own
+   controls stay in the box - they are what holds its height, so nothing
+   jumps - and this bar paints over them with what the mode needs instead: a
+   cancel, a running waveform, stop, and send. It is also why the mic itself
+   carries no recording state any more; anything painted on that button would
+   sit under this bar for the whole of the mode.
+
+   It is absolutely positioned against the form rather than swapped in as a
+   sibling, which is what lets one rule serve two composers of different
+   widths and paddings: `inset: 0` takes whatever box it lands in, and
+   `border-radius: inherit` takes that box's corners. */
+.chat-input-area,
+.ai-input-form {
+  position: relative;
+}
+
+.voice-bar {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 8px;
+  border-radius: inherit;
+  background: var(--surface);
+}
+
+/* `display: flex` above out-specifies the UA's `[hidden] { display: none }`. */
+.voice-bar[hidden] {
+  display: none;
+}
+
+/* visibility, not display: the covered textarea and action row still lay the
+   composer out underneath, which is exactly what keeps the bar the size of
+   the box it replaces. Hidden visibility also takes them out of the tab order
+   and the a11y tree, so the bar's own four controls are the only ones a
+   keyboard or a screen reader can reach while recording. */
+.chat-input-area.is-recording > :not(.voice-bar),
+.ai-input-form.is-recording > :not(.voice-bar) {
+  visibility: hidden;
+}
+
+.voice-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.voice-btn:hover {
+  transform: scale(1.06);
+}
+
+/* Matching the outline convention the composer's other controls take from the
+   focus-visible list in the ACCESSIBILITY region. */
+.voice-btn:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Cancel throws the transcript away, so it stays bare - no disc, no fill -
+   and only warms to the error colour on hover. Stop is the ordinary way out
+   of recording and takes a neutral disc; send keeps the accent fill it
+   already has in the resting composer, so the same action looks the same in
+   both modes. */
+.voice-cancel-btn {
+  font-size: var(--text-lg);
+}
+
+.voice-cancel-btn:hover {
   color: var(--color-error);
+}
+
+.voice-stop-btn {
+  background: var(--border);
+}
+
+.voice-send-btn {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+
+.voice-send-btn:hover {
+  background: var(--accent-hover);
+}
+
+/* The bars are built by chat.js, which counts them off this row's width and
+   writes two custom properties per bar and nothing else: --i, its index, which
+   staggers the start so the pulse travels along the row instead of flashing as
+   one block, and --h, its own peak height, which keeps the row from reading as
+   a machine-perfect comb. The 4px bar and 3px gap here are the geometry that
+   count is measured against - VOICE_BAR_PITCH in chat.js is their sum. */
+.voice-wave {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 22px;
+  overflow: hidden;
+}
+
+.voice-wave span {
+  flex: 0 0 4px;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--muted);
+  transform: scaleY(0.25);
+  animation: voice-wave-pulse 1s var(--ease-standard) infinite;
+  /* Negative, so every bar is already mid-cycle on the first painted frame.
+     A positive delay would have the row light up left-to-right over as many
+     seconds as it has bars, which reads as a loading sweep, not a live mic. */
+  animation-delay: calc(var(--i, 0) * -55ms);
+}
+
+@keyframes voice-wave-pulse {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+
+  50% {
+    transform: scaleY(var(--h, 1));
+  }
+}
+
+/* The blanket reduced-motion rule stops the pulse mid-flight and would leave
+   a row of quarter-height stubs that reads as nothing at all. The bars hold
+   their own profile instead: still a waveform, just not a moving one. */
+@media (prefers-reduced-motion: reduce) {
+  .voice-wave span {
+    transform: scaleY(calc(var(--h, 1) * 0.8));
+  }
 }
 
 /* Legal small print, and the only line on the page a visitor is entitled to
