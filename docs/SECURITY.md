@@ -265,7 +265,7 @@ Two policies apply.
 **Page-level** (`<meta>` in `index.html`) — see
 [`FRONTEND.md`](FRONTEND.md#content-security-policy) for the full text.
 Highlights: `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`,
-`form-action https://formsubmit.co`, `script-src 'self'` plus two `sha256-`
+`form-action https://formsubmit.co`, `script-src 'self'` plus three `sha256-`
 pinned inline scripts, `font-src 'self'`.
 
 **Server-level** (`.htaccess`) — `Content-Security-Policy: frame-ancestors

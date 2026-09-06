@@ -27,7 +27,7 @@ libraries and the build output. For the ES modules themselves see
    syntax in source. `frontend/` is plain files a browser can serve directly.
 2. **No third-party origin in the critical path.** Fonts are self-hosted and
    subset; DOMPurify and marked are vendored. The CSP's `script-src` is
-   `'self'` plus two pinned inline hashes.
+   `'self'` plus three pinned inline hashes.
 3. **`frontend/` is the source of truth and stays runnable standalone.** The
    build reads from it and never writes back.
 4. **Degrade, don't fail.** Every backend-dependent feature is wrapped so an
@@ -53,8 +53,29 @@ shown and hidden by class rather than fetched:
 | `contact` | Contact form, prompt chips, copy-email control |
 | `ai` | Full-page AI chat with a conversation sidebar |
 
-`home` carries `class="active"` in the markup so the first paint is correct
-before any JavaScript runs.
+`home` carries `class="active"` in the markup, which is the right first paint
+for the root URL and the wrong one for every deep link: the fragment never
+reaches the server, so `/#resume` is served this same document. An inline
+**pre-boot section router** immediately after `</main>` moves the class to the
+section the fragment names, in the same parse pass that built the sections and
+long before `js/navigation.js` arrives (through `main.js`, a module, so not
+until `DOMContentLoaded`). Without it every refresh away from home painted the
+landing portrait first — the LCP image of the page it belongs to, preloaded and
+`fetchpriority="high"`, so it arrived fast and the wrong content was what a
+visitor saw. It sets the same class the router sets, so `#ai`'s height-locked
+shell and `#about`'s grid apply to the first paint rather than to a second one,
+and it marks its section `is-boot-target` to suppress the entrance animation —
+that section is the page as loaded, not a transition into it.
+
+Two guards sit either side of it. The target must be a direct `<section>` child
+of `<main>`, so the skip link's `#main-content` or a stale bookmark falls back
+to home exactly as `getValidHashTarget` would; and styles.css hides
+`#home.active` while a `section:target` says otherwise, covering the case where
+a slowly streaming document paints before the parser reaches the script. That
+CSS guard is scoped to `:not(.nav-ready)` — `navigation.js` adds `nav-ready`
+once it owns the router, because `history.pushState` leaves `:target` stale in
+some browsers and a stale match would hide the section the router had just
+activated.
 
 The section list is duplicated in four places that have to move together: the
 `<section>` markup, the header nav rows above it (their order also sets the
@@ -69,7 +90,8 @@ links → `js-enabled` marker script → preloads (`profile-cutout-380.webp`,
 `styles.css`) → stylesheets (`styles.css`, `auth-modal.css`, `fonts.css`) →
 two font preloads.
 
-**Body tail, in order:**
+**Body tail, in order:** the pre-boot section router runs first, inline and
+parser-blocking, straight after `</main>`; then the deferred set.
 
 ```html
 <script defer src="vendor/purify.min.js"></script>
@@ -97,7 +119,8 @@ base-uri 'self';
 object-src 'none';
 form-action https://formsubmit.co;
 script-src 'self' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI='
-                  'sha256-xQj/yp5+mHgSmC/IFw1oam/lHOJe6+eJ6Zlhzs7vQPE=';
+                  'sha256-6XuTA/BFxDvJqIm0o2k13VOhDx9nZ5JDPwYSgDaaFdQ='
+                  'sha256-NBkhHa9X0mL2NpJraIg9aQSm6rJT6oEElI9g9KPP5co=';
 style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline';
 font-src 'self';
 img-src 'self' data: https:;
@@ -114,16 +137,21 @@ canvas).
 > `dns-prefetch` hints, but no shipped module calls either. They are vestigial
 > and can be removed when someone is confident nothing depends on them.
 
-### The two pinned inline scripts
+### The three pinned inline scripts
 
 1. **`document.documentElement.classList.add("js-enabled")`** — the CSS hook
    that reveals JS-only affordances.
 2. **The theme bootstrap** — reads `localStorage.theme`, falls back to
    `prefers-color-scheme`, and applies `.dark-theme` before first paint.
+3. **The pre-boot section router** — sits immediately after `</main>` and moves
+   the `active` class from `#home` to the section the fragment names, so a
+   refresh on `#resume` paints the resume rather than the landing portrait.
+   See [`index.html`](#indexhtml) above.
 
-**Editing either — even reindenting — invalidates its hash, and the browser then
-refuses to run it silently.** For the theme bootstrap the only symptom is the
-flash-of-wrong-theme it exists to prevent, with nothing in the console.
+**Editing any of them — even reindenting — invalidates its hash, and the browser
+then refuses to run it silently.** For the theme bootstrap the only symptom is
+the flash-of-wrong-theme it exists to prevent, with nothing in the console; for
+the pre-boot router it is the portrait flash coming back.
 
 Two guards exist:
 

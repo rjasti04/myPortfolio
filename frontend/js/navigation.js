@@ -74,8 +74,24 @@ function closeTransientUi() {
   closeAllDropdowns();
 }
 
+/**
+ * Retires the pre-boot router's marker.
+ *
+ * The inline script in index.html marks the section it activated
+ * `is-boot-target`, which suppresses the entrance animation - that section is
+ * the page as loaded, not a transition into it. The marker has to outlive this
+ * module's own first sync, which re-applies the very same target, and die on
+ * the first real navigation. `nav-ready` lands between the two, so it is the
+ * flag that tells them apart.
+ */
+function clearBootTarget() {
+  if (!document.documentElement.classList.contains("nav-ready")) return;
+  document.querySelector("section.is-boot-target")?.classList.remove("is-boot-target");
+}
+
 export function setActiveSection(target) {
   if (!target || !window.AppLogic?.setActiveSection) return;
+  clearBootTarget();
   window.AppLogic.setActiveSection(target, sections, navLinks);
   updateMobileNavActive(target);
   window.dispatchEvent(new CustomEvent("section-changed", { detail: { target } }));
@@ -256,6 +272,13 @@ export function initNavigation() {
   }
 
   syncSectionWithHash();
+
+  // The router is live from here, so the pre-boot `:target` guard in
+  // styles.css - which hides #home while the markup still says it is the
+  // active section - has to stop applying: pushState leaves :target stale in
+  // some browsers, and a stale match would hide whatever the router activated
+  // next. See the SECTION ROUTER region for the pair of rules.
+  document.documentElement.classList.add("nav-ready");
 
   // Initialize mobile bottom navigation
   initMobileBottomNav();

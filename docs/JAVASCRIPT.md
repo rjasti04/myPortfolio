@@ -418,7 +418,7 @@ matrix toggle (`rj_terminal_matrix`), and the `ctx` object handed to commands
 
 ## UI and interaction
 
-### `navigation.js` (528 lines)
+### `navigation.js` (551 lines)
 
 `initNavigation()`, `setActiveSection(target)`,
 `navigateToSection(target, {updateHash})`, `syncSectionWithHash(hash)`,
@@ -429,6 +429,17 @@ menus, the image modal, keyboard shortcuts, the mobile bottom nav, swipe
 gestures between sections, and online/offline banners. `isModalOpen()` checks
 **both** dialog implementations — `.image-modal.active` and
 `#auth-modal:not(.hidden)` — or shortcuts would fire through an open dialog.
+
+This module is not the *first* thing to route: it arrives through `main.js` and
+does not run until `DOMContentLoaded`, so the inline pre-boot router in
+`index.html` has already applied the fragment (see
+[`FRONTEND.md`](FRONTEND.md#indexhtml)). Two lines here close that handover.
+`initNavigation()` adds `nav-ready` to `<html>` right after its first
+`syncSectionWithHash()`, which retires the `:target` guard in styles.css before
+`pushState` can leave `:target` stale; and `setActiveSection()` clears the
+pre-boot router's `is-boot-target` marker — but only once `nav-ready` is up, so
+the marker survives this module's own first sync (same target, same page) and
+dies on the first real navigation, when the entrance animation should return.
 
 ### `modal.js` (124 lines)
 
