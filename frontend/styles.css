@@ -2362,14 +2362,24 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
      both edges - so a panel at the box's full width clears the figure by a
      margin that reads as a rectangle with a man in the middle of it. At 88%
      the paint ends just outside the shoulders, which is where a flat behind a
-     sitter ends. */
+     sitter ends.
+
+     ── These two are mirrored in the generator ──
+     `width` and `top` below, plus this box's own aspect ratio, are restated as
+     constants in `scripts/generate_brush_backdrop.py`, which needs them to
+     work out where the panel's baked-in bottom fade lands on the portrait.
+     Change either here and change it there, then re-run the script: it prints
+     the band it computed, and the fade has to finish ABOVE the line where
+     `.home-portrait-img` starts dissolving. It is not a matter of taste. The
+     figure in front of the panel goes progressively transparent from 68% of
+     its height down, so any paint still opaque under it shows THROUGH the
+     jacket - not as a wash, but as the panel's own bristle texture printed
+     across the lapels in olive. */
   width: 88%;
   aspect-ratio: 1060 / 1120;
 
-  /* Rises above the head and runs behind the chest. The panel's own bottom is
-     faded in the file, so it dissolves into the page at roughly the height
-     the portrait's `mask-image` dissolves the torso - the two edges cancel
-     instead of drawing two separate lines across the view. */
+  /* Rises above the head, and stops at the chest rather than running to the
+     bottom of the figure - see the fade note above for why it has to. */
   top: -6%;
 
   /* Centred on the FIGURE, not on the box. The cutout is not symmetrical - he

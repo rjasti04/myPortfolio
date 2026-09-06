@@ -377,6 +377,25 @@ are fractions of the canvas, so the panel re-renders at any resolution and the
 three `.home-portrait` width caps inherit the geometry with nothing to re-tune.
 The CSS decides only where the panel sits and how big it is.
 
+**The one coupling to know about** is the bottom fade. The portrait in front of
+the panel does not end, it dissolves - `.home-portrait-img` carries
+`mask-image: linear-gradient(to bottom, #000 68%, transparent 97%)` - so from
+68% of its height down the figure is progressively transparent, and any paint
+still opaque behind it shows *through* the jacket. Not as a wash: as the
+panel's own bristle texture printed across the lapels in olive. The panel's
+fade is therefore computed rather than chosen. The script mirrors the four CSS
+values it needs (`::before` width and top, the box's aspect ratio, and that 68%
+line), derives a fade that finishes just above it, and prints the band on every
+run:
+
+```
+paint fades 39% -> 66% of the portrait box; the figure starts dissolving at 68%
+```
+
+Change the panel's `width` or `top` in `styles.css`, or the portrait's own mask
+line, and the mirrors in the script have to move with them - re-run it and read
+that line back.
+
 Two encoding notes, because both look like mistakes and are not. The output is
 **lossy** WebP: bristle texture is high-frequency noise, so the equivalent
 greyscale PNG is 485 KB against 74 KB here, on a layer that paints under the

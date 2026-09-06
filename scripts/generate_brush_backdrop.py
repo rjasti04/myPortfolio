@@ -30,7 +30,6 @@ Pillow is the only dependency. Nothing here needs the network.
 """
 
 import argparse
-import math
 from pathlib import Path
 from typing import NamedTuple
 
@@ -70,15 +69,45 @@ CUT_TAPER = 0.22
 # Encoder quality for the output. See the note in `main`.
 WEBP_QUALITY = 80
 
-# The bottom of the panel dissolves rather than ending, for the same reason the
-# portrait's own `mask-image` dissolves: the figure runs out of the frame, and
-# a hard horizontal edge behind him would draw the cut he is being faded to
-# hide. Fractions of canvas height - opaque above the first, gone by the second.
-# Late, because the panel has to stay behind the chest: faded from two thirds
-# up it left the jacket standing on nothing while the head had a wall behind
-# it, which is a stranger thing to look at than either edge would have been.
-FADE_START = 0.86
-FADE_END = 1.0
+# ── Where the panel has to stop, and why it is computed rather than chosen ──
+#
+# The portrait in front of the panel does not end, it DISSOLVES:
+# `.home-portrait-img` carries `mask-image: linear-gradient(to bottom, #000
+# 68%, transparent 97%)`, so from 68% of its height down the figure is
+# progressively transparent. Anything painted behind it in that band shows
+# THROUGH the jacket - and what shows through is not a wash, it is the panel's
+# own bristle texture printed across the lapels as an olive smudge.
+#
+# So the panel's own fade is not a free aesthetic choice. It has to be finished
+# before the figure starts letting light through, and the four mirrors below
+# are what let that be computed instead of guessed. They restate values that
+# live in styles.css: if any of them changes there, change it here too - the
+# script prints the resulting band on every run so a mismatch is visible.
+PANEL_WIDTH_OF_BOX = 0.88  # .home-portrait::before  width
+PANEL_TOP_OF_BOX = -0.06  # .home-portrait::before  top
+PORTRAIT_BOX_ASPECT = 786 / 760  # .home-portrait     box height / width
+PORTRAIT_FADE_START = 0.68  # .home-portrait-img mask-image
+
+# Margin between the last of the paint and the first of the figure's
+# transparency, as a fraction of the portrait box. Small but not zero: landing
+# the two lines on the same pixel row makes them one visible edge again.
+FADE_CLEARANCE = 0.02
+
+# How much of the panel's height the dissolve is spread over. Long, because the
+# paint now has to be gone well above the bottom of the panel and a short ramp
+# there reads as the paint having been cut off rather than having run out.
+FADE_SPAN = 0.30
+
+
+def _fade_bounds() -> tuple[float, float]:
+    """`(start, end)` of the bottom fade, as fractions of the canvas height."""
+    panel_height_of_box = PANEL_WIDTH_OF_BOX * (CANVAS_H / CANVAS_W) / PORTRAIT_BOX_ASPECT
+    gone_at_box = PORTRAIT_FADE_START - FADE_CLEARANCE
+    end = (gone_at_box - PANEL_TOP_OF_BOX) / panel_height_of_box
+    return end - FADE_SPAN, end
+
+
+FADE_START, FADE_END = _fade_bounds()
 
 
 class Stroke(NamedTuple):
@@ -277,7 +306,18 @@ def main() -> int:
 
     kb = args.out.stat().st_size / 1024
     print(f"{args.out.relative_to(ROOT_DIR)}  {panel.width}x{panel.height}  {kb:.1f} KB")
-    print(f"  {len(STROKES)} strokes from {SOURCE_IMAGE_PATH.name} ({math.floor(FADE_START * 100)}% fade start)")
+    # The band, restated where it can be checked against the CSS: the fade has
+    # to finish above `PORTRAIT_FADE_START` or the paint prints on the jacket.
+    panel_height_of_box = PANEL_WIDTH_OF_BOX * (CANVAS_H / CANVAS_W) / PORTRAIT_BOX_ASPECT
+
+    def to_box(local: float) -> float:
+        return PANEL_TOP_OF_BOX + local * panel_height_of_box
+
+    print(f"  {len(STROKES)} strokes from {SOURCE_IMAGE_PATH.name}")
+    print(
+        f"  paint fades {to_box(FADE_START):.0%} -> {to_box(FADE_END):.0%} of the portrait box; "
+        f"the figure starts dissolving at {PORTRAIT_FADE_START:.0%}"
+    )
     return 0
 
 
