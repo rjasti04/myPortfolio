@@ -1,26 +1,34 @@
 """
 Profile Cutout Generator Script
 
-Builds the free-form landing portrait: the same master headshot as
-`generate_profile_pics.py`, but background-removed so the page's own gradient
-and plexus canvas show through the silhouette instead of a photographic square
-clipped to a circle.
+Builds the free-form landing portrait: a studio shot background-removed so the
+page's own gradient and plexus canvas show through the silhouette instead of a
+photographic square clipped to a circle.
+
+It reads its OWN master, `assets/profile-portrait-master.jpg`, not the headshot
+`generate_profile_pics.py` uses. The two want opposite framings and no single
+file serves both: the avatar is a circle that has to be filled by a face, so its
+master is cropped tight, while the landing portrait is a bust standing in front
+of a painted panel and needs the shoulders and the jacket the circle would throw
+away. Replacing either master is therefore a change to one image on the page,
+not to both - which is the point of keeping them apart.
 
 Two stages, because they have very different dependency costs:
 
-  1. **Matting** turns `assets/profile-pic-master.jpg` into
-     `assets/profile-cutout-master.png` - full resolution, straight alpha,
-     trimmed to the silhouette. Needs `rembg`, which pulls onnxruntime and
-     downloads a ~1 GB model on first run. Runs only when the matte is missing
-     or `--rebuild-matte` is passed.
+  1. **Matting** turns `assets/profile-portrait-master.jpg` into
+     `assets/profile-cutout-master.png` - straight alpha, trimmed to the
+     silhouette. Needs `rembg`, which pulls onnxruntime and downloads a ~1 GB
+     model on first run. Runs only when the matte is missing or
+     `--rebuild-matte` is passed.
   2. **Encoding** turns that matte into the four `frontend/profile-cutout*`
      files. Needs nothing but Pillow, so a contributor who only wants to
      re-tune quality or add a width never pays for stage 1.
 
-Both masters live outside `frontend/` for the reason the headshot master does:
-the deploy is an `rsync frontend/`, so nothing kept in `assets/` is published.
+Both the master and the matte live outside `frontend/` for the reason the
+headshot master does: the deploy is an `rsync frontend/`, so nothing kept in
+`assets/` is published.
 
-Run after replacing the master headshot:
+Run after replacing the master:
 
     pip install "rembg[cpu]"          # stage 1 only
     python scripts/generate_profile_cutout.py --rebuild-matte
@@ -38,7 +46,7 @@ import numpy as np
 from PIL import Image, ImageFilter
 
 ROOT_DIR = Path(__file__).parent.parent
-SOURCE_IMAGE_PATH = ROOT_DIR / "assets" / "profile-pic-master.jpg"
+SOURCE_IMAGE_PATH = ROOT_DIR / "assets" / "profile-portrait-master.jpg"
 MATTE_PATH = ROOT_DIR / "assets" / "profile-cutout-master.png"
 FRONTEND_DIR = ROOT_DIR / "frontend"
 
@@ -57,21 +65,52 @@ INTERIOR_ALPHA = 0.98
 # from the interior; between here and INTERIOR_ALPHA the two blend.
 CONTAMINATED_ALPHA = 0.55
 
+# ── The bust window on the master ──
+# The master is a full-length standing shot; the landing portrait is a bust. It
+# has to be, and not by preference: `.home-portrait` renders at up to 570px
+# inside a hero with almost no vertical slack, so a frame carrying the figure
+# down to the knees would spend that width on trouser leg and hand the head
+# roughly half the size the layout is built around.
+#
+# Only the BOTTOM edge here is a composition decision - where to cut the torso.
+# The other three are deliberately loose, because the trim at the end of
+# `build_matte` finds the true silhouette edge and adds MARGIN_PX to it: these
+# just have to clear the subject. Which is also why the cut is worth stating
+# exactly. At this line the trimmed matte comes out 0.967 as wide as it is tall,
+# and that ratio is load-bearing in two other files - the `width`/`height` pair
+# on `.home-portrait-img` in `index.html`, and the brush panel's `top`, `left`
+# and `aspect-ratio` in the HOME HERO region of `styles.css`, all of which are
+# percentages of a box this shape. Move the cut and re-check both.
+#
+# Cropping BEFORE segmentation rather than after is the other half of it:
+# birefnet resamples whatever it is handed to 1024x1024, so giving it the bust
+# alone spends the model's entire input on the hairline instead of on the
+# trousers. It also puts the torso against the frame edge the way the old
+# headshot master had it, which is what MARGIN_PX below assumes.
+SOURCE_CROP_BOX = (372, 164, 947, 678)
+
 # The matte keeps this much transparent margin on the left, right and top. The
-# bottom is deliberately NOT padded: the chest is cut by the master's own frame,
+# bottom is deliberately NOT padded: the torso is cut by SOURCE_CROP_BOX above,
 # so the silhouette has to run flush to the bottom edge for the CSS to bleed it
 # off the container rather than float a severed torso.
 MARGIN_PX = 6
 
-# 380 and 760 are the 1x and 2x of the portrait's old 380px cap. 1111 is the
-# matte's own width - the landing portrait renders up to 570px now, so a 2x
-# screen wants 1140w and there is no more master than this. Asking for more
-# would upscale, which is why the ladder stops on an odd number rather than a
-# round one.
+# Two rungs, and the top one is an odd number because it is not a choice: 497 is
+# the matte's own width, and the ladder stops there because anything past it is
+# an upscale wearing a bigger filename. The bust window is a ~500px crop of a
+# 1254px master, so that is genuinely all the portrait there is.
+#
+# It does not reach 2x. `.home-portrait` renders at up to 570 CSS px, so a
+# retina desktop would take ~1140w and gets 497 - the previous master, a
+# frame-filling headshot, carried 1111 and covered it. A higher-resolution
+# original of this shot is the only thing that fixes that; nothing in this
+# script can, and generating a 1111w file from a 497w matte would only move the
+# blur from the browser to here while tripling the bytes. 380 stays as the
+# lower rung: it is the LCP file `index.html` preloads and the build precaches,
+# and it is still a true downscale.
 VARIANTS = [
     {"width": 380, "png_name": "profile-cutout-380.png", "webp_name": "profile-cutout-380.webp"},
-    {"width": 760, "png_name": "profile-cutout.png", "webp_name": "profile-cutout.webp"},
-    {"width": 1111, "png_name": "profile-cutout-1111.png", "webp_name": "profile-cutout-1111.webp"},
+    {"width": 497, "png_name": "profile-cutout.png", "webp_name": "profile-cutout.webp"},
 ]
 
 # Lossy WebP with alpha. 84 is where the lapel weave stops visibly blocking on
@@ -90,7 +129,7 @@ UNSHARP = ImageFilter.UnsharpMask(radius=0.8, percent=60, threshold=3)
 
 
 def build_matte():
-    """Segment the master headshot and write the trimmed RGBA matte."""
+    """Crop the master to the bust, segment it, and write the trimmed RGBA matte."""
     try:
         from rembg import new_session, remove
     except ImportError:
@@ -104,7 +143,8 @@ def build_matte():
     print(f"Opening source image: {SOURCE_IMAGE_PATH}")
     with Image.open(SOURCE_IMAGE_PATH) as img:
         print(f"Source size: {img.size}, mode: {img.mode}, format: {img.format}")
-        source = img.convert("RGB")
+        source = img.convert("RGB").crop(SOURCE_CROP_BOX)
+    print(f"Cropped to the bust window {SOURCE_CROP_BOX}: {source.size}")
 
     print(f"Segmenting with {REMBG_MODEL} (first run downloads the model)...")
     cut = remove(source, session=new_session(REMBG_MODEL), post_process_mask=True)
@@ -113,8 +153,8 @@ def build_matte():
     rgb, alpha = arr[:, :, :3], arr[:, :, 3] / 255.0
 
     # ── Colour decontamination ──
-    # The master was shot against grass and a pond, so every pixel the lens and
-    # the JPEG encoder smeared across the silhouette carries some of that green.
+    # The master was shot outdoors against trees, so every pixel the lens and the
+    # JPEG encoder smeared across the silhouette carries some of that green.
     # Straight alpha keeps those RGB values, and they surface as a lime rim the
     # moment the cutout is composited onto any other ground. Rewriting each
     # partial pixel with the colour of the nearest solidly-interior pixel makes

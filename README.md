@@ -91,7 +91,7 @@ renderer.
 ├── scripts/                     # build.mjs, CSP hash check, docs drift check, font vendoring, image helpers
 │   └── tests/                   # Node suites for the build's caching contract
 ├── docs/                        # Documentation set (see index below)
-├── assets/                      # Generator sources (icon, headshot, paint swipe) — deliberately outside the published web root
+├── assets/                      # Generator sources (icon, headshot, landing portrait, paint swipe) — deliberately outside the published web root
 ├── .github/workflows/deploy.yml # CI/CD pipeline
 └── AGENTS.md                    # Single source of truth for AI-agent operating rules
 ```
@@ -291,7 +291,7 @@ All scripts live in `scripts/` and are maintenance steps, not part of the build.
 | `optimize_images.py` | Recompress icons/profile images, with timestamped backups under `backups/` | Pillow |
 | `verify_images.py` | Report dimensions and sizes of the optimised images | Pillow |
 | `generate_profile_pics.py` | Regenerate 160/360/725-wide JPEG + WebP profile variants | Pillow |
-| `generate_profile_cutout.py` | Regenerate the background-removed landing portrait (380/760-wide PNG + WebP). Re-encodes from the committed matte by default; `--rebuild-matte` re-runs segmentation | Pillow; `rembg[cpu]` and a ~1 GB model download for `--rebuild-matte` |
+| `generate_profile_cutout.py` | Regenerate the background-removed landing portrait (380/497-wide PNG + WebP) by cropping a bust out of `assets/profile-portrait-master.jpg`. Re-encodes from the committed matte by default; `--rebuild-matte` re-runs the crop and segmentation | Pillow; `rembg[cpu]` and a ~1 GB model download for `--rebuild-matte` |
 | `generate_brush_backdrop.py` | Recompose the landing portrait's painted panel — one photographed swipe in `assets/brush-stroke-master.jpg`, laid down eleven times as a luminance mask | Pillow |
 | `generate_social_previews.py` | Re-render the three 1200x630 Open Graph cards from `scripts/social-previews/` | Pillow, a Chromium or Chrome binary |
 | `generate_launch_images.py` | Regenerate the maskable PWA icon and the 17 iOS `apple-touch-startup-image` bitmaps | Pillow |

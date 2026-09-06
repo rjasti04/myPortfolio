@@ -164,10 +164,10 @@
   </script>
   <!-- The landing portrait, and the LCP element. imagesrcset/imagesizes repeat
        the <picture> below verbatim: a bare href preloads the 380w file while a
-       2x screen then goes on to fetch the 760w or 1111w one, so the preload
-       costs a round trip instead of saving one. -->
+       wider viewport then goes on to fetch the 497w one, so the preload costs a
+       round trip instead of saving one. -->
   <link rel="preload" href="profile-cutout-380.webp" as="image" type="image/webp"
-    imagesrcset="profile-cutout-380.webp 380w, profile-cutout.webp 760w, profile-cutout-1111.webp 1111w"
+    imagesrcset="profile-cutout-380.webp 380w, profile-cutout.webp 497w"
     imagesizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 570px)" />
   <link rel="preload" href="styles.css" as="style" />
   <link rel="stylesheet" href="styles.css" />
@@ -522,22 +522,26 @@
                an organic accent swash the silhouette stands in front of - but
                nothing crops the image to it; see the note on that rule.
                The PNG fallback is the `img` src because JPEG cannot carry an
-               alpha channel; the width/height pair is the intrinsic ratio of
-               the sources, and styles.css sets the rendered width. -->
+               alpha channel; the width/height pair is the intrinsic size of
+               the sources, and styles.css sets the rendered width.
+
+               Two widths, topping out at 497 - the master is a full-length
+               shot and the bust window generate_profile_cutout.py crops from
+               it is only that wide, so the ladder ends where the pixels do
+               rather than at the ~1140w a 2x desktop would take. See the
+               VARIANTS note in that script. -->
           <div class="home-portrait">
             <picture>
               <source
                 srcset="
                   profile-cutout-380.webp 380w,
-                  profile-cutout.webp 760w,
-                  profile-cutout-1111.webp 1111w"
+                  profile-cutout.webp 497w"
                 sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 570px)" type="image/webp" />
               <img src="profile-cutout-380.png" srcset="
                   profile-cutout-380.png 380w,
-                  profile-cutout.png 760w,
-                  profile-cutout-1111.png 1111w"
+                  profile-cutout.png 497w"
                 sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 570px)"
-                alt="" class="home-portrait-img" width="760" height="786" fetchpriority="high"
+                alt="" class="home-portrait-img" width="497" height="513" fetchpriority="high"
                 loading="eager" />
             </picture>
           </div>

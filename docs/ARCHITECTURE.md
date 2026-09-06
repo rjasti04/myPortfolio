@@ -155,9 +155,9 @@ domain logic for auth, Bedrock, chat history, ingest, breach checks and email.
 | Path | Role |
 | :--- | :--- |
 | `tests/backend/` | pytest suites — `unit/` (6 files) and `integration/` (6 files) |
-| `scripts/` | `build.mjs`, `check_csp_hashes.py`, `vendor_fonts.py`, seven Pillow image helpers (`generate_social_previews.py` renders the cards in `scripts/social-previews/`; `generate_launch_images.py` renders the maskable icon and the iOS launch screens; `generate_brush_backdrop.py` composes the landing portrait's painted panel from one photographed swipe; `generate_profile_cutout.py` mattes the landing portrait, and is the only one with a dependency beyond Pillow) |
+| `scripts/` | `build.mjs`, `check_csp_hashes.py`, `vendor_fonts.py`, seven Pillow image helpers (`generate_social_previews.py` renders the cards in `scripts/social-previews/`; `generate_launch_images.py` renders the maskable icon and the iOS launch screens; `generate_brush_backdrop.py` composes the landing portrait's painted panel from one photographed swipe; `generate_profile_cutout.py` crops and mattes the landing portrait, and is the only one with a dependency beyond Pillow) |
 | `docs/` | This documentation set |
-| `assets/` | `master-icon.png`, `profile-pic-master.jpg` and `profile-cutout-master.png` — kept outside `frontend/` so the deploy never publishes them |
+| `assets/` | `master-icon.png`, `brush-stroke-master.jpg`, and two portrait masters — `profile-pic-master.jpg` (the tight headshot behind the `profile-pic*` variants) and `profile-portrait-master.jpg` (the full-length shot the landing cutout crops its bust from), plus the `profile-cutout-master.png` matte. All kept outside `frontend/` so the deploy never publishes them |
 | `.github/workflows/` | `deploy.yml` — the whole CI/CD pipeline |
 | `.claude/`, `.codex/`, `.amazonq/`, `.antigravity/` | Per-tool agent config; all deprecated stubs pointing at `AGENTS.md` |
 
