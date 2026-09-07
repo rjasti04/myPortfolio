@@ -44,7 +44,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (359 lines)
+### `main.js` (361 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -520,6 +520,25 @@ memory overhead and blind to dynamically created nodes.
 `initScrollToTop()` — injects the button, shows at 500 px and hides at 300 px
 (hysteresis avoids flicker), and honours `prefers-reduced-motion` for the scroll
 itself.
+
+### `home-portrait.js` (60 lines)
+
+`initHomePortrait()` — the landing portrait's flip card. The rotation is
+entirely CSS; this module owns the two things CSS cannot do.
+
+It **enables the button**, which `index.html` ships `disabled` so a page
+without JS never offers a control that cannot work — that one line is the whole
+of the upgrade. And it **announces the change**: both faces are `alt=""`, so
+`#home-portrait-status` is the only place a screen reader is told anything
+happened, the same pattern as the theme shuffle's status line.
+
+State lives in `aria-pressed`, which is also the selector the stylesheet
+rotates on — one source of truth, and no class that can drift from what is
+announced. The back face is `fetchpriority="low"` so it queues behind the LCP;
+the first `pointerenter` or `focus` raises it to `high`, which is the earliest
+honest signal that a click is coming.
+
+See [The flip card](FRONTEND.md#the-flip-card) for the markup and CSS contract.
 
 ### `tilt.js` (97 lines)
 

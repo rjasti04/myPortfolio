@@ -26,6 +26,7 @@ const PRECACHE_URLS = [
   '/js/theme-bootstrap.js',
   '/js/config.js',
   '/js/navigation.js',
+  '/js/home-portrait.js',
   '/js/theme.js',
   '/js/form.js',
   '/js/confetti.js',
