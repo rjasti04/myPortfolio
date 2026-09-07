@@ -2594,10 +2594,11 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 /* ── Painted panel behind the silhouette ──
    The subject stands in front of a block of paint, the way a studio portrait
    stands in front of a painted flat. `brush-backdrop.webp` is that block used
-   as a LUMINANCE MASK over a solid `--accent-fill`: white in the file is
-   opaque paint, black is bare page, and every grey between is thinner paint.
-   So the file carries the shape and the theme carries the colour - whatever
-   accent the customiser sets, the paint follows it with nothing to re-tune.
+   as an ALPHA MASK over a solid `--accent-fill`: the file is a flat white
+   sheet whose alpha carries the paint - opaque is paint, transparent is bare
+   page, and every value between is thinner paint. So the file carries the
+   shape and the theme carries the colour - whatever accent the customiser
+   sets, the paint follows it with nothing to re-tune.
 
    It is generated, not drawn: `scripts/generate_brush_backdrop.py` lays the
    one photographed swipe in `assets/brush-stroke-master.jpg` down eleven
@@ -2679,8 +2680,30 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
   mask-position: center;
-  -webkit-mask-mode: luminance;
-  mask-mode: luminance;
+
+  /* ── `alpha`, not `luminance`. Putting it back breaks iOS ──
+     This read `luminance` against a greyscale file that had no alpha channel
+     at all, which was right in Chrome and wrong in Safari. WebKit's CSS mask
+     is an alpha mask: its support for `mask-mode: luminance` is flagged
+     partial by browser-compat-data - "does not always have the expected
+     effect", webkit.org/b/282530 - and there is no `-webkit-mask-mode` to
+     reach for instead, because WebKit never shipped one.
+
+     An engine that reads a fully-opaque greyscale file as alpha masks
+     nothing, so iOS painted the entire mask box: a hard-edged rectangle of
+     accent, tilted its two degrees, with the portrait standing in front of
+     it. Measured on the file this replaced - a luminance read paints 51.9% of
+     the box, an alpha read paints 100.0%.
+
+     The shape moved into the file's alpha channel to fix it; the argument is
+     in `scripts/generate_brush_backdrop.py`. `alpha` is also what the initial
+     `match-source` resolves to for a raster image, so an engine with no
+     `mask-mode` support lands in the same place, and since the file's RGB
+     plane is flat white a luminance read would come out identical anyway
+     (the value is luminance x alpha, and the luminance is 1). Every path
+     agrees now, which is the point - the file no longer depends on the
+     engine guessing right. */
+  mask-mode: alpha;
 }
 
 /* On the dark ground the same panel is a far louder object: the light theme

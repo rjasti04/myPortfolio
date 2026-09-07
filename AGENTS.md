@@ -64,7 +64,7 @@ these files the number here has to move with it.
 
 | File | Lines | ~Tokens | How to navigate instead |
 | :--- | ---: | ---: | :--- |
-| `frontend/styles.css` | 11,484 | ~84,000 | `grep -n '#region' frontend/styles.css` returns a 27-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
+| `frontend/styles.css` | 11,507 | ~84,500 | `grep -n '#region' frontend/styles.css` returns a 27-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
 | `package-lock.json` | 3,453 | ~32,500 | Never read. `package.json` lists every direct dep in 25 lines. |
 | `frontend/index.html` | 2,338 | ~36,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
 | `frontend/js/chat.js` | 1,851 | ~19,000 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (37 hits). |
@@ -82,7 +82,7 @@ takes over two minutes.
 
 Do not preload these. Each entry states its trigger.
 
-**These docs are also too big to read whole.** Together they are ~73,500
+**These docs are also too big to read whole.** Together they are ~74,000
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -101,7 +101,7 @@ whole doc only when you genuinely need all of it.
 | `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
 | `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
 | `docs/JAVASCRIPT.md` | ~13,000 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (49 module sections) |
-| `docs/FRONTEND.md` | ~10,500 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (20 headings) |
+| `docs/FRONTEND.md` | ~11,000 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (20 headings) |
 | `docs/CONFIGURATION.md` | ~3,500 | adding or interpreting an environment variable | `grep -n '^## '` (14 headings), or just grep the variable name |
 | `docs/SECURITY.md` | ~5,000 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (17 headings) |
 | `docs/OPERATIONS.md` | ~4,000 | changing CI/CD, diagnosing a deploy, or running a manual procedure | `grep -n '^#\{2,3\} '` (25 headings) |
