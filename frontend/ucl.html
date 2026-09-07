@@ -267,6 +267,7 @@
       font-weight: 600;
       cursor: pointer;
       border: 1px solid transparent;
+      text-decoration: none;
       transition: var(--transition-base);
     }
 
@@ -1470,6 +1471,8 @@
 
       .header-actions {
         gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
       }
 
       .btn {
@@ -1589,6 +1592,10 @@
           <span class="brand-title">UCL 26/27</span>
         </div>
         <div class="header-actions">
+          <a href="/" class="btn btn-outline" aria-label="Back to the portfolio home page"
+            title="Back to portfolio">
+            <i class="fas fa-arrow-left"></i> <span class="sr-only-mobile">Portfolio</span>
+          </a>
           <button id="theme-toggle-btn" class="btn btn-outline btn-icon-only" aria-label="Toggle theme"
             title="Toggle light/dark theme">
             <i class="fas fa-moon"></i>

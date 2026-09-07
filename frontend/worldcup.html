@@ -199,10 +199,12 @@
       gap: 8px;
       padding: 10px 18px;
       border-radius: var(--radius-md);
+      font-family: var(--font-family);
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       border: 1px solid transparent;
+      text-decoration: none;
       transition: var(--transition-base);
     }
 
@@ -1121,6 +1123,11 @@
         font-size: 22px;
       }
 
+      .header-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
       .hero-title-section h1 {
         font-size: 26px;
       }
@@ -1168,6 +1175,10 @@
           <span class="brand-title">FIFA 26</span>
         </div>
         <div class="header-actions">
+          <a href="/" class="btn btn-outline" aria-label="Back to the portfolio home page"
+            title="Back to portfolio">
+            <i class="fas fa-arrow-left"></i> <span class="sr-only-mobile">Portfolio</span>
+          </a>
           <button id="theme-toggle-btn" class="btn btn-outline btn-icon-only" aria-label="Toggle theme"
             title="Toggle Light/Dark Theme">
             <i class="fas fa-moon"></i>
