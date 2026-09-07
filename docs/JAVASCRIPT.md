@@ -552,7 +552,7 @@ so callers (the command prompt) need not synthesise a click on `#theme-toggle`.
 Updates the `theme-color` meta from the **computed** `--accent-fill`, so a
 custom accent is reflected in the browser chrome.
 
-### `theme-customizer.js` (953 lines)
+### `theme-customizer.js` (993 lines)
 
 `initThemeCustomizer()`, `reapplyCustomTheme(isDark)`, `randomPalette(hex)`.
 Derives a full palette from one hex accent (`hexToHsl`, `generateVariants`),
@@ -572,9 +572,18 @@ things have to agree about it. The home button sets it. `loadDefaults()` reads
 it *before* localStorage, so opening the panel after a roll shows the roll —
 otherwise Apply would save colours the visitor never saw. And
 `reapplyCustomTheme` prefers it, so flipping light/dark re-derives the roll
-instead of destroying it. Apply, Reset, and closing the panel without applying
-all clear it; that last one is deliberate — everything the panel shows is a
-preview, and closing without Apply is how a visitor declines all of them.
+instead of destroying it.
+
+Apply and Reset clear it outright. Closing the panel without applying rolls it
+back to `paletteOnOpen` — a copy taken when the panel opened — rather than to
+the saved palette, and the difference is the whole point: everything done
+*inside* the panel is a preview, so cancel discards it, but a roll made on the
+landing view before the panel was ever opened is not the panel's to throw away.
+Opening the panel to look at a randomised theme and closing it untouched
+therefore leaves the screen exactly as it was. Covered by
+`theme-panel-cancel.test.js`, which drives the real panel because the rollback
+hangs off a MutationObserver watching `is-open` and cannot be reached any other
+way.
 
 `readThemeLibrary()`, `saveTheme(name, raw)`, `deleteTheme(id)` and the
 `THEME_LIBRARY_LIMIT` / `THEME_NAME_MAX` bounds are the saved-theme library,
@@ -596,8 +605,9 @@ palette already on screen, because a shuffle that lands where it started looks
 like a broken button — picks one of four fixed harmonies (analogous, triad,
 split-complementary, accented analogous) for the other two, and constrains
 saturation to 58-88% and lightness to 42-58%. `hslToHex` is its inverse of
-`hexToHsl`. Like a preset click, the result is a **preview**: the panel's
-MutationObserver restores the saved palette unless Apply is pressed.
+`hexToHsl`. Like a preset click, a roll made inside the panel is a **preview**:
+the panel's MutationObserver restores what the panel opened showing unless Apply
+is pressed.
 
 ---
 

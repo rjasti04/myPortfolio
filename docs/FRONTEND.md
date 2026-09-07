@@ -251,7 +251,9 @@ chosen against measured contrast rather than a fixed offset — 5.78:1 and
 `--secondary-text` at body size, so that is AA for normal text.
 
 The panel offers four ways in, all of which are **previews** until Apply — a
-MutationObserver restores the saved palette if it closes without one. Three
+MutationObserver rolls the palette back to whatever the panel opened showing if
+it closes without one, so cancelling undoes what was done *inside* the panel
+and nothing that came before it. Three
 built-in terminal presets, the visitor's own saved themes, a hex field per
 control, and a **Randomize** button that rolls all three at once. The
 randomiser is constrained rather than uniform: full-range random produces
@@ -263,8 +265,9 @@ There is a **second shuffle** in the landing view's `.home-socials` row, past a
 hairline of its own. That row groups by destination — in-site routes, then
 outbound profiles — and a shuffle is not a destination, so it gets its own
 group rather than passing as a fourth route. Its roll is **not persisted**:
-colours change instantly and survive navigation and a light/dark flip, but a
-reload restores whatever was saved. That asymmetry is the point. A recruiter
+colours change instantly and survive navigation, a light/dark flip, and being
+looked at in the panel and dismissed, but a reload restores whatever was saved.
+That asymmetry is the point. A recruiter
 who presses it out of curiosity has a free undo, and keeping a roll is a
 deliberate second act — open the panel, where the controls are already filled
 with what is on screen, and press Apply.

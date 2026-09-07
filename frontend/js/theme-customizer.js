@@ -211,6 +211,10 @@ function getDerivedPalette(rawPrimary, rawSecondary, rawAccent) {
 // that sets it, the panel that has to open showing it (otherwise Apply would
 // save colours the visitor never saw), and `reapplyCustomTheme`, which would
 // otherwise wipe the roll the moment someone flipped light/dark.
+//
+// The panel narrows what "gone" means: cancelling it rolls this back to what
+// it held when the panel opened, not to the saved palette, so a roll survives
+// being looked at. See `paletteOnOpen` in `initThemeCustomizer`.
 let unsavedRawPalette = null;
 
 function readSavedPalette() {
@@ -269,6 +273,8 @@ export function reapplyCustomTheme(isDark) {
  * back by reloading, rather than having to find Reset inside a header
  * dropdown. Keeping a roll is a deliberate second act - open the panel, where
  * the controls are already filled with what is on screen, and press Apply.
+ * Opening that panel and closing it again is not an answer either way: the
+ * roll is still there afterwards, exactly as it was.
  *
  * @returns {{primary: string, secondary: string, accent: string}} the roll.
  */
@@ -377,7 +383,8 @@ export function initHomeThemeShuffle() {
     if (status) {
       status.textContent =
         `Theme randomized. Primary ${rolled.primary}, secondary ${rolled.secondary}, `
-        + `highlight ${rolled.accent}. Reload the page to restore the saved theme.`;
+        + `highlight ${rolled.accent}. Open the palette panel and press Apply to keep it, `
+        + 'or reload the page to restore the saved theme.';
     }
   });
 }
@@ -576,23 +583,50 @@ export function initThemeCustomizer() {
     }
   };
 
+  // What was on screen the moment the panel opened: a roll from the landing
+  // view, an older preview, or nothing at all. Cancelling restores THIS rather
+  // than the saved palette, because cancel means "undo what I did in here" -
+  // and a roll made before the panel was ever opened was never the panel's to
+  // throw away. Apply and Reset clear it, so neither is undone on the way out.
+  let paletteOnOpen = null;
+
+  function restorePaletteOnOpen() {
+    unsavedRawPalette = paletteOnOpen;
+    paletteOnOpen = null;
+    clearCustomPalette();
+
+    if (unsavedRawPalette) {
+      const { primary, secondary, accent } = unsavedRawPalette;
+      applyPaletteVariables(
+        getDerivedPalette(primary, secondary, accent),
+        document.body.classList.contains('dark-theme')
+      );
+      return;
+    }
+
+    const saved = readSavedPalette();
+    if (saved) applyPaletteVariables(saved, document.body.classList.contains('dark-theme'));
+    else if (localStorage.getItem('rj_theme_palette')) localStorage.removeItem('rj_theme_palette');
+  }
+
   let wasOpen = false;
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.attributeName === 'class') {
         const isOpen = customizerDropdown.classList.contains('is-open');
-        if (wasOpen && !isOpen) {
+        if (!wasOpen && isOpen) {
+          // Snapshot taken here rather than in the toggle's own click handler
+          // so every way in is covered - the header button, and anything else
+          // that adds `is-open`. Copied because it is a record of a past
+          // moment, not a second name for the live palette.
+          paletteOnOpen = unsavedRawPalette ? { ...unsavedRawPalette } : null;
+        } else if (wasOpen && !isOpen) {
           // Dropdown just closed (via click-outside, Escape, or Apply/Reset).
-          // Re-apply saved palette to discard any unsaved previews. This takes
-          // a roll made on the landing view with it, which is the intended
-          // reading: everything the panel shows is a preview, and closing it
-          // without Apply is how a visitor says no to all of them.
+          // Roll back to whatever the panel opened showing, which discards
+          // every preview made inside it and leaves everything made before it
+          // alone.
           closeColorPopover();
-          unsavedRawPalette = null;
-          clearCustomPalette();
-          const saved = readSavedPalette();
-          if (saved) applyPaletteVariables(saved, document.body.classList.contains('dark-theme'));
-          else if (localStorage.getItem('rj_theme_palette')) localStorage.removeItem('rj_theme_palette');
+          restorePaletteOnOpen();
         }
         wasOpen = isOpen;
       }
@@ -900,8 +934,9 @@ export function initThemeCustomizer() {
   // colours the user actually asked for.
   //
   // Like the presets and like a hand-typed hex, this is a preview and not a
-  // commit - the MutationObserver above restores the saved palette if the
-  // panel closes without Apply. Pressing the button repeatedly costs nothing.
+  // commit - the MutationObserver above rolls the palette back to what the
+  // panel opened on if it closes without Apply. Pressing the button repeatedly
+  // costs nothing.
   shuffleBtn?.addEventListener('click', (event) => {
     event.stopPropagation();
 
@@ -921,9 +956,11 @@ export function initThemeCustomizer() {
     
     const palette = getDerivedPalette(rawPrimary, rawSecondary, rawAccent);
     localStorage.setItem('rj_theme_palette', JSON.stringify(palette));
-    // No longer unsaved - and clearing it before the close observer runs is
-    // what stops that observer from immediately reverting what was just saved.
+    // No longer unsaved - and clearing both of these before the close observer
+    // runs is what stops that observer from reverting what was just saved, or
+    // resurrecting the palette the panel happened to open on.
     unsavedRawPalette = null;
+    paletteOnOpen = null;
     applyPaletteVariables(palette, document.body.classList.contains('dark-theme'));
     
     const themeColorMeta = document.querySelector('meta[name="theme-color"]');
@@ -938,7 +975,10 @@ export function initThemeCustomizer() {
 
   resetBtn?.addEventListener('click', () => {
     localStorage.removeItem('rj_theme_palette');
+    // Reset means the shipped defaults, so the snapshot goes with it - closing
+    // the panel afterwards must not paint a roll back over them.
     unsavedRawPalette = null;
+    paletteOnOpen = null;
     clearCustomPalette();
     
     const themeColorMeta = document.querySelector('meta[name="theme-color"]');
