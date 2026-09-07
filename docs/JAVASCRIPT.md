@@ -98,11 +98,16 @@ via `module.exports` so the Node test runner can `require` it.
 | `setActiveSection(target, sections, navLinks)` | Toggle `.active` and manage `aria-current` |
 | `getValidHashTarget(hash, getElementById, fallback = "about")` | Resolve a hash to a real section id |
 
-### `theme-bootstrap.js` (19 lines)
+### `theme-bootstrap.js` (36 lines)
 
 Classic script. Replays a saved custom palette from
 `localStorage.rj_theme_palette` onto `document.body` inline properties before
-the modules run.
+the modules run, and seeds the `theme-color` meta from that palette's
+`--accent-fill` in the same pass — otherwise a saved theme launches on the
+shipped amber browser bar until `applyTheme()` runs at DOMContentLoaded, which
+is most visible in the installed PWA. It takes the value from the palette
+rather than a computed style: this runs before first paint, so there may be
+nothing resolved to read.
 
 ---
 
@@ -545,16 +550,18 @@ See [The flip card](FRONTEND.md#the-flip-card) for the markup and CSS contract.
 `initTilt()` — pointer-tracked 3D tilt on `.tilt-card`, `requestAnimationFrame`
 batched, and a complete no-op without hover support or with reduced motion.
 
-### `theme.js` (73 lines)
+### `theme.js` (69 lines)
 
 `initTheme()`, `applyTheme(isDark)`, `toggleTheme()`. `toggleTheme` is exported
 so callers (the command prompt) need not synthesise a click on `#theme-toggle`.
-Updates the `theme-color` meta from the **computed** `--accent-fill`, so a
-custom accent is reflected in the browser chrome.
+Calls `syncThemeColorMeta()` from `theme-customizer.js` after
+`reapplyCustomTheme`, which covers the plain light/dark flip on the shipped
+colours — the palette paths sync the tag themselves.
 
-### `theme-customizer.js` (993 lines)
+### `theme-customizer.js` (1,009 lines)
 
-`initThemeCustomizer()`, `reapplyCustomTheme(isDark)`, `randomPalette(hex)`.
+`initThemeCustomizer()`, `reapplyCustomTheme(isDark)`, `randomPalette(hex)`,
+`syncThemeColorMeta(isDark)`.
 Derives a full palette from one hex accent (`hexToHsl`, `generateVariants`),
 checks contrast (`getLuminance`, `getContrast`) before applying, writes CSS
 custom properties onto `document.body`, and persists to
@@ -566,6 +573,19 @@ persisting** — a visitor who presses it out of curiosity gets the real palette
 back by reloading rather than hunting for Reset in a header dropdown. It is a
 separate initialiser from `initThemeCustomizer()` because that one bails early
 when its dropdown is absent, and that must not take the home button with it.
+
+`syncThemeColorMeta()` copies the live **computed** `--accent-fill` into the
+`theme-color` meta tag — the mobile browser toolbar, and the top bar of the
+installed PWA. It is called from inside `applyPaletteVariables()` and
+`clearCustomPalette()` rather than from their call sites, because the tag is a
+plain attribute nothing re-derives and *every* paint path has to move it: a
+roll, a panel preview, the rollback on cancel, Apply, Reset and a theme flip.
+Writing it only from `applyTheme()` and Apply was the bug — a randomised theme
+left the bar on the previous colour until the visitor pressed Apply. It reads
+off `<body>`, not the root element, because the dark `--accent-fill` is
+declared on `body.dark-theme`. The manifest `theme_color` is not a fallback for
+any of this: it is static, read at install time, and only reaches the launch
+splash and the task switcher.
 
 The unsaved roll lives in one module-level `unsavedRawPalette`, and three
 things have to agree about it. The home button sets it. `loadDefaults()` reads

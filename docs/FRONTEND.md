@@ -299,8 +299,19 @@ three `android-chrome-*` icons — the 192 and 512 as `purpose: "any"`, plus
 `android-chrome-maskable-512x512.png` as `purpose: "maskable"`.
 
 `theme_color` matches the light-theme `--accent-fill` and the `<meta
-name="theme-color">` in `index.html`; `applyTheme()` retargets that meta tag per
-theme, but a manifest holds one static value, so it stays on the light accent.
+name="theme-color">` in `index.html`; `syncThemeColorMeta()` retargets that meta
+tag on every palette paint — a theme flip, a randomised roll, a panel preview,
+Apply and Reset — but a manifest holds one static value, so it stays on the
+light accent.
+
+The split matters for the installed app. The meta tag is live: Chrome paints the
+standalone top bar from it, so a randomised palette moves that bar the moment it
+is rolled. `theme_color` and `background_color` are read at install time and
+reach the surfaces no runtime code can touch — the launch splash, the task
+switcher, and the bar before any JS has run. `sw.js` precaches `/manifest.json`,
+so editing either reaches an already-installed visitor late in any case. On iOS
+neither applies: a home-screen launch is governed by
+`apple-mobile-web-app-status-bar-style`, which is not scriptable.
 
 `background_color` paints the launch splash and is deliberately the **dark**
 `--bg`, not the light one, even though the no-JS default is light. A manifest

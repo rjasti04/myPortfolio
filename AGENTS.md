@@ -82,7 +82,7 @@ takes over two minutes.
 
 Do not preload these. Each entry states its trigger.
 
-**These docs are also too big to read whole.** Together they are ~74,000
+**These docs are also too big to read whole.** Together they are ~74,500
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -91,7 +91,7 @@ grep -n '^#\{2,3\} ' docs/JAVASCRIPT.md   # ~40 headings, ~400 tokens
 sed -n '284,298p' docs/JAVASCRIPT.md      # just the module you are touching
 ```
 
-That turns a 13,000-token read into roughly 500. Use it by default; read a
+That turns a 13,500-token read into roughly 500. Use it by default; read a
 whole doc only when you genuinely need all of it.
 
 | Doc | ~Tokens | Read it before... | Jump to a section with |
@@ -100,7 +100,7 @@ whole doc only when you genuinely need all of it.
 | `docs/API.md` | ~6,500 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (32 endpoint sections) |
 | `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
 | `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
-| `docs/JAVASCRIPT.md` | ~13,000 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (49 module sections) |
+| `docs/JAVASCRIPT.md` | ~13,500 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (49 module sections) |
 | `docs/FRONTEND.md` | ~11,000 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (20 headings) |
 | `docs/CONFIGURATION.md` | ~3,500 | adding or interpreting an environment variable | `grep -n '^## '` (14 headings), or just grep the variable name |
 | `docs/SECURITY.md` | ~5,000 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (17 headings) |

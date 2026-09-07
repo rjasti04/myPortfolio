@@ -227,6 +227,33 @@ function readSavedPalette() {
   }
 }
 
+/**
+ * Copy the live accent into the `theme-color` meta tag - what the mobile
+ * browser paints its toolbar with, and what tints the top bar of the installed
+ * PWA.
+ *
+ * This is called from the two functions that paint the palette rather than
+ * from their call sites because every one of those paths has to move the bar:
+ * a roll from the home page, a preview inside the panel, the rollback when the
+ * panel is cancelled, Apply, Reset, and a light/dark flip. The tag is a plain
+ * DOM attribute that nothing re-derives from the custom properties, so
+ * whatever was written last simply stays there - which is why a randomised
+ * palette used to leave the bar on the previous colour until Apply.
+ *
+ * The manifest `theme_color` is not a fallback for this. It is one static
+ * value read at install time, and it only reaches the surfaces JS cannot touch
+ * anyway (the launch splash, the task switcher).
+ */
+export function syncThemeColorMeta(isDark = document.body.classList.contains('dark-theme')) {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) return;
+  // Read off <body>, not the root element: the dark variants are declared on
+  // `body.dark-theme` and the customizer sets its inline properties there too,
+  // so the root still resolves to the LIGHT accent on a dark page.
+  const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-fill').trim();
+  meta.setAttribute('content', accentColor || (isDark ? '#0a0a0b' : '#F59E0B'));
+}
+
 function applyPaletteVariables(palette, isDark) {
   if (!palette) return;
   const modeColors = isDark ? palette.dark : palette.light;
@@ -237,6 +264,8 @@ function applyPaletteVariables(palette, isDark) {
     if (key === '--text') continue;
     document.body.style.setProperty(key, value);
   }
+
+  syncThemeColorMeta(isDark);
 }
 
 function clearCustomPalette() {
@@ -247,6 +276,7 @@ function clearCustomPalette() {
     '--bg', '--surface', '--card-bg', '--skill-bg', '--border', '--bg-gradient'
   ];
   vars.forEach(v => document.body.style.removeProperty(v));
+  syncThemeColorMeta();
 }
 
 // Function to trigger on theme switch (dark/light)
@@ -961,15 +991,9 @@ export function initThemeCustomizer() {
     // resurrecting the palette the panel happened to open on.
     unsavedRawPalette = null;
     paletteOnOpen = null;
+    // Repaints the palette, and `applyPaletteVariables` carries the meta tag
+    // with it - Apply is no longer the only thing that moves the browser bar.
     applyPaletteVariables(palette, document.body.classList.contains('dark-theme'));
-    
-    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-    if (themeColorMeta) {
-      const isDark = document.body.classList.contains('dark-theme');
-      const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-fill').trim();
-      themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#F59E0B"));
-    }
-    
     closeModal();
   });
 
@@ -980,14 +1004,6 @@ export function initThemeCustomizer() {
     unsavedRawPalette = null;
     paletteOnOpen = null;
     clearCustomPalette();
-    
-    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-    if (themeColorMeta) {
-      const isDark = document.body.classList.contains('dark-theme');
-      const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-fill').trim();
-      themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#F59E0B"));
-    }
-    
     closeModal();
   });
 }

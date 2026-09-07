@@ -1,8 +1,8 @@
 import { prefersDarkScheme } from "./config.js";
 import { trackEvent } from "./analytics.js";
-import { reapplyCustomTheme } from "./theme-customizer.js";
+import { reapplyCustomTheme, syncThemeColorMeta } from "./theme-customizer.js";
 
-let themeBtn, themeIcon, themeColorMeta;
+let themeBtn, themeIcon;
 
 export function applyTheme(isDark) {
   document.body.classList.toggle("dark-theme", isDark);
@@ -22,13 +22,10 @@ export function applyTheme(isDark) {
     reapplyCustomTheme(isDark);
   }
 
-  if (themeColorMeta) {
-    // Use computed CSS variable instead of hardcoded color
-    // Read from body because customizer applies properties on body
-    const accentColor = getComputedStyle(document.body)
-      .getPropertyValue('--accent-fill').trim();
-    themeColorMeta.setAttribute("content", accentColor || (isDark ? "#0a0a0b" : "#F59E0B"));
-  }
+  // Still needed after `reapplyCustomTheme`, which syncs the meta tag itself
+  // but returns early when there is no custom palette at all - the plain
+  // light/dark flip on the shipped colours has to move the browser bar too.
+  syncThemeColorMeta(isDark);
 }
 
 /**
@@ -53,7 +50,6 @@ export function toggleTheme() {
 export function initTheme() {
   themeBtn = document.getElementById("theme-toggle");
   themeIcon = document.getElementById("theme-icon");
-  themeColorMeta = document.querySelector('meta[name="theme-color"]');
 
   // Must match the inline bootstrap in index.html exactly: a saved choice wins,
   // otherwise follow the OS. If these two disagree the theme visibly changes at
