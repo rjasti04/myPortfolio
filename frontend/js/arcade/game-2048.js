@@ -21,19 +21,24 @@ const SIZE = 4;
 /** Seconds a slide takes. Short enough that fast play never queues up behind it. */
 const SLIDE_DURATION = 0.1;
 
-/** Neon ramp keyed by log2 of the tile value; the last entry covers everything above it. */
+/**
+ * Candy ramp keyed by log2 of the tile value; the last entry covers everything
+ * above it. Each step carries its own ink because the ramp runs light to dark,
+ * and no single text colour clears 3:1 against all eleven fills - the numbers
+ * are the one thing on the board that has to stay legible at speed.
+ */
 const TILE_COLOURS = [
-  "#1d2b53",
-  "#2a4a7a",
-  "#2f6f9e",
-  "#2f9e8f",
-  "#43b04a",
-  "#8fc23a",
-  "#e5c53a",
-  "#f0932b",
-  "#eb4d4b",
-  "#d64ba8",
-  "#a55eea",
+  { fill: "#56cbf5", ink: "#0e2f3d" }, // 2
+  { fill: "#2fd6c4", ink: "#0b312d" }, // 4
+  { fill: "#a5d94a", ink: "#20300b" }, // 8
+  { fill: "#ffc933", ink: "#3a2a05" }, // 16
+  { fill: "#ffa22e", ink: "#3a2205" }, // 32
+  { fill: "#ff7a3d", ink: "#3d1e05" }, // 64
+  { fill: "#f7594f", ink: "#fff6ec" }, // 128
+  { fill: "#f0468a", ink: "#fff6ec" }, // 256
+  { fill: "#d451d8", ink: "#fff6ec" }, // 512
+  { fill: "#a05ee8", ink: "#fff6ec" }, // 1024
+  { fill: "#6c7bff", ink: "#fff6ec" }, // 2048 and up
 ];
 
 export const emptyGrid = () => Array.from({ length: SIZE * SIZE }, () => 0);
@@ -221,15 +226,28 @@ export function create({ mount, api }) {
 
   function drawTile(x, y, size, value, scale = 1) {
     const inset = (size * (1 - scale)) / 2;
-    const colour =
+    const step =
       TILE_COLOURS[Math.min(Math.log2(value) - 1, TILE_COLOURS.length - 1)];
+    const radius = size * 0.16 * scale;
 
-    ctx.fillStyle = colour;
+    ctx.fillStyle = step.fill;
     ctx.beginPath();
-    ctx.roundRect(x + inset, y + inset, size * scale, size * scale, 6 * scale);
+    ctx.roundRect(x + inset, y + inset, size * scale, size * scale, radius);
     ctx.fill();
 
-    ctx.fillStyle = value > 4 ? "#f7f7ff" : "#0a0a12";
+    // A light band across the top is the whole of the moulded-plastic read.
+    ctx.fillStyle = "rgba(255, 255, 255, 0.26)";
+    ctx.beginPath();
+    ctx.roundRect(
+      x + inset + size * 0.1 * scale,
+      y + inset + size * 0.08 * scale,
+      size * 0.8 * scale,
+      size * 0.16 * scale,
+      size * 0.08 * scale,
+    );
+    ctx.fill();
+
+    ctx.fillStyle = step.ink;
     // Long numbers have to shrink or 131072 runs past the tile edge.
     const digits = String(value).length;
     ctx.font = `700 ${Math.round((size * scale) / Math.max(2.1, digits * 0.72))}px ${FONT}`;
@@ -253,16 +271,16 @@ export function create({ mount, api }) {
     });
 
     ctx.clearRect(0, 0, box.width, box.height);
-    ctx.fillStyle = "#141426";
+    ctx.fillStyle = "#1d1614";
     ctx.beginPath();
-    ctx.roundRect(originX, originY, width, width, 10);
+    ctx.roundRect(originX, originY, width, width, width * 0.05);
     ctx.fill();
 
     for (let index = 0; index < SIZE * SIZE; index += 1) {
       const { x, y } = at(index);
-      ctx.fillStyle = "#1c1c33";
+      ctx.fillStyle = "#302724";
       ctx.beginPath();
-      ctx.roundRect(x, y, cell, cell, 6);
+      ctx.roundRect(x, y, cell, cell, cell * 0.16);
       ctx.fill();
     }
 

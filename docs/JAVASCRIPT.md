@@ -692,13 +692,21 @@ behaves like a continuation of the first.
 The rules of each game are pure exported functions, tested directly in
 `arcade.test.js` without a canvas. Everything else in a game module is drawing.
 
-### `shell.js` (170 lines)
+### `shell.js` (196 lines)
 
 The page's entry point. Builds the launcher from each game module's own `meta`,
 so adding a game is an import and one array entry. Owns the game lifecycle,
 `Escape` to exit, the sound toggle, and the game-over panel. Banks the running
 score on exit and restart as well as on game over — recording only on game over
 threw away every run a player walked away from.
+
+It also owns the switch between the page's two layouts: starting a game puts
+`is-playing` on `<body>` (the stylesheet collapses the page to one viewport with
+the board taking everything that is not the play bar), stamps the game's id on
+the stage so the chrome takes that game's accent colour, and moves the one sound
+button into the play bar — the masthead it normally lives in is not on screen
+during a run, and two buttons kept in step is the version of this that goes
+wrong.
 
 ### `engine.js` (96 lines)
 
@@ -735,14 +743,14 @@ gesture and stays suspended — present, accepting `start()`, silent. Perfect
 Stack drops walk up a pentatonic scale, which is what turns a streak into an
 audible chord progression.
 
-### `game-2048.js` (317 lines)
+### `game-2048.js` (335 lines)
 
 `collapse` and `move` are the rules: a merged tile cannot merge again within
 the same move, and a move that changes nothing must not spawn. `move` also
 returns each tile's journey, which is what lets the renderer animate a slide
 rather than teleport tiles.
 
-### `game-tetris.js` (603 lines)
+### `game-tetris.js` (616 lines)
 
 Ten by twenty, seven-bag randomiser, SRS rotation with wall kicks. The kick
 tables are stored in the standard's own coordinates, where `+y` is up, and
@@ -752,7 +760,7 @@ refuses to turn against a wall, which reads as an unresponsive game rather than
 a rule. Seven-bag rather than uniform random because uniform produces droughts
 long enough that players reasonably believe the game is cheating.
 
-### `game-flapper.js` (254 lines)
+### `game-flapper.js` (282 lines)
 
 A flappy-style game with its own name and its own canvas-drawn art. Simulated
 in a fixed 400x600 space and scaled to the canvas, so it is not harder on a
@@ -760,7 +768,7 @@ tall phone than a short laptop window. The ceiling clamps rather than kills —
 every column reaches down from it, so hugging the roof is still paid for at the
 next gap.
 
-### `game-stack.js` (304 lines)
+### `game-stack.js` (318 lines)
 
 Flat 2D side view: blocks slide, a drop trims the overhang, and the trimmed
 width is what the next block inherits. `place()` holds that geometry. A drop
