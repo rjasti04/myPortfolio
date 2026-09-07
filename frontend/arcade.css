@@ -46,6 +46,11 @@
   --display:
     "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", roboto,
     sans-serif;
+  /* The wordmark alone. Sniglet is an inflated bubble face - the letterform
+     the rest of this page's toy styling is drawn around, and the one thing a
+     grotesque cannot fake at any weight. It is vendored A-Z only, so the
+     stack behind it is what sets anything else. */
+  --wordmark: "Sniglet", var(--display);
   --mono:
     ui-monospace, sfmono-regular, "SF Mono", menlo, consolas, "Liberation Mono",
     monospace;
@@ -169,9 +174,12 @@ a {
 .wordmark {
   display: flex;
   margin: 0;
+  font-family: var(--wordmark);
   font-size: clamp(38px, 9vw, 62px);
   font-weight: 800;
-  letter-spacing: 0.01em;
+  /* Bubble letters are drawn to sit almost touching, so the tracking that
+     kept the old grotesque caps legible now reads as a gap. */
+  letter-spacing: -0.01em;
   text-transform: uppercase;
   line-height: 1;
 }
@@ -324,8 +332,8 @@ a {
 
 /* ---- Launcher --------------------------------------------------------- */
 
-/* Three across on a desktop, so five cards sit as 3 + 2 rather than as two
-   rows and a lone card at the bottom. */
+/* Three across on a desktop, so the six cards sit as two full rows rather than
+   as two rows and a lone card at the bottom. */
 .launcher-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
@@ -404,6 +412,11 @@ a {
 .launch-card[data-game="snake"] {
   --card: #7b3fd4;
   --card-lit: #b06cf0;
+}
+
+.launch-card[data-game="breaker"] {
+  --card: #1f88bd;
+  --card-lit: #56cbf5;
 }
 
 .launch-art {
@@ -515,6 +528,11 @@ a {
 #stage[data-game="snake"] {
   --accent: var(--violet);
   --accent-soft: rgba(176, 108, 240, 0.3);
+}
+
+#stage[data-game="breaker"] {
+  --accent: var(--sky);
+  --accent-soft: rgba(86, 203, 245, 0.3);
 }
 
 /* Everything that is not the board, in one bar: leave, title, score, pause,
@@ -695,6 +713,13 @@ a {
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.24);
 }
 
+/* Breaker's paddle sits at the very bottom of its world with the unserved ball
+   resting on it, which is exactly where the shared hint lands. Lifted clear,
+   so the thing the hint is about is not underneath it. */
+.game--breaker .game-hint {
+  bottom: 26%;
+}
+
 .tetris-side {
   display: flex;
   flex: 0 0 104px;
@@ -822,19 +847,6 @@ a {
   }
 }
 
-.site-footer {
-  margin-top: auto;
-  padding-top: 30px;
-  border-top: 2px solid var(--edge);
-  font-size: 12px;
-  color: var(--muted);
-}
-
-/* Scores live in this browser only; there is no server behind them. */
-.site-footer p {
-  margin: 0 0 6px;
-}
-
 /* ---- Playing ----------------------------------------------------------
    One viewport, no scroll, and every pixel that is not chrome is board. */
 
@@ -850,8 +862,7 @@ body.is-playing .shell {
   padding: 10px 12px 12px;
 }
 
-body.is-playing .masthead,
-body.is-playing .site-footer {
+body.is-playing .masthead {
   display: none;
 }
 

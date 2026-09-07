@@ -1,5 +1,5 @@
 /**
- * Input helpers shared by the five games.
+ * Input helpers shared by the six games.
  *
  * Every binder returns its own teardown function. That is the whole point:
  * the shell destroys and recreates a game on every restart, and a listener
@@ -47,6 +47,39 @@ export function bindKeys(map) {
 
   window.addEventListener("keydown", onKeyDown);
   return () => window.removeEventListener("keydown", onKeyDown);
+}
+
+/**
+ * Continuous pointer position over a surface, as a fraction of its box.
+ *
+ * `bindSwipe` resolves a whole gesture into one direction once it is over,
+ * which is the right shape for a board that moves in steps and the wrong one
+ * for a paddle: a paddle has to follow the pointer while it is still moving,
+ * and on a mouse it has to do so before any button is pressed. `pointermove`
+ * covers both - a mouse reports it hovering, a finger reports it dragging.
+ *
+ * The position is handed over normalised to 0..1 across the element, so the
+ * game never has to know what size the canvas ended up on screen.
+ */
+export function bindPointerTrack(element, onMove) {
+  const handle = (event) => {
+    if (blocked) return;
+    const rect = element.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    onMove(
+      (event.clientX - rect.left) / rect.width,
+      (event.clientY - rect.top) / rect.height,
+    );
+  };
+
+  // `pointerdown` as well as `pointermove`: a finger that taps without dragging
+  // reports no move at all, and the tap should still be where the paddle goes.
+  element.addEventListener("pointermove", handle);
+  element.addEventListener("pointerdown", handle);
+  return () => {
+    element.removeEventListener("pointermove", handle);
+    element.removeEventListener("pointerdown", handle);
+  };
 }
 
 /**

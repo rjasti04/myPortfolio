@@ -40,6 +40,20 @@ import {
   COLUMNS as SNAKE_COLUMNS,
   ROWS as SNAKE_ROWS,
 } from "../js/arcade/game-snake.js";
+import {
+  contactAxis,
+  paddleBounce,
+  buildWall,
+  clampPaddle,
+  sliceCount,
+  speedFor as ballSpeedFor,
+  MAX_BOUNCE_ANGLE,
+  MAX_SPEED,
+  BALL_RADIUS,
+  WORLD as BREAKER_WORLD,
+  COLUMNS as BREAKER_COLUMNS,
+  ROWS as BREAKER_ROWS,
+} from "../js/arcade/game-breaker.js";
 
 /* ---- 2048 --------------------------------------------------------------- */
 
@@ -406,4 +420,105 @@ test("snake: a covered board has nowhere to put food, which is the win", () => {
 test("snake: ticks shorten with the score but stay above the floor", () => {
   assert.ok(tickFor(10) < tickFor(0));
   assert.ok(tickFor(10000) >= 0.075);
+});
+
+/* ---- Breaker ------------------------------------------------------------ */
+
+/** A brick from the middle of the wall, and a ball resting on its underside. */
+const brick = { x: 100, y: 200, width: 50, height: 22 };
+const ballAt = (x, y, speed = { vx: 0, vy: 0 }) => ({
+  x,
+  y,
+  r: BALL_RADIUS,
+  ...speed,
+});
+
+test("breaker: a hit reflects on the axis the ball came in through", () => {
+  // Rising into the brick's underside: shallow on y, deep on x.
+  assert.equal(contactAxis(ballAt(125, 227), brick), "y");
+  // Arriving at the brick's left face: shallow on x, deep on y.
+  assert.equal(contactAxis(ballAt(95, 211), brick), "x");
+});
+
+test("breaker: contact is strict, so grazing a brick is not a hit", () => {
+  // Exactly one radius clear of the top edge, on the centre line.
+  assert.equal(contactAxis(ballAt(125, 200 - BALL_RADIUS), brick), null);
+  assert.equal(contactAxis(ballAt(125, 200 - BALL_RADIUS + 0.5), brick), "y");
+  assert.equal(contactAxis(ballAt(100 - BALL_RADIUS, 211), brick), null);
+});
+
+test("breaker: a dead corner resolves vertically, not along the row", () => {
+  // Equal depth on both axes. Reflecting x here sends the ball sideways along
+  // the row it just hit, which is the direction with nothing to stop it.
+  const corner = { x: 0, y: 0, width: 20, height: 20 };
+  assert.equal(contactAxis(ballAt(-5, -5), corner), "y");
+});
+
+test("breaker: the paddle sets the angle from where it was struck", () => {
+  const paddle = { x: 100, y: 500, width: 80, height: 13 };
+  const arriving = { vx: 40, vy: 300 };
+
+  const middle = paddleBounce(ballAt(140, 495, arriving), paddle);
+  assert.equal(Math.round(middle.vx), 0);
+
+  const left = paddleBounce(ballAt(100, 495, arriving), paddle);
+  const right = paddleBounce(ballAt(180, 495, arriving), paddle);
+  assert.ok(left.vx < 0, "the left tip should send the ball left");
+  assert.ok(right.vx > 0, "the right tip should send the ball right");
+  // The same ball, mirrored: the aim is where it struck, not how it arrived.
+  assert.equal(Math.round(left.vx), -Math.round(right.vx));
+});
+
+test("breaker: the paddle never returns a ball downwards or sideways", () => {
+  const paddle = { x: 100, y: 500, width: 80, height: 13 };
+  const speed = Math.hypot(60, 280);
+
+  // Every point across the paddle, and past both ends: a drag can put the
+  // paddle's tip beyond the ball before the contact resolves.
+  for (let x = 80; x <= 200; x += 2) {
+    const out = paddleBounce(ballAt(x, 495, { vx: 60, vy: 280 }), paddle);
+    assert.ok(out.vy < 0, `ball sent downwards from x=${x}`);
+    // Speed is carried through, so a bounce neither stalls nor accelerates.
+    assert.ok(Math.abs(Math.hypot(out.vx, out.vy) - speed) < 1e-9);
+    // The angle from vertical stays inside the cap, which is what stops a ball
+    // leaving flat and pinging wall to wall inside a gap in the row above.
+    assert.ok(Math.abs(Math.atan2(out.vx, -out.vy)) <= MAX_BOUNCE_ANGLE + 1e-9);
+  }
+});
+
+test("breaker: the wall is a full grid inside the world", () => {
+  const wall = buildWall();
+  assert.equal(wall.length, BREAKER_COLUMNS * BREAKER_ROWS);
+  assert.equal(
+    new Set(wall.map((cell) => `${cell.x},${cell.y}`)).size,
+    wall.length,
+  );
+  for (const cell of wall) {
+    assert.ok(cell.x >= 0 && cell.x + cell.width <= BREAKER_WORLD.width);
+    assert.ok(cell.row >= 0 && cell.row < BREAKER_ROWS);
+  }
+});
+
+test("breaker: the paddle stops at both walls whatever is asked of it", () => {
+  assert.equal(clampPaddle(-40, 80), 0);
+  assert.equal(clampPaddle(BREAKER_WORLD.width, 80), BREAKER_WORLD.width - 80);
+  assert.equal(clampPaddle(120, 80), 120);
+});
+
+test("breaker: the ball speeds up with the bricks but stays under the cap", () => {
+  assert.ok(ballSpeedFor(20) > ballSpeedFor(0));
+  assert.equal(ballSpeedFor(100000), MAX_SPEED);
+});
+
+test("breaker: no slice of a frame is longer than the ball is wide", () => {
+  // The whole point: a ball that crosses more than its own radius between two
+  // collision tests can pass through a brick without ever being inside one,
+  // and a full 1/60 frame at the cap already does.
+  assert.ok(MAX_SPEED / 60 > BALL_RADIUS, "otherwise this guard is untested");
+
+  for (const speed of [0, 120, ballSpeedFor(0), MAX_SPEED, MAX_SPEED * 4]) {
+    const slices = sliceCount(speed, 1 / 60);
+    assert.ok(slices >= 1, "a stationary ball still takes one step");
+    assert.ok(speed / 60 / slices <= BALL_RADIUS, `skipped ahead at ${speed}`);
+  }
 });
