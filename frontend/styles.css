@@ -2537,10 +2537,29 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
      Half again as wide as that step: the two-column landing view has the
      vertical room for it at every desktop height tested down to 700px, and a
      cutout this size is the page's subject rather than an illustration beside
-     the name. 570px against the intro column's ~390px is the whole point -
+     the name. The cap against the intro column's ~390px is the whole point -
      the portrait leads and the type answers it. The phone cap below does NOT
-     scale with this; see the note there. */
-  width: clamp(375px, 40.5vw, 570px);
+     scale with this; see the note there.
+
+     ── Why the cap is 450 and not 570 ──
+     It is the source, not the layout. The cap was 570px while the master was
+     a frame-filling headshot that mattes to 1111px; the master is a
+     full-length shot now, and the bust `generate_profile_cutout.py` crops out
+     of it is 497px wide - all there is. At 570 the browser upscaled on every
+     screen, including 1x. 450 puts the widest render back UNDER the file, so
+     1x is a true downscale again and every fractional DPR asks for less than
+     it did.
+
+     It does not make the portrait retina-sharp, and no cap here can: 2x at
+     450px still wants 900w against 497. Only a higher-resolution original of
+     the master fixes that. What this buys is the 1x case and a smaller
+     deficit everywhere else.
+
+     450 is also now the ONE ceiling the portrait has anywhere - the phone
+     block below already capped at `min(72vw, 450px)`, so the two agree by
+     arithmetic rather than by coincidence. The portrait still leads at this
+     size; it leads by less. */
+  width: clamp(375px, 40.5vw, 450px);
 }
 
 /* ── No wash behind the silhouette ──
