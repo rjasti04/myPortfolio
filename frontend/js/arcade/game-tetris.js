@@ -71,14 +71,15 @@ export const SHAPES = {
   ],
 };
 
+/** One saturated colour per piece, the same seven the launcher card family uses. */
 const COLOURS = {
-  I: "#22d3ee",
-  O: "#facc15",
-  T: "#c084fc",
-  J: "#60a5fa",
-  L: "#fb923c",
-  S: "#4ade80",
-  Z: "#f87171",
+  I: "#2fd6c4",
+  O: "#ffc933",
+  T: "#b06cf0",
+  J: "#56cbf5",
+  L: "#ff8a3d",
+  S: "#a5d94a",
+  Z: "#ff5f9c",
 };
 
 /**
@@ -458,11 +459,19 @@ export function create({ mount, api }) {
     target.globalAlpha = alpha;
     target.fillStyle = COLOURS[type];
     target.beginPath();
-    target.roundRect(x + 1, y + 1, size - 2, size - 2, 3);
+    target.roundRect(x + 1, y + 1, size - 2, size - 2, size * 0.22);
     target.fill();
     // A lighter top edge is the whole of the 3D read at this size.
-    target.fillStyle = "rgba(255, 255, 255, 0.22)";
-    target.fillRect(x + 2, y + 2, size - 4, Math.max(1, size * 0.14));
+    target.fillStyle = "rgba(255, 255, 255, 0.34)";
+    target.beginPath();
+    target.roundRect(
+      x + size * 0.16,
+      y + size * 0.14,
+      size * 0.68,
+      Math.max(1, size * 0.16),
+      size * 0.08,
+    );
+    target.fill();
     target.globalAlpha = 1;
   }
 
@@ -503,10 +512,14 @@ export function create({ mount, api }) {
     const originY = (height - cell * ROWS) / 2;
 
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#0d0d18";
-    ctx.fillRect(originX, originY, cell * COLUMNS, cell * ROWS);
+    // Darker than the panel behind it: the well has to read as a hole in the
+    // cabinet, not as another shade of the frame.
+    ctx.fillStyle = "#17110f";
+    ctx.beginPath();
+    ctx.roundRect(originX, originY, cell * COLUMNS, cell * ROWS, cell * 0.4);
+    ctx.fill();
 
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.045)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
     ctx.lineWidth = 1;
     for (let c = 1; c < COLUMNS; c += 1) {
       ctx.beginPath();
@@ -529,7 +542,7 @@ export function create({ mount, api }) {
     });
 
     if (flashTimer > 0) {
-      ctx.fillStyle = `rgba(255, 255, 255, ${(flashTimer / 0.18) * 0.55})`;
+      ctx.fillStyle = `rgba(255, 249, 235, ${(flashTimer / 0.18) * 0.72})`;
       flashRows.forEach((y) =>
         ctx.fillRect(originX, originY + y * cell, cell * COLUMNS, cell),
       );

@@ -14,7 +14,7 @@
       name="description"
       content="Four browser games built in vanilla JavaScript — 2048, Tetris, Flapper and Stack. No install, no account, no server: scores stay in your browser."
     />
-    <meta name="theme-color" content="#06060f" />
+    <meta name="theme-color" content="#241d1b" />
     <title>Arcade — Four Games in Vanilla JavaScript</title>
     <link rel="canonical" href="https://rjasti.com/arcade" />
     <meta property="og:locale" content="en_US" />
@@ -53,18 +53,47 @@
     />
     <meta name="twitter:image:alt" content="Arcade preview card" />
     <link rel="icon" href="/favicon.ico" />
+    <!-- The portfolio's own self-hosted subset. Same origin, same files the SPA
+         already warms, so the page still fetches nothing the site does not
+         serve itself. -->
+    <link rel="stylesheet" href="fonts.css" />
     <link rel="stylesheet" href="arcade.css" />
   </head>
 
   <body>
     <div class="shell">
       <header class="masthead">
-        <h1 class="wordmark">Arcade</h1>
-        <div class="masthead-actions">
-          <button id="mute" class="btn" type="button" aria-pressed="false">
-            Sound on
+        <!-- One span per letter so each can take its own colour and tilt. The
+             heading's accessible name is the hidden copy at the end, so a
+             screen reader reads a word rather than six letters. -->
+        <h1 class="wordmark" aria-label="Arcade">
+          <span aria-hidden="true">A</span><span aria-hidden="true">R</span
+          ><span aria-hidden="true">C</span><span aria-hidden="true">A</span
+          ><span aria-hidden="true">D</span><span aria-hidden="true">E</span>
+        </h1>
+        <div class="masthead-actions" id="masthead-actions">
+          <!-- Moved into the play bar while a game is on screen, so sound stays
+               one button with one listener rather than two kept in step. -->
+          <button
+            id="mute"
+            class="btn btn--icon"
+            type="button"
+            aria-pressed="false"
+            title="Sound on"
+          >
+            <svg class="icon-sound-on" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"
+              />
+            </svg>
+            <svg class="icon-sound-off" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"
+              />
+            </svg>
+            <span class="visually-hidden" data-role="label">Sound on</span>
           </button>
-          <a class="btn" href="/">Back to portfolio</a>
+          <a class="btn" href="/">Portfolio</a>
         </div>
       </header>
 
@@ -72,9 +101,7 @@
            arcade shell. Only one is ever in the accessibility tree, so a
            screen reader never lands on a board that is not on screen. -->
       <section id="launcher" aria-labelledby="launcher-heading">
-        <h2 id="launcher-heading" class="visually-hidden-heading">
-          Pick a game
-        </h2>
+        <h2 id="launcher-heading" class="visually-hidden">Pick a game</h2>
         <p class="lede">
           Four games written from scratch in vanilla JavaScript — no framework,
           no game engine, no third-party code. They run entirely in this tab and
@@ -86,11 +113,29 @@
       </section>
 
       <section id="stage" hidden aria-labelledby="stage-title">
+        <!-- Everything that is not the board lives in this one bar: leaving,
+             the title, the scores, restarting and sound. A second row of
+             chrome would come straight off the board's height. -->
         <div class="hud">
-          <div>
+          <button
+            class="btn btn--icon"
+            type="button"
+            data-action="exit"
+            title="Back to arcade (Esc)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"
+              />
+            </svg>
+            <span class="visually-hidden">Back to arcade (Escape)</span>
+          </button>
+
+          <div class="hud-id">
             <h2 id="stage-title" class="hud-title" tabindex="-1"></h2>
             <p id="stage-controls" class="hud-controls"></p>
           </div>
+
           <dl class="hud-scores">
             <div>
               <dt>Score</dt>
@@ -101,6 +146,22 @@
               <dd id="hud-best">0</dd>
             </div>
           </dl>
+
+          <div class="hud-tools" id="hud-tools">
+            <button
+              class="btn btn--icon"
+              type="button"
+              data-action="restart"
+              title="Restart"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M17.65 6.35A7.96 7.96 0 0 0 12 4c-4.42 0-7.99 3.58-8 8s3.58 8 8 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                />
+              </svg>
+              <span class="visually-hidden">Restart</span>
+            </button>
+          </div>
         </div>
 
         <div class="stage-body">
@@ -129,15 +190,6 @@
               </button>
             </div>
           </div>
-        </div>
-
-        <div class="stage-footer">
-          <button class="btn" type="button" data-action="restart">
-            Restart
-          </button>
-          <button class="btn" type="button" data-action="exit">
-            Back to arcade (Esc)
-          </button>
         </div>
       </section>
 

@@ -3,8 +3,8 @@
  *
  * A flappy-style game with its own name and its own art: the player is a
  * glowing orb with a trail, drawn entirely from canvas primitives, and the
- * obstacles are neon columns rather than pipes. The mechanic is the genre's;
- * nothing here borrows another game's identity.
+ * obstacles are candy-coloured columns rather than pipes. The mechanic is the
+ * genre's; nothing here borrows another game's identity.
  *
  * `overlaps` is pure and exported so the collision geometry can be tested
  * without a canvas - it is the one piece where an off-by-one is invisible on
@@ -179,6 +179,12 @@ export function create({ mount, api }) {
     const scale = Math.min(width / WORLD.width, height / WORLD.height);
     const offsetX = (width - WORLD.width * scale) / 2;
     const offsetY = (height - WORLD.height * scale) / 2;
+    // The world has a fixed 2:3 shape and the canvas rarely does, so the sky
+    // and the ground are painted this far past the world's edges. Without the
+    // bleed the leftover strip is the cabinet showing through, which reads as
+    // a letterboxed video rather than a screen.
+    const bleedX = offsetX / scale;
+    const bleedY = offsetY / scale;
 
     ctx.clearRect(0, 0, width, height);
     ctx.save();
@@ -186,36 +192,58 @@ export function create({ mount, api }) {
     ctx.scale(scale, scale);
 
     const sky = ctx.createLinearGradient(0, 0, 0, WORLD.height);
-    sky.addColorStop(0, "#120b2e");
-    sky.addColorStop(1, "#06202e");
+    sky.addColorStop(0, "#4b2a9c");
+    sky.addColorStop(0.55, "#3f6fd8");
+    sky.addColorStop(1, "#22b5c9");
     ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, WORLD.width, WORLD.height);
+    ctx.fillRect(
+      -bleedX,
+      -bleedY,
+      WORLD.width + bleedX * 2,
+      WORLD.height + bleedY * 2,
+    );
 
     columns.forEach((column) => {
       columnRects(column).forEach((rect) => {
-        ctx.fillStyle = "#1b6f7d";
+        ctx.fillStyle = "#e5306f";
         ctx.beginPath();
-        ctx.roundRect(rect.x, rect.y, rect.width, rect.height, 5);
+        ctx.roundRect(rect.x, rect.y, rect.width, rect.height, 10);
         ctx.fill();
-        ctx.fillStyle = "#2ee6c5";
-        // Lip on the gap-facing end, so the hazard boundary is unambiguous.
-        const lipY = rect.y === 0 ? rect.height - 14 : rect.y;
+        // A light stripe down the column, the gloss the launcher cards wear.
+        ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
         ctx.beginPath();
-        ctx.roundRect(rect.x - 4, lipY, rect.width + 8, 14, 4);
+        ctx.roundRect(
+          rect.x + 9,
+          rect.y + 8,
+          12,
+          Math.max(rect.height - 26, 0),
+          6,
+        );
+        ctx.fill();
+        ctx.fillStyle = "#ffc933";
+        // Lip on the gap-facing end, so the hazard boundary is unambiguous.
+        const lipY = rect.y === 0 ? rect.height - 16 : rect.y;
+        ctx.beginPath();
+        ctx.roundRect(rect.x - 5, lipY, rect.width + 10, 16, 7);
         ctx.fill();
       });
     });
 
-    ctx.fillStyle = "#0b1720";
-    ctx.fillRect(0, WORLD.height - 24, WORLD.width, 24);
-    ctx.fillStyle = "#2ee6c5";
-    for (let x = -groundOffset; x < WORLD.width; x += 40) {
-      ctx.fillRect(x, WORLD.height - 24, 20, 3);
+    ctx.fillStyle = "#2b1b52";
+    ctx.fillRect(
+      -bleedX,
+      WORLD.height - 24,
+      WORLD.width + bleedX * 2,
+      24 + bleedY,
+    );
+    ctx.fillStyle = "#a5d94a";
+    for (let x = -groundOffset - bleedX; x < WORLD.width + bleedX; x += 40) {
+      ctx.fillRect(x, WORLD.height - 24, 20, 4);
     }
 
     trail.forEach((point, i) => {
-      ctx.globalAlpha = (1 - i / trail.length) * 0.32;
-      ctx.fillStyle = "#facc15";
+      ctx.globalAlpha = (1 - i / trail.length) * 0.34;
+      ctx.fillStyle = "#ffe066";
       ctx.beginPath();
       ctx.arc(
         point.x,
@@ -228,11 +256,11 @@ export function create({ mount, api }) {
     });
     ctx.globalAlpha = 1;
 
-    ctx.fillStyle = "#facc15";
+    ctx.fillStyle = "#ffc933";
     ctx.beginPath();
     ctx.arc(orb.x, orb.y, ORB_RADIUS, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
     ctx.beginPath();
     ctx.arc(orb.x - 4, orb.y - 4, ORB_RADIUS * 0.34, 0, Math.PI * 2);
     ctx.fill();

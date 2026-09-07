@@ -45,15 +45,22 @@ const overlay = document.querySelector("#overlay");
 const overlayScore = document.querySelector("#overlay-score");
 const overlayNote = document.querySelector("#overlay-note");
 const muteButton = document.querySelector("#mute");
+const muteLabel = muteButton.querySelector('[data-role="label"]');
+const mastheadActions = document.querySelector("#masthead-actions");
+const hudTools = document.querySelector("#hud-tools");
 
 const audio = createAudio();
 let current = null;
 let instance = null;
 let score = 0;
 
+/* The button is an icon: `aria-pressed` picks the glyph in CSS, and the label
+   it is named by is off screen rather than in its text content. */
 function syncMuteButton() {
+  const label = audio.muted ? "Sound off" : "Sound on";
   muteButton.setAttribute("aria-pressed", String(audio.muted));
-  muteButton.textContent = audio.muted ? "Sound off" : "Sound on";
+  muteButton.title = label;
+  muteLabel.textContent = label;
 }
 
 /** Build the launcher from each module's own `meta`, so the list has one source. */
@@ -71,13 +78,21 @@ for (const game of GAMES) {
   grid.append(card);
 }
 
-/** Refresh the "Best" line on every launcher card. Called on entry and on exit. */
+/**
+ * Refresh the score bubble on every launcher card. Called on entry and on exit.
+ *
+ * The bubble shows the number alone, so the word it means is carried off
+ * screen - a card that read "2048, slide merge and chase the tile, 32" would
+ * be announcing a number with no unit.
+ */
 function refreshBests() {
   grid.querySelectorAll(".launch-card").forEach((card) => {
     const best = readBest(card.dataset.game);
-    card.querySelector('[data-role="best"]').textContent = best
-      ? `Best ${best}`
-      : "Not played yet";
+    const badge = card.querySelector('[data-role="best"]');
+    badge.classList.toggle("launch-best--empty", !best);
+    badge.innerHTML = best
+      ? `<span class="visually-hidden">Best score </span>${best}`
+      : '<span class="visually-hidden">Not played yet</span><span aria-hidden="true">New</span>';
   });
 }
 
@@ -114,6 +129,15 @@ function start(game) {
   stageTitle.textContent = game.meta.name;
   stageControls.textContent = game.meta.controls;
   document.title = `${game.meta.name} · ${BASE_TITLE}`;
+  // The stylesheet keys the stage's accent off this, so the chrome takes the
+  // colour the game's card already wears.
+  stage.dataset.game = game.meta.id;
+  // Collapses the page to one viewport with the board taking everything that
+  // is not the play bar.
+  document.body.classList.add("is-playing");
+  // The masthead goes with it, so the one sound button moves rather than a
+  // second one existing to be kept in step.
+  hudTools.append(muteButton);
   launcher.hidden = true;
   stage.hidden = false;
   mountGame();
@@ -139,6 +163,8 @@ function exit() {
   overlay.hidden = true;
   stage.hidden = true;
   launcher.hidden = false;
+  document.body.classList.remove("is-playing");
+  mastheadActions.prepend(muteButton);
   document.title = BASE_TITLE;
   refreshBests();
   // Return focus to the card that was launched, not to the top of the page.

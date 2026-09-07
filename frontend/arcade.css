@@ -1,28 +1,61 @@
 /* Arcade — the standalone games page at /arcade.
  *
  * Deliberately not the portfolio's stylesheet. This page is its own cabinet:
- * neon on near-black, chunky borders, a scanline wash over the whole thing.
- * What it does share with the SPA is the rule that matters — nothing is
- * fetched from a third-party origin. The retro read is built from CSS alone
- * on the platform monospace stack, so the page ships no font of its own and
+ * saturated candy colours on a warm dark ground, chunky pill cards with a
+ * gloss and a hard drop shadow, and a per-letter wordmark. What it does share
+ * with the SPA is the rule that matters — nothing is fetched from a
+ * third-party origin. The one font it uses is Plus Jakarta Sans, the same
+ * self-hosted subset the portfolio serves from `fonts.css`, so the page still
  * makes no request the site does not serve itself.
+ *
+ * Two layouts live here, switched by `is-playing` on <body>:
+ *
+ *   launcher  - a normal scrolling document, the cards as the whole content.
+ *   playing   - the shell becomes exactly one viewport tall, the masthead and
+ *               the footer come off, and everything that is not the board is
+ *               a single compact bar. The board takes the rest.
+ *
+ * Card and chrome colours are driven by two custom properties rather than by
+ * a rule per game: `--card`/`--card-lit` on a launcher card, `--accent` on the
+ * stage. Both are set once per game id below.
  */
 
 :root {
-  --bg: #06060f;
-  --panel: #0e0e1d;
-  --panel-raised: #16162c;
-  --edge: #2a2a4a;
-  --text: #e8e8ff;
-  --muted: #8b8bb5;
-  --cyan: #2ee6c5;
-  --magenta: #ff4fa3;
-  --amber: #facc15;
-  --violet: #a55eea;
+  --bg: #241d1b;
+  --bg-deep: #171211;
+  --panel: #322925;
+  --panel-raised: #3e332e;
+  --edge: #57473f;
+  --text: #fff6ec;
+  --muted: #c0aa9d;
+  /* Dark ink for text that sits on a bright fill. */
+  --ink: #26160d;
+
+  /* The bright tier - wordmark letters, accents, glows. */
+  --orange: #ff8a3d;
+  --teal: #2fd6c4;
+  --pink: #ff5f9c;
+  --lime: #a5d94a;
+  --yellow: #ffc933;
+  --sky: #56cbf5;
+  --violet: #b06cf0;
+
+  /* Recoloured per game while a board is on screen. */
+  --accent: var(--teal);
+
+  --display:
+    "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", roboto,
+    sans-serif;
   --mono:
     ui-monospace, sfmono-regular, "SF Mono", menlo, consolas, "Liberation Mono",
     monospace;
-  --radius: 10px;
+
+  --radius: 20px;
+  --pill: 999px;
+  /* The chunky two-part shadow every raised surface here wears: a hard offset
+     edge for the toy read, a soft one underneath it for depth. */
+  --drop: 0 6px 0 rgba(0, 0, 0, 0.26), 0 14px 26px rgba(0, 0, 0, 0.34);
+  --drop-lift: 0 10px 0 rgba(0, 0, 0, 0.26), 0 22px 38px rgba(0, 0, 0, 0.4);
   color-scheme: dark;
 }
 
@@ -46,54 +79,59 @@ body {
   min-height: 100vh;
   background:
     radial-gradient(
-      circle at 18% 0%,
-      rgba(165, 94, 234, 0.18),
-      transparent 55%
+      circle at 12% -4%,
+      rgba(255, 138, 61, 0.22),
+      transparent 46%
     ),
     radial-gradient(
-      circle at 84% 12%,
-      rgba(46, 230, 197, 0.14),
-      transparent 52%
+      circle at 88% 6%,
+      rgba(47, 214, 196, 0.18),
+      transparent 44%
     ),
-    var(--bg);
+    radial-gradient(
+      circle at 62% 96%,
+      rgba(255, 95, 156, 0.16),
+      transparent 46%
+    ),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
+  background-attachment: fixed;
   color: var(--text);
-  font-family: var(--mono);
+  font-family: var(--display);
   font-size: 15px;
-  line-height: 1.55;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-/* The scanline wash. `pointer-events: none` is load-bearing — this sits over
-   the canvases, and without it every tap and drag would land here instead of
-   on the game. */
+/* Confetti speckle over the whole page. `pointer-events: none` is
+   load-bearing — this sits over the canvases, and without it every tap and
+   drag would land here instead of on the game. */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 50;
   pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0,
-    rgba(0, 0, 0, 0) 2px,
-    rgba(0, 0, 0, 0.22) 3px,
-    rgba(0, 0, 0, 0.22) 4px
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.055) 1px,
+    transparent 1.4px
   );
-  opacity: 0.55;
+  background-size: 28px 28px;
 }
 
 a {
-  color: var(--cyan);
+  color: var(--teal);
 }
 
 :focus-visible {
-  outline: 3px solid var(--amber);
+  outline: 3px solid var(--yellow);
   outline-offset: 3px;
 }
 
-/* The launcher's heading exists for the accessibility tree only - the neon
-   wordmark above it is the visible title, and repeating it would read twice. */
-.visually-hidden-heading {
+/* Text that belongs to the accessibility tree only — the launcher's heading
+   sits under the visible wordmark, and the score badges read as bare numbers
+   without their label. */
+.visually-hidden {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -105,9 +143,14 @@ a {
 }
 
 .shell {
-  max-width: 1040px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 24px 18px 64px;
+  padding: 22px 18px 30px;
 }
 
 /* ---- Masthead --------------------------------------------------------- */
@@ -115,23 +158,60 @@ a {
 .masthead {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 18px;
-  border-bottom: 2px solid var(--edge);
+  margin-bottom: 6px;
 }
 
+/* One <span> per letter, each its own colour and its own tilt. The heading's
+   accessible name comes from the visually hidden copy beside them. */
 .wordmark {
+  display: flex;
   margin: 0;
-  font-size: clamp(28px, 7vw, 44px);
-  font-weight: 700;
-  letter-spacing: 0.22em;
+  font-size: clamp(38px, 9vw, 62px);
+  font-weight: 800;
+  letter-spacing: 0.01em;
   text-transform: uppercase;
-  color: var(--cyan);
+  line-height: 1;
+}
+
+.wordmark span {
+  display: inline-block;
   text-shadow:
-    0 0 12px rgba(46, 230, 197, 0.55),
-    0 0 34px rgba(46, 230, 197, 0.22);
+    0 4px 0 rgba(0, 0, 0, 0.28),
+    0 10px 20px rgba(0, 0, 0, 0.3);
+  transform: rotate(var(--tilt, 0deg));
+}
+
+.wordmark span:nth-child(1) {
+  color: var(--orange);
+  --tilt: -6deg;
+}
+
+.wordmark span:nth-child(2) {
+  color: var(--teal);
+  --tilt: 4deg;
+}
+
+.wordmark span:nth-child(3) {
+  color: var(--yellow);
+  --tilt: -3deg;
+}
+
+.wordmark span:nth-child(4) {
+  color: var(--pink);
+  --tilt: 5deg;
+}
+
+.wordmark span:nth-child(5) {
+  color: var(--lime);
+  --tilt: -4deg;
+}
+
+.wordmark span:nth-child(6) {
+  color: var(--sky);
+  --tilt: 3deg;
 }
 
 .masthead-actions {
@@ -140,43 +220,84 @@ a {
   align-items: center;
 }
 
+/* ---- Buttons ---------------------------------------------------------- */
+
 .btn {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
   font: inherit;
   font-size: 13px;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text);
   background: var(--panel-raised);
-  border: 2px solid var(--edge);
-  border-radius: var(--radius);
-  padding: 9px 15px;
+  border: 0;
+  border-radius: var(--pill);
+  padding: 11px 18px;
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.28);
   transition:
-    border-color 0.18s ease,
-    color 0.18s ease,
-    transform 0.18s ease;
+    background-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .btn:hover {
-  border-color: var(--cyan);
-  color: var(--cyan);
-  transform: translateY(-1px);
+  color: var(--ink);
+  background: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
 }
 
 .btn--primary {
-  border-color: var(--cyan);
-  color: var(--cyan);
+  color: var(--ink);
+  background: var(--accent);
 }
 
 .btn--primary:hover {
-  background: rgba(46, 230, 197, 0.12);
+  filter: brightness(1.08);
+}
+
+/* Square-ish control in the play bar: an icon plus a hidden label. */
+.btn--icon {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.btn--icon svg {
+  width: 20px;
+  height: 20px;
+  fill: currentcolor;
+}
+
+/* Two glyphs in the one sound button, picked by the state the shell already
+   has to publish for assistive tech. */
+#mute[aria-pressed="true"] .icon-sound-on,
+#mute[aria-pressed="false"] .icon-sound-off {
+  display: none;
+}
+
+#mute[aria-pressed="true"] {
+  color: var(--muted);
 }
 
 .lede {
-  max-width: 62ch;
-  margin: 22px 0 26px;
+  max-width: 58ch;
+  margin: 14px 0 26px;
+  font-size: 15px;
   color: var(--muted);
 }
 
@@ -184,109 +305,220 @@ a {
 
 .launcher-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 224px), 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: 22px 20px;
 }
 
+/* A fat colour pill per game. The colour pair is set by game id below, so a
+   card keeps its identity wherever it lands in the grid. */
 .launch-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   align-items: flex-start;
-  padding: 20px 18px;
+  padding: 30px 26px 22px;
   font: inherit;
   text-align: left;
-  color: var(--text);
-  background: var(--panel);
-  border: 2px solid var(--edge);
-  border-radius: var(--radius);
+  color: #fff;
+  background: linear-gradient(
+    170deg,
+    var(--card-lit) 0%,
+    var(--card) 58%,
+    var(--card) 100%
+  );
+  border: 0;
+  border-radius: 34px;
   cursor: pointer;
+  box-shadow: var(--drop);
   transition:
-    border-color 0.18s ease,
     transform 0.18s ease,
     box-shadow 0.18s ease;
 }
 
+/* The gloss. Sits above the title, which is why the card is padded down from
+   the top rather than centred. */
+.launch-card::before {
+  content: "";
+  position: absolute;
+  inset: 7px 16px auto 16px;
+  height: 26%;
+  border-radius: var(--pill);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.38),
+    rgba(255, 255, 255, 0)
+  );
+  pointer-events: none;
+}
+
 .launch-card:hover,
 .launch-card:focus-visible {
-  border-color: var(--magenta);
-  transform: translateY(-3px);
-  box-shadow: 0 10px 28px rgba(255, 79, 163, 0.16);
+  transform: translateY(-4px) rotate(-0.4deg);
+  box-shadow: var(--drop-lift);
+}
+
+.launch-card[data-game="2048"] {
+  --card: #f2671f;
+  --card-lit: #ff8f4a;
+}
+
+.launch-card[data-game="tetris"] {
+  --card: #0fa094;
+  --card-lit: #2fd6c4;
+}
+
+.launch-card[data-game="flapper"] {
+  --card: #e5306f;
+  --card-lit: #ff5f9c;
+}
+
+.launch-card[data-game="stack"] {
+  --card: #5fa524;
+  --card-lit: #93cf3f;
 }
 
 .launch-art {
-  width: 34px;
-  height: 34px;
-  fill: var(--cyan);
-}
-
-.launch-card:nth-child(2n) .launch-art {
-  fill: var(--magenta);
-}
-
-.launch-card:nth-child(3n) .launch-art {
-  fill: var(--amber);
+  width: 30px;
+  height: 30px;
+  margin-bottom: 2px;
+  fill: rgba(255, 255, 255, 0.9);
 }
 
 .launch-name {
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
   text-transform: uppercase;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.22);
 }
 
 .launch-tagline {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  /* Dark on the bright fill, the way the title is light on it. */
+  color: rgba(32, 18, 8, 0.78);
 }
 
+/* The best score as a bubble hung off the top-right corner. */
 .launch-best {
-  margin-top: auto;
-  padding-top: 8px;
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--violet);
+  position: absolute;
+  top: -12px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  min-width: 46px;
+  height: 46px;
+  padding: 0 10px;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: #fffaf2;
+  border-radius: var(--pill);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22);
+}
+
+.launch-best--empty {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #7d6a5e;
+  background: rgba(255, 250, 242, 0.86);
 }
 
 /* ---- Stage ------------------------------------------------------------ */
 
+#stage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The chrome takes the colour of the card that launched it. `stage.dataset.game`
+   is set in the shell. */
+#stage[data-game="2048"] {
+  --accent: var(--orange);
+  --accent-soft: rgba(255, 138, 61, 0.3);
+}
+
+#stage[data-game="tetris"] {
+  --accent: var(--teal);
+  --accent-soft: rgba(47, 214, 196, 0.3);
+}
+
+#stage[data-game="flapper"] {
+  --accent: var(--pink);
+  --accent-soft: rgba(255, 95, 156, 0.3);
+}
+
+#stage[data-game="stack"] {
+  --accent: var(--lime);
+  --accent-soft: rgba(165, 217, 74, 0.3);
+}
+
+/* Everything that is not the board, in one bar: leave, title, score, restart,
+   sound. The shell moves the sound button in here for the duration of a run. */
 .hud {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px 18px;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 14px;
+  gap: 10px;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  background: var(--panel);
+  border-radius: var(--pill);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22);
+}
+
+.hud-id {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .hud-title {
+  display: inline-block;
+  max-width: 100%;
   margin: 0;
-  font-size: 22px;
-  letter-spacing: 0.12em;
+  overflow: hidden;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
   text-transform: uppercase;
-  color: var(--amber);
+  white-space: nowrap;
+  color: var(--accent);
 }
 
 .hud-controls {
-  margin: 2px 0 0;
+  margin: 0;
+  overflow: hidden;
   font-size: 12px;
   color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hud-scores {
   display: flex;
-  gap: 20px;
+  gap: 8px;
   margin: 0;
+  flex: 0 0 auto;
 }
 
 .hud-scores div {
-  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: var(--pill);
 }
 
 .hud-scores dt {
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
@@ -294,76 +526,113 @@ a {
 
 .hud-scores dd {
   margin: 0;
-  font-size: 26px;
+  font-family: var(--mono);
+  font-size: 20px;
   font-weight: 700;
-  color: var(--cyan);
+  line-height: 1.1;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
+}
+
+.hud-tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 0 0 auto;
 }
 
 .stage-body {
   position: relative;
   display: flex;
+  align-items: stretch;
   justify-content: center;
-  padding: 18px;
-  background: var(--panel);
-  border: 2px solid var(--edge);
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 14px;
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(255, 255, 255, 0.05),
+      transparent 60%
+    ),
+    var(--panel);
   border-radius: var(--radius);
+  box-shadow:
+    inset 0 0 0 2px var(--accent-soft, rgba(255, 255, 255, 0.06)),
+    0 6px 0 rgba(0, 0, 0, 0.24);
 }
 
 #mount {
   display: flex;
+  align-items: stretch;
   justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
+  height: 100%;
 }
 
 .game {
   display: flex;
-  gap: 18px;
-  /* Not `stretch`: the boards size themselves from their aspect ratio, and
-     stretching one to the tallest sibling breaks that ratio silently. */
-  align-items: flex-start;
+  gap: 16px;
+  align-items: center;
   justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
+  height: 100%;
 }
 
-/* Every board is sized by CSS and the canvas backing store is matched to it in
-   engine.js. Setting width/height attributes on the element instead would fix
-   the resolution to one screen density. */
+/* Boards are sized from the height they are given, not from a fixed width:
+   the stage is a viewport-height flex column while a game is on, so this is
+   what makes a board grow to fill the screen. Width follows from the aspect
+   ratio; `max-width` clamps it on a narrow viewport, and the games centre
+   their playfield inside whatever box they end up with, so a clamped box
+   letterboxes rather than distorting.
+   The backing store is matched to the box in engine.js — setting width/height
+   attributes on the element instead would fix the resolution to one density. */
 .game-canvas {
   display: block;
-  width: 100%;
-  border-radius: 8px;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  border-radius: 12px;
   /* Without this the browser claims swipes for scrolling and the touch
      controls simply never fire. */
   touch-action: none;
 }
 
 .game-canvas--square {
-  max-width: min(460px, 88vw);
   aspect-ratio: 1;
+  max-height: 760px;
 }
 
 .game-canvas--well {
-  max-width: min(300px, 62vw);
   aspect-ratio: 1 / 2;
+  max-height: 880px;
 }
 
 .game-canvas--portrait {
-  max-width: min(360px, 80vw);
   aspect-ratio: 2 / 3;
+  max-height: 820px;
 }
 
 .game-hint {
   position: absolute;
-  bottom: 26px;
+  /* Clear of the tower in Stack, which builds up from the bottom of its own
+     world - a hint sitting on the block being aimed is worse than no hint. */
+  bottom: 12%;
   left: 50%;
   transform: translateX(-50%);
   margin: 0;
-  padding: 7px 14px;
-  font-size: 12px;
-  color: var(--bg);
-  background: var(--amber);
-  border-radius: var(--radius);
+  padding: 9px 18px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  background: var(--yellow);
+  border-radius: var(--pill);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.24);
 }
 
 .tetris-side {
@@ -377,7 +646,8 @@ a {
 .tetris-side-label,
 .tetris-stats dt {
   margin: 0;
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
@@ -386,9 +656,8 @@ a {
 .tetris-next {
   width: 100%;
   aspect-ratio: 1;
-  background: #0d0d18;
-  border: 2px solid var(--edge);
-  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.26);
+  border-radius: 14px;
 }
 
 .tetris-stats {
@@ -400,6 +669,7 @@ a {
 
 .tetris-stats dd {
   margin: 0;
+  font-family: var(--mono);
   font-size: 20px;
   font-weight: 700;
   color: var(--text);
@@ -418,31 +688,33 @@ a {
   align-items: center;
   justify-content: center;
   text-align: center;
-  background: rgba(6, 6, 15, 0.9);
+  background: rgba(23, 18, 17, 0.9);
   border-radius: var(--radius);
 }
 
 .overlay h3 {
   margin: 0;
-  font-size: 24px;
-  letter-spacing: 0.16em;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--magenta);
+  color: var(--pink);
 }
 
 .overlay-score {
-  margin: 4px 0 0;
-  font-size: 52px;
+  margin: 2px 0 0;
+  font-family: var(--mono);
+  font-size: 58px;
   font-weight: 700;
   line-height: 1;
-  color: var(--cyan);
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 
 .overlay-note {
-  margin: 0 0 14px;
-  color: var(--muted);
+  margin: 0 0 16px;
   font-size: 13px;
+  color: var(--muted);
 }
 
 .overlay-actions {
@@ -452,16 +724,9 @@ a {
   justify-content: center;
 }
 
-.stage-footer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
-}
-
 .site-footer {
-  margin-top: 40px;
-  padding-top: 18px;
+  margin-top: auto;
+  padding-top: 30px;
   border-top: 2px solid var(--edge);
   font-size: 12px;
   color: var(--muted);
@@ -472,26 +737,104 @@ a {
   margin: 0 0 6px;
 }
 
-@media (max-width: 560px) {
+/* ---- Playing ----------------------------------------------------------
+   One viewport, no scroll, and every pixel that is not chrome is board. */
+
+body.is-playing {
+  overflow: hidden;
+}
+
+body.is-playing .shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  padding: 10px 12px 12px;
+}
+
+body.is-playing .masthead,
+body.is-playing .site-footer {
+  display: none;
+}
+
+body.is-playing #stage {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ---- Narrow ----------------------------------------------------------- */
+
+@media (max-width: 620px) {
   .shell {
-    padding: 18px 14px 48px;
+    padding: 18px 14px 44px;
   }
 
+  .launcher-grid {
+    gap: 20px 16px;
+  }
+
+  .launch-card {
+    padding: 26px 22px 20px;
+  }
+
+  .hud {
+    gap: 8px;
+    padding: 7px 10px;
+  }
+
+  .btn--icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .hud-title {
+    font-size: 16px;
+  }
+
+  /* The keyboard hint is desktop advice, and the bar has no room for it. */
+  .hud-controls {
+    display: none;
+  }
+
+  .hud-scores {
+    gap: 6px;
+  }
+
+  .hud-scores div {
+    padding: 2px 9px;
+  }
+
+  .hud-scores dt {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+
+  .hud-scores dd {
+    font-size: 17px;
+  }
+
+  .hud-tools {
+    gap: 6px;
+  }
+
+  .stage-body {
+    padding: 10px;
+  }
+
+  /* Stacked, the board takes the height the row layout gave the whole line.
+     Both axes are constrained here, so the declared aspect ratio no longer
+     applies and the game letterboxes inside the box it is handed. */
   .game {
     flex-direction: column;
-    align-items: center;
+    gap: 10px;
   }
 
-  /* A 1:2 well at phone width is taller than the viewport, so cap every board
-     by height here. The canvases centre their playfield inside whatever box
-     they are given, so a box that no longer matches the declared aspect ratio
-     letterboxes rather than distorting. */
   .game-canvas {
-    max-height: 58vh;
-  }
-
-  .game-canvas--well {
-    max-width: min(320px, 78vw);
+    flex: 1 1 auto;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: none;
   }
 
   .tetris-side {
@@ -500,19 +843,25 @@ a {
        bottom of the screen and are never seen. */
     order: -1;
     flex-direction: row;
-    gap: 18px;
+    gap: 16px;
     align-items: center;
-    width: min(320px, 78vw);
+    justify-content: center;
+    width: 100%;
   }
 
   .tetris-next {
-    width: 74px;
-    height: 74px;
+    width: 54px;
+    height: 54px;
+    flex: 0 0 auto;
   }
 
   .tetris-stats {
     flex-direction: row;
-    gap: 18px;
+    gap: 16px;
+  }
+
+  .tetris-stats dd {
+    font-size: 17px;
   }
 }
 
@@ -520,17 +869,18 @@ a {
    this trims the ambient effects and leaves the gameplay alone. The games read
    the same preference themselves and drop their own trails and pops. */
 @media (prefers-reduced-motion: reduce) {
-  body::after {
-    opacity: 0.28;
-  }
-
   .btn,
   .launch-card {
     transition: none;
   }
 
   .btn:hover,
-  .launch-card:hover {
+  .launch-card:hover,
+  .launch-card:focus-visible {
+    transform: none;
+  }
+
+  .wordmark span {
     transform: none;
   }
 }

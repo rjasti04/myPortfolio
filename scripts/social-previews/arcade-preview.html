@@ -8,107 +8,151 @@
   <style>
     /* Tokens lifted from :root in frontend/arcade.css. */
     .card {
-      background: #06060f;
-      color: #e8e8ff;
+      background: linear-gradient(160deg, #241d1b 0%, #171211 100%);
+      color: #fff6ec;
     }
 
-    .glow-violet {
+    .glow-orange {
       width: 720px;
       height: 720px;
-      top: -320px;
-      left: -180px;
-      background: radial-gradient(circle, rgba(165, 94, 234, 0.34), transparent 66%);
+      top: -340px;
+      left: -200px;
+      background: radial-gradient(circle, rgba(255, 138, 61, 0.30), transparent 66%);
     }
 
-    .glow-cyan {
-      width: 560px;
-      height: 560px;
-      bottom: -280px;
-      right: -120px;
-      background: radial-gradient(circle, rgba(46, 230, 197, 0.20), transparent 66%);
-    }
-
-    /* The scanline wash the page itself wears, at card scale. */
-    .scanlines {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background: repeating-linear-gradient(to bottom,
-          rgba(0, 0, 0, 0) 0,
-          rgba(0, 0, 0, 0) 3px,
-          rgba(0, 0, 0, 0.26) 4px,
-          rgba(0, 0, 0, 0.26) 6px);
-      opacity: 0.5;
+    .glow-teal {
+      width: 620px;
+      height: 620px;
+      bottom: -300px;
+      right: -140px;
+      background: radial-gradient(circle, rgba(47, 214, 196, 0.22), transparent 66%);
     }
 
     .rule {
-      background: linear-gradient(90deg, #2ee6c5, #ff4fa3);
+      background: linear-gradient(90deg, #ff8a3d, #2fd6c4 50%, #ff5f9c);
     }
 
     .eyebrow {
-      color: #2ee6c5;
+      color: #2fd6c4;
     }
 
     .left {
-      width: 620px;
+      width: 600px;
     }
 
+    /* One span per letter, the way the page wears its own wordmark. */
     .title {
-      font-size: 86px;
-      letter-spacing: 0.06em;
+      display: flex;
+      font-size: 88px;
+      letter-spacing: 0.01em;
       text-transform: uppercase;
-      text-shadow: 0 0 26px rgba(46, 230, 197, 0.45);
-      color: #2ee6c5;
     }
+
+    .title span {
+      display: inline-block;
+      text-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
+    }
+
+    .title span:nth-child(1) { color: #ff8a3d; transform: rotate(-6deg); }
+    .title span:nth-child(2) { color: #2fd6c4; transform: rotate(4deg); }
+    .title span:nth-child(3) { color: #ffc933; transform: rotate(-3deg); }
+    .title span:nth-child(4) { color: #ff5f9c; transform: rotate(5deg); }
+    .title span:nth-child(5) { color: #a5d94a; transform: rotate(-4deg); }
+    .title span:nth-child(6) { color: #56cbf5; transform: rotate(3deg); }
 
     .lead {
-      color: #8b8bb5;
-      max-width: 580px;
+      color: #c0aa9d;
+      max-width: 570px;
     }
 
     .chip {
-      background: #16162c;
-      border-color: #2a2a4a;
-      color: #e8e8ff;
+      background: #3e332e;
+      border-color: #57473f;
+      color: #fff6ec;
     }
 
     .chip.pink {
-      background: rgba(255, 79, 163, 0.16);
-      border-color: rgba(255, 79, 163, 0.45);
-      color: #ff4fa3;
+      background: rgba(255, 95, 156, 0.18);
+      border-color: rgba(255, 95, 156, 0.5);
+      color: #ff5f9c;
     }
 
     .art {
       flex: 1;
       display: flex;
-      align-items: center;
-      justify-content: flex-end;
+      flex-direction: column;
+      gap: 20px;
+      justify-content: center;
     }
 
+    /* The launcher's four colour pills, at card scale. */
+    .tile {
+      position: relative;
+      width: 372px;
+      padding: 26px 26px 20px;
+      border-radius: 30px;
+      box-shadow: 0 6px 0 rgba(0, 0, 0, 0.26), 0 14px 26px rgba(0, 0, 0, 0.34);
+    }
+
+    .tile::before {
+      content: "";
+      position: absolute;
+      inset: 6px 14px auto 14px;
+      height: 26%;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0));
+    }
+
+    .tile b {
+      position: relative;
+      display: block;
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #fff;
+      text-shadow: 0 2px 0 rgba(0, 0, 0, 0.22);
+    }
+
+    .tile i {
+      position: relative;
+      display: block;
+      margin-top: 2px;
+      font-size: 17px;
+      font-style: normal;
+      font-weight: 600;
+      color: rgba(32, 18, 8, 0.78);
+    }
+
+    .tile.a { background: linear-gradient(170deg, #ff8f4a, #f2671f 58%); }
+    .tile.b { background: linear-gradient(170deg, #2fd6c4, #0fa094 58%); margin-left: 34px; }
+    .tile.c { background: linear-gradient(170deg, #ff5f9c, #e5306f 58%); }
+    .tile.d { background: linear-gradient(170deg, #93cf3f, #5fa524 58%); margin-left: 34px; }
+
     .footer {
-      border-top: 1px solid #2a2a4a;
+      border-top: 1px solid #57473f;
     }
 
     .footer .url {
-      color: #e8e8ff;
+      color: #fff6ec;
     }
 
     .footer .meta {
-      color: #8b8bb5;
+      color: #c0aa9d;
     }
   </style>
 </head>
 
 <body>
   <div class="card">
-    <div class="glow glow-violet"></div>
-    <div class="glow glow-cyan"></div>
+    <div class="glow glow-orange"></div>
+    <div class="glow glow-teal"></div>
 
     <div class="body">
       <div class="left">
         <div class="rule"></div>
         <div class="eyebrow">Four games, no framework</div>
-        <h1 class="title">Arcade</h1>
+        <h1 class="title"><span>A</span><span>R</span><span>C</span><span>A</span><span>D</span><span>E</span></h1>
         <p class="lead">2048, Tetris, Flapper and Stack &mdash; written from
           scratch in vanilla JavaScript. Keyboard or touch, scores kept in
           your own browser.</p>
@@ -119,34 +163,11 @@
         </div>
       </div>
 
-      <!-- One motif per game, drawn the way each game draws itself: a merged
-           2048 tile, an S-piece, the orb and its gap, and a trimmed tower. -->
       <div class="art">
-        <svg width="330" height="330" viewBox="0 0 330 330" fill="none" aria-hidden="true">
-          <rect x="2" y="2" width="156" height="156" rx="16" fill="#0e0e1d" stroke="#2a2a4a" stroke-width="2" />
-          <rect x="26" y="26" width="50" height="50" rx="8" fill="#2f6f9e" />
-          <rect x="84" y="26" width="50" height="50" rx="8" fill="#43b04a" />
-          <rect x="26" y="84" width="50" height="50" rx="8" fill="#e5c53a" />
-          <rect x="84" y="84" width="50" height="50" rx="8" fill="#f0932b" />
-
-          <rect x="172" y="2" width="156" height="156" rx="16" fill="#0e0e1d" stroke="#2a2a4a" stroke-width="2" />
-          <rect x="228" y="42" width="42" height="42" rx="6" fill="#4ade80" />
-          <rect x="270" y="42" width="42" height="42" rx="6" fill="#4ade80" />
-          <rect x="186" y="84" width="42" height="42" rx="6" fill="#4ade80" />
-          <rect x="228" y="84" width="42" height="42" rx="6" fill="#4ade80" />
-
-          <rect x="2" y="172" width="156" height="156" rx="16" fill="#0e0e1d" stroke="#2a2a4a" stroke-width="2" />
-          <rect x="104" y="190" width="34" height="52" rx="8" fill="#1b6f7d" />
-          <rect x="104" y="278" width="34" height="34" rx="8" fill="#1b6f7d" />
-          <circle cx="52" cy="256" r="18" fill="#facc15" />
-          <circle cx="46" cy="250" r="6" fill="rgba(255, 255, 255, 0.75)" />
-
-          <rect x="172" y="172" width="156" height="156" rx="16" fill="#0e0e1d" stroke="#2a2a4a" stroke-width="2" />
-          <rect x="196" y="286" width="108" height="22" rx="5" fill="#2ee6c5" />
-          <rect x="206" y="258" width="88" height="22" rx="5" fill="#3ac9d8" />
-          <rect x="216" y="230" width="68" height="22" rx="5" fill="#5aa8e8" />
-          <rect x="236" y="202" width="48" height="22" rx="5" fill="#a55eea" />
-        </svg>
+        <div class="tile a"><b>2048</b><i>Slide, merge, and chase the tile.</i></div>
+        <div class="tile b"><b>Tetris</b><i>Wall kicks and honest gravity.</i></div>
+        <div class="tile c"><b>Flapper</b><i>One button. Mind the gap.</i></div>
+        <div class="tile d"><b>Stack</b><i>Trim the overhang.</i></div>
       </div>
     </div>
 
@@ -154,7 +175,6 @@
       <span class="url">rjasti.com/arcade</span>
       <span class="meta">2048 &bull; Tetris &bull; Flapper &bull; Stack</span>
     </div>
-    <div class="scanlines"></div>
   </div>
 </body>
 

@@ -106,8 +106,8 @@ export function create({ mount, api }) {
   let cameraY = 0;
   let flash = 0;
 
-  /** Hue walks with height, so the tower reads as a gradient as it climbs. */
-  const hueAt = (index) => (188 + index * 7) % 360;
+  /** Hue walks with height, so the tower reads as a rainbow as it climbs. */
+  const hueAt = (index) => (18 + index * 11) % 360;
 
   function nextBlock() {
     const previous = tower[tower.length - 1];
@@ -223,12 +223,14 @@ export function create({ mount, api }) {
       ctx.rotate(spin);
       ctx.translate(-(x + width / 2), -(y + BLOCK_HEIGHT / 2));
     }
-    ctx.fillStyle = `hsl(${hue}, 72%, 58%)`;
+    ctx.fillStyle = `hsl(${hue}, 88%, 60%)`;
     ctx.beginPath();
-    ctx.roundRect(x, y, Math.max(width, 1), BLOCK_HEIGHT - 3, 3);
+    ctx.roundRect(x, y, Math.max(width, 1), BLOCK_HEIGHT - 3, 7);
     ctx.fill();
-    ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-    ctx.fillRect(x + 2, y + 2, Math.max(width - 4, 1), 4);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.beginPath();
+    ctx.roundRect(x + 4, y + 3, Math.max(width - 8, 1), 5, 3);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -237,6 +239,17 @@ export function create({ mount, api }) {
     const scale = Math.min(width / WORLD.width, height / WORLD.height);
     const offsetX = (width - WORLD.width * scale) / 2;
     const offsetY = (height - WORLD.height * scale) / 2;
+    // The sky is painted this far past the world's edges, so a canvas that is
+    // not the world's shape is filled to its corners rather than letterboxed
+    // against the cabinet.
+    const bleedX = offsetX / scale;
+    const bleedY = offsetY / scale;
+    const skyBox = [
+      -bleedX,
+      -bleedY,
+      WORLD.width + bleedX * 2,
+      WORLD.height + bleedY * 2,
+    ];
 
     ctx.clearRect(0, 0, width, height);
     ctx.save();
@@ -244,14 +257,15 @@ export function create({ mount, api }) {
     ctx.scale(scale, scale);
 
     const sky = ctx.createLinearGradient(0, 0, 0, WORLD.height);
-    sky.addColorStop(0, "#14082b");
-    sky.addColorStop(1, "#04121f");
+    sky.addColorStop(0, "#4a1f7a");
+    sky.addColorStop(0.6, "#2b2b7d");
+    sky.addColorStop(1, "#123a5c");
     ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, WORLD.width, WORLD.height);
+    ctx.fillRect(...skyBox);
 
     if (flash > 0) {
-      ctx.fillStyle = `rgba(46, 230, 197, ${(flash / 0.22) * 0.16})`;
-      ctx.fillRect(0, 0, WORLD.width, WORLD.height);
+      ctx.fillStyle = `rgba(255, 233, 150, ${(flash / 0.22) * 0.22})`;
+      ctx.fillRect(...skyBox);
     }
 
     // The camera keeps the working row at a constant height, so the tower
