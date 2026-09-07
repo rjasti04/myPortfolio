@@ -28,6 +28,18 @@ import {
   COLUMN_WIDTH,
 } from "../js/arcade/game-flapper.js";
 import { place, PERFECT_TOLERANCE, speedFor } from "../js/arcade/game-stack.js";
+import {
+  step,
+  isReversal,
+  spawnFood,
+  freeCells,
+  tickFor,
+  startBody,
+  DIRECTIONS,
+  // Tetris exports a well of the same names; the snake's board is its own.
+  COLUMNS as SNAKE_COLUMNS,
+  ROWS as SNAKE_ROWS,
+} from "../js/arcade/game-snake.js";
 
 /* ---- 2048 --------------------------------------------------------------- */
 
@@ -279,4 +291,119 @@ test("stack: no overlap ends the run, and touching edges counts as no overlap", 
 test("stack: blocks speed up with height but stay bounded", () => {
   assert.ok(speedFor(20) > speedFor(1));
   assert.ok(speedFor(10000) <= 320);
+});
+
+/* ---- Snake -------------------------------------------------------------- */
+
+test("snake: the tail vacates its cell on the same tick, so chasing it is legal", () => {
+  // A closed loop moving into the cell its own tail is leaving. Testing the
+  // head against the body *before* the tail moves is the classic version of
+  // this bug, and it ends runs on a move that was never fatal.
+  const body = [
+    { x: 5, y: 5 },
+    { x: 4, y: 5 },
+    { x: 4, y: 6 },
+    { x: 5, y: 6 },
+  ];
+  const result = step(body, DIRECTIONS.down, null);
+
+  assert.equal(result.dead, false);
+  assert.deepEqual(result.body[0], { x: 5, y: 6 });
+  assert.equal(result.body.length, body.length);
+});
+
+test("snake: eating keeps the tail, so the snake is one cell longer", () => {
+  const body = [
+    { x: 5, y: 5 },
+    { x: 4, y: 5 },
+  ];
+  const result = step(body, DIRECTIONS.right, { x: 6, y: 5 });
+
+  assert.equal(result.ate, true);
+  assert.equal(result.dead, false);
+  assert.equal(result.body.length, 3);
+  assert.deepEqual(result.body[result.body.length - 1], { x: 4, y: 5 });
+});
+
+test("snake: the tail only stays put for the tick the food was taken", () => {
+  // Growth is one segment per bite, not a tail that stops moving: the tick
+  // after an eat has to shed a cell again or the snake grows without eating.
+  const body = [
+    { x: 5, y: 5 },
+    { x: 4, y: 5 },
+  ];
+  const grown = step(body, DIRECTIONS.right, { x: 6, y: 5 }).body;
+  const after = step(grown, DIRECTIONS.right, null);
+
+  assert.equal(after.ate, false);
+  assert.equal(after.body.length, grown.length);
+  assert.deepEqual(after.body, [
+    { x: 7, y: 5 },
+    { x: 6, y: 5 },
+    { x: 5, y: 5 },
+  ]);
+});
+
+test("snake: the walls are fatal on every side", () => {
+  assert.equal(step([{ x: 0, y: 4 }], DIRECTIONS.left, null).dead, true);
+  assert.equal(step([{ x: 4, y: 0 }], DIRECTIONS.up, null).dead, true);
+  assert.equal(
+    step([{ x: SNAKE_COLUMNS - 1, y: 4 }], DIRECTIONS.right, null).dead,
+    true,
+  );
+  assert.equal(
+    step([{ x: 4, y: SNAKE_ROWS - 1 }], DIRECTIONS.down, null).dead,
+    true,
+  );
+});
+
+test("snake: running into the body ends the run", () => {
+  const body = [
+    { x: 5, y: 5 },
+    { x: 5, y: 6 },
+    { x: 6, y: 6 },
+    { x: 6, y: 5 },
+    { x: 7, y: 5 },
+  ];
+  assert.equal(step(body, DIRECTIONS.right, null).dead, true);
+});
+
+test("snake: a turn back through the neck is a reversal, a turn is not", () => {
+  assert.equal(isReversal(DIRECTIONS.right, DIRECTIONS.left), true);
+  assert.equal(isReversal(DIRECTIONS.up, DIRECTIONS.down), true);
+  assert.equal(isReversal(DIRECTIONS.right, DIRECTIONS.up), false);
+  assert.equal(isReversal(DIRECTIONS.right, DIRECTIONS.right), false);
+});
+
+test("snake: food never lands under the snake", () => {
+  const body = startBody();
+  const occupied = new Set(body.map((cell) => `${cell.x},${cell.y}`));
+
+  // Both ends of the range, so neither the first nor the last free cell is
+  // the one that slips through.
+  for (const random of [() => 0, () => 0.999999, () => 0.5]) {
+    const food = spawnFood(body, random);
+    assert.equal(occupied.has(`${food.x},${food.y}`), false);
+  }
+});
+
+test("snake: the free list is the board minus the snake", () => {
+  const body = startBody();
+  assert.equal(
+    freeCells(body).length,
+    SNAKE_COLUMNS * SNAKE_ROWS - body.length,
+  );
+});
+
+test("snake: a covered board has nowhere to put food, which is the win", () => {
+  const everyCell = [];
+  for (let y = 0; y < SNAKE_ROWS; y += 1) {
+    for (let x = 0; x < SNAKE_COLUMNS; x += 1) everyCell.push({ x, y });
+  }
+  assert.equal(spawnFood(everyCell), null);
+});
+
+test("snake: ticks shorten with the score but stay above the floor", () => {
+  assert.ok(tickFor(10) < tickFor(0));
+  assert.ok(tickFor(10000) >= 0.075);
 });

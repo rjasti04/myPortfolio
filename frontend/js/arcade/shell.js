@@ -1,7 +1,7 @@
 /**
  * Arcade shell: the launcher, the HUD, and the lifecycle around a game.
  *
- * The four games know nothing about scores being stored, about the back
+ * The five games know nothing about scores being stored, about the back
  * button, or about each other. They receive a mount point and an `api`, they
  * report score and game over, and they clean up after themselves in
  * `destroy()`. Everything else lives here, which is why restarting a game is
@@ -10,16 +10,32 @@
  * run that behaves like a continuation of the first.
  *
  * Adding a game is an import and one array entry.
+ *
+ * Two things the games are also kept out of, for the same reason:
+ *
+ *   Routing. Which game is on screen is the URL fragment, not a variable -
+ *   `/arcade#tetris` opens Tetris, the browser's back button leaves a game the
+ *   way every other page on the web does, and a game is a link a visitor can
+ *   send someone.
+ *
+ *   Pause. `suspendLoops()` stops whatever is animating and `setInputBlocked`
+ *   closes the input path, so a paused game needs no code in the game. That
+ *   matters most for the pause nobody presses: leaving the tab pauses the run
+ *   rather than spending it, which is the difference between coming back to a
+ *   game and coming back to a score.
  */
 
+import { suspendLoops } from "./engine.js";
+import { setInputBlocked } from "./input.js";
 import { createAudio } from "./audio.js";
 import { readBest, writeBest } from "./storage.js";
 import * as game2048 from "./game-2048.js";
 import * as tetris from "./game-tetris.js";
 import * as flapper from "./game-flapper.js";
 import * as stack from "./game-stack.js";
+import * as snake from "./game-snake.js";
 
-const GAMES = [game2048, tetris, flapper, stack];
+const GAMES = [game2048, tetris, flapper, stack, snake];
 const BASE_TITLE = document.title;
 
 /** Small inline SVG marks - the page ships no icon font of its own. */
@@ -31,7 +47,13 @@ const ART = {
     '<circle cx="8" cy="12" r="4"/><rect x="15" y="2" width="5" height="6" rx="1.5"/><rect x="15" y="14" width="5" height="8" rx="1.5"/>',
   stack:
     '<rect x="4" y="16" width="16" height="5" rx="1.5"/><rect x="6" y="10" width="12" height="5" rx="1.5" opacity=".8"/><rect x="8" y="4" width="8" height="5" rx="1.5" opacity=".6"/>',
+  snake:
+    '<rect x="3" y="3" width="6" height="6" rx="2"/><rect x="3" y="10" width="6" height="6" rx="2" opacity=".85"/><rect x="10" y="10" width="6" height="6" rx="2" opacity=".7"/><rect x="17" y="10" width="4" height="6" rx="2" opacity=".55"/><circle cx="19" cy="5" r="2.6"/>',
 };
+
+/** The keyboard hint on a card, in the one place a player looks for it. */
+const CONTROL_ART =
+  '<rect x="2" y="6" width="20" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 10h2M11 10h2M16 10h2M8 14.5h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
 
 const launcher = document.querySelector("#launcher");
 const grid = document.querySelector("#launcher-grid");
@@ -44,15 +66,29 @@ const bestOut = document.querySelector("#hud-best");
 const overlay = document.querySelector("#overlay");
 const overlayScore = document.querySelector("#overlay-score");
 const overlayNote = document.querySelector("#overlay-note");
+const pausePanel = document.querySelector("#pause-panel");
+const pauseControls = document.querySelector("#pause-controls");
+const pauseButton = document.querySelector("#pause-toggle");
+const pauseLabel = pauseButton.querySelector('[data-role="label"]');
 const muteButton = document.querySelector("#mute");
 const muteLabel = muteButton.querySelector('[data-role="label"]');
 const mastheadActions = document.querySelector("#masthead-actions");
 const hudTools = document.querySelector("#hud-tools");
+const announcer = document.querySelector("#announcer");
 
 const audio = createAudio();
+const byId = new Map(GAMES.map((game) => [game.meta.id, game]));
+
 let current = null;
 let instance = null;
 let score = 0;
+/** The function that restarts what pause stopped. Non-null only while paused. */
+let resumeLoops = null;
+
+/** One-off message for screen readers: state changes with no visual text. */
+function announce(message) {
+  announcer.textContent = message;
+}
 
 /* The button is an icon: `aria-pressed` picks the glyph in CSS, and the label
    it is named by is off screen rather than in its text content. */
@@ -61,6 +97,14 @@ function syncMuteButton() {
   muteButton.setAttribute("aria-pressed", String(audio.muted));
   muteButton.title = label;
   muteLabel.textContent = label;
+}
+
+function syncPauseButton() {
+  const paused = Boolean(resumeLoops);
+  const label = paused ? "Resume (Escape)" : "Pause (Escape)";
+  pauseButton.setAttribute("aria-pressed", String(paused));
+  pauseButton.title = label;
+  pauseLabel.textContent = label;
 }
 
 /** Build the launcher from each module's own `meta`, so the list has one source. */
@@ -73,8 +117,12 @@ for (const game of GAMES) {
     <svg class="launch-art" viewBox="0 0 24 24" aria-hidden="true">${ART[game.meta.id] ?? ""}</svg>
     <span class="launch-name">${game.meta.name}</span>
     <span class="launch-tagline">${game.meta.tagline}</span>
+    <span class="launch-controls">
+      <svg viewBox="0 0 24 24" aria-hidden="true">${CONTROL_ART}</svg>
+      ${game.meta.controls}
+    </span>
     <span class="launch-best" data-role="best"></span>`;
-  card.addEventListener("click", () => start(game));
+  card.addEventListener("click", () => openGame(game));
   grid.append(card);
 }
 
@@ -103,6 +151,8 @@ const api = {
     scoreOut.textContent = String(value);
   },
   gameOver(finalScore) {
+    // A run that ends while paused would leave the panel over the result.
+    clearPause();
     const record = writeBest(current.meta.id, finalScore);
     overlayScore.textContent = String(finalScore);
     overlayNote.textContent = record
@@ -113,8 +163,53 @@ const api = {
     // Move focus to the overlay so a keyboard player is not left tabbing
     // through a board that no longer responds.
     overlay.querySelector("button").focus();
+    announce(
+      record
+        ? `Game over. ${finalScore}. New personal best.`
+        : `Game over. ${finalScore}.`,
+    );
   },
 };
+
+/* ---- Pause ------------------------------------------------------------- */
+
+/** Drop the pause without resuming: the loops it held are about to be gone. */
+function clearPause() {
+  resumeLoops = null;
+  setInputBlocked(false);
+  pausePanel.hidden = true;
+  syncPauseButton();
+}
+
+function pause() {
+  // Nothing to pause on the launcher, and a game that is already over is not
+  // paused - it is finished, and the result should stay on screen.
+  if (!current || resumeLoops || !overlay.hidden) return;
+  resumeLoops = suspendLoops();
+  setInputBlocked(true);
+  pausePanel.hidden = false;
+  syncPauseButton();
+  pausePanel.querySelector("button").focus();
+  announce("Paused.");
+}
+
+function resume() {
+  if (!resumeLoops) return;
+  // Held before `clearPause` drops it, and named apart from the module's own
+  // `restart` - one starts the loops again, the other throws the run away.
+  const startLoops = resumeLoops;
+  clearPause();
+  startLoops();
+  /* Focus goes back to the stage rather than to the pause button, and that is
+     load-bearing rather than tidy. Space and Enter activate whatever button
+     holds focus, and Space is the action key in three of these games: leaving
+     it on the pause toggle means the first flap re-pauses the run. The title
+     takes focus for the same reason entering a game gives it the title. */
+  stageTitle.focus();
+  announce("Resumed.");
+}
+
+/* ---- Lifecycle --------------------------------------------------------- */
 
 function mountGame() {
   overlay.hidden = true;
@@ -124,10 +219,11 @@ function mountGame() {
   instance = current.create({ mount, api });
 }
 
-function start(game) {
+function enter(game) {
   current = game;
   stageTitle.textContent = game.meta.name;
   stageControls.textContent = game.meta.controls;
+  pauseControls.textContent = game.meta.controls;
   document.title = `${game.meta.name} · ${BASE_TITLE}`;
   // The stylesheet keys the stage's accent off this, so the chrome takes the
   // colour the game's card already wears.
@@ -151,13 +247,20 @@ function bankScore() {
 
 function restart() {
   bankScore();
+  clearPause();
   instance?.destroy();
   instance = null;
   mountGame();
+  // The button that was clicked is either hidden now or about to be, so focus
+  // would otherwise fall back to the document - and on the play-again button,
+  // Space would restart a second time.
+  stageTitle.focus();
 }
 
-function exit() {
+function leave() {
+  const left = current;
   bankScore();
+  clearPause();
   instance?.destroy();
   instance = null;
   overlay.hidden = true;
@@ -166,31 +269,98 @@ function exit() {
   document.body.classList.remove("is-playing");
   mastheadActions.prepend(muteButton);
   document.title = BASE_TITLE;
+  current = null;
   refreshBests();
   // Return focus to the card that was launched, not to the top of the page.
-  grid.querySelector(`[data-game="${current?.meta.id}"]`)?.focus();
-  current = null;
+  grid.querySelector(`[data-game="${left?.meta.id}"]`)?.focus();
 }
+
+/* ---- Routing -----------------------------------------------------------
+   The fragment is the state, not a mirror of it: every entry and exit goes
+   through `route()`, so a typed URL, the back button and a click on a card all
+   land in the same place. */
+
+const gameFromHash = () => byId.get(location.hash.slice(1)) ?? null;
+
+function route() {
+  const next = gameFromHash();
+  if (next === current) return;
+  if (current) leave();
+  if (next) enter(next);
+}
+
+/** Open a game, pushing history so back returns to the launcher. */
+function openGame(game) {
+  if (current === game) return;
+  history.pushState({ arcade: game.meta.id }, "", `#${game.meta.id}`);
+  route();
+}
+
+/** Leave the game on screen. */
+function closeGame() {
+  if (!current) return;
+  if (history.state?.arcade) {
+    // This tab opened the game, so going back is both the honest history
+    // operation and the one that keeps the stack from growing an entry per
+    // game a visitor tries.
+    history.back();
+    return;
+  }
+  // Landed straight on `/arcade#tetris`: there is no launcher behind us to go
+  // back to, so drop the fragment in place rather than leaving the site.
+  history.replaceState(null, "", location.pathname + location.search);
+  route();
+}
+
+window.addEventListener("hashchange", route);
+window.addEventListener("popstate", route);
+
+/* ---- Wiring ------------------------------------------------------------ */
 
 document
   .querySelectorAll('[data-action="restart"]')
   .forEach((el) => el.addEventListener("click", restart));
 document
   .querySelectorAll('[data-action="exit"]')
-  .forEach((el) => el.addEventListener("click", exit));
+  .forEach((el) => el.addEventListener("click", closeGame));
+document
+  .querySelectorAll('[data-action="resume"]')
+  .forEach((el) => el.addEventListener("click", resume));
+
+pauseButton.addEventListener("click", () => {
+  if (resumeLoops) resume();
+  else pause();
+});
 
 muteButton.addEventListener("click", () => {
   audio.toggleMuted();
   syncMuteButton();
 });
 
-// Escape leaves the game. Bound once here rather than per game, and ignored on
-// the launcher so it cannot swallow a browser-level Escape.
+/* Escape is the one key the shell owns. It steps back out of wherever the
+   player is rather than doing one fixed thing, so it is never the key that
+   throws a run away: a live game pauses, a paused game resumes, and only a
+   game that is already over leaves. */
 window.addEventListener("keydown", (event) => {
   if (event.key !== "Escape" || stage.hidden) return;
   event.preventDefault();
-  exit();
+  if (!overlay.hidden) closeGame();
+  else if (resumeLoops) resume();
+  else pause();
 });
 
+/* A backgrounded tab throttles its animation frames to a crawl, so a run left
+   for a minute used to be a run spent. Pausing on the way out means the game
+   is where it was left; it deliberately does not resume by itself, because
+   arriving back mid-fall is the same lost run by another route. */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) pause();
+});
+window.addEventListener("blur", pause);
+
 syncMuteButton();
+syncPauseButton();
 refreshBests();
+// A fragment that names a game is honoured on load, so `/arcade#snake` is a
+// link to that game rather than to the launcher.
+route();

@@ -81,16 +81,16 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 14px;
       justify-content: center;
     }
 
-    /* The launcher's four colour pills, at card scale. */
+    /* The launcher's five colour pills, at card scale. */
     .tile {
       position: relative;
       width: 372px;
-      padding: 26px 26px 20px;
-      border-radius: 30px;
+      padding: 18px 24px 15px;
+      border-radius: 26px;
       box-shadow: 0 6px 0 rgba(0, 0, 0, 0.26), 0 14px 26px rgba(0, 0, 0, 0.34);
     }
 
@@ -106,7 +106,7 @@
     .tile b {
       position: relative;
       display: block;
-      font-size: 30px;
+      font-size: 26px;
       font-weight: 800;
       letter-spacing: 0.02em;
       text-transform: uppercase;
@@ -118,7 +118,7 @@
       position: relative;
       display: block;
       margin-top: 2px;
-      font-size: 17px;
+      font-size: 15px;
       font-style: normal;
       font-weight: 600;
       color: rgba(32, 18, 8, 0.78);
@@ -128,6 +128,7 @@
     .tile.b { background: linear-gradient(170deg, #2fd6c4, #0fa094 58%); margin-left: 34px; }
     .tile.c { background: linear-gradient(170deg, #ff5f9c, #e5306f 58%); }
     .tile.d { background: linear-gradient(170deg, #93cf3f, #5fa524 58%); margin-left: 34px; }
+    .tile.e { background: linear-gradient(170deg, #b06cf0, #7b3fd4 58%); }
 
     .footer {
       border-top: 1px solid #57473f;
@@ -151,9 +152,9 @@
     <div class="body">
       <div class="left">
         <div class="rule"></div>
-        <div class="eyebrow">Four games, no framework</div>
+        <div class="eyebrow">Five games, no framework</div>
         <h1 class="title"><span>A</span><span>R</span><span>C</span><span>A</span><span>D</span><span>E</span></h1>
-        <p class="lead">2048, Tetris, Flapper and Stack &mdash; written from
+        <p class="lead">2048, Tetris, Flapper, Stack and Snake &mdash; written from
           scratch in vanilla JavaScript. Keyboard or touch, scores kept in
           your own browser.</p>
         <div class="chips">
@@ -168,12 +169,13 @@
         <div class="tile b"><b>Tetris</b><i>Wall kicks and honest gravity.</i></div>
         <div class="tile c"><b>Flapper</b><i>One button. Mind the gap.</i></div>
         <div class="tile d"><b>Stack</b><i>Trim the overhang.</i></div>
+        <div class="tile e"><b>Snake</b><i>Stay out of your own way.</i></div>
       </div>
     </div>
 
     <div class="footer">
       <span class="url">rjasti.com/arcade</span>
-      <span class="meta">2048 &bull; Tetris &bull; Flapper &bull; Stack</span>
+      <span class="meta">2048 &bull; Tetris &bull; Flapper &bull; Stack &bull; Snake</span>
     </div>
   </div>
 </body>

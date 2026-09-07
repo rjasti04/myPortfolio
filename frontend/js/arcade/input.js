@@ -1,5 +1,5 @@
 /**
- * Input helpers shared by the four games.
+ * Input helpers shared by the five games.
  *
  * Every binder returns its own teardown function. That is the whole point:
  * the shell destroys and recreates a game on every restart, and a listener
@@ -9,6 +9,22 @@
 
 /** Distance in CSS pixels before a drag counts as a swipe rather than a tap. */
 const SWIPE_THRESHOLD = 28;
+
+/**
+ * Whether input currently reaches the game at all.
+ *
+ * Module-level for the same reason the loop registry is: the page runs one game
+ * at a time, and pause is a property of the page rather than of any one binder.
+ * The alternative - every game checking a paused flag before acting - is a
+ * check that some future game forgets, and the symptom is a piece that hard
+ * drops behind a pause panel.
+ */
+let blocked = false;
+
+/** Called by the shell around a pause. Nothing else should touch it. */
+export function setInputBlocked(value) {
+  blocked = value;
+}
 
 /**
  * Keyboard bindings from a `{ ArrowLeft: fn }` map.
@@ -21,6 +37,7 @@ const SWIPE_THRESHOLD = 28;
  */
 export function bindKeys(map) {
   const onKeyDown = (event) => {
+    if (blocked) return;
     const handler = map[event.key];
     if (!handler) return;
     if (event.repeat && handler.ignoreRepeat) return;
@@ -45,7 +62,7 @@ export function bindSwipe(element, { onSwipe, onTap } = {}) {
   let pointerId = null;
 
   const onPointerDown = (event) => {
-    if (pointerId !== null) return;
+    if (blocked || pointerId !== null) return;
     pointerId = event.pointerId;
     startX = event.clientX;
     startY = event.clientY;
@@ -55,6 +72,7 @@ export function bindSwipe(element, { onSwipe, onTap } = {}) {
   const onPointerUp = (event) => {
     if (event.pointerId !== pointerId) return;
     pointerId = null;
+    if (blocked) return;
 
     const dx = event.clientX - startX;
     const dy = event.clientY - startY;

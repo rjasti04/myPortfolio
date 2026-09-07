@@ -294,6 +294,18 @@ a {
   color: var(--muted);
 }
 
+/* Same trick on the pause button: pressed means paused, so the glyph becomes
+   the one that describes what the button will do next. */
+#pause-toggle[aria-pressed="true"] .icon-pause,
+#pause-toggle[aria-pressed="false"] .icon-play {
+  display: none;
+}
+
+#pause-toggle[aria-pressed="true"] {
+  color: var(--ink);
+  background: var(--accent);
+}
+
 .lede {
   max-width: 58ch;
   margin: 14px 0 26px;
@@ -301,11 +313,22 @@ a {
   color: var(--muted);
 }
 
+.lede code {
+  padding: 1px 7px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--pill);
+}
+
 /* ---- Launcher --------------------------------------------------------- */
 
+/* Three across on a desktop, so five cards sit as 3 + 2 rather than as two
+   rows and a lone card at the bottom. */
 .launcher-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: 22px 20px;
 }
 
@@ -378,6 +401,11 @@ a {
   --card-lit: #93cf3f;
 }
 
+.launch-card[data-game="snake"] {
+  --card: #7b3fd4;
+  --card-lit: #b06cf0;
+}
+
 .launch-art {
   width: 30px;
   height: 30px;
@@ -395,11 +423,37 @@ a {
 }
 
 .launch-tagline {
+  margin-bottom: 6px;
   font-size: 13.5px;
   font-weight: 600;
   line-height: 1.35;
   /* Dark on the bright fill, the way the title is light on it. */
   color: rgba(32, 18, 8, 0.78);
+}
+
+/* What the game is played with, on the card rather than only in the play bar.
+   Deciding whether to open a game is exactly when a visitor wants to know
+   whether it wants arrows, a swipe or one button. */
+.launch-controls {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  /* Pushed to the foot of the card, so the pills line up across a row however
+     long each tagline runs. */
+  margin-top: auto;
+  padding: 5px 12px 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(28, 15, 6, 0.82);
+  background: rgba(255, 250, 242, 0.72);
+  border-radius: var(--pill);
+}
+
+.launch-controls svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
 }
 
 /* The best score as a bubble hung off the top-right corner. */
@@ -458,8 +512,14 @@ a {
   --accent-soft: rgba(165, 217, 74, 0.3);
 }
 
-/* Everything that is not the board, in one bar: leave, title, score, restart,
-   sound. The shell moves the sound button in here for the duration of a run. */
+#stage[data-game="snake"] {
+  --accent: var(--violet);
+  --accent-soft: rgba(176, 108, 240, 0.3);
+}
+
+/* Everything that is not the board, in one bar: leave, title, score, pause,
+   restart, sound. The shell moves the sound button in here for the duration of
+   a run, and the narrow layout drops restart - see the media query. */
 .hud {
   display: flex;
   gap: 10px;
@@ -724,6 +784,44 @@ a {
   justify-content: center;
 }
 
+/* A pause is a state the board is still in, so the board stays readable behind
+   it - unlike game over, which is a result and owns the screen. */
+.overlay--pause {
+  background: rgba(23, 18, 17, 0.74);
+  backdrop-filter: blur(3px);
+}
+
+.overlay--pause h3 {
+  color: var(--accent);
+}
+
+/* Keyboard advice, and only that: it is the line a player stops reading once
+   they know it, so it sits below the buttons rather than above them. */
+.overlay-keys {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.overlay-keys kbd {
+  padding: 2px 7px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* A touch device has no keyboard to advertise. The pointer queries rather than
+   a width one, because the question is what the visitor is holding, not how
+   wide their window is. */
+@media (hover: none) and (pointer: coarse) {
+  .overlay-keys {
+    display: none;
+  }
+}
+
 .site-footer {
   margin-top: auto;
   padding-top: 30px;
@@ -777,6 +875,10 @@ body.is-playing #stage {
     padding: 26px 22px 20px;
   }
 
+  .launch-controls {
+    font-size: 11.5px;
+  }
+
   .hud {
     gap: 8px;
     padding: 7px 10px;
@@ -793,6 +895,13 @@ body.is-playing #stage {
 
   /* The keyboard hint is desktop advice, and the bar has no room for it. */
   .hud-controls {
+    display: none;
+  }
+
+  /* Pause earns its place in the bar; restart does not, because it is on both
+     panels pause and game over put on screen. Keeping both here is what
+     squeezes the title down to three letters and an ellipsis. */
+  .hud-tools [data-action="restart"] {
     display: none;
   }
 
