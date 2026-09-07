@@ -426,10 +426,11 @@ missing, so a failed update is visible but not dangerous.
 | `android-chrome-maskable-512x512.png` | The same badge inset into the maskable safe zone, on the manifest `background_color`. **Generated** by `scripts/generate_launch_images.py` — see [Launch screens](#launch-screens) |
 | `launch/launch-<w>x<h>-<dpr>x.png` | 17 portrait `apple-touch-startup-image` bitmaps, one per iOS device resolution. **Generated** by the same script — see [Launch screens](#launch-screens) |
 | `apple-touch-icon.png`, `favicon.ico` | iOS and browser icons |
-| `social-preview.png`, `ucl-preview.png`, `worldcup-preview.png` | The three 1200x630 Open Graph cards, one per shareable page. **Generated** by `scripts/generate_social_previews.py` — see [Open Graph cards](#open-graph-cards). `ucl-preview.png` doubles as the display image for the Champions League tile in the Apps section |
+| `social-preview.png`, `ucl-preview.png`, `arcade-preview.png`, `worldcup-preview.png` | The four 1200x630 Open Graph cards, one per shareable page. **Generated** by `scripts/generate_social_previews.py` — see [Open Graph cards](#open-graph-cards). `ucl-preview.png` and `arcade-preview.png` double as the display images for the two tiles in the Apps section |
 | `rjasti_resume.pdf` | Downloadable résumé (the doubled extension is the actual filename) |
 | `robots.txt` | Allows everything except `/api/`; points at the sitemap |
-| `sitemap.xml` | Three URL entries — `/`, `/ucl` and `/worldcup`, each with its Open Graph card as an image annotation |
+| `sitemap.xml` | Four URL entries — `/`, `/ucl`, `/arcade` and `/worldcup`, each with its Open Graph card as an image annotation |
+| `arcade.html`, `arcade.css` | Standalone games page served at `/arcade` — 2048, Tetris, Flapper and Stack, with the game code in `js/arcade/` and built as its own esbuild entry point. Unlike the two predictors it holds the SPA's line on third-party origins: the retro look is CSS on the platform monospace stack, so the page loads no font and no icon set, and its own CSP is `script-src 'self'` with no inline script to hash. Linked from the **Apps** section of the SPA as a tile in `.app-grid`; the game rules are covered by `frontend/tests/arcade.test.js` |
 | `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup`, with its own canonical and Open Graph tags — see [Apache configuration](#apache-configuration) |
 | `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the **Apps** section of the SPA as a tile in `.app-grid` — `#ucl-link` in the header is a second, hidden entry point kept only as a fallback; covered by `frontend/tests/ucl-bracket.test.js` |
 
@@ -633,8 +634,9 @@ file from an unchanged one.
 | Code splitting | Keeps `chat.js`, `activity.js` and `three-bg.js` as lazily-loaded chunks rather than folding them into the entry |
 | `app-logic.js` | Built separately as an **IIFE** (it is a classic script). Its `module.exports` block, present for the Node test runner, is silenced via `logOverride` |
 | `theme-bootstrap.js` | Built separately as an IIFE — it runs before first paint as a plain script |
-| CSS | `styles.css`, `auth-modal.css`, `fonts.css` bundled and minified, font and image assets emitted as hashed file assets with `url()` references rewritten |
-| Static | Copied by extension allowlist; `tests/` skipped; `fonts/` and CSS assets skipped (the hashed copies come from the CSS build); vendor scripts, `.htaccess`, `worldcup.html` and `ucl.html` copied explicitly |
+| `js/arcade/shell.js` | Built separately as an ESM entry for `/arcade`. Kept out of the `splitting` group on purpose: it shares no module with the SPA, and the service worker's shell list is derived from the SPA's graph |
+| CSS | `styles.css`, `auth-modal.css`, `fonts.css`, `arcade.css` bundled and minified, font and image assets emitted as hashed file assets with `url()` references rewritten |
+| Static | Copied by extension allowlist; `tests/` skipped; `fonts/` and CSS assets skipped (the hashed copies come from the CSS build); vendor scripts, `.htaccess`, `worldcup.html`, `ucl.html` and `arcade.html` copied explicitly |
 | `index.html` | Asset `src`/`href` attributes rewritten to hashed paths. **Inline `<script>` bodies are never touched.** Throws if no reference was rewritten |
 | `sw.js` | `CACHE_NAME` and `PRECACHE_URLS` rewritten from what was actually built. Throws if neither substitution matched |
 
@@ -685,8 +687,9 @@ Service-worker caching can mask changes during development. Use a hard reload,
 or "Update on reload" in the browser's Application panel.
 
 `http.server` does not read `.htaccess`, so the extensionless paths do not
-exist locally: open the predictors at `/ucl.html` and `/worldcup.html` while
-developing. The header links point at `/ucl` and `/worldcup` and will 404 on
+exist locally: open the standalone pages at `/ucl.html`,
+`/arcade.html` and `/worldcup.html` while developing. The links point at
+`/ucl`, `/arcade` and `/worldcup` and will 404 on
 the local server — that is expected, and the only part of the URL change that
 cannot be exercised without Apache.
 

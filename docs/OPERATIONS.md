@@ -42,7 +42,7 @@ What it produces:
 | `dist/assets/styles-<hash>.css` etc. | Minified CSS with hashed font assets and rewritten `url()` |
 | `dist/index.html` | Asset references rewritten to hashed paths |
 | `dist/sw.js` | `CACHE_NAME` and `PRECACHE_URLS` regenerated from what was built |
-| `dist/**` | Static files copied by extension allowlist, plus vendor scripts, `.htaccess`, `worldcup.html`, `ucl.html` |
+| `dist/**` | Static files copied by extension allowlist, plus vendor scripts, `.htaccess`, `worldcup.html`, `ucl.html`, `arcade.html` |
 
 The precache list is **generated**, not hand-maintained. The old 40-entry manual
 list both defeated the lazy loading in `main.js` and let a single renamed file

@@ -4,6 +4,7 @@ One 1200x630 card per shareable page:
 
     social-preview.html   -> frontend/social-preview.png     (/)
     ucl-preview.html      -> frontend/ucl-preview.png        (/ucl)
+    arcade-preview.html   -> frontend/arcade-preview.png     (/arcade)
     worldcup-preview.html -> frontend/worldcup-preview.png   (/worldcup)
 
 The cards are HTML because they have to stay in step with the site, and the
@@ -11,7 +12,7 @@ only way to guarantee that is to build them from the same tokens and the same
 self-hosted font files rather than from a copy in a design tool. Headless
 Chromium renders them; Pillow trims and flattens the result.
 
-    python3 scripts/generate_social_previews.py            # all three
+    python3 scripts/generate_social_previews.py            # all four
     python3 scripts/generate_social_previews.py ucl        # just one
 
 Needs a Chromium or Chrome binary. The script looks through CHROME_BIN, then
@@ -44,6 +45,7 @@ RENDER_HEIGHT = HEIGHT + 200
 CARDS = {
     "portfolio": ("social-preview.html", "social-preview.png"),
     "ucl": ("ucl-preview.html", "ucl-preview.png"),
+    "arcade": ("arcade-preview.html", "arcade-preview.png"),
     "worldcup": ("worldcup-preview.html", "worldcup-preview.png"),
 }
 

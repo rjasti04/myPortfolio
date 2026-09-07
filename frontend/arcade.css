@@ -1,0 +1,536 @@
+/* Arcade — the standalone games page at /arcade.
+ *
+ * Deliberately not the portfolio's stylesheet. This page is its own cabinet:
+ * neon on near-black, chunky borders, a scanline wash over the whole thing.
+ * What it does share with the SPA is the rule that matters — nothing is
+ * fetched from a third-party origin. The retro read is built from CSS alone
+ * on the platform monospace stack, so the page ships no font of its own and
+ * makes no request the site does not serve itself.
+ */
+
+:root {
+  --bg: #06060f;
+  --panel: #0e0e1d;
+  --panel-raised: #16162c;
+  --edge: #2a2a4a;
+  --text: #e8e8ff;
+  --muted: #8b8bb5;
+  --cyan: #2ee6c5;
+  --magenta: #ff4fa3;
+  --amber: #facc15;
+  --violet: #a55eea;
+  --mono:
+    ui-monospace, sfmono-regular, "SF Mono", menlo, consolas, "Liberation Mono",
+    monospace;
+  --radius: 10px;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* `hidden` toggles the launcher, the stage, the game-over panel and the touch
+   hint. The UA rule behind the attribute is `display: none`, and any author
+   `display` on the same element outranks it — so state that intent once, here,
+   rather than depending on no rule below ever setting `display` on a hideable
+   element. */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      circle at 18% 0%,
+      rgba(165, 94, 234, 0.18),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 84% 12%,
+      rgba(46, 230, 197, 0.14),
+      transparent 52%
+    ),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The scanline wash. `pointer-events: none` is load-bearing — this sits over
+   the canvases, and without it every tap and drag would land here instead of
+   on the game. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.22) 3px,
+    rgba(0, 0, 0, 0.22) 4px
+  );
+  opacity: 0.55;
+}
+
+a {
+  color: var(--cyan);
+}
+
+:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+
+/* The launcher's heading exists for the accessibility tree only - the neon
+   wordmark above it is the visible title, and repeating it would read twice. */
+.visually-hidden-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.shell {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px 18px 64px;
+}
+
+/* ---- Masthead --------------------------------------------------------- */
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 18px;
+  border-bottom: 2px solid var(--edge);
+}
+
+.wordmark {
+  margin: 0;
+  font-size: clamp(28px, 7vw, 44px);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  text-shadow:
+    0 0 12px rgba(46, 230, 197, 0.55),
+    0 0 34px rgba(46, 230, 197, 0.22);
+}
+
+.masthead-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn {
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--panel-raised);
+  border: 2px solid var(--edge);
+  border-radius: var(--radius);
+  padding: 9px 15px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.btn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  transform: translateY(-1px);
+}
+
+.btn--primary {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.btn--primary:hover {
+  background: rgba(46, 230, 197, 0.12);
+}
+
+.lede {
+  max-width: 62ch;
+  margin: 22px 0 26px;
+  color: var(--muted);
+}
+
+/* ---- Launcher --------------------------------------------------------- */
+
+.launcher-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 224px), 1fr));
+  gap: 16px;
+}
+
+.launch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 20px 18px;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: var(--panel);
+  border: 2px solid var(--edge);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.launch-card:hover,
+.launch-card:focus-visible {
+  border-color: var(--magenta);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(255, 79, 163, 0.16);
+}
+
+.launch-art {
+  width: 34px;
+  height: 34px;
+  fill: var(--cyan);
+}
+
+.launch-card:nth-child(2n) .launch-art {
+  fill: var(--magenta);
+}
+
+.launch-card:nth-child(3n) .launch-art {
+  fill: var(--amber);
+}
+
+.launch-name {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.launch-tagline {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.launch-best {
+  margin-top: auto;
+  padding-top: 8px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--violet);
+}
+
+/* ---- Stage ------------------------------------------------------------ */
+
+.hud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.hud-title {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.hud-controls {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.hud-scores {
+  display: flex;
+  gap: 20px;
+  margin: 0;
+}
+
+.hud-scores div {
+  text-align: right;
+}
+
+.hud-scores dt {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hud-scores dd {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
+}
+
+.stage-body {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 18px;
+  background: var(--panel);
+  border: 2px solid var(--edge);
+  border-radius: var(--radius);
+}
+
+#mount {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.game {
+  display: flex;
+  gap: 18px;
+  /* Not `stretch`: the boards size themselves from their aspect ratio, and
+     stretching one to the tallest sibling breaks that ratio silently. */
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Every board is sized by CSS and the canvas backing store is matched to it in
+   engine.js. Setting width/height attributes on the element instead would fix
+   the resolution to one screen density. */
+.game-canvas {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+  /* Without this the browser claims swipes for scrolling and the touch
+     controls simply never fire. */
+  touch-action: none;
+}
+
+.game-canvas--square {
+  max-width: min(460px, 88vw);
+  aspect-ratio: 1;
+}
+
+.game-canvas--well {
+  max-width: min(300px, 62vw);
+  aspect-ratio: 1 / 2;
+}
+
+.game-canvas--portrait {
+  max-width: min(360px, 80vw);
+  aspect-ratio: 2 / 3;
+}
+
+.game-hint {
+  position: absolute;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 7px 14px;
+  font-size: 12px;
+  color: var(--bg);
+  background: var(--amber);
+  border-radius: var(--radius);
+}
+
+.tetris-side {
+  display: flex;
+  flex: 0 0 104px;
+  flex-direction: column;
+  gap: 10px;
+  width: 104px;
+}
+
+.tetris-side-label,
+.tetris-stats dt {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tetris-next {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #0d0d18;
+  border: 2px solid var(--edge);
+  border-radius: 8px;
+}
+
+.tetris-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+.tetris-stats dd {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Game over -------------------------------------------------------- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: rgba(6, 6, 15, 0.9);
+  border-radius: var(--radius);
+}
+
+.overlay h3 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--magenta);
+}
+
+.overlay-score {
+  margin: 4px 0 0;
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
+}
+
+.overlay-note {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.overlay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.stage-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.site-footer {
+  margin-top: 40px;
+  padding-top: 18px;
+  border-top: 2px solid var(--edge);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Scores live in this browser only; there is no server behind them. */
+.site-footer p {
+  margin: 0 0 6px;
+}
+
+@media (max-width: 560px) {
+  .shell {
+    padding: 18px 14px 48px;
+  }
+
+  .game {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* A 1:2 well at phone width is taller than the viewport, so cap every board
+     by height here. The canvases centre their playfield inside whatever box
+     they are given, so a box that no longer matches the declared aspect ratio
+     letterboxes rather than distorting. */
+  .game-canvas {
+    max-height: 58vh;
+  }
+
+  .game-canvas--well {
+    max-width: min(320px, 78vw);
+  }
+
+  .tetris-side {
+    flex: 0 0 auto;
+    /* Above the well on a phone: below it, Next and the stats sit past the
+       bottom of the screen and are never seen. */
+    order: -1;
+    flex-direction: row;
+    gap: 18px;
+    align-items: center;
+    width: min(320px, 78vw);
+  }
+
+  .tetris-next {
+    width: 74px;
+    height: 74px;
+  }
+
+  .tetris-stats {
+    flex-direction: row;
+    gap: 18px;
+  }
+}
+
+/* Motion here is decoration on top of games that still need to animate, so
+   this trims the ambient effects and leaves the gameplay alone. The games read
+   the same preference themselves and drop their own trails and pops. */
+@media (prefers-reduced-motion: reduce) {
+  body::after {
+    opacity: 0.28;
+  }
+
+  .btn,
+  .launch-card {
+    transition: none;
+  }
+
+  .btn:hover,
+  .launch-card:hover {
+    transform: none;
+  }
+}

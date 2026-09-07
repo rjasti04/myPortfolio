@@ -164,9 +164,27 @@ async function main() {
     if (meta.entryPoint) rewrites.set("js/theme-bootstrap.js", relative(OUT, join(ROOT, outPath)));
   }
 
+  // The arcade at /arcade is a separate page with a separate entry point, and
+  // it is built on its own rather than joining the `splitting` group above. It
+  // shares no module with the SPA, so bundling them together could only produce
+  // a shared chunk that each page half-uses - and it would put game code inside
+  // the portfolio's dependency graph, which is where the service worker derives
+  // its shell list from.
+  const arcade = await esbuild.build({
+    entryPoints: [join(SRC, "js/arcade/shell.js")],
+    bundle: true, minify: true, sourcemap: true, format: "esm", target: ["es2022"],
+    outdir: join(OUT, "assets"), entryNames: "arcade-[hash]", metafile: true, logLevel: "warning",
+  });
+  for (const [outPath, meta] of Object.entries(arcade.metafile.outputs)) {
+    if (outPath.endsWith(".map")) continue;
+    if (meta.entryPoint) {
+      rewrites.set("js/arcade/shell.js", relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
+    }
+  }
+
   // --- CSS -----------------------------------------------------------------
   const cssAssets = new Set();
-  for (const css of ["styles.css", "auth-modal.css", "fonts.css"]) {
+  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "arcade.css"]) {
     const result = await esbuild.build({
       entryPoints: [join(SRC, css)],
       bundle: true, minify: true, sourcemap: true,

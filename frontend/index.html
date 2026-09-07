@@ -1405,8 +1405,7 @@
                scripts/vendor_fonts.py.
 
            The grid is `auto-fill`, so tiles wrap on their own and a new one
-           costs no CSS. Delete the placeholder tile once a second real app
-           lands. -->
+           costs no CSS. -->
       <section id="apps">
         <h2 class="section-title">Apps</h2>
         <p class="section-intro">Side projects that live on their own pages, away from the portfolio. Pick one &mdash;
@@ -1427,10 +1426,21 @@
             </span>
           </a>
 
-          <p class="app-tile app-tile--placeholder">
-            <span class="app-tile-placeholder-glyph" aria-hidden="true"><i class="fas fa-plus"></i></span>
-            More apps land here as I build them.
-          </p>
+          <a class="app-tile reveal" href="/arcade" target="_blank" rel="noopener"
+            aria-label="Launch the Arcade in a new tab">
+            <span class="app-tile-media">
+              <img src="arcade-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
+            </span>
+            <span class="app-tile-body">
+              <span class="app-tile-eyebrow"><i class="fas fa-cubes" aria-hidden="true"></i>Games</span>
+              <h3 class="app-tile-title">Arcade</h3>
+              <p class="app-tile-text">2048, Tetris, Flapper and Stack, written from scratch in vanilla JavaScript
+                &mdash; no framework, no game engine, no third-party code. Keyboard or touch, and your best score for
+                each stays in your browser.</p>
+              <span class="app-tile-cta">Launch<i class="fas fa-arrow-up-right-from-square"
+                  aria-hidden="true"></i></span>
+            </span>
+          </a>
         </div>
       </section>
 

@@ -674,6 +674,102 @@ colours read from CSS custom properties so it matches the active accent.
 
 ---
 
+## Arcade (`/arcade`)
+
+Its own page, its own entry point, its own esbuild pass. Nothing here is
+imported by the SPA and nothing here imports from it, which is deliberate:
+`scripts/build.mjs` derives the service worker's precache list from the SPA's
+dependency graph, so a shared module would drag game code into the app shell.
+
+The four games are interchangeable. Each exports a `meta` describing itself and
+a `create({ mount, api })` that returns `{ destroy() }`; the shell supplies the
+mount point and an `api` of `{ audio, setScore, gameOver }`, and owns
+everything the games have in common — the launcher, the HUD, best scores,
+restart and exit. Restarting is `destroy()` then `create()`, never a per-game
+reset path, because a reset that misses one field produces a second run that
+behaves like a continuation of the first.
+
+The rules of each game are pure exported functions, tested directly in
+`arcade.test.js` without a canvas. Everything else in a game module is drawing.
+
+### `shell.js` (170 lines)
+
+The page's entry point. Builds the launcher from each game module's own `meta`,
+so adding a game is an import and one array entry. Owns the game lifecycle,
+`Escape` to exit, the sound toggle, and the game-over panel. Banks the running
+score on exit and restart as well as on game over — recording only on game over
+threw away every run a player walked away from.
+
+### `engine.js` (96 lines)
+
+The fixed-timestep loop and a display-density-aware canvas fit.
+
+- `createLoop` calls `update` a whole number of times per frame at a constant
+  step. Variable-timestep physics would make Flapper's jump height and Tetris's
+  gravity depend on the visitor's refresh rate, and let collision tunnel
+  through a column on a long frame. The accumulator is clamped, so returning to
+  a backgrounded tab slows the simulation rather than fast-forwarding it
+  through its own game over.
+- `fitCanvas` sets the backing store to the CSS box times DPR (capped at 2) and
+  scales the context, so one context unit stays one CSS pixel. Returns the
+  CSS-pixel box; game logic reasons in that.
+
+### `input.js` (87 lines)
+
+`bindKeys` and `bindSwipe`, each returning its own teardown. That is the point:
+the shell destroys and recreates a game on every restart, and a listener left
+on `window` keeps driving a dead game. Handled keys have their default
+suppressed so arrows and space do not scroll the board off a phone screen.
+
+### `storage.js` (60 lines)
+
+Best scores and the sound preference, every access wrapped. `localStorage` does
+not merely read empty in a private window — the accessor itself throws — and an
+arcade that refused to boot over a high score would be a poor trade.
+
+### `audio.js` (131 lines)
+
+A Web Audio synth; the page ships no audio files. The context is created lazily
+on the first sound, because one built at import time is born outside a user
+gesture and stays suspended — present, accepting `start()`, silent. Perfect
+Stack drops walk up a pentatonic scale, which is what turns a streak into an
+audible chord progression.
+
+### `game-2048.js` (317 lines)
+
+`collapse` and `move` are the rules: a merged tile cannot merge again within
+the same move, and a move that changes nothing must not spawn. `move` also
+returns each tile's journey, which is what lets the renderer animate a slide
+rather than teleport tiles.
+
+### `game-tetris.js` (603 lines)
+
+Ten by twenty, seven-bag randomiser, SRS rotation with wall kicks. The kick
+tables are stored in the standard's own coordinates, where `+y` is up, and
+`kickedRotation` flips the sign once at the point of use — easier to check
+against a reference than a pre-negated table. Without kicks a piece simply
+refuses to turn against a wall, which reads as an unresponsive game rather than
+a rule. Seven-bag rather than uniform random because uniform produces droughts
+long enough that players reasonably believe the game is cheating.
+
+### `game-flapper.js` (254 lines)
+
+A flappy-style game with its own name and its own canvas-drawn art. Simulated
+in a fixed 400x600 space and scaled to the canvas, so it is not harder on a
+tall phone than a short laptop window. The ceiling clamps rather than kills —
+every column reaches down from it, so hugging the roof is still paid for at the
+next gap.
+
+### `game-stack.js` (304 lines)
+
+Flat 2D side view: blocks slide, a drop trims the overhang, and the trimmed
+width is what the next block inherits. `place()` holds that geometry. A drop
+within a few units of flush snaps perfect, because without the tolerance
+"perfect" is unreachable on a touchscreen and the width reward that keeps long
+runs alive would be dead code.
+
+---
+
 ## Browser storage keys
 
 | Key | Store | Written by | Holds |
@@ -692,6 +788,8 @@ colours read from CSS custom properties so it matches the active accent.
 | `rj_session_id` | **sessionStorage** | `analytics.js` | Analytics session id (per tab) |
 | `rj_session_started_at` | **sessionStorage** | `analytics.js` | Session start timestamp, so a reloaded tab keeps one session rather than starting another |
 | `rj_session_token` | **sessionStorage** | `analytics.js` | Capability token (per tab) |
+| `rj-arcade:best:<game>` | localStorage | `arcade/storage.js` | Best score per arcade game |
+| `rj-arcade:muted` | localStorage | `arcade/storage.js` | Arcade sound preference |
 | `rj_session_token` | **cookie** | the API | Same token, `HttpOnly; SameSite=Strict` — what `EventSource` sends |
 
 A session stored before capability tokens existed is discarded on load, so a
