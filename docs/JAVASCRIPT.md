@@ -418,7 +418,7 @@ matrix toggle (`rj_terminal_matrix`), and the `ctx` object handed to commands
 
 ## UI and interaction
 
-### `navigation.js` (551 lines)
+### `navigation.js` (572 lines)
 
 `initNavigation()`, `setActiveSection(target)`,
 `navigateToSection(target, {updateHash})`, `syncSectionWithHash(hash)`,
@@ -433,13 +433,26 @@ gestures between sections, and online/offline banners. `isModalOpen()` checks
 This module is not the *first* thing to route: it arrives through `main.js` and
 does not run until `DOMContentLoaded`, so the inline pre-boot router in
 `index.html` has already applied the fragment (see
-[`FRONTEND.md`](FRONTEND.md#indexhtml)). Two lines here close that handover.
+[`FRONTEND.md`](FRONTEND.md#indexhtml)). Two things here close that handover.
 `initNavigation()` adds `nav-ready` to `<html>` right after its first
-`syncSectionWithHash()`, which retires the `:target` guard in styles.css before
-`pushState` can leave `:target` stale; and `setActiveSection()` clears the
-pre-boot router's `is-boot-target` marker — but only once `nav-ready` is up, so
-the marker survives this module's own first sync (same target, same page) and
-dies on the first real navigation, when the entrance animation should return.
+`syncSectionWithHash()`; and `setActiveSection()` clears the pre-boot router's
+`is-boot-target` marker — but only once `nav-ready` is up, so the marker
+survives this module's own first sync (same target, same page) and dies on the
+first real navigation, when the entrance animation should return.
+
+The two routers also have to *agree*, or a refresh lands somewhere the first
+paint did not. `syncSectionWithHash()` hands `getValidHashTarget` a
+`resolveSection(id)` that looks the id up in `sections`, not
+`document.getElementById`: the laxer question — "is there any element with this
+id?" — said yes for `<main id="main-content">`, which is the skip link's own
+target, so following the skip link, or reloading after having followed it,
+routed to a "section" that is not one, deactivated all eight real ones and left
+the page blank. The pre-boot router validates the same way, against the header
+nav. The fallback is the section that is active *now* rather than a literal
+`"home"`, which is the other half of the same fix: the skip link has to move
+focus into `<main>` without navigating away from what the visitor was reading,
+and on the first sync the active section is already the one the pre-boot router
+chose — home included, since that is what the markup ships.
 
 ### `modal.js` (124 lines)
 
