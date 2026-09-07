@@ -1,4 +1,10 @@
 # WebGL & Animation Standards
-- **Performance First:** All animations must target 60fps on mid-tier mobile devices.
-- **Cleanup:** Always dispose geometries, materials, textures, and cancel `requestAnimationFrame` IDs during module cleanup or page unload to prevent WebGL memory leaks.
-- **Math:** Prefer `MathUtils.lerp` or GSAP for all movement; avoid "jumpy" transitions.
+
+Deprecated. This file described Three.js/GSAP/WebGL practice that this project
+has never used: the animated background in `frontend/three-bg.js` is plain 2D
+canvas, and there is no WebGL context, no Three.js and no GSAP in the repo. The
+one rule worth keeping — a 60fps target on mid-tier mobile, and cancelling every
+`requestAnimationFrame` handle on teardown — has been merged into the single
+source of truth.
+
+Read instead: **[AGENTS.md](../../AGENTS.md)**
