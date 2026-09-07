@@ -168,7 +168,7 @@
        round trip instead of saving one. -->
   <link rel="preload" href="profile-cutout-380.webp" as="image" type="image/webp"
     imagesrcset="profile-cutout-380.webp 380w, profile-cutout.webp 497w"
-    imagesizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 570px)" />
+    imagesizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)" />
   <link rel="preload" href="styles.css" as="style" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="./auth-modal.css" />
@@ -527,20 +527,21 @@
 
                Two widths, topping out at 497 - the master is a full-length
                shot and the bust window generate_profile_cutout.py crops from
-               it is only that wide, so the ladder ends where the pixels do
-               rather than at the ~1140w a 2x desktop would take. See the
-               VARIANTS note in that script. -->
+               it is only that wide, so the ladder ends where the pixels do.
+               The 450px cap in styles.css is set against that: it keeps 1x a
+               downscale, though 2x still asks for ~900w. See the VARIANTS
+               note in that script. -->
           <div class="home-portrait">
             <picture>
               <source
                 srcset="
                   profile-cutout-380.webp 380w,
                   profile-cutout.webp 497w"
-                sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 570px)" type="image/webp" />
+                sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)" type="image/webp" />
               <img src="profile-cutout-380.png" srcset="
                   profile-cutout-380.png 380w,
                   profile-cutout.png 497w"
-                sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 570px)"
+                sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)"
                 alt="" class="home-portrait-img" width="497" height="513" fetchpriority="high"
                 loading="eager" />
             </picture>

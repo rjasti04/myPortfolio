@@ -67,7 +67,7 @@ CONTAMINATED_ALPHA = 0.55
 
 # ── The bust window on the master ──
 # The master is a full-length standing shot; the landing portrait is a bust. It
-# has to be, and not by preference: `.home-portrait` renders at up to 570px
+# has to be, and not by preference: `.home-portrait` renders at up to 450px
 # inside a hero with almost no vertical slack, so a frame carrying the figure
 # down to the knees would spend that width on trouser leg and hand the head
 # roughly half the size the layout is built around.
@@ -100,14 +100,15 @@ MARGIN_PX = 6
 # an upscale wearing a bigger filename. The bust window is a ~500px crop of a
 # 1254px master, so that is genuinely all the portrait there is.
 #
-# It does not reach 2x. `.home-portrait` renders at up to 570 CSS px, so a
-# retina desktop would take ~1140w and gets 497 - the previous master, a
-# frame-filling headshot, carried 1111 and covered it. A higher-resolution
-# original of this shot is the only thing that fixes that; nothing in this
-# script can, and generating a 1111w file from a 497w matte would only move the
-# blur from the browser to here while tripling the bytes. 380 stays as the
-# lower rung: it is the LCP file `index.html` preloads and the build precaches,
-# and it is still a true downscale.
+# It does not reach 2x. `.home-portrait` caps at 450 CSS px - lowered from 570
+# for exactly this reason, so that the widest render is a downscale of this file
+# rather than an upscale of it - and a retina desktop there still asks for ~900w
+# against 497. The previous master, a frame-filling headshot, mattes to 1111 and
+# covered it. A higher-resolution original of this shot is the only thing that
+# closes the gap; nothing in this script can, and generating a 900w file from a
+# 497w matte would only move the blur from the browser to here while multiplying
+# the bytes. 380 stays as the lower rung: it is the LCP file `index.html`
+# preloads and the build precaches, and it is still a true downscale.
 VARIANTS = [
     {"width": 380, "png_name": "profile-cutout-380.png", "webp_name": "profile-cutout-380.webp"},
     {"width": 497, "png_name": "profile-cutout.png", "webp_name": "profile-cutout.webp"},
