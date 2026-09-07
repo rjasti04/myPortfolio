@@ -56,26 +56,44 @@ shown and hidden by class rather than fetched:
 `home` carries `class="active"` in the markup, which is the right first paint
 for the root URL and the wrong one for every deep link: the fragment never
 reaches the server, so `/#resume` is served this same document. An inline
-**pre-boot section router** immediately after `</main>` moves the class to the
-section the fragment names, in the same parse pass that built the sections and
-long before `js/navigation.js` arrives (through `main.js`, a module, so not
-until `DOMContentLoaded`). Without it every refresh away from home painted the
-landing portrait first — the LCP image of the page it belongs to, preloaded and
-`fetchpriority="high"`, so it arrived fast and the wrong content was what a
-visitor saw. It sets the same class the router sets, so `#ai`'s height-locked
-shell and `#about`'s grid apply to the first paint rather than to a second one,
-and it marks its section `is-boot-target` to suppress the entrance animation —
-that section is the page as loaded, not a transition into it.
+**pre-boot section router**, placed **above `<main>`**, moves the class to the
+section the fragment names, long before `js/navigation.js` arrives (through
+`main.js`, a module, so not until `DOMContentLoaded`). Without it every refresh
+away from home painted the landing portrait first — the LCP image of the page it
+belongs to, preloaded and `fetchpriority="high"`, so it arrived fast and the
+wrong content was what a visitor saw. It sets the same class the router sets, so
+`#ai`'s height-locked shell and `#about`'s grid apply to the first paint rather
+than to a second one, and it marks its section `is-boot-target` to suppress the
+entrance animation — that section is the page as loaded, not a transition into
+it.
 
-Two guards sit either side of it. The target must be a direct `<section>` child
-of `<main>`, so the skip link's `#main-content` or a stale bookmark falls back
-to home exactly as `getValidHashTarget` would; and styles.css hides
-`#home.active` while a `section:target` says otherwise, covering the case where
-a slowly streaming document paints before the parser reaches the script. That
-CSS guard is scoped to `:not(.nav-ready)` — `navigation.js` adds `nav-ready`
-once it owns the router, because `history.pushState` leaves `:target` stale in
-some browsers and a stale match would hide the section the router had just
-activated.
+**Where it sits is the whole point.** It ran after `</main>` first, which reads
+as early enough and is not: a browser paints a document while it is still
+streaming, and `#home` is the *first* section in it, so on a slow connection the
+landing hero was on screen for as long as the remaining ~1,500 lines took to
+arrive — measured at 165 ms into a chunked response on a deep link to `#resume`.
+Sitting above `<main>` instead, the script is in place before the parser has
+produced anything to paint, and a `MutationObserver` applies the swap to each
+section the instant its start tag is parsed, one microtask before the frame
+that would show it. Its cost is bounded: it watches the whole tree only until
+`<main>` opens, then narrows to `main`'s direct children, and disconnects for
+good once the target is active.
+
+The fragment is validated against the header's own `nav a[data-target]` links
+rather than a list kept in the script, so it cannot drift from the markup;
+waiting for `<main>` is what makes that check conclusive, since the header
+closes immediately above it. The target is then also required to be a direct
+`<section>` child of `<main>`. The skip link's `#main-content` and stale
+bookmarks match no nav link and leave home alone — and `js/navigation.js` now
+applies the same rule at runtime, which is what stopped a reload on
+`#main-content` blanking the page (see `resolveSection` in
+[JAVASCRIPT.md](JAVASCRIPT.md)).
+
+A `:target` rule in styles.css used to back this up for the streaming case. It
+could never fire — the target section is parsed *after* `#home`, so it does not
+exist at the paint that needed guarding, and Chromium leaves `:target`
+unmatched until the parse completes anyway — and it is gone; the script's
+position closes that window at the source.
 
 The section list is duplicated in four places that have to move together: the
 `<section>` markup, the header nav rows above it (their order also sets the
@@ -90,8 +108,12 @@ links → `js-enabled` marker script → preloads (`profile-cutout-380.webp`,
 `styles.css`) → stylesheets (`styles.css`, `auth-modal.css`, `fonts.css`) →
 two font preloads.
 
-**Body tail, in order:** the pre-boot section router runs first, inline and
-parser-blocking, straight after `</main>`; then the deferred set.
+**Body head, in order:** skip link → inline theme bootstrap →
+`js/theme-bootstrap.js` → inline pre-boot section router. All three are
+parser-blocking and all three are above `<main>`, because each of them has to
+be settled before the first section can paint.
+
+**Body tail, in order:** the deferred set, after `</main>`.
 
 ```html
 <script defer src="vendor/purify.min.js"></script>
@@ -120,7 +142,7 @@ object-src 'none';
 form-action https://formsubmit.co;
 script-src 'self' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI='
                   'sha256-6XuTA/BFxDvJqIm0o2k13VOhDx9nZ5JDPwYSgDaaFdQ='
-                  'sha256-NBkhHa9X0mL2NpJraIg9aQSm6rJT6oEElI9g9KPP5co=';
+                  'sha256-TeGe8t4CWnpLfAepac4vc5uWDriFurKq3PdPmtrkFqY=';
 style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline';
 font-src 'self';
 img-src 'self' data: https:;
@@ -143,9 +165,9 @@ canvas).
    that reveals JS-only affordances.
 2. **The theme bootstrap** — reads `localStorage.theme`, falls back to
    `prefers-color-scheme`, and applies `.dark-theme` before first paint.
-3. **The pre-boot section router** — sits immediately after `</main>` and moves
-   the `active` class from `#home` to the section the fragment names, so a
-   refresh on `#resume` paints the resume rather than the landing portrait.
+3. **The pre-boot section router** — sits above `<main>` and moves the `active`
+   class from `#home` to the section the fragment names, so a refresh on
+   `#resume` paints the resume rather than the landing portrait.
    See [`index.html`](#indexhtml) above.
 
 **Editing any of them — even reindenting — invalidates its hash, and the browser

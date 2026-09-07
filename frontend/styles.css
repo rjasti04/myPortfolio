@@ -6738,28 +6738,16 @@ section {
 }
 
 /* ── Pre-boot routing ──
-   Two rules that only matter between first paint and the inline pre-boot
-   router in index.html (which explains the whole arrangement).
+   The entrance animation belongs to a navigation. The section the inline
+   pre-boot router in index.html activated is the page as loaded, so it starts
+   opaque and in place - the same reason #home.active does below.
 
-   The guard: #home carries `active` in the markup, so a document that paints
-   while it is still streaming - before the parser reaches that script - paints
-   the landing portrait on top of a deep link to some other section. `:target`
-   is the one routing signal CSS has before any script runs, and matching it
-   through :has() means an id that is not a section of this page (the skip
-   link's #main-content, a stale bookmark) leaves home alone, exactly as
-   getValidHashTarget's fallback would.
-
-   Scoped to :not(.nav-ready), which navigation.js adds once it owns the
-   router, because history.pushState does not update :target in every browser:
-   after a JS navigation back to home the stale match would hide the section
-   the router had just activated, and the page would go blank. */
-.js-enabled:not(.nav-ready) main:has(> section:target:not(#home)) > #home.active {
-  display: none;
-}
-
-/* The entrance animation belongs to a navigation. The section the pre-boot
-   router activated is the page as loaded, so it starts opaque and in place -
-   the same reason #home.active does below. */
+   A `:target` rule used to sit here as a second guard, to hide #home on a
+   document that painted while still streaming. It could never fire: the target
+   section is parsed after #home, so it does not exist yet at the paint that
+   needed guarding, and Chromium in any case leaves :target unmatched until the
+   parse completes. The router runs above <main> now, which closes that window
+   at the source. */
 .js-enabled section.active.is-boot-target {
   animation: none;
   opacity: 1;

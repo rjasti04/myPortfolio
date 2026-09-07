@@ -218,11 +218,13 @@ or `require_session_access` (analytics capability token) — before the handler.
    `js/theme-bootstrap.js` then replays any saved custom palette. `initTheme()`
    in `js/theme.js` must apply the identical rule or the theme visibly changes
    at `DOMContentLoaded`.
-2. **Pre-boot section routing** — an inline script straight after `</main>`
-   moves `active` from `#home` to the section the URL fragment names, so a
-   refresh on `#resume` never paints the landing portrait first. CSP-hashed,
-   like the theme bootstrap, and for the same reason: it has to beat the
-   deferred scripts below.
+2. **Pre-boot section routing** — an inline script *above* `<main>` moves
+   `active` from `#home` to the section the URL fragment names, so a refresh on
+   `#resume` never paints the landing portrait first. CSP-hashed, like the theme
+   bootstrap, and for the same reason: it has to beat the deferred scripts
+   below. It watches the parser with a `MutationObserver` rather than reading
+   the finished document, because `#home` is the first section in it and a
+   streaming response paints long before the last one arrives.
 3. **Deferred classic scripts** — `vendor/purify.min.js`, `vendor/marked.min.js`,
    `js/app-logic.js` (assigns `window.AppLogic`).
 4. **Module entries** — `js/auth-ui.js` and `js/main.js`, both `type="module"`.

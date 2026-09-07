@@ -110,9 +110,30 @@ export function navigateToSection(target, { updateHash = true } = {}) {
   window.scrollTo({ top: 0, behavior: prefersReducedMotion.matches ? "auto" : "smooth" });
 }
 
+/**
+ * Resolves a fragment to a section this router owns, for getValidHashTarget.
+ *
+ * Passing `getElementById` here answered a laxer question - "is there any
+ * element with this id?" - and <main> itself has one. The skip link points at
+ * #main-content, so following it and then reloading routed to a "section" that
+ * is not one: setActiveSection deactivated all eight real ones and the page
+ * went blank. Only the sections count, which is also the rule the pre-boot
+ * router in index.html applies, and the two have to agree or a refresh lands
+ * somewhere the first paint did not.
+ */
+function resolveSection(id) {
+  return sections?.find((section) => section.id === id) ?? null;
+}
+
 export function syncSectionWithHash(hash = window.location.hash) {
   if (!window.AppLogic?.getValidHashTarget) return;
-  const target = window.AppLogic.getValidHashTarget(hash, (id) => document.getElementById(id), "home");
+  // A fragment that names no section leaves the view where it is, because the
+  // skip link is one: following it must move focus into <main>, not navigate
+  // away from whatever the visitor was reading. On the first sync "where it is"
+  // is the section the pre-boot router in index.html already chose - or home,
+  // which is what the markup ships, and so the fallback for a stale bookmark.
+  const current = sections?.find((section) => section.classList.contains("active"));
+  const target = window.AppLogic.getValidHashTarget(hash, resolveSection, current?.id ?? "home");
   setActiveSection(target);
 }
 
