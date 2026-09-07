@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none';"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta
+      name="description"
+      content="Four browser games built in vanilla JavaScript — 2048, Tetris, Flapper and Stack. No install, no account, no server: scores stay in your browser."
+    />
+    <meta name="theme-color" content="#06060f" />
+    <title>Arcade — Four Games in Vanilla JavaScript</title>
+    <link rel="canonical" href="https://rjasti.com/arcade" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="Rajeev Jasti" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://rjasti.com/arcade" />
+    <meta
+      property="og:title"
+      content="Arcade — Four Games in Vanilla JavaScript"
+    />
+    <meta
+      property="og:description"
+      content="2048, Tetris, Flapper and Stack, built from scratch with no framework and no third-party code."
+    />
+    <meta property="og:image" content="https://rjasti.com/arcade-preview.png" />
+    <meta
+      property="og:image:secure_url"
+      content="https://rjasti.com/arcade-preview.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Arcade preview card" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Arcade — Four Games in Vanilla JavaScript"
+    />
+    <meta
+      name="twitter:description"
+      content="2048, Tetris, Flapper and Stack, built from scratch with no framework and no third-party code."
+    />
+    <meta
+      name="twitter:image"
+      content="https://rjasti.com/arcade-preview.png"
+    />
+    <meta name="twitter:image:alt" content="Arcade preview card" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="arcade.css" />
+  </head>
+
+  <body>
+    <div class="shell">
+      <header class="masthead">
+        <h1 class="wordmark">Arcade</h1>
+        <div class="masthead-actions">
+          <button id="mute" class="btn" type="button" aria-pressed="false">
+            Sound on
+          </button>
+          <a class="btn" href="/">Back to portfolio</a>
+        </div>
+      </header>
+
+      <!-- Launcher and stage are siblings, toggled by the `hidden` attribute by the
+           arcade shell. Only one is ever in the accessibility tree, so a
+           screen reader never lands on a board that is not on screen. -->
+      <section id="launcher" aria-labelledby="launcher-heading">
+        <h2 id="launcher-heading" class="visually-hidden-heading">
+          Pick a game
+        </h2>
+        <p class="lede">
+          Four games written from scratch in vanilla JavaScript — no framework,
+          no game engine, no third-party code. They run entirely in this tab and
+          your best score for each is kept in this browser.
+        </p>
+        <!-- Cards are generated from each game module's own `meta`, so the list
+             here is empty on purpose. -->
+        <div id="launcher-grid" class="launcher-grid"></div>
+      </section>
+
+      <section id="stage" hidden aria-labelledby="stage-title">
+        <div class="hud">
+          <div>
+            <h2 id="stage-title" class="hud-title" tabindex="-1"></h2>
+            <p id="stage-controls" class="hud-controls"></p>
+          </div>
+          <dl class="hud-scores">
+            <div>
+              <dt>Score</dt>
+              <dd id="hud-score">0</dd>
+            </div>
+            <div>
+              <dt>Best</dt>
+              <dd id="hud-best">0</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="stage-body">
+          <div id="mount"></div>
+
+          <div
+            id="overlay"
+            class="overlay"
+            role="alertdialog"
+            aria-labelledby="overlay-heading"
+            hidden
+          >
+            <h3 id="overlay-heading">Game over</h3>
+            <p id="overlay-score" class="overlay-score">0</p>
+            <p id="overlay-note" class="overlay-note"></p>
+            <div class="overlay-actions">
+              <button
+                class="btn btn--primary"
+                type="button"
+                data-action="restart"
+              >
+                Play again
+              </button>
+              <button class="btn" type="button" data-action="exit">
+                Back to arcade
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage-footer">
+          <button class="btn" type="button" data-action="restart">
+            Restart
+          </button>
+          <button class="btn" type="button" data-action="exit">
+            Back to arcade (Esc)
+          </button>
+        </div>
+      </section>
+
+      <footer class="site-footer">
+        <p>
+          Scores are stored in this browser only — there is no account and no
+          server behind them.
+        </p>
+        <p>Part of <a href="/">rjasti.com</a>.</p>
+      </footer>
+    </div>
+
+    <script type="module" src="js/arcade/shell.js"></script>
+  </body>
+</html>

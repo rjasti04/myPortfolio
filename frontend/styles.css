@@ -6527,9 +6527,9 @@ body.dark-theme .skill-tag.primary .fas {
     box-shadow var(--motion-medium) var(--ease-standard);
 }
 
-/* Scoped to `a.app-tile` throughout: the placeholder below shares the shell
-   but is not a link, and lifting it on hover would promise a target that is
-   not there. */
+/* Scoped to `a.app-tile` rather than `.app-tile`: the shell is also usable by
+   a non-link tile, and lifting one of those on hover would promise a target
+   that is not there. */
 a.app-tile:hover,
 a.app-tile:focus-visible {
   transform: translateY(-4px);
@@ -6624,53 +6624,6 @@ a.app-tile:hover .app-tile-media img {
 a.app-tile:hover .app-tile-cta i,
 a.app-tile:focus-visible .app-tile-cta i {
   transform: translate(2px, -2px);
-}
-
-/* The empty slot. Deliberately a <p> and not a link: it says the shelf is
-   unfinished without adding a tab stop that goes nowhere. Delete it - here and
-   in index.html - once a second real app makes the point on its own. */
-.app-tile--placeholder {
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  min-height: 240px;
-  padding: 32px 24px;
-  background: transparent;
-  border-style: dashed;
-  box-shadow: none;
-  color: var(--muted);
-  font-size: var(--text-sm);
-  text-align: center;
-}
-
-.app-tile-placeholder-glyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
-/* One column on a phone, so the placeholder stops being an empty slot beside
-   something and becomes a 240px block of nothing under it. It still earns its
-   place - it is the only thing saying the shelf will grow - but not at a third
-   of a screen. */
-@media (width <=640px) {
-  .app-tile--placeholder {
-    flex-direction: row;
-    min-height: 0;
-    padding: 18px 20px;
-    text-align: left;
-  }
-
-  .app-tile-placeholder-glyph {
-    flex-shrink: 0;
-    width: 36px;
-    height: 36px;
-  }
 }
 
 /* #endregion */

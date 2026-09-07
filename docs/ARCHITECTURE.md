@@ -121,10 +121,12 @@ fire-and-forget tasks are awaited, and the SQLAlchemy engine is disposed.
 | `.htaccess` | Apache canonical-URL rewrites (extensionless paths, apex host), compression, cache headers (immutable for hashed assets), security headers |
 | `three-bg.js` | Full-viewport animated plexus background, desktop-only — plain 2D canvas despite the name |
 | `js/` | ES modules; see [`JAVASCRIPT.md`](JAVASCRIPT.md) |
+| `js/arcade/` | The `/arcade` page's own modules — a shell, a loop/canvas helper, input binders, storage, a Web Audio synth and four games. Built as a separate esbuild entry point; shares nothing with the SPA |
 | `js/terminal/` | The command prompt, split into data (`registry`), DOM builders (`output`), `history`, `keymap`, `palette` and the `index` that owns all wiring |
 | `vendor/` | DOMPurify + marked, copied verbatim from the npm packages pinned in `package.json` |
 | `tests/` | Node test runner + jsdom suites (excluded from `dist/`) |
 | `worldcup.html` | Standalone side project, unrelated to the portfolio SPA, served at `/worldcup` (retired — the header link is hidden) |
+| `arcade.html` + `arcade.css` | Standalone games page served at `/arcade` — 2048, Tetris, Flapper and Stack. Reached from the SPA's **Apps** section, which links out to it in a new tab. Unlike the two predictors it keeps the SPA's no-third-party rule: its retro look is CSS on the platform monospace stack, and its own CSP is `script-src 'self'` with no inline script to hash |
 | `ucl.html` | Standalone side project, unrelated to the portfolio SPA — the 2026/27 Champions League bracket predictor, served at `/ucl`. Reached from the SPA's **Apps** section, which links out to it in a new tab rather than routing to it |
 
 ### `server/` — the API tier

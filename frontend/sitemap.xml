@@ -24,6 +24,17 @@
     </image:image>
   </url>
   <url>
+    <loc>https://rjasti.com/arcade</loc>
+    <lastmod>2026-09-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <image:image>
+      <image:loc>https://rjasti.com/arcade-preview.png</image:loc>
+      <image:title>Arcade | Four games in vanilla JavaScript</image:title>
+      <image:caption>Preview card for the arcade games page</image:caption>
+    </image:image>
+  </url>
+  <url>
     <loc>https://rjasti.com/worldcup</loc>
     <lastmod>2026-09-02</lastmod>
     <changefreq>yearly</changefreq>
