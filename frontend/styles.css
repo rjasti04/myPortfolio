@@ -2523,8 +2523,14 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    follows the alpha. And a cutout dropped straight onto a gradient reads as
    pasted, so `::before` lays a wash of light behind it.
 
-   Plain container, not a control: the portrait does not open a lightbox, so it
-   carries no hover glow, no focus ring and nothing in the tab order. */
+   It IS a control now - the portrait is a flip card, and clicking it rotates
+   the studio shot into view - but it is a control that says nothing about
+   itself. No hover glow, no pointer cursor, no glyph in the corner: the
+   affordance is deliberately absent, so the flip is something a visitor finds
+   rather than something the landing view advertises. The one visible state it
+   does keep is `:focus-visible`, which paints for keyboard traversal only and
+   is not an affordance so much as the minimum that makes a button operable at
+   all. See the FLIP CARD block below `.home-portrait-img`. */
 .home-portrait {
   position: relative;
 
@@ -2645,7 +2651,16 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
      stands left of centre and the near shoulder runs out to the right - so a
      panel centred at 50% hangs a hand's width off his ear on one side. 46% is
      where the head sits near the middle of the paint and the shoulder still
-     has something behind it. */
+     has something behind it.
+
+     It has to serve BOTH faces of the flip card now, since the panel does not
+     rotate with it, and the two silhouettes do not agree on where the head is.
+     Alpha-weighted centroid of the top 30% of each matte, as a fraction of the
+     box width: 0.337 on the outdoor shot against 0.363 on the studio one - the
+     hat's brim pulls the front face 2.6% left. Held at 46% deliberately rather
+     than split: 2.6% is 12px at the 450px cap, moving it improves one face by
+     exactly as much as it costs the other, and re-tuning a number this
+     carefully argued for a wash is how it stops meaning anything. */
   left: 46%;
 
   /* Off-square by a couple of degrees: hung by hand, not printed. Any more
@@ -2686,14 +2701,15 @@ body.dark-theme .home-portrait::before {
 
    Warm rather than neutral: --shadow-ambient is the blue-grey used under
    cards, and under a silhouette on this amber ground it reads as a cold
-   smudge. */
+   smudge.
+
+   Applies to BOTH faces of the flip card, which is what it should do: the
+   shadow belongs to whichever silhouette is currently facing the viewer, and
+   the face turned away is not painting at all. The stacking that used to live
+   here - `position: relative; z-index: 1`, to lift the picture over the paint
+   panel - moved up to `.home-portrait-flip`, which now sits between the two
+   and lifts the whole card at once. */
 .home-portrait picture {
-  /* Stacked explicitly over the stroke above. `picture` carries a filter,
-     which makes it a stacking context painted in flow order - that is EARLIER
-     than a positioned sibling with `z-index: auto`, so without this pair the
-     stroke paints over the face. */
-  position: relative;
-  z-index: 1;
   display: block;
   filter: drop-shadow(0 18px 26px hsla(28, 45%, 18%, 0.28));
 }
@@ -2720,6 +2736,103 @@ body.dark-theme .home-portrait picture {
      filter is applied BEFORE its own mask - declared together, the shadow is
      cast by the un-faded rectangle and then sliced off at the fade line. */
   mask-image: linear-gradient(to bottom, #000 68%, transparent 97%);
+}
+
+/* ── FLIP CARD ──
+   The portrait is a button, and clicking it rotates the card to the studio
+   shot on the back. Three elements, each doing exactly one job, because
+   collapsing any two of them breaks something:
+
+     .home-portrait-flip  the <button>. Owns the perspective and the stacking.
+     .home-portrait-card  the thing that rotates. Owns `preserve-3d`.
+     .home-portrait-face  one side. Owns `backface-visibility`.
+
+   The faces are a layer of their own rather than the <picture> elements
+   themselves because `picture` carries the drop-shadow above, and an element
+   with a `filter` is flattened out of its parent's 3D context - declared on
+   the same element, `backface-visibility: hidden` is unreliable across
+   engines. Separating them costs one span per face and makes the rotation
+   behave the same everywhere.
+
+   Nothing here animates under `prefers-reduced-motion: reduce`: the global
+   block in ACCESSIBILITY & PRINT PREFERENCES clamps every transition to
+   0.001ms, so the card swaps faces instantly instead of turning. That is the
+   right fallback and it needs no rule of its own - do not add one that
+   re-introduces a duration. */
+.home-portrait-flip {
+  /* Stacked over the paint panel, which is `.home-portrait::before` at
+     `z-index: 0`. This pair used to sit on the picture; it belongs here now
+     because the card is what has to clear the panel as a unit. */
+  position: relative;
+  z-index: 1;
+
+  display: block;
+  width: 100%;
+
+  /* Strip the UA button box down to nothing. The portrait is a control that
+     deliberately does not look like one, so every default a <button> brings -
+     the border, the background, the padding, the centring, the tap highlight
+     on iOS - has to come off, and none of it is replaced. */
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+
+  /* Deliberately NOT `cursor: pointer`: a hand cursor is an affordance, and
+     the flip is meant to be found rather than advertised. See the note on
+     `.home-portrait`. */
+  cursor: default;
+
+  /* The depth of the turn. Low enough that the card visibly swings through
+     space rather than cross-fading, high enough that the near edge does not
+     balloon past the paint panel at the halfway point. */
+  perspective: 1400px;
+}
+
+/* The one visible state the portrait keeps. `:focus-visible` paints for
+   keyboard traversal and not for a click, so it costs the pointer user
+   nothing while leaving the button operable for everyone else. Offset well
+   clear of the silhouette: the card's box is mostly transparent air, so a
+   ring drawn tight to it reads as a rectangle appearing from nowhere. */
+.home-portrait-flip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+  border-radius: 12px;
+}
+
+.home-portrait-card {
+  display: block;
+  position: relative;
+  transform-style: preserve-3d;
+
+  /* Slower than the site's --motion-slow and on a curve that decelerates hard:
+     a portrait turning over is a physical object, and at the button speeds
+     used elsewhere it reads as a glitch rather than a turn. */
+  transition: transform 760ms cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+
+.home-portrait-flip[aria-pressed="true"] .home-portrait-card {
+  transform: rotateY(180deg);
+}
+
+.home-portrait-face {
+  display: block;
+  backface-visibility: hidden;
+}
+
+/* The back is lifted out of flow and laid over the front, so the FRONT face is
+   what gives the card its height. Both mattes are held to one aspect ratio by
+   generate_profile_cutout.py precisely so that this cannot letterbox - see
+   SHARED_ASPECT there. */
+.home-portrait-face--back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
 }
 
 .home-intro {

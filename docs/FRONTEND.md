@@ -418,7 +418,8 @@ missing, so a failed update is visible but not dangerous.
 
 | Path | Notes |
 | :--- | :--- |
-| `profile-cutout-380.{png,webp}`, `profile-cutout.{png,webp}` | The landing portrait, background-removed so the page's own gradient and plexus canvas show through the silhouette. Two widths × two formats, from `scripts/generate_profile_cutout.py`, which crops the bust out of a full-length master — 497 is that crop's own width, so the ladder stops short of the ~1140w a 2x desktop would ask for. PNG rather than JPEG because the fallback has to carry an alpha channel. `profile-cutout-380.webp` is the LCP image: `index.html` preloads it and the build precaches it, and `scripts/tests/build.test.js` asserts those two stay the same file |
+| `profile-cutout-380.{png,webp}`, `profile-cutout-570.{png,webp}`, `profile-cutout.{png,webp}` | The landing portrait's **front** face — the outdoor shot, background-removed so the page's own gradient and plexus canvas show through the silhouette. Three widths × two formats, from `scripts/generate_profile_cutout.py`, which crops the bust out of a 3024×4032 master; 900 is the 2x of the 450px cap in `styles.css`, so the ladder now covers every width the `sizes` attribute can ask for. PNG rather than JPEG because the fallback has to carry an alpha channel. `profile-cutout-380.webp` is the LCP image: `index.html` preloads it and the build precaches it, and `scripts/tests/build.test.js` asserts those two stay the same file |
+| `profile-cutout-back-380.{png,webp}`, `profile-cutout-back.{png,webp}` | The **back** face — the studio shot, which was the only landing portrait until the card learned to flip. Same generator, same shape (both mattes are held to one aspect ratio; see `SHARED_ASPECT`), two widths rather than three because its master is 1254px and 497 is all the bust there is. Nothing preloads it and it carries `fetchpriority="low"`, so it queues behind the LCP — see [The flip card](#the-flip-card) |
 | `brush-backdrop.webp` | The painted panel the landing portrait stands in front of, used by `.home-portrait::before` as a *luminance mask* over a solid `--accent-fill` - it carries the shape, the theme carries the colour, so the customiser's accent paints it with nothing to re-tune. **Generated** by `scripts/generate_brush_backdrop.py` from the one photographed swipe in `assets/brush-stroke-master.jpg` - see [The painted panel](#the-painted-panel) |
 | `profile-pic-160.{jpg,webp}`, `profile-pic-360.{jpg,webp}`, `profile-pic.{jpeg,webp}` | Three widths × two formats of the un-cut headshot, from `scripts/generate_profile_pics.py`. Only `profile-pic.jpeg` is still referenced — by the JSON-LD `Person` image — since the landing view moved to the cutout above |
 | `android-chrome-192x192.png`, `android-chrome-512x512.png` | PWA icons, generated from `assets/master-icon.png` |
@@ -496,6 +497,62 @@ the whole rectangle - but measured at q=80 the far corners come back at a mean
 of 0.01-0.12 of 255, so the lift stays on the pixels touching a bristle edge.
 Both figures are in the script's own comments; re-measure before lowering the
 quality.
+
+---
+
+## The flip card
+
+The landing portrait is a button. Clicking it rotates the card and the studio
+shot on the back comes round; clicking again turns it back. There is no hover
+glow, no pointer cursor and no glyph in the corner — the affordance is
+deliberately absent, so the flip is something a visitor finds rather than
+something the landing view advertises.
+
+Three elements, each with one job, because collapsing any two of them breaks
+something:
+
+| Element | Owns |
+| :--- | :--- |
+| `.home-portrait-flip` | the `<button>`: the perspective, and the stacking that lifts the card over the paint panel |
+| `.home-portrait-card` | the rotation, and `transform-style: preserve-3d` |
+| `.home-portrait-face` | one side, and `backface-visibility: hidden` |
+
+The faces are a layer of their own rather than the `<picture>` elements
+themselves because `picture` carries the drop-shadow, and an element with a
+`filter` is flattened out of its parent's 3D context — declared together,
+`backface-visibility: hidden` is unreliable across engines.
+
+**The paint panel does not rotate.** It is `.home-portrait::before`, a sibling
+of the button rather than part of the card, so the figure turns in front of a
+wall that stays put. That is also why its `left: 46%` is now a compromise: the
+two silhouettes disagree on where the head is by 2.6% of the box width — the
+hat's brim pulls the front face left — and the panel can only be centred on
+one. The measurement and the reasoning are in the rule's own comment.
+
+Three things about it are load-bearing and easy to undo by accident, so
+`frontend/tests/home-portrait.test.js` asserts all three:
+
+1. **The button ships `disabled`**, and `js/home-portrait.js` drops that on
+   init. Nothing flips without JS, and a control that is focusable and
+   announced but inert is worse than no control. It is the same reasoning as
+   the `js-only` theme shuffle beside it, except the portrait itself has to
+   keep rendering either way, so it cannot simply be hidden.
+2. **`aria-pressed` is the state, not a mirror of it.** The CSS selector that
+   rotates the card reads that attribute, so there is one source of truth and
+   no class that can fall out of step with what a screen reader is told. Both
+   faces are `alt=""` — neither photograph carries information the name beside
+   it does not — so `#home-portrait-status` is the only place the change is
+   announced, the same pattern as `#home-theme-status`.
+3. **The back face stays out of the LCP's way**: not preloaded,
+   `fetchpriority="low"`, `loading="lazy"`. The module raises it to `high` on
+   the first hover or focus, which is the earliest honest signal that a click
+   is coming and the difference between a turn that lands on a photograph and
+   one that lands on nothing.
+
+Nothing here animates under `prefers-reduced-motion: reduce`. The global block
+in the ACCESSIBILITY & PRINT PREFERENCES region of `styles.css` clamps every
+transition to 0.001ms, so the card swaps faces instantly instead of turning —
+the right fallback, and it needs no rule of its own.
 
 ---
 

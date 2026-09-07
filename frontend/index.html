@@ -162,12 +162,15 @@
   <script>
     document.documentElement.classList.add("js-enabled");
   </script>
-  <!-- The landing portrait, and the LCP element. imagesrcset/imagesizes repeat
-       the <picture> below verbatim: a bare href preloads the 380w file while a
-       wider viewport then goes on to fetch the 497w one, so the preload costs a
-       round trip instead of saving one. -->
+  <!-- The landing portrait's FRONT face, and the LCP element.
+       imagesrcset/imagesizes repeat that <picture> below verbatim: a bare href
+       preloads the 380w file while a wider viewport then goes on to fetch a
+       wider one, so the preload costs a round trip instead of saving one. Only
+       the front is preloaded - the back face of the flip card is not on screen
+       until someone clicks, and it carries fetchpriority="low" so it queues
+       behind this. -->
   <link rel="preload" href="profile-cutout-380.webp" as="image" type="image/webp"
-    imagesrcset="profile-cutout-380.webp 380w, profile-cutout.webp 497w"
+    imagesrcset="profile-cutout-380.webp 380w, profile-cutout-570.webp 570w, profile-cutout.webp 900w"
     imagesizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)" />
   <link rel="preload" href="styles.css" as="style" />
   <link rel="stylesheet" href="styles.css" />
@@ -650,37 +653,86 @@
            it. -->
       <section id="home" class="active">
         <div class="home-hero">
-          <!-- Free-form portrait, not an avatar disc. The sources are
-               background-removed (scripts/generate_profile_cutout.py), so the
-               page's own gradient and plexus canvas run behind the silhouette
-               and the shape on the page is the person rather than a circle.
-               There IS a paint stroke behind him - `.home-portrait::before`,
-               an organic accent swash the silhouette stands in front of - but
-               nothing crops the image to it; see the note on that rule.
-               The PNG fallback is the `img` src because JPEG cannot carry an
-               alpha channel; the width/height pair is the intrinsic size of
-               the sources, and styles.css sets the rendered width.
+          <!-- Free-form portrait, not an avatar disc, and a flip card: the
+               face on top is the outdoor shot, and clicking it rotates the
+               studio shot that used to be the only portrait into view. Both
+               sources are background-removed
+               (scripts/generate_profile_cutout.py), so the page's own gradient
+               and plexus canvas run behind either silhouette and the shape on
+               the page is the person rather than a circle. There IS a paint
+               stroke behind him - `.home-portrait::before`, an organic accent
+               swash the silhouette stands in front of - but nothing crops the
+               image to it and it does NOT rotate with the card; see the note
+               on that rule.
 
-               Two widths, topping out at 497 - the master is a full-length
-               shot and the bust window generate_profile_cutout.py crops from
-               it is only that wide, so the ladder ends where the pixels do.
-               The 450px cap in styles.css is set against that: it keeps 1x a
-               downscale, though 2x still asks for ~900w. See the VARIANTS
-               note in that script. -->
+               The button ships `disabled`, and js/home-portrait.js drops that
+               on init. Nothing here flips without JS, and a control that is
+               focusable and announced but inert is worse than no control -
+               this is the same reasoning as the `js-only` shuffle two columns
+               over, except the portrait itself has to keep rendering either
+               way, so it cannot simply be hidden.
+
+               The PNG fallback is the `img` src because JPEG cannot carry an
+               alpha channel; each width/height pair is the intrinsic size of
+               that face's widest source, and styles.css sets the rendered
+               width. The front face's box is the card's box - the back is
+               absolutely positioned into it - which is why
+               generate_profile_cutout.py holds both mattes to one aspect
+               ratio and fails the build if either drifts off it.
+
+               Three widths on the front against two on the back, and the
+               asymmetry is deliberate. The front master is a 3024x4032
+               original, so its ladder finally reaches the ~900w a 2x desktop
+               asks for against the 450px cap in styles.css. The back is still
+               the 1254px master and stops at its matte's own 497 - affordable
+               on a face nothing preloads, which is fetched at low priority
+               behind the LCP and is on screen only after a deliberate
+               click. -->
           <div class="home-portrait">
-            <picture>
-              <source
-                srcset="
-                  profile-cutout-380.webp 380w,
-                  profile-cutout.webp 497w"
-                sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)" type="image/webp" />
-              <img src="profile-cutout-380.png" srcset="
-                  profile-cutout-380.png 380w,
-                  profile-cutout.png 497w"
-                sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)"
-                alt="" class="home-portrait-img" width="497" height="513" fetchpriority="high"
-                loading="eager" />
-            </picture>
+            <button type="button" id="home-portrait-flip" class="home-portrait-flip" aria-pressed="false"
+              aria-label="Show a different photo of Rajeev Jasti" disabled>
+              <span class="home-portrait-card">
+                <span class="home-portrait-face home-portrait-face--front">
+                  <picture>
+                    <source
+                      srcset="
+                        profile-cutout-380.webp 380w,
+                        profile-cutout-570.webp 570w,
+                        profile-cutout.webp 900w"
+                      sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)" type="image/webp" />
+                    <img src="profile-cutout-380.png" srcset="
+                        profile-cutout-380.png 380w,
+                        profile-cutout-570.png 570w,
+                        profile-cutout.png 900w"
+                      sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)"
+                      alt="" class="home-portrait-img" width="900" height="931" fetchpriority="high"
+                      loading="eager" />
+                  </picture>
+                </span>
+
+                <span class="home-portrait-face home-portrait-face--back">
+                  <picture>
+                    <source
+                      srcset="
+                        profile-cutout-back-380.webp 380w,
+                        profile-cutout-back.webp 497w"
+                      sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)" type="image/webp" />
+                    <img src="profile-cutout-back-380.png" srcset="
+                        profile-cutout-back-380.png 380w,
+                        profile-cutout-back.png 497w"
+                      sizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)"
+                      alt="" class="home-portrait-img" width="497" height="513" fetchpriority="low"
+                      loading="lazy" decoding="async" />
+                  </picture>
+                </span>
+              </span>
+            </button>
+
+            <!-- The flip's only feedback is the picture itself, which is
+                 nothing to a screen reader - both faces are `alt=""` because
+                 neither carries information the name beside them does not.
+                 Same pattern, and the same reason, as #home-theme-status. -->
+            <p class="sr-only" role="status" id="home-portrait-status"></p>
           </div>
 
           <div class="home-intro">
