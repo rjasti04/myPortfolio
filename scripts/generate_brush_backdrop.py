@@ -2,11 +2,35 @@
 Brush Backdrop Generator Script
 
 Builds `frontend/brush-backdrop.webp` - the painted panel the landing portrait
-stands in front of. It is a *luminance mask*, not a picture: white is opaque
-paint, black is bare page, and `.home-portrait::before` fills the shape it
-describes with `var(--accent-fill)`. That indirection is the point - the theme
-customiser can set any accent and the paint follows it, because the file
-carries the SHAPE and nothing else.
+stands in front of. It is an *alpha mask*, not a picture: a flat white
+rectangle whose ALPHA channel carries the shape - opaque is paint, transparent
+is bare page - which `.home-portrait::before` fills with `var(--accent-fill)`.
+That indirection is the point - the theme customiser can set any accent and
+the paint follows it, because the file carries the SHAPE and nothing else.
+
+── Alpha and not luminance, which is the obvious way to ship a greyscale mask
+and is what this wrote until iOS was looked at ──
+
+A CSS mask can read its source two ways, and the engines do not agree on
+which. `mask-mode: luminance` takes the brightness; `mask-mode: alpha` takes
+the alpha; the initial value, `match-source`, resolves to ALPHA for a raster
+image. Chrome has honoured an explicit `luminance` since 120. WebKit's
+support for it is flagged partial by browser-compat-data - "does not always
+have the expected effect", webkit.org/b/282530 - and there is no
+`-webkit-mask-mode` to fall back on, because WebKit never shipped one.
+
+So a greyscale panel with no alpha channel is a mask that is opaque
+everywhere the moment an engine reads it as alpha. Android drew the brush;
+iOS drew a hard-edged block of accent the full size of the mask box, tilted
+two degrees, with the portrait standing in front of it. Measured on the file
+this replaces: a luminance read paints 51.9% of the box, an alpha read paints
+100.0%.
+
+Keeping the RGB plane pure white is the other half of the fix and is not
+decorative: a luminance mask is defined as luminance x alpha, so white x
+alpha is the same shape the alpha read gets. The file renders identically
+whichever mode an engine picks, which is what stops this regressing the next
+time someone touches the CSS.
 
 Why generate it rather than commit a painted panel: the only honest source of
 bristle texture is a photograph of real paint, and one photograph is one
@@ -66,8 +90,26 @@ CORE_PERCENTILE = 0.985
 # nothing. See `taper_cut`.
 CUT_TAPER = 0.22
 
-# Encoder quality for the output. See the note in `main`.
+# Encoder quality for the output. See the note in `main`. It applies to the RGB
+# plane, which is now one flat white and costs almost nothing either way.
 WEBP_QUALITY = 80
+
+# Quality of the ALPHA channel, which is where the whole panel lives. This is
+# the one number that decides the file size, and it is a cliff rather than a
+# slope: libwebp compresses alpha losslessly above ~75 and lossily below it.
+# Measured on this panel:
+#
+#     alpha_quality    100     90     80     70     60     50     40
+#     file size      320 KB 334 KB 266 KB  94 KB  83 KB  71 KB  58 KB
+#     mean error      0.00   0.22   0.46   2.91   3.32   3.71   4.53   (of 255)
+#
+# 60 is the first setting past the cliff, and its error is comfortably inside
+# the noise: 3.3/255 is 1.3% of opacity on a layer already drawn at 0.92, and
+# the thing being quantised is feathered bristle, not an edge anyone can lay a
+# ruler against. The far corners - the bare-page field, where error shows as a
+# wash of accent across the whole rectangle - come back at a mean of 0.03/255,
+# which is better than the lossy greyscale this replaced managed.
+ALPHA_QUALITY = 60
 
 # ── Where the panel has to stop, and why it is computed rather than chosen ──
 #
@@ -290,22 +332,31 @@ def main() -> int:
     args = parser.parse_args()
 
     panel = build()
-    # Lossy WebP, greyscale, and the quality is the whole of the decision. The
-    # honest alternative was a greyscale PNG, and it came out at 485 KB against
-    # 73 KB here - bristle texture is high-frequency noise, which is the one
-    # thing PNG cannot pack, and this is a decorative layer on the LCP view.
+
+    # The panel is built as a greyscale coverage map because that is the
+    # natural thing to composite strokes into; it ships as the ALPHA of a white
+    # sheet, for the reason argued at the top of this file.
+    sheet = Image.new("RGBA", panel.size, (255, 255, 255, 255))
+    sheet.putalpha(panel)
+
+    # Lossy WebP, and the two quality numbers are the whole of the decision.
+    # The honest alternative was a PNG, and the same sheet comes out at 510 KB
+    # against 83 KB here - bristle texture is high-frequency noise, which is
+    # the one thing PNG cannot pack, and this is a decorative layer on the LCP
+    # view.
     #
-    # The usual objection to a lossy mask is that ringing lifts the black field
+    # The usual objection to a lossy mask is that ringing lifts the empty field
     # off zero, and a mask that is 2/255 everywhere is a wash of accent across
-    # the whole rectangle. Measured on this panel at q=80, the far corners come
-    # back at a mean of 0.01-0.12 of 255 - the lift is confined to the pixels
-    # touching a bristle edge, where a couple of percent of alpha is texture
-    # rather than error. Drop the quality much below this and that stops being
-    # true.
-    panel.save(args.out, format="WEBP", quality=WEBP_QUALITY, method=6)
+    # the whole rectangle. It is a smaller worry here than it was for the
+    # greyscale file: alpha is compressed on its own terms rather than as
+    # colour, and at these settings the far corners come back at a mean of
+    # 0.03 of 255. The lift is confined to pixels touching a bristle edge,
+    # where a couple of percent of alpha is texture rather than error.
+    sheet.save(args.out, format="WEBP", quality=WEBP_QUALITY, alpha_quality=ALPHA_QUALITY, method=6)
 
     kb = args.out.stat().st_size / 1024
-    print(f"{args.out.relative_to(ROOT_DIR)}  {panel.width}x{panel.height}  {kb:.1f} KB")
+    print(f"{args.out.relative_to(ROOT_DIR)}  {sheet.width}x{sheet.height}  {kb:.1f} KB")
+    print(f"  alpha mask, q={WEBP_QUALITY} alpha_q={ALPHA_QUALITY}")
     # The band, restated where it can be checked against the CSS: the fade has
     # to finish above `PORTRAIT_FADE_START` or the paint prints on the jacket.
     panel_height_of_box = PANEL_WIDTH_OF_BOX * (CANVAS_H / CANVAS_W) / PORTRAIT_BOX_ASPECT
