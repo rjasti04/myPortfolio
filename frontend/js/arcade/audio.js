@@ -44,7 +44,7 @@ export function createAudio() {
 
   /**
    * One enveloped tone. The gain ramp matters more than the waveform: a bare
-   * oscillator switched on and off clicks audibly at both ends, and five games
+   * oscillator switched on and off clicks audibly at both ends, and six games
    * firing blips would turn that into a rattle.
    */
   function tone(

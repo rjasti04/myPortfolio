@@ -16,6 +16,8 @@ than the originals:
   * Font Awesome ships ~2000 icons in a 148 KB solid face and a 108 KB brands
     face. This scans the source for the `fa-*` classes actually used and cuts
     the fonts down to those glyphs.
+  * Sniglet sets one word - the /arcade wordmark - so it is cut to the 26
+    letters that word can contain: 3.7 KB against 24 KB for the latin subset.
 
 Run after adding an icon that is not already used:
 
@@ -46,6 +48,20 @@ GOOGLE_CSS = (
 # Latin only: the site's copy is English, and the CV's accented characters
 # (é, í) live in the base latin range.
 WANTED_SUBSETS = {"latin", "latin-ext"}
+
+# Sniglet, the /arcade wordmark's face - the inflated bubble letterform the
+# page's toy styling asks for and that a grotesque like Plus Jakarta Sans
+# cannot fake at any weight. SIL OFL 1.1, the same licence as the body face.
+#
+# It sets exactly one word on one page, so it is subset by glyph rather than by
+# language: A-Z is 3.7 KB against 24 KB for the full latin subset. `.wordmark`
+# is `text-transform: uppercase`, so those 26 are every glyph it can ask for -
+# and the narrow `unicode-range` below is what keeps that a fallback rather
+# than a row of tofu if it ever asks for more.
+WORDMARK_CSS = (
+    "https://fonts.googleapis.com/css2?family=Sniglet:wght@800&display=swap"
+)
+WORDMARK_TEXT = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 UA = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120 Safari/537.36"
@@ -86,6 +102,51 @@ def vendor_google_fonts() -> str:
     print(f"  Plus Jakarta Sans: {kept} of {len(blocks)} faces kept, "
           f"sharing {len(by_digest)} unique files")
     return "\n".join(out)
+
+
+def vendor_wordmark_font() -> str:
+    """Downloads the arcade wordmark face, subset to the letters it can set."""
+    css = fetch(WORDMARK_CSS).decode("utf-8")
+    blocks = re.findall(r"/\* (\S+) \*/\s*(@font-face \{.*?\})", css, re.S)
+    block = next(body for subset, body in blocks if subset == "latin")
+    url = re.search(r"url\((https://[^)]+)\)", block).group(1)
+
+    # fontTools reads the woff2 straight off disk, so the full face lands in
+    # the font directory only long enough to be cut down and removed.
+    full = FONT_DIR / "sniglet-full.woff2"
+    full.write_bytes(fetch(url))
+    dest = FONT_DIR / "sniglet-wordmark.woff2"
+    subprocess.run(
+        [sys.executable, "-m", "fontTools.subset", str(full),
+         f"--text={WORDMARK_TEXT}", "--flavor=woff2",
+         "--layout-features=*", "--no-hinting",
+         f"--output-file={dest}"],
+        check=True, capture_output=True,
+    )
+    before = full.stat().st_size
+    full.unlink()
+
+    # Content-hashed like the body face, so a re-subset cannot be served from a
+    # cache holding the previous glyph set under the same name.
+    digest = hashlib.sha256(dest.read_bytes()).hexdigest()[:8]
+    named = dest.with_name(f"sniglet-wordmark-{digest}.woff2")
+    dest.rename(named)
+    print(f"  Sniglet: {len(WORDMARK_TEXT)} glyphs, "
+          f"{before // 1024} KB -> {named.stat().st_size / 1024:.1f} KB")
+
+    return (
+        "@font-face {\n"
+        "  font-family: 'Sniglet';\n"
+        "  font-style: normal;\n"
+        "  font-weight: 800;\n"
+        "  font-display: swap;\n"
+        f"  src: url(fonts/{named.name}) format('woff2');\n"
+        "  /* A-Z only. The file carries no other glyph, so the range has to\n"
+        "     stop here for anything else to fall through to the next family\n"
+        "     in the stack rather than render as tofu. */\n"
+        "  unicode-range: U+0041-005A;\n"
+        "}"
+    )
 
 
 def used_icon_classes() -> set[str]:
@@ -194,6 +255,7 @@ def main() -> int:
 
     print("Vendoring fonts...")
     google_css = vendor_google_fonts()
+    wordmark_css = vendor_wordmark_font()
     icons = used_icon_classes()
     print(f"  found {len(icons)} distinct fa-* class names in the source")
     fa_css = subset_font_awesome(icons)
@@ -204,7 +266,9 @@ def main() -> int:
         "   critical rendering path, and subset to the glyphs this site uses.\n"
         "   Re-run the script after adding a new icon. */\n"
     )
-    (FRONTEND / "fonts.css").write_text(f"{header}\n{google_css}\n\n{fa_css}\n", encoding="utf-8")
+    (FRONTEND / "fonts.css").write_text(
+        f"{header}\n{google_css}\n\n{wordmark_css}\n\n{fa_css}\n", encoding="utf-8"
+    )
     total = sum(f.stat().st_size for f in FONT_DIR.iterdir())
     print(f"  wrote frontend/fonts.css and {len(list(FONT_DIR.iterdir()))} font files ({total // 1024} KB)")
     return 0

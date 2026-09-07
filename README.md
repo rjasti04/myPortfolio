@@ -288,7 +288,7 @@ All scripts live in `scripts/` and are maintenance steps, not part of the build.
 | :--- | :--- | :--- |
 | `build.mjs` | Produce `dist/` (invoked by `npm run build`) | esbuild |
 | `check_csp_hashes.py` | Verify inline `<script>` bodies against the CSP hashes | stdlib only |
-| `vendor_fonts.py` | Re-subset and re-vendor Plus Jakarta Sans + Font Awesome | `fonttools[woff]`, network, `@fortawesome/fontawesome-free` |
+| `vendor_fonts.py` | Re-subset and re-vendor Plus Jakarta Sans + Sniglet + Font Awesome | `fonttools[woff]`, network, `@fortawesome/fontawesome-free` |
 | `optimize_images.py` | Recompress icons/profile images, with timestamped backups under `backups/` | Pillow |
 | `verify_images.py` | Report dimensions and sizes of the optimised images | Pillow |
 | `generate_profile_pics.py` | Regenerate 160/360/725-wide JPEG + WebP profile variants | Pillow |

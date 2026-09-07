@@ -1,7 +1,7 @@
 /**
  * Arcade shell: the launcher, the HUD, and the lifecycle around a game.
  *
- * The five games know nothing about scores being stored, about the back
+ * The six games know nothing about scores being stored, about the back
  * button, or about each other. They receive a mount point and an `api`, they
  * report score and game over, and they clean up after themselves in
  * `destroy()`. Everything else lives here, which is why restarting a game is
@@ -34,8 +34,9 @@ import * as tetris from "./game-tetris.js";
 import * as flapper from "./game-flapper.js";
 import * as stack from "./game-stack.js";
 import * as snake from "./game-snake.js";
+import * as breaker from "./game-breaker.js";
 
-const GAMES = [game2048, tetris, flapper, stack, snake];
+const GAMES = [game2048, tetris, flapper, stack, snake, breaker];
 const BASE_TITLE = document.title;
 
 /** Small inline SVG marks - the page ships no icon font of its own. */
@@ -49,6 +50,8 @@ const ART = {
     '<rect x="4" y="16" width="16" height="5" rx="1.5"/><rect x="6" y="10" width="12" height="5" rx="1.5" opacity=".8"/><rect x="8" y="4" width="8" height="5" rx="1.5" opacity=".6"/>',
   snake:
     '<rect x="3" y="3" width="6" height="6" rx="2"/><rect x="3" y="10" width="6" height="6" rx="2" opacity=".85"/><rect x="10" y="10" width="6" height="6" rx="2" opacity=".7"/><rect x="17" y="10" width="4" height="6" rx="2" opacity=".55"/><circle cx="19" cy="5" r="2.6"/>',
+  breaker:
+    '<rect x="2" y="3" width="6" height="4" rx="1.4"/><rect x="9" y="3" width="6" height="4" rx="1.4" opacity=".8"/><rect x="16" y="3" width="6" height="4" rx="1.4" opacity=".65"/><rect x="5" y="8" width="6" height="4" rx="1.4" opacity=".8"/><rect x="12" y="8" width="6" height="4" rx="1.4" opacity=".55"/><circle cx="15" cy="16" r="2.3"/><rect x="5" y="19" width="12" height="3" rx="1.5"/>',
 };
 
 /** The keyboard hint on a card, in the one place a player looks for it. */

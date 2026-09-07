@@ -69,6 +69,18 @@
 }
 
 @font-face {
+  font-family: 'Sniglet';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url(fonts/sniglet-wordmark-fb37db26.woff2) format('woff2');
+  /* A-Z only. The file carries no other glyph, so the range has to
+     stop here for anything else to fall through to the next family
+     in the stack rather than render as tofu. */
+  unicode-range: U+0041-005A;
+}
+
+@font-face {
   font-family: "Font Awesome 6 Free";
   font-style: normal;
   font-weight: 900;

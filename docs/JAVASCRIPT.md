@@ -681,7 +681,7 @@ imported by the SPA and nothing here imports from it, which is deliberate:
 `scripts/build.mjs` derives the service worker's precache list from the SPA's
 dependency graph, so a shared module would drag game code into the app shell.
 
-The five games are interchangeable. Each exports a `meta` describing itself and
+The six games are interchangeable. Each exports a `meta` describing itself and
 a `create({ mount, api })` that returns `{ destroy() }`; the shell supplies the
 mount point and an `api` of `{ audio, setScore, gameOver }`, and owns
 everything the games have in common — the launcher, the HUD, best scores,
@@ -698,7 +698,7 @@ leaving the tab.
 The rules of each game are pure exported functions, tested directly in
 `arcade.test.js` without a canvas. Everything else in a game module is drawing.
 
-### `shell.js` (366 lines)
+### `shell.js` (369 lines)
 
 The page's entry point. Builds the launcher from each game module's own `meta`,
 so adding a game is an import and one array entry. Owns the game lifecycle, the
@@ -746,14 +746,19 @@ The fixed-timestep loop and a display-density-aware canvas fit.
   pause each game has to remember to implement is a pause that will eventually
   be missing from one of them.
 
-### `input.js` (105 lines)
+### `input.js` (138 lines)
 
-`bindKeys` and `bindSwipe`, each returning its own teardown. That is the point:
+`bindKeys`, `bindSwipe` and `bindPointerTrack`, each returning its own teardown. That is the point:
 the shell destroys and recreates a game on every restart, and a listener left
 on `window` keeps driving a dead game. Handled keys have their default
 suppressed so arrows and space do not scroll the board off a phone screen.
 
-`setInputBlocked` closes both paths for a pause. Checking a paused flag inside
+`bindPointerTrack` is the one that is not a gesture: `bindSwipe` resolves a
+whole drag into a direction once it is over, which is right for a board that
+moves in steps and wrong for Breaker's paddle, which has to follow the pointer
+while it is still moving and, on a mouse, before any button is pressed.
+
+`setInputBlocked` closes all three paths for a pause. Checking a paused flag inside
 each game instead is the check one game forgets, and the symptom is a piece
 that hard drops behind a pause panel.
 
@@ -820,6 +825,30 @@ width is what the next block inherits. `place()` holds that geometry. A drop
 within a few units of flush snaps perfect, because without the tolerance
 "perfect" is unreachable on a touchscreen and the width reward that keeps long
 runs alive would be dead code.
+
+### `game-breaker.js` (531 lines)
+
+The only one of the six the player *aims*: `paddleBounce` takes the outgoing
+angle from where on the paddle the ball struck, not from the angle it arrived
+at. Reflecting the ball's own `vy` — the obvious implementation — leaves the
+paddle a wall and the game with no decision in it. The deflection is capped
+short of horizontal, because the tip of an uncapped paddle returns the ball
+flat, and a flat ball inside a gap in the wall bounces side to side without
+ever coming back down: a run that can be neither won nor lost.
+
+`contactAxis` picks the axis a hit reflects on by which axis the ball is less
+deep on, which is the one it came in through. Deciding from position instead
+reads a ball that clipped a brick's underside from the left exactly backwards,
+and reflecting both axes sends it back the way it came off a corner. An exact
+corner resolves vertically: the bricks are three times wider than they are
+tall, so the horizontal reading is the one that fires the ball off along the
+row it just hit.
+
+`sliceCount` is why the ball cannot leave through the wall. Collision here is a
+test at a position rather than a swept volume, so a ball that travels further
+than its own radius between two tests can cross a brick without ever being
+inside it — and at the speed cap a whole 1/60 frame already does. The frame is
+resolved in as many slices as that takes.
 
 ---
 

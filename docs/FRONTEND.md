@@ -372,6 +372,7 @@ Self-hosted and subset. `frontend/fonts.css` and `frontend/fonts/` are
 | `plus-jakarta-sans-latin-ext-38e3b8fd.woff2` | Google Fonts, latin-ext subset only |
 | `fa-solid-900-subset.woff2` | Font Awesome solid, cut to the `fa-*` classes the source actually uses |
 | `fa-brands-400-subset.woff2` | Font Awesome brands, same treatment |
+| `sniglet-wordmark-fb37db26.woff2` | Google Fonts, cut to `A-Z` — the `/arcade` wordmark's face and nothing else |
 
 Why: two render-blocking third-party stylesheets (fonts.googleapis.com and
 cdnjs) each delayed first paint and were independent single points of failure.
@@ -379,6 +380,13 @@ Measured with the CDNs stalling, first contentful paint was 3.2 s against
 ~250 ms for the site's own assets. Plus Jakarta Sans ships 16 faces across four
 subsets; Font Awesome ships ~2000 icons in a 148 KB solid face. Subsetting cuts
 the solid face to under 9 KB.
+
+Sniglet is the exception to the "one typeface" rule and is scoped to earn it:
+it sets the six letters of the arcade wordmark, so it is subset by glyph rather
+than by language — 3.7 KB against 24 KB for the latin subset — and its
+`unicode-range` stops at `Z`, so anything outside that falls through to Plus
+Jakarta Sans rather than rendering as tofu. The SPA links the same `fonts.css`
+and never uses the family, which costs it a rule and no request.
 
 After adding an icon that is not already used anywhere:
 
@@ -430,7 +438,7 @@ missing, so a failed update is visible but not dangerous.
 | `rjasti_resume.pdf` | Downloadable résumé (the doubled extension is the actual filename) |
 | `robots.txt` | Allows everything except `/api/`; points at the sitemap |
 | `sitemap.xml` | Four URL entries — `/`, `/ucl`, `/arcade` and `/worldcup`, each with its Open Graph card as an image annotation |
-| `arcade.html`, `arcade.css` | Standalone games page served at `/arcade` — 2048, Tetris, Flapper, Stack and Snake, with the game code in `js/arcade/` and built as its own esbuild entry point. Unlike the two predictors it holds the SPA's line on third-party origins: it links the site's own `fonts.css` for Plus Jakarta Sans and draws its icons as inline SVG, so it loads nothing the site does not already serve itself, and its own CSP is `script-src 'self'` with no inline script to hash. Two layouts, switched by `is-playing` on `<body>` from `shell.js`: the launcher scrolls normally, and a running game collapses the page to one viewport with a single play bar so the board takes the rest of the screen. Which game is on screen is the URL fragment, so `/arcade#snake` is a link straight into one and the browser's back button leaves a game rather than the site. Linked from the **Apps** section of the SPA as a tile in `.app-grid`; the game rules are covered by `frontend/tests/arcade.test.js` |
+| `arcade.html`, `arcade.css` | Standalone games page served at `/arcade` — 2048, Tetris, Flapper, Stack, Snake and Breaker, with the game code in `js/arcade/` and built as its own esbuild entry point. Unlike the two predictors it holds the SPA's line on third-party origins: it links the site's own `fonts.css` for Plus Jakarta Sans and, for the wordmark alone, Sniglet subset to the 26 letters it can set, and draws its icons as inline SVG, so it loads nothing the site does not already serve itself, and its own CSP is `script-src 'self'` with no inline script to hash. Two layouts, switched by `is-playing` on `<body>` from `shell.js`: the launcher scrolls normally, and a running game collapses the page to one viewport with a single play bar so the board takes the rest of the screen. Which game is on screen is the URL fragment, so `/arcade#snake` is a link straight into one and the browser's back button leaves a game rather than the site. Linked from the **Apps** section of the SPA as a tile in `.app-grid`; the game rules are covered by `frontend/tests/arcade.test.js` |
 | `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup`, with its own canonical and Open Graph tags — see [Apache configuration](#apache-configuration) |
 | `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the **Apps** section of the SPA as a tile in `.app-grid` — `#ucl-link` in the header is a second, hidden entry point kept only as a fallback; covered by `frontend/tests/ucl-bracket.test.js` |
 
