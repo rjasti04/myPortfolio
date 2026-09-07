@@ -7,7 +7,7 @@
  * because it could not read a high score would be a poor trade, so every
  * failure here degrades to "no saved score" and the games carry on.
  *
- * One namespace prefix keeps the four games from colliding with each other and
+ * One namespace prefix keeps the five games from colliding with each other and
  * from colliding with the SPA, which stores its own keys on the same origin.
  */
 

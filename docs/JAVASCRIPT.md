@@ -681,24 +681,43 @@ imported by the SPA and nothing here imports from it, which is deliberate:
 `scripts/build.mjs` derives the service worker's precache list from the SPA's
 dependency graph, so a shared module would drag game code into the app shell.
 
-The four games are interchangeable. Each exports a `meta` describing itself and
+The five games are interchangeable. Each exports a `meta` describing itself and
 a `create({ mount, api })` that returns `{ destroy() }`; the shell supplies the
 mount point and an `api` of `{ audio, setScore, gameOver }`, and owns
 everything the games have in common — the launcher, the HUD, best scores,
-restart and exit. Restarting is `destroy()` then `create()`, never a per-game
-reset path, because a reset that misses one field produces a second run that
-behaves like a continuation of the first.
+restart, pause and exit. Restarting is `destroy()` then `create()`, never a
+per-game reset path, because a reset that misses one field produces a second
+run that behaves like a continuation of the first.
+
+Pause is deliberately not part of that contract. `engine.js` keeps the set of
+running loops and `input.js` holds one blocked flag, so the shell pauses the
+page rather than the game — a game added tomorrow is pausable without knowing
+pause exists, which is the property that matters for the pause nobody presses:
+leaving the tab.
 
 The rules of each game are pure exported functions, tested directly in
 `arcade.test.js` without a canvas. Everything else in a game module is drawing.
 
-### `shell.js` (196 lines)
+### `shell.js` (366 lines)
 
 The page's entry point. Builds the launcher from each game module's own `meta`,
-so adding a game is an import and one array entry. Owns the game lifecycle,
-`Escape` to exit, the sound toggle, and the game-over panel. Banks the running
-score on exit and restart as well as on game over — recording only on game over
-threw away every run a player walked away from.
+so adding a game is an import and one array entry. Owns the game lifecycle, the
+sound toggle, pause, and the game-over panel. Banks the running score on exit
+and restart as well as on game over — recording only on game over threw away
+every run a player walked away from.
+
+Which game is on screen is the URL fragment rather than a variable: `route()`
+is the only thing that mounts or tears down a game, and a typed
+`/arcade#tetris`, the browser's back button and a click on a card all reach it.
+That is what makes the back button leave a game instead of the site, and a game
+a link somebody can send.
+
+`Escape` steps back out of wherever the player is rather than doing one fixed
+thing — a live game pauses, a paused game resumes, and only a finished one
+leaves — so it is never the key that throws a run away. The same pause runs on
+`visibilitychange`, because a backgrounded tab throttles its animation frames
+and a run left for a minute used to be a run spent. It does not resume by
+itself: arriving back mid-fall is the same lost run by another route.
 
 It also owns the switch between the page's two layouts: starting a game puts
 `is-playing` on `<body>` (the stylesheet collapses the page to one viewport with
@@ -708,7 +727,7 @@ button into the play bar — the masthead it normally lives in is not on screen
 during a run, and two buttons kept in step is the version of this that goes
 wrong.
 
-### `engine.js` (96 lines)
+### `engine.js` (123 lines)
 
 The fixed-timestep loop and a display-density-aware canvas fit.
 
@@ -721,13 +740,22 @@ The fixed-timestep loop and a display-density-aware canvas fit.
 - `fitCanvas` sets the backing store to the CSS box times DPR (capped at 2) and
   scales the context, so one context unit stays one CSS pixel. Returns the
   CSS-pixel box; game logic reasons in that.
+- `suspendLoops` stops every running loop and hands back the function that
+  starts those same ones again. A module-level set is defensible because the
+  page runs one game at a time, and it is what keeps pause out of the games: a
+  pause each game has to remember to implement is a pause that will eventually
+  be missing from one of them.
 
-### `input.js` (87 lines)
+### `input.js` (105 lines)
 
 `bindKeys` and `bindSwipe`, each returning its own teardown. That is the point:
 the shell destroys and recreates a game on every restart, and a listener left
 on `window` keeps driving a dead game. Handled keys have their default
 suppressed so arrows and space do not scroll the board off a phone screen.
+
+`setInputBlocked` closes both paths for a pause. Checking a paused flag inside
+each game instead is the check one game forgets, and the symptom is a piece
+that hard drops behind a pause panel.
 
 ### `storage.js` (60 lines)
 
@@ -767,6 +795,23 @@ in a fixed 400x600 space and scaled to the canvas, so it is not harder on a
 tall phone than a short laptop window. The ceiling clamps rather than kills —
 every column reaches down from it, so hugging the roof is still paid for at the
 next gap.
+
+### `game-snake.js` (383 lines)
+
+The hazard is the trail the player left, which is the one shape the other four
+do not have. `step` is where the game lives: the tail vacates its cell on the
+same tick the head enters it, so chasing your own tail is legal — resolving the
+collision before the tail moves ends runs on a move that was never fatal.
+`spawnFood` picks from the list of free cells rather than guessing at cells
+until one is free, because rejection sampling is fine at the start and
+pathological at the end, where the last free cell of 289 takes hundreds of
+guesses. Turns are queued two deep and a reversal is refused, so rounding a
+corner with two fast presses cannot resolve as right-then-left.
+
+Alone among the games it paints nothing past its own world. The other three
+bleed their sky to the canvas corners so a tall phone does not letterbox them;
+here the edge of the board *is* the hazard, and a field carried on past the
+last row would be painting open ground over a wall that kills.
 
 ### `game-stack.js` (318 lines)
 

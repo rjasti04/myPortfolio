@@ -23,6 +23,29 @@
  */
 const MAX_FRAME = 0.25;
 
+/**
+ * Every loop that is currently running.
+ *
+ * A module-level set is defensible here because the page runs exactly one game
+ * at a time: it is what lets `suspendLoops` pause the board without every game
+ * growing its own pause path, and without the shell having to know that a game
+ * even has a loop. A game added tomorrow is pausable the moment it calls
+ * `createLoop`, which is the property that matters - a pause a new game has to
+ * remember to implement is a pause that will eventually be missing from one.
+ */
+const liveLoops = new Set();
+
+/**
+ * Stop every running loop and return the function that starts those same ones
+ * again. Loops stopped for another reason - a game over, a teardown - are not
+ * in the set and so are never resurrected by the resume.
+ */
+export function suspendLoops() {
+  const paused = [...liveLoops];
+  paused.forEach((loop) => loop.stop());
+  return () => paused.forEach((loop) => loop.start());
+}
+
 export function createLoop({ update, render, step = 1 / 60 }) {
   let raf = 0;
   let last = 0;
@@ -44,22 +67,26 @@ export function createLoop({ update, render, step = 1 / 60 }) {
     render();
   }
 
-  return {
+  const controls = {
     start() {
       if (running) return;
       running = true;
+      liveLoops.add(controls);
       last = window.performance.now();
       accumulator = 0;
       raf = window.requestAnimationFrame(frame);
     },
     stop() {
       running = false;
+      liveLoops.delete(controls);
       window.cancelAnimationFrame(raf);
     },
     get running() {
       return running;
     },
   };
+
+  return controls;
 }
 
 /**

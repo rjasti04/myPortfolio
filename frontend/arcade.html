@@ -12,10 +12,10 @@
     />
     <meta
       name="description"
-      content="Four browser games built in vanilla JavaScript — 2048, Tetris, Flapper and Stack. No install, no account, no server: scores stay in your browser."
+      content="Five browser games built in vanilla JavaScript — 2048, Tetris, Flapper, Stack and Snake. No install, no account, no server: scores stay in your browser."
     />
     <meta name="theme-color" content="#241d1b" />
-    <title>Arcade — Four Games in Vanilla JavaScript</title>
+    <title>Arcade — Five Games in Vanilla JavaScript</title>
     <link rel="canonical" href="https://rjasti.com/arcade" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:site_name" content="Rajeev Jasti" />
@@ -23,11 +23,11 @@
     <meta property="og:url" content="https://rjasti.com/arcade" />
     <meta
       property="og:title"
-      content="Arcade — Four Games in Vanilla JavaScript"
+      content="Arcade — Five Games in Vanilla JavaScript"
     />
     <meta
       property="og:description"
-      content="2048, Tetris, Flapper and Stack, built from scratch with no framework and no third-party code."
+      content="2048, Tetris, Flapper, Stack and Snake, built from scratch with no framework and no third-party code."
     />
     <meta property="og:image" content="https://rjasti.com/arcade-preview.png" />
     <meta
@@ -41,11 +41,11 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:title"
-      content="Arcade — Four Games in Vanilla JavaScript"
+      content="Arcade — Five Games in Vanilla JavaScript"
     />
     <meta
       name="twitter:description"
-      content="2048, Tetris, Flapper and Stack, built from scratch with no framework and no third-party code."
+      content="2048, Tetris, Flapper, Stack and Snake, built from scratch with no framework and no third-party code."
     />
     <meta
       name="twitter:image"
@@ -103,9 +103,10 @@
       <section id="launcher" aria-labelledby="launcher-heading">
         <h2 id="launcher-heading" class="visually-hidden">Pick a game</h2>
         <p class="lede">
-          Four games written from scratch in vanilla JavaScript — no framework,
+          Five games written from scratch in vanilla JavaScript — no framework,
           no game engine, no third-party code. They run entirely in this tab and
-          your best score for each is kept in this browser.
+          your best score for each is kept in this browser. Every game is a
+          link: <code>/arcade#snake</code> opens straight into that one.
         </p>
         <!-- Cards are generated from each game module's own `meta`, so the list
              here is empty on purpose. -->
@@ -148,6 +149,26 @@
           </dl>
 
           <div class="hud-tools" id="hud-tools">
+            <!-- Two glyphs in one button, picked by `aria-pressed` in CSS - the
+                 same trick the sound button uses, for the same reason. -->
+            <button
+              id="pause-toggle"
+              class="btn btn--icon"
+              type="button"
+              aria-pressed="false"
+              title="Pause (Escape)"
+            >
+              <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+              </svg>
+              <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <span class="visually-hidden" data-role="label">
+                Pause (Escape)
+              </span>
+            </button>
+
             <button
               class="btn btn--icon"
               type="button"
@@ -166,6 +187,35 @@
 
         <div class="stage-body">
           <div id="mount"></div>
+
+          <!-- Doubles as the how-to-play sheet: the play bar drops the control
+               hint on a narrow screen, and this is where it stays reachable. -->
+          <div
+            id="pause-panel"
+            class="overlay overlay--pause"
+            role="dialog"
+            aria-labelledby="pause-heading"
+            hidden
+          >
+            <h3 id="pause-heading">Paused</h3>
+            <p id="pause-controls" class="overlay-note"></p>
+            <div class="overlay-actions">
+              <button
+                class="btn btn--primary"
+                type="button"
+                data-action="resume"
+              >
+                Resume
+              </button>
+              <button class="btn" type="button" data-action="restart">
+                Restart
+              </button>
+              <button class="btn" type="button" data-action="exit">
+                Back to arcade
+              </button>
+            </div>
+            <p class="overlay-keys"><kbd>Esc</kbd> resumes</p>
+          </div>
 
           <div
             id="overlay"
@@ -189,9 +239,22 @@
                 Back to arcade
               </button>
             </div>
+            <p class="overlay-keys">
+              <kbd>Enter</kbd> plays again · <kbd>Esc</kbd> returns to the
+              arcade
+            </p>
           </div>
         </div>
       </section>
+
+      <!-- Pausing, resuming and a new personal best are announced here: each
+           changes what the page is doing without changing any text on it. -->
+      <p
+        id="announcer"
+        class="visually-hidden"
+        role="status"
+        aria-live="polite"
+      ></p>
 
       <footer class="site-footer">
         <p>
