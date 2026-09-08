@@ -613,6 +613,40 @@ indistinguishable.
 
 ---
 
+## Owner analytics 🔒
+
+Aggregate reads across **every** session, gated by `require_owner`
+(`server/auth/dependencies.py`): `get_current_user`, then the caller's email
+must equal `OWNER_EMAIL`. Unset denies everyone — a misconfigured deploy that
+silently published every visitor's browsing to any registered account is a
+worse failure than one that locks the owner out.
+
+Every route takes `days` (1–365, default 30). The ceiling is deliberate: these
+are unindexed aggregates over a growing table, and an unbounded range is the
+query that eventually times out.
+
+| Route | Returns |
+| :--- | :--- |
+| `GET /admin/analytics/overview` | Session and distinct-IP counts, device split, event mix, a daily event series |
+| `GET /admin/analytics/funnel` | Cross-session path funnel and transition edges (`limit` 1–25, default 10) |
+| `GET /admin/analytics/commands` | `terminal_command` counts by name, with recognised vs. mistyped (`limit` 1–100, default 25) |
+| `GET /admin/analytics/llm` | Bedrock tokens, cache-hit rate, mean latency, and a per-model breakdown |
+
+`distinct_ips` is a **floor on people, not a count of them**: an office NATs to
+one address and a phone roams across several.
+
+The funnel's `LEAD` is partitioned by `session_id`. Without the partition the
+last event of one session pairs with the first of the next, inventing a
+transition nobody made; the per-session version in `event_controller` needs no
+partition because its `WHERE` already guarantees one session.
+
+`GET /admin/analytics/llm` is the first reader `ai_llm_telemetry` has ever had.
+`chat_routes` has written those rows after every completed stream since the
+telemetry landed, and the chat UI reports per-conversation totals from its own
+metrics frames, so the monthly figure existed only in the table.
+
+---
+
 ## Contact endpoint
 
 ### `POST /contact` · `POST /contact/` → 200
@@ -698,6 +732,7 @@ endpoint in the left column exists on the backend.
 | `POST /chat/stream` · `POST /chat/summarize` | `chat.js` |
 | All 21 `/auth/*` routes | `auth.js` / `auth-ui.js` |
 | `POST /contact` | `form.js` — tried first; FormSubmit is reached only when this is unreachable or answers 502 |
+| `GET /admin/analytics/*` | `owner-analytics.js` — lazily imported by `activity.js`; a 401/403 leaves the section as a visitor sees it |
 | `POST /events` (single) | — server/API consumers only |
 | `GET /models` · `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |
 | `GET/DELETE /chat/history*` | `chat.js` — `syncServerHistory()` lists on load and on `auth-changed`, `hydrateSession()` fetches one transcript when its rail row is opened, `deleteRemoteConversation()` removes the server copy |

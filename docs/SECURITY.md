@@ -360,6 +360,23 @@ The `robots.txt` disallows `/api/`.
 
 ---
 
+## Owner analytics
+
+`/admin/analytics/*` is the only surface that reads across every visitor's
+session, so it takes `require_owner`: `get_current_user`, then an equality
+check against the `OWNER_EMAIL` setting. `users` carries no role column and
+this site has one real account, so the owner is named by configuration rather
+than by a schema change made in service of a constant.
+
+It **fails closed**. An unset `OWNER_EMAIL` denies everyone, including the
+owner: a deploy that silently published every visitor's browsing to any
+registered account is a worse failure than one that locks the dashboard.
+
+The window is capped at 365 days. These are unindexed aggregates over a
+growing table, and an unbounded range is the query that eventually times out.
+
+---
+
 ## Known limitations
 
 | Limitation | Impact | Path forward |

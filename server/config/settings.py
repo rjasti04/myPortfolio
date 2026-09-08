@@ -86,6 +86,12 @@ CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "inboxtorj@gmail.com")
 # the long one. The general 60/min budget would have allowed 3,600 an hour.
 CONTACT_RATE_LIMIT_PER_HOUR = _env_int("CONTACT_RATE_LIMIT_PER_HOUR", 5)
 
+# Who may read the aggregate analytics. `users` has no role column, and adding
+# one for a site with a single real account would be a schema change in service
+# of a constant. An env var is smaller, reversible, and fails closed: unset
+# means nobody, not everybody.
+OWNER_EMAIL = (os.getenv("OWNER_EMAIL") or "").strip().lower()
+
 # Concurrent SSE connections one analytics session may hold open. A session
 # token is free - POST /sessions is unauthenticated by design - and an open
 # stream costs a worker slot for as long as it lasts, so without a cap a caller

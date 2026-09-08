@@ -202,6 +202,21 @@ its HTML part and builds `Reply-To` with `formataddr` rather than an f-string.
 
 ---
 
+## Owner analytics
+
+| Variable | Default | Purpose |
+| :--- | :--- | :--- |
+| `OWNER_EMAIL` | *(unset)* | The one account allowed to read `/admin/analytics/*` |
+
+**Unset denies everyone.** `users` has no role column, and adding one for a
+site with a single real account would be a schema change in service of a
+constant; an env var is smaller and reversible. It fails closed on purpose: a
+misconfigured deploy that silently published every visitor's browsing to any
+registered account is a worse failure than one that locks the owner out of his
+own dashboard.
+
+---
+
 ## Contact form
 
 | Variable | Default | Purpose |

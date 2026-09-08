@@ -1575,6 +1575,14 @@
           </div>
         </div>
 
+        <!-- Owner-only. Everything above this line is the visitor's own session,
+             which is what the section promises and what its intro says. This
+             panel reads across every session, so it stays hidden unless the
+             API says the signed-in caller is the owner - and its markup is
+             built by activity.js only after that answer comes back, so the
+             page never ships an empty shell of it to a visitor. -->
+        <div class="act-owner" id="act-owner" hidden></div>
+
         <noscript>
           <div class="noscript-message noscript-message--accent">
             <i class="fas fa-exclamation-circle noscript-message__icon"></i>

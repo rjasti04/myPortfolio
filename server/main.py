@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.routes import (
+    analytics_routes,
     chat_routes,
     contact_routes,
     session_routes,
@@ -104,6 +105,7 @@ app.add_middleware(RequestIDMiddleware)
 
 # Register Routers under both /api and root / for dual-prefix resilience
 routers = [
+    analytics_routes.router,
     chat_routes.router,
     contact_routes.router,
     session_routes.router,

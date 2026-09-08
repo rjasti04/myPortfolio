@@ -273,7 +273,7 @@ Internals worth knowing:
 | Destructive actions | Deleting one conversation and clearing all history both go through `confirmAction` from `confirm-dialog.js`. Delete used to ask nothing while Clear All called the browser's blocking `confirm()` |
 | Accessibility | `announceToScreenReader` for streamed replies. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
 
-### `activity.js` (1,202 lines, lazy)
+### `activity.js` (1,218 lines, lazy)
 
 `initActivity()`, `loadActivity()`, `loadActivitySummary()`,
 `loadActivityFunnel()`.
@@ -462,6 +462,30 @@ invalid inside `role="listbox"`, so the kind is a badge *inside* each option
 
 Find-in-page is not a substitute: the router keeps one section in the DOM at a
 time, so the browser never has the other seven to search.
+
+### `owner-analytics.js` (307 lines, lazy)
+
+`initOwnerAnalytics()` — the aggregate panel at the foot of the Activity
+section. Everything above it is the visitor's own session, which is what the
+section's intro promises; this reads across **every** session, so it is built
+only after `/admin/analytics/*` confirms the caller is the owner. A 401 or 403
+hides the panel and clears it, so the page never ships an empty shell of it to
+a visitor — and signing out takes it down, or the next person at that browser
+would see the previous owner's figures.
+
+`activity.js` imports it dynamically and does **not** await it: a slow or
+failing request for this must not hold up the dashboard the section actually
+promises. It re-runs on `auth-changed`, which is exactly when the answer to
+"is this the owner" changes.
+
+The chart layer is reused unchanged. `renderPaths` from `activity-charts.js`
+takes `{steps, transitions}`, which is the shape the cross-session funnel
+endpoint returns — the payoff for those exports having been written as pure
+paints over data rather than against session state.
+
+A panel whose request failed renders a `role="alert"` card, not zeroes.
+Rendering it as zeroes would report a measurement nobody took, which is the
+defect `docs/review/uiux.md` finding 19 was written against.
 
 ### `search-index.js` (155 lines, generated)
 
