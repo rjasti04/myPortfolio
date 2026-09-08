@@ -262,6 +262,15 @@
 
   /* Minimum Touch Target Size */
   --min-touch-target: 44px;
+
+  /* ---- Mobile bottom navigation: OFF ------------------------------------
+     The bar is fully styled in the MOBILE BOTTOM NAV region and navigation on
+     a phone runs through the centred hamburger instead. This flag is the
+     single switch: js/navigation.js reads it and skips building the bar, so
+     the stylesheet and the DOM cannot disagree about whether it exists.
+     Turning it back on is this flag, `display: flex` in that region, and
+     --mobile-bottom-nav-height back to 56px in the RESPONSIVE region. */
+  --mobile-bottom-nav: 0;
 }
 
 /* ---- Breakpoint tiers -------------------------------------------------

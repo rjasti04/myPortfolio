@@ -11,17 +11,22 @@ const modalOnClose = new WeakMap();
 
 // Nested opens must not each stash their own scroll position, so the lock is
 // reference counted and only the outermost close restores the page.
+//
+// Exported because the mobile nav needs the same thing: it used to write
+// `document.body.style.overflow` directly, which neither preserves the scroll
+// offset nor stops iOS scroll-chaining behind a full-height sheet - and it is
+// the panel most likely to be opened on iOS.
 let scrollLockDepth = 0;
 let scrollLockOffset = 0;
 
-function lockBodyScroll() {
+export function lockBodyScroll() {
   if (scrollLockDepth++ > 0) return;
   scrollLockOffset = window.scrollY || window.pageYOffset || 0;
   document.body.style.top = `-${scrollLockOffset}px`;
   document.body.classList.add("modal-scroll-locked");
 }
 
-function unlockBodyScroll() {
+export function unlockBodyScroll() {
   if (scrollLockDepth === 0) return;
   if (--scrollLockDepth > 0) return;
   document.body.classList.remove("modal-scroll-locked");
