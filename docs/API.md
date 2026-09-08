@@ -73,13 +73,21 @@ session exists**, so the endpoint cannot be used to discover valid session ids.
 Sliding windows keyed by client IP (`server/middlewares/rate_limit.py`). The
 path is normalised first, so `/api/auth/login` and `/auth/login` share a budget.
 Client IP honours `X-Forwarded-For` only when the direct peer is in
-`TRUSTED_PROXY_IPS`.
+`TRUSTED_PROXY_IPS`, which defaults to loopback — with it empty every proxied
+request resolves to the proxy and each budget below becomes one shared bucket
+for the whole site rather than one per client.
 
 | Budget | Paths | Limit | Configurable |
 | :--- | :--- | :--- | :--- |
 | Chat | `/chat`, `/chat/`, `/chat/stream`, `/chat/summarize` | `CHAT_RATE_LIMIT_PER_MINUTE` (default **12/min**) | yes |
-| Auth | `/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/2fa/verify`, `/auth/magic-link/request` | **5/min** | no (hardcoded) |
-| General | everything else | **60/min** | constructor argument |
+| Auth | `/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/2fa/verify`, `/auth/magic-link/request`, `/auth/resend-verification`, `/auth/verify-email` | **5/min** | no (hardcoded) |
+| Contact | `/contact`, `/contact/` | `CONTACT_RATE_LIMIT_PER_HOUR` (default **5/hour**) | yes |
+| General | everything else | `RATE_LIMIT_PER_MINUTE` (default **1000/min**) | yes |
+
+The general budget is deliberately loose — it covers the analytics session,
+event and dashboard routes, which are cheap session-scoped database calls — and
+raising it does **not** touch the three above it. Those bound Bedrock spend,
+credential guessing and outbound mail respectively.
 
 All limiting is skipped when `TESTING=true`. Additional ceilings:
 
@@ -188,7 +196,7 @@ access token.
 | POST | `/auth/2fa/disable` | 🔒 | Disable TOTP (password **and** code required) |
 | POST | `/auth/2fa/verify` | pre-auth token in body | Complete a 2FA sign-in |
 | POST | `/auth/magic-link/request` | — | Email a passwordless sign-in link |
-| POST | `/auth/magic-link/verify` | token in body | Redeem a magic link |
+| POST | `/auth/magic-link/verify` | token in body | Redeem a magic link; also confirms the address |
 | POST | `/auth/change-password` | 🔒 | Change password |
 | POST | `/auth/forgot-password` | — | Email a reset link |
 | POST | `/auth/reset-password` | token in body | Complete a reset |
@@ -208,12 +216,19 @@ Returns a `UserResponse` (`id`, `email`, `username`, `created_at`, `is_active`,
 registered"`. An account soft-deleted more than 30 days ago is purged and the
 address freed.
 
+Registering does **not** sign the caller in, and returns no tokens. The account
+is created with `email_verified_at` NULL, and `POST /auth/login` answers **403**
+until the mailed link is redeemed — so a client must not chase a 201 here with a
+login. `auth.js` did, and painted the resulting 403 as a registration failure.
+
 > Registration does **not** run the Have I Been Pwned check. That check applies
 > to `/auth/change-password` and `/auth/reset-password`.
 
 ### `POST /auth/login` → 200 `TokenResponseOr2FA`
 
-> Returns **403** when the address has not been confirmed. The check sits
+> Returns **403** when the address has not been confirmed — which redeeming a
+> magic link or completing a password reset also clears, since both prove
+> control of the same inbox. The check sits
 > *after* the password comparison deliberately: answering 403 to a wrong
 > password would make the status code an account-enumeration oracle, whereas
 > here it reveals nothing a successful login would not have. Accounts created
@@ -295,8 +310,14 @@ background task and its failure is never surfaced to the caller.
 `{"token": "…", "new_password": "…"}`. In order: verify and burn the one-time
 token → HIBP breach check → reuse check against the current hash plus the last
 5 in `password_history` → archive the old hash → set the new one → clear lockout
-→ revoke all refresh tokens, end sessions and void pending one-time tokens →
-email a security notification.
+→ **confirm the address if it was still unverified** → revoke all refresh
+tokens, end sessions and void pending one-time tokens → email a security
+notification.
+
+The confirmation step is there because the link was mailed to that address and
+has just been redeemed, which is the same proof clicking the verification link
+gives. Without it a reset could report success and still leave the caller unable
+to log in, which reads as the new password not having taken.
 
 ### `POST /auth/change-password` → 200
 
@@ -611,6 +632,16 @@ indistinguishable.
 
 `{"detail": "Conversation deleted successfully"}`. **404** as above.
 
+### `DELETE /chat/history` 🔒 → 200
+
+`{"deleted": 7}` — every conversation the caller owns, in one statement.
+Idempotent: an already-empty account returns `{"deleted": 0}` rather than a
+404. Backs the rail's **Delete all**, which used to clear only `localStorage`
+and left the server copies for the next `syncServerHistory()` to list straight
+back. A client-side loop cannot replace it — `GET /chat/history` is capped at
+100 rows and the rail truncates at `MAX_SESSIONS`, so older conversations are
+not reachable from the browser to delete one by one.
+
 ---
 
 ## Owner analytics 🔒
@@ -735,4 +766,4 @@ endpoint in the left column exists on the backend.
 | `GET /admin/analytics/*` | `owner-analytics.js` — lazily imported by `activity.js`; a 401/403 leaves the section as a visitor sees it |
 | `POST /events` (single) | — server/API consumers only |
 | `GET /models` · `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |
-| `GET/DELETE /chat/history*` | `chat.js` — `syncServerHistory()` lists on load and on `auth-changed`, `hydrateSession()` fetches one transcript when its rail row is opened, `deleteRemoteConversation()` removes the server copy |
+| `GET/DELETE /chat/history*` | `chat.js` — `syncServerHistory()` lists on load and on `auth-changed`, `hydrateSession()` fetches one transcript when its rail row is opened, `deleteRemoteConversation()` removes one server copy and `deleteAllRemoteConversations()` empties the account behind **Delete all** |

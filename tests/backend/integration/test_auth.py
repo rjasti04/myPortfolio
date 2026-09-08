@@ -9,9 +9,11 @@ exist mainly so that class of wiring break cannot pass CI again.
 
 import re
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import pyotp
 import pytest
+from sqlalchemy import update
 from unittest.mock import patch
 
 from server.routes import auth_routes
@@ -97,6 +99,57 @@ async def test_register_returns_the_created_user(async_client):
         "/api/auth/register", json={"email": email, "password": "Str0ngPassw0rd!"}
     )
     assert response.status_code == 400, "a duplicate registration must not create a second user"
+
+
+@pytest.mark.asyncio
+async def test_a_fresh_registration_cannot_log_in_until_it_is_confirmed(async_client):
+    """The contract `auth.js` has to respect.
+
+    `registerUser()` used to call `loginUser()` straight after a 201 - correct
+    when registration handed back a usable account, but every registration now
+    creates an unconfirmed one, so that login could never succeed. The browser
+    painted the 403 into the register form's *error* slot and suppressed every
+    success signal, telling the visitor registration had failed when it had
+    not. Pinned here so the client-side flow cannot drift back.
+    """
+    email = _email()
+    password = "Str0ngPassw0rd!"
+
+    created = await async_client.post(
+        "/api/auth/register", json={"email": email, "password": password}
+    )
+    assert created.status_code == 201, created.text
+
+    refused = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert refused.status_code == 403, "an unconfirmed address must not get a token pair"
+    assert "confirm" in refused.json()["detail"].lower()
+
+    # And the confirmation is the only thing standing in the way.
+    await verify_registered_email(async_client, email)
+    allowed = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert allowed.status_code == 200
+    assert allowed.json()["access_token"]
+
+
+@pytest.mark.asyncio
+async def test_a_token_naming_a_purged_account_is_401_not_404(async_client):
+    """`get_current_user` answered 404 for a well-formed token whose user row
+    was gone, which reads to a client as "no such endpoint" rather than "this
+    credential is dead" - so the browser kept a stale token forever. Every
+    other path in the codebase answers 401 for this, `refresh_user_token`
+    included."""
+    from server.auth.security import create_access_token
+
+    orphan = create_access_token(subject=str(uuid.uuid4()))
+    response = await async_client.get(
+        "/api/auth/me", headers={"Authorization": f"Bearer {orphan}"}
+    )
+    assert response.status_code == 401, response.text
+    assert response.headers.get("www-authenticate") == "Bearer"
 
 
 @pytest.mark.asyncio
@@ -695,3 +748,199 @@ async def test_the_response_reports_the_verification_state(async_client):
     me = await async_client.get("/api/auth/me", headers=headers)
     assert me.status_code == 200
     assert me.json()["email_verified_at"] is not None
+
+
+# --- an emailed link confirms the address it was sent to ---------------------
+
+
+async def _unverified(async_client, password="Str0ngPassw0rd!"):
+    """An account that registered but never clicked the confirmation link."""
+    email = _email()
+    created = await async_client.post(
+        "/api/auth/register", json={"email": email, "password": password}
+    )
+    assert created.status_code == 201
+    refused = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert refused.status_code == 403, "precondition: this account cannot log in yet"
+    return email, password
+
+
+async def _capture_link(async_client, sender_name: str, path: str, email: str) -> str:
+    captured = {}
+
+    async def _capture(_recipient, token):
+        captured["token"] = token
+
+    with patch.object(auth_service, sender_name, _capture):
+        await async_client.post(path, json={"email": email})
+    assert "token" in captured, f"{path} sent no mail"
+    return captured["token"]
+
+
+@pytest.mark.asyncio
+async def test_redeeming_a_magic_link_confirms_the_address(async_client):
+    """Redeeming a link out of the inbox is the same proof clicking the
+    verification link is. It was not recorded, so the account stayed flagged
+    unverified for good: the magic link signed them in while their password
+    kept being refused, with nothing explaining why."""
+    email, password = await _unverified(async_client)
+
+    token = await _capture_link(
+        async_client, "send_magic_link_email", "/api/auth/magic-link/request", email
+    )
+    signed_in = await async_client.post("/api/auth/magic-link/verify", json={"token": token})
+    assert signed_in.status_code == 200
+    assert signed_in.json()["access_token"]
+
+    # The dead end is gone: the password now works too.
+    allowed = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert allowed.status_code == 200, allowed.text
+
+
+@pytest.mark.asyncio
+async def test_completing_a_password_reset_confirms_the_address(async_client):
+    """Same proof, same link, and the worse dead end of the two - a reset that
+    reports success and still leaves the visitor unable to log in reads as the
+    new password not having taken."""
+    email, _ = await _unverified(async_client)
+
+    token = await _capture_link(
+        async_client, "send_password_reset_email", "/api/auth/forgot-password", email
+    )
+    new_password = "An0therStr0ngPass!"
+    reset = await async_client.post(
+        "/api/auth/reset-password", json={"token": token, "new_password": new_password}
+    )
+    assert reset.status_code == 200, reset.text
+
+    allowed = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": new_password}
+    )
+    assert allowed.status_code == 200, allowed.text
+
+
+@pytest.mark.asyncio
+async def test_confirming_twice_does_not_move_the_timestamp(async_client):
+    """A second redemption must not rewrite when the address was confirmed."""
+    email, password = await _unverified(async_client)
+    token = await _capture_link(
+        async_client, "send_magic_link_email", "/api/auth/magic-link/request", email
+    )
+    await async_client.post("/api/auth/magic-link/verify", json={"token": token})
+
+    login = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    first = (
+        await async_client.get(
+            "/api/auth/me",
+            headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+        )
+    ).json()["email_verified_at"]
+
+    second_token = await _capture_link(
+        async_client, "send_magic_link_email", "/api/auth/magic-link/request", email
+    )
+    await async_client.post("/api/auth/magic-link/verify", json={"token": second_token})
+    after = (
+        await async_client.get(
+            "/api/auth/me",
+            headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+        )
+    ).json()["email_verified_at"]
+
+    assert first == after
+
+
+# --- an expired lockout clears the tally -------------------------------------
+
+
+async def _expire_the_lock(email: str):
+    """Move `locked_until` into the past, as fifteen minutes of clock would.
+
+    Reaches the database through the `get_db` override the conftest already
+    installed on the app, rather than importing the conftest - importing it
+    from a test module runs it a second time and rebinds that override to a
+    second, empty engine (see the note in tests/backend/helpers.py).
+    """
+    from server.db.database import get_db
+    from server.main import app
+    from server.models.user import User
+
+    sessions = app.dependency_overrides[get_db]()
+    session = await sessions.__anext__()
+    try:
+        await session.execute(
+            update(User)
+            .where(User.email == email)
+            .values(locked_until=datetime.now(timezone.utc) - timedelta(seconds=1))
+        )
+        await session.commit()
+    finally:
+        await sessions.aclose()
+
+
+async def _fail_login(async_client, email: str, times: int):
+    for _ in range(times):
+        await async_client.post(
+            "/api/auth/login", json={"email": email, "password": "not-the-password"}
+        )
+
+
+@pytest.mark.asyncio
+async def test_an_expired_lockout_restores_a_full_set_of_attempts(async_client):
+    """`failed_login_attempts` only reset on a *successful* sign-in, so someone
+    who had been locked out came back fifteen minutes later still carrying a
+    tally of five. One more mistyped password took it to six, tripped the
+    threshold again, and locked them out for another fifteen minutes - and
+    nothing but getting it right first time could break that cycle."""
+    email, password = await _register(async_client)
+
+    await _fail_login(async_client, email, auth_service.LOCKOUT_THRESHOLD)
+    locked = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert locked.status_code == 400
+    assert "locked" in locked.text.lower()
+
+    await _expire_the_lock(email)
+
+    # One wrong password after the lock lifts must NOT re-lock the account.
+    await _fail_login(async_client, email, 1)
+    still_open = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert still_open.status_code == 200, (
+        f"a single mistake after the lock expired re-locked the account: {still_open.text}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_an_expired_lockout_still_locks_again_after_a_full_run(async_client):
+    """Clearing the tally must not remove the lockout, only re-arm it."""
+    email, password = await _register(async_client)
+
+    await _fail_login(async_client, email, auth_service.LOCKOUT_THRESHOLD)
+    await _expire_the_lock(email)
+
+    await _fail_login(async_client, email, auth_service.LOCKOUT_THRESHOLD)
+    relocked = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert relocked.status_code == 400
+    assert "locked" in relocked.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_a_live_lockout_is_still_enforced(async_client):
+    email, password = await _register(async_client)
+    await _fail_login(async_client, email, auth_service.LOCKOUT_THRESHOLD)
+
+    refused = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert refused.status_code == 400, "the correct password must not open a live lock"

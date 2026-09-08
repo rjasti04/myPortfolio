@@ -270,6 +270,64 @@ async def test_delete_removes_the_conversation(async_client):
     ).status_code == 404
 
 
+async def _save_conversation(async_client, headers, text):
+    """Drive one turn through /chat/stream so a row lands in ai_conversations."""
+    with patch(
+        "server.services.bedrock_service.bedrock_service.client.converse_stream"
+    ) as mock_converse:
+        mock_converse.return_value = _stream("answer")
+        response = await async_client.post(
+            "/api/chat/stream",
+            headers=headers,
+            json={
+                "model_id": "google.gemma-3-4b-it",
+                "conversation_id": str(uuid.uuid4()),
+                "messages": [{"role": "user", "content": text}],
+            },
+        )
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_clearing_all_history_empties_the_account(async_client):
+    """"Delete all" used to be browser-only, so the next sync listed it all back."""
+    headers = await _register_and_login(async_client)
+    for i in range(3):
+        await _save_conversation(async_client, headers, f"question {i}")
+    assert len((await async_client.get("/api/chat/history", headers=headers)).json()["conversations"]) == 3
+
+    cleared = await async_client.delete("/api/chat/history", headers=headers)
+    assert cleared.status_code == 200
+    assert cleared.json() == {"deleted": 3}
+
+    assert (await async_client.get("/api/chat/history", headers=headers)).json()[
+        "conversations"
+    ] == []
+    # Idempotent: clearing an already-empty account is not an error.
+    assert (await async_client.delete("/api/chat/history", headers=headers)).json() == {
+        "deleted": 0
+    }
+
+
+@pytest.mark.asyncio
+async def test_clearing_all_history_does_not_touch_another_account(async_client):
+    owner = await _register_and_login(async_client)
+    intruder = await _register_and_login(async_client)
+    await _save_conversation(async_client, owner, "mine")
+
+    assert (await async_client.delete("/api/chat/history", headers=intruder)).json() == {
+        "deleted": 0
+    }
+    assert len(
+        (await async_client.get("/api/chat/history", headers=owner)).json()["conversations"]
+    ) == 1
+
+
+@pytest.mark.asyncio
+async def test_clearing_all_history_requires_authentication(async_client):
+    assert (await async_client.delete("/api/chat/history")).status_code == 401
+
+
 @pytest.mark.asyncio
 async def test_anonymous_streaming_saves_nothing(async_client):
     """Only signed-in transcripts are persisted."""

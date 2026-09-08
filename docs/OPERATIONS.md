@@ -247,6 +247,32 @@ Look for a `RuntimeError` naming a missing variable, or `JWT_SECRET` being unset
 too short, or the placeholder. The automatic rollback should already have
 restored the previous release.
 
+### Visitors are signed out, or the API returns 429 after a few refreshes
+
+Both causes are fixed in the code now; check that the deploy carrying them is
+actually live before digging further.
+
+The budget was a hardcoded 60/min and is now `RATE_LIMIT_PER_MINUTE`, default
+**1000**, per client IP. "Per client" depends on `TRUSTED_PROXY_IPS`, which was
+empty — and with it empty `client_ip_from_request` falls back to the direct
+peer, the loopback address for **every** visitor behind Apache, so the budget
+was one bucket for the whole site. It now defaults to `127.0.0.1,::1`. If a
+`TRUSTED_PROXY_IPS=` line in the host's `.env` sets it back to empty, delete
+that line — an explicit empty value still wins over the default. The same
+setting decides the `ip_address` recorded on a session row, so a site whose
+`user_sessions` rows all show one IP has the same cause and is the quickest way
+to confirm it.
+
+The activity dashboard is the chattiest page in the app — a single load fires
+the session create or heartbeat, a bulk event flush, three `/sessions/{id}/…`
+reads and the SSE stream, then a flush and an end call on unload — so it is
+where a mis-scoped budget shows up first.
+
+A 429 no longer signs anyone out: `auth.js` clears tokens only on a 401 or 403
+from `/auth/refresh`. If visitors still report being logged out, look for a
+genuine `401` — an expired or revoked refresh token, or `JWT_SECRET` having
+been rotated out from under existing sessions.
+
 ### Chat returns 429 constantly
 
 Either the per-IP chat budget (`CHAT_RATE_LIMIT_PER_MINUTE`) or Bedrock

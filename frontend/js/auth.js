@@ -214,8 +214,23 @@ export async function registerUser(email, password) {
         throw new Error(getErrorMessage(errorData, 'Registration failed'));
     }
 
-    // Auto-login after successful registration
-    return await loginUser(cleanEmail, password);
+    /* No auto-login. This used to call loginUser() here, which was right when
+       registration handed back a usable account - but `authenticate_user`
+       refuses an address that has not been confirmed, and every registration
+       now creates exactly that. So the login could never succeed: it returned
+       403 "Confirm your email address", registerUser rethrew it, and the
+       modal's catch painted that into the *error* slot of a form whose
+       account had in fact just been created. The visitor saw a red message,
+       no success toast, an open dialog - and got "Email already registered"
+       if they tried again.
+
+       It also spent a second request on /auth/login, which shares the strict
+       5-per-minute auth budget with /auth/register, on a call guaranteed to
+       fail.
+
+       The created user is returned instead; the caller tells the visitor to
+       go and confirm. */
+    return await response.json();
   } catch (err) {
     console.error('Registration error:', err);
     throw err;
@@ -330,16 +345,34 @@ export async function logoutUser() {
 // last also overwrote the winner's new token pair in localStorage.
 let refreshInFlight = null;
 
+/* Whether a failed request means the *credential* was rejected, or only that
+   the request did not get through.
+
+   Everything that reads a token used to treat the two the same: any non-ok
+   response, and any thrown fetch, ended in clearTokens(). So a 429 from the
+   rate limiter, a 503 while the database was restarting, a 502 mid-deploy or a
+   few seconds offline destroyed a refresh token that was still valid for
+   thirty days server-side, and the visitor had to log in again. Only 401 and
+   403 are the server actually refusing the credential; a 5xx is the server
+   failing to answer at all, and 408/429 are it declining to answer yet. */
+export function isCredentialRejection(status) {
+  return status === 401 || status === 403;
+}
+
 /**
  * Refreshes the access token at most once at a time.
- * @returns {Promise<string|null>} the new access token, or null if refresh failed.
+ * @returns {Promise<{token: string|null, rejected: boolean}>} `token` is the
+ *   new access token when the refresh succeeded. `rejected` is true only when
+ *   the server refused the refresh token itself - the one case where signing
+ *   the visitor out is the correct response.
  */
 function refreshAccessTokenOnce() {
   if (refreshInFlight) return refreshInFlight;
 
   refreshInFlight = (async () => {
     const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    if (!refreshToken) return null;
+    // No refresh token at all is a genuine dead end, not a transient failure.
+    if (!refreshToken) return { token: null, rejected: true };
 
     try {
       const refreshResponse = await fetch(`${API_BASE}/auth/refresh`, {
@@ -347,14 +380,18 @@ function refreshAccessTokenOnce() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken })
       });
-      if (!refreshResponse.ok) return null;
+      if (!refreshResponse.ok) {
+        return { token: null, rejected: isCredentialRejection(refreshResponse.status) };
+      }
 
       const data = await refreshResponse.json();
       setTokens(data.access_token, data.refresh_token);
-      return data.access_token;
+      return { token: data.access_token, rejected: false };
     } catch (e) {
+      // The request never completed - offline, DNS, a dropped connection.
+      // The stored credential is untouched and is very likely still good.
       console.error('Failed to refresh token', e);
-      return null;
+      return { token: null, rejected: false };
     }
   })();
 
@@ -377,7 +414,7 @@ export async function authenticatedFetch(url, options = {}) {
   const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401 && token) {
-      const newAccessToken = await refreshAccessTokenOnce();
+      const { token: newAccessToken, rejected } = await refreshAccessTokenOnce();
 
       if (newAccessToken) {
           // Retry the original request with the refreshed credential.
@@ -387,9 +424,13 @@ export async function authenticatedFetch(url, options = {}) {
           });
       }
 
-      // Refresh genuinely failed (or there was no refresh token): sign out.
-      clearTokens();
-      window.dispatchEvent(new Event('auth-changed'));
+      // Only when the server refused the refresh token itself. A 429, a 5xx or
+      // a dropped connection leaves the credential in place: the caller sees
+      // the failure and the next attempt refreshes normally.
+      if (rejected) {
+          clearTokens();
+          window.dispatchEvent(new Event('auth-changed'));
+      }
   }
 
   return response;

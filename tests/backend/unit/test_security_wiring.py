@@ -5,6 +5,7 @@ nothing, and therefore inert at runtime.
 """
 
 import asyncio
+import os
 
 import pytest
 
@@ -19,6 +20,59 @@ from server.middlewares.rate_limit import (
 )
 from server.middlewares.request_id import RequestIDMiddleware
 from server.middlewares.server_timing import ServerTimingMiddleware
+from server.utils.ip_utils import client_ip_from_request, is_trusted_proxy
+
+
+def _request(client_host: str, forwarded: str = ""):
+    """A minimal ASGI request for the client-IP resolver."""
+    from fastapi import Request
+
+    headers = [(b"x-forwarded-for", forwarded.encode())] if forwarded else []
+    return Request({
+        "type": "http",
+        "method": "GET",
+        "path": "/",
+        "headers": headers,
+        "client": (client_host, 51000),
+    })
+
+
+async def _send(limiter: RateLimitMiddleware, client_ip: str, path: str = "/sessions") -> int:
+    """Drives one request through the real middleware and returns its status.
+
+    Not a reimplementation of the limiter's accounting - that would assert
+    nothing about the code under test. `TESTING` is unset for the call because
+    the middleware short-circuits entirely under it.
+    """
+    sent: list[dict] = []
+
+    async def _capture(message):
+        sent.append(message)
+
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": path,
+        "headers": [],
+        "client": (client_ip, 51000),
+    }
+    previous = os.environ.pop("TESTING", None)
+    try:
+        await limiter(scope, _receive_nothing, _capture)
+    finally:
+        if previous is not None:
+            os.environ["TESTING"] = previous
+    return next(m["status"] for m in sent if m["type"] == "http.response.start")
+
+
+async def _receive_nothing():
+    return {"type": "http.request", "body": b"", "more_body": False}
+
+
+async def _downstream(scope, receive, send):
+    """Stands in for the rest of the app: always 200."""
+    await send({"type": "http.response.start", "status": 200, "headers": []})
+    await send({"type": "http.response.body", "body": b""})
 
 
 # --- middleware registration ------------------------------------------------
@@ -108,6 +162,99 @@ def test_chat_routes_are_on_their_own_budget_under_both_prefixes(path):
 def test_chat_budget_is_stricter_than_the_general_one():
     limiter = RateLimitMiddleware(app=None)
     assert settings.CHAT_RATE_LIMIT_PER_MINUTE < limiter.max_requests
+
+
+def test_the_general_budget_is_configurable_and_defaults_to_1000():
+    """It was a hardcoded constructor default of 60, which the activity
+    dashboard alone could exhaust in a few refreshes - one load fires the
+    session create or heartbeat, a bulk flush, three `/sessions/{id}/…` reads
+    and the SSE stream, then a flush and an end call on unload."""
+    assert settings.RATE_LIMIT_PER_MINUTE == 1000
+    assert RateLimitMiddleware(app=None).max_requests == 1000
+
+
+@pytest.mark.asyncio
+async def test_the_general_budget_is_not_shared_between_clients():
+    """The bucket key is the client IP, so one visitor cannot exhaust another's
+    budget. This is the property `TRUSTED_PROXY_IPS` has to make real: without
+    it every request behind the proxy resolves to the same address and all of
+    these buckets collapse into one."""
+    limiter = RateLimitMiddleware(app=_downstream, max_requests=3)
+
+    for _ in range(3):
+        assert await _send(limiter, "203.0.113.7") == 200
+    assert await _send(limiter, "203.0.113.7") == 429, "the noisy client is capped"
+
+    # A different client is untouched by that.
+    assert await _send(limiter, "198.51.100.4") == 200
+
+
+@pytest.mark.asyncio
+async def test_the_general_budget_actually_admits_its_configured_number():
+    """A ceiling nothing exercises is a number in a settings file. At the old
+    60 the activity dashboard reached it in a few refreshes."""
+    limiter = RateLimitMiddleware(app=_downstream, max_requests=settings.RATE_LIMIT_PER_MINUTE)
+
+    for _ in range(settings.RATE_LIMIT_PER_MINUTE):
+        assert await _send(limiter, "203.0.113.7") == 200
+    assert await _send(limiter, "203.0.113.7") == 429
+
+
+@pytest.mark.asyncio
+async def test_the_raised_general_budget_does_not_apply_to_chat():
+    """`/chat/stream` must stay on its own 12/min however high the general
+    number goes - it is the only endpoint that spends money per call."""
+    limiter = RateLimitMiddleware(app=_downstream, max_requests=1000)
+
+    for _ in range(settings.CHAT_RATE_LIMIT_PER_MINUTE):
+        assert await _send(limiter, "203.0.113.7", "/chat/stream") == 200
+    assert await _send(limiter, "203.0.113.7", "/chat/stream") == 429
+
+    # The general bucket is untouched by that traffic.
+    assert await _send(limiter, "203.0.113.7", "/sessions") == 200
+
+
+@pytest.mark.asyncio
+async def test_the_raised_general_budget_does_not_apply_to_auth():
+    """Five attempts a minute is the brute-force guard on /auth/login."""
+    limiter = RateLimitMiddleware(app=_downstream, max_requests=1000)
+
+    for _ in range(5):
+        assert await _send(limiter, "203.0.113.7", "/auth/login") == 200
+    assert await _send(limiter, "203.0.113.7", "/auth/login") == 429
+
+
+def test_trusted_proxies_default_to_loopback_so_buckets_are_per_visitor():
+    """Empty was the old default, and it made `client_ip_from_request` fall
+    back to the direct peer - the loopback address for every visitor behind
+    Apache, so the whole site shared one bucket and a couple of hard refreshes
+    returned 429 for everyone."""
+    assert settings.TRUSTED_PROXY_NETWORKS, "an empty list means one bucket for the whole site"
+    assert is_trusted_proxy("127.0.0.1", settings.TRUSTED_PROXY_NETWORKS)
+    assert is_trusted_proxy("::1", settings.TRUSTED_PROXY_NETWORKS)
+    # And only the local proxy: an API reachable directly still ignores the
+    # header, so a remote caller cannot choose its own bucket.
+    assert not is_trusted_proxy("203.0.113.7", settings.TRUSTED_PROXY_NETWORKS)
+
+
+def test_a_remote_caller_cannot_pick_its_own_bucket_by_forging_the_header():
+    forged = _request(client_host="203.0.113.7", forwarded="10.0.0.1")
+    assert client_ip_from_request(forged, settings.TRUSTED_PROXY_NETWORKS) == "203.0.113.7"
+
+    # Arriving through the local proxy, the header is what identifies the client.
+    proxied = _request(client_host="127.0.0.1", forwarded="203.0.113.9")
+    assert client_ip_from_request(proxied, settings.TRUSTED_PROXY_NETWORKS) == "203.0.113.9"
+
+
+def test_raising_the_general_budget_did_not_loosen_the_strict_ones():
+    """Chat is the only endpoint that spends money per call, auth is the
+    brute-force surface, and contact sends mail. None of them may drift up with
+    the general number."""
+    limiter = RateLimitMiddleware(app=None)
+    assert settings.CHAT_RATE_LIMIT_PER_MINUTE == 12
+    assert settings.CONTACT_RATE_LIMIT_PER_HOUR == 5
+    assert settings.CHAT_RATE_LIMIT_PER_MINUTE < limiter.max_requests
+    assert settings.CONTACT_RATE_LIMIT_PER_HOUR < limiter.max_requests
 
 
 def test_chat_and_auth_budgets_are_tracked_separately():

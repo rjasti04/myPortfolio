@@ -47,6 +47,74 @@ logger = structlog.get_logger(__name__)
 
 PASSWORD_HISTORY_LIMIT = 5
 
+# Failed attempts before an account locks, and for how long. The tally is
+# shared between failed passwords and failed TOTP codes - see docs/SECURITY.md.
+LOCKOUT_THRESHOLD = 5
+LOCKOUT_DURATION = timedelta(minutes=15)
+
+
+def _as_utc(value: datetime) -> datetime:
+    """A naive timestamp from SQLite read as UTC; a tz-aware one left alone."""
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
+def enforce_lockout(user: User, now: datetime, event: str) -> None:
+    """Refuse while a lock is live, and clear one that has expired.
+
+    Clearing is the half that was missing. `failed_login_attempts` only ever
+    reset on a *successful* sign-in, so someone who had been locked out came
+    back fifteen minutes later still carrying a full tally of five: the next
+    single mistyped password took it to six, tripped the threshold again, and
+    locked them out for another fifteen minutes. Nothing but getting the
+    password right first time could break that cycle, which is the opposite of
+    what a *temporary* lock is for. An expired lock now returns the account to
+    a clean five attempts.
+
+    Shared by the password and the TOTP path so the two cannot drift; that
+    sharing is what makes the tally common to both, which is deliberate.
+    """
+    if not user.locked_until:
+        return
+    if _as_utc(user.locked_until) > now:
+        logger.warning(event, user_id=str(user.id))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Account is temporarily locked due to multiple failed login attempts. "
+                "Try again later or reset your password."
+            ),
+        )
+    user.failed_login_attempts = 0
+    user.locked_until = None
+
+
+def register_failed_attempt(db: AsyncSession, user: User, now: datetime, event: str) -> None:
+    """Count one failed credential and lock the account at the threshold."""
+    user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+    if user.failed_login_attempts >= LOCKOUT_THRESHOLD:
+        user.locked_until = now + LOCKOUT_DURATION
+        logger.warning(event, user_id=str(user.id))
+    db.add(user)
+
+
+def confirm_address_if_unverified(db: AsyncSession, user: User, now: datetime, via: str) -> None:
+    """Mark an address confirmed because a link mailed to it was just redeemed.
+
+    Redeeming a magic link or a password-reset link is the same proof of
+    control that clicking the verification link is, and it is delivered the
+    same way. Neither recorded it, so an account that signed up but never
+    clicked the confirmation link stayed flagged unverified for good: the magic
+    link signed them in while `authenticate_user` kept answering 403 to their
+    password, and a completed password reset left them still unable to log in.
+    Both are dead ends the visitor has no way to diagnose.
+    """
+    if user.email_verified_at is not None:
+        return
+    user.email_verified_at = now
+    db.add(user)
+    logger.info("email_verified_via_link", user_id=str(user.id), via=via)
+
+
 PURPOSE_PASSWORD_RESET = "password_reset"
 PURPOSE_MAGIC_LINK = "magic_link"
 PURPOSE_2FA_PRE_AUTH = "2fa_pre_auth"
@@ -171,24 +239,13 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> TokenResp
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-    if user.locked_until:
-        locked_until_utc = user.locked_until if user.locked_until.tzinfo else user.locked_until.replace(tzinfo=timezone.utc)
-        if locked_until_utc > now:
-            logger.warning("login_failed_account_locked", email=email_normalized)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Account is temporarily locked due to multiple failed login attempts. Try again later or reset your password."
-            )
+    enforce_lockout(user, now, "login_failed_account_locked")
 
     password_matched, needs_rehash = verify_password_scheme(
         user_data.password, user.hashed_password
     )
     if not password_matched:
-        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
-        if user.failed_login_attempts >= 5:
-            user.locked_until = now + timedelta(minutes=15)
-            logger.warning("account_locked_due_to_failed_logins", user_id=str(user.id), email=email_normalized)
-        db.add(user)
+        register_failed_attempt(db, user, now, "account_locked_due_to_failed_logins")
         await db.commit()
 
         raise HTTPException(
@@ -649,6 +706,14 @@ async def reset_password_with_token(
     user.locked_until = None
     db.add(user)
 
+    # The reset link was mailed to this address and has just been redeemed, so
+    # the address is confirmed. Without this, an account that never clicked the
+    # verification link could complete a reset and still be refused at login -
+    # which reads as the new password not having taken.
+    confirm_address_if_unverified(
+        db, user, datetime.now(timezone.utc), via="password_reset"
+    )
+
     # Clean up old history
     prune_subquery = (
         select(PasswordHistory.id)
@@ -817,26 +882,11 @@ async def verify_2fa_login(db: AsyncSession, data: Verify2FARequest) -> TokenRes
 
     # The second factor was outside the lockout entirely: failed codes were not
     # counted, so a six-digit secret could be walked through at will.
-    if user.locked_until:
-        locked_until_utc = (
-            user.locked_until
-            if user.locked_until.tzinfo
-            else user.locked_until.replace(tzinfo=timezone.utc)
-        )
-        if locked_until_utc > now:
-            logger.warning("2fa_verify_rejected_account_locked", user_id=str(user.id))
-            raise HTTPException(
-                status_code=400,
-                detail="Account is temporarily locked due to repeated failed attempts. Try again later.",
-            )
+    enforce_lockout(user, now, "2fa_verify_rejected_account_locked")
 
     totp = pyotp.TOTP(user.totp_secret)
     if not totp.verify(data.code):
-        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
-        if user.failed_login_attempts >= 5:
-            user.locked_until = now + timedelta(minutes=15)
-            logger.warning("account_locked_due_to_failed_2fa", user_id=str(user.id))
-        db.add(user)
+        register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa")
         await db.commit()
         logger.warning("2fa_verify_failed", user_id=str(user.id))
         raise HTTPException(status_code=400, detail="Invalid 2FA code")
@@ -917,6 +967,11 @@ async def verify_magic_link(db: AsyncSession, data: MagicLinkVerifyRequest) -> T
 
     if not user or not user.is_active:
         raise HTTPException(status_code=400, detail="User not found or inactive")
+
+    # Before the 2FA branch: the link came out of this address's inbox, which is
+    # what confirmation means. Whether a second factor is still owed does not
+    # change what has already been proven.
+    confirm_address_if_unverified(db, user, now, via="magic_link")
 
     if user.is_totp_enabled:
         pre_auth_jti = issue_one_time_token(db, user.id, PURPOSE_2FA_PRE_AUTH, timedelta(minutes=5))

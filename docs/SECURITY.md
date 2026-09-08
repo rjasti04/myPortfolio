@@ -71,6 +71,17 @@ sessions.
 **Type binding.** `verify_token(token, expected_type)` enforces the `type` claim,
 so a refresh token cannot be presented as an access token.
 
+**A redeemed link confirms the address.** Redeeming a magic link or a
+password-reset link is the same proof of inbox control that clicking the
+verification link is, delivered the same way, so both now record it through
+`confirm_address_if_unverified`. Neither did, and an account that registered but
+never clicked the confirmation link was left in a dead end it could not
+diagnose: the magic link signed them in while `authenticate_user` kept answering
+403 to their password, and a password reset reported success and still left them
+unable to log in — which reads as the new password not having taken. It is
+recorded before the 2FA branch on the magic-link path: whether a second factor
+is still owed does not change what the redemption has already proven.
+
 **Blast radius of a revocation.** `revoke_user_tokens` revokes all refresh
 tokens, ends active `user_sessions`, **and** voids unused one-time tokens — a
 pending reset link is a credential too. It runs on logout, password change,
@@ -106,8 +117,9 @@ complexity rule; `auth-ui.js` shows a strength meter and checklist as guidance.
 
 ## Account lockout
 
-Five failed attempts → `locked_until` set 15 minutes ahead. The counter is
-shared between failed **passwords** and failed **TOTP codes**.
+`LOCKOUT_THRESHOLD` (5) failed attempts → `locked_until` set `LOCKOUT_DURATION`
+(15 minutes) ahead. The counter is shared between failed **passwords** and
+failed **TOTP codes**.
 
 That sharing is deliberate and was a real bug: the second factor was originally
 outside the lockout entirely, so a six-digit secret could be walked through at
@@ -115,6 +127,22 @@ will. Equally deliberate is that `authenticate_user` does **not** clear the
 counters when 2FA is pending — clearing them there reset the tally on every
 attempt, so an attacker just logged in again between code guesses. Only
 `verify_2fa_login` clears them, once the code checks out.
+
+**An expired lock returns a full set of attempts.** `enforce_lockout` clears the
+tally when it finds a lock that has run out, which is the half that used to be
+missing: `failed_login_attempts` only ever reset on a *successful* sign-in, so
+someone who had been locked out came back fifteen minutes later still carrying
+five. One more mistyped password took it to six, tripped the threshold again,
+and locked them out for another fifteen minutes — and nothing short of getting
+the password right first time could break that cycle, which is the opposite of
+what a *temporary* lock is for.
+
+The cost is bounded and deliberate: a guessing attacker gets 5 attempts per
+15-minute window rather than 5 and then 1 per window — 20 an hour, under a
+budget that is itself capped at 5 requests a minute by the auth rate limit.
+That is the standard shape of a temporary lockout. `enforce_lockout` and
+`register_failed_attempt` are shared by the password and TOTP paths so the two
+cannot drift.
 
 ---
 
@@ -234,6 +262,11 @@ message carrying a megabyte of system prompt passed every check.
 - **Client IP** is resolved server-side and never accepted from a body.
   `X-Forwarded-For` is honoured only when the direct peer is in
   `TRUSTED_PROXY_IPS`, and the walk takes the rightmost non-proxy address.
+  That setting defaults to loopback, so a directly-reachable API ignores the
+  header entirely and a remote caller cannot choose its own rate-limit bucket
+  or forge the `ip_address` recorded on a session. It was empty, which was not
+  a spoofing risk but collapsed every rate-limit bucket into one for the whole
+  site, since every proxied request resolved to the proxy's own address.
 
 ---
 

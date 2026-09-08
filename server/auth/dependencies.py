@@ -47,7 +47,19 @@ async def get_current_user(
     user = result.scalars().first()
 
     if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        # 401, not 404. The token is well-formed and correctly signed but names
+        # a row that no longer exists - a hard-purged account, reachable when
+        # `register_user` clears one soft-deleted more than 30 days ago. That is
+        # a rejected credential, and the rest of the codebase already says so:
+        # `refresh_user_token` answers 401 for exactly this case. A 404 also
+        # reads to a client as "no such endpoint", so the browser could not tell
+        # a dead credential from a routing mistake and left the stale token in
+        # storage forever.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
 

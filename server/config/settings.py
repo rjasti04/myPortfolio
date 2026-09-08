@@ -70,6 +70,21 @@ BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS = _env_int("BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS"
 # unlimited Bedrock inference.
 CHAT_FREE_MESSAGE_LIMIT = _env_int("CHAT_FREE_MESSAGE_LIMIT", 6)
 
+# Requests per minute per client IP on everything that is not chat, auth or
+# contact - the analytics session, event and dashboard routes. It was a
+# hardcoded constructor default of 60, which the activity dashboard alone could
+# exhaust: one load fires the session create or heartbeat, a bulk event flush,
+# three `/sessions/{id}/…` reads and the SSE stream, then a flush and an end
+# call on unload, and the page keeps a 2-second flush timer and a 15-second
+# clock tick running on top of that. A few refreshes reached 60 and the whole
+# API started answering 429.
+#
+# These are cheap authenticated or session-scoped database calls, not
+# inference, so the budget only has to stop a runaway client. The three
+# endpoints that actually need a tight bound keep their own, far stricter ones
+# below and are unaffected by this number.
+RATE_LIMIT_PER_MINUTE = _env_int("RATE_LIMIT_PER_MINUTE", 1000)
+
 # Requests per minute per IP against the Bedrock-backed chat routes. These used
 # to share the general 60/min budget; 12 is roughly one message every five
 # seconds, which no real conversation exceeds, and it caps what an anonymous
@@ -109,5 +124,19 @@ ALLOWED_MODEL_IDS.add(DEFAULT_MODEL_ID)
 ALLOWED_MODEL_IDS.add("google.gemma-3-4b-it")
 ALLOWED_MODEL_IDS.add("anthropic.claude-3-5-sonnet-20241022-v2:0")
 
-TRUSTED_PROXY_NETWORKS = parse_proxy_networks(os.getenv("TRUSTED_PROXY_IPS", ""))
+# Whose X-Forwarded-For is believed. This defaulted to empty, which meant
+# `client_ip_from_request` fell back to the direct peer - and the documented
+# production topology is Apache proxying `/api` to Uvicorn on the same host, so
+# the direct peer is the loopback address for *every* visitor. Every rate
+# limit was therefore one shared bucket for the whole site rather than one per
+# client, and every `user_sessions.ip_address` recorded the proxy.
+#
+# Loopback is the safe default for that topology: X-Forwarded-For is honoured
+# only when the request actually arrives from the local proxy, so an API
+# exposed directly to the internet still ignores the header entirely and
+# cannot be spoofed by a remote caller. Deployments with the proxy on another
+# host must name it here.
+TRUSTED_PROXY_NETWORKS = parse_proxy_networks(
+    os.getenv("TRUSTED_PROXY_IPS", "127.0.0.1,::1")
+)
 

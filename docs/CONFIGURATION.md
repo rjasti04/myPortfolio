@@ -61,7 +61,7 @@ session token.**
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
 | `CORS_ORIGINS` | a localhost dev list | Comma-separated allowed browser origins. `https://rjasti.com` and `https://www.rjasti.com` are **always** appended |
-| `TRUSTED_PROXY_IPS` | *(empty)* | Comma-separated IPs/CIDRs whose `X-Forwarded-For` is honoured. Invalid entries are logged and skipped |
+| `TRUSTED_PROXY_IPS` | `127.0.0.1,::1` | Comma-separated IPs/CIDRs whose `X-Forwarded-For` is honoured. Invalid entries are logged and skipped |
 
 When `CORS_ORIGINS` is unset the default list is
 `http://localhost:{1111,8080,8000,3000,5173,5500}` and the matching `127.0.0.1`
@@ -69,7 +69,15 @@ forms.
 
 `TRUSTED_PROXY_IPS` matters for two things: the `ip_address` stored on a session
 row, and the key the rate limiter buckets by. With it empty, both use the direct
-peer — which behind a reverse proxy means every request looks like one client.
+peer — which behind a reverse proxy means every request looks like one client,
+so every budget below becomes one shared bucket for the whole site. It therefore
+defaults to loopback, matching the documented topology of Apache proxying `/api`
+to Uvicorn on the same host. Override it only when the proxy runs elsewhere.
+
+The default is safe because the header is honoured **only** when the request
+actually arrives from a trusted peer: an API reachable directly from the
+internet still ignores `X-Forwarded-For` entirely, so a remote caller cannot
+choose its own rate-limit bucket.
 
 ---
 
@@ -79,6 +87,21 @@ peer — which behind a reverse proxy means every request looks like one client.
 | :--- | ---: | :--- |
 | `MAX_BODY_BYTES` | `1048576` | Request body ceiling; over it → **413** |
 | `MAX_STREAMS_PER_SESSION` | `2` | Concurrent SSE connections one analytics session may hold; over it → **429** |
+| `RATE_LIMIT_PER_MINUTE` | `1000` | General budget, **per client IP**, for everything that is not chat, auth or contact; over it → **429** |
+
+`RATE_LIMIT_PER_MINUTE` covers the analytics session, event and dashboard
+routes. It was a hardcoded `60`, which the activity dashboard alone could
+exhaust in a few refreshes: one load fires the session create or heartbeat, a
+bulk event flush, three `/sessions/{id}/…` reads and the SSE stream, then a
+flush and an end call on unload, with a 2-second flush timer and a 15-second
+clock tick running throughout. These are cheap session-scoped database calls,
+not inference, so the budget only has to stop a runaway client.
+
+The three endpoints that need a tight bound keep their own and are **not**
+affected by this number — `CHAT_RATE_LIMIT_PER_MINUTE` (12), the hardcoded 5/min
+on the credential-guessing auth routes, and `CONTACT_RATE_LIMIT_PER_HOUR` (5).
+Raising any of those trades away a cost or brute-force control, so they are
+deliberately separate knobs.
 
 `MAX_STREAMS_PER_SESSION` exists because a session token is free (`POST
 /sessions` is unauthenticated by design) and an open stream holds a worker slot

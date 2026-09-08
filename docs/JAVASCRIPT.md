@@ -85,7 +85,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,398 lines)
+### `auth-ui.js` (1,431 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -179,7 +179,7 @@ stale session and starting a fresh one.
 count, reason, ok, at}` to `onTelemetry` subscribers. `serverMs` is parsed from
 the `Server-Timing: app;dur=…` header; `networkMs` is the remainder.
 
-### `auth.js` (396 lines)
+### `auth.js` (437 lines)
 
 Token storage and every authenticated call.
 
@@ -188,13 +188,14 @@ Token storage and every authenticated call.
 | `AUTH_TOKEN_KEY`, `REFRESH_TOKEN_KEY` | `rj_access_token`, `rj_refresh_token` |
 | `getAuthToken()`, `setTokens(a, r)`, `clearTokens()` | `localStorage` accessors |
 | `getErrorMessage(errorData, fallback)` | Normalises FastAPI's string / array `detail` shapes |
-| `loginUser`, `registerUser`, `logoutUser` | Credential flows; register auto-logs-in |
+| `loginUser`, `registerUser`, `logoutUser` | Credential flows. `registerUser` returns the created `UserResponse` and signs **nobody** in — the address has to be confirmed first |
 | `setup2FA`, `enable2FA`, `disable2FA`, `verify2FA` | TOTP enrolment and challenge |
 | `requestMagicLink`, `verifyMagicLink` | Passwordless sign-in |
 | `requestPasswordReset`, `resetPassword`, `changePassword` | Password flows |
 | `deleteAccount` | Soft delete |
 | `fetchActiveSessions`, `revokeOtherSessions`, `revokeSpecificSession` | Session management |
 | `authenticatedFetch(url, options)` | Bearer-attached fetch with a single-flight 401 refresh and retry |
+| `isCredentialRejection(status)` | `401`/`403` only — separates a refused credential from an unanswered request |
 
 `authenticatedFetch` is the important one. The server **rotates** refresh
 tokens, so concurrent 401s each sending the same refresh token would have the
@@ -203,6 +204,35 @@ mid-session, with the last loser also overwriting the winner's new pair. A
 module-level `refreshInFlight` promise makes every concurrent 401 share one
 refresh, and it is cleared before awaiting callers resume so a later 401 starts
 a fresh attempt. Guarded by `frontend/tests/auth-refresh.test.js`.
+
+**Registration does not log anyone in.** `registerUser` used to call
+`loginUser` straight after a 201 — correct when registration handed back a
+usable account, but `authenticate_user` refuses an unconfirmed address and every
+registration creates exactly that, so the login could never succeed. It returned
+`403`, `registerUser` rethrew it, and `auth-ui.js` painted "Confirm your email
+address" into the register form's **error** slot: no success toast, the dialog
+still open, and `"Email already registered"` if the visitor tried again. It also
+spent a second request on `/auth/login`, which shares the strict 5-per-minute
+auth budget with `/auth/register`, on a call certain to fail. `registerUser` now
+returns the created user, and the register panel paints `#register-success` with
+a "check your inbox" message plus the same resend affordance the login panel
+offers. Pinned by `frontend/tests/auth-register.test.js` and, server-side, by
+`test_a_fresh_registration_cannot_log_in_until_it_is_confirmed`.
+
+**Only a refused credential ends the session.** `refreshAccessTokenOnce()`
+returns `{token, rejected}` rather than a bare token, and `clearTokens()` runs
+only when `rejected` is set — that is, when `/auth/refresh` answered `401` or
+`403`. Every other outcome leaves the stored pair alone: a `429` from the rate
+limiter, a `5xx` while the database restarts, a `502` mid-deploy, or a fetch
+that never completed. All of those used to be read as "the credential is bad"
+and destroyed a refresh token still valid for thirty days server-side. The
+symptom was reported as *refreshing the activity page logs me out*: that page
+is the chattiest in the app, its repeated loads push the shared per-minute
+budget over, and the `429` that came back was indistinguishable from a
+rejection. `auth-ui.js` applies the same predicate to its `/auth/me` call on
+load. Note that the rate limiter buckets by the direct peer unless
+`TRUSTED_PROXY_IPS` names the reverse proxy, so behind Apache the whole site
+shares one budget — see `docs/CONFIGURATION.md`.
 
 ### `utils.js` (228 lines)
 
@@ -236,7 +266,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (2,169 lines, lazy)
+### `chat.js` (2,204 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -264,6 +294,7 @@ Internals worth knowing:
 | Summarisation | At `SUMMARIZE_TOKEN_THRESHOLD` estimated tokens, everything before the current message is sent to `/chat/summarize` and replaced by the summary |
 | Conversation identity | Each session carries a local `id` (the `localStorage` key, still `Date.now().toString()`) **and** a `conversationId` v4 UUID sent as `conversation_id` on every turn. Without it `save_or_update_conversation` took its create branch each turn and wrote a fresh `ai_conversations` row holding the whole transcript so far - ten turns, ten rows. Two fields rather than one because stored sessions predate UUID ids, and reusing `id` would mean migrating the active-session pointer with them. `backfillConversationIds()` gives old rows one on load |
 | Server history | For a signed-in visitor `syncServerHistory()` lists `GET /chat/history` on load and on `auth-changed`, merging server-only conversations into the rail as **stubs** (`remote: true`, `messages: []`). The listing carries summaries only, so `hydrateSession()` fetches `GET /chat/history/{id}` when a stub is opened, a 404 drops it (deleted from another device), and `deleteSession()` also issues `DELETE /chat/history/{id}` or the next sync brings it back. On a merge the local copy wins on title and transcript - it is the fuller one - and only `updatedAt` is reconciled. Anonymous visitors keep the pure-`localStorage` path; `POST /chat` stays deliberately anonymous |
+| Clearing all history | **Delete all** was browser-only: it emptied `sessions` and `rj_chat_sessions` and left every `ai_conversations` row alone, so the next `syncServerHistory()` re-listed the whole account and the history reappeared. `deleteAllRemoteConversations()` now issues one `DELETE /chat/history` after the local clear. One request, not a loop over the rail: the listing is capped at 100 and `saveSessions()` truncates at `MAX_SESSIONS`, so anything older than the newest 50 is not in `sessions` to delete. A failed request paints a `renderTranscriptNotice()` alert rather than reporting a history that will come back as cleared, and a signed-out visitor calls nothing |
 | Transcript states | A conversation arriving from the server and one that failed to arrive are both distinct from an empty one. `renderTranscriptNotice()` paints a `role="status"` spinner or a `role="alert"` error with a retry into **both** surfaces, so neither reports a failure as emptiness - the defect `activity.js` was audited for in `docs/review/uiux.md` finding 19 |
 | Auth | A `401` while signed out dispatches `request-login-modal` rather than showing a raw error |
 | Voice | Separate `SpeechRecognition` instances per input — a shared singleton had both mic buttons overwriting each other's `onresult` and routing transcripts to the wrong field. Buttons are hidden entirely when unsupported. Both composers are wired by one `setupVoiceInput()`: the mic opens a `.voice-bar` over the composer (cancel, an animated waveform sized to the row, stop, send), and every run ends in `onend` with an intent — `insert` writes the transcript to the field, `send` writes it and calls `requestSubmit()`, `cancel` (the X, Escape, or a recognition error) discards it |
