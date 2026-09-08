@@ -458,7 +458,7 @@ matrix toggle (`rj_terminal_matrix`), and the `ctx` object handed to commands
 
 ## UI and interaction
 
-### `navigation.js` (634 lines)
+### `navigation.js` (637 lines)
 
 `initNavigation()`, `setActiveSection(target)`,
 `navigateToSection(target, {updateHash})`, `syncSectionWithHash(hash)`,

@@ -402,9 +402,12 @@ export function initNavigation() {
   function showOfflineBanner() {
     if (offlineBanner.dataset.shown === 'true') return;
     offlineBanner.dataset.shown = 'true';
+    // is-visible first, then the text. The pill is visibility:hidden at rest
+    // now, and a live region that is not visible has nothing to announce, so
+    // the content has to land in a region that is already showing.
+    offlineBanner.classList.add('is-visible');
     offlineBanner.innerHTML =
       '<i class="fas fa-wifi offline-banner__icon" aria-hidden="true"></i> You are offline';
-    offlineBanner.classList.add('is-visible');
   }
 
   function hideOfflineBanner() {
