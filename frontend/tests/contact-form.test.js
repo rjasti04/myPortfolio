@@ -30,9 +30,11 @@ function createContactMarkup() {
       </div>
       <div class="form-group floating-label-group">
         <div class="input-wrapper">
-          <textarea id="contact-message" name="message" placeholder=" " required></textarea>
+          <textarea id="contact-message" name="message" placeholder=" "
+            aria-describedby="contact-message-count" required></textarea>
           <label class="form-label" for="contact-message">Message</label>
         </div>
+        <p class="form-counter" id="contact-message-count" data-max="1200">0 / 1200</p>
       </div>
       <button type="submit" class="btn contact-submit-btn">Send Message <i class="fas fa-paper-plane"></i></button>
       <p id="contact-status" class="form-status" role="status" aria-live="polite"></p>
@@ -130,6 +132,46 @@ test("contact form shows accessible invalid-field feedback", () => {
   assert.equal(email.getAttribute("aria-describedby"), "contact-email-error");
   assert.equal(error.dataset.active, "true");
   assert.ok(error.textContent.length > 0);
+});
+
+// Regression: showFieldError assigned the error id straight over
+// aria-describedby and clearFieldError removed the attribute outright, so the
+// first validation error permanently detached the character counter from the
+// only field that has one.
+test("contact form keeps the counter description through a validation error", () => {
+  resetContactDom();
+  initContactForm();
+
+  const message = document.getElementById("contact-message");
+  message.value = "";
+  message.dispatchEvent(new window.Event("blur", { bubbles: true }));
+
+  const described = (message.getAttribute("aria-describedby") || "").split(/\s+/);
+  assert.ok(described.includes("contact-message-count"), "counter stays described");
+  assert.ok(described.includes("contact-message-error"), "error is announced too");
+
+  message.value = "Hello there.";
+  message.dispatchEvent(new window.Event("input", { bubbles: true }));
+  message.dispatchEvent(new window.Event("blur", { bubbles: true }));
+
+  const after = (message.getAttribute("aria-describedby") || "").split(/\s+/);
+  assert.ok(after.includes("contact-message-count"), "counter survives the clear");
+  assert.ok(!after.includes("contact-message-error"), "error id is dropped");
+});
+
+// Regression: blur validation was gated on `field.value`, so an untouched
+// required field produced no inline error - the most common mistake was the
+// one with no feedback.
+test("contact form reports an empty required field on blur", () => {
+  resetContactDom();
+  initContactForm();
+
+  const name = document.getElementById("contact-name");
+  name.value = "";
+  name.dispatchEvent(new window.Event("blur", { bubbles: true }));
+
+  assert.equal(name.getAttribute("aria-invalid"), "true");
+  assert.equal(document.getElementById("contact-name-error").dataset.active, "true");
 });
 
 test("contact form ignores FormSubmit honeypot during validation setup", () => {

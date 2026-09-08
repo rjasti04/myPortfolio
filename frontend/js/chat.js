@@ -3,6 +3,8 @@ import { prefersReducedMotion } from "./config.js";
 import { copyText, escapeHTML, estimateTokens } from "./utils.js";
 import { authenticatedFetch, getAuthToken } from "./auth.js";
 import { highlightCode } from "./syntax-highlighter.js";
+import { handleFocusTrap } from "./modal.js";
+import { confirmAction } from "./confirm-dialog.js";
 
 // Constants
 const MAX_SESSIONS = 50;
@@ -380,6 +382,10 @@ export function initChat() {
     isOpen = open;
     dialog.classList.toggle('hidden', !open);
     dialog.setAttribute('aria-hidden', String(!open));
+    // `body.chat-open` paints a full-viewport scrim that takes pointer events,
+    // so the widget IS modal for a mouse - it just never said so, and Tab
+    // walked straight out of it into a page the visitor could no longer click.
+    dialog.setAttribute('aria-modal', String(open));
     toggleBtn?.setAttribute('aria-expanded', String(open));
     document.body.classList.toggle('chat-open', open);
   }
@@ -626,21 +632,42 @@ export function initChat() {
       const menuBtn = document.createElement('button');
       menuBtn.type = 'button';
       menuBtn.className = 'session-menu-btn';
-      menuBtn.innerHTML = '<i class="fas fa-ellipsis-v"></i>';
+      menuBtn.innerHTML = '<i class="fas fa-ellipsis-v" aria-hidden="true"></i>';
       menuBtn.title = 'Chat options';
+      // `title` is a tooltip, not an accessible name on every combination, and
+      // the panel was a bare div: nothing announced that this opened a menu or
+      // whether it was open.
+      menuBtn.setAttribute('aria-label', `Options for ${session.title}`);
+      menuBtn.setAttribute('aria-haspopup', 'menu');
+      menuBtn.setAttribute('aria-expanded', 'false');
 
       // Dropdown menu
       const dropdown = document.createElement('div');
       dropdown.className = 'session-dropdown-menu hidden';
+      dropdown.setAttribute('role', 'menu');
+      dropdown.setAttribute('aria-label', `Options for ${session.title}`);
 
       const renameItem = document.createElement('button');
       renameItem.type = 'button';
+      renameItem.setAttribute('role', 'menuitem');
       renameItem.className = 'dropdown-item';
       renameItem.innerHTML = '<i class="fas fa-pen"></i> Rename';
+      // Nothing dismissed this by keyboard, and focus was neither moved into
+      // the menu nor returned when it closed.
+      dropdown.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        e.stopPropagation();
+        dropdown.classList.add('hidden');
+        menuBtn.classList.remove('active');
+        menuBtn.setAttribute('aria-expanded', 'false');
+        menuBtn.focus();
+      });
+
       renameItem.addEventListener('click', (e) => {
         e.stopPropagation();
         dropdown.classList.add('hidden');
         menuBtn.classList.remove('active');
+        menuBtn.setAttribute('aria-expanded', 'false');
 
         // The open button steps aside for the field, and renderSidebar()
         // puts it back on save or on Escape.
@@ -675,12 +702,24 @@ export function initChat() {
 
       const deleteItem = document.createElement('button');
       deleteItem.type = 'button';
+      deleteItem.setAttribute('role', 'menuitem');
       deleteItem.className = 'dropdown-item danger';
       deleteItem.innerHTML = '<i class="fas fa-trash"></i> Delete';
-      deleteItem.addEventListener('click', (e) => {
+      deleteItem.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (isGenerating) return;
-        deleteSession(session.id);
+        dropdown.classList.add('hidden');
+        menuBtn.classList.remove('active');
+        menuBtn.setAttribute('aria-expanded', 'false');
+        // Deleting one conversation is as irreversible as clearing them all,
+        // and it is the control that gets used - it asked nothing at all
+        // while "Clear all history" two steps away asked via confirm().
+        const ok = await confirmAction({
+          title: 'Delete this chat?',
+          body: `"${session.title}" and its messages will be removed from this browser. This cannot be undone.`,
+          confirmLabel: 'Delete',
+        });
+        if (ok) deleteSession(session.id);
       });
 
       dropdown.appendChild(renameItem);
@@ -692,11 +731,15 @@ export function initChat() {
         e.stopPropagation();
         const isHidden = dropdown.classList.contains('hidden');
         document.querySelectorAll('.session-dropdown-menu').forEach(m => m.classList.add('hidden'));
-        document.querySelectorAll('.session-menu-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.session-menu-btn').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-expanded', 'false');
+        });
         if (isHidden) {
           dropdown.classList.remove('hidden');
           dropdown.classList.remove('drop-up');
           menuBtn.classList.add('active');
+          menuBtn.setAttribute('aria-expanded', 'true');
           // .ai-sidebar-history scrolls, so a menu opened near its bottom edge
           // gets clipped. Flip it above the row when it would not fit below.
           if (aiSidebarHistory) {
@@ -705,6 +748,10 @@ export function initChat() {
               dropdown.classList.add('drop-up');
             }
           }
+          // Same reasoning as the header dropdowns in js/navigation.js: an
+          // opened panel that leaves focus on its toggle gives a keyboard user
+          // nothing to tell them it opened.
+          renameItem.focus();
         }
       });
 
@@ -742,9 +789,15 @@ export function initChat() {
 
   // Clear all sessions
   if (clearAllBtn) {
-    clearAllBtn.addEventListener('click', () => {
+    clearAllBtn.addEventListener('click', async () => {
       if (isGenerating) return;
-      if (confirm('Delete all chat history? This action cannot be undone.')) {
+      const ok = await confirmAction({
+        title: 'Delete all chat history?',
+        body: `All ${sessions.length} conversation${sessions.length === 1 ? '' : 's'} `
+          + 'will be removed from this browser. This cannot be undone.',
+        confirmLabel: 'Delete all',
+      });
+      if (ok) {
         sessions = [];
         createNewSession();
       }
@@ -1162,16 +1215,14 @@ export function initChat() {
       }
       setChatOpen(!isOpen);
       if (isOpen) {
-        if (prefersReducedMotion.matches) {
-          chatInput?.focus();
-        } else {
-          dialog.addEventListener('transitionend', function focusInput(e) {
-            if (e.propertyName === 'transform') {
-              chatInput?.focus();
-              dialog.removeEventListener('transitionend', focusInput);
-            }
-          });
-        }
+        // Focused directly. This used to wait for a `transitionend` on
+        // `transform` that never fires: the global `.hidden` utility is
+        // `display: none !important`, which beats .chat-dialog.hidden, and an
+        // element leaving display:none does not run a transition. So the
+        // composer only ever got focus on the reduced-motion branch, while
+        // every open leaked another listener that later transitions - the
+        // event bubbles from descendants - could fire to steal focus back.
+        chatInput?.focus();
         if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
       } else if (e && e.currentTarget === closeBtn) {
         toggleBtn.focus();
@@ -1195,9 +1246,16 @@ export function initChat() {
     });
 
     document.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape' || !isOpen) return;
-      setChatOpen(false);
-      toggleBtn?.focus();
+      if (!isOpen) return;
+      if (event.key === 'Escape') {
+        setChatOpen(false);
+        toggleBtn?.focus();
+        return;
+      }
+      // Same trap js/modal.js gives every other dialog, and js/navigation.js
+      // gives the header dropdowns. The widget was the one scrimmed surface
+      // without it.
+      if (event.key === 'Tab') handleFocusTrap(event, dialog);
     });
   }
 

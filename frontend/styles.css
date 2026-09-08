@@ -5455,6 +5455,78 @@ body.dark-theme .skill-tag.primary .fas {
    to the viewport, and mousemove does not cross an iframe boundary, so a
    viewer embedded in the card would trap any pointer effect on it.
    See js/resume-pdf.js. */
+/* Confirmation dialog (js/confirm-dialog.js).
+   Same open/close contract as .pdf-modal above - modal.js toggles `.active` -
+   so it inherits the focus trap, the scroll lock, Escape and focus restore
+   rather than reaching for the browser's blocking confirm(). */
+.confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 40px);
+  background: hsl(0, 0%, 0%, 0.7);
+  backdrop-filter: blur(var(--blur-sm));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--motion-medium) var(--ease-standard),
+    visibility var(--motion-medium) var(--ease-standard);
+}
+
+.confirm-modal.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.confirm-modal-panel {
+  width: min(420px, 100%);
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--elev-3);
+}
+
+.confirm-modal-title {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: var(--text-body-lg);
+  font-weight: 700;
+}
+
+.confirm-modal-body {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: var(--text-body-sm);
+  line-height: 1.5;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.confirm-modal-actions .btn {
+  min-height: var(--min-touch-target);
+}
+
+.confirm-modal-confirm.is-destructive {
+  background: var(--color-error-fill);
+  border-color: var(--color-error-fill);
+  color: var(--on-error);
+}
+
+.confirm-modal-confirm.is-destructive:hover {
+  filter: brightness(0.92);
+}
+
 .pdf-modal {
   position: fixed;
   inset: 0;
@@ -7363,8 +7435,13 @@ body.dark-theme .chat-message.bot .msg-actions {
   background: transparent;
   border: none;
   color: inherit;
-  width: 28px;
-  height: 28px;
+
+  /* Was 28px against the project's own --min-touch-target of 44px. The full
+     44 is not reachable here: these sit in a row with a 6px gap, so 44px
+     boxes would overlap their neighbours and make a tap ambiguous - worse
+     than a small target. 36 is the largest that keeps each target its own. */
+  width: 36px;
+  height: 36px;
   padding: 0;
   cursor: pointer;
   display: inline-flex;
@@ -9257,7 +9334,17 @@ body.dark-theme .history-item:hover {
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  padding: 4px 6px;
+
+  /* 4px/6px of padding around a --text-xs glyph came out around 20x24 - under
+     the 24x24 WCAG 2.2 floor on the narrow axis, for the only route to Rename
+     and Delete. It has no neighbours in the row, so it can take the full
+     token. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+  padding: 0;
   background: none;
   border: none;
   border-radius: 6px;

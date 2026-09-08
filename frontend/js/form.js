@@ -36,18 +36,60 @@ function getFieldErrorElement(field) {
   return errorEl;
 }
 
+/* aria-describedby is a space-separated token list, and #contact-message
+   already ships one pointing at its character counter. Assigning the error id
+   over the top of it - and removing the attribute wholesale to clear - meant
+   the first validation error permanently detached "0 / 1200" from the only
+   field with a length limit. These two edit the list in place instead. */
+function describedBy(field) {
+  return new Set((field.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
+}
+
+function writeDescribedBy(field, ids) {
+  if (ids.size) field.setAttribute("aria-describedby", [...ids].join(" "));
+  else field.removeAttribute("aria-describedby");
+}
+
 function clearFieldError(field, errorEl = getFieldErrorElement(field)) {
   field.removeAttribute("aria-invalid");
-  field.removeAttribute("aria-describedby");
+  const ids = describedBy(field);
+  ids.delete(errorEl.id);
+  writeDescribedBy(field, ids);
   errorEl.textContent = "";
   delete errorEl.dataset.active;
 }
 
 function showFieldError(field, errorEl = getFieldErrorElement(field)) {
   field.setAttribute("aria-invalid", "true");
-  field.setAttribute("aria-describedby", errorEl.id);
+  const ids = describedBy(field);
+  ids.add(errorEl.id);
+  writeDescribedBy(field, ids);
   errorEl.textContent = field.validationMessage;
   errorEl.dataset.active = "true";
+}
+
+/**
+ * Renders inline errors for every invalid field and focuses the first.
+ *
+ * Submit used to hand off to reportValidity(), whose native bubble is mirrored
+ * by no live region and vanishes on the next keystroke - while the
+ * .form-error-message machinery above sat unused for exactly this case.
+ *
+ * @returns {boolean} true when the form is submittable.
+ */
+function validateAllFields(form) {
+  let firstInvalid = null;
+  form.querySelectorAll(CONTACT_FIELD_SELECTOR).forEach((field) => {
+    if (field.checkValidity()) {
+      clearFieldError(field);
+      return;
+    }
+    showFieldError(field);
+    if (!firstInvalid) firstInvalid = field;
+  });
+
+  if (firstInvalid) firstInvalid.focus();
+  return firstInvalid === null;
 }
 
 function clearAllFieldErrors(form) {
@@ -200,11 +242,14 @@ export function initContactForm() {
     const errorEl = getFieldErrorElement(field);
 
     field.addEventListener('blur', () => {
-      if (field.value && !field.checkValidity()) {
-        showFieldError(field, errorEl);
-      } else if (field.value) {
-        clearFieldError(field, errorEl);
-      }
+      // The guard here used to be `field.value &&`, so tabbing through the
+      // form blank produced no inline error at all - the emptiest, most
+      // common way to get it wrong was the one case with no feedback.
+      // `touched` keeps a field the visitor has never entered quiet until
+      // submit.
+      field.dataset.touched = "true";
+      if (field.checkValidity()) clearFieldError(field, errorEl);
+      else showFieldError(field, errorEl);
     });
 
     field.addEventListener('input', () => {
@@ -232,7 +277,10 @@ export function initContactForm() {
     // No fetch: let the browser submit the form natively.
     if (typeof window.fetch !== "function") return;
     event.preventDefault();
-    if (!contactForm.reportValidity()) return;
+    if (!validateAllFields(contactForm)) {
+      setFormStatus(contactStatus, "Please check the highlighted fields.", "error");
+      return;
+    }
 
     // Check network status
     if (!isNetworkOnline()) {
