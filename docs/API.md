@@ -628,4 +628,4 @@ endpoint in the left column exists on the backend.
 | All 19 `/auth/*` routes | `auth.js` / `auth-ui.js` |
 | `POST /events` (single) | — server/API consumers only |
 | `GET /models` · `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |
-| `GET/DELETE /chat/history*` | — the chat UI persists sessions in `localStorage`; server-side history is API-only today |
+| `GET/DELETE /chat/history*` | `chat.js` — `syncServerHistory()` lists on load and on `auth-changed`, `hydrateSession()` fetches one transcript when its rail row is opened, `deleteRemoteConversation()` removes the server copy |

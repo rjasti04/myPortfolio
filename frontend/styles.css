@@ -8932,6 +8932,55 @@ nav a:hover .nav-shortcut {
 /* #endregion */
 
 /* #region AI PAGE -----------------------------------------------------*/
+
+/* ── Transcript notices ──
+   A conversation arriving from the server, and one that failed to arrive, are
+   both distinct from an empty conversation. Painted into both the widget and
+   the AI page, so neither surface reports a failure as emptiness. */
+.chat-transcript-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.chat-transcript-notice .fa-spinner {
+  font-size: var(--text-body-lg);
+  opacity: 0.7;
+}
+
+.chat-transcript-notice-text {
+  margin: 0;
+  font-size: var(--text-body-sm);
+}
+
+.chat-transcript-error .chat-transcript-notice-text {
+  color: var(--color-error);
+}
+
+.chat-transcript-retry {
+  padding: 6px 14px;
+  /* The project's own touch-target token: uiux.md finding 14 was two message
+     actions that ignored it. */
+  min-height: var(--min-touch-target);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-body-sm);
+  cursor: pointer;
+}
+
+.chat-transcript-retry:hover,
+.chat-transcript-retry:focus-visible {
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+}
+
 /* ── AI page ──
    Every other section of this site is a document. This one is an app, and the
    layout is built from four decisions:
