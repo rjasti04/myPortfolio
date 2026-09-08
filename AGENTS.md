@@ -91,7 +91,7 @@ in order ("add or change an API endpoint" -> `API.md` -> `BACKEND.md` ->
 `SECURITY.md#checklist-for-changes`). The table below is for budgeting the read
 once you know which doc you want.
 
-**These docs are also too big to read whole.** Together they are ~83,500
+**These docs are also too big to read whole.** Together they are ~84,000
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -114,7 +114,7 @@ whole doc only when you genuinely need all of it.
 | `docs/CONFIGURATION.md` | ~4,500 | adding or interpreting an environment variable | `grep -n '^## '` (16 headings), or just grep the variable name |
 | `docs/SECURITY.md` | ~6,000 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (18 headings) |
 | `docs/OPERATIONS.md` | ~4,500 | changing CI/CD, diagnosing a deploy, or running a manual procedure | `grep -n '^#\{2,3\} '` (26 headings) |
-| `docs/TESTING.md` | ~7,000 | writing tests, or checking whether something is actually covered | `grep -n '^#\{2,3\} '` (13 headings) |
+| `docs/TESTING.md` | ~7,500 | writing tests, or checking whether something is actually covered | `grep -n '^#\{2,3\} '` (13 headings) |
 | `docs/ADR.md` | ~5,500 | you want to know why a decision was made and whether it still holds | Read the status table at the top (lines 1-36) first, then `sed -n` the one ADR you need |
 | `docs/README.md` | ~1,000 | you want the doc index and a task-to-document map | Small enough to read whole |
 | `README.md` | ~4,500 | you need setup, the quick start, or the canonical local commands — it is authoritative for those, and the stack summary above is only a faster orientation | Small enough to read whole |
