@@ -73,7 +73,7 @@ these files the number here has to move with it.
 | `package-lock.json` | 3,453 | ~32,500 | Never read. `package.json` lists every direct dep in 25 lines. |
 | `frontend/index.html` | 2,356 | ~36,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
 | `frontend/js/chat.js` | 2,169 | ~23,000 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (47 hits). |
-| `frontend/js/auth-ui.js` | 1,336 | ~16,500 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (11 hits). |
+| `frontend/js/auth-ui.js` | 1,398 | ~17,000 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (12 hits). |
 | `frontend/three-bg.js` | 1,559 | ~14,000 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
 
 `server/.venv/` holds ~7,500 dependency files (136 MB) against 147 tracked
@@ -91,7 +91,7 @@ in order ("add or change an API endpoint" -> `API.md` -> `BACKEND.md` ->
 `SECURITY.md#checklist-for-changes`). The table below is for budgeting the read
 once you know which doc you want.
 
-**These docs are also too big to read whole.** Together they are ~78,500
+**These docs are also too big to read whole.** Together they are ~79,000
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -106,7 +106,7 @@ whole doc only when you genuinely need all of it.
 | Doc | ~Tokens | Read it before... | Jump to a section with |
 | :--- | ---: | :--- | :--- |
 | `docs/ARCHITECTURE.md` | ~7,500 | you need the repo map, the request lifecycle, or how the tiers interact | `grep -n '^#\{2,3\} '` (19 headings) |
-| `docs/API.md` | ~7,000 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (33 endpoint sections) |
+| `docs/API.md` | ~7,500 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (35 endpoint sections) |
 | `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
 | `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
 | `docs/JAVASCRIPT.md` | ~16,000 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (51 module sections) |

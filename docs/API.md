@@ -213,6 +213,13 @@ address freed.
 
 ### `POST /auth/login` → 200 `TokenResponseOr2FA`
 
+> Returns **403** when the address has not been confirmed. The check sits
+> *after* the password comparison deliberately: answering 403 to a wrong
+> password would make the status code an account-enumeration oracle, whereas
+> here it reveals nothing a successful login would not have. Accounts created
+> before verification shipped are backfilled as verified by migration
+> `j3e4f5a6b7c8`.
+
 ```json
 { "email": "you@example.com", "password": "…" }
 ```
@@ -254,6 +261,28 @@ produce.
 `{"pre_auth_token": "…", "code": "123456"}`. The pre-auth `jti` is burned on
 use. Failed codes increment the lockout counter; 5 → 15-minute lock.
 **400** — `"This sign-in attempt has expired. Please log in again."` on replay.
+
+### `POST /auth/verify-email` → 200
+
+Confirms the address a registration was made with. Takes no credential: the
+token in the mailed link **is** the credential — single-use through
+`one_time_tokens` and purpose-checked (`email_verify`), so a reset or
+magic-link token cannot be spent here. Valid for 24 hours.
+
+```json
+{ "token": "<jwt from the emailed link>" }
+```
+
+A second visit to an already-confirmed address returns **200**, not an error:
+mail clients prefetch links and people click twice, and the address is
+confirmed either way. An invalid, expired or wrong-purpose token is **400**.
+
+### `POST /auth/resend-verification` → 200
+
+Issues a fresh link. Answers **identically** for an unknown address, an
+already-verified one and a genuine resend — the same generic response
+`POST /auth/forgot-password` gives, for the same reason: the endpoint takes no
+credential, so distinguishing the cases would let anyone enumerate addresses.
 
 ### `POST /auth/magic-link/request` · `POST /auth/forgot-password` → 200
 
@@ -667,7 +696,7 @@ endpoint in the left column exists on the backend.
 | `POST /events/bulk` | `analytics.js` |
 | `GET /sessions/{id}/events` · `…/summary` · `…/funnel` · `…/stream` | `activity.js` |
 | `POST /chat/stream` · `POST /chat/summarize` | `chat.js` |
-| All 19 `/auth/*` routes | `auth.js` / `auth-ui.js` |
+| All 21 `/auth/*` routes | `auth.js` / `auth-ui.js` |
 | `POST /contact` | `form.js` — tried first; FormSubmit is reached only when this is unreachable or answers 502 |
 | `POST /events` (single) | — server/API consumers only |
 | `GET /models` · `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |

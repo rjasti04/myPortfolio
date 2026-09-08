@@ -78,12 +78,19 @@ signed-in user, which is what `GET /auth/sessions` lists.
 | `failed_login_attempts` | `INTEGER` | no | Default `0`; 5 triggers a lock |
 | `locked_until` | `TIMESTAMPTZ` | yes | 15 minutes from the fifth failure |
 | `deleted_at` | `TIMESTAMPTZ` | yes | Soft delete; reactivation window is 30 days |
+| `email_verified_at` | `TIMESTAMPTZ` | yes | `NULL` until the address is confirmed; login refuses `NULL` |
 | `totp_secret` | `VARCHAR(255)` | yes | Base32 TOTP secret |
 | `is_totp_enabled` | `BOOLEAN` | no | Default `false` |
 
 Failed second factors count toward the same `failed_login_attempts` tally as
 failed passwords — the counters are deliberately not cleared while 2FA is
 pending, or an attacker could reset the tally between code guesses.
+
+`email_verified_at` is a timestamp rather than a boolean for the same reason
+`one_time_tokens.used_at` is one: it keeps *when*, which a bool throws away.
+Migration 10 backfills every row that existed at deploy time from its
+`created_at` — those accounts predate the check, and defaulting them to `NULL`
+would have locked the site's only real account out of it.
 
 ### `user_sessions`
 
@@ -220,7 +227,8 @@ head`).
 | 6 | `c2d3e4f5a6b7` | 2FA (`totp_secret`, `is_totp_enabled`) and `user_sessions.user_id` |
 | 7 | `g9b0c1d2e3f4` | `ai_conversations` |
 | 8 | `h1c2d3e4f5a6` | `event_data` → `JSONB`, plus `ix_events_session_created` and the GIN index |
-| 9 | `i2d3e4f5a6b7` | `one_time_tokens` (head) |
+| 9 | `i2d3e4f5a6b7` | `one_time_tokens` |
+| 10 | `j3e4f5a6b7c8` | `users.email_verified_at`, backfilled from `created_at` (head) |
 
 ---
 

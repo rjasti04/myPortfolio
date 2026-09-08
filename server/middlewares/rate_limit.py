@@ -22,6 +22,10 @@ AUTH_RATE_LIMITED_PATHS = frozenset({
     # strict budget alongside the password routes.
     "/auth/2fa/verify",
     "/auth/magic-link/request",
+    # Sends mail on an address the caller names, and redeems a mailed
+    # credential respectively - the same shape as the two above.
+    "/auth/resend-verification",
+    "/auth/verify-email",
 })
 
 # Bedrock inference. These sat on the general 60/min budget, which is far too

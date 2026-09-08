@@ -10,6 +10,8 @@ import json
 import uuid
 
 import pytest
+
+from tests.backend.helpers import register_verified_account
 from unittest.mock import patch
 
 from server.services.chat_history_service import (
@@ -31,11 +33,7 @@ def _stream(text: str):
 async def _register_and_login(async_client):
     email = f"hist-{uuid.uuid4().hex[:12]}@example.com"
     password = "Str0ngPassw0rd!"
-    assert (
-        await async_client.post(
-            "/api/auth/register", json={"email": email, "password": password}
-        )
-    ).status_code == 201
+    await register_verified_account(async_client, email, password)
     login = await async_client.post(
         "/api/auth/login", json={"email": email, "password": password}
     )

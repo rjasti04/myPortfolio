@@ -43,7 +43,12 @@ export async function loginUser(email, password) {
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(getErrorMessage(errorData, 'Login failed'));
+        const error = new Error(getErrorMessage(errorData, 'Login failed'));
+        // 403 is only ever "confirm your email" on this route. Tagged rather
+        // than string-matched so the UI can offer a resend without depending on
+        // the wording of a server message.
+        if (response.status === 403) error.needsEmailVerification = true;
+        throw error;
     }
 
     const data = await response.json();
@@ -120,6 +125,33 @@ export async function requestMagicLink(email) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(getErrorMessage(err, 'Failed to send magic link'));
+  }
+  return await res.json();
+}
+
+export async function verifyEmail(token) {
+  const res = await fetch(`${API_BASE}/auth/verify-email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(getErrorMessage(err, 'Could not confirm that email address'));
+  }
+  return await res.json();
+}
+
+export async function resendVerification(email) {
+  const cleanEmail = typeof email === 'string' ? email.trim() : email;
+  const res = await fetch(`${API_BASE}/auth/resend-verification`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: cleanEmail })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(getErrorMessage(err, 'Could not send a new confirmation link'));
   }
   return await res.json();
 }

@@ -222,6 +222,41 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
     )
 
 
+async def send_email_verification_email(email: str, verify_token: str) -> None:
+    """Confirms the registrant controls the address."""
+    link = f"https://rjasti.com/?verify_token={verify_token}"
+    logger.info(
+        "sending_email_verification",
+        recipient_email=email,
+        token_fingerprint=_token_fingerprint(verify_token),
+    )
+
+    plain = (
+        "Welcome to rjasti.com.\n\n"
+        "Confirm this address to finish setting up your account:\n\n"
+        f"{link}\n\n"
+        "The link is valid for 24 hours.\n\n"
+        "If you did not create an account, ignore this message - nothing was "
+        "set up, and the address will not be used again."
+    )
+    html = _wrap_html(
+        "Confirm your email address",
+        "<p>Welcome to rjasti.com. Confirm this address to finish setting up "
+        "your account.</p>"
+        f'<p><a href="{link}">Confirm my email address</a></p>'
+        "<p>The link is valid for 24 hours.</p>"
+        "<p>If you did not create an account, ignore this message - nothing "
+        "was set up, and the address will not be used again.</p>",
+    )
+    await _send(
+        subject="Confirm your email address - rjasti.com",
+        recipient=email,
+        plain=plain,
+        html=html,
+        log_event="email_verification",
+    )
+
+
 async def send_magic_link_email(email: str, magic_token: str) -> None:
     magic_link = f"https://rjasti.com/?magic_token={magic_token}"
     logger.info(

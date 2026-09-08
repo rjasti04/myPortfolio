@@ -16,7 +16,8 @@ from server.schemas.auth import (
     UserCreate, UserLogin, Token, RefreshTokenRequest, ChangePasswordRequest,
     ForgotPasswordRequest, ResetPasswordRequest, DeleteAccountRequest,
     Setup2FAResponse, Enable2FARequest, Disable2FARequest, Verify2FARequest,
-    MagicLinkRequest, MagicLinkVerifyRequest, UserSessionResponse, TokenResponseOr2FA
+    MagicLinkRequest, MagicLinkVerifyRequest, UserSessionResponse, TokenResponseOr2FA,
+    ResendVerificationRequest
 )
 from server.auth.security import (
     get_password_hash,
@@ -27,13 +28,15 @@ from server.auth.security import (
     create_refresh_token,
     create_password_reset_token,
     create_pre_auth_token,
+    create_email_verification_token,
     create_magic_link_token,
     verify_token,
     REFRESH_TOKEN_EXPIRE_DAYS
 )
 from server.services.hibp_service import check_password_breached
 from server.services.notification_service import (
-    send_security_notification_email, send_password_reset_email, send_magic_link_email
+    send_security_notification_email, send_password_reset_email, send_magic_link_email,
+    send_email_verification_email
 )
 from sqlalchemy.exc import IntegrityError
 import structlog
@@ -47,6 +50,12 @@ PASSWORD_HISTORY_LIMIT = 5
 PURPOSE_PASSWORD_RESET = "password_reset"
 PURPOSE_MAGIC_LINK = "magic_link"
 PURPOSE_2FA_PRE_AUTH = "2fa_pre_auth"
+PURPOSE_EMAIL_VERIFY = "email_verify"
+
+# How long a verification link lives. Matches create_email_verification_token;
+# the JWT expiry and the one_time_tokens row must not disagree, or one of the
+# two checks becomes decorative.
+EMAIL_VERIFY_TTL = timedelta(hours=24)
 
 
 def issue_one_time_token(db: AsyncSession, user_id: uuid.UUID, purpose: str, ttl: timedelta) -> str:
@@ -81,7 +90,11 @@ async def consume_one_time_token(db: AsyncSession, jti: Optional[str], purpose: 
     db.add(token)
     return True
 
-async def register_user(db: AsyncSession, user_data: UserCreate) -> User:
+async def register_user(
+    db: AsyncSession,
+    user_data: UserCreate,
+    background_tasks: Optional[BackgroundTasks] = None,
+) -> User:
     email_normalized = user_data.email.strip().lower()
     # Check if user already exists
     result = await db.execute(select(User).where(User.email == email_normalized))
@@ -121,6 +134,7 @@ async def register_user(db: AsyncSession, user_data: UserCreate) -> User:
         await db.commit()
         await db.refresh(db_user)
         logger.info("user_registered", user_id=str(db_user.id), email=db_user.email)
+        await _issue_email_verification(db, db_user, background_tasks)
         return db_user
     except IntegrityError:
         await db.rollback()
@@ -194,6 +208,20 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> TokenResp
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive user"
+        )
+
+    # Deliberately after the password check. Answering "unverified" to a wrong
+    # password would turn this into an account-enumeration oracle; here it tells
+    # a caller nothing a successful login would not have told them anyway.
+    #
+    # Accounts created before this shipped are backfilled as verified by
+    # migration j3e4f5a6b7c8, so this gate only ever applies to registrations
+    # that were offered a link.
+    if user.email_verified_at is None:
+        logger.warning("login_failed_unverified_email", user_id=str(user.id))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Confirm your email address to finish setting up your account.",
         )
 
     # A login is the only moment the plaintext is available, so it is the only
@@ -429,6 +457,83 @@ async def change_user_password(
     logger.info("password_changed_successfully", user_id=str(user.id))
 
     return {"message": "Password changed successfully"}
+
+
+async def _issue_email_verification(
+    db: AsyncSession,
+    user: User,
+    background_tasks: Optional[BackgroundTasks],
+) -> None:
+    """Mints a verification token and schedules the mail. Shared by registration
+    and the resend route so the two cannot drift in TTL or purpose."""
+    verify_jti = issue_one_time_token(db, user.id, PURPOSE_EMAIL_VERIFY, EMAIL_VERIFY_TTL)
+    await db.commit()
+    token = create_email_verification_token(subject=str(user.id), jti=verify_jti)
+    if background_tasks:
+        background_tasks.add_task(send_email_verification_email, user.email, token)
+
+
+async def verify_email_with_token(db: AsyncSession, token: str) -> dict:
+    try:
+        payload = verify_token(token, expected_type="email_verify")
+    except HTTPException:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification link",
+        ) from None
+
+    user_id = payload.get("sub")
+    result = await db.execute(select(User).where(User.id == uuid.UUID(str(user_id))))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification link",
+        )
+
+    if user.email_verified_at is not None:
+        # Already done. Mail clients prefetch links and people click twice, so
+        # a second visit is a success, not an error - and the one-time token was
+        # already burned by the first, which would otherwise fail below.
+        return {"message": "Your email address is already confirmed. You can log in."}
+
+    if not await consume_one_time_token(db, payload.get("jti"), PURPOSE_EMAIL_VERIFY):
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification link",
+        )
+
+    user.email_verified_at = datetime.now(timezone.utc)
+    db.add(user)
+    await db.commit()
+    logger.info("email_verified", user_id=str(user.id))
+    return {"message": "Email address confirmed. You can log in now."}
+
+
+async def resend_verification_email(
+    db: AsyncSession,
+    data: ResendVerificationRequest,
+    background_tasks: Optional[BackgroundTasks] = None,
+) -> dict:
+    email_normalized = data.email.strip().lower()
+    result = await db.execute(select(User).where(User.email == email_normalized))
+    user = result.scalars().first()
+
+    # One response for every outcome, exactly as request_password_reset does.
+    # Distinguishing "no such account" from "already verified" from "sent" would
+    # let anyone enumerate addresses, and this endpoint takes no credential.
+    generic_response = {
+        "message": "If that address needs confirming, a new link is on its way."
+    }
+
+    if not user or not user.is_active or user.email_verified_at is not None:
+        logger.info("verification_resend_no_op", email=email_normalized)
+        return generic_response
+
+    await _issue_email_verification(db, user, background_tasks)
+    logger.info("verification_resent", user_id=str(user.id))
+    return generic_response
 
 
 async def request_password_reset(

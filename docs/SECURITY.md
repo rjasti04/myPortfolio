@@ -367,7 +367,6 @@ The `robots.txt` disallows `/api/`.
 | In-memory rate limiting | Budgets are per process; N instances means N× the limit | Redis-backed limiter (ADR-012) |
 | `POST /sessions` is unauthenticated | Session tokens are free to mint; each costs a row | Acceptable — the stream cap and chat budgets bound what a token is worth |
 | No CAPTCHA anywhere | Automated registration is possible within the 5/min budget | Add one if abuse appears |
-| No email verification on registration | Accounts can be created with an address the registrant does not control | Add a verification one-time token, reusing the existing table |
 | No CSRF tokens | Mitigated: the API is JSON + bearer token, and the one cookie is `SameSite=Strict` | Revisit if cookie-authenticated state-changing routes are added |
 | No HSTS header | A first plain-HTTP request is possible | Add `Strict-Transport-Security` to `.htaccess` |
 | No account-level audit log | Security events are in application logs only | Add a table if accounts grow beyond personal use |

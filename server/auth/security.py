@@ -131,6 +131,18 @@ def create_pre_auth_token(subject: Union[str, int], jti: Optional[str] = None) -
         to_encode["jti"] = jti
     return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
 
+def create_email_verification_token(subject: Union[str, int], jti: str) -> str:
+    """Confirms a registrant controls the address they signed up with.
+
+    24 hours rather than the 10-15 minutes the reset and magic-link tokens get:
+    this one grants no access at all - it only marks an address confirmed - and
+    a verification mail that expires before someone next opens their inbox is
+    the reason verification flows get abandoned.
+    """
+    expire = datetime.now(timezone.utc) + timedelta(hours=24)
+    to_encode = {"exp": expire, "sub": str(subject), "type": "email_verify", "jti": jti}
+    return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
+
 def create_magic_link_token(subject: Union[str, int], jti: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=10)
     to_encode = {"exp": expire, "sub": str(subject), "type": "magic_link", "jti": jti}

@@ -1,4 +1,4 @@
-import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, verify2FA, requestMagicLink, verifyMagicLink, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession, clearTokens } from './auth.js';
+import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, verify2FA, requestMagicLink, verifyMagicLink, verifyEmail, resendVerification, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession, clearTokens } from './auth.js';
 import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
 import { closeModal, openModal } from './modal.js';
@@ -438,6 +438,7 @@ export async function initAuthUI() {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
             btn.disabled = true;
             loginError.textContent = '';
+            document.getElementById('login-resend-verification')?.remove();
 
             const res = await loginUser(email, password);
 
@@ -458,11 +459,51 @@ export async function initAuthUI() {
 
         } catch (err) {
             loginError.textContent = err.message || 'Login failed. Please try again.';
+            // An unconfirmed address is a state the visitor can do something
+            // about. Telling them why without offering the fix is how a
+            // verification flow becomes a dead end.
+            if (err.needsEmailVerification) offerVerificationResend(email);
         } finally {
             btn.innerHTML = originalText;
             btn.disabled = false;
         }
     });
+
+    /* The resend affordance, appended under the login error. Built fresh each
+       time and removed on the next attempt, so a stale one never lingers after
+       a different failure. */
+    function offerVerificationResend(email) {
+        document.getElementById('login-resend-verification')?.remove();
+
+        const wrap = document.createElement('p');
+        wrap.id = 'login-resend-verification';
+        wrap.className = 'auth-inline-action';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'auth-link-btn';
+        button.textContent = 'Send me a new confirmation link';
+        button.addEventListener('click', async () => {
+            button.disabled = true;
+            const original = button.textContent;
+            button.textContent = 'Sending...';
+            try {
+                await resendVerification(email);
+            } catch {
+                // The endpoint answers identically whatever the address, so
+                // there is nothing a failure here could usefully disclose.
+            }
+            // Same message on success and failure, matching the endpoint's own
+            // refusal to say whether the address exists.
+            wrap.replaceChildren(
+                document.createTextNode('If that address needs confirming, a new link is on its way.')
+            );
+            button.textContent = original;
+        });
+
+        wrap.appendChild(button);
+        loginError.insertAdjacentElement('afterend', wrap);
+    }
 
     const magicLinkTrigger = document.getElementById('magic-link-trigger');
     const magicBackToLoginTrigger = document.getElementById('magic-back-to-login-trigger');
@@ -1157,6 +1198,27 @@ export async function initAuthUI() {
         if (modal) openAuthModal('reset-password');
         const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+    }
+
+    const verifyTokenParam = urlParams.get('verify_token');
+    if (verifyTokenParam) {
+        (async () => {
+            try {
+                const result = await verifyEmail(verifyTokenParam);
+                showToast(result?.message || 'Email address confirmed.', 'success');
+                if (modal) openAuthModal('login');
+            } catch (e) {
+                if (modal) openAuthModal('login');
+                if (loginError) {
+                    loginError.textContent = e.message || 'Could not confirm that email address.';
+                }
+            }
+            // Strip the token from the address bar either way: it is a
+            // single-use credential and does not belong in history or in a
+            // shared link.
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+        })();
     }
 
     const magicTokenParam = urlParams.get('magic_token');
