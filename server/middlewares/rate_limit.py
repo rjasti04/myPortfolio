@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from server.config.settings import (
     CHAT_RATE_LIMIT_PER_MINUTE,
     CONTACT_RATE_LIMIT_PER_HOUR,
+    RATE_LIMIT_PER_MINUTE,
     TRUSTED_PROXY_NETWORKS,
 )
 from server.utils.ip_utils import client_ip_from_request
@@ -65,10 +66,30 @@ def _normalise_path(path: str) -> str:
 
 
 class RateLimitMiddleware:
-    """Simple sliding-window rate limiter. Good enough for single-instance
-    deployments; use Redis-backed limiting for multi-instance."""
+    """Simple sliding-window rate limiter, bucketed per client IP.
 
-    def __init__(self, app, max_requests: int = 60, window_seconds: int = 60):
+    Good enough for single-instance deployments; use Redis-backed limiting for
+    multi-instance.
+
+    "Per client" depends on `TRUSTED_PROXY_IPS` naming the reverse proxy -
+    without it `client_ip_from_request` falls back to the direct peer, which
+    behind a proxy is one address for every visitor and turns each of these
+    budgets into a single shared bucket. It now defaults to loopback, which is
+    the documented production topology.
+
+    The general budget is `RATE_LIMIT_PER_MINUTE` (1000). The three below it
+    are deliberately far stricter and are not affected by that number: chat
+    because it is the only endpoint that spends money per call and takes no
+    authentication, auth because it is the brute-force surface, and contact
+    because every accepted request sends mail.
+    """
+
+    def __init__(
+        self,
+        app,
+        max_requests: int = RATE_LIMIT_PER_MINUTE,
+        window_seconds: int = 60,
+    ):
         self.app = app
         self.max_requests = max_requests
         self.window_seconds = window_seconds

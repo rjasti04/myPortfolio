@@ -249,13 +249,19 @@ restored the previous release.
 
 ### Visitors are signed out, or the API returns 429 after a few refreshes
 
-Check `TRUSTED_PROXY_IPS` on the host first. It is empty by default, and with it
-empty `client_ip_from_request` falls back to the direct peer — which behind
-Apache's proxy is the loopback address for **every** visitor, so the general
-60/min budget is one bucket for the whole site rather than one per client. Set
-it to the proxy's address (`TRUSTED_PROXY_IPS=127.0.0.1`) and restart
-`fastapi.service`. The same setting decides the `ip_address` recorded on a
-session row, so a site whose sessions all show one IP has the same cause.
+Both causes are fixed in the code now; check that the deploy carrying them is
+actually live before digging further.
+
+The budget was a hardcoded 60/min and is now `RATE_LIMIT_PER_MINUTE`, default
+**1000**, per client IP. "Per client" depends on `TRUSTED_PROXY_IPS`, which was
+empty — and with it empty `client_ip_from_request` falls back to the direct
+peer, the loopback address for **every** visitor behind Apache, so the budget
+was one bucket for the whole site. It now defaults to `127.0.0.1,::1`. If a
+`TRUSTED_PROXY_IPS=` line in the host's `.env` sets it back to empty, delete
+that line — an explicit empty value still wins over the default. The same
+setting decides the `ip_address` recorded on a session row, so a site whose
+`user_sessions` rows all show one IP has the same cause and is the quickest way
+to confirm it.
 
 The activity dashboard is the chattiest page in the app — a single load fires
 the session create or heartbeat, a bulk event flush, three `/sessions/{id}/…`

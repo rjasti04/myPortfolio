@@ -73,13 +73,21 @@ session exists**, so the endpoint cannot be used to discover valid session ids.
 Sliding windows keyed by client IP (`server/middlewares/rate_limit.py`). The
 path is normalised first, so `/api/auth/login` and `/auth/login` share a budget.
 Client IP honours `X-Forwarded-For` only when the direct peer is in
-`TRUSTED_PROXY_IPS`.
+`TRUSTED_PROXY_IPS`, which defaults to loopback — with it empty every proxied
+request resolves to the proxy and each budget below becomes one shared bucket
+for the whole site rather than one per client.
 
 | Budget | Paths | Limit | Configurable |
 | :--- | :--- | :--- | :--- |
 | Chat | `/chat`, `/chat/`, `/chat/stream`, `/chat/summarize` | `CHAT_RATE_LIMIT_PER_MINUTE` (default **12/min**) | yes |
-| Auth | `/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/2fa/verify`, `/auth/magic-link/request` | **5/min** | no (hardcoded) |
-| General | everything else | **60/min** | constructor argument |
+| Auth | `/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/2fa/verify`, `/auth/magic-link/request`, `/auth/resend-verification`, `/auth/verify-email` | **5/min** | no (hardcoded) |
+| Contact | `/contact`, `/contact/` | `CONTACT_RATE_LIMIT_PER_HOUR` (default **5/hour**) | yes |
+| General | everything else | `RATE_LIMIT_PER_MINUTE` (default **1000/min**) | yes |
+
+The general budget is deliberately loose — it covers the analytics session,
+event and dashboard routes, which are cheap session-scoped database calls — and
+raising it does **not** touch the three above it. Those bound Bedrock spend,
+credential guessing and outbound mail respectively.
 
 All limiting is skipped when `TESTING=true`. Additional ceilings:
 

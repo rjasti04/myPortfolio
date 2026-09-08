@@ -234,6 +234,11 @@ message carrying a megabyte of system prompt passed every check.
 - **Client IP** is resolved server-side and never accepted from a body.
   `X-Forwarded-For` is honoured only when the direct peer is in
   `TRUSTED_PROXY_IPS`, and the walk takes the rightmost non-proxy address.
+  That setting defaults to loopback, so a directly-reachable API ignores the
+  header entirely and a remote caller cannot choose its own rate-limit bucket
+  or forge the `ip_address` recorded on a session. It was empty, which was not
+  a spoofing risk but collapsed every rate-limit bucket into one for the whole
+  site, since every proxied request resolved to the proxy's own address.
 
 ---
 
