@@ -285,6 +285,29 @@ mechanism regardless: they ride along on every request for every asset and cap
 at ~4KB. The honest cost of the local-only choice is worth stating — saved
 themes live in one browser, and clearing site data takes them with it.
 
+A saved theme is **editable**, and the panel says which one it is editing.
+Clicking a chip loads its colours and marks it `aria-pressed`; the colours stay
+that theme's while they are changed, so the chip carries a dot — and a `title`
+saying "Save to update *name*" — for as long as the controls hold something the
+saved theme does not. Save then opens **prefilled with that theme's name,
+selected**, so Enter updates it in place under its original id and typing
+replaces the name outright for anyone saving a second theme instead; the
+confirm button reads *Update* rather than *Save* whenever the name typed is one
+already in the library, which is the only place that rule is visible before the
+write. Switching to a built-in preset, rolling the shuffle or deleting the
+theme drops the panel's hold on it, so none of those can overwrite it by
+accident. Opening the panel on colours that *are* a saved theme finds it again,
+which is what makes this survive a reload.
+
+**Apply is not that write.** Apply means "paint the site with these colours" —
+it stores `rj_theme_palette` and nothing else — and Save means "change what
+this theme is". Editing a loaded theme and pressing Apply therefore leaves the
+theme on its old colours, deliberately: a saved theme is the only copy of
+itself and there is no undo, so a visitor who loads one, plays with the hex
+fields and applies the result must not find it rewritten behind them. The chip
+marker and the prefilled name are what keep that boundary from reading as a
+save that did nothing.
+
 | Storage key | Holds |
 | :--- | :--- |
 | `theme` | `"dark"` or `"light"` — an explicit user choice |

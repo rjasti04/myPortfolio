@@ -1319,6 +1319,39 @@ body:not(.dark-theme) .token-number {
   white-space: nowrap;
 }
 
+/* ── The theme the panel is working on ──
+   Clicking a chip loads its colours into the controls, and they stay that
+   theme's colours while they are edited - so Save writes back to it rather
+   than asking for a name that has to be retyped exactly. The chip says which
+   theme that is; without it the panel gave no sign that a loaded theme was
+   loaded, and an edit followed by Apply looked like a save that did nothing.
+
+   Deliberately not the hover treatment: this state persists, so it carries a
+   full-strength border rather than the hover's `--accent-mild`, and it does
+   not lift. */
+.theme-chip-apply.is-active {
+  border-color: var(--accent-fill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.theme-chip-apply.is-active + .theme-chip-remove {
+  border-color: var(--accent-fill);
+}
+
+/* Edited past what the saved theme holds. An edit is a preview until Save, and
+   this dot is the only place that is visible while it is still true - the
+   chip's `title` says the same thing in words. */
+.theme-chip-apply.is-edited::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--accent-fill);
+}
+
 .theme-chip-remove {
   display: inline-flex;
   align-items: center;

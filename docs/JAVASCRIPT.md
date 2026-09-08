@@ -729,7 +729,7 @@ Calls `syncThemeColorMeta()` from `theme-customizer.js` after
 `reapplyCustomTheme`, which covers the plain light/dark flip on the shipped
 colours — the palette paths sync the tag themselves.
 
-### `theme-customizer.js` (1,024 lines)
+### `theme-customizer.js` (1,155 lines)
 
 `initThemeCustomizer()`, `reapplyCustomTheme(isDark)`, `randomPalette(hex)`,
 `syncThemeColorMeta(isDark)`.
@@ -783,8 +783,20 @@ auth exists for the owner's dashboard, so gating this behind a login would hide
 it from everyone who actually uses the page. `readThemeLibrary` never throws —
 it is called on every panel open, and a hand-edited value has to read as an
 empty list rather than take the customiser down. Saving under an existing name
-overwrites it rather than adding a second chip. Covered by
-`theme-library.test.js`.
+overwrites it rather than adding a second chip, keeping the original id, and
+`saveTheme` returns that id because the panel has to keep pointing at what it
+just wrote. Covered by `theme-library.test.js`.
+
+The panel tracks the saved theme those colours came from (`activeThemeId`, set
+by a chip click and derived from the controls on every open so it survives a
+reload). An edit KEEPS it — that is the point: the chip stays `aria-pressed`,
+gains an `is-edited` dot while the controls hold something the theme does not,
+and the Save field opens prefilled with the name so Enter updates it in place.
+A preset, a roll or a delete drops it, so none of them can overwrite a theme by
+accident, and Apply deliberately writes only `rj_theme_palette` — see the
+saved-themes section of [FRONTEND.md](FRONTEND.md) for why that boundary is
+where it is. Covered by `theme-library-update.test.js`, which drives the real
+panel.
 
 `randomPalette(currentPrimaryHex)` backs both shuffles and is
 exported because it is the one piece here worth testing on its own
