@@ -1,5 +1,23 @@
 # Feature Proposals
 
+> **Status: all six implemented, and both defects fixed.** Delivered across
+> five commits on `claude/codebase-feature-proposals-u4vdgy`, one per
+> proposal. This document is kept as the record of *why* each was built — the
+> line numbers in each entry point at the code **as it was**, before the
+> change. The reference docs describe the code as it is now.
+>
+> Two things surfaced during implementation and are worth recording here,
+> because both were caught by existing guards rather than by review:
+>
+> - The contact form's first-party endpoint was written to fall back to
+>   FormSubmit on *any* failure. `contact-form.test.js` already asserted that a
+>   timed-out request is never retried — aborting cancels the browser's wait,
+>   not the POST in flight — so the fallback was narrowed to the two outcomes
+>   that prove nothing was sent: an unreachable API, and the route's own 502.
+> - `Reply-To` was built with an f-string. A display name containing an angle
+>   bracket produced a header parsing as a different address entirely, so it is
+>   built with `formataddr` now.
+
 Grounded feature review of `rjWebApp`. Every proposal below points at code that
 exists today — a half-built surface, a duplicated fact, or an unread table.
 Nothing here is a generic "portfolios should have X" suggestion.
