@@ -76,6 +76,22 @@ CHAT_FREE_MESSAGE_LIMIT = _env_int("CHAT_FREE_MESSAGE_LIMIT", 6)
 # caller can spend without needing to know who they are.
 CHAT_RATE_LIMIT_PER_MINUTE = _env_int("CHAT_RATE_LIMIT_PER_MINUTE", 12)
 
+# Where POST /contact delivers. The contact form used to post to formsubmit.co,
+# the SPA's only third-party runtime egress; the address was already public in
+# the markup, so it is not a secret and has a default.
+CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "inboxtorj@gmail.com")
+
+# Contact submissions per hour per IP. An hour, not a minute: a human sends one
+# message and a spam run sends thousands, so the window that separates them is
+# the long one. The general 60/min budget would have allowed 3,600 an hour.
+CONTACT_RATE_LIMIT_PER_HOUR = _env_int("CONTACT_RATE_LIMIT_PER_HOUR", 5)
+
+# Who may read the aggregate analytics. `users` has no role column, and adding
+# one for a site with a single real account would be a schema change in service
+# of a constant. An env var is smaller, reversible, and fails closed: unset
+# means nobody, not everybody.
+OWNER_EMAIL = (os.getenv("OWNER_EMAIL") or "").strip().lower()
+
 # Concurrent SSE connections one analytics session may hold open. A session
 # token is free - POST /sessions is unauthenticated by design - and an open
 # stream costs a worker slot for as long as it lasts, so without a cap a caller

@@ -85,6 +85,12 @@ def test_every_frontend_endpoint_exists_on_the_backend(app):
         "/auth/logout",
         "/auth/sessions/revoke-others",
         "/auth/delete-account",
+        # Newer routes, listed for the same reason: a regression should name the
+        # route rather than appear as one entry in a set difference.
+        "/auth/verify-email",
+        "/auth/resend-verification",
+        "/contact",
+        "/chat/history",
     ],
 )
 def test_previously_missing_routes_are_served(app, path):

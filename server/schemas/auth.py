@@ -59,6 +59,12 @@ class MagicLinkRequest(BaseModel):
 class MagicLinkVerifyRequest(BaseModel):
     token: str
 
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
 class UserSessionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -86,3 +92,6 @@ class UserResponse(BaseModel):
     created_at: datetime.datetime
     is_active: bool
     is_totp_enabled: bool = False
+    # Exposed so the account UI can say why a login was refused, and offer to
+    # send another link. NULL until the address is confirmed.
+    email_verified_at: Optional[datetime.datetime] = None

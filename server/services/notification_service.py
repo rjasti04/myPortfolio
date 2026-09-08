@@ -1,8 +1,14 @@
 import hashlib
+import html as html_escape
 import os
 import structlog
 import aiosmtplib
 from email.message import EmailMessage
+from email.utils import formataddr
+
+# Where the contact form delivers. Read through settings rather than os.getenv
+# here so every tunable stays on one configuration surface.
+from server.config.settings import CONTACT_EMAIL
 
 logger = structlog.get_logger(__name__)
 
@@ -85,6 +91,59 @@ def _wrap_html(heading: str, body_html: str) -> str:
     </html>
     """
 
+async def send_contact_email(name: str, email: str, message: str) -> bool:
+    """Delivers one contact-form submission to CONTACT_EMAIL.
+
+    The one sender here whose body is written by a stranger rather than by this
+    server, so it is the one that escapes. The plain-text part needs no
+    escaping; the HTML part does, and `Reply-To` carries the visitor's address
+    so a reply goes to them rather than to the site's own From address.
+
+    Returns True on delivery. Unlike the account-recovery senders this result
+    is surfaced: there is no address-enumeration concern on a form anyone may
+    submit, and a visitor told "sent" when it was not is the failure mode the
+    form exists to avoid.
+    """
+    plain = (
+        f"From: {name} <{email}>\n\n"
+        f"{message}\n"
+    )
+    body = html_escape.escape(message).replace("\n", "<br>")
+    rendered = _wrap_html(
+        "New message from rjasti.com",
+        f"<p><strong>From:</strong> {html_escape.escape(name)} "
+        f"&lt;{html_escape.escape(email)}&gt;</p>"
+        f"<hr><p>{body}</p>",
+    )
+
+    msg = EmailMessage()
+    msg["Subject"] = f"Portfolio message from {name}"
+    msg["From"] = EMAILS_FROM_EMAIL
+    msg["To"] = CONTACT_EMAIL
+    # So "Reply" in the mail client goes to the visitor. Not From: sending as
+    # the visitor's domain is what SPF and DMARC exist to reject.
+    #
+    # formataddr, not an f-string: a display name is a stranger's input, and one
+    # containing an angle bracket - "Ada <script>" - interpolated raw produces a
+    # header that parses as a different address entirely. formataddr quotes it.
+    msg["Reply-To"] = formataddr((name, email))
+    msg.set_content(plain)
+    msg.add_alternative(rendered, subtype="html")
+
+    try:
+        await aiosmtplib.send(msg, **_smtp_kwargs())
+        logger.info("contact_message_sent", sender_email=email)
+        return True
+    except Exception as e:
+        logger.error(
+            "contact_message_send_failed",
+            sender_email=email,
+            smtp_host=SMTP_HOST,
+            error=str(e),
+        )
+        return False
+
+
 async def send_security_notification_email(email: str, user_id: str) -> None:
     """Tells the account owner their password just changed.
 
@@ -160,6 +219,41 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
         plain=plain,
         html=html,
         log_event="password_reset_email",
+    )
+
+
+async def send_email_verification_email(email: str, verify_token: str) -> None:
+    """Confirms the registrant controls the address."""
+    link = f"https://rjasti.com/?verify_token={verify_token}"
+    logger.info(
+        "sending_email_verification",
+        recipient_email=email,
+        token_fingerprint=_token_fingerprint(verify_token),
+    )
+
+    plain = (
+        "Welcome to rjasti.com.\n\n"
+        "Confirm this address to finish setting up your account:\n\n"
+        f"{link}\n\n"
+        "The link is valid for 24 hours.\n\n"
+        "If you did not create an account, ignore this message - nothing was "
+        "set up, and the address will not be used again."
+    )
+    html = _wrap_html(
+        "Confirm your email address",
+        "<p>Welcome to rjasti.com. Confirm this address to finish setting up "
+        "your account.</p>"
+        f'<p><a href="{link}">Confirm my email address</a></p>'
+        "<p>The link is valid for 24 hours.</p>"
+        "<p>If you did not create an account, ignore this message - nothing "
+        "was set up, and the address will not be used again.</p>",
+    )
+    await _send(
+        subject="Confirm your email address - rjasti.com",
+        recipient=email,
+        plain=plain,
+        html=html,
+        log_event="email_verification",
     )
 
 

@@ -1,6 +1,6 @@
 import { CONTACT_EMAIL } from "./config.js";
 import { copyText, showToast, isNetworkOnline } from "./utils.js";
-import { trackEvent } from "./analytics.js";
+import { API_BASE, isApiConfigured, trackEvent } from "./analytics.js";
 import { triggerConfetti, confettiPresets } from "./confetti.js";
 
 // Constants
@@ -303,33 +303,79 @@ export function initContactForm() {
     setSubmitState(contactForm, submitBtn, true);
 
     try {
-      const abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController.abort(), SUBMIT_TIMEOUT_MS);
-      let response;
-      try {
-        response = await fetch(`https://formsubmit.co/ajax/${CONTACT_EMAIL}`, {
+      // Each attempt gets its own controller and its own timeout. Sharing one
+      // meant a first-party call that ran out the clock left the signal already
+      // aborted, so the fallback could never even be sent.
+      const postJson = (url, body) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+        return fetch(url, {
           method: "POST",
           headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({
-            _subject: "New portfolio message from rjasti.com",
-            _honey: honeypot,
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeoutId));
+      };
+
+      let response = null;
+      let viaFirstParty = false;
+
+      // First party first. POST /contact reuses the same hardened SMTP sender
+      // the account-recovery mail goes through, so delivery, spam handling and
+      // failure visibility all sit on this side of the wire.
+      //
+      // The fallback is deliberately narrow. Aborting cancels the browser's
+      // wait, not the POST already in flight, so retrying a *timed-out*
+      // request against FormSubmit is how the visitor's message gets delivered
+      // twice - the same defect that stopped this handler falling through to a
+      // native submit. Only two outcomes prove nothing was sent: the API was
+      // unreachable, or it answered 502, which is the status the route returns
+      // when SMTP itself failed. A 422 means the payload is bad and a 429 means
+      // the hourly budget is spent; retrying either elsewhere would route
+      // around a check rather than recover from a failure.
+      if (isApiConfigured()) {
+        try {
+          response = await postJson(`${API_BASE}/contact`, {
+            name,
             email,
             message,
-            name,
-          }),
-          signal: abortController.signal,
-        });
-      } finally {
-        clearTimeout(timeoutId);
+            _honey: honeypot,
+          });
+          viaFirstParty = response.ok;
+          if (!response.ok && response.status !== 502) throw new Error("Request failed");
+        } catch (firstPartyError) {
+          if (firstPartyError?.name === "AbortError") throw firstPartyError;
+          if (response && !response.ok && response.status !== 502) throw firstPartyError;
+          // Unreachable API. The portfolio never depends on the backend being
+          // up, so this falls through - which is also why formsubmit.co stays
+          // in the CSP rather than being removed with the dead origins.
+          response = null;
+        }
       }
-      if (!response.ok) throw new Error("Request failed");
+
+      if (!viaFirstParty) {
+        response = await postJson(`https://formsubmit.co/ajax/${CONTACT_EMAIL}`, {
+          _subject: "New portfolio message from rjasti.com",
+          _honey: honeypot,
+          email,
+          message,
+          name,
+        });
+      }
+      if (!response || !response.ok) throw new Error("Request failed");
       contactForm.reset();
       // reset() mutates values without firing input, so the counter and the
       // prompt-seed flag would both survive a successful send.
       const messageField = contactForm.querySelector("#contact-message");
       if (messageField) fireInput(messageField);
       clearAllFieldErrors(contactForm);
-      trackEvent("contact_submission", { success: true, native_fallback: false });
+      // Which path carried it, so the dashboard can show whether the
+      // first-party endpoint is actually taking the traffic.
+      trackEvent("contact_submission", {
+        success: true,
+        native_fallback: false,
+        transport: viaFirstParty ? "first_party" : "formsubmit",
+      });
       setFormStatus(contactStatus, "Message sent successfully. Thanks for reaching out.", "success");
       showToast("Message sent successfully.", "success");
       

@@ -12,9 +12,15 @@ import uuid
 
 import pyotp
 import pytest
+from unittest.mock import patch
 
 from server.routes import auth_routes
 from server.services import auth_service
+from tests.backend.helpers import (
+    SENT_VERIFICATION_TOKENS,
+    register_verified_account,
+    verify_registered_email,
+)
 
 
 def _email() -> str:
@@ -42,12 +48,13 @@ def offline_side_effects(monkeypatch):
 
 
 async def _register(async_client, password="Str0ngPassw0rd!"):
-    email = _email()
-    response = await async_client.post(
-        "/api/auth/register", json={"email": email, "password": password}
-    )
-    assert response.status_code == 201, response.text
-    return email, password
+    """Register and confirm the address.
+
+    Login refuses an unconfirmed address, so every test below needs a verified
+    account. The confirmation goes through the real endpoint with the token the
+    real mail helper was handed - see conftest.register_verified_account.
+    """
+    return await register_verified_account(async_client, _email(), password)
 
 
 async def _login(async_client, email, password):
@@ -542,3 +549,149 @@ async def test_a_spent_reset_token_stays_spent(async_client, monkeypatch):
         json={"token": captured[0], "new_password": "S3condReset!x"},
     )
     assert second.status_code == 400
+
+
+# --- email verification ------------------------------------------------------
+# Closes the "No email verification on registration" row in docs/SECURITY.md.
+
+
+@pytest.mark.asyncio
+async def test_an_unverified_account_cannot_log_in(async_client):
+    email = _email()
+    password = "Str0ngPassw0rd!"
+    assert (
+        await async_client.post(
+            "/api/auth/register", json={"email": email, "password": password}
+        )
+    ).status_code == 201
+
+    refused = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert refused.status_code == 403
+    assert "Confirm your email" in refused.json()["detail"]
+
+    await verify_registered_email(async_client, email)
+
+    allowed = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert allowed.status_code == 200
+    assert "access_token" in allowed.json()
+
+
+@pytest.mark.asyncio
+async def test_a_wrong_password_never_reveals_the_verification_state(async_client):
+    """The gate sits after the password check, so it is not an enumeration oracle.
+
+    An unverified account and a nonexistent one must answer identically to a
+    bad password; otherwise 403-vs-401 tells anyone which addresses are
+    registered.
+    """
+    email = _email()
+    assert (
+        await async_client.post(
+            "/api/auth/register", json={"email": email, "password": "Str0ngPassw0rd!"}
+        )
+    ).status_code == 201
+
+    unverified = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": "WrongPassw0rd!"}
+    )
+    unknown = await async_client.post(
+        "/api/auth/login",
+        json={"email": _email(), "password": "WrongPassw0rd!"},
+    )
+    assert unverified.status_code == unknown.status_code == 401
+    assert unverified.json() == unknown.json()
+
+
+@pytest.mark.asyncio
+async def test_a_verification_link_is_single_use_but_a_second_click_is_not_an_error(async_client):
+    email = _email()
+    await register_verified_account(async_client, email)
+    token = SENT_VERIFICATION_TOKENS[email]
+
+    # Mail clients prefetch links and people click twice. The token is burned,
+    # but the address is confirmed, so this is a success.
+    again = await async_client.post("/api/auth/verify-email", json={"token": token})
+    assert again.status_code == 200
+    assert "already confirmed" in again.json()["message"]
+
+
+@pytest.mark.asyncio
+async def test_a_token_minted_for_another_purpose_cannot_confirm_an_address(async_client):
+    """The purpose check on one_time_tokens is what makes the four flows distinct."""
+    email, password = await _register(async_client)
+
+    captured = {}
+
+    async def _capture(_recipient, token):
+        captured["token"] = token
+
+    with patch.object(auth_service, "send_magic_link_email", _capture):
+        await async_client.post("/api/auth/magic-link/request", json={"email": email})
+
+    refused = await async_client.post(
+        "/api/auth/verify-email", json={"token": captured["token"]}
+    )
+    assert refused.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_resend_answers_identically_whatever_the_address(async_client):
+    """Same generic response as forgot-password, for the same reason."""
+    email = _email()
+    await async_client.post(
+        "/api/auth/register", json={"email": email, "password": "Str0ngPassw0rd!"}
+    )
+
+    unverified = await async_client.post("/api/auth/resend-verification", json={"email": email})
+    unknown = await async_client.post(
+        "/api/auth/resend-verification", json={"email": _email()}
+    )
+    verified_email, _ = await _register(async_client)
+    already = await async_client.post(
+        "/api/auth/resend-verification", json={"email": verified_email}
+    )
+
+    assert unverified.status_code == unknown.status_code == already.status_code == 200
+    assert unverified.json() == unknown.json() == already.json()
+
+
+@pytest.mark.asyncio
+async def test_a_resent_link_confirms_the_address(async_client):
+    email = _email()
+    await async_client.post(
+        "/api/auth/register", json={"email": email, "password": "Str0ngPassw0rd!"}
+    )
+    first = SENT_VERIFICATION_TOKENS[email]
+
+    await async_client.post("/api/auth/resend-verification", json={"email": email})
+    resent = SENT_VERIFICATION_TOKENS[email]
+    assert resent != first
+
+    assert (
+        await async_client.post("/api/auth/verify-email", json={"token": resent})
+    ).status_code == 200
+    assert (
+        await async_client.post(
+            "/api/auth/login", json={"email": email, "password": "Str0ngPassw0rd!"}
+        )
+    ).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_a_garbage_token_is_refused(async_client):
+    assert (
+        await async_client.post("/api/auth/verify-email", json={"token": "not-a-jwt"})
+    ).status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_the_response_reports_the_verification_state(async_client):
+    email, password = await _register(async_client)
+    headers = await _auth_header(async_client, email, password)
+    me = await async_client.get("/api/auth/me", headers=headers)
+    assert me.status_code == 200
+    assert me.json()["email_verified_at"] is not None

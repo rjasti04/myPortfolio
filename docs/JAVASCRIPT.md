@@ -85,7 +85,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,336 lines)
+### `auth-ui.js` (1,398 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -179,7 +179,7 @@ stale session and starting a fresh one.
 count, reason, ok, at}` to `onTelemetry` subscribers. `serverMs` is parsed from
 the `Server-Timing: app;dur=…` header; `networkMs` is the remainder.
 
-### `auth.js` (364 lines)
+### `auth.js` (396 lines)
 
 Token storage and every authenticated call.
 
@@ -236,7 +236,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (1,904 lines, lazy)
+### `chat.js` (2,169 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -262,6 +262,9 @@ Internals worth knowing:
 | Metrics | The `{"type":"metrics"}` frame is kept **per turn** as well as on `window.lastStreamMetrics`. The per-turn copy is credited to the conversation once the turn produces text, so a later turn moving the global on cannot double-count it; the global stays for console debugging |
 | Usage totals | `session.usage` (`inputTokens`, `outputTokens`, `latencyMsTotal`, `timedTurns`) accumulates each turn's metrics frame and renders into the `#ai` top bar as `in / out` and a mean latency. The strip is `hidden` until a turn has actually been measured - on an empty conversation `0 / 0` beside an em dash is the loudest pair on the bar and reports nothing. It lives on the session, so it survives a reload, follows the sidebar's selection and starts at zero on a New Chat; turns that never report a latency (a stopped generation) are left out of the mean rather than counted as 0 ms. Sessions stored before this shipped get the key lazily, with no migration |
 | Summarisation | At `SUMMARIZE_TOKEN_THRESHOLD` estimated tokens, everything before the current message is sent to `/chat/summarize` and replaced by the summary |
+| Conversation identity | Each session carries a local `id` (the `localStorage` key, still `Date.now().toString()`) **and** a `conversationId` v4 UUID sent as `conversation_id` on every turn. Without it `save_or_update_conversation` took its create branch each turn and wrote a fresh `ai_conversations` row holding the whole transcript so far - ten turns, ten rows. Two fields rather than one because stored sessions predate UUID ids, and reusing `id` would mean migrating the active-session pointer with them. `backfillConversationIds()` gives old rows one on load |
+| Server history | For a signed-in visitor `syncServerHistory()` lists `GET /chat/history` on load and on `auth-changed`, merging server-only conversations into the rail as **stubs** (`remote: true`, `messages: []`). The listing carries summaries only, so `hydrateSession()` fetches `GET /chat/history/{id}` when a stub is opened, a 404 drops it (deleted from another device), and `deleteSession()` also issues `DELETE /chat/history/{id}` or the next sync brings it back. On a merge the local copy wins on title and transcript - it is the fuller one - and only `updatedAt` is reconciled. Anonymous visitors keep the pure-`localStorage` path; `POST /chat` stays deliberately anonymous |
+| Transcript states | A conversation arriving from the server and one that failed to arrive are both distinct from an empty one. `renderTranscriptNotice()` paints a `role="status"` spinner or a `role="alert"` error with a retry into **both** surfaces, so neither reports a failure as emptiness - the defect `activity.js` was audited for in `docs/review/uiux.md` finding 19 |
 | Auth | A `401` while signed out dispatches `request-login-modal` rather than showing a raw error |
 | Voice | Separate `SpeechRecognition` instances per input — a shared singleton had both mic buttons overwriting each other's `onresult` and routing transcripts to the wrong field. Buttons are hidden entirely when unsupported. Both composers are wired by one `setupVoiceInput()`: the mic opens a `.voice-bar` over the composer (cancel, an animated waveform sized to the row, stop, send), and every run ends in `onend` with an intent — `insert` writes the transcript to the field, `send` writes it and calls `requestSubmit()`, `cancel` (the X, Escape, or a recognition error) discards it |
 | Waiting state | `createTypingIndicator()` renders an *indeterminate* indicator. It used to march "Initializing context -> Fetching profile data -> Querying Bedrock LLM" on a fixed 700 ms timer with nothing behind it, so a slow turn showed three completed steps while nothing had arrived and a fast turn showed steps for work that never happened. Waiting and streaming are the only two states this code can observe |
@@ -270,7 +273,7 @@ Internals worth knowing:
 | Destructive actions | Deleting one conversation and clearing all history both go through `confirmAction` from `confirm-dialog.js`. Delete used to ask nothing while Clear All called the browser's blocking `confirm()` |
 | Accessibility | `announceToScreenReader` for streamed replies. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
 
-### `activity.js` (1,202 lines, lazy)
+### `activity.js` (1,218 lines, lazy)
 
 `initActivity()`, `loadActivity()`, `loadActivitySummary()`,
 `loadActivityFunnel()`.
@@ -323,7 +326,7 @@ a filter control that needs to be a real focusable, labelled element. Colours
 come from CSS custom properties, so both themes and any accent change flow
 through without touching this file.
 
-### `form.js` (371 lines)
+### `form.js` (417 lines)
 
 `export function initContactForm()` — the contact section.
 
@@ -375,7 +378,7 @@ highlighting library.
 `frontend/js/terminal/` — the interactive prompt in the About section, plus the
 `Ctrl+K` command palette. Seven modules.
 
-### `registry.js` (297 lines)
+### `registry.js` (301 lines)
 
 **Commands are data, not behaviour bolted onto a DOM closure.** Each descriptor
 carries everything three surfaces need — the terminal, the mobile chip row and
@@ -438,12 +441,63 @@ completion on an empty prompt. Claiming Tab in both directions made
 `#terminal-input` a keyboard trap (WCAG 2.1.2): focus could enter the About
 prompt and never leave it without a mouse.
 
-### `palette.js` (177 lines)
+### `palette.js` (271 lines)
 
-`initPalette({registry, run, panel})` — the `Ctrl+K` overlay. A second renderer
-over the same registry, which is the payoff for modelling commands as data:
-every terminal command is reachable site-wide with no duplicated list.
+`initPalette({registry, run, panel, navigate})` — the `Ctrl+K` overlay. A second
+renderer over the same registry, which is the payoff for modelling commands as
+data: every terminal command is reachable site-wide with no duplicated list.
 `role="dialog"`, `aria-modal`, focus restoration on close.
+
+It searches page content on that same seam. `matches()` merges command hits
+with hits from `CONTENT_INDEX` (`js/search-index.js`), capped at
+`MAX_CONTENT_RESULTS = 6` so a broad word cannot push every command off the
+list; commands always render first. A content result carries `section` and
+sometimes `anchor`: selecting one calls the injected `navigate` — the same
+`ctx.navigate` the `cd` command uses, so there is one router entry point rather
+than two — then focuses the anchor with `tabindex="-1"` and scrolls to it.
+
+The list stays one flat listbox. A group-header `<li>` between options is
+invalid inside `role="listbox"`, so the kind is a badge *inside* each option
+(`.cmd-palette-kind`), which a screen reader announces as part of the label.
+
+Find-in-page is not a substitute: the router keeps one section in the DOM at a
+time, so the browser never has the other seven to search.
+
+### `owner-analytics.js` (307 lines, lazy)
+
+`initOwnerAnalytics()` — the aggregate panel at the foot of the Activity
+section. Everything above it is the visitor's own session, which is what the
+section's intro promises; this reads across **every** session, so it is built
+only after `/admin/analytics/*` confirms the caller is the owner. A 401 or 403
+hides the panel and clears it, so the page never ships an empty shell of it to
+a visitor — and signing out takes it down, or the next person at that browser
+would see the previous owner's figures.
+
+`activity.js` imports it dynamically and does **not** await it: a slow or
+failing request for this must not hold up the dashboard the section actually
+promises. It re-runs on `auth-changed`, which is exactly when the answer to
+"is this the owner" changes.
+
+The chart layer is reused unchanged. `renderPaths` from `activity-charts.js`
+takes `{steps, transitions}`, which is the shape the cross-session funnel
+endpoint returns — the payoff for those exports having been written as pure
+paints over data rather than against session state.
+
+A panel whose request failed renders a `role="alert"` card, not zeroes.
+Rendering it as zeroes would report a measurement nobody took, which is the
+defect `docs/review/uiux.md` finding 19 was written against.
+
+### `search-index.js` (155 lines, generated)
+
+`CONTENT_INDEX` — the entries the `Ctrl+K` palette searches alongside the
+command registry. Each is `{section, title, text, kind}` plus an optional
+`anchor`.
+
+**Generated** by `scripts/generate_resume.py` from `content/resume.json` and the
+section headings read back out of `index.html`. Do not hand-edit:
+`npm run check:resume` fails CI when it drifts from the source. Section titles
+and intros are read from the page rather than duplicated into the source file,
+so a new section becomes searchable as soon as it is written.
 
 ### `index.js` (324 lines)
 

@@ -1055,6 +1055,22 @@ function setCopyButtonState(button, state) {
 }
 
 export function initActivity() {
+  /* The owner-only aggregate panel. Lazily imported and never awaited: it adds
+     a section below the visitor's own, and a slow or failing request for it
+     must not hold up the dashboard this section actually promises. It returns
+     without building anything when the caller is not the owner. */
+  function refreshOwnerPanel() {
+    import("./owner-analytics.js")
+      .then((module) => module.initOwnerAnalytics())
+      .catch(() => {
+        // Nothing to report: a visitor never sees this panel, and the section
+        // above it is unaffected.
+      });
+  }
+  refreshOwnerPanel();
+  // Signing in is exactly when the answer to "is this the owner" changes.
+  window.addEventListener("auth-changed", refreshOwnerPanel);
+
   const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   prefersReducedMotion = motionQuery.matches;
   motionQuery.addEventListener("change", (event) => {

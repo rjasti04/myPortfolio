@@ -7,7 +7,8 @@ from server.schemas.auth import (
     UserCreate, UserLogin, Token, UserResponse, RefreshTokenRequest, ChangePasswordRequest,
     ForgotPasswordRequest, ResetPasswordRequest, DeleteAccountRequest,
     Setup2FAResponse, Enable2FARequest, Disable2FARequest, Verify2FARequest,
-    MagicLinkRequest, MagicLinkVerifyRequest, UserSessionResponse, TokenResponseOr2FA
+    MagicLinkRequest, MagicLinkVerifyRequest, UserSessionResponse, TokenResponseOr2FA,
+    VerifyEmailRequest, ResendVerificationRequest
 )
 from server.services import auth_service
 from server.auth.dependencies import get_current_user
@@ -16,8 +17,32 @@ from server.models.user import User
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
-    return await auth_service.register_user(db, user)
+async def register(
+    user: UserCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    return await auth_service.register_user(db, user, background_tasks)
+
+
+@router.post("/verify-email")
+async def verify_email(data: VerifyEmailRequest, db: AsyncSession = Depends(get_db)):
+    """Confirms the address a registration was made with.
+
+    Takes no credential: the token in the link is the credential, single-use
+    through one_time_tokens and purpose-checked so a reset or magic-link token
+    cannot be spent here.
+    """
+    return await auth_service.verify_email_with_token(db, data.token)
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    data: ResendVerificationRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    return await auth_service.resend_verification_email(db, data, background_tasks)
 
 @router.post("/login", response_model=TokenResponseOr2FA)
 async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):

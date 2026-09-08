@@ -148,16 +148,20 @@ font-src 'self';
 img-src 'self' data: https:;
 connect-src 'self' https://rjasti.com https://staging-api.rjasti.com
             http://localhost:8000 http://127.0.0.1:8000
-            https://get.geojs.io https://api.open-meteo.com https://formsubmit.co;
+            https://formsubmit.co;
 ```
 
 `style-src-attr 'unsafe-inline'` is required because several modules set inline
 `style` properties (the plexus canvas container, the update banner, the confetti
 canvas).
 
-> `get.geojs.io` and `api.open-meteo.com` appear in `connect-src` and as
-> `dns-prefetch` hints, but no shipped module calls either. They are vestigial
-> and can be removed when someone is confident nothing depends on them.
+> `formsubmit.co` is the one remaining third-party origin, and it is now only
+> a **fallback**. `form.js` posts to the first-party `POST /contact` and reaches
+> FormSubmit only when that endpoint is unreachable or answers 502, so the
+> contact form still works with the API down — the standing rule that every
+> backend-dependent feature degrades quietly. `get.geojs.io` and
+> `api.open-meteo.com` were vestigial, called by no shipped module, and have
+> been removed along with their `dns-prefetch` hints.
 
 ### The three pinned inline scripts
 

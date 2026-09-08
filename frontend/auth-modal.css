@@ -165,6 +165,35 @@
   display: block;
 }
 
+/* Offered under the login error when the address is registered but not yet
+   confirmed. Telling the visitor why without offering the fix is how a
+   verification flow turns into a dead end. */
+.auth-inline-action {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted, #a6adc8);
+}
+
+.auth-link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text, #89b4fa);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.auth-link-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.auth-link-btn:hover:not(:disabled),
+.auth-link-btn:focus-visible {
+  text-decoration: none;
+}
+
 /* User Profile Dropdown Button (Injected via JS) */
 .nav-auth-container {
   display: flex;

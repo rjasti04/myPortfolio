@@ -58,3 +58,22 @@ async def async_client(setup_db):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
+
+
+# --- email verification -----------------------------------------------------
+# Registration now issues a verification link and login refuses an unconfirmed
+# address. The mail helper is patched once here to record the token rather than
+# open an SMTP connection; tests redeem it through the real endpoint using
+# tests.backend.helpers.register_verified_account.
+
+import pytest
+from server.services import auth_service
+from tests.backend import helpers
+
+
+@pytest.fixture(autouse=True)
+def capture_verification_email(monkeypatch):
+    monkeypatch.setattr(
+        auth_service, "send_email_verification_email", helpers.capture_verification_email
+    )
+    yield helpers.SENT_VERIFICATION_TOKENS

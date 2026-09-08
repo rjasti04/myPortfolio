@@ -3,6 +3,8 @@ import json
 import time
 
 import pytest
+
+from tests.backend.helpers import register_verified_account
 from unittest.mock import patch
 
 @pytest.mark.asyncio
@@ -251,7 +253,7 @@ async def test_the_free_limit_does_not_apply_to_signed_in_callers(async_client):
 
     email = f"cap-{_uuid.uuid4().hex[:12]}@example.com"
     password = "Str0ngPassw0rd!"
-    await async_client.post("/api/auth/register", json={"email": email, "password": password})
+    await register_verified_account(async_client, email, password)
     login = await async_client.post("/api/auth/login", json={"email": email, "password": password})
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
 

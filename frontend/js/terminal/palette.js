@@ -3,10 +3,69 @@
 // This is the payoff for modelling commands as data: the palette is a second
 // renderer over the same registry, so every command written for the terminal
 // is reachable site-wide with no duplicated list to maintain.
+//
+// It searches page content on the same seam. CONTENT_INDEX is generated from
+// content/resume.json and the section headings, so a visitor typing "Redshift"
+// or "Kafka" lands on the part of the page that says so. Find-in-page cannot
+// do that here: the router keeps one section in the DOM at a time, so seven
+// eighths of the site is never there for the browser to find.
+
+import { CONTENT_INDEX } from "../search-index.js";
 
 const OPEN_KEY = "k";
 
-export function initPalette({ registry, run, panel }) {
+// Content results are capped so a broad word ("data") cannot push every
+// command off the list. Commands are always rendered first for the same reason.
+const MAX_CONTENT_RESULTS = 6;
+const SNIPPET_RADIUS = 55;
+
+/** An excerpt of `text` centred on `word`, with ellipses where it was cut. */
+function snippet(text, word) {
+  const at = text.toLowerCase().indexOf(word);
+  if (at < 0) return text.length > 120 ? `${text.slice(0, 117)}...` : text;
+  const from = Math.max(0, at - SNIPPET_RADIUS);
+  const to = Math.min(text.length, at + word.length + SNIPPET_RADIUS);
+  return `${from > 0 ? "..." : ""}${text.slice(from, to).trim()}${to < text.length ? "..." : ""}`;
+}
+
+/** Commands whose name or summary contains `word`, best prefix match first. */
+function commandMatches(registry, word) {
+  const visible = registry.visible();
+  const hits = word
+    ? visible
+        .filter((c) => c.name.includes(word) || c.summary.toLowerCase().includes(word))
+        .sort((a, b) => a.name.indexOf(word) - b.name.indexOf(word))
+    : visible;
+  return hits.map((command) => ({
+    kind: "command",
+    command,
+    label: command.usage ?? command.name,
+    detail: command.summary,
+  }));
+}
+
+/** Page content containing `word`. A title hit outranks a body hit. */
+function contentMatches(word) {
+  if (!word) return [];
+  return CONTENT_INDEX.map((entry) => {
+    const title = entry.title.toLowerCase();
+    const text = (entry.text || "").toLowerCase();
+    const inTitle = title.includes(word);
+    if (!inTitle && !text.includes(word)) return null;
+    return {
+      kind: "content",
+      entry,
+      label: entry.title,
+      detail: snippet(entry.text || "", word),
+      rank: inTitle ? 0 : 1,
+    };
+  })
+    .filter(Boolean)
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, MAX_CONTENT_RESULTS);
+}
+
+export function initPalette({ registry, run, panel, navigate }) {
   let root = null;
   let field = null;
   let listEl = null;
@@ -48,11 +107,7 @@ export function initPalette({ registry, run, panel }) {
   function matches() {
     const query = field.value.trim().toLowerCase();
     const word = query.split(/\s+/)[0] ?? "";
-    if (!word) return registry.visible();
-    return registry
-      .visible()
-      .filter((command) => command.name.includes(word) || command.summary.toLowerCase().includes(word))
-      .sort((a, b) => a.name.indexOf(word) - b.name.indexOf(word));
+    return [...commandMatches(registry, word), ...contentMatches(word)];
   }
 
   function render() {
@@ -63,12 +118,12 @@ export function initPalette({ registry, run, panel }) {
     if (!items.length) {
       const empty = document.createElement("li");
       empty.className = "cmd-palette-empty";
-      empty.textContent = "No matching command";
+      empty.textContent = "No matching command or content";
       listEl.appendChild(empty);
       return;
     }
 
-    items.forEach((command, index) => {
+    items.forEach((item, index) => {
       const li = document.createElement("li");
       li.className = "cmd-palette-item";
       li.id = `cmd-palette-item-${index}`;
@@ -78,14 +133,26 @@ export function initPalette({ registry, run, panel }) {
 
       const name = document.createElement("span");
       name.className = "cmd-palette-name";
-      name.textContent = command.usage ?? command.name;
+      name.textContent = item.label;
 
       const summary = document.createElement("span");
       summary.className = "cmd-palette-summary";
-      summary.textContent = command.summary;
+      summary.textContent = item.detail;
 
       li.append(name, summary);
-      li.addEventListener("click", () => submit(command));
+
+      // The list stays one flat listbox - a group header <li> between options
+      // is invalid inside role="listbox". The badge is part of the option, so
+      // a screen reader announces the kind along with the label instead.
+      if (item.kind === "content") {
+        li.classList.add("cmd-palette-item--content");
+        const badge = document.createElement("span");
+        badge.className = "cmd-palette-kind";
+        badge.textContent = `in ${item.entry.section}`;
+        li.append(badge);
+      }
+
+      li.addEventListener("click", () => submit(item));
       listEl.appendChild(li);
     });
 
@@ -102,7 +169,34 @@ export function initPalette({ registry, run, panel }) {
     render();
   }
 
-  async function submit(command) {
+  async function submit(item) {
+    if (item?.kind === "content") {
+      const { section, anchor } = item.entry;
+      close();
+      // The same navigation the `cd` command uses, so there is one router
+      // entry point rather than a second one that drifts from it.
+      if (typeof navigate === "function") await navigate(section);
+      else window.location.hash = section;
+      if (anchor) {
+        const target = document.getElementById(anchor);
+        // Landing on a heading without moving focus leaves a keyboard user at
+        // the top of the page; -1 makes the heading focusable for this jump
+        // without adding it to the tab order.
+        if (target) {
+          target.setAttribute("tabindex", "-1");
+          target.focus({ preventScroll: true });
+          // Guarded the same way the result list guards its own call: focus has
+          // already moved, so a missing scrollIntoView costs smoothness, not
+          // the navigation.
+          if (typeof target.scrollIntoView === "function") {
+            target.scrollIntoView({ block: "start", behavior: "smooth" });
+          }
+        }
+      }
+      return;
+    }
+
+    const command = item?.command ?? item;
     const typed = field.value.trim();
     const hasArgs = typed.split(/\s+/).length > 1;
     const line = hasArgs ? typed : (command?.name ?? typed);

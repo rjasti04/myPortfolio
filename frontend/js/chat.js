@@ -397,6 +397,39 @@ export function initChat() {
   let sessions = [];
   let activeSessionId = null;
 
+  /* ── Conversation identity ──
+     `id` stays what it has always been - a local key for localStorage and the
+     active-session pointer. `conversationId` is a UUID the server understands,
+     and it is what makes a transcript one row instead of one row per turn.
+
+     Until this shipped the client sent no conversation_id at all, so
+     save_or_update_conversation took its create branch on every assistant turn
+     and wrote a fresh ai_conversations row carrying the whole transcript so
+     far. Ten turns, ten rows. Nothing read the table, so nothing showed it.
+
+     Two fields rather than one because existing stored sessions have ids like
+     "1717171717171" - `Date.now().toString()` - which are not UUIDs. Reusing
+     `id` would mean either rejecting those conversations or migrating the
+     active-session pointer and every stored key along with them. */
+  function newConversationId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    // RFC 4122 v4 from getRandomValues, for browsers without randomUUID
+    // (Safari < 15.4). Math.random() is not used: a collision here would merge
+    // two people's transcripts into one server row.
+    const bytes = new Uint8Array(16);
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+      crypto.getRandomValues(bytes);
+    } else {
+      for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+
   function setActiveSession(id) {
     activeSessionId = id;
     try {
@@ -435,6 +468,20 @@ export function initChat() {
     }
     const restored = sessions.some(sess => sess.id === storedId) ? storedId : sessions[0].id;
     setActiveSession(restored);
+    backfillConversationIds();
+  }
+
+  /* Conversations stored before `conversationId` existed get one now, so the
+     next turn in an old conversation still lands in a single server row. */
+  function backfillConversationIds() {
+    let changed = false;
+    sessions.forEach(session => {
+      if (!session.conversationId) {
+        session.conversationId = newConversationId();
+        changed = true;
+      }
+    });
+    if (changed) saveSessions();
   }
 
   function saveSessions() {
@@ -456,6 +503,7 @@ export function initChat() {
     const now = Date.now();
     const newSession = {
       id: now.toString(),
+      conversationId: newConversationId(),
       title: 'New chat',
       messages: [],
       createdAt: now,
@@ -771,9 +819,7 @@ export function initChat() {
 
       openBtn.addEventListener('click', () => {
         if (isGenerating) return;
-        setActiveSession(session.id);
-        renderSidebar();
-        restoreActiveSession();
+        openSession(session);
         closeSidebarOnDrawerLayout();
       });
 
@@ -782,7 +828,12 @@ export function initChat() {
   }
 
   function deleteSession(id) {
+    const removed = sessions.find(s => s.id === id);
     sessions = sessions.filter(s => s.id !== id);
+    // Delete the server copy too, or it comes back on the next sync. Fire and
+    // forget: the local removal has already happened and is what the visitor
+    // asked for, so a failed request must not undo it or block the UI.
+    if (removed) deleteRemoteConversation(removed);
     if (sessions.length === 0) {
       createNewSession();
       return;
@@ -792,6 +843,137 @@ export function initChat() {
       restoreActiveSession();
     }
     saveSessions();
+  }
+
+  /* ── Server-side conversation history ──
+     ai_conversations, its service, its migration and three routed endpoints
+     all shipped; nothing in the browser ever called them, so a signed-in
+     visitor's transcripts lived only in localStorage. That loses them three
+     ways: saveSessions() truncates at MAX_SESSIONS, a quota or blocked-storage
+     error is caught and warned about, and nothing syncs between devices.
+
+     Anonymous visitors keep the pure-localStorage path unchanged. POST /chat
+     is deliberately anonymous and nothing here changes that. */
+
+  function isSignedIn() {
+    return Boolean(getAuthToken()) && isApiConfigured();
+  }
+
+  function remoteTime(value) {
+    const parsed = Date.parse(value ?? '');
+    return Number.isFinite(parsed) ? parsed : Date.now();
+  }
+
+  async function deleteRemoteConversation(session) {
+    if (!session?.conversationId || !isSignedIn()) return;
+    try {
+      await authenticatedFetch(
+        `${API_BASE}/chat/history/${session.conversationId}`,
+        { method: 'DELETE' }
+      );
+    } catch (e) {
+      // A 404 means it was never saved (an anonymous conversation, or one that
+      // never got a reply); anything else is a transient failure the next
+      // delete will retry. Either way the row is already gone from this view.
+      console.warn('Could not delete the server copy of this conversation:', e);
+    }
+  }
+
+  /* Pull the signed-in visitor's conversation list and merge it in.
+     Summaries only - GET /chat/history deliberately omits the compressed
+     payload - so a conversation that lives only on the server arrives as a
+     stub and fetches its transcript when it is opened. */
+  async function syncServerHistory() {
+    if (!isSignedIn()) return;
+    try {
+      const res = await authenticatedFetch(`${API_BASE}/chat/history`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const conversations = Array.isArray(data?.conversations) ? data.conversations : [];
+      if (!conversations.length) return;
+
+      const byConversationId = new Map(
+        sessions.filter(sess => sess.conversationId).map(sess => [sess.conversationId, sess])
+      );
+
+      conversations.forEach(remote => {
+        const local = byConversationId.get(remote.id);
+        if (local) {
+          // The local copy is the fuller one: it has the rendered transcript
+          // and any title the visitor typed. Only the clock is reconciled, so
+          // a conversation continued on another device sorts correctly here.
+          local.updatedAt = Math.max(local.updatedAt ?? 0, remoteTime(remote.updated_at));
+          return;
+        }
+        sessions.push({
+          id: `remote-${remote.id}`,
+          conversationId: remote.id,
+          title: remote.title || 'Conversation',
+          messages: [],
+          createdAt: remoteTime(remote.created_at),
+          updatedAt: remoteTime(remote.updated_at),
+          remote: true,
+          messageCount: remote.message_count ?? 0
+        });
+      });
+
+      sessions.sort((a, b) => sessionTime(b) - sessionTime(a));
+      saveSessions();
+    } catch (e) {
+      // The portfolio never depends on the API being reachable. Local
+      // conversations are already on screen; this only adds to them.
+      console.warn('Could not load saved conversations:', e);
+    }
+  }
+
+  /* Fetch one stub's transcript. Returns true when the caller should repaint. */
+  async function hydrateSession(session) {
+    if (!session?.remote || session.hydrated || session.hydrating) return false;
+    if (!isSignedIn()) return false;
+
+    session.hydrating = true;
+    session.loadError = null;
+    try {
+      const res = await authenticatedFetch(`${API_BASE}/chat/history/${session.conversationId}`);
+      if (res.status === 404) {
+        // Deleted from another device. Drop the stub rather than leaving a row
+        // that fails every time it is opened.
+        sessions = sessions.filter(s => s.id !== session.id);
+        if (sessions.length === 0) createNewSession();
+        else if (activeSessionId === session.id) setActiveSession(sessions[0].id);
+        saveSessions();
+        return true;
+      }
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      const detail = await res.json();
+      session.messages = (Array.isArray(detail?.messages) ? detail.messages : []).map(msg => ({
+        text: typeof msg.content === 'string' ? msg.content : String(msg.content ?? ''),
+        sender: msg.role === 'assistant' ? 'bot' : 'user'
+      }));
+      session.hydrated = true;
+      session.remote = false;
+      saveSessions();
+      return true;
+    } catch (e) {
+      // Reported, not swallowed: a conversation that renders as empty is
+      // indistinguishable from one the visitor never had.
+      session.loadError = 'This conversation could not be loaded.';
+      return true;
+    } finally {
+      session.hydrating = false;
+    }
+  }
+
+  /* Open a stub: paint the loading state, fetch, then repaint. */
+  async function openSession(session) {
+    setActiveSession(session.id);
+    renderSidebar();
+    restoreActiveSession();
+    if (session.remote && !session.hydrated) {
+      await hydrateSession(session);
+      if (activeSessionId === session.id) restoreActiveSession();
+      renderSidebar();
+    }
   }
 
   if (newChatBtn) {
@@ -1133,11 +1315,80 @@ export function initChat() {
     return { showCopy };
   }
 
+  /* One notice, painted into both surfaces the transcript renders into.
+     Built as DOM nodes rather than innerHTML: the text is ours, but this is
+     the same path server-supplied titles reach, and escapeHTML-by-construction
+     is the house rule. */
+  function renderTranscriptNotice({ text, className, busy = false, retry = null }) {
+    const build = () => {
+      const wrap = document.createElement('div');
+      wrap.className = `chat-transcript-notice ${className}`;
+      // Announced, because this replaces a transcript the visitor asked to see.
+      wrap.setAttribute('role', busy ? 'status' : 'alert');
+
+      const label = document.createElement('p');
+      label.className = 'chat-transcript-notice-text';
+      label.textContent = text;
+      wrap.appendChild(label);
+
+      if (busy) {
+        const spinner = document.createElement('i');
+        spinner.className = 'fas fa-spinner fa-spin';
+        spinner.setAttribute('aria-hidden', 'true');
+        wrap.insertBefore(spinner, label);
+      }
+
+      if (retry) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'chat-transcript-retry';
+        button.textContent = 'Try again';
+        button.addEventListener('click', retry);
+        wrap.appendChild(button);
+      }
+      return wrap;
+    };
+
+    if (messagesContainer) messagesContainer.appendChild(build());
+    if (aiPageMessages) aiPageMessages.appendChild(build());
+  }
+
   function restoreActiveSession() {
     if (messagesContainer) messagesContainer.innerHTML = '';
     if (aiPageMessages) aiPageMessages.innerHTML = '';
 
     const session = getActiveSession();
+
+    /* A conversation still arriving from the server, and one that failed to
+       arrive, are both distinct from an empty one. Painting either as "Ask
+       anything!" is the same defect this file's own activity dashboard was
+       audited for: a failure reported as emptiness. */
+    if (session.hydrating || (session.remote && !session.hydrated && !session.loadError)) {
+      if (aiPageContainer) aiPageContainer.classList.remove('empty-state');
+      renderTranscriptNotice({
+        text: 'Loading this conversation…',
+        className: 'chat-transcript-loading',
+        busy: true
+      });
+      renderConversationTitle();
+      renderUsageSummary();
+      syncJumpBtn();
+      return;
+    }
+
+    if (session.loadError) {
+      if (aiPageContainer) aiPageContainer.classList.remove('empty-state');
+      renderTranscriptNotice({
+        text: session.loadError,
+        className: 'chat-transcript-error',
+        retry: () => openSession(session)
+      });
+      renderConversationTitle();
+      renderUsageSummary();
+      syncJumpBtn();
+      return;
+    }
+
     if (session.messages.length === 0) {
       if (aiPageContainer) aiPageContainer.classList.add('empty-state');
       appendMessage("Ask anything!", 'bot', { save: false, showCopy: false, target: 'widget' });
@@ -1525,7 +1776,7 @@ export function initChat() {
       const response = await authenticatedFetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, stream: true }),
+        body: JSON.stringify({ messages, stream: true, conversation_id: session.conversationId }),
         signal: currentAbortController.signal
       });
 
@@ -1875,6 +2126,20 @@ export function initChat() {
   // greeting and an empty widget while the rail listed the thread they had
   // just been reading, and only a click on that row brought it back.
   restoreActiveSession();
+
+  /* Pull whatever the server holds for a signed-in visitor, then repaint. The
+     local conversations are already on screen by this point, so this only ever
+     adds rows to the rail - the portfolio never waits on the API. */
+  async function refreshServerHistory() {
+    if (!isSignedIn()) return;
+    await syncServerHistory();
+    renderSidebar();
+  }
+
+  refreshServerHistory();
+  // auth-ui.js fires this on login, logout, magic-link verification and 2FA
+  // completion, which is exactly when the set of readable conversations moves.
+  window.addEventListener('auth-changed', refreshServerHistory);
 }
 
 // Screen reader announcements

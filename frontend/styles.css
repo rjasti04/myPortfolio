@@ -8931,7 +8931,213 @@ nav a:hover .nav-shortcut {
 
 /* #endregion */
 
+/* ── Owner analytics ──
+   Reads across every session, unlike everything else in this section, so it is
+   set apart by a rule and its own heading rather than blending into the
+   visitor's own dashboard. Built by js/owner-analytics.js only after the API
+   confirms the caller is the owner. */
+.act-owner {
+  margin-top: clamp(24px, 4vw, 44px);
+  padding-top: clamp(20px, 3vw, 32px);
+  border-top: 1px solid var(--border-color);
+}
+
+.act-owner[data-busy="true"] {
+  opacity: 0.55;
+  transition: opacity 120ms ease;
+}
+
+.act-owner-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-bottom: 18px;
+}
+
+.act-owner-title {
+  margin: 0;
+  font-size: var(--text-body-lg);
+}
+
+.act-owner-note {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-body-sm);
+}
+
+.act-owner-window {
+  display: flex;
+  gap: 4px;
+}
+
+.act-owner-window-btn {
+  min-height: var(--min-touch-target);
+  padding: 4px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  cursor: pointer;
+}
+
+.act-owner-window-btn[aria-pressed="true"] {
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+}
+
+.act-owner-body {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.act-owner-card {
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.act-owner-card-title {
+  margin: 0 0 12px;
+  font-size: var(--text-body-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.act-owner-stats {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+}
+
+.act-owner-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.act-owner-stat-value {
+  font-size: var(--text-body-lg);
+  font-weight: 700;
+}
+
+.act-owner-stat-label {
+  color: var(--muted);
+  font-size: var(--text-2xs);
+}
+
+.act-owner-stat-hint {
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  opacity: 0.75;
+}
+
+.act-owner-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.act-owner-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: var(--text-body-sm);
+}
+
+.act-owner-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 6px;
+  background: var(--accent-text);
+  opacity: 0.16;
+}
+
+.act-owner-bar-label {
+  position: relative;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.act-owner-bar-value {
+  position: relative;
+  font-variant-numeric: tabular-nums;
+}
+
+.act-owner-empty,
+.act-owner-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: var(--text-body-sm);
+}
+
+.act-owner-card--error .act-owner-empty {
+  color: var(--color-error);
+}
+
 /* #region AI PAGE -----------------------------------------------------*/
+
+/* ── Transcript notices ──
+   A conversation arriving from the server, and one that failed to arrive, are
+   both distinct from an empty conversation. Painted into both the widget and
+   the AI page, so neither surface reports a failure as emptiness. */
+.chat-transcript-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.chat-transcript-notice .fa-spinner {
+  font-size: var(--text-body-lg);
+  opacity: 0.7;
+}
+
+.chat-transcript-notice-text {
+  margin: 0;
+  font-size: var(--text-body-sm);
+}
+
+.chat-transcript-error .chat-transcript-notice-text {
+  color: var(--color-error);
+}
+
+.chat-transcript-retry {
+  padding: 6px 14px;
+  /* The project's own touch-target token: uiux.md finding 14 was two message
+     actions that ignored it. */
+  min-height: var(--min-touch-target);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-body-sm);
+  cursor: pointer;
+}
+
+.chat-transcript-retry:hover,
+.chat-transcript-retry:focus-visible {
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+}
+
 /* ── AI page ──
    Every other section of this site is a document. This one is an app, and the
    layout is built from four decisions:
@@ -11753,6 +11959,36 @@ body.dark-theme .mobile-bottom-nav {
   color: var(--terminal-text);
   font-size: var(--text-2xs);
   opacity: 0.85;
+}
+
+/* Content results. The palette searches the page as well as the command
+   registry, and the two kinds have to be told apart at a glance without
+   breaking the flat listbox that the option semantics depend on. */
+.cmd-palette-item--content .cmd-palette-name {
+  color: var(--terminal-text);
+  font-weight: 600;
+}
+
+.cmd-palette-item--content .cmd-palette-summary {
+  /* An excerpt of the matched sentence, clamped so one long bullet cannot
+     push the rest of the results out of view. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cmd-palette-kind {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border: 1px solid rgb(142 161 201 / 30%);
+  border-radius: 999px;
+  color: var(--terminal-green);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  opacity: 0.9;
 }
 
 .cmd-palette-empty {

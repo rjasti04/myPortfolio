@@ -6,6 +6,7 @@ from typing import Optional
 from server.db.database import get_db
 from server.models.user import User
 from server.auth.security import verify_token
+from server.config.settings import OWNER_EMAIL
 import structlog
 import uuid
 
@@ -62,3 +63,29 @@ async def get_optional_current_user(
         return await get_current_user(token=token, db=db)
     except HTTPException:
         return None
+
+
+async def require_owner(current_user: User = Depends(get_current_user)) -> User:
+    """Gate for the aggregate analytics, which read every visitor's activity.
+
+    `users` has no role column and this site has one real account, so the owner
+    is named by the OWNER_EMAIL setting rather than by a schema change made in
+    service of a constant.
+
+    Unset means **nobody** gets through, not everybody. A misconfigured deploy
+    that silently published every visitor's browsing to any registered account
+    is a worse failure than one that locks the owner out of his own dashboard.
+    """
+    if not OWNER_EMAIL:
+        logger.warning("owner_analytics_denied_unset", user_id=str(current_user.id))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Owner analytics are not enabled on this deployment.",
+        )
+    if (current_user.email or "").strip().lower() != OWNER_EMAIL:
+        logger.warning("owner_analytics_denied", user_id=str(current_user.id))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not permitted.",
+        )
+    return current_user

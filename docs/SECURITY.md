@@ -360,6 +360,23 @@ The `robots.txt` disallows `/api/`.
 
 ---
 
+## Owner analytics
+
+`/admin/analytics/*` is the only surface that reads across every visitor's
+session, so it takes `require_owner`: `get_current_user`, then an equality
+check against the `OWNER_EMAIL` setting. `users` carries no role column and
+this site has one real account, so the owner is named by configuration rather
+than by a schema change made in service of a constant.
+
+It **fails closed**. An unset `OWNER_EMAIL` denies everyone, including the
+owner: a deploy that silently published every visitor's browsing to any
+registered account is a worse failure than one that locks the dashboard.
+
+The window is capped at 365 days. These are unindexed aggregates over a
+growing table, and an unbounded range is the query that eventually times out.
+
+---
+
 ## Known limitations
 
 | Limitation | Impact | Path forward |
@@ -367,11 +384,9 @@ The `robots.txt` disallows `/api/`.
 | In-memory rate limiting | Budgets are per process; N instances means N× the limit | Redis-backed limiter (ADR-012) |
 | `POST /sessions` is unauthenticated | Session tokens are free to mint; each costs a row | Acceptable — the stream cap and chat budgets bound what a token is worth |
 | No CAPTCHA anywhere | Automated registration is possible within the 5/min budget | Add one if abuse appears |
-| No email verification on registration | Accounts can be created with an address the registrant does not control | Add a verification one-time token, reusing the existing table |
 | No CSRF tokens | Mitigated: the API is JSON + bearer token, and the one cookie is `SameSite=Strict` | Revisit if cookie-authenticated state-changing routes are added |
 | No HSTS header | A first plain-HTTP request is possible | Add `Strict-Transport-Security` to `.htaccess` |
 | No account-level audit log | Security events are in application logs only | Add a table if accounts grow beyond personal use |
-| `connect-src` lists two unused origins | `get.geojs.io`, `api.open-meteo.com` — dead allowlist entries widen the policy for no reason | Remove once confirmed unused |
 | HIBP fails open | An HIBP outage lets a breached password through | Deliberate; failing closed would block all password changes |
 | Deploy host key is TOFU without `EC2_HOST_KEY` | A first-run MITM on the deploy channel | Set the `EC2_HOST_KEY` secret |
 

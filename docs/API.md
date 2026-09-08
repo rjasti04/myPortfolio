@@ -213,6 +213,13 @@ address freed.
 
 ### `POST /auth/login` → 200 `TokenResponseOr2FA`
 
+> Returns **403** when the address has not been confirmed. The check sits
+> *after* the password comparison deliberately: answering 403 to a wrong
+> password would make the status code an account-enumeration oracle, whereas
+> here it reveals nothing a successful login would not have. Accounts created
+> before verification shipped are backfilled as verified by migration
+> `j3e4f5a6b7c8`.
+
 ```json
 { "email": "you@example.com", "password": "…" }
 ```
@@ -254,6 +261,28 @@ produce.
 `{"pre_auth_token": "…", "code": "123456"}`. The pre-auth `jti` is burned on
 use. Failed codes increment the lockout counter; 5 → 15-minute lock.
 **400** — `"This sign-in attempt has expired. Please log in again."` on replay.
+
+### `POST /auth/verify-email` → 200
+
+Confirms the address a registration was made with. Takes no credential: the
+token in the mailed link **is** the credential — single-use through
+`one_time_tokens` and purpose-checked (`email_verify`), so a reset or
+magic-link token cannot be spent here. Valid for 24 hours.
+
+```json
+{ "token": "<jwt from the emailed link>" }
+```
+
+A second visit to an already-confirmed address returns **200**, not an error:
+mail clients prefetch links and people click twice, and the address is
+confirmed either way. An invalid, expired or wrong-purpose token is **400**.
+
+### `POST /auth/resend-verification` → 200
+
+Issues a fresh link. Answers **identically** for an unknown address, an
+already-verified one and a genuine resend — the same generic response
+`POST /auth/forgot-password` gives, for the same reason: the endpoint takes no
+credential, so distinguishing the cases would let anyone enumerate addresses.
 
 ### `POST /auth/magic-link/request` · `POST /auth/forgot-password` → 200
 
@@ -584,6 +613,82 @@ indistinguishable.
 
 ---
 
+## Owner analytics 🔒
+
+Aggregate reads across **every** session, gated by `require_owner`
+(`server/auth/dependencies.py`): `get_current_user`, then the caller's email
+must equal `OWNER_EMAIL`. Unset denies everyone — a misconfigured deploy that
+silently published every visitor's browsing to any registered account is a
+worse failure than one that locks the owner out.
+
+Every route takes `days` (1–365, default 30). The ceiling is deliberate: these
+are unindexed aggregates over a growing table, and an unbounded range is the
+query that eventually times out.
+
+| Route | Returns |
+| :--- | :--- |
+| `GET /admin/analytics/overview` | Session and distinct-IP counts, device split, event mix, a daily event series |
+| `GET /admin/analytics/funnel` | Cross-session path funnel and transition edges (`limit` 1–25, default 10) |
+| `GET /admin/analytics/commands` | `terminal_command` counts by name, with recognised vs. mistyped (`limit` 1–100, default 25) |
+| `GET /admin/analytics/llm` | Bedrock tokens, cache-hit rate, mean latency, and a per-model breakdown |
+
+`distinct_ips` is a **floor on people, not a count of them**: an office NATs to
+one address and a phone roams across several.
+
+The funnel's `LEAD` is partitioned by `session_id`. Without the partition the
+last event of one session pairs with the first of the next, inventing a
+transition nobody made; the per-session version in `event_controller` needs no
+partition because its `WHERE` already guarantees one session.
+
+`GET /admin/analytics/llm` is the first reader `ai_llm_telemetry` has ever had.
+`chat_routes` has written those rows after every completed stream since the
+telemetry landed, and the chat UI reports per-conversation totals from its own
+metrics frames, so the monthly figure existed only in the table.
+
+---
+
+## Contact endpoint
+
+### `POST /contact` · `POST /contact/` → 200
+
+Delivers one contact-form message to `CONTACT_EMAIL`. Anonymous by necessity —
+a stranger reaching out is the point — so the guards are the schema's length
+bounds, the honeypot, and an **hourly** per-IP budget
+(`CONTACT_RATE_LIMIT_PER_HOUR`, default 5), not a login.
+
+```json
+{
+  "name": "Ada Lovelace",
+  "email": "ada@example.com",
+  "message": "I would like to talk about a role.",
+  "_honey": ""
+}
+```
+
+| Field | Bound |
+| :--- | :--- |
+| `name` | 1–100 chars, no CR/LF (it is interpolated into the `Subject`) |
+| `email` | `EmailStr` |
+| `message` | 1–5,000 chars |
+| `_honey` | ≤ 150 chars; **any value at all** means nothing is sent |
+
+A filled honeypot returns the **same 200 and the same body** as a success. A
+bot that is told which field gave it away only learns to leave that field
+alone.
+
+| Status | Meaning |
+| :--- | :--- |
+| `200` | Delivered — or silently dropped as a honeypot hit |
+| `422` | Failed a schema bound |
+| `429` | Hourly budget spent |
+| `502` | SMTP itself failed; **nothing was sent** |
+
+`502` is load-bearing: it is the one status `form.js` treats as permission to
+retry against FormSubmit, because it is the only response that proves the
+message was not delivered. A timeout does not, so it is never retried.
+
+---
+
 ## Error shapes
 
 FastAPI's default envelope throughout:
@@ -625,7 +730,9 @@ endpoint in the left column exists on the backend.
 | `POST /events/bulk` | `analytics.js` |
 | `GET /sessions/{id}/events` · `…/summary` · `…/funnel` · `…/stream` | `activity.js` |
 | `POST /chat/stream` · `POST /chat/summarize` | `chat.js` |
-| All 19 `/auth/*` routes | `auth.js` / `auth-ui.js` |
+| All 21 `/auth/*` routes | `auth.js` / `auth-ui.js` |
+| `POST /contact` | `form.js` — tried first; FormSubmit is reached only when this is unreachable or answers 502 |
+| `GET /admin/analytics/*` | `owner-analytics.js` — lazily imported by `activity.js`; a 401/403 leaves the section as a visitor sees it |
 | `POST /events` (single) | — server/API consumers only |
 | `GET /models` · `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |
-| `GET/DELETE /chat/history*` | — the chat UI persists sessions in `localStorage`; server-side history is API-only today |
+| `GET/DELETE /chat/history*` | `chat.js` — `syncServerHistory()` lists on load and on `auth-changed`, `hydrateSession()` fetches one transcript when its rail row is opened, `deleteRemoteConversation()` removes the server copy |

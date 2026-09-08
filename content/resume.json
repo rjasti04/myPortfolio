@@ -1,0 +1,256 @@
+{
+  "$comment": "Single source of truth for Rajeev Jasti's biography, experience and skills. Edit THIS file, never the generated copies. Run `npm run generate:resume` to regenerate; `npm run check:resume` fails CI on drift. See scripts/generate_resume.py for the full list of targets.",
+  "person": {
+    "name": "Rajeev Jasti",
+    "jobTitle": "Principal Data Engineer & Architect",
+    "description": "Principal Data Engineer & Architect with 8+ years of experience transforming enterprise systems into scalable data platforms, backend services, and AI-enabled web applications.",
+    "url": "https://rjasti.com/",
+    "image": {
+      "url": "https://rjasti.com/profile-pic.jpeg",
+      "width": 725,
+      "height": 1024
+    },
+    "sameAs": [
+      "https://www.linkedin.com/in/rajeev-jasti-326080169",
+      "https://github.com/rjasti04"
+    ]
+  },
+  "site": {
+    "url": "https://rjasti.com/",
+    "name": "Rajeev Jasti",
+    "pageName": "Rajeev Jasti | Principal Data Engineer & Architect",
+    "description": "Portfolio of Rajeev Jasti, Principal Data Engineer & Architect specializing in enterprise data platforms, backend services, and AI-enabled web applications.",
+    "inLanguage": "en-US",
+    "primaryImage": {
+      "url": "https://rjasti.com/social-preview.png",
+      "width": 1200,
+      "height": 630
+    }
+  },
+  "experience": [
+    {
+      "company": "Nicholas and Company",
+      "dateRange": "Feb 2018 — Present",
+      "location": "Salt Lake City, UT • Remote",
+      "roles": [
+        {
+          "title": "Principal Data Engineer",
+          "period": "Nov 2022 — Present"
+        },
+        {
+          "title": "Data Engineer",
+          "period": "Feb 2018 — Oct 2022"
+        }
+      ],
+      "groups": [
+        {
+          "heading": "Data Engineering & Modeling (OLAP)",
+          "bullets": [
+            "Architected multi-source ingestion pipelines using PySpark, Matillion, and Boomi (CDC, watermark extracts, SaaS APIs, flat files) into Amazon Redshift, decoupling batch and near-real-time streaming via Amazon SQS for automated staging, deduplication, cleansing, and SQL business transformations.",
+            "Designed enterprise star and snowflake dimensional models, and developed LookML semantic models and Explores for core supply chain metrics (inventory turns, dock-to-stock cycle times, order fill rates, freight spend) with optimized datagroups and PDT lifecycle policies.",
+            "Implemented reverse-ETL pipelines syncing curated data back into Salesforce and Zoho, and partnered with cross-functional stakeholders (Operations, Sales, Finance) to deliver executive Looker dashboards standardizing KPIs across departments."
+          ]
+        },
+        {
+          "heading": "Backend & Middleware",
+          "bullets": [
+            "Architected enterprise-grade serverless REST APIs and asynchronous order ingestion middleware using AWS API Gateway, Lambda, SQS FIFO, and Step Functions (Saga pattern), reliably fanning out multi-channel B2B/B2C orders to legacy ERP, WMS, and inventory distribution systems.",
+            "Engineered a distributed DynamoDB caching layer with SHA-256 payload fingerprinting and native TTL eviction, cutting primary database load by 30–50%.",
+            "Sustained 99.9% transaction completion through idempotent request handling, API Gateway throttling, DLQ redrive policies, exponential backoff, and circuit breakers.",
+            "Developed a high-concurrency Available-to-Promise (ATP) inventory reservation microservice using atomic conditional writes and distributed locks to prevent overselling.",
+            "Implemented a dual-engine search strategy combining Elasticsearch with SQL Server for sub-second search across millions of historical orders and invoices."
+          ]
+        },
+        {
+          "heading": "Database Systems (OLTP)",
+          "bullets": [
+            "Owned OLTP database architecture and administration running mission-critical order-to-cash operations across pricing, rebates, commissions, and ERP/WMS/TMS integration feeds.",
+            "Architected the enterprise pricing engine in SQL Server, resolving sales-rep overrides, customer contract pricing, commodity pricing, COGS, and discount layers into real-time customer–item–DC prices via ACID-compliant T-SQL procedures.",
+            "Scaled the pricing API to sustain 100,000–200,000 executions/min at sub-100 ms latency with zero deadlocks under heavy concurrent load.",
+            "Modeled SCD Type 2 temporal pricing for point-in-time auditability, and engineered PriceIQ statistical pricing using IQR outlier fencing and skew-adjusted distribution analysis to intelligently price custom setups.",
+            "Built the vendor rebate calculation platform, sales commission payroll, and WMS/TMS activity-based incentive payroll."
+          ]
+        },
+        {
+          "heading": "Database Administration & Reliability (OLTP & OLAP)",
+          "bullets": [
+            "Eliminated high-frequency lock-conversion deadlocks, write skew, and reader–writer blocking across high-throughput OLTP workloads by pairing targeted locking hints (UPDLOCK, HOLDLOCK, ROWLOCK) with deterministic UPSERT ordering and tuning Read Committed Snapshot Isolation (RCSI).",
+            "Resolved tempdb spills, parameter sniffing, and bookmark lookups through execution plan profiling, memory grant tuning, composite clustered/covering index redesigns, and table partitioning.",
+            "Automated enterprise maintenance, index defragmentation, and statistics via Ola Hallengren on SQL Server Agent, administered Always On Availability Groups (HA/DR), and tuned CDC replication.",
+            "Optimized Amazon Redshift storage architectures (KEY/ALL/EVEN distribution, sort keys, AZ64/ZSTD compression), WLM parameter queues, materialized views, PII data encryption, RBAC, and CloudWatch performance alarms."
+          ]
+        },
+        {
+          "heading": "Cloud Architecture & Modernization",
+          "bullets": [
+            "Architected and provisioned an enterprise-scale, fault-tolerant AWS cloud foundation spanning multi-AZ VPCs, API Gateway, Lambda, Step Functions, SQS FIFO, DynamoDB, and Amazon Redshift.",
+            "Deployed a secure, auto-scaled internal application tier on AWS (EC2 in multi-AZ VPCs, Auto Scaling, hardened security groups, Route 53, Apache HTTPD reverse proxies) with automated open-source TLS rotation.",
+            "Engineered an event-driven Master Data Management (MDM) ecosystem across Zoho, establishing governed golden records for customer, item, and supplier entities with automated webhook and message-queued distribution to tier-1 ERP, WMS, and TMS systems to eliminate synchronization lag and discrepancies across warehouse fulfillment and freight routing networks."
+          ]
+        },
+        {
+          "heading": "DevOps & Infrastructure",
+          "bullets": [
+            "Established end-to-end operational reliability, automated maintenance, and proactive infrastructure observability across distributed cloud microservices and database clusters.",
+            "Automated enterprise SQL Server maintenance, index defragmentation, and statistics updates using Ola Hallengren orchestrated via SQL Server Agent.",
+            "Built robust monitoring and alerting in SolarWinds (waits, blocking, resource pressure) and AWS CloudWatch (disk spill, CPU utilization, concurrency metrics).",
+            "Authored custom T-SQL health audit scripts, enforced least-privilege RBAC, and implemented resilient fault-tolerance mechanisms including automated Dead-Letter Queue (DLQ) redrives, exponential backoff, circuit breakers, and zero-downtime automated TLS certificate rotations."
+          ]
+        },
+        {
+          "heading": "Generative AI & Web Applications",
+          "bullets": [
+            "Integrated Google's Model Context Protocol (MCP) server in Looker, exposing curated semantic definitions, Explores, and supply chain KPIs to generative AI agents to enable natural-language-to-SQL querying and prompt-driven analytical dashboard generation.",
+            "Engineered high-throughput, asynchronous FastAPI backend microservices with strict Pydantic schema validation, standardizing departmental custom data capture and preventing operational data corruption across downstream pipelines.",
+            "Delivered responsive, high-performance web applications and internal portals featuring seamless API integrations and granular role-based access control."
+          ]
+        }
+      ],
+      "tagGroups": [
+        {
+          "label": "AWS",
+          "tags": [
+            "Amazon Redshift",
+            "Amazon Bedrock",
+            "Amazon S3",
+            "AWS Glue",
+            "AWS Lambda",
+            "Amazon Athena",
+            "DynamoDB",
+            "API Gateway",
+            "CloudWatch",
+            "Amazon EKS",
+            "Amazon ECS",
+            "EC2",
+            "RDS",
+            "IAM",
+            "SNS",
+            "SQS",
+            "Glacier"
+          ]
+        },
+        {
+          "label": "Data & Analytics",
+          "tags": [
+            "Matillion",
+            "PySpark",
+            "Dell Boomi",
+            "Looker",
+            "Pandas",
+            "NumPy"
+          ]
+        },
+        {
+          "label": "Databases & Messaging",
+          "tags": [
+            "PostgreSQL",
+            "SQL Server",
+            "MySQL",
+            "Redis",
+            "Elasticsearch",
+            "Apache Kafka",
+            "RabbitMQ"
+          ]
+        },
+        {
+          "label": "Backend & APIs",
+          "tags": [
+            "FastAPI",
+            "Pydantic",
+            "SQLAlchemy",
+            "Alembic",
+            "boto3",
+            "Multiprocessing",
+            "Multithreading"
+          ]
+        },
+        {
+          "label": "Languages",
+          "tags": [
+            "Python",
+            "T-SQL",
+            "PL/pgSQL",
+            "SQL",
+            "Bash / Linux"
+          ]
+        },
+        {
+          "label": "DevOps & Tooling",
+          "tags": [
+            "Git",
+            "Docker",
+            "Terraform",
+            "Kubernetes",
+            "GitHub Actions CI/CD",
+            "Pytest"
+          ]
+        }
+      ]
+    }
+  ],
+  "skillGroups": [
+    [
+      "Cloud & Serverless:",
+      "Amazon Redshift, Amazon Bedrock, S3, AWS Glue, Lambda, Athena, DynamoDB, EKS, ECS, RDS, CloudWatch"
+    ],
+    [
+      "Backend & APIs:",
+      "Python, FastAPI, boto3, SQLAlchemy (asyncpg), Pydantic, Multiprocessing, Multithreading"
+    ],
+    [
+      "Data Engineering & BI:",
+      "Matillion, PySpark, Looker, Pandas, NumPy"
+    ],
+    [
+      "Databases & Middleware:",
+      "PostgreSQL, SQL Server, Amazon Redshift, MySQL, Dell Boomi, Redis, Apache Kafka, RabbitMQ, Elasticsearch, Alembic"
+    ],
+    [
+      "Languages & Scripting:",
+      "Python, T-SQL, PL/pgSQL, SQL, Bash / Linux"
+    ],
+    [
+      "DevOps & Tooling:",
+      "Git, Docker, Terraform, Kubernetes, GitHub Actions CI/CD, Pytest"
+    ]
+  ],
+  "skillTags": [
+    "AWS",
+    "Amazon Bedrock",
+    "Amazon Redshift",
+    "FastAPI",
+    "Python",
+    "PySpark",
+    "PostgreSQL",
+    "SQL Server",
+    "Looker",
+    "Matillion",
+    "Dell Boomi",
+    "Apache Kafka",
+    "Docker",
+    "Kubernetes",
+    "Terraform",
+    "GitHub Actions"
+  ],
+  "persona": {
+    "$comment": "Feeds the Bedrock chat persona's 'Key Information' block. Describing THIS SITE accurately matters: the previous hand-maintained copy claimed a Three.js frontend, which the repository has never had.",
+    "summary": [
+      "Current Role: Principal Data Engineer & Architect at Nicholas and Company (Nov 2022 – Present, Salt Lake City & Remote)",
+      "Previous Role: Data Engineer at Nicholas and Company (Feb 2018 – Oct 2022)",
+      "Specialization: Enterprise Data Engineering & OLAP modeling, OLTP Database Engines, Real-time Streaming, Cloud Migrations, Full-Stack & Generative AI Web Applications",
+      "Backend Stack: Python 3.10+, FastAPI, PostgreSQL, SQLAlchemy ORM (asyncpg), Alembic, Amazon Bedrock, Lambda, API Gateway, Boomi, Docker, Kafka, microservices",
+      "Cloud & Infrastructure: AWS (Redshift, Bedrock, S3, Glue, Lambda, Athena, DynamoDB, API Gateway, CloudWatch, EKS, ECS, EC2, RDS), Kubernetes, Docker, GitHub Actions CI/CD",
+      "Principles: enterprise-grade patterns, performant async processing, high-availability reliability, strict ACID transactions, modular architecture."
+    ],
+    "siteFacts": [
+      "This portfolio is a hand-written static single-page app with no frontend framework — no React, Vue, Svelte, jQuery, Three.js or CSS preprocessor. It is vanilla ES modules, hand-authored CSS, and a 2D-canvas animated background. (The file named three-bg.js is a plain 2D canvas renderer; the name is historical.)",
+      "Frontend: vanilla JavaScript ES modules, hand-written CSS, 2D-canvas backgrounds, a service worker and Web App Manifest (installable PWA), DOMPurify and marked vendored from npm, and self-hosted subset fonts. No asset is loaded from a third-party origin.",
+      "Frontend features: hash-routed sections, an interactive command prompt with a Ctrl+K palette, a live session-activity dashboard fed by server-sent events, this AI chat, a theme customizer, and a full account UI (register, login, TOTP 2FA, magic links, password reset, session management).",
+      "Backend: FastAPI with Pydantic v2, SQLAlchemy 2 (async) over asyncpg, Alembic migrations, PostgreSQL, structlog, and an optional Kafka ingest pipeline that falls back to a simulator when no broker is configured.",
+      "Auth: JWT (HS256) with refresh-token rotation, passlib + bcrypt, pyotp TOTP two-factor, magic links, and Have I Been Pwned range-API password screening.",
+      "AI: this chat streams from Amazon Bedrock over server-sent events, with prompt caching on the system prompt and per-turn token and latency telemetry.",
+      "Build and deploy: esbuild produces a bundled, minified, content-hashed dist/; GitHub Actions runs lint, tests and migration drift checks, then rsyncs to EC2 (Apache for the static tier, systemd + Uvicorn for the API) with automatic rollback.",
+      "Side projects on the same domain: a Champions League bracket predictor at /ucl, a retired World Cup predictor at /worldcup, and an arcade at /arcade with 2048, Tetris, Flapper, Stack, Snake and Breaker — all written from scratch in vanilla JavaScript with no game engine."
+    ]
+  }
+}

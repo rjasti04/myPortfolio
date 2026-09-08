@@ -320,5 +320,5 @@ export function initTerminal() {
   runPlaceholderAnimation();
 
   // ── Ctrl+K palette over the same registry ─────────────────────────────────
-  initPalette({ registry, run, panel });
+  initPalette({ registry, run, panel, navigate: ctx.navigate });
 }
