@@ -348,37 +348,40 @@ export function initNavigation() {
     window.scrollTo(0, 0);
   }
 
-  // Offline indicator
+  // Offline indicator.
+  //
+  // Appended EMPTY. role="alert" fires when content enters the live region, so
+  // building this with its text already in place meant the announcement was
+  // spent at page load - before there was anything to announce - and the real
+  // offline transition later said nothing. Styling lives in the
+  // .offline-banner rule; it used to be an inline cssText with hardcoded
+  // colours, which is why it ignored the theme.
   const offlineBanner = document.createElement('div');
   offlineBanner.className = 'offline-banner';
   offlineBanner.setAttribute('role', 'alert');
-  offlineBanner.innerHTML = '<i class="fas fa-wifi" style="text-decoration: line-through;"></i> You are offline';
-  offlineBanner.style.cssText = `
-    position: fixed;
-    bottom: 24px;
-    left: 24px;
-    background: #fde68a;
-    color: #0f172a;
-    padding: 12px 20px;
-    border-radius: var(--radius-full);
-    font-size: 14px;
-    font-weight: 600;
-    box-shadow: var(--shadow-lg);
-    z-index: 10000;
-    transform: translateY(150%);
-    transition: transform var(--motion-medium) var(--ease-standard);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  `;
   document.body.appendChild(offlineBanner);
 
   function showOfflineBanner() {
-    offlineBanner.style.transform = 'translateY(0)';
+    if (offlineBanner.dataset.shown === 'true') return;
+    offlineBanner.dataset.shown = 'true';
+    offlineBanner.innerHTML =
+      '<i class="fas fa-wifi offline-banner__icon" aria-hidden="true"></i> You are offline';
+    offlineBanner.classList.add('is-visible');
   }
 
   function hideOfflineBanner() {
-    offlineBanner.style.transform = 'translateY(150%)';
+    if (offlineBanner.dataset.shown !== 'true') return;
+    delete offlineBanner.dataset.shown;
+    offlineBanner.classList.remove('is-visible');
+    // Emptied on the way out so the next offline event is a fresh insertion
+    // into the live region, and so announces again.
+    offlineBanner.addEventListener(
+      'transitionend',
+      () => {
+        if (offlineBanner.dataset.shown !== 'true') offlineBanner.replaceChildren();
+      },
+      { once: true }
+    );
   }
 
   if (!isNetworkOnline()) {

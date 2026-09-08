@@ -1779,7 +1779,14 @@ main {
   }
 }
 
-.reveal {
+/* Scoped to .js-enabled (set on <html> by the pre-boot script at
+   index.html:163) because only js/animations.js ever adds `.active`. Applied
+   unconditionally this hid 20 elements - the whole contact section, both Apps
+   tiles, the About stats and skills cards - from anyone with JavaScript off,
+   and from everyone if any earlier initialiser threw before initAnimations
+   ran. `.reveal.active` below is the same specificity and comes later, so it
+   still wins. */
+.js-enabled .reveal {
   opacity: 0;
   transform: translateY(24px);
   transition:
@@ -5336,6 +5343,44 @@ body.dark-theme .skill-tag.primary .fas {
   background: linear-gradient(180deg, var(--accent-fill), var(--secondary-fill));
 }
 
+/* Takes the slack so the close button stays hard right on a short message. */
+.toast-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Sized from --min-touch-target like every other icon control; the glyph is
+   smaller than the box it sits in. */
+.toast-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+  margin: -10px -12px -10px 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.toast-close:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.toast-close:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: -3px;
+}
+
 .toast-icon {
   width: 24px;
   height: 24px;
@@ -7362,10 +7407,59 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
   outline-offset: 2px;
 }
 
-/* Update notification banner */
+/* Update notification banner.
+   Everything below used to be an inline style.cssText in js/main.js, which
+   meant the one surface that announces a new build was also the one that
+   could not follow the palette. */
 .update-banner {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(420px, calc(100vw - 40px));
+  padding: 14px 16px 14px 20px;
+  border-radius: var(--radius);
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  box-shadow: var(--elev-3);
   font-size: var(--text-sm);
   font-weight: 600;
+  animation: slideInUp var(--motion-medium) var(--ease-enter);
+}
+
+.update-dismiss-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+  margin: -12px -10px -12px 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--on-accent);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  opacity: 0.75;
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+
+.update-dismiss-btn:hover {
+  opacity: 1;
+  background: hsl(0, 0%, 0%, 0.12);
+}
+
+.update-dismiss-btn:focus-visible {
+  opacity: 1;
+  outline: 3px solid var(--focus-ring);
+  outline-offset: -3px;
 }
 
 .update-refresh-btn {
@@ -11305,11 +11399,38 @@ body.dark-theme .mobile-bottom-nav {
   box-shadow: 0 0 8px var(--color-error-fill, #ef4444);
 }
 
-/* Offline banner contrast styling */
+/* Offline banner.
+   Was a style.cssText in js/navigation.js with hardcoded #fde68a on #0f172a -
+   the only surface on the site that ignored the token layer, so it painted a
+   bright yellow slab straight through dark theme. Dark ink on the warning
+   fill is the same pairing --on-accent uses, and holds in both themes. */
 .offline-banner {
-  background-color: #fde68a;
-  color: #0f172a;
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-warning-fill);
+  color: var(--on-warning);
+  box-shadow: var(--elev-3);
+  font-size: var(--text-sm);
   font-weight: 600;
+  transform: translateY(150%);
+  transition: transform var(--motion-medium) var(--ease-standard);
+}
+
+.offline-banner.is-visible {
+  transform: translateY(0);
+}
+
+/* The struck-through wifi glyph reads as "no connection" on its own; the
+   text-decoration used to be an inline style attribute on the <i>. */
+.offline-banner__icon {
+  text-decoration: line-through;
 }
 
 /* #endregion */
