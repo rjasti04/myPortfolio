@@ -196,7 +196,7 @@ access token.
 | POST | `/auth/2fa/disable` | 🔒 | Disable TOTP (password **and** code required) |
 | POST | `/auth/2fa/verify` | pre-auth token in body | Complete a 2FA sign-in |
 | POST | `/auth/magic-link/request` | — | Email a passwordless sign-in link |
-| POST | `/auth/magic-link/verify` | token in body | Redeem a magic link |
+| POST | `/auth/magic-link/verify` | token in body | Redeem a magic link; also confirms the address |
 | POST | `/auth/change-password` | 🔒 | Change password |
 | POST | `/auth/forgot-password` | — | Email a reset link |
 | POST | `/auth/reset-password` | token in body | Complete a reset |
@@ -226,7 +226,9 @@ login. `auth.js` did, and painted the resulting 403 as a registration failure.
 
 ### `POST /auth/login` → 200 `TokenResponseOr2FA`
 
-> Returns **403** when the address has not been confirmed. The check sits
+> Returns **403** when the address has not been confirmed — which redeeming a
+> magic link or completing a password reset also clears, since both prove
+> control of the same inbox. The check sits
 > *after* the password comparison deliberately: answering 403 to a wrong
 > password would make the status code an account-enumeration oracle, whereas
 > here it reveals nothing a successful login would not have. Accounts created
@@ -308,8 +310,14 @@ background task and its failure is never surfaced to the caller.
 `{"token": "…", "new_password": "…"}`. In order: verify and burn the one-time
 token → HIBP breach check → reuse check against the current hash plus the last
 5 in `password_history` → archive the old hash → set the new one → clear lockout
-→ revoke all refresh tokens, end sessions and void pending one-time tokens →
-email a security notification.
+→ **confirm the address if it was still unverified** → revoke all refresh
+tokens, end sessions and void pending one-time tokens → email a security
+notification.
+
+The confirmation step is there because the link was mailed to that address and
+has just been redeemed, which is the same proof clicking the verification link
+gives. Without it a reset could report success and still leave the caller unable
+to log in, which reads as the new password not having taken.
 
 ### `POST /auth/change-password` → 200
 
