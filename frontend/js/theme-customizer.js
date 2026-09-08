@@ -65,9 +65,9 @@ function hslToHex(h, s, l) {
 // / --data-fill tokens in styles.css, which are what the page paints when no
 // custom palette is stored; the picker reports these, so the two have to agree.
 const DEFAULT_COLORS = {
-  primary: '#F59E0B',
-  secondary: '#10B981',
-  accent: '#0284C7'
+  primary: '#C5CF3F',
+  secondary: '#3C82DD',
+  accent: '#830FDB'
 };
 
 // ── Randomiser ──
@@ -257,7 +257,7 @@ export function syncThemeColorMeta(isDark = document.body.classList.contains('da
   // `body.dark-theme` and the customizer sets its inline properties there too,
   // so the root still resolves to the LIGHT accent on a dark page.
   const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-fill').trim();
-  meta.setAttribute('content', accentColor || (isDark ? '#0a0a0b' : '#F59E0B'));
+  meta.setAttribute('content', accentColor || (isDark ? '#0a0a0b' : '#C5CF3F'));
 }
 
 function applyPaletteVariables(palette, isDark) {
@@ -379,7 +379,12 @@ function writeThemeLibrary(entries) {
  * nothing about which is which, and re-saving under a name you already used is
  * far more likely to mean "update it" than "make a second one".
  *
- * @returns {{ok: true, entries: object[], replaced: boolean} | {ok: false, reason: string}}
+ * The id comes back because the caller has to keep pointing at the theme it
+ * just wrote - the panel marks it as the one being edited, and on an overwrite
+ * that is the ORIGINAL id, not the one minted here.
+ *
+ * @returns {{ok: true, entries: object[], replaced: boolean, id: string}
+ *   | {ok: false, reason: string}}
  */
 export function saveTheme(name, raw) {
   const trimmed = String(name || '').trim().slice(0, THEME_NAME_MAX);
@@ -392,9 +397,10 @@ export function saveTheme(name, raw) {
   const entry = { id: `t${Date.now().toString(36)}`, name: trimmed, raw: { ...raw } };
   if (at === -1) entries.push(entry);
   else entries[at] = { ...entry, id: entries[at].id };
+  const stored = at === -1 ? entry : entries[at];
 
   if (!writeThemeLibrary(entries)) return { ok: false, reason: 'storage' };
-  return { ok: true, entries, replaced: at !== -1 };
+  return { ok: true, entries, replaced: at !== -1, id: stored.id };
 }
 
 /** Remove one saved theme by id. Returns the library that remains. */
@@ -605,6 +611,12 @@ export function initThemeCustomizer() {
     closeColorPopover();
     closeSaveForm();
     renderThemeLibrary();
+    // Derived from the colours rather than remembered, so it survives a reload:
+    // open the panel on a palette that IS one of the saved themes and that chip
+    // is lit and Save offers to update it, exactly as if it had just been
+    // clicked. An edit then keeps that theme loaded until something switches
+    // away from it.
+    setActiveTheme(themeIdMatchingControls());
     // Drop the last announcement so re-opening the panel cannot read out hex
     // codes, or a save confirmation, that no longer describe what is on screen.
     if (shuffleStatus) shuffleStatus.textContent = '';
@@ -691,6 +703,10 @@ export function initThemeCustomizer() {
     unsavedRawPalette = { primary: rawPrimary, secondary: rawSecondary, accent: rawAccent };
     const palette = getDerivedPalette(rawPrimary, rawSecondary, rawAccent);
     applyPaletteVariables(palette, document.body.classList.contains('dark-theme'));
+    // Every path that changes a colour lands here, which makes it the one place
+    // that can tell the loaded theme's chip it is now showing something the
+    // saved theme does not hold.
+    syncThemeChipState();
   }
 
   function buildPresetSwatches() {
@@ -829,6 +845,73 @@ export function initThemeCustomizer() {
   }
 
   // ── Saved themes ──
+  // Which saved theme the panel is working on, or null. Loading a chip sets it
+  // and an edit KEEPS it: the point is that the colours in the controls still
+  // belong to that theme, so Save can write them back to it.
+  //
+  // Without this the library was write-once from the panel. Overwriting by name
+  // has always worked (see `saveTheme`), but nothing said so - the Save field
+  // opened empty, no chip looked loaded, and Apply, the one button that reads
+  // like a commit, writes the ACTIVE palette and leaves the named theme on the
+  // colours it was first saved with. Editing a saved theme and pressing Apply
+  // therefore looked like a save that did nothing.
+  let activeThemeId = null;
+
+  /** The three controls as a raw triple, in the shape the library stores. */
+  function currentRawTriple() {
+    return {
+      primary: getColorValue('primary'),
+      secondary: getColorValue('secondary'),
+      accent: getColorValue('accent')
+    };
+  }
+
+  /** The saved theme whose colours are exactly what the controls hold, if any. */
+  function themeIdMatchingControls() {
+    const current = currentRawTriple();
+    const match = readThemeLibrary().find((entry) =>
+      ['primary', 'secondary', 'accent'].every((key) => normalizeHex(entry.raw[key]) === current[key]));
+    return match ? match.id : null;
+  }
+
+  /** The active theme's entry, re-read from storage rather than cached. */
+  function activeThemeEntry() {
+    if (!activeThemeId) return null;
+    return readThemeLibrary().find((entry) => entry.id === activeThemeId) || null;
+  }
+
+  /**
+   * Light the loaded theme's chip, and mark it when the controls have moved off
+   * the colours that theme holds.
+   *
+   * The marker is the answer to "I changed a colour and my theme did not": an
+   * edit is a preview until it is saved, and the chip is the only place that
+   * can say so while it is still true. `aria-pressed` rather than a class
+   * alone, because a screen reader has no other way to tell which of a row of
+   * chips the panel is working on.
+   */
+  function syncThemeChipState() {
+    const entry = activeThemeEntry();
+    const edited = !!entry && ['primary', 'secondary', 'accent']
+      .some((key) => normalizeHex(entry.raw[key]) !== getColorValue(key));
+
+    themeChips?.querySelectorAll('.theme-chip-apply').forEach((chip) => {
+      const isActive = chip.dataset.themeId === activeThemeId;
+      chip.classList.toggle('is-active', isActive);
+      chip.classList.toggle('is-edited', isActive && edited);
+      chip.setAttribute('aria-pressed', String(isActive));
+      chip.title = isActive && edited
+        ? `Save to update ${chip.textContent}`
+        : `Apply ${chip.textContent}`;
+    });
+  }
+
+  /** Point the panel at one saved theme, or at none. */
+  function setActiveTheme(id) {
+    activeThemeId = id;
+    syncThemeChipState();
+  }
+
   // Rendered rather than authored, so the row rebuilds from storage after every
   // save and delete. The built-in chips are markup and are left alone; only the
   // saved ones are torn down and rebuilt, which is also why they carry a class
@@ -850,6 +933,7 @@ export function initThemeCustomizer() {
       apply.dataset.themeId = entry.id;
       apply.textContent = entry.name;
       apply.title = `Apply ${entry.name}`;
+      apply.setAttribute('aria-pressed', 'false');
 
       const remove = document.createElement('button');
       remove.type = 'button';
@@ -862,6 +946,10 @@ export function initThemeCustomizer() {
       chip.append(apply, remove);
       themeChips.append(chip);
     });
+
+    // The row was just rebuilt, so the loaded theme has to be marked again -
+    // a save re-renders, and what it wrote is what the panel is still editing.
+    syncThemeChipState();
   }
 
   // One delegated handler instead of binding each chip: the saved ones are
@@ -876,6 +964,9 @@ export function initThemeCustomizer() {
       event.stopPropagation();
       const entry = readThemeLibrary().find((item) => item.id === remove.dataset.removeId);
       deleteTheme(remove.dataset.removeId);
+      // The colours stay on screen, but they are nobody's theme now - Save has
+      // to offer a new name rather than an update to something that is gone.
+      if (activeThemeId === remove.dataset.removeId) activeThemeId = null;
       renderThemeLibrary();
       announce(entry ? `Deleted saved theme ${entry.name}.` : 'Saved theme deleted.');
       return;
@@ -887,7 +978,8 @@ export function initThemeCustomizer() {
       const entry = readThemeLibrary().find((item) => item.id === saved.dataset.themeId);
       if (entry) {
         applyRawTriple(entry.raw);
-        announce(`${entry.name} loaded. Press Apply to keep it.`);
+        setActiveTheme(entry.id);
+        announce(`${entry.name} loaded. Press Apply to keep it, or Save to update it after an edit.`);
       }
       return;
     }
@@ -896,15 +988,38 @@ export function initThemeCustomizer() {
     if (preset) {
       event.stopPropagation();
       applyRawTriple(themePresets[preset.dataset.preset]);
+      // A built-in is a different theme, not an edit of the loaded one, so the
+      // panel stops pointing at it - Save must not silently overwrite a saved
+      // theme with Dracula. Derived rather than nulled so a saved theme holding
+      // exactly these colours still lights up.
+      setActiveTheme(themeIdMatchingControls());
     }
   });
+
+  /**
+   * "Save" or "Update", live as the name is typed.
+   *
+   * Saving over a name you already used replaces that theme, and a button that
+   * says Save while it is about to replace something is how that goes
+   * unnoticed. This is the only place the rule is visible BEFORE the write.
+   */
+  function syncSaveConfirmLabel() {
+    if (!saveConfirmBtn || !saveNameInput) return;
+    const typed = saveNameInput.value.trim().toLowerCase();
+    const exists = typed !== ''
+      && readThemeLibrary().some((entry) => entry.name.toLowerCase() === typed);
+    saveConfirmBtn.textContent = exists ? 'Update' : 'Save';
+  }
 
   function closeSaveForm({ restoreFocus = false } = {}) {
     if (!saveForm) return;
     saveForm.hidden = true;
     if (saveNameInput) saveNameInput.value = '';
+    syncSaveConfirmLabel();
     if (restoreFocus) saveBtn?.focus();
   }
+
+  saveNameInput?.addEventListener('input', syncSaveConfirmLabel);
 
   saveBtn?.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -917,17 +1032,23 @@ export function initThemeCustomizer() {
 
     closeColorPopover();
     saveForm.hidden = false;
+
+    // Opened on a loaded theme, the field carries that theme's name, selected.
+    // Enter then UPDATES it - which is what editing a saved theme and pressing
+    // Save is asking for - and typing replaces the name outright for anyone who
+    // meant to save a second theme instead. An empty field made the update path
+    // exist only for a visitor who happened to retype the name exactly.
+    const active = activeThemeEntry();
+    if (saveNameInput && active) saveNameInput.value = active.name;
+    syncSaveConfirmLabel();
     saveNameInput?.focus();
+    if (active) saveNameInput?.select();
   });
 
   function commitSave() {
     if (!saveNameInput) return;
 
-    const result = saveTheme(saveNameInput.value, {
-      primary: getColorValue('primary'),
-      secondary: getColorValue('secondary'),
-      accent: getColorValue('accent')
-    });
+    const result = saveTheme(saveNameInput.value, currentRawTriple());
 
     if (!result.ok) {
       // Said out loud rather than swallowed: a save that silently does nothing
@@ -945,6 +1066,10 @@ export function initThemeCustomizer() {
     const name = saveNameInput.value.trim().slice(0, THEME_NAME_MAX);
     closeSaveForm({ restoreFocus: true });
     renderThemeLibrary();
+    // The panel now belongs to what was just written, whichever name it landed
+    // under, so a second edit updates THAT theme rather than the one loaded
+    // before it.
+    setActiveTheme(result.id);
     announce(result.replaced ? `Updated saved theme ${name}.` : `Saved theme ${name}.`);
   }
 
@@ -991,6 +1116,9 @@ export function initThemeCustomizer() {
     setColorValue('secondary', next.secondary, { preview: false, syncPopover: false });
     setColorValue('accent', next.accent, { preview: true, syncPopover: false });
     closeColorPopover();
+    // A roll is a new palette, not an edit of the loaded theme - same reasoning
+    // as the built-in presets above.
+    setActiveTheme(themeIdMatchingControls());
     announce(`Random palette applied. Primary ${next.primary}, secondary ${next.secondary}, highlight ${next.accent}.`);
   });
 
@@ -1015,9 +1143,12 @@ export function initThemeCustomizer() {
   resetBtn?.addEventListener('click', () => {
     localStorage.removeItem('rj_theme_palette');
     // Reset means the shipped defaults, so the snapshot goes with it - closing
-    // the panel afterwards must not paint a roll back over them.
+    // the panel afterwards must not paint a roll back over them. The saved
+    // themes survive it (Reset is not a delete), but none of them is loaded any
+    // more.
     unsavedRawPalette = null;
     paletteOnOpen = null;
+    setActiveTheme(null);
     clearCustomPalette();
     closeModal();
   });

@@ -242,17 +242,31 @@ variants from one hex value, checks contrast, writes CSS custom properties onto
 `document.body`, and persists the palette. `reapplyCustomTheme(isDark)` is
 called from `applyTheme` so a light/dark flip re-derives the right variant set.
 
-The shipped defaults are amber `#F59E0B`, emerald `#10B981` and sky `#0284C7`,
-defined as the `--accent-*`, `--secondary-*` and `--data-*` tokens in the
-DESIGN TOKENS region of `styles.css`. Two notes on how they are written there.
-The fills are **hex, not `hsl()`**: rounding an `hsl()` triple back to 8 bits
-drifts a unit or two, the customiser's picker reports these as hex, and a
-default the picker names has to be the colour the page paints or applying the
+The shipped defaults are citron `#C5CF3F`, azure `#3C82DD` and violet
+`#830FDB` — hues 64, 214 and 274, so no two sit closer than 60 degrees on the
+wheel — defined as the `--accent-*`, `--secondary-*` and `--data-*` tokens in
+the DESIGN TOKENS region of `styles.css`. Two notes on how they are written
+there. The fills are **hex, not `hsl()`**: rounding an `hsl()` triple back to 8
+bits can drift a unit or two, the customiser's picker reports these as hex, and
+a default the picker names has to be the colour the page paints or applying the
 value already on screen shifts it. The `-text` variants stay in `hsl()`,
 because their content is "the fill's hue and saturation, darker", and they are
-chosen against measured contrast rather than a fixed offset — 5.78:1 and
-6.02:1 on `--bg` in light, 12.34:1 and 8.11:1 in dark. `.hero-kicker` renders
-`--secondary-text` at body size, so that is AA for normal text.
+chosen against measured contrast rather than a fixed offset — 5.81:1 and
+7.95:1 on `--bg` in light, 8.19:1 and 7.61:1 in dark. A fixed offset cannot
+work across hues: violet at its own fill lightness already clears 6:1 on the
+light ground where citron at that lightness clears nothing, and on the dark
+ground both of these hues have to be lifted well past their light-theme
+lightness where the emerald they replace cleared AA at 50%. `.hero-kicker`
+renders `--secondary-text` at body size, so that is AA for normal text.
+
+Two more consequences of this palette worth knowing before changing a rule.
+`--accent-sat` is a token beside `--accent-hue` because the accent ramp is 60%
+where the amber before it was 92%, and a rule that reaches for the hue and
+keeps a literal saturation renders a colour nothing else on the page uses.
+And `--data-fill` is never a text ground: violet is the one fill `--on-accent`
+cannot sit on (2.8:1), so it appears only inside decorative gradients, while
+`.btn` — a gradient from `--accent-fill` to `--secondary-fill` — clears AA at
+both ends (11.2:1 and 4.9:1).
 
 The panel offers four ways in, all of which are **previews** until Apply — a
 MutationObserver rolls the palette back to whatever the panel opened showing if
@@ -285,6 +299,29 @@ mechanism regardless: they ride along on every request for every asset and cap
 at ~4KB. The honest cost of the local-only choice is worth stating — saved
 themes live in one browser, and clearing site data takes them with it.
 
+A saved theme is **editable**, and the panel says which one it is editing.
+Clicking a chip loads its colours and marks it `aria-pressed`; the colours stay
+that theme's while they are changed, so the chip carries a dot — and a `title`
+saying "Save to update *name*" — for as long as the controls hold something the
+saved theme does not. Save then opens **prefilled with that theme's name,
+selected**, so Enter updates it in place under its original id and typing
+replaces the name outright for anyone saving a second theme instead; the
+confirm button reads *Update* rather than *Save* whenever the name typed is one
+already in the library, which is the only place that rule is visible before the
+write. Switching to a built-in preset, rolling the shuffle or deleting the
+theme drops the panel's hold on it, so none of those can overwrite it by
+accident. Opening the panel on colours that *are* a saved theme finds it again,
+which is what makes this survive a reload.
+
+**Apply is not that write.** Apply means "paint the site with these colours" —
+it stores `rj_theme_palette` and nothing else — and Save means "change what
+this theme is". Editing a loaded theme and pressing Apply therefore leaves the
+theme on its old colours, deliberately: a saved theme is the only copy of
+itself and there is no undo, so a visitor who loads one, plays with the hex
+fields and applies the result must not find it rewritten behind them. The chip
+marker and the prefilled name are what keep that boundary from reading as a
+save that did nothing.
+
 | Storage key | Holds |
 | :--- | :--- |
 | `theme` | `"dark"` or `"light"` — an explicit user choice |
@@ -298,7 +335,7 @@ themes live in one browser, and clearing site data takes them with it.
 ### `manifest.json`
 
 `name`, `short_name: "RJ"`, `start_url: "/"`, `display: standalone`,
-`background_color: #0a0e14`, `theme_color: #F59E0B`, `orientation: any`, and the
+`background_color: #0a0e14`, `theme_color: #C5CF3F`, `orientation: any`, and the
 three `android-chrome-*` icons — the 192 and 512 as `purpose: "any"`, plus
 `android-chrome-maskable-512x512.png` as `purpose: "maskable"`.
 
@@ -612,7 +649,7 @@ The source is `scripts/social-previews/` — one HTML file per card over a share
 flattens the result. The point of building them as HTML is that they cannot
 drift: `card.css` pulls the typeface straight out of `frontend/fonts/`, and
 each card's own `<style>` block carries the tokens copied from the page it
-advertises — the portfolio card is the light amber/emerald palette down to the
+advertises — the portfolio card is the light citron/azure palette down to the
 hero's command prompt, the two predictor cards are their own dark grounds.
 
 Two things to know before regenerating:

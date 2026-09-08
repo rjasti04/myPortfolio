@@ -12,51 +12,60 @@
      and must stay light, matching the light --bg below. */
   color-scheme: light;
 
-  /* Amber, emerald and sky. The secondary and the data colour used to be
-     Solarized's own green (#859900) and yellow (#B58900), which is where the
-     "Solarized" in the old name here came from; they are not Solarized any
-     more, and two of the three hues sitting inside 30 degrees of each other
-     was the reason to move. Amber against an olive that reads as dark amber
-     is one colour twice. */
-  --accent-hue: 38;
+  /* Citron, azure and violet - hues 64, 214 and 274, so no two of the three
+     sit closer than 60 degrees on the wheel. That separation is the standing
+     constraint rather than these particular hues: the palette two revisions
+     back paired amber with Solarized's own green (#859900) and yellow
+     (#B58900), and two of three hues inside 30 degrees of each other is one
+     colour twice.
 
-  /* Hex for the same reason the other two fills below are: `hsl(38, 92%, 50%)`
-     resolves to #F59F0A, and the picker has always reported this default as
-     #F59E0B. A unit per channel is invisible, but "the value the picker shows
-     is the value the page paints" is either true of every control or it is not
-     a property anyone can rely on. The variants stay in hsl(). */
-  --accent-fill: #f59e0b;
-  --accent-text: hsl(38, 92%, 30%);
-  --accent-hover: hsl(38, 92%, 40%);
+     The saturation travels with the hue, which is why it is a token too - the
+     accent ramp is 60% where the amber it replaced was 92%, and a rule that
+     reached for the hue and kept the old saturation would render a colour
+     nothing else on the page uses. */
+  --accent-hue: 64;
+  --accent-sat: 60%;
+
+  /* Hex for the same reason the other two fills below are: the customiser's
+     picker reports these defaults as hex, and "the value the picker shows is
+     the value the page paints" is either true of every control or it is not a
+     property anyone can rely on. These three happen to round-trip exactly
+     (#C5CF3F is hsl(64, 60%, 53%) both ways), but that is luck rather than a
+     rule - hsl(38, 92%, 50%) resolved to #F59F0A against the #F59E0B the
+     picker showed, and the next palette can land the same way. The variants
+     stay in hsl(). */
+  --accent-fill: #c5cf3f;
+  --accent-text: hsl(64, 60%, 26%);
+  --accent-hover: hsl(64, 60%, 43%);
   --accent: var(--accent-fill);
-  --accent-soft: hsla(38, 92%, 50%, 0.15);
+  --accent-soft: hsla(64, 60%, 53%, 0.15);
 
-  --accent-mild: hsla(38, 92%, 50%, 0.58);
-  /* The two fills are hex rather than hsl() on purpose. Rounding an hsl()
-     triple back to 8 bits per channel drifts a unit or two - hsl(160, 84%,
-     39%) resolves to #10B77F, not #10B981 - and the theme customiser's own
-     picker shows these as hex. A default the picker reports and a default the
-     page paints have to be the same colour, or applying the value already on
-     screen shifts the page.
-
-     The `-text` variants stay in hsl() because their whole content is "the
-     fill's hue and saturation, darker": the numbers are only meaningful next
-     to the fill they came from. Both are set to clear WCAG AA against --bg -
-     5.78:1 and 6.02:1, against 5.23:1 and 4.70:1 for the colours they
-     replace. `.hero-kicker` renders --secondary-text at body size, so this is
+  --accent-mild: hsla(64, 60%, 53%, 0.58);
+  /* The two fills are hex for the reason given above the accent ramp. The
+     `-text` variants stay in hsl() because their whole content is "the fill's
+     hue and saturation, darker": the numbers are only meaningful next to the
+     fill they came from. Both are chosen against measured contrast rather
+     than a fixed offset from the fill - 5.81:1 and 7.95:1 on --bg - because
+     the same offset lands differently on every hue: violet at its own fill
+     lightness already clears 6:1 where citron at that lightness clears
+     nothing. `.hero-kicker` renders --secondary-text at body size, so this is
      AA for normal text and not the 3:1 large-text allowance. */
-  --secondary-fill: #10b981;
-  --secondary-text: hsl(160, 84%, 24%);
-  --data-fill: #0284c7;
-  --data-text: hsl(200, 98%, 30%);
-  /* Ink on accent/secondary FILLS. Dark ink is 8.4:1 on amber in both
-     themes; the previous #fff was 2.0:1 and failed WCAG AA sitewide. */
+  --secondary-fill: #3c82dd;
+  --secondary-text: hsl(214, 70%, 42%);
+  --data-fill: #830fdb;
+  --data-text: hsl(274, 87%, 40%);
+  /* Ink on accent/secondary FILLS - .btn is a gradient between the two, so it
+     has to clear both ends. Dark ink is 11.2:1 on citron in both themes and
+     4.9:1 on azure, against 1.7:1 and 3.9:1 for white; #fff failed WCAG AA
+     sitewide before this token existed. --data-fill is never a text ground:
+     violet is the one fill dark ink cannot sit on (2.8:1), and it appears
+     only inside decorative gradients. */
   --on-accent: #14100a;
   --on-accent-inverse: #fff;
   /* Aliases for names referenced in CSS/HTML but never defined. Without
      these the declarations were invalid and silently dropped. */
   --bg: #f8fafb;
-  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, hsl(38, 55%, 95%) 35%, hsl(160, 50%, 96%) 70%, #fdfdfd);
+  --bg-gradient: radial-gradient(ellipse at top left, #ffffff, hsl(64, 55%, 95%) 35%, hsl(214, 50%, 96%) 70%, #fdfdfd);
   --text: #0f172a;
   --muted: #3f4b5a;
   --border: hsl(220, 39%, 11%, 0.13);
@@ -64,7 +73,7 @@
   --surface: hsl(0, 0%, 100%, 0.92);
   --surface-soft: hsl(0, 0%, 100%, 0.70);
   --card-bg: var(--surface);
-  --skill-bg: hsl(38, 40%, 97%, 0.85);
+  --skill-bg: hsl(64, 40%, 97%, 0.85);
   --header-height: 72px;
   /* How far the sticky header floats below the top of the scrollport. It is
      read back by the #home centring rules, which have to add it to main's
@@ -236,7 +245,7 @@
 
      --sheen-wash lives on `body`, not here: it is accent-derived, and a
      var() inside a custom property substitutes where the property is
-     DECLARED. On :root it would freeze at the light amber and ignore both
+     DECLARED. On :root it would freeze at the light accent and ignore both
      body.dark-theme and the theme customiser - the same trap documented on
      --glow-* and --focus-ring below. */
   --sheen-edge: hsl(220, 39%, 11%, 0.10);
@@ -318,19 +327,21 @@ body.dark-theme {
   --skill-bg: hsl(210, 20%, 14%, 0.72);
   --select-bg: #0f1419;
   /* Dark-theme accent ramp. */
-  --accent-fill: hsl(38, 92%, 55%);
-  --accent-text: hsl(38, 92%, 65%);
-  --accent-hover: hsl(38, 92%, 45%);
-  --accent-soft: hsla(38, 92%, 55%, 0.20);
-  --accent-mild: hsla(38, 92%, 55%, 0.58);
-  /* 9.12:1 on this ground - see the note on body's declaration. */
+  --accent-fill: hsl(64, 60%, 55%);
+  --accent-text: hsl(64, 60%, 65%);
+  --accent-hover: hsl(64, 60%, 45%);
+  --accent-soft: hsla(64, 60%, 55%, 0.20);
+  --accent-mild: hsla(64, 60%, 55%, 0.58);
+  /* 11.67:1 on this ground - see the note on body's declaration. */
   --control-accent-border: var(--accent-fill);
   /* Same hue and saturation as the fills in :root, lifted for the near-black
-     ground: 12.34:1 and 8.11:1. The old chartreuse and yellow measured higher
-     still (13.53:1, 11.72:1) purely because those hues cannot be dark - sky
-     at h200 tops out lower and 8.11:1 is far above the 4.5:1 it has to make. */
-  --secondary-text: hsl(160, 84%, 50%);
-  --data-text: hsl(200, 98%, 55%);
+     ground: 8.19:1 and 7.61:1. They land closer together than the pair they
+     replace (12.34:1 and 8.11:1) because both of these hues are intrinsically
+     dark - azure and violet have to be lifted well past their light-theme
+     lightness to clear the 4.5:1 they owe as body-size text, where emerald
+     cleared it at 50%. */
+  --secondary-text: hsl(214, 70%, 70%);
+  --data-text: hsl(274, 87%, 75%);
   --color-success: #34d399;
   --color-warning: #fbbf24;
   --color-error: #fb7185;
@@ -377,18 +388,19 @@ body {
      overridden on body.dark-theme. Defining it on body picks up both that
      override and the inline properties the theme customiser writes to body.
 
-     Not --accent-fill: measured against the light background it is 2.04:1,
-     under the 3:1 WCAG 1.4.11 requires. --accent-text measures 5.17:1 light
-     and 9.59:1 dark. */
+     Not --accent-fill: measured against --bg it is 1.62:1, under the 3:1 WCAG
+     1.4.11 requires - and citron is lighter than the amber it replaced, so
+     the fill misses that bar by more than it used to. --accent-text measures
+     5.52:1 on --bg light and 13.08:1 on the dark ground. */
   --focus-ring: var(--accent-text);
 
   /* The edge of an outline control - the .home-* pills and icon discs, whose
      border IS the affordance since they have no fill to read instead.
-     Measured against the light page ground --accent-fill is 1.94:1, under the
-     3:1 WCAG 2.2 SC 1.4.11 requires of a control's visual boundary;
-     --accent-text is 4.93:1. On the dark ground the fill is already 9.12:1
-     and is the warmer edge, so the two themes diverge rather than share one
-     value. Resolved on body for the same substitution reason as --focus-ring:
+     Measured against the light page ground - the tinted stop of
+     --bg-gradient, not flat white - --accent-fill is 1.60:1, under the 3:1
+     WCAG 2.2 SC 1.4.11 requires of a control's visual boundary; --accent-text
+     is 5.45:1. On the dark ground the fill is already 11.67:1 and is the
+     brighter edge, so the two themes diverge rather than share one value. Resolved on body for the same substitution reason as --focus-ring:
      both source tokens are overridden on body.dark-theme and written to
      body.style by the theme customiser. */
   --control-accent-border: var(--accent-text);
@@ -1319,6 +1331,39 @@ body:not(.dark-theme) .token-number {
   white-space: nowrap;
 }
 
+/* ── The theme the panel is working on ──
+   Clicking a chip loads its colours into the controls, and they stay that
+   theme's colours while they are edited - so Save writes back to it rather
+   than asking for a name that has to be retyped exactly. The chip says which
+   theme that is; without it the panel gave no sign that a loaded theme was
+   loaded, and an edit followed by Apply looked like a save that did nothing.
+
+   Deliberately not the hover treatment: this state persists, so it carries a
+   full-strength border rather than the hover's `--accent-mild`, and it does
+   not lift. */
+.theme-chip-apply.is-active {
+  border-color: var(--accent-fill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.theme-chip-apply.is-active + .theme-chip-remove {
+  border-color: var(--accent-fill);
+}
+
+/* Edited past what the saved theme holds. An edit is a preview until Save, and
+   this dot is the only place that is visible while it is still true - the
+   chip's `title` says the same thing in words. */
+.theme-chip-apply.is-edited::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--accent-fill);
+}
+
 .theme-chip-remove {
   display: inline-flex;
   align-items: center;
@@ -1921,7 +1966,7 @@ main {
    Exactly one line on the landing view is in accent again, and it is the one
    that says what the work is.
 
-   The amber drop-shadow stays: on ink it reads as a warm bloom rather than as
+   The accent drop-shadow stays: on ink it reads as a soft bloom rather than as
    the glyph's own colour, and it is what lifts the name off the dark ground. */
 .hero-char {
   display: inline-block;
@@ -2750,8 +2795,8 @@ body.dark-theme .home-portrait::before {
    it sees the masked result and the shadow fades out with the torso.
 
    Warm rather than neutral: --shadow-ambient is the blue-grey used under
-   cards, and under a silhouette on this amber ground it reads as a cold
-   smudge.
+   cards, and under a silhouette on this accent-tinted ground it reads as a
+   cold smudge.
 
    Applies to BOTH faces of the flip card, which is what it should do: the
    shadow belongs to whichever silhouette is currently facing the viewer, and
@@ -3056,7 +3101,7 @@ body.dark-theme .home-portrait picture {
   color: var(--on-accent);
 }
 
-/* Dark ink on the amber face, matching `.btn.btn-outline:hover` and
+/* Dark ink on the accent face, matching `.btn.btn-outline:hover` and
    `.home-social:hover`. White measured 3.29:1 light and 2.63:1 dark - the
    last survivor of the failure --on-accent was introduced to fix. */
 .home-btn:hover {
@@ -3085,7 +3130,7 @@ body.dark-theme .home-portrait picture {
 }
 
 /* Outlined rather than filled: two more solid accent discs directly under an
-   accent pill made the column read as one amber block. */
+   accent pill made the column read as one solid block of accent. */
 .home-social {
   display: inline-flex;
   align-items: center;
@@ -5049,15 +5094,15 @@ body.dark-theme .skill-tag {
 }
 
 body.dark-theme .skill-tag.primary {
-  background: hsla(var(--accent-hue), 92%, 50%, 0.16);
-  border-color: hsla(var(--accent-hue), 92%, 50%, 0.45);
-  color: hsl(var(--accent-hue), 92%, 65%);
+  background: hsla(var(--accent-hue), var(--accent-sat), 50%, 0.16);
+  border-color: hsla(var(--accent-hue), var(--accent-sat), 50%, 0.45);
+  color: hsl(var(--accent-hue), var(--accent-sat), 65%);
 }
 
 body.dark-theme .skill-tag.primary i,
 body.dark-theme .skill-tag.primary .fab,
 body.dark-theme .skill-tag.primary .fas {
-  color: hsl(var(--accent-hue), 92%, 65%);
+  color: hsl(var(--accent-hue), var(--accent-sat), 65%);
 }
 
 .skill-tag::before {
@@ -6422,13 +6467,13 @@ body.dark-theme .skill-tag.primary .fas {
 /* High Contrast Mode Support */
 @media (prefers-contrast: high) {
   :root {
-    --accent-text: hsl(38, 92%, 24%);
+    --accent-text: hsl(64, 60%, 22%);
     --border: hsl(220, 39%, 11%, 0.30);
     --muted: #334155;
   }
 
   body.dark-theme {
-    --accent-text: hsl(38, 100%, 76%);
+    --accent-text: hsl(64, 100%, 76%);
     --border: hsl(60, 9%, 98%, 0.30);
     --muted: #e2e8f0;
     --text: #ffffff;
@@ -9153,7 +9198,7 @@ nav a:hover .nav-shortcut {
         bubble: the question is set one step up in size against an accent rule
         on the left, the answer is plain prose underneath it, and both start on
         the same edge. Scanning a long thread is then a matter of running the
-        eye down the amber rules - which is what alternating left/right bubbles
+        eye down the accent rules - which is what alternating left/right bubbles
         made impossible, because the two roles never shared a leading edge.
 
      3. The composer is the anchor, not a footer. On an empty thread it sits
@@ -9277,7 +9322,7 @@ nav a:hover .nav-shortcut {
 
 /* ── Rail ──
    A list of conversations, and nothing else. Everything in it is quiet at
-   rest: the panel's job is the answer, and a 280px column of amber beside it
+   rest: the panel's job is the answer, and a 280px column of accent beside it
    competes with the thing the visitor came for. */
 .ai-sidebar {
   width: var(--ai-rail);
@@ -9548,7 +9593,7 @@ body.dark-theme .sidebar-search-input {
 }
 
 /* "You are here" as a marker rather than as a fill. The open conversation used
-   to be a solid amber slab - one row of the rail painted louder than the
+   to be a solid accent slab - one row of the rail painted louder than the
    answer beside it. A short accent bar plus the weight change reads at a
    glance and leaves the row the same colour as its neighbours. */
 .history-item::before {
@@ -10106,7 +10151,7 @@ body.dark-theme .ai-topbar-model {
 /* ── The question is the heading of its own block ──
    Which is what it is: everything below it until the next one is the answer to
    it. Set one step up, at 600, against a 3px accent rule, so scanning a long
-   thread means running the eye down the left edge for the amber marks. The
+   thread means running the eye down the left edge for the accent marks. The
    widget's dark slate gradient does not come along - it is the one surface on
    the site that belongs to no palette, and at full measure it would have been
    a black slab across the reading column. */
