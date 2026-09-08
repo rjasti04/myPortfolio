@@ -44,7 +44,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (361 lines)
+### `main.js` (396 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -52,7 +52,13 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   `reportClientError`. `preventDefault()` is called **only** for the network
   case it actually handles with a toast — calling it unconditionally suppressed
   every unhandled rejection from the console.
-- Eager init: theme, navigation, contact form, hero title, animations, tilt,
+- Eager init, each call wrapped by `boot(name, init)` so one module's failure
+  costs its own feature and nothing else. They used to run as a bare sequence
+  in one handler, which meant they shared a fate: `initTheme` reading blocked
+  storage was enough to skip `initAnimations` four calls later, leaving every
+  `.reveal` element at `opacity: 0` — the contact form, both Apps tiles and the
+  About cards as blank space. Failures report through `reportClientError`.
+  In order: theme, navigation, contact form, hero title, animations, tilt,
   terminal, analytics, skills carousel, ripple, scroll-to-top, theme customizer,
   and both `PullToRefresh` instances — `#ai .ai-content-area` first (it marks
   itself `[data-ptr-scroller]`, which the second one reads), then
@@ -74,8 +80,12 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   viewport drops below the gate, and mounted when the viewport crosses back.
 - Service-worker registration, an update check every 60 s, and the update
   banner whose button posts `SKIP_WAITING` and reloads on `controllerchange`.
+  One banner node for the life of the page, with a dismiss control and its
+  listener bound to the element: every `updatefound` used to append another
+  banner carrying the same `id`, so `getElementById` found the first and the
+  newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,189 lines)
+### `auth-ui.js` (1,308 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -194,13 +204,13 @@ module-level `refreshInFlight` promise makes every concurrent 401 share one
 refresh, and it is cleared before awaiting callers resume so a later 401 starts
 a fresh attempt. Guarded by `frontend/tests/auth-refresh.test.js`.
 
-### `utils.js` (176 lines)
+### `utils.js` (228 lines)
 
 | Export | Role |
 | :--- | :--- |
 | `escapeHTML(value)` | Escapes `& < > " '` by regex, not by DOM round-trip — six call sites interpolate into double-quoted attributes, and `page_path` reaching `activity-charts.js` is visitor-controlled *and persisted*, so a missed quote was a stored injection |
 | `copyText(text)` | Clipboard API with a hidden-textarea fallback |
-| `showToast(message, type)` | `role="status"` toast, auto-dismissed after 3.2 s |
+| `showToast(message, type)` | Toast with a close button, auto-dismissed after 3.2 s — a timer that *holds* while the toast has hover or focus (WCAG 2.2.1). `role="alert"` when `type` is `"error"`, `role="status"` otherwise: the container is already `aria-live="polite"`, so an error announced politely could queue behind other speech and be gone before it was read |
 | `debounce(fn, delay)` / `throttle(fn, interval)` | Standard |
 | `estimateTokens(text)` | Heuristic token count, weighted for words, punctuation, code fences and URLs |
 | `onOnline(cb)` / `onOffline(cb)` / `isNetworkOnline()` | Connectivity observers |
@@ -226,7 +236,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (1,851 lines, lazy)
+### `chat.js` (1,890 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -254,9 +264,13 @@ Internals worth knowing:
 | Summarisation | At `SUMMARIZE_TOKEN_THRESHOLD` estimated tokens, everything before the current message is sent to `/chat/summarize` and replaced by the summary |
 | Auth | A `401` while signed out dispatches `request-login-modal` rather than showing a raw error |
 | Voice | Separate `SpeechRecognition` instances per input — a shared singleton had both mic buttons overwriting each other's `onresult` and routing transcripts to the wrong field. Buttons are hidden entirely when unsupported. Both composers are wired by one `setupVoiceInput()`: the mic opens a `.voice-bar` over the composer (cancel, an animated waveform sized to the row, stop, send), and every run ends in `onend` with an intent — `insert` writes the transcript to the field, `send` writes it and calls `requestSubmit()`, `cancel` (the X, Escape, or a recognition error) discards it |
-| Accessibility | `announceToScreenReader` for streamed replies |
+| Waiting state | `createTypingIndicator()` renders an *indeterminate* indicator. It used to march "Initializing context -> Fetching profile data -> Querying Bedrock LLM" on a fixed 700 ms timer with nothing behind it, so a slow turn showed three completed steps while nothing had arrived and a fast turn showed steps for work that never happened. Waiting and streaming are the only two states this code can observe |
+| Busy composer | `setInputState()` sets `readOnly` plus `aria-busy`, not `disabled`. The visitor is almost always focused in the composer when they press Enter, and disabling the focused element drops focus to `<body>`; both submit handlers already guard on `isGenerating`, so Enter cannot re-send. The refocus after a turn is gated on `#ai` still being the active section |
+| Modality | The widget sets `aria-modal` while open and traps Tab with `handleFocusTrap` from `modal.js`. `body.chat-open` paints a scrim that takes pointer events, so it was already modal for a mouse while Tab walked out of it into a page the visitor could no longer click. It focuses the composer directly on open — it used to wait on a `transitionend` that never fires, because the global `.hidden` utility is `display: none !important` and an element leaving `display: none` runs no transition |
+| Destructive actions | Deleting one conversation and clearing all history both go through `confirmAction` from `confirm-dialog.js`. Delete used to ask nothing while Clear All called the browser's blocking `confirm()` |
+| Accessibility | `announceToScreenReader` for streamed replies. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
 
-### `activity.js` (1,181 lines, lazy)
+### `activity.js` (1,202 lines, lazy)
 
 `initActivity()`, `loadActivity()`, `loadActivitySummary()`,
 `loadActivityFunnel()`.
@@ -266,6 +280,14 @@ about my visit?* The whole session is fetched once (`limit=500`, the API's own
 page ceiling) and held in memory, so every filter — search, family, time slice,
 path — is local and instant, and the session strip has the complete series it
 needs.
+
+`loadState` (`idle | loading | ready | error`) drives the event stream's own
+loading, empty and error painting. The two side panels load independently, so
+they carry their own `summaryFailed` / `funnelFailed` flags: both used to
+`return` on a bad status and log a throw to the console, which rendered a
+failure as "No navigation recorded yet." and left the headline stats at `0` and
+an em dash — placeholders reading as measurements. `renderPaths` takes a
+`failed` option, and the stat grid marks unconfirmed figures.
 
 **Four families over ten event types**, because four hues are learnable at a
 glance and seven are a legend: `nav` (page_view, scroll_depth), `tap` (click,
@@ -280,7 +302,7 @@ painted from `pipeline`/`hello` frames, a rolling 200-sample latency reservoir
 fed by `onTelemetry`, focus restoration across re-renders, and paginated
 grouped rows (`PAGE_SIZE = 20`).
 
-### `activity-charts.js` (194 lines)
+### `activity-charts.js` (200 lines)
 
 Pure paint helpers — `activity.js` owns all state; every export here renders
 from a snapshot passed in.
@@ -301,7 +323,7 @@ a filter control that needs to be a real focusable, labelled element. Colours
 come from CSS custom properties, so both themes and any accent change flow
 through without touching this file.
 
-### `form.js` (323 lines)
+### `form.js` (371 lines)
 
 `export function initContactForm()` — the contact section.
 
@@ -315,7 +337,14 @@ forwarded in the payload. A timeout must not fall through to a native
 resubmission — `frontend/tests/contact-form.test.js` guards that. Success fires
 confetti and tracks `contact_submission`.
 
-### `resume-pdf.js` (75 lines)
+`aria-describedby` is treated as the token list it is: `#contact-message` also
+points at its character counter, and assigning the error id over the top of it
+used to detach "0 / 1200" permanently on the first error. Blur reports an
+*empty* required field too, and submit runs `validateAllFields`, which renders
+every inline error and focuses the first bad one, rather than handing off to
+`reportValidity()` and its native bubble that no live region mirrors.
+
+### `resume-pdf.js` (158 lines)
 
 `export function initResumePdf()` — the in-page preview for the resume PDF,
 opened from the Experience section.
@@ -396,12 +425,18 @@ rejected, entries truncated at 500 characters individually so one oversized
 entry never discards the list), debounced persistence (400 ms), and a one-time
 migration from the v1 key. `export const STORAGE_KEY = "rj_terminal_history_v2"`.
 
-### `keymap.js` (106 lines)
+### `keymap.js` (116 lines)
 
 `Intent` (`SUBMIT`, `HIST_PREV`, `HIST_NEXT`, `COMPLETE`, `CLEAR`, `ABORT`,
-`NONE`), `intentFor(event)`, `commonPrefix(candidates)`,
+`BLUR`, `NONE`), `intentFor(event)`, `commonPrefix(candidates)`,
 `completeInput(raw, registry, ctx)`. Kept away from the DOM so the binding table
 is testable and the palette can reuse the same vocabulary.
+
+**Tab is claimed in one direction only.** `Shift+Tab` returns `NONE` and
+`Escape` returns `BLUR`, and `index.js` declines to `preventDefault` a
+completion on an empty prompt. Claiming Tab in both directions made
+`#terminal-input` a keyboard trap (WCAG 2.1.2): focus could enter the About
+prompt and never leave it without a mouse.
 
 ### `palette.js` (177 lines)
 
@@ -410,7 +445,7 @@ over the same registry, which is the payoff for modelling commands as data:
 every terminal command is reachable site-wide with no duplicated list.
 `role="dialog"`, `aria-modal`, focus restoration on close.
 
-### `index.js` (316 lines)
+### `index.js` (324 lines)
 
 `initTerminal()` — owns all DOM wiring, the output log (capped at
 `MAX_BLOCKS = 200`, because unbounded output left hundreds of nodes under a
@@ -423,7 +458,7 @@ matrix toggle (`rj_terminal_matrix`), and the `ctx` object handed to commands
 
 ## UI and interaction
 
-### `navigation.js` (572 lines)
+### `navigation.js` (634 lines)
 
 `initNavigation()`, `setActiveSection(target)`,
 `navigateToSection(target, {updateHash})`, `syncSectionWithHash(hash)`,
@@ -434,6 +469,20 @@ menus, the image modal, keyboard shortcuts, the mobile bottom nav, swipe
 gestures between sections, and online/offline banners. `isModalOpen()` checks
 **both** dialog implementations — `.image-modal.active` and
 `#auth-modal:not(.hidden)` — or shortcuts would fire through an open dialog.
+
+`setMobileMenuState()` owns the panel's focus and scroll behaviour. It moves
+focus to `#nav-menu-close` on open, traps Tab via `handleFocusTrap`, returns
+focus to the hamburger on close when focus is still inside, and takes the
+reference-counted `lockBodyScroll` from `modal.js` rather than writing
+`body.style.overflow`. On a phone this panel *is* the navigation, and it was
+the only scrim-backed surface on the site with none of that.
+
+The **mobile bottom bar is switched off.** It is fully styled and fully built,
+but `--mobile-bottom-nav` in the design tokens is `0`, `bottomNavEnabled()`
+reads that flag and `initMobileBottomNav()` returns early — so the stylesheet
+and the DOM cannot disagree about whether a whole navigation surface exists.
+Turning it on is that flag, `display: flex` in the MOBILE BOTTOM NAV region,
+and `--mobile-bottom-nav-height` back to 56px in RESPONSIVE.
 
 This module is not the *first* thing to route: it arrives through `main.js` and
 does not run until `DOMContentLoaded`, so the inline pre-boot router in
@@ -459,7 +508,7 @@ focus into `<main>` without navigating away from what the visitor was reading,
 and on the first sync the active section is already the one the pre-boot router
 chose — home included, since that is what the markup ships.
 
-### `modal.js` (124 lines)
+### `modal.js` (129 lines)
 
 `openModal(modal, {initialFocus, onClose})`, `closeModal(modal, {restoreFocus})`,
 `getFocusableElements(container)`, `handleFocusTrap(event, modal)`.
@@ -468,6 +517,30 @@ Focus trapping, focus return via a `WeakMap`, per-modal teardown callbacks, and
 a **reference-counted** body scroll lock — nested opens must not each stash
 their own scroll position, so only the outermost close restores the page.
 Integrates `ModalSwipeDismiss` for touch.
+
+`lockBodyScroll` / `unlockBodyScroll` are exported for the mobile nav in
+`navigation.js`, which is not a `.active`-toggled dialog but needs the same
+lock — it used to write `document.body.style.overflow` directly, which neither
+preserves the scroll offset nor applies the `position: fixed` that is what
+actually stops iOS scroll-chaining.
+
+### `confirm-dialog.js` (114 lines)
+
+`confirmAction({title, body, confirmLabel, cancelLabel, destructive})`, which
+resolves to a boolean.
+
+The site's one confirmation dialog, built on `modal.js` so it inherits the
+focus trap, the reference-counted scroll lock, Escape and focus restore.
+Cancel takes initial focus, so a stray Enter is never the destructive answer,
+and dismissing by Escape or backdrop resolves `false` through the `onClose`
+hook rather than leaving the promise pending.
+
+It exists because destructive actions used to disagree about what
+confirmation meant: clearing all chat history called the browser's blocking
+`confirm()` — the only unthemed dialog in the codebase — while deleting a
+single conversation and revoking a device session asked nothing at all.
+Callers: `chat.js` (delete one chat, clear all history) and `auth-ui.js`
+(revoke one session, log out all other devices).
 
 ### `swipe-handler.js` (448 lines)
 
@@ -507,12 +580,19 @@ only for the length of a live pull — left bound on `document` it would make
 every touch scroll on the site wait for JS. It cancels only while a pull that
 started at `scrollTop === 0` is still heading down.
 
-### `skills-carousel.js` (253 lines)
+### `skills-carousel.js` (286 lines)
 
 `initSkillsCarousel()` — a carousel below 640 px and a static grid above.
 Autoplay at 4.5 s, 40 px swipe threshold, dot navigation, paused under
 `prefers-reduced-motion`. Initialises after two `requestAnimationFrame` ticks so
 measurements happen on a painted layout.
+
+Autoplay also has a **latched pause control** (WCAG 2.2.2). Hover, focus and an
+in-progress touch pause it transiently, but this runs only on the phone layout,
+where there is no hover to give — so a reader had no way to stop the slide
+moving under them. `.skills-carousel-pause` sits in a controls row *outside*
+the `role="tablist"` (a pause button is not a tab) and is revealed only where
+autoplay can actually run.
 
 ### `ripple.js` (31 lines)
 
@@ -550,10 +630,16 @@ See [The flip card](FRONTEND.md#the-flip-card) for the markup and CSS contract.
 `initTilt()` — pointer-tracked 3D tilt on `.tilt-card`, `requestAnimationFrame`
 batched, and a complete no-op without hover support or with reduced motion.
 
-### `theme.js` (69 lines)
+### `theme.js` (95 lines)
 
 `initTheme()`, `applyTheme(isDark)`, `toggleTheme()`. `toggleTheme` is exported
 so callers (the command prompt) need not synthesise a click on `#theme-toggle`.
+
+Both `localStorage` reads go through `readStoredTheme()`, which returns `null`
+for "no stored choice" and for "storage is unreachable" alike, because the
+caller falls back to the OS either way. Reading storage *throws* where it is
+blocked, and `initTheme` is the first call in `main.js` — an uncaught throw
+here used to unwind the whole `DOMContentLoaded` handler.
 Calls `syncThemeColorMeta()` from `theme-customizer.js` after
 `reapplyCustomTheme`, which covers the plain light/dark flip on the shipped
 colours — the palette paths sync the tag themselves.

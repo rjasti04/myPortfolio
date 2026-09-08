@@ -2,6 +2,32 @@ import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, 
 import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
 import { closeModal, openModal } from './modal.js';
+import { confirmAction } from './confirm-dialog.js';
+import { showToast } from './utils.js';
+
+/* --- Submit readiness ---------------------------------------------------
+   Four forms used to set `submitBtn.disabled` from a live validity check. A
+   disabled button is not focusable and announces nothing, so a keyboard or
+   screen-reader user tabbed past it and found the form had no way forward and
+   no statement of why. The contact form in this same codebase takes the
+   opposite approach: stay enabled, report on attempt. These two helpers make
+   that the rule here as well - readiness is recorded on the element, and the
+   submit handler turns "not ready" into a message in the form's existing
+   role="alert" node plus focus on the field to fix. */
+function setSubmitReadiness(btn, ready, reason) {
+    if (!btn) return;
+    btn.dataset.ready = String(ready);
+    btn.dataset.blockedReason = ready ? '' : reason;
+    // Announced, not enforced: the button stays operable.
+    btn.setAttribute('aria-disabled', String(!ready));
+}
+
+function blockedBeforeSubmit(btn, errorEl, focusTarget) {
+    if (!btn || btn.dataset.ready !== 'false') return false;
+    if (errorEl) errorEl.textContent = btn.dataset.blockedReason || 'Please complete every field.';
+    if (focusTarget && typeof focusTarget.focus === 'function') focusTarget.focus();
+    return true;
+}
 
 export async function initAuthUI() {
     const modal = document.getElementById('auth-modal');
@@ -375,11 +401,15 @@ export async function initAuthUI() {
             matches = val === confirmVal;
         }
 
-        // 4. Submit button enablement
+        // 4. Submit readiness - recorded, not enforced by disabling.
         const allCriteriaMet = hasLength && hasUpper && hasNumber && hasSpecial;
-        if (registerSubmitBtn) {
-            registerSubmitBtn.disabled = !(allCriteriaMet && matches);
-        }
+        setSubmitReadiness(
+            registerSubmitBtn,
+            allCriteriaMet && matches,
+            !allCriteriaMet
+                ? 'Your password needs at least 8 characters, an uppercase letter, a number and a symbol.'
+                : 'The two passwords do not match.'
+        );
     }
 
     if (registerPasswordInput) {
@@ -411,9 +441,12 @@ export async function initAuthUI() {
                 return;
             }
 
-            // Success
+            // Success. The dialog just vanishes and the only other signal is
+            // the nav icon swapping - small, in the header, easy to miss on a
+            // phone, and announced to nobody.
             loginForm.reset();
             closeAuthModal();
+            showToast('Signed in.', 'success');
             window.dispatchEvent(new Event('auth-changed'));
 
         } catch (err) {
@@ -536,47 +569,105 @@ export async function initAuthUI() {
         });
     }
 
+    /**
+     * Builds one row of the active-sessions list.
+     *
+     * Every value here is server data, and `device_type` derives from a
+     * client-supplied User-Agent, so it is written with textContent rather
+     * than interpolated into innerHTML. The whole row used to be a template
+     * string of inline styles: rgba(255,255,255,0.05) on a near-white modal
+     * (an invisible card with an invisible border) and a device name painted
+     * `var(--text-color, #cdd6f4)` - a variable defined nowhere in the
+     * project, so it always fell back to a pale grey at roughly 1.5:1.
+     */
+    function buildSessionRow(session, onRevoke) {
+        const row = document.createElement('div');
+        row.className = 'auth-session-row';
+
+        const details = document.createElement('div');
+        details.className = 'auth-session-details';
+
+        const name = document.createElement('div');
+        name.className = 'auth-session-device';
+        const deviceType = session.device_type || 'Desktop Device';
+        const icon = document.createElement('i');
+        icon.className = deviceType.toLowerCase().includes('mobile')
+            ? 'fas fa-mobile-screen'
+            : 'fas fa-laptop';
+        icon.setAttribute('aria-hidden', 'true');
+        name.append(icon, document.createTextNode(` ${deviceType}`));
+
+        const ip = document.createElement('div');
+        ip.className = 'auth-session-ip';
+        ip.textContent = `IP: ${session.ip_address ?? 'unknown'}`;
+
+        details.append(name, ip);
+
+        const revokeBtn = document.createElement('button');
+        revokeBtn.type = 'button';
+        revokeBtn.className = 'btn-revoke-session';
+        revokeBtn.dataset.sessionId = session.session_id;
+        revokeBtn.textContent = 'Revoke';
+        revokeBtn.setAttribute('aria-label', `Revoke the session on ${deviceType}`);
+        revokeBtn.addEventListener('click', () => onRevoke(session, revokeBtn, deviceType));
+
+        row.append(details, revokeBtn);
+        return row;
+    }
+
     async function loadActiveSessionsUI() {
         const container = document.getElementById('sessions-list');
         const errEl = document.getElementById('sessions-error');
         if (!container) return;
+
+        const note = (text) => {
+            const p = document.createElement('p');
+            p.className = 'auth-session-note';
+            p.textContent = text;
+            container.replaceChildren(p);
+        };
+
         try {
             if (errEl) errEl.textContent = '';
-            container.innerHTML = '<p style="font-size: 0.85rem; color: var(--text-muted);">Loading active sessions...</p>';
+            note('Loading active sessions...');
             const sessions = await fetchActiveSessions();
             if (!sessions || sessions.length === 0) {
-                container.innerHTML = '<p style="font-size: 0.85rem; color: var(--text-muted);">No active sessions found.</p>';
+                note('No active sessions found.');
                 return;
             }
-            container.innerHTML = sessions.map(s => `
-                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-color, #cdd6f4);">
-                            <i class="fas fa-${(s.device_type || 'desktop').toLowerCase().includes('mobile') ? 'mobile-screen' : 'laptop'}"></i> ${s.device_type || 'Desktop Device'}
-                        </div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted, #a6adc8);">IP: ${s.ip_address}</div>
-                    </div>
-                    <button type="button" class="btn-revoke-session" data-session-id="${s.session_id}" style="background: none; border: 1px solid var(--color-error, #f38ba8); color: var(--color-error, #f38ba8); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;">
-                        Revoke
-                    </button>
-                </div>
-            `).join('');
 
-            container.querySelectorAll('.btn-revoke-session').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const sid = btn.getAttribute('data-session-id');
-                    btn.disabled = true;
-                    btn.textContent = 'Revoking...';
-                    try {
-                        await revokeSpecificSession(sid);
-                        await loadActiveSessionsUI();
-                    } catch (e) {
-                        if (errEl) errEl.textContent = e.message || 'Failed to revoke session.';
-                    }
+            const onRevoke = async (session, btn, deviceType) => {
+                // Revoking logs a device out and cannot be undone; it used to
+                // happen on a single click, in the same dialog where deleting
+                // the account correctly demands a password and a typed phrase.
+                const ok = await confirmAction({
+                    title: 'Revoke this session?',
+                    body: `The session on ${deviceType} will be signed out immediately.`,
+                    confirmLabel: 'Revoke',
                 });
-            });
+                if (!ok) return;
+
+                const originalText = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = 'Revoking...';
+                try {
+                    await revokeSpecificSession(session.session_id);
+                    await loadActiveSessionsUI();
+                    showToast('Session revoked.', 'success');
+                } catch (e) {
+                    if (errEl) errEl.textContent = e.message || 'Failed to revoke session.';
+                    // Without this the row stayed disabled reading "Revoking..."
+                    // until the modal was closed and reopened - every other
+                    // async handler in this file restores its button.
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+            };
+
+            container.replaceChildren(...sessions.map((session) => buildSessionRow(session, onRevoke)));
         } catch (e) {
             if (errEl) errEl.textContent = e.message || 'Failed to load active sessions.';
+            note('Could not load your active sessions.');
         }
     }
 
@@ -584,6 +675,12 @@ export async function initAuthUI() {
     if (revokeOthersBtn) {
         revokeOthersBtn.addEventListener('click', async () => {
             const errEl = document.getElementById('sessions-error');
+            const ok = await confirmAction({
+                title: 'Log out all other devices?',
+                body: 'Every session except this one will be signed out immediately.',
+                confirmLabel: 'Log them out',
+            });
+            if (!ok) return;
             try {
                 revokeOthersBtn.disabled = true;
                 revokeOthersBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging out...';
@@ -605,6 +702,7 @@ export async function initAuthUI() {
             const email = (document.getElementById('register-email')?.value || '').trim();
             const password = document.getElementById('register-password')?.value || '';
             const btn = registerForm.querySelector('button[type="submit"]');
+            if (blockedBeforeSubmit(btn, registerError, registerPasswordInput)) return;
             const originalText = btn.innerHTML;
 
             try {
@@ -615,6 +713,7 @@ export async function initAuthUI() {
                 await registerUser(email, password);
 
                 // Success
+                showToast('Account created. You are signed in.', 'success');
                 registerForm.reset();
                 if (typeof updatePasswordValidation === 'function') {
                     updatePasswordValidation();
@@ -744,9 +843,15 @@ export async function initAuthUI() {
 
         const allCriteriaMet = hasLength && hasUpper && hasNumber && hasSpecial;
         const hasCurrentPassword = changeCurrentPasswordInput && changeCurrentPasswordInput.value.length > 0;
-        if (changePwSubmitBtn) {
-            changePwSubmitBtn.disabled = !(allCriteriaMet && matches && hasCurrentPassword);
-        }
+        setSubmitReadiness(
+            changePwSubmitBtn,
+            allCriteriaMet && matches && hasCurrentPassword,
+            !hasCurrentPassword
+                ? 'Enter your current password.'
+                : !allCriteriaMet
+                    ? 'Your new password needs at least 8 characters, an uppercase letter, a number and a symbol.'
+                    : 'The two new passwords do not match.'
+        );
     }
 
     if (changeCurrentPasswordInput) changeCurrentPasswordInput.addEventListener('input', updateChangePasswordValidation);
@@ -760,6 +865,7 @@ export async function initAuthUI() {
             const currentPassword = changeCurrentPasswordInput.value;
             const newPassword = changeNewPasswordInput.value;
             const btn = changePasswordForm.querySelector('button[type="submit"]');
+            if (blockedBeforeSubmit(btn, document.getElementById('change-pw-error'), changeCurrentPasswordInput)) return;
             const originalText = btn.innerHTML;
 
             try {
@@ -894,9 +1000,13 @@ export async function initAuthUI() {
         }
 
         const allCriteriaMet = hasLength && hasUpper && hasNumber && hasSpecial;
-        if (resetPwSubmitBtn) {
-            resetPwSubmitBtn.disabled = !(allCriteriaMet && matches);
-        }
+        setSubmitReadiness(
+            resetPwSubmitBtn,
+            allCriteriaMet && matches,
+            !allCriteriaMet
+                ? 'Your new password needs at least 8 characters, an uppercase letter, a number and a symbol.'
+                : 'The two passwords do not match.'
+        );
     }
 
     if (resetNewPasswordInput) {
@@ -912,6 +1022,7 @@ export async function initAuthUI() {
             const token = resetTokenInput ? resetTokenInput.value : '';
             const newPassword = resetNewPasswordInput ? resetNewPasswordInput.value : '';
             const btn = resetPasswordForm.querySelector('button[type="submit"]');
+            if (blockedBeforeSubmit(btn, document.getElementById('reset-pw-error'), resetNewPasswordInput)) return;
             const originalText = btn.innerHTML;
 
             try {
@@ -958,7 +1069,11 @@ export async function initAuthUI() {
         if (!deleteCurrentPasswordInput || !deleteConfirmPhraseInput || !deleteAccountSubmitBtn) return;
         const hasPw = deleteCurrentPasswordInput.value.length > 0;
         const phraseMatch = deleteConfirmPhraseInput.value.trim().toUpperCase() === 'DELETE';
-        deleteAccountSubmitBtn.disabled = !(hasPw && phraseMatch);
+        setSubmitReadiness(
+            deleteAccountSubmitBtn,
+            hasPw && phraseMatch,
+            !hasPw ? 'Enter your current password.' : 'Type DELETE to confirm.'
+        );
     }
 
     if (deleteCurrentPasswordInput) deleteCurrentPasswordInput.addEventListener('input', updateDeleteAccountValidation);
@@ -970,6 +1085,7 @@ export async function initAuthUI() {
             const currentPassword = deleteCurrentPasswordInput.value;
             const phrase = deleteConfirmPhraseInput.value;
             const btn = deleteAccountForm.querySelector('button[type="submit"]');
+            if (blockedBeforeSubmit(btn, deleteAccountError, deleteCurrentPasswordInput)) return;
             const originalText = btn.innerHTML;
 
             try {
@@ -1147,6 +1263,9 @@ async function setupNavUI() {
 
                 logoutBtn.addEventListener('click', async () => {
                     await logoutUser();
+                    // Same reason as the sign-in toast: the nav icon swapping
+                    // back is not feedback anyone hears, or reliably notices.
+                    showToast('Signed out.', 'success');
                 });
 
                 return; // Successfully setup logged-in state

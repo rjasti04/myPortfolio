@@ -259,8 +259,9 @@
 }
 
 .nav-dropdown-item:hover {
-  background-color: rgb(255 255 255 / 5%);
-  color: var(--accent-fill, #89b4fa);
+  /* Was white at 5%: no visible hover state at all in light theme. */
+  background-color: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 /* --- Auth Modal Enhancement Styles --- */
@@ -378,7 +379,11 @@
 /* Password Strength Meter */
 .password-strength-meter-container {
   height: 4px;
-  background-color: rgb(255 255 255 / 10%);
+
+  /* White at 10% is invisible on the near-white modal, so a weak password
+     showed a stub bar with no visible extent to measure it against - which is
+     most of what a strength meter communicates. */
+  background-color: var(--border);
   border-radius: 999px;
   margin-top: 8px;
   overflow: hidden;
@@ -612,4 +617,85 @@
 .auth-warning-box p {
   margin: 0;
   line-height: var(--leading-snug);
+}
+
+/* --- Active sessions list --------------------------------------------
+   These rows were built from inline styles in js/auth-ui.js authored for the
+   dark palette: an rgba(255,255,255,0.05) card with an
+   rgba(255,255,255,0.1) border, both invisible on the near-white light-theme
+   modal, and a device name on `var(--text-color, #cdd6f4)` - a variable this
+   project never defines, so it always painted the pale fallback at roughly
+   1.5:1. Tokens throughout now, so both themes work. */
+.auth-session-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.auth-session-details {
+  min-width: 0;
+}
+
+.auth-session-device {
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.auth-session-ip {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.auth-session-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.btn-revoke-session {
+  flex-shrink: 0;
+  min-height: var(--min-touch-target);
+  padding: 4px 12px;
+  border: 1px solid var(--color-error);
+  border-radius: 6px;
+  background: none;
+  color: var(--color-error);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-base, 180ms) var(--ease-standard),
+    color var(--motion-base, 180ms) var(--ease-standard);
+}
+
+.btn-revoke-session:hover:not(:disabled) {
+  background: var(--color-error);
+  color: var(--on-error);
+}
+
+.btn-revoke-session:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn-revoke-session:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* A submit button that is not yet ready. aria-disabled rather than the
+   `disabled` property, so the control stays focusable and reachable and the
+   submit handler can explain what is missing - a disabled button announces
+   nothing and gives a keyboard user no way to find out why the form will not
+   go. Dimmed, but deliberately still operable. */
+.auth-form button[type="submit"][aria-disabled="true"] {
+  opacity: 0.6;
 }
