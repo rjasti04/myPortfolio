@@ -1269,21 +1269,35 @@ export function initChat() {
     setInputState(false);
   }
 
-  function setInputState(disabled) {
-    isGenerating = disabled;
-    if (aiPageInput) aiPageInput.disabled = disabled;
+  function setInputState(busy) {
+    isGenerating = busy;
+
+    // `readOnly`, not `disabled`. The visitor is almost always focused in the
+    // composer when they press Enter, and disabling the focused element drops
+    // focus to <body> - a screen reader loses its place mid-turn. A readonly
+    // field keeps focus and stays announced; both submit handlers already
+    // guard on isGenerating, so Enter cannot re-send.
+    if (aiPageInput) {
+      aiPageInput.readOnly = busy;
+      aiPageInput.setAttribute('aria-busy', String(busy));
+    }
+    if (aiPageForm) aiPageForm.setAttribute('aria-busy', String(busy));
     if (aiPageSendBtn) {
       aiPageSendBtn.disabled = false;
-      aiPageSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
-      aiPageSendBtn.title = disabled ? 'Stop generation' : 'Send message';
+      aiPageSendBtn.innerHTML = busy ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
+      aiPageSendBtn.title = busy ? 'Stop generation' : 'Send message';
     }
-    if (chatInput) chatInput.disabled = disabled;
+    if (chatInput) {
+      chatInput.readOnly = busy;
+      chatInput.setAttribute('aria-busy', String(busy));
+    }
+    if (chatForm) chatForm.setAttribute('aria-busy', String(busy));
     if (chatSendBtn) {
       chatSendBtn.disabled = false;
-      chatSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
-      chatSendBtn.title = disabled ? 'Stop generation' : 'Send message';
+      chatSendBtn.innerHTML = busy ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
+      chatSendBtn.title = busy ? 'Stop generation' : 'Send message';
     }
-    if (newChatBtn) newChatBtn.disabled = disabled;
+    if (newChatBtn) newChatBtn.disabled = busy;
   }
 
   if (aiPageSendBtn) {
@@ -1306,6 +1320,17 @@ export function initChat() {
     });
   }
 
+  /**
+   * The waiting state for a turn in flight.
+   *
+   * This used to march "Initializing context -> Fetching profile data ->
+   * Querying Bedrock LLM" forward on a fixed 700ms interval with nothing
+   * behind it: on a slow turn all three read done while nothing had arrived,
+   * and on a fast turn the visitor was shown steps for work that never
+   * happened. There are only two states this code can actually observe -
+   * waiting, and streaming, at which point the indicator is replaced by the
+   * reply itself - so it reports the one it is in and nothing more.
+   */
   function createTypingIndicator() {
     const indicator = document.createElement('div');
     indicator.className = 'chat-message bot typing-indicator';
@@ -1318,64 +1343,14 @@ export function initChat() {
       return indicator;
     }
 
-    // Steps are addressed by data-step, not by id: every turn builds two of
-    // these indicators - one in the widget, one on the AI page - so ids put
-    // three duplicate ids in the document for the length of each request.
     indicator.innerHTML = `
       <div class="thinking-container">
-        <div class="thinking-header">
-          <i class="fas fa-cog fa-spin" aria-hidden="true"></i> Processing request...
-        </div>
-        <ul class="thinking-steps">
-          <li class="thinking-step active" data-step="0">
-            <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Initializing context
-          </li>
-          <li class="thinking-step" data-step="1">
-            <i class="far fa-circle" aria-hidden="true"></i> Fetching profile data
-          </li>
-          <li class="thinking-step" data-step="2">
-            <i class="far fa-circle" aria-hidden="true"></i> Querying Bedrock LLM
-          </li>
-        </ul>
+        <span class="thinking-dots" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span class="thinking-label">Thinking&hellip;</span>
       </div>
     `;
-
-    const steps = [
-      { activeIcon: 'fas fa-circle-notch fa-spin', doneIcon: 'fas fa-check-circle' },
-      { activeIcon: 'fas fa-circle-notch fa-spin', doneIcon: 'fas fa-check-circle' },
-      { activeIcon: 'fas fa-cog fa-spin', doneIcon: 'fas fa-check-circle' }
-    ];
-
-    const stepEl = (index) => indicator.querySelector(`[data-step="${index}"]`);
-
-    let currentStep = 0;
-    const interval = setInterval(() => {
-      const currentEl = stepEl(currentStep);
-      if (currentEl) {
-        currentEl.className = 'thinking-step completed';
-        const icon = currentEl.querySelector('i');
-        if (icon) icon.className = steps[currentStep].doneIcon;
-      }
-
-      currentStep++;
-      if (currentStep >= steps.length) {
-        clearInterval(interval);
-        return;
-      }
-
-      const nextEl = stepEl(currentStep);
-      if (nextEl) {
-        nextEl.className = 'thinking-step active';
-        const icon = nextEl.querySelector('i');
-        if (icon) icon.className = steps[currentStep].activeIcon;
-      }
-    }, 700);
-
-    const originalRemove = indicator.remove.bind(indicator);
-    indicator.remove = () => {
-      clearInterval(interval);
-      originalRemove();
-    };
 
     return indicator;
   }
@@ -1807,7 +1782,13 @@ export function initChat() {
       setInputState(false);
       if (aiPageInput) {
         aiPageInput.style.height = 'auto'; // Reset height
-        aiPageInput.focus();
+        // Only if the AI page is still the section on screen. This refocused
+        // unconditionally, so a turn that finished after the visitor had
+        // navigated to Work or Contact pulled focus back to a composer they
+        // could no longer see.
+        if (document.getElementById('ai')?.classList.contains('active')) {
+          aiPageInput.focus();
+        }
       }
       if (chatInput && isOpen) chatInput.focus();
     }

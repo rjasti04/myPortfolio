@@ -8322,6 +8322,24 @@ nav a:hover .nav-shortcut {
   color: var(--muted);
 }
 
+/* Failure reads differently from emptiness: the panel says it could not load
+   and what to do, instead of claiming nothing happened. */
+.act-paths-empty[data-state="error"] {
+  color: var(--color-error);
+}
+
+.act-paths-empty[data-state="error"] span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Figures the summary endpoint could not confirm. */
+.act-stats[data-stale="true"] .act-stat-value {
+  opacity: 0.55;
+}
+
 /* ── Zone 3: filters and the log ─────────────────────────────────────── */
 
 .act-filters {
@@ -10642,63 +10660,56 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
   background: hsl(0, 0%, 100%, 0.05);
 }
 
+/* The waiting state for a chat turn. Was a three-row fake progress list
+   driven by a fixed timer; js/chat.js now renders an indeterminate indicator
+   because waiting is the only thing this code can actually observe. */
 .thinking-container {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   width: 100%;
 }
 
-.thinking-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
+.thinking-label {
   font-size: var(--text-xs);
-  color: var(--accent-text);
-}
-
-.thinking-steps {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.thinking-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--text-xs);
-  color: var(--muted);
-  transition: color var(--motion-base) var(--ease-standard);
-}
-
-.thinking-step.active {
-  color: var(--text);
   font-weight: 600;
+  color: var(--muted);
 }
 
-.thinking-step.completed {
-  color: var(--color-success);
-}
-
-.thinking-step i {
-  width: 14px;
-  display: flex;
+.thinking-dots {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  font-size: var(--text-2xs);
+  gap: 4px;
 }
 
-.thinking-step.completed i {
-  color: var(--color-success);
+.thinking-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--accent-fill);
+  animation: thinking-bounce 1.2s var(--ease-standard) infinite;
 }
 
-.thinking-step.active i {
-  color: var(--accent-fill);
+.thinking-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes thinking-bounce {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
 }
 
 .typing-dot {
