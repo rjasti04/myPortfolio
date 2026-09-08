@@ -1,5 +1,17 @@
 # UI/UX Review
 
+> **Status: all 28 findings fixed.** Implemented across commits on
+> `claude/ui-layer-review-docs-4x0hsh`, one per tier. This document is kept as
+> the record of *why* each change was made — the "Location" line in each entry
+> points at the code **as it was**, so line numbers refer to the pre-fix
+> revision. `docs/JAVASCRIPT.md` describes the code as it is now.
+>
+> One extra defect surfaced while verifying finding 1 and is fixed with it:
+> `theme-customizer.js`'s `readSavedPalette` guarded its `JSON.parse` but not
+> its `getItem`, so `initTheme` still threw under blocked storage even after
+> `theme.js` was fixed. `frontend/tests/storage-blocked.test.js` covers the
+> whole chain.
+
 Read-only audit of the frontend UI layer: loading/empty/error states,
 duplicated components, form validation feedback, focus order and keyboard
 traps, contrast, touch targets, unconfirmed destructive actions, and flows
@@ -36,7 +48,7 @@ light theme.
 
 ## Tier 1 — every visitor, every section
 
-### 1. One throw in any early init blanks 20 sections of content
+### 1. ✅ One throw in any early init blanks 20 sections of content
 
 | | |
 | :--- | :--- |
@@ -93,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
 .js-enabled .reveal { opacity: 0; transform: translateY(24px); }
 ```
 
-### 2. Error toasts are announced politely and vanish in 3.2 seconds
+### 2. ✅ Error toasts are announced politely and vanish in 3.2 seconds
 
 | | |
 | :--- | :--- |
@@ -116,7 +128,7 @@ dismiss control, and hold the timer while the toast is hovered or focused:
 toast.setAttribute("role", type === "error" ? "alert" : "status");
 ```
 
-### 3. The update banner cannot be dismissed and duplicates its own ids
+### 3. ✅ The update banner cannot be dismissed and duplicates its own ids
 
 | | |
 | :--- | :--- |
@@ -134,7 +146,7 @@ returns the first. The newest banner's Refresh button does nothing.
 **The Fix** — keep a module-level reference and reuse one node; bind the click
 listener to the element reference rather than by id; add a dismiss button.
 
-### 4. Offline banner is off-palette and its alert never fires
+### 4. ✅ Offline banner is off-palette and its alert never fires
 
 | | |
 | :--- | :--- |
@@ -156,7 +168,7 @@ announce once on page load or never again.
 
 ## Tier 2 — Home → About → Work (the recruiter path)
 
-### 5. The About terminal is a keyboard trap
+### 5. ✅ The About terminal is a keyboard trap
 
 | | |
 | :--- | :--- |
@@ -198,7 +210,7 @@ Shift+Tab then always leaves, which is the mechanism WCAG 2.1.2 asks for.
 Declining Tab on an empty input is a reasonable addition — there is nothing to
 complete.
 
-### 6. Skills carousel autoplays with no pause control
+### 6. ✅ Skills carousel autoplays with no pause control
 
 | | |
 | :--- | :--- |
@@ -217,7 +229,7 @@ them mid-sentence.
 that latches autoplay off for the session. The dots container is already a
 `role="tablist"` with a 44px row (`styles.css:5211-5223`), so there is room.
 
-### 7. Carousel indicators fail non-text contrast
+### 7. ✅ Carousel indicators fail non-text contrast
 
 | | |
 | :--- | :--- |
@@ -233,7 +245,7 @@ only signal of how many skill groups exist and which one is showing.
 **The Fix** — `background: var(--control-border)` (`#64748b`, already defined
 at `styles.css:63` for exactly this class of affordance).
 
-### 8. The resume PDF preview opens an empty panel with no loading or error state
+### 8. ✅ The resume PDF preview opens an empty panel with no loading or error state
 
 | | |
 | :--- | :--- |
@@ -264,7 +276,7 @@ dialog header (`index.html:384-390`).
 
 ## Tier 3 — Contact (the conversion path)
 
-### 9. Validating the message field destroys its character-count description
+### 9. ✅ Validating the message field destroys its character-count description
 
 | | |
 | :--- | :--- |
@@ -292,7 +304,7 @@ ids.add(errorEl.id);            // or ids.delete(errorEl.id) when clearing
 field.setAttribute("aria-describedby", [...ids].join(" "));
 ```
 
-### 10. An empty required field gives no inline error
+### 10. ✅ An empty required field gives no inline error
 
 | | |
 | :--- | :--- |
@@ -319,7 +331,7 @@ first invalid field.
 
 ## Tier 4 — the chat widget (floats on six of eight sections)
 
-### 11. Opening the widget never moves focus into it
+### 11. ✅ Opening the widget never moves focus into it
 
 | | |
 | :--- | :--- |
@@ -361,7 +373,7 @@ chatInput?.focus();
 If the enter animation is wanted back, give `.chat-dialog.hidden` a
 `visibility: hidden` state that does not collide with the `.hidden` utility.
 
-### 12. A modal-looking dialog with no focus trap and no `aria-modal`
+### 12. ✅ A modal-looking dialog with no focus trap and no `aria-modal`
 
 | | |
 | :--- | :--- |
@@ -386,7 +398,7 @@ restore in one call. Minimum viable alternative: add `aria-modal="true"` and
 call the exported `handleFocusTrap(event, dialog)` from the existing keydown
 listener.
 
-### 13. Deleting a conversation has no confirmation; clearing all has one
+### 13. ✅ Deleting a conversation has no confirmation; clearing all has one
 
 | | |
 | :--- | :--- |
@@ -416,7 +428,7 @@ unstyleable dialog in a codebase that owns `js/modal.js`.
 **The Fix** — one confirmation path for both, built on `modal.js`, naming the
 conversation being deleted ("Delete *Kafka partitioning*?").
 
-### 14. Chat message actions ignore the project's own touch-target token
+### 14. ✅ Chat message actions ignore the project's own touch-target token
 
 | | |
 | :--- | :--- |
@@ -437,7 +449,7 @@ house-standard gap rather than a conformance failure.
 
 ## Tier 5 — mobile navigation (every phone visitor)
 
-### 15. The primary phone navigation is the one panel with no focus management
+### 15. ✅ The primary phone navigation is the one panel with no focus management
 
 | | |
 | :--- | :--- |
@@ -466,7 +478,7 @@ if (navMenu?.classList.contains("show-menu")) return handleFocusTrap(event, navM
 hamburger?.focus();
 ```
 
-### 16. A second, weaker scroll lock
+### 16. ✅ A second, weaker scroll lock
 
 | | |
 | :--- | :--- |
@@ -491,7 +503,7 @@ to be opened on iOS — got the one that does not work there.
 **The Fix** — export `lockBodyScroll`/`unlockBodyScroll` from `modal.js` and
 call them from `setMobileMenuState`.
 
-### 17. A whole navigation bar is built on every load and never shown
+### 17. ✅ A whole navigation bar is built on every load and never shown
 
 | | |
 | :--- | :--- |
@@ -520,7 +532,7 @@ back on.
 
 ## Tier 6 — AI page and Activity dashboard
 
-### 18. The conversation row menu has no menu semantics
+### 18. ✅ The conversation row menu has no menu semantics
 
 | | |
 | :--- | :--- |
@@ -543,7 +555,7 @@ button; `role="menu"` / `role="menuitem"` on the panel and its two items;
 Escape closes and returns focus to the button; size the button with
 `var(--min-touch-target)`.
 
-### 19. Two activity panels report failure as emptiness
+### 19. ✅ Two activity panels report failure as emptiness
 
 | | |
 | :--- | :--- |
@@ -570,7 +582,7 @@ them. These two functions simply skipped it.
 **The Fix** — give both an error branch that paints the same `.act-empty`
 message/detail treatment already used at `:643-652`.
 
-### 20. The chat "thinking steps" are invented progress
+### 20. ✅ The chat "thinking steps" are invented progress
 
 | | |
 | :--- | :--- |
@@ -588,7 +600,7 @@ decoration wearing the costume of telemetry.
 received), or use the honest indeterminate indicator that the
 `prefers-reduced-motion` branch already renders at `:1256-1259`.
 
-### 21. Disabling the composer drops focus to `<body>`
+### 21. ✅ Disabling the composer drops focus to `<body>`
 
 | | |
 | :--- | :--- |
@@ -610,7 +622,7 @@ on `#ai` still carrying `.active`.
 
 ## Tier 7 — Auth (owner-only surface, lowest traffic)
 
-### 22. The session list is a dark-theme component rendered on a light modal
+### 22. ✅ The session list is a dark-theme component rendered on a light modal
 
 | | |
 | :--- | :--- |
@@ -645,7 +657,7 @@ when the light theme landed.
 `auth-modal.css` using `--surface`, `--border`, `--text` and `--muted`; drop
 the undefined `--text-color` entirely.
 
-### 23. Two more dark-only values that vanish in light theme
+### 23. ✅ Two more dark-only values that vanish in light theme
 
 | | |
 | :--- | :--- |
@@ -663,7 +675,7 @@ the undefined `--text-color` entirely.
 **The Fix** — `var(--border)` for the track, `var(--accent-soft)` for the
 hover.
 
-### 24. A failed revoke leaves the button permanently dead
+### 24. ✅ A failed revoke leaves the button permanently dead
 
 | | |
 | :--- | :--- |
@@ -690,7 +702,7 @@ in this file has the restoring `finally` — `:421-424`, `:594-597`,
 
 **The Fix** — add the matching `finally` restoring `disabled` and the label.
 
-### 25. Revoking a session is destructive with no confirmation
+### 25. ✅ Revoking a session is destructive with no confirmation
 
 | | |
 | :--- | :--- |
@@ -707,7 +719,7 @@ proportional to how often each action is used.
 **The Fix** — a `modal.js` confirmation naming the device for the single
 revoke, and the same for the bulk action.
 
-### 26. Submit stays disabled until valid, with nothing saying why
+### 26. ✅ Submit stays disabled until valid, with nothing saying why
 
 | | |
 | :--- | :--- |
@@ -731,7 +743,7 @@ stays enabled and reports on attempt.
 into the existing `role="alert"` node (`index.html:2027`) and focus the first
 failing field.
 
-### 27. Logging in ends with no confirmation
+### 27. ✅ Logging in ends with no confirmation
 
 | | |
 | :--- | :--- |
@@ -753,7 +765,7 @@ less consequential action.
 **The Fix** — `showToast("Signed in.", "success")` after `closeAuthModal()`;
 the same on sign-out. `showToast` is already imported throughout the codebase.
 
-### 28. Session rows interpolate server data into `innerHTML` unescaped
+### 28. ✅ Session rows interpolate server data into `innerHTML` unescaped
 
 | | |
 | :--- | :--- |
@@ -797,7 +809,10 @@ resolves 22 and 24 in the same pass.
 finding 5) and the unpausable carousel (2.2.2, finding 6) — both on the About
 section.
 
-**The single highest-value change** is finding 1: three small, independent
+All of the above are now implemented; what follows is the reasoning that
+drove the ordering.
+
+**The single highest-value change** was finding 1: three small, independent
 edits that between them stop a blocked-`localStorage` visitor from seeing a
 site with its contact form invisible.
 

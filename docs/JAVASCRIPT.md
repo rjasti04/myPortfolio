@@ -85,7 +85,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,308 lines)
+### `auth-ui.js` (1,336 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -236,7 +236,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (1,890 lines, lazy)
+### `chat.js` (1,904 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -644,7 +644,7 @@ Calls `syncThemeColorMeta()` from `theme-customizer.js` after
 `reapplyCustomTheme`, which covers the plain light/dark flip on the shipped
 colours — the palette paths sync the tag themselves.
 
-### `theme-customizer.js` (1,009 lines)
+### `theme-customizer.js` (1,024 lines)
 
 `initThemeCustomizer()`, `reapplyCustomTheme(isDark)`, `randomPalette(hex)`,
 `syncThemeColorMeta(isDark)`.

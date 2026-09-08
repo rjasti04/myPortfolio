@@ -407,7 +407,15 @@ export function initChat() {
   }
 
   function loadSessions() {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    // Guarded like every other storage access in this file. `getItem` throws
+    // outright where storage is blocked, and an unguarded read here took
+    // initChat() down with it - the whole AI page, with no error state.
+    let raw = null;
+    try {
+      raw = localStorage.getItem(STORAGE_KEY);
+    } catch (e) {
+      raw = null;
+    }
     if (raw) {
       try {
         sessions = JSON.parse(raw);
@@ -434,7 +442,13 @@ export function initChat() {
     if (sessions.length > MAX_SESSIONS) {
       sessions = sessions.slice(0, MAX_SESSIONS);
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    } catch (e) {
+      // Quota or blocked storage. The conversation still works for this view;
+      // throwing here would abort the turn that is mid-flight.
+      console.warn('Chat history could not be saved:', e);
+    }
     renderSidebar();
   }
 

@@ -418,6 +418,13 @@ export async function initAuthUI() {
     if (registerConfirmPasswordInput) {
         registerConfirmPasswordInput.addEventListener('input', updatePasswordValidation);
     }
+    // Seeded once so readiness is never merely "unset". The four forms are
+    // `required` throughout, which stops an entirely empty submit, but the
+    // cross-field rules - complexity, "passwords match", the typed DELETE -
+    // only ran on `input`, so a browser autofill that fires no input event
+    // would have left the guard with nothing to check.
+    updatePasswordValidation();
+
 
     // Handle Login
     loginForm.addEventListener('submit', async (e) => {
@@ -857,6 +864,13 @@ export async function initAuthUI() {
     if (changeCurrentPasswordInput) changeCurrentPasswordInput.addEventListener('input', updateChangePasswordValidation);
     if (changeNewPasswordInput) changeNewPasswordInput.addEventListener('input', updateChangePasswordValidation);
     if (changeConfirmPasswordInput) changeConfirmPasswordInput.addEventListener('input', updateChangePasswordValidation);
+    // Seeded once so readiness is never merely "unset". The four forms are
+    // `required` throughout, which stops an entirely empty submit, but the
+    // cross-field rules - complexity, "passwords match", the typed DELETE -
+    // only ran on `input`, so a browser autofill that fires no input event
+    // would have left the guard with nothing to check.
+    updateChangePasswordValidation();
+
 
     // Handle Change Password Form Submit
     if (changePasswordForm) {
@@ -1015,6 +1029,13 @@ export async function initAuthUI() {
     if (resetConfirmPasswordInput) {
         resetConfirmPasswordInput.addEventListener('input', updateResetPasswordValidation);
     }
+    // Seeded once so readiness is never merely "unset". The four forms are
+    // `required` throughout, which stops an entirely empty submit, but the
+    // cross-field rules - complexity, "passwords match", the typed DELETE -
+    // only ran on `input`, so a browser autofill that fires no input event
+    // would have left the guard with nothing to check.
+    updateResetPasswordValidation();
+
 
     if (resetPasswordForm) {
         resetPasswordForm.addEventListener('submit', async (e) => {
@@ -1078,6 +1099,13 @@ export async function initAuthUI() {
 
     if (deleteCurrentPasswordInput) deleteCurrentPasswordInput.addEventListener('input', updateDeleteAccountValidation);
     if (deleteConfirmPhraseInput) deleteConfirmPhraseInput.addEventListener('input', updateDeleteAccountValidation);
+    // Seeded once so readiness is never merely "unset". The four forms are
+    // `required` throughout, which stops an entirely empty submit, but the
+    // cross-field rules - complexity, "passwords match", the typed DELETE -
+    // only ran on `input`, so a browser autofill that fires no input event
+    // would have left the guard with nothing to check.
+    updateDeleteAccountValidation();
+
 
     if (deleteAccountForm) {
         deleteAccountForm.addEventListener('submit', async (e) => {

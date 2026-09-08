@@ -218,9 +218,15 @@ function getDerivedPalette(rawPrimary, rawSecondary, rawAccent) {
 let unsavedRawPalette = null;
 
 function readSavedPalette() {
-  const saved = localStorage.getItem('rj_theme_palette');
-  if (!saved) return null;
+  // The read is INSIDE the try. It used to sit outside it, guarding only the
+  // parse - but `getItem` itself throws where storage is blocked (Safari with
+  // "Block All Cookies", strict privacy extensions), and this is reached from
+  // applyTheme via reapplyCustomTheme on the very first init. That throw took
+  // out the whole DOMContentLoaded sequence. readThemeLibrary below already
+  // had it the right way round.
   try {
+    const saved = localStorage.getItem('rj_theme_palette');
+    if (!saved) return null;
     return JSON.parse(saved);
   } catch (e) {
     return null;
@@ -635,8 +641,17 @@ export function initThemeCustomizer() {
     }
 
     const saved = readSavedPalette();
-    if (saved) applyPaletteVariables(saved, document.body.classList.contains('dark-theme'));
-    else if (localStorage.getItem('rj_theme_palette')) localStorage.removeItem('rj_theme_palette');
+    if (saved) {
+      applyPaletteVariables(saved, document.body.classList.contains('dark-theme'));
+    } else {
+      // Clearing a palette that failed to parse. Best-effort: the same blocked
+      // storage that makes this necessary is what makes it throw.
+      try {
+        if (localStorage.getItem('rj_theme_palette')) localStorage.removeItem('rj_theme_palette');
+      } catch (e) {
+        /* storage unavailable - nothing to clean up that we can reach */
+      }
+    }
   }
 
   let wasOpen = false;
