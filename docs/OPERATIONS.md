@@ -247,6 +247,26 @@ Look for a `RuntimeError` naming a missing variable, or `JWT_SECRET` being unset
 too short, or the placeholder. The automatic rollback should already have
 restored the previous release.
 
+### Visitors are signed out, or the API returns 429 after a few refreshes
+
+Check `TRUSTED_PROXY_IPS` on the host first. It is empty by default, and with it
+empty `client_ip_from_request` falls back to the direct peer — which behind
+Apache's proxy is the loopback address for **every** visitor, so the general
+60/min budget is one bucket for the whole site rather than one per client. Set
+it to the proxy's address (`TRUSTED_PROXY_IPS=127.0.0.1`) and restart
+`fastapi.service`. The same setting decides the `ip_address` recorded on a
+session row, so a site whose sessions all show one IP has the same cause.
+
+The activity dashboard is the chattiest page in the app — a single load fires
+the session create or heartbeat, a bulk event flush, three `/sessions/{id}/…`
+reads and the SSE stream, then a flush and an end call on unload — so it is
+where a mis-scoped budget shows up first.
+
+A 429 no longer signs anyone out: `auth.js` clears tokens only on a 401 or 403
+from `/auth/refresh`. If visitors still report being logged out, look for a
+genuine `401` — an expired or revoked refresh token, or `JWT_SECRET` having
+been rotated out from under existing sessions.
+
 ### Chat returns 429 constantly
 
 Either the per-IP chat budget (`CHAT_RATE_LIMIT_PER_MINUTE`) or Bedrock

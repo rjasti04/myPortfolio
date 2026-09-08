@@ -85,7 +85,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,398 lines)
+### `auth-ui.js` (1,409 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -179,7 +179,7 @@ stale session and starting a fresh one.
 count, reason, ok, at}` to `onTelemetry` subscribers. `serverMs` is parsed from
 the `Server-Timing: app;dur=…` header; `networkMs` is the remainder.
 
-### `auth.js` (396 lines)
+### `auth.js` (422 lines)
 
 Token storage and every authenticated call.
 
@@ -195,6 +195,7 @@ Token storage and every authenticated call.
 | `deleteAccount` | Soft delete |
 | `fetchActiveSessions`, `revokeOtherSessions`, `revokeSpecificSession` | Session management |
 | `authenticatedFetch(url, options)` | Bearer-attached fetch with a single-flight 401 refresh and retry |
+| `isCredentialRejection(status)` | `401`/`403` only — separates a refused credential from an unanswered request |
 
 `authenticatedFetch` is the important one. The server **rotates** refresh
 tokens, so concurrent 401s each sending the same refresh token would have the
@@ -203,6 +204,21 @@ mid-session, with the last loser also overwriting the winner's new pair. A
 module-level `refreshInFlight` promise makes every concurrent 401 share one
 refresh, and it is cleared before awaiting callers resume so a later 401 starts
 a fresh attempt. Guarded by `frontend/tests/auth-refresh.test.js`.
+
+**Only a refused credential ends the session.** `refreshAccessTokenOnce()`
+returns `{token, rejected}` rather than a bare token, and `clearTokens()` runs
+only when `rejected` is set — that is, when `/auth/refresh` answered `401` or
+`403`. Every other outcome leaves the stored pair alone: a `429` from the rate
+limiter, a `5xx` while the database restarts, a `502` mid-deploy, or a fetch
+that never completed. All of those used to be read as "the credential is bad"
+and destroyed a refresh token still valid for thirty days server-side. The
+symptom was reported as *refreshing the activity page logs me out*: that page
+is the chattiest in the app, its repeated loads push the shared per-minute
+budget over, and the `429` that came back was indistinguishable from a
+rejection. `auth-ui.js` applies the same predicate to its `/auth/me` call on
+load. Note that the rate limiter buckets by the direct peer unless
+`TRUSTED_PROXY_IPS` names the reverse proxy, so behind Apache the whole site
+shares one budget — see `docs/CONFIGURATION.md`.
 
 ### `utils.js` (228 lines)
 

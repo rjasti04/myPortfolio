@@ -1,4 +1,4 @@
-import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, verify2FA, requestMagicLink, verifyMagicLink, verifyEmail, resendVerification, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession, clearTokens } from './auth.js';
+import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, isCredentialRejection, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, verify2FA, requestMagicLink, verifyMagicLink, verifyEmail, resendVerification, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession, clearTokens } from './auth.js';
 import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
 import { closeModal, openModal } from './modal.js';
@@ -1359,13 +1359,24 @@ async function setupNavUI() {
                 });
 
                 return; // Successfully setup logged-in state
-            } else {
-                // Token invalid or unauthenticated, clear tokens
+            } else if (isCredentialRejection(res.status)) {
+                // The server refused the credential. This is the only branch
+                // that may destroy it.
                 clearTokens();
             }
+            /* Anything else - 429 from the rate limiter, a 5xx while the
+               database is restarting, a 502 mid-deploy - says nothing about
+               whether the visitor is signed in, so the tokens stay. This used
+               to clear them, which is why a couple of hard refreshes on the
+               activity page signed you out: that page is the chattiest in the
+               app, its loads push the shared per-minute budget over, and the
+               429 that came back for /auth/me was read as "not logged in".
+               The header falls back to the login button for this load only;
+               the next one restores the session. */
         } catch (e) {
+            // The request never completed. Same reasoning: not a signal about
+            // the credential, so it survives to be retried.
             console.error("Failed to fetch user profile", e);
-            clearTokens();
         }
     }
 

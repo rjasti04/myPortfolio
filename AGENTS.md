@@ -73,7 +73,7 @@ these files the number here has to move with it.
 | `package-lock.json` | 3,453 | ~32,500 | Never read. `package.json` lists every direct dep in 25 lines. |
 | `frontend/index.html` | 2,364 | ~36,500 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
 | `frontend/js/chat.js` | 2,204 | ~23,500 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (48 hits). |
-| `frontend/js/auth-ui.js` | 1,398 | ~17,000 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (12 hits). |
+| `frontend/js/auth-ui.js` | 1,409 | ~17,500 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (12 hits). |
 | `frontend/three-bg.js` | 1,559 | ~14,000 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
 
 `server/.venv/` holds ~7,500 dependency files (136 MB) against 147 tracked
@@ -91,7 +91,7 @@ in order ("add or change an API endpoint" -> `API.md` -> `BACKEND.md` ->
 `SECURITY.md#checklist-for-changes`). The table below is for budgeting the read
 once you know which doc you want.
 
-**These docs are also too big to read whole.** Together they are ~81,000
+**These docs are also too big to read whole.** Together they are ~81,500
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -113,7 +113,7 @@ whole doc only when you genuinely need all of it.
 | `docs/FRONTEND.md` | ~11,000 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (20 headings) |
 | `docs/CONFIGURATION.md` | ~4,000 | adding or interpreting an environment variable | `grep -n '^## '` (16 headings), or just grep the variable name |
 | `docs/SECURITY.md` | ~5,500 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (18 headings) |
-| `docs/OPERATIONS.md` | ~4,000 | changing CI/CD, diagnosing a deploy, or running a manual procedure | `grep -n '^#\{2,3\} '` (25 headings) |
+| `docs/OPERATIONS.md` | ~4,500 | changing CI/CD, diagnosing a deploy, or running a manual procedure | `grep -n '^#\{2,3\} '` (26 headings) |
 | `docs/TESTING.md` | ~7,000 | writing tests, or checking whether something is actually covered | `grep -n '^#\{2,3\} '` (13 headings) |
 | `docs/ADR.md` | ~5,500 | you want to know why a decision was made and whether it still holds | Read the status table at the top (lines 1-36) first, then `sed -n` the one ADR you need |
 | `docs/README.md` | ~1,000 | you want the doc index and a task-to-document map | Small enough to read whole |
