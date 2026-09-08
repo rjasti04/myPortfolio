@@ -3,12 +3,12 @@
 ## Environment Context
 - **Platform**: Static single-page portfolio/PWA frontend, optional FastAPI backend, PostgreSQL database, AWS Amazon Bedrock
 - **Hosting/runtime**: Static web hosting or Apache-compatible server for frontend; ASGI/Uvicorn for API; production API target is `https://rjasti.com/api`
-- **Build**: `npm run build` (esbuild) emits `dist/` - bundled, minified, content-hashed - and the deploy ships that, not `frontend/`. `frontend/` stays the source of truth and still runs standalone. Fonts and the two vendored libraries are local: the SPA loads no third-party *asset* - no script, stylesheet, font or image from another origin. The one runtime third-party call is the contact form's POST to `formsubmit.co` (`frontend/js/form.js`), which is why `form-action` and `connect-src` name it.
+- **Build**: `npm run build` (esbuild) emits `dist/` - bundled, minified, content-hashed - and the deploy ships that, not `frontend/`. `frontend/` stays the source of truth and still runs standalone. Fonts and the two vendored libraries are local: the SPA loads no third-party *asset* - no script, stylesheet, font or image from another origin. The contact form posts to the first-party `POST /contact`; its POST to `formsubmit.co` (`frontend/js/form.js`) survives only as a **fallback** for an unreachable API, which is why `form-action` and `connect-src` still name it. It is the sole remaining third-party origin: `get.geojs.io` and `api.open-meteo.com` were vestigial and have been removed.
 - **Languages**: HTML, CSS, JavaScript ES modules, Python 3.10+
 - **Tooling**: Node.js 18+, npm, ESLint, Stylelint, Prettier, Node test runner, jsdom; ruff, pytest (+ pytest-asyncio, pytest-cov), Alembic
 - **Backend stack**: FastAPI, Pydantic v2, asyncpg, boto3/botocore, orjson, structlog
 - **Frontend stack**: Vanilla JS modules, 2D-canvas background, service worker, web app manifest, DOMPurify and marked (vendored from npm), Font Awesome and Plus Jakarta Sans (self-hosted, subset - no Google Fonts or cdnjs request)
-- **Key integrations**: Amazon Bedrock chat API, PostgreSQL activity tracking, Kafka ingest pipeline (`server/services/kafka_stream.py`, falling back to a simulator when unconfigured), HIBP range API (`server/services/hibp_service.py` -> `api.pwnedpasswords.com`) for password screening, FormSubmit contact form, browser `localStorage`/`sessionStorage`, PWA cache storage
+- **Key integrations**: Amazon Bedrock chat API, PostgreSQL activity tracking, Kafka ingest pipeline (`server/services/kafka_stream.py`, falling back to a simulator when unconfigured), HIBP range API (`server/services/hibp_service.py` -> `api.pwnedpasswords.com`) for password screening, FormSubmit as the contact form's fallback only, browser `localStorage`/`sessionStorage`, PWA cache storage
 - **Database expectations**: PostgreSQL tables `users`, `refresh_tokens`, `one_time_tokens`, `password_history`, `user_sessions`, `user_activity_events`, `ai_conversations` - defined by the `__tablename__` values under `server/models/` and documented in `docs/DATABASE.md`, which wins if this list and the models ever disagree. Schemas/migrations are managed in-repo via Alembic under `server/alembic/` (raw SQL files are excluded). CI applies the full chain against Postgres and runs `alembic check`, so a model changed without a migration fails before deploy
 - **Constraints**: SQLAlchemy ORM (async engine + asyncpg driver); the API refuses to start without `DATABASE_URL`, `AWS_REGION`, `DEFAULT_MODEL_ID` and `JWT_SECRET` - all validated at import in `server/config/settings.py`; the frontend API base is resolved at runtime from `window.location.hostname` by `getApiBaseUrl()` in `js/analytics.js`, with no build-time configuration for it (ADR-008)
 - **Deployment considerations**: the API *does* enforce app-level auth - JWT bearer through `get_current_user` (`server/auth/dependencies.py`), plus 2FA, refresh-token rotation and account lockout. Two endpoints are deliberately anonymous: `POST /chat` (which uses `get_optional_current_user`) and `POST /sessions`. Those two are what the reverse proxy, security groups, CORS and trusted-proxy settings are there to shield; see `docs/SECURITY.md` for the full model
@@ -71,7 +71,7 @@ these files the number here has to move with it.
 | :--- | ---: | ---: | :--- |
 | `frontend/styles.css` | 11,923 | ~88,000 | `grep -n '#region' frontend/styles.css` returns a 27-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
 | `package-lock.json` | 3,453 | ~32,500 | Never read. `package.json` lists every direct dep in 25 lines. |
-| `frontend/index.html` | 2,357 | ~36,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
+| `frontend/index.html` | 2,356 | ~36,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
 | `frontend/js/chat.js` | 2,169 | ~23,000 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (47 hits). |
 | `frontend/js/auth-ui.js` | 1,336 | ~16,500 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (11 hits). |
 | `frontend/three-bg.js` | 1,559 | ~14,000 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
@@ -91,7 +91,7 @@ in order ("add or change an API endpoint" -> `API.md` -> `BACKEND.md` ->
 `SECURITY.md#checklist-for-changes`). The table below is for budgeting the read
 once you know which doc you want.
 
-**These docs are also too big to read whole.** Together they are ~78,000
+**These docs are also too big to read whole.** Together they are ~78,500
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -106,12 +106,12 @@ whole doc only when you genuinely need all of it.
 | Doc | ~Tokens | Read it before... | Jump to a section with |
 | :--- | ---: | :--- | :--- |
 | `docs/ARCHITECTURE.md` | ~7,500 | you need the repo map, the request lifecycle, or how the tiers interact | `grep -n '^#\{2,3\} '` (19 headings) |
-| `docs/API.md` | ~7,000 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (32 endpoint sections) |
+| `docs/API.md` | ~7,000 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (33 endpoint sections) |
 | `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
 | `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
 | `docs/JAVASCRIPT.md` | ~16,000 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (51 module sections) |
 | `docs/FRONTEND.md` | ~11,000 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (20 headings) |
-| `docs/CONFIGURATION.md` | ~3,500 | adding or interpreting an environment variable | `grep -n '^## '` (14 headings), or just grep the variable name |
+| `docs/CONFIGURATION.md` | ~4,000 | adding or interpreting an environment variable | `grep -n '^## '` (15 headings), or just grep the variable name |
 | `docs/SECURITY.md` | ~5,000 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (17 headings) |
 | `docs/OPERATIONS.md` | ~4,000 | changing CI/CD, diagnosing a deploy, or running a manual procedure | `grep -n '^#\{2,3\} '` (25 headings) |
 | `docs/TESTING.md` | ~6,500 | writing tests, or checking whether something is actually covered | `grep -n '^#\{2,3\} '` (13 headings) |

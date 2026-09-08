@@ -1,8 +1,14 @@
 import hashlib
+import html as html_escape
 import os
 import structlog
 import aiosmtplib
 from email.message import EmailMessage
+from email.utils import formataddr
+
+# Where the contact form delivers. Read through settings rather than os.getenv
+# here so every tunable stays on one configuration surface.
+from server.config.settings import CONTACT_EMAIL
 
 logger = structlog.get_logger(__name__)
 
@@ -84,6 +90,59 @@ def _wrap_html(heading: str, body_html: str) -> str:
       </body>
     </html>
     """
+
+async def send_contact_email(name: str, email: str, message: str) -> bool:
+    """Delivers one contact-form submission to CONTACT_EMAIL.
+
+    The one sender here whose body is written by a stranger rather than by this
+    server, so it is the one that escapes. The plain-text part needs no
+    escaping; the HTML part does, and `Reply-To` carries the visitor's address
+    so a reply goes to them rather than to the site's own From address.
+
+    Returns True on delivery. Unlike the account-recovery senders this result
+    is surfaced: there is no address-enumeration concern on a form anyone may
+    submit, and a visitor told "sent" when it was not is the failure mode the
+    form exists to avoid.
+    """
+    plain = (
+        f"From: {name} <{email}>\n\n"
+        f"{message}\n"
+    )
+    body = html_escape.escape(message).replace("\n", "<br>")
+    rendered = _wrap_html(
+        "New message from rjasti.com",
+        f"<p><strong>From:</strong> {html_escape.escape(name)} "
+        f"&lt;{html_escape.escape(email)}&gt;</p>"
+        f"<hr><p>{body}</p>",
+    )
+
+    msg = EmailMessage()
+    msg["Subject"] = f"Portfolio message from {name}"
+    msg["From"] = EMAILS_FROM_EMAIL
+    msg["To"] = CONTACT_EMAIL
+    # So "Reply" in the mail client goes to the visitor. Not From: sending as
+    # the visitor's domain is what SPF and DMARC exist to reject.
+    #
+    # formataddr, not an f-string: a display name is a stranger's input, and one
+    # containing an angle bracket - "Ada <script>" - interpolated raw produces a
+    # header that parses as a different address entirely. formataddr quotes it.
+    msg["Reply-To"] = formataddr((name, email))
+    msg.set_content(plain)
+    msg.add_alternative(rendered, subtype="html")
+
+    try:
+        await aiosmtplib.send(msg, **_smtp_kwargs())
+        logger.info("contact_message_sent", sender_email=email)
+        return True
+    except Exception as e:
+        logger.error(
+            "contact_message_send_failed",
+            sender_email=email,
+            smtp_host=SMTP_HOST,
+            error=str(e),
+        )
+        return False
+
 
 async def send_security_notification_email(email: str, user_id: str) -> None:
     """Tells the account owner their password just changed.

@@ -286,3 +286,110 @@ test("contact form does not resubmit natively when the request times out", async
   assert.equal(status.dataset.state, "error");
   assert.match(status.textContent, /may still have arrived/i);
 });
+
+
+/* ── First-party delivery ──
+   POST /contact reuses the hardened SMTP sender the account-recovery mail
+   already goes through. FormSubmit stays only as a fallback for an unreachable
+   API, which is why formsubmit.co stays in the CSP. */
+
+function recordFetches(plan) {
+  const seen = [];
+  window.fetch = global.fetch = async (url, options = {}) => {
+    seen.push({ url: String(url), body: JSON.parse(options.body || "{}") });
+    return plan(String(url), seen.length);
+  };
+  return seen;
+}
+
+const ok = () => ({ ok: true, status: 200, json: async () => ({ detail: "Message sent successfully." }) });
+
+test("contact form posts to the first-party endpoint, not FormSubmit", async () => {
+  const form = resetContactDom();
+  fillValidContactForm();
+  const seen = recordFetches(() => ok());
+
+  initContactForm();
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushPromises();
+
+  assert.equal(seen.length, 1, "a working API must not also hit FormSubmit");
+  assert.match(seen[0].url, /\/contact$/);
+  assert.ok(!seen[0].url.includes("formsubmit.co"));
+  assert.equal(seen[0].body.name, "Rajeev Jasti");
+  assert.ok("_honey" in seen[0].body, "the honeypot is checked server-side now");
+  assert.equal(document.getElementById("contact-status").dataset.state, "success");
+});
+
+test("contact form falls back to FormSubmit when the API is unreachable", async () => {
+  const form = resetContactDom();
+  fillValidContactForm();
+  const seen = recordFetches((url) => {
+    if (!url.includes("formsubmit.co")) throw new TypeError("Failed to fetch");
+    return ok();
+  });
+
+  initContactForm();
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushPromises();
+
+  assert.equal(seen.length, 2);
+  assert.match(seen[1].url, /formsubmit\.co/);
+  assert.equal(document.getElementById("contact-status").dataset.state, "success");
+});
+
+test("contact form falls back when the API answers 502", async () => {
+  const form = resetContactDom();
+  fillValidContactForm();
+  const seen = recordFetches((url) => {
+    if (!url.includes("formsubmit.co")) {
+      return { ok: false, status: 502, json: async () => ({}) };
+    }
+    return ok();
+  });
+
+  initContactForm();
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushPromises();
+
+  // 502 is the route's own "SMTP failed", so nothing was sent and a retry
+  // elsewhere cannot duplicate the message.
+  assert.equal(seen.length, 2);
+  assert.match(seen[1].url, /formsubmit\.co/);
+});
+
+test("contact form does not route around a 429 by using FormSubmit", async () => {
+  const form = resetContactDom();
+  fillValidContactForm();
+  const seen = recordFetches(() => ({ ok: false, status: 429, json: async () => ({}) }));
+
+  initContactForm();
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushPromises();
+
+  // The hourly budget is spent. Retrying elsewhere would route around a check
+  // rather than recover from a failure.
+  assert.equal(seen.length, 1);
+  assert.equal(document.getElementById("contact-status").dataset.state, "error");
+});
+
+test("a timed-out first-party POST is not retried against FormSubmit", async () => {
+  const form = resetContactDom();
+  fillValidContactForm();
+  const seen = recordFetches(() => {
+    const err = new Error("aborted");
+    err.name = "AbortError";
+    throw err;
+  });
+
+  initContactForm();
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushPromises();
+
+  // Aborting cancels the browser's wait, not the POST already in flight. The
+  // message may well have been delivered, so a retry would deliver it twice -
+  // the same reasoning that stopped this handler falling through to a native
+  // submit.
+  assert.equal(seen.length, 1, "a timeout must not send the message a second time");
+  assert.match(document.getElementById("contact-status").textContent, /may still have arrived/i);
+});

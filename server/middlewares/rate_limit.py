@@ -4,7 +4,11 @@ import random
 from collections import defaultdict
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from server.config.settings import CHAT_RATE_LIMIT_PER_MINUTE, TRUSTED_PROXY_NETWORKS
+from server.config.settings import (
+    CHAT_RATE_LIMIT_PER_MINUTE,
+    CONTACT_RATE_LIMIT_PER_HOUR,
+    TRUSTED_PROXY_NETWORKS,
+)
 from server.utils.ip_utils import client_ip_from_request
 
 # Credential-guessing surfaces, held to the stricter budget below. Kept as
@@ -30,6 +34,15 @@ CHAT_RATE_LIMITED_PATHS = frozenset({
     "/chat/stream",
     "/chat/summarize",
 })
+
+# The contact form. Unauthenticated by necessity - a stranger is the point -
+# and every accepted request sends mail, so it gets an hourly budget of its
+# own rather than the general per-minute one.
+CONTACT_RATE_LIMITED_PATHS = frozenset({
+    "/contact",
+    "/contact/",
+})
+CONTACT_WINDOW_SECONDS = 3600
 
 
 def _normalise_path(path: str) -> str:
@@ -58,6 +71,7 @@ class RateLimitMiddleware:
         self._hits: dict[str, list[float]] = defaultdict(list)
         self._auth_hits: dict[str, list[float]] = defaultdict(list)
         self._chat_hits: dict[str, list[float]] = defaultdict(list)
+        self._contact_hits: dict[str, list[float]] = defaultdict(list)
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http" or os.getenv("TESTING") == "true":
@@ -69,6 +83,7 @@ class RateLimitMiddleware:
         normalised_path = _normalise_path(path)
         is_auth_route = normalised_path in AUTH_RATE_LIMITED_PATHS
         is_chat_route = normalised_path in CHAT_RATE_LIMITED_PATHS
+        is_contact_route = normalised_path in CONTACT_RATE_LIMITED_PATHS
         client_ip = client_ip_from_request(request, TRUSTED_PROXY_NETWORKS)
 
         now = time.time()
@@ -86,6 +101,19 @@ class RateLimitMiddleware:
                 await response(scope, receive, send)
                 return
             self._chat_hits[client_ip].append(now)
+        elif is_contact_route:
+            self._contact_hits[client_ip] = [
+                t for t in self._contact_hits[client_ip]
+                if now - t < CONTACT_WINDOW_SECONDS
+            ]
+            if len(self._contact_hits[client_ip]) >= CONTACT_RATE_LIMIT_PER_HOUR:
+                response = JSONResponse(
+                    {"detail": "Too many messages sent. Try again later."},
+                    status_code=429,
+                )
+                await response(scope, receive, send)
+                return
+            self._contact_hits[client_ip].append(now)
         elif is_auth_route:
             # Stricter limit: 5 requests per 60 seconds for login/registration
             auth_window = 60
@@ -130,5 +158,12 @@ class RateLimitMiddleware:
                 self._chat_hits[ip] = [t for t in self._chat_hits[ip] if now - t < 60]
                 if not self._chat_hits[ip]:
                     del self._chat_hits[ip]
+            for ip in list(self._contact_hits.keys()):
+                self._contact_hits[ip] = [
+                    t for t in self._contact_hits[ip]
+                    if now - t < CONTACT_WINDOW_SECONDS
+                ]
+                if not self._contact_hits[ip]:
+                    del self._contact_hits[ip]
 
         await self.app(scope, receive, send)

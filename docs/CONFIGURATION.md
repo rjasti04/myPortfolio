@@ -171,8 +171,8 @@ Payloads above 7800 bytes stay local rather than killing the notification
 
 ## Outbound email
 
-Password-reset and magic-link delivery, plus the password-change security
-notification.
+Password-reset and magic-link delivery, the password-change security
+notification, and contact-form messages.
 
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
@@ -181,6 +181,7 @@ notification.
 | `SMTP_USER` | *(unset)* | With `SMTP_PASSWORD`, enables STARTTLS + certificate validation |
 | `SMTP_PASSWORD` | *(unset)* | See above |
 | `EMAILS_FROM_EMAIL` | `inboxtorj@gmail.com` | `From` header |
+| `CONTACT_EMAIL` | `inboxtorj@gmail.com` | Where `POST /contact` delivers |
 
 Certificate validation is **on for anything that is not loopback**, whether or
 not credentials are supplied. These messages carry live account-recovery
@@ -190,6 +191,27 @@ A send failure is logged and swallowed, never surfaced: the recovery endpoints
 answer identically whether or not an address exists, and "your mail server is
 down" through that channel would leak which addresses are real. Tokens are
 logged only as a 12-character digest.
+
+`send_contact_email` is the exception to that last paragraph, and deliberately
+so: there is no address to enumerate on a form anyone may submit, and a visitor
+told "sent" when nothing was is the failure the endpoint exists to prevent. It
+returns a bool, the route turns `False` into **502**, and `form.js` treats that
+one status as permission to retry against FormSubmit. It is also the only
+sender whose body is written by a stranger, so it is the only one that escapes
+its HTML part and builds `Reply-To` with `formataddr` rather than an f-string.
+
+---
+
+## Contact form
+
+| Variable | Default | Purpose |
+| :--- | :--- | :--- |
+| `CONTACT_EMAIL` | `inboxtorj@gmail.com` | Recipient for `POST /contact` |
+| `CONTACT_RATE_LIMIT_PER_HOUR` | `5` | Submissions per hour per IP |
+
+An **hourly** budget, unlike every other bucket in the limiter. A human sends
+one message and a spam run sends thousands, so the long window is the one that
+separates them; the general 60/min budget would have allowed 3,600 an hour.
 
 ---
 

@@ -584,6 +584,48 @@ indistinguishable.
 
 ---
 
+## Contact endpoint
+
+### `POST /contact` · `POST /contact/` → 200
+
+Delivers one contact-form message to `CONTACT_EMAIL`. Anonymous by necessity —
+a stranger reaching out is the point — so the guards are the schema's length
+bounds, the honeypot, and an **hourly** per-IP budget
+(`CONTACT_RATE_LIMIT_PER_HOUR`, default 5), not a login.
+
+```json
+{
+  "name": "Ada Lovelace",
+  "email": "ada@example.com",
+  "message": "I would like to talk about a role.",
+  "_honey": ""
+}
+```
+
+| Field | Bound |
+| :--- | :--- |
+| `name` | 1–100 chars, no CR/LF (it is interpolated into the `Subject`) |
+| `email` | `EmailStr` |
+| `message` | 1–5,000 chars |
+| `_honey` | ≤ 150 chars; **any value at all** means nothing is sent |
+
+A filled honeypot returns the **same 200 and the same body** as a success. A
+bot that is told which field gave it away only learns to leave that field
+alone.
+
+| Status | Meaning |
+| :--- | :--- |
+| `200` | Delivered — or silently dropped as a honeypot hit |
+| `422` | Failed a schema bound |
+| `429` | Hourly budget spent |
+| `502` | SMTP itself failed; **nothing was sent** |
+
+`502` is load-bearing: it is the one status `form.js` treats as permission to
+retry against FormSubmit, because it is the only response that proves the
+message was not delivered. A timeout does not, so it is never retried.
+
+---
+
 ## Error shapes
 
 FastAPI's default envelope throughout:
@@ -626,6 +668,7 @@ endpoint in the left column exists on the backend.
 | `GET /sessions/{id}/events` · `…/summary` · `…/funnel` · `…/stream` | `activity.js` |
 | `POST /chat/stream` · `POST /chat/summarize` | `chat.js` |
 | All 19 `/auth/*` routes | `auth.js` / `auth-ui.js` |
+| `POST /contact` | `form.js` — tried first; FormSubmit is reached only when this is unreachable or answers 502 |
 | `POST /events` (single) | — server/API consumers only |
 | `GET /models` · `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |
 | `GET/DELETE /chat/history*` | `chat.js` — `syncServerHistory()` lists on load and on `auth-changed`, `hydrateSession()` fetches one transcript when its rail row is opened, `deleteRemoteConversation()` removes the server copy |

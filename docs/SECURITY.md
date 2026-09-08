@@ -371,7 +371,6 @@ The `robots.txt` disallows `/api/`.
 | No CSRF tokens | Mitigated: the API is JSON + bearer token, and the one cookie is `SameSite=Strict` | Revisit if cookie-authenticated state-changing routes are added |
 | No HSTS header | A first plain-HTTP request is possible | Add `Strict-Transport-Security` to `.htaccess` |
 | No account-level audit log | Security events are in application logs only | Add a table if accounts grow beyond personal use |
-| `connect-src` lists two unused origins | `get.geojs.io`, `api.open-meteo.com` — dead allowlist entries widen the policy for no reason | Remove once confirmed unused |
 | HIBP fails open | An HIBP outage lets a breached password through | Deliberate; failing closed would block all password changes |
 | Deploy host key is TOFU without `EC2_HOST_KEY` | A first-run MITM on the deploy channel | Set the `EC2_HOST_KEY` secret |
 

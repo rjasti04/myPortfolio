@@ -326,7 +326,7 @@ a filter control that needs to be a real focusable, labelled element. Colours
 come from CSS custom properties, so both themes and any accent change flow
 through without touching this file.
 
-### `form.js` (371 lines)
+### `form.js` (417 lines)
 
 `export function initContactForm()` — the contact section.
 
