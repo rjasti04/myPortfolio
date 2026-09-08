@@ -19,10 +19,10 @@ import { JSDOM } from 'jsdom';
 // styles.css declares them, so a sync that reads the wrong element resolves to
 // the light accent on a dark page and fails here.
 const FIXTURE = `<!DOCTYPE html><html><head>
-  <meta name="theme-color" content="#F59E0B" />
+  <meta name="theme-color" content="#C5CF3F" />
   <style>
-    :root { --accent-fill: #f59e0b; }
-    body.dark-theme { --accent-fill: hsl(38,92%,55%); }
+    :root { --accent-fill: #c5cf3f; }
+    body.dark-theme { --accent-fill: hsl(64,60%,55%); }
   </style>
 </head><body>
   <button type="button" id="home-theme-shuffle">Randomize</button>
@@ -43,14 +43,14 @@ const FIXTURE = `<!DOCTYPE html><html><head>
         </div>
         <button type="button" id="theme-customizer-shuffle"></button>
         <p id="theme-customizer-status"></p>
-        <button type="button" id="color-primary" data-color-value="#F59E0B" aria-expanded="false">
-          <span id="hex-primary">#F59E0B</span>
+        <button type="button" id="color-primary" data-color-value="#C5CF3F" aria-expanded="false">
+          <span id="hex-primary">#C5CF3F</span>
         </button>
-        <button type="button" id="color-secondary" data-color-value="#10B981" aria-expanded="false">
-          <span id="hex-secondary">#10B981</span>
+        <button type="button" id="color-secondary" data-color-value="#3C82DD" aria-expanded="false">
+          <span id="hex-secondary">#3C82DD</span>
         </button>
-        <button type="button" id="color-accent" data-color-value="#0284C7" aria-expanded="false">
-          <span id="hex-accent">#0284C7</span>
+        <button type="button" id="color-accent" data-color-value="#830FDB" aria-expanded="false">
+          <span id="hex-accent">#830FDB</span>
         </button>
         <div id="theme-color-popover" hidden>
           <span id="color-popover-title"></span>
@@ -173,7 +173,7 @@ describe('theme-color meta tag', () => {
     await settle();
 
     assert.strictEqual(accentFill(), '', 'Reset strips the inline palette');
-    assert.strictEqual(themeColor(), 'hsl(38,92%,55%)', 'and the bar returns to the DARK accent');
+    assert.strictEqual(themeColor(), 'hsl(64,60%,55%)', 'and the bar returns to the DARK accent');
   });
 
   it('exposes the fallback pair for a page with no palette resolved at all', () => {
@@ -185,7 +185,7 @@ describe('theme-color meta tag', () => {
     customizer.syncThemeColorMeta(true);
     assert.strictEqual(themeColor(), '#0a0a0b');
     customizer.syncThemeColorMeta(false);
-    assert.strictEqual(themeColor(), '#F59E0B');
+    assert.strictEqual(themeColor(), '#C5CF3F');
   });
 });
 
@@ -201,7 +201,7 @@ describe('theme-color meta tag at first paint', () => {
   // theme-bootstrap.js runs in <head>, before first paint, and restores the
   // saved palette so a custom theme does not flash the shipped one. It repainted
   // the custom properties but not the meta tag, so every launch showed the
-  // shipped amber bar until applyTheme() ran at DOMContentLoaded - most visible
+  // shipped citron bar until applyTheme() ran at DOMContentLoaded - most visible
   // in the installed PWA, straight after the splash screen.
   async function runBootstrap() {
     await import(`../js/theme-bootstrap.js?meta=${instance++}`);
@@ -234,6 +234,6 @@ describe('theme-color meta tag at first paint', () => {
 
   it('leaves the shipped value alone when there is no saved palette', async () => {
     await runBootstrap();
-    assert.strictEqual(themeColor(), '#F59E0B');
+    assert.strictEqual(themeColor(), '#C5CF3F');
   });
 });

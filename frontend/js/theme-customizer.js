@@ -65,9 +65,9 @@ function hslToHex(h, s, l) {
 // / --data-fill tokens in styles.css, which are what the page paints when no
 // custom palette is stored; the picker reports these, so the two have to agree.
 const DEFAULT_COLORS = {
-  primary: '#F59E0B',
-  secondary: '#10B981',
-  accent: '#0284C7'
+  primary: '#C5CF3F',
+  secondary: '#3C82DD',
+  accent: '#830FDB'
 };
 
 // ── Randomiser ──
@@ -257,7 +257,7 @@ export function syncThemeColorMeta(isDark = document.body.classList.contains('da
   // `body.dark-theme` and the customizer sets its inline properties there too,
   // so the root still resolves to the LIGHT accent on a dark page.
   const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-fill').trim();
-  meta.setAttribute('content', accentColor || (isDark ? '#0a0a0b' : '#F59E0B'));
+  meta.setAttribute('content', accentColor || (isDark ? '#0a0a0b' : '#C5CF3F'));
 }
 
 function applyPaletteVariables(palette, isDark) {

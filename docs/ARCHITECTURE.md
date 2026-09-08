@@ -117,7 +117,7 @@ fire-and-forget tasks are awaited, and the SQLAlchemy engine is disposed.
 | `auth-modal.css` | Account modal, profile dropdown, password meter, 2FA and session UI |
 | `fonts.css`, `fonts/` | **Generated** by `scripts/vendor_fonts.py` — subset Plus Jakarta Sans + Font Awesome |
 | `sw.js` | Service worker: precache install, network-first for documents, stale-while-revalidate for hashed assets, API responses never cached |
-| `manifest.json` | PWA metadata (`standalone`, dark splash background, amber `theme_color`, two icons) |
+| `manifest.json` | PWA metadata (`standalone`, dark splash background, citron `theme_color`, two icons) |
 | `.htaccess` | Apache canonical-URL rewrites (extensionless paths, apex host), compression, cache headers (immutable for hashed assets), security headers |
 | `three-bg.js` | Full-viewport animated plexus background, desktop-only — plain 2D canvas despite the name |
 | `js/` | ES modules; see [`JAVASCRIPT.md`](JAVASCRIPT.md) |

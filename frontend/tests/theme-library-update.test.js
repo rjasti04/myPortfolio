@@ -28,14 +28,14 @@ const FIXTURE = `<!DOCTYPE html><html><body>
         </div>
         <button type="button" id="theme-customizer-shuffle"></button>
         <p id="theme-customizer-status"></p>
-        <button type="button" id="color-primary" data-color-value="#F59E0B" aria-expanded="false">
-          <span id="hex-primary">#F59E0B</span>
+        <button type="button" id="color-primary" data-color-value="#C5CF3F" aria-expanded="false">
+          <span id="hex-primary">#C5CF3F</span>
         </button>
-        <button type="button" id="color-secondary" data-color-value="#10B981" aria-expanded="false">
-          <span id="hex-secondary">#10B981</span>
+        <button type="button" id="color-secondary" data-color-value="#3C82DD" aria-expanded="false">
+          <span id="hex-secondary">#3C82DD</span>
         </button>
-        <button type="button" id="color-accent" data-color-value="#0284C7" aria-expanded="false">
-          <span id="hex-accent">#0284C7</span>
+        <button type="button" id="color-accent" data-color-value="#830FDB" aria-expanded="false">
+          <span id="hex-accent">#830FDB</span>
         </button>
         <div id="theme-color-popover" hidden>
           <span id="color-popover-title"></span>

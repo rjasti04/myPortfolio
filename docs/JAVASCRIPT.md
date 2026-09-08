@@ -114,7 +114,7 @@ Classic script. Replays a saved custom palette from
 `localStorage.rj_theme_palette` onto `document.body` inline properties before
 the modules run, and seeds the `theme-color` meta from that palette's
 `--accent-fill` in the same pass — otherwise a saved theme launches on the
-shipped amber browser bar until `applyTheme()` runs at DOMContentLoaded, which
+shipped citron browser bar until `applyTheme()` runs at DOMContentLoaded, which
 is most visible in the installed PWA. It takes the value from the palette
 rather than a computed style: this runs before first paint, so there may be
 nothing resolved to read.
