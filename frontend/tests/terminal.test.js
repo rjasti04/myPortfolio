@@ -267,5 +267,16 @@ describe('Terminal', () => {
       assert.strictEqual(intentFor(key('c', { ctrlKey: true })), Intent.ABORT);
       assert.strictEqual(intentFor(key('a')), Intent.NONE);
     });
+
+    // Regression: Tab was claimed in both directions, so focus that reached
+    // the prompt could never leave it by keyboard (WCAG 2.1.2).
+    it('leaves Shift+Tab and Escape as ways out of the prompt', async () => {
+      const { intentFor, Intent } = await import('../js/terminal/keymap.js');
+      const key = (k, extra = {}) => ({ key: k, ctrlKey: false, metaKey: false, shiftKey: false, ...extra });
+      assert.strictEqual(intentFor(key('Tab', { shiftKey: true })), Intent.NONE);
+      assert.strictEqual(intentFor(key('Escape')), Intent.BLUR);
+      // Forward Tab still completes.
+      assert.strictEqual(intentFor(key('Tab')), Intent.COMPLETE);
+    });
   });
 });

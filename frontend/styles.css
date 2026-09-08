@@ -5219,14 +5219,52 @@ body.dark-theme .skill-tag.primary .fas {
     display: flex;
     align-items: center;
     gap: 4px;
+    height: var(--min-touch-target);
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Centres the pause control and the dots as one row. The dots used to be
+     absolutely positioned on their own; the row owns that now so the button
+     cannot overlap them. */
+  .skills-carousel-controls {
     position: absolute;
     bottom: 8px;
     left: 50%;
-    transform: translateX(-50%);
-    height: var(--min-touch-target);
     z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    transform: translateX(-50%);
+  }
+
+  .skills-carousel-pause {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--min-touch-target);
+    height: var(--min-touch-target);
     padding: 0;
-    margin: 0;
+    background: none;
+    border: none;
+    border-radius: var(--radius-full);
+    color: var(--control-border);
+    font-size: var(--text-2xs);
+    cursor: pointer;
+    transition:
+      color var(--motion-fast) var(--ease-standard),
+      background-color var(--motion-fast) var(--ease-standard);
+  }
+
+  .skills-carousel-pause[aria-pressed="true"],
+  .skills-carousel-pause:hover {
+    color: var(--accent-text);
+    background: var(--accent-soft);
+  }
+
+  .skills-carousel-pause:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -4px;
   }
 
   /* The button is the hit target (24px square, WCAG 2.2 SC 2.5.8); the
@@ -5249,7 +5287,11 @@ body.dark-theme .skill-tag.primary .fas {
     width: 7px;
     height: 7px;
     border-radius: var(--radius-full);
-    background: var(--border);
+
+    /* --border is a 13%-alpha ink: about 1.2:1 on the card, against the 3:1
+       WCAG 1.4.11 asks of a control that carries meaning. These dots are the
+       only signal of how many groups there are and which one is showing. */
+    background: var(--control-border);
     transition:
       width var(--motion-base) var(--ease-standard),
       background-color var(--motion-base) var(--ease-standard);
@@ -5543,6 +5585,7 @@ body.dark-theme .skill-tag.primary .fas {
    flex item defaults to min-height:auto, which floors it at the iframe's
    intrinsic height and pushes the toolbar off the top of the panel. */
 .pdf-modal-frame {
+  position: relative;
   flex: 1;
   min-height: 0;
   background: var(--bg);
@@ -5553,6 +5596,47 @@ body.dark-theme .skill-tag.primary .fas {
   width: 100%;
   height: 100%;
   border: 0;
+}
+
+/* Covers the frame while the PDF is on its way, and replaces the blank sheet
+   entirely when it is not coming. Absolute so the iframe keeps its full box
+   underneath and simply paints through once this is removed. */
+.pdf-modal-status {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  background: var(--bg);
+  text-align: center;
+}
+
+.pdf-modal-status i {
+  font-size: var(--text-h3, 1.5rem);
+  color: var(--muted);
+}
+
+.pdf-modal-status[data-state="error"] i {
+  color: var(--color-error);
+}
+
+.pdf-modal-status[data-state="slow"] i {
+  color: var(--color-warning);
+}
+
+.pdf-modal-status-text {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.pdf-modal-status-link {
+  margin-top: 4px;
 }
 
 /* Only ever opened on a hover-capable, non-iOS pointer, but the panel still

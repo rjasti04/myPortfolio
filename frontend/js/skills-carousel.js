@@ -24,6 +24,7 @@ export function initSkillsCarousel() {
 function initCarouselLogic(carousel, track, slides) {
 
   const dotsContainer = carousel.querySelector(".skills-carousel-dots");
+  const pauseBtn = carousel.querySelector(".skills-carousel-pause");
   const mq = window.matchMedia(MOBILE_QUERY);
 
   let activeIdx = 0;
@@ -31,6 +32,11 @@ function initCarouselLogic(carousel, track, slides) {
   let visible = false;
   let isMobile = mq.matches;
   let reduceMotion = prefersReducedMotion.matches;
+  // Latched by the visitor, not by a transient hover. Autoplay only ever
+  // paused while the pointer was over the carousel or focus was inside it -
+  // and this runs ONLY on the phone layout, where there is no hover to give.
+  // A reader had no way to stop the slide moving under them (WCAG 2.2.2).
+  let userPaused = false;
 
   const dots = slides.map((_, i) => {
     const dot = document.createElement("button");
@@ -107,8 +113,31 @@ function initCarouselLogic(carousel, track, slides) {
 
   function startAutoplay() {
     stopAutoplay();
+    if (userPaused) return;
     if (!isMobile || !visible || reduceMotion || carousel.matches(":focus-within")) return;
     autoplayTimer = window.setInterval(() => goTo(activeIdx + 1), AUTOPLAY_MS);
+  }
+
+  /** Shows the control only where autoplay can actually run, and reflects state. */
+  function syncPauseBtn() {
+    if (!pauseBtn) return;
+    pauseBtn.hidden = !isMobile || reduceMotion;
+    pauseBtn.setAttribute("aria-pressed", String(userPaused));
+    const icon = pauseBtn.querySelector("i");
+    if (icon) icon.className = userPaused ? "fas fa-play" : "fas fa-pause";
+    const label = pauseBtn.querySelector(".sr-only");
+    if (label) {
+      label.textContent = userPaused ? "Resume the skill carousel" : "Pause the skill carousel";
+    }
+  }
+
+  if (pauseBtn) {
+    pauseBtn.addEventListener("click", () => {
+      userPaused = !userPaused;
+      syncPauseBtn();
+      if (userPaused) stopAutoplay();
+      else startAutoplay();
+    });
   }
 
   function stopAutoplay() {
@@ -207,6 +236,7 @@ function initCarouselLogic(carousel, track, slides) {
 
   function onMqChange(e) {
     isMobile = e.matches;
+    syncPauseBtn();
     if (isMobile) {
       carousel.classList.add("carousel-initialized");
       void carousel.offsetHeight;
@@ -228,6 +258,7 @@ function initCarouselLogic(carousel, track, slides) {
 
   function onMotionChange(e) {
     reduceMotion = e.matches;
+    syncPauseBtn();
     if (reduceMotion) stopAutoplay();
     else startAutoplay();
   }
@@ -241,6 +272,8 @@ function initCarouselLogic(carousel, track, slides) {
   window.addEventListener("resize", () => {
     if (isMobile) updateTrackHeight();
   }, { passive: true });
+
+  syncPauseBtn();
 
   if (isMobile) {
     carousel.classList.add("carousel-initialized");
