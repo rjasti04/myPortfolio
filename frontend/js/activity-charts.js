@@ -156,12 +156,18 @@ export function latencyBand(ms) {
  * occupy one strip the eye reads in a single pass, instead of a name on the
  * left and an unlabelled bar 150px to its right.
  */
-export function renderPaths(root, funnel, { escapeHTML, selected = null } = {}) {
+export function renderPaths(root, funnel, { escapeHTML, selected = null, failed = false } = {}) {
   if (!root) return;
 
   const steps = funnel?.steps || [];
   if (!steps.length) {
-    root.innerHTML = `<p class="act-paths-empty">No navigation recorded yet.</p>`;
+    // A failed request used to render as "No navigation recorded yet." - a
+    // failure indistinguishable from an empty session, on a panel whose whole
+    // job is to report what happened.
+    root.innerHTML = failed
+      ? `<p class="act-paths-empty" data-state="error">Could not load where you went.
+           <span>Use Refresh to try again &mdash; your events keep recording either way.</span></p>`
+      : `<p class="act-paths-empty">No navigation recorded yet.</p>`;
     return;
   }
 

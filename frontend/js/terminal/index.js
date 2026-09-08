@@ -197,6 +197,10 @@ export function initTerminal() {
         input.value = history.next();
         break;
       case Intent.COMPLETE: {
+        // An empty prompt has nothing to complete, so Tab keeps its normal
+        // meaning and moves focus on. Together with Shift+Tab (declined in
+        // keymap.js) this is the escape route WCAG 2.1.2 requires.
+        if (!input.value.trim()) break;
         event.preventDefault();
         const typed = input.value;
         const { value, matches } = completeInput(typed, registry, ctx);
@@ -206,6 +210,10 @@ export function initTerminal() {
         }
         break;
       }
+      case Intent.BLUR:
+        event.preventDefault();
+        input.blur();
+        break;
       case Intent.CLEAR:
         event.preventDefault();
         ctx.clear();

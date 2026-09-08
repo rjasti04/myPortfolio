@@ -70,28 +70,19 @@ these files the number here has to move with it.
 
 | File | Lines | ~Tokens | How to navigate instead |
 | :--- | ---: | ---: | :--- |
-| `frontend/styles.css` | 11,507 | ~84,500 | `grep -n '#region' frontend/styles.css` returns a 27-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
-| `package-lock.json` | 3,453 | ~32,500 | Never read. Read `package.json` instead: it lists every direct dependency, all of them `devDependencies` — the app ships no runtime npm packages. |
-| `frontend/index.html` | 2,338 | ~36,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
-| `frontend/js/chat.js` | 1,851 | ~19,000 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (37 hits). |
-| `frontend/js/auth-ui.js` | 1,189 | ~14,500 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (10 hits). |
-| `frontend/three-bg.js` | 1,559 | ~14,000 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js, WebGL or GSAP in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
+| `frontend/styles.css` | 11,819 | ~87,000 | `grep -n '#region' frontend/styles.css` returns a 27-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
+| `package-lock.json` | 3,453 | ~32,500 | Never read. `package.json` lists every direct dep in 25 lines. |
+| `frontend/index.html` | 2,350 | ~36,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
+| `frontend/js/chat.js` | 1,904 | ~20,000 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (37 hits). |
+| `frontend/js/auth-ui.js` | 1,336 | ~16,500 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (11 hits). |
+| `frontend/three-bg.js` | 1,559 | ~14,000 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
 
-The one standing rule for that background: it targets 60fps on mid-tier mobile,
-and every `requestAnimationFrame` handle it takes out is cancelled on teardown
-(`three-bg.js` cancels the render, resize and theme-sync frames together). Keep
-both properties. There is nothing to dispose beyond that — no GPU resources are
-allocated, because there is no WebGL context.
-
-**When searching Python from Bash, exclude the virtualenv.** `server/.venv/`
-holds thousands of dependency files against a few dozen tracked sources. It is
-gitignored, so ripgrep-backed `Grep`/`Glob` skip it — but plain Bash `find` /
-`grep -r` / `du` do **not**, and a repo-wide `grep -r --include=*.py` without
-`--exclude-dir=.venv` (or `-not -path '*/.venv/*'`) walks the whole dependency
-tree and takes minutes instead of milliseconds. This applies only to Bash
-searches that can reach `server/`; it is a non-issue for `Grep`/`Glob`, and the
-directory does not exist at all in a fresh clone or a Claude Code web session —
-create it only if you need to run the backend locally.
+`server/.venv/` holds ~7,500 dependency files (136 MB) against 147 tracked
+files. It is gitignored, so ripgrep-backed `Grep`/`Glob` skip it — but plain
+Bash `find` / `grep -r` / `du` do **not**. Always pass `--exclude-dir=.venv`
+(or `-not -path '*/.venv/*'`) when searching from Bash. Without it a
+repo-wide `grep -r --include=*.py` returns 1,950 files instead of 40 and
+takes over two minutes.
 
 ## Reference Docs - Read Only When Relevant
 
@@ -101,7 +92,7 @@ in order ("add or change an API endpoint" -> `API.md` -> `BACKEND.md` ->
 `SECURITY.md#checklist-for-changes`). The table below is for budgeting the read
 once you know which doc you want.
 
-**These docs are also too big to read whole.** Together they are ~74,500
+**These docs are also too big to read whole.** Together they are ~76,500
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -110,7 +101,7 @@ grep -n '^#\{2,3\} ' docs/JAVASCRIPT.md   # ~40 headings, ~400 tokens
 sed -n '284,298p' docs/JAVASCRIPT.md      # just the module you are touching
 ```
 
-That turns a 13,500-token read into roughly 500. Use it by default; read a
+That turns a 15,000-token read into roughly 500. Use it by default; read a
 whole doc only when you genuinely need all of it.
 
 | Doc | ~Tokens | Read it before... | Jump to a section with |
@@ -119,12 +110,12 @@ whole doc only when you genuinely need all of it.
 | `docs/API.md` | ~6,500 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (32 endpoint sections) |
 | `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
 | `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
-| `docs/JAVASCRIPT.md` | ~13,500 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (49 module sections) |
+| `docs/JAVASCRIPT.md` | ~15,000 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (50 module sections) |
 | `docs/FRONTEND.md` | ~11,000 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (20 headings) |
 | `docs/CONFIGURATION.md` | ~3,500 | adding or interpreting an environment variable | `grep -n '^## '` (14 headings), or just grep the variable name |
 | `docs/SECURITY.md` | ~5,000 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (17 headings) |
 | `docs/OPERATIONS.md` | ~4,000 | changing CI/CD, diagnosing a deploy, or running a manual procedure | `grep -n '^#\{2,3\} '` (25 headings) |
-| `docs/TESTING.md` | ~6,000 | writing tests, or checking whether something is actually covered | `grep -n '^#\{2,3\} '` (13 headings) |
+| `docs/TESTING.md` | ~6,500 | writing tests, or checking whether something is actually covered | `grep -n '^#\{2,3\} '` (13 headings) |
 | `docs/ADR.md` | ~5,500 | you want to know why a decision was made and whether it still holds | Read the status table at the top (lines 1-36) first, then `sed -n` the one ADR you need |
 | `docs/README.md` | ~1,000 | you want the doc index and a task-to-document map | Small enough to read whole |
 | `README.md` | ~4,500 | you need setup, the quick start, or the canonical local commands — it is authoritative for those, and the stack summary above is only a faster orientation | Small enough to read whole |

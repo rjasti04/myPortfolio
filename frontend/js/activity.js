@@ -88,6 +88,10 @@ let funnelState = null;
 let visibleCount = PAGE_SIZE;
 let truncated = false;
 let loadState = "idle"; // idle | loading | ready | error
+// The two side panels load independently of the event stream, so they carry
+// their own failure flags rather than borrowing loadState.
+let summaryFailed = false;
+let funnelFailed = false;
 let loadMessage = "";
 let loadDetail = "";
 
@@ -419,17 +423,26 @@ export async function loadActivity() {
   }
 }
 
+/* These two used to `return` on a bad status and log to the console on a
+   throw, so a failed request was indistinguishable from an empty session: the
+   funnel kept saying "No navigation recorded yet." and the headline stats sat
+   at 0 and an em dash, which read as measurements rather than as their
+   absence. loadActivity() in this same file has modelled loading | ready |
+   error properly all along; these two just skipped it. */
 export async function loadActivitySummary() {
   const sessionId = currentSessionId();
   if (!sessionId || !isApiConfigured()) return;
 
   try {
     const response = await apiFetch(`${API_BASE}/sessions/${sessionId}/events/summary`);
-    if (!response.ok) return;
+    if (!response.ok) throw new Error(`Summary request failed: ${response.status}`);
     summaryState = await response.json();
+    summaryFailed = false;
     render();
   } catch (error) {
     console.warn("Activity summary load failed", error);
+    summaryFailed = true;
+    render();
   }
 }
 
@@ -439,11 +452,14 @@ export async function loadActivityFunnel() {
 
   try {
     const response = await apiFetch(`${API_BASE}/sessions/${sessionId}/events/funnel`);
-    if (!response.ok) return;
+    if (!response.ok) throw new Error(`Funnel request failed: ${response.status}`);
     funnelState = await response.json();
+    funnelFailed = false;
     paintPaths();
   } catch (error) {
     console.warn("Activity funnel load failed", error);
+    funnelFailed = true;
+    paintPaths();
   }
 }
 
@@ -464,7 +480,12 @@ function paintHeadline() {
   setText("act-stat-paths", String(paths || 0));
 
   const grid = document.getElementById("act-stats");
-  if (grid) grid.removeAttribute("aria-busy");
+  if (grid) {
+    grid.removeAttribute("aria-busy");
+    // Marks the figures as unverified rather than letting a fallback count
+    // pass for a measured one.
+    grid.dataset.stale = String(summaryFailed);
+  }
 }
 
 function paintTimeline() {
@@ -525,7 +546,7 @@ function paintFamilies() {
 function paintPaths() {
   const root = document.getElementById("activity-funnel");
   if (!root) return;
-  renderPaths(root, funnelState, { escapeHTML, selected: filters.path });
+  renderPaths(root, funnelState, { escapeHTML, selected: filters.path, failed: funnelFailed });
 }
 
 function paintActiveFilters() {

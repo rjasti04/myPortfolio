@@ -85,22 +85,41 @@ function loadActivityModule() {
   return activityModulePromise;
 }
 
+/**
+ * Runs one initialiser, reporting rather than propagating a failure.
+ *
+ * These fifteen are independent features, but they used to share a fate: a
+ * bare sequence inside one handler means the first throw skips every call
+ * after it. `initTheme` reading blocked storage was enough to take out
+ * `initAnimations` four calls later, which is what leaves every `.reveal`
+ * element - the contact form, both Apps tiles, the About cards - at opacity 0
+ * with no error state on screen. A module that cannot start should cost its
+ * own feature and nothing else.
+ */
+function boot(name, init) {
+  try {
+    init();
+  } catch (error) {
+    reportClientError(error, { source: "init", at: name });
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-  initTheme();
-  initNavigation();
-  initContactForm();
-  initHeroTitle();
-  initAnimations();
-  initTilt();
-  initResumePdf();
-  initTerminal();
-  initAnalytics();
-  initSkillsCarousel();
-  initRipple();
-  initScrollToTop();
-  initThemeCustomizer();
-  initHomeThemeShuffle();
-  initHomePortrait();
+  boot("theme", initTheme);
+  boot("navigation", initNavigation);
+  boot("contactForm", initContactForm);
+  boot("heroTitle", initHeroTitle);
+  boot("animations", initAnimations);
+  boot("tilt", initTilt);
+  boot("resumePdf", initResumePdf);
+  boot("terminal", initTerminal);
+  boot("analytics", initAnalytics);
+  boot("skillsCarousel", initSkillsCarousel);
+  boot("ripple", initRipple);
+  boot("scrollToTop", initScrollToTop);
+  boot("themeCustomizer", initThemeCustomizer);
+  boot("homeThemeShuffle", initHomeThemeShuffle);
+  boot("homePortrait", initHomePortrait);
 
   // Pull-to-refresh, one implementation for the whole site.
   //
@@ -317,35 +336,46 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+// One banner for the life of the page. `registration.update()` runs every
+// minute, so every further `updatefound` used to append ANOTHER banner - each
+// carrying the same id="update-refresh-btn", so the getElementById below bound
+// to the first one and the newest banner's Refresh button did nothing.
+let updateBanner = null;
+
 function showUpdateNotification(registration) {
-  const updateBanner = document.createElement('div');
+  if (updateBanner) {
+    // Already offering the update; the newest waiting worker is the one to
+    // activate, so just re-point the handler at it.
+    updateBanner.dataset.registrationPending = "true";
+    return;
+  }
+
+  updateBanner = document.createElement('div');
   updateBanner.className = 'update-banner';
   updateBanner.setAttribute('role', 'alert');
-  updateBanner.innerHTML = `
-    <span><i class="fas fa-info-circle"></i> A new version is available!</span>
-    <button type="button" class="update-refresh-btn" id="update-refresh-btn">
-      <i class="fas fa-sync-alt"></i> Refresh
-    </button>
-  `;
-  updateBanner.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: var(--accent-fill);
-    color: var(--on-accent);
-    padding: 16px 20px;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-xl);
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    z-index: 10001;
-    animation: slideInUp var(--motion-medium) var(--ease-enter);
-  `;
 
+  const text = document.createElement('span');
+  text.innerHTML = '<i class="fas fa-info-circle" aria-hidden="true"></i> A new version is available!';
+
+  const refreshBtn = document.createElement('button');
+  refreshBtn.type = 'button';
+  refreshBtn.className = 'update-refresh-btn';
+  refreshBtn.innerHTML = '<i class="fas fa-sync-alt" aria-hidden="true"></i> Refresh';
+
+  // The banner sits over the chat toggle at the bottom-right corner and used
+  // to have no way out short of reloading - which is precisely the thing the
+  // visitor was declining to do.
+  const dismissBtn = document.createElement('button');
+  dismissBtn.type = 'button';
+  dismissBtn.className = 'update-dismiss-btn';
+  dismissBtn.setAttribute('aria-label', 'Dismiss update notice');
+  dismissBtn.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+
+  updateBanner.append(text, refreshBtn, dismissBtn);
   document.body.appendChild(updateBanner);
 
-  document.getElementById('update-refresh-btn').addEventListener('click', () => {
+  // Bound to the element, not re-looked-up by id.
+  refreshBtn.addEventListener('click', () => {
     // Tell the waiting worker to take over, then reload once it has. The worker
     // used to call skipWaiting() during install, so it activated before this
     // banner was ever shown and a plain reload could still land on the old
@@ -357,5 +387,10 @@ function showUpdateNotification(registration) {
     } else {
       window.location.reload();
     }
+  });
+
+  dismissBtn.addEventListener('click', () => {
+    updateBanner?.remove();
+    updateBanner = null;
   });
 }

@@ -8,6 +8,7 @@ export const Intent = {
   COMPLETE: "complete",
   CLEAR: "clear",
   ABORT: "abort",
+  BLUR: "blur",
   NONE: "none",
 };
 
@@ -38,7 +39,16 @@ export function intentFor(event) {
     case "ArrowDown":
       return Intent.HIST_NEXT;
     case "Tab":
-      return Intent.COMPLETE;
+      // Shift+Tab is never completion - it is how a keyboard user leaves.
+      // Claiming Tab in BOTH directions made this input a keyboard trap
+      // (WCAG 2.1.2): focus could enter the prompt and never get out, on the
+      // default tab path through the About section. Forward Tab still
+      // completes; index.js additionally declines an empty prompt, where
+      // there is nothing to complete anyway.
+      return event.shiftKey ? Intent.NONE : Intent.COMPLETE;
+    case "Escape":
+      // The second way out, and the one the key hints name.
+      return Intent.BLUR;
     default:
       return Intent.NONE;
   }

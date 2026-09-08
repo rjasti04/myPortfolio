@@ -262,6 +262,15 @@
 
   /* Minimum Touch Target Size */
   --min-touch-target: 44px;
+
+  /* ---- Mobile bottom navigation: OFF ------------------------------------
+     The bar is fully styled in the MOBILE BOTTOM NAV region and navigation on
+     a phone runs through the centred hamburger instead. This flag is the
+     single switch: js/navigation.js reads it and skips building the bar, so
+     the stylesheet and the DOM cannot disagree about whether it exists.
+     Turning it back on is this flag, `display: flex` in that region, and
+     --mobile-bottom-nav-height back to 56px in the RESPONSIVE region. */
+  --mobile-bottom-nav: 0;
 }
 
 /* ---- Breakpoint tiers -------------------------------------------------
@@ -1779,7 +1788,14 @@ main {
   }
 }
 
-.reveal {
+/* Scoped to .js-enabled (set on <html> by the pre-boot script at
+   index.html:163) because only js/animations.js ever adds `.active`. Applied
+   unconditionally this hid 20 elements - the whole contact section, both Apps
+   tiles, the About stats and skills cards - from anyone with JavaScript off,
+   and from everyone if any earlier initialiser threw before initAnimations
+   ran. `.reveal.active` below is the same specificity and comes later, so it
+   still wins. */
+.js-enabled .reveal {
   opacity: 0;
   transform: translateY(24px);
   transition:
@@ -5212,14 +5228,52 @@ body.dark-theme .skill-tag.primary .fas {
     display: flex;
     align-items: center;
     gap: 4px;
+    height: var(--min-touch-target);
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Centres the pause control and the dots as one row. The dots used to be
+     absolutely positioned on their own; the row owns that now so the button
+     cannot overlap them. */
+  .skills-carousel-controls {
     position: absolute;
     bottom: 8px;
     left: 50%;
-    transform: translateX(-50%);
-    height: var(--min-touch-target);
     z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    transform: translateX(-50%);
+  }
+
+  .skills-carousel-pause {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--min-touch-target);
+    height: var(--min-touch-target);
     padding: 0;
-    margin: 0;
+    background: none;
+    border: none;
+    border-radius: var(--radius-full);
+    color: var(--control-border);
+    font-size: var(--text-2xs);
+    cursor: pointer;
+    transition:
+      color var(--motion-fast) var(--ease-standard),
+      background-color var(--motion-fast) var(--ease-standard);
+  }
+
+  .skills-carousel-pause[aria-pressed="true"],
+  .skills-carousel-pause:hover {
+    color: var(--accent-text);
+    background: var(--accent-soft);
+  }
+
+  .skills-carousel-pause:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -4px;
   }
 
   /* The button is the hit target (24px square, WCAG 2.2 SC 2.5.8); the
@@ -5242,7 +5296,11 @@ body.dark-theme .skill-tag.primary .fas {
     width: 7px;
     height: 7px;
     border-radius: var(--radius-full);
-    background: var(--border);
+
+    /* --border is a 13%-alpha ink: about 1.2:1 on the card, against the 3:1
+       WCAG 1.4.11 asks of a control that carries meaning. These dots are the
+       only signal of how many groups there are and which one is showing. */
+    background: var(--control-border);
     transition:
       width var(--motion-base) var(--ease-standard),
       background-color var(--motion-base) var(--ease-standard);
@@ -5336,6 +5394,44 @@ body.dark-theme .skill-tag.primary .fas {
   background: linear-gradient(180deg, var(--accent-fill), var(--secondary-fill));
 }
 
+/* Takes the slack so the close button stays hard right on a short message. */
+.toast-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Sized from --min-touch-target like every other icon control; the glyph is
+   smaller than the box it sits in. */
+.toast-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+  margin: -10px -12px -10px 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.toast-close:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.toast-close:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: -3px;
+}
+
 .toast-icon {
   width: 24px;
   height: 24px;
@@ -5368,6 +5464,78 @@ body.dark-theme .skill-tag.primary .fas {
    to the viewport, and mousemove does not cross an iframe boundary, so a
    viewer embedded in the card would trap any pointer effect on it.
    See js/resume-pdf.js. */
+/* Confirmation dialog (js/confirm-dialog.js).
+   Same open/close contract as .pdf-modal above - modal.js toggles `.active` -
+   so it inherits the focus trap, the scroll lock, Escape and focus restore
+   rather than reaching for the browser's blocking confirm(). */
+.confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 40px);
+  background: hsl(0, 0%, 0%, 0.7);
+  backdrop-filter: blur(var(--blur-sm));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--motion-medium) var(--ease-standard),
+    visibility var(--motion-medium) var(--ease-standard);
+}
+
+.confirm-modal.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.confirm-modal-panel {
+  width: min(420px, 100%);
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--elev-3);
+}
+
+.confirm-modal-title {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: var(--text-body-lg);
+  font-weight: 700;
+}
+
+.confirm-modal-body {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: var(--text-body-sm);
+  line-height: 1.5;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.confirm-modal-actions .btn {
+  min-height: var(--min-touch-target);
+}
+
+.confirm-modal-confirm.is-destructive {
+  background: var(--color-error-fill);
+  border-color: var(--color-error-fill);
+  color: var(--on-error);
+}
+
+.confirm-modal-confirm.is-destructive:hover {
+  filter: brightness(0.92);
+}
+
 .pdf-modal {
   position: fixed;
   inset: 0;
@@ -5498,6 +5666,7 @@ body.dark-theme .skill-tag.primary .fas {
    flex item defaults to min-height:auto, which floors it at the iframe's
    intrinsic height and pushes the toolbar off the top of the panel. */
 .pdf-modal-frame {
+  position: relative;
   flex: 1;
   min-height: 0;
   background: var(--bg);
@@ -5508,6 +5677,47 @@ body.dark-theme .skill-tag.primary .fas {
   width: 100%;
   height: 100%;
   border: 0;
+}
+
+/* Covers the frame while the PDF is on its way, and replaces the blank sheet
+   entirely when it is not coming. Absolute so the iframe keeps its full box
+   underneath and simply paints through once this is removed. */
+.pdf-modal-status {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  background: var(--bg);
+  text-align: center;
+}
+
+.pdf-modal-status i {
+  font-size: var(--text-h3, 1.5rem);
+  color: var(--muted);
+}
+
+.pdf-modal-status[data-state="error"] i {
+  color: var(--color-error);
+}
+
+.pdf-modal-status[data-state="slow"] i {
+  color: var(--color-warning);
+}
+
+.pdf-modal-status-text {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.pdf-modal-status-link {
+  margin-top: 4px;
 }
 
 /* Only ever opened on a hover-capable, non-iOS pointer, but the panel still
@@ -7234,8 +7444,13 @@ body.dark-theme .chat-message.bot .msg-actions {
   background: transparent;
   border: none;
   color: inherit;
-  width: 28px;
-  height: 28px;
+
+  /* Was 28px against the project's own --min-touch-target of 44px. The full
+     44 is not reachable here: these sit in a row with a 6px gap, so 44px
+     boxes would overlap their neighbours and make a tap ambiguous - worse
+     than a small target. 36 is the largest that keeps each target its own. */
+  width: 36px;
+  height: 36px;
   padding: 0;
   cursor: pointer;
   display: inline-flex;
@@ -7362,10 +7577,59 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
   outline-offset: 2px;
 }
 
-/* Update notification banner */
+/* Update notification banner.
+   Everything below used to be an inline style.cssText in js/main.js, which
+   meant the one surface that announces a new build was also the one that
+   could not follow the palette. */
 .update-banner {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(420px, calc(100vw - 40px));
+  padding: 14px 16px 14px 20px;
+  border-radius: var(--radius);
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  box-shadow: var(--elev-3);
   font-size: var(--text-sm);
   font-weight: 600;
+  animation: slideInUp var(--motion-medium) var(--ease-enter);
+}
+
+.update-dismiss-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+  margin: -12px -10px -12px 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--on-accent);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  opacity: 0.75;
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+
+.update-dismiss-btn:hover {
+  opacity: 1;
+  background: hsl(0, 0%, 0%, 0.12);
+}
+
+.update-dismiss-btn:focus-visible {
+  opacity: 1;
+  outline: 3px solid var(--focus-ring);
+  outline-offset: -3px;
 }
 
 .update-refresh-btn {
@@ -8056,6 +8320,24 @@ nav a:hover .nav-shortcut {
 .act-paths-empty {
   font-size: var(--text-2xs);
   color: var(--muted);
+}
+
+/* Failure reads differently from emptiness: the panel says it could not load
+   and what to do, instead of claiming nothing happened. */
+.act-paths-empty[data-state="error"] {
+  color: var(--color-error);
+}
+
+.act-paths-empty[data-state="error"] span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Figures the summary endpoint could not confirm. */
+.act-stats[data-stale="true"] .act-stat-value {
+  opacity: 0.55;
 }
 
 /* ── Zone 3: filters and the log ─────────────────────────────────────── */
@@ -9079,7 +9361,17 @@ body.dark-theme .history-item:hover {
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  padding: 4px 6px;
+
+  /* 4px/6px of padding around a --text-xs glyph came out around 20x24 - under
+     the 24x24 WCAG 2.2 floor on the narrow axis, for the only route to Rename
+     and Delete. It has no neighbours in the row, so it can take the full
+     token. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+  padding: 0;
   background: none;
   border: none;
   border-radius: 6px;
@@ -10368,63 +10660,56 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
   background: hsl(0, 0%, 100%, 0.05);
 }
 
+/* The waiting state for a chat turn. Was a three-row fake progress list
+   driven by a fixed timer; js/chat.js now renders an indeterminate indicator
+   because waiting is the only thing this code can actually observe. */
 .thinking-container {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   width: 100%;
 }
 
-.thinking-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
+.thinking-label {
   font-size: var(--text-xs);
-  color: var(--accent-text);
-}
-
-.thinking-steps {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.thinking-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--text-xs);
-  color: var(--muted);
-  transition: color var(--motion-base) var(--ease-standard);
-}
-
-.thinking-step.active {
-  color: var(--text);
   font-weight: 600;
+  color: var(--muted);
 }
 
-.thinking-step.completed {
-  color: var(--color-success);
-}
-
-.thinking-step i {
-  width: 14px;
-  display: flex;
+.thinking-dots {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  font-size: var(--text-2xs);
+  gap: 4px;
 }
 
-.thinking-step.completed i {
-  color: var(--color-success);
+.thinking-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--accent-fill);
+  animation: thinking-bounce 1.2s var(--ease-standard) infinite;
 }
 
-.thinking-step.active i {
-  color: var(--accent-fill);
+.thinking-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes thinking-bounce {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
 }
 
 .typing-dot {
@@ -11305,11 +11590,38 @@ body.dark-theme .mobile-bottom-nav {
   box-shadow: 0 0 8px var(--color-error-fill, #ef4444);
 }
 
-/* Offline banner contrast styling */
+/* Offline banner.
+   Was a style.cssText in js/navigation.js with hardcoded #fde68a on #0f172a -
+   the only surface on the site that ignored the token layer, so it painted a
+   bright yellow slab straight through dark theme. Dark ink on the warning
+   fill is the same pairing --on-accent uses, and holds in both themes. */
 .offline-banner {
-  background-color: #fde68a;
-  color: #0f172a;
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-warning-fill);
+  color: var(--on-warning);
+  box-shadow: var(--elev-3);
+  font-size: var(--text-sm);
   font-weight: 600;
+  transform: translateY(150%);
+  transition: transform var(--motion-medium) var(--ease-standard);
+}
+
+.offline-banner.is-visible {
+  transform: translateY(0);
+}
+
+/* The struck-through wifi glyph reads as "no connection" on its own; the
+   text-decoration used to be an inline style attribute on the <i>. */
+.offline-banner__icon {
+  text-decoration: line-through;
 }
 
 /* #endregion */

@@ -42,29 +42,46 @@ export function copyText(text) {
   return copied ? Promise.resolve() : Promise.reject(new Error("Copy command failed"));
 }
 
+const TOAST_DISMISS_MS = 3200;
+
 export function showToast(message, type = "info") {
   const toastContainer = document.getElementById("toast-container");
   if (!toastContainer) return;
-  
+
   const iconMap = {
     success: 'fa-check',
     error: 'fa-exclamation-circle',
     info: 'fa-info-circle'
   };
-  
+
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
-  toast.setAttribute("role", "status");
-  
+  // An error is the one message the visitor has to act on, and polite
+  // announcements queue behind whatever is already being read - a failed
+  // contact submission could be spoken after the toast had gone. Errors
+  // interrupt; everything else waits its turn.
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+
   const icon = document.createElement("span");
   icon.className = `toast-icon`;
   icon.innerHTML = `<i class="fas ${iconMap[type] || iconMap.info}"></i>`;
-  
+
   const textSpan = document.createElement("span");
+  textSpan.className = "toast-text";
   textSpan.textContent = message;
-  
+
+  // 3.2s is not long enough to read a two-line error, and there was no way to
+  // keep one on screen or to get rid of one early. Hover, focus and the close
+  // button are all answers to that (WCAG 2.2.1).
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "toast-close";
+  closeBtn.setAttribute("aria-label", "Dismiss notification");
+  closeBtn.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+
   toast.appendChild(icon);
   toast.appendChild(textSpan);
+  toast.appendChild(closeBtn);
   toastContainer.appendChild(toast);
 
   requestAnimationFrame(() => {
@@ -73,10 +90,45 @@ export function showToast(message, type = "info") {
     });
   });
 
-  window.setTimeout(() => {
+  let dismissTimer = null;
+
+  const dismiss = () => {
+    if (dismissTimer !== null) {
+      window.clearTimeout(dismissTimer);
+      dismissTimer = null;
+    }
     toast.classList.remove("toast-show");
-    toast.addEventListener("transitionend", () => toast.remove(), { once: true });
-  }, 3200);
+    // The toast is removed on the transition it just started, but a toast that
+    // never transitions - reduced motion, a backgrounded tab - would otherwise
+    // stay in the DOM forever, so the timeout is the floor.
+    let removed = false;
+    const drop = () => {
+      if (removed) return;
+      removed = true;
+      toast.remove();
+    };
+    toast.addEventListener("transitionend", drop, { once: true });
+    window.setTimeout(drop, 400);
+  };
+
+  const arm = () => {
+    if (dismissTimer !== null) window.clearTimeout(dismissTimer);
+    dismissTimer = window.setTimeout(dismiss, TOAST_DISMISS_MS);
+  };
+
+  const hold = () => {
+    if (dismissTimer === null) return;
+    window.clearTimeout(dismissTimer);
+    dismissTimer = null;
+  };
+
+  closeBtn.addEventListener("click", dismiss);
+  toast.addEventListener("mouseenter", hold);
+  toast.addEventListener("mouseleave", arm);
+  toast.addEventListener("focusin", hold);
+  toast.addEventListener("focusout", arm);
+
+  arm();
 }
 
 export function debounce(fn, delay = 0) {

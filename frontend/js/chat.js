@@ -3,6 +3,8 @@ import { prefersReducedMotion } from "./config.js";
 import { copyText, escapeHTML, estimateTokens } from "./utils.js";
 import { authenticatedFetch, getAuthToken } from "./auth.js";
 import { highlightCode } from "./syntax-highlighter.js";
+import { handleFocusTrap } from "./modal.js";
+import { confirmAction } from "./confirm-dialog.js";
 
 // Constants
 const MAX_SESSIONS = 50;
@@ -380,6 +382,10 @@ export function initChat() {
     isOpen = open;
     dialog.classList.toggle('hidden', !open);
     dialog.setAttribute('aria-hidden', String(!open));
+    // `body.chat-open` paints a full-viewport scrim that takes pointer events,
+    // so the widget IS modal for a mouse - it just never said so, and Tab
+    // walked straight out of it into a page the visitor could no longer click.
+    dialog.setAttribute('aria-modal', String(open));
     toggleBtn?.setAttribute('aria-expanded', String(open));
     document.body.classList.toggle('chat-open', open);
   }
@@ -401,7 +407,15 @@ export function initChat() {
   }
 
   function loadSessions() {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    // Guarded like every other storage access in this file. `getItem` throws
+    // outright where storage is blocked, and an unguarded read here took
+    // initChat() down with it - the whole AI page, with no error state.
+    let raw = null;
+    try {
+      raw = localStorage.getItem(STORAGE_KEY);
+    } catch (e) {
+      raw = null;
+    }
     if (raw) {
       try {
         sessions = JSON.parse(raw);
@@ -428,7 +442,13 @@ export function initChat() {
     if (sessions.length > MAX_SESSIONS) {
       sessions = sessions.slice(0, MAX_SESSIONS);
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    } catch (e) {
+      // Quota or blocked storage. The conversation still works for this view;
+      // throwing here would abort the turn that is mid-flight.
+      console.warn('Chat history could not be saved:', e);
+    }
     renderSidebar();
   }
 
@@ -626,21 +646,42 @@ export function initChat() {
       const menuBtn = document.createElement('button');
       menuBtn.type = 'button';
       menuBtn.className = 'session-menu-btn';
-      menuBtn.innerHTML = '<i class="fas fa-ellipsis-v"></i>';
+      menuBtn.innerHTML = '<i class="fas fa-ellipsis-v" aria-hidden="true"></i>';
       menuBtn.title = 'Chat options';
+      // `title` is a tooltip, not an accessible name on every combination, and
+      // the panel was a bare div: nothing announced that this opened a menu or
+      // whether it was open.
+      menuBtn.setAttribute('aria-label', `Options for ${session.title}`);
+      menuBtn.setAttribute('aria-haspopup', 'menu');
+      menuBtn.setAttribute('aria-expanded', 'false');
 
       // Dropdown menu
       const dropdown = document.createElement('div');
       dropdown.className = 'session-dropdown-menu hidden';
+      dropdown.setAttribute('role', 'menu');
+      dropdown.setAttribute('aria-label', `Options for ${session.title}`);
 
       const renameItem = document.createElement('button');
       renameItem.type = 'button';
+      renameItem.setAttribute('role', 'menuitem');
       renameItem.className = 'dropdown-item';
       renameItem.innerHTML = '<i class="fas fa-pen"></i> Rename';
+      // Nothing dismissed this by keyboard, and focus was neither moved into
+      // the menu nor returned when it closed.
+      dropdown.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        e.stopPropagation();
+        dropdown.classList.add('hidden');
+        menuBtn.classList.remove('active');
+        menuBtn.setAttribute('aria-expanded', 'false');
+        menuBtn.focus();
+      });
+
       renameItem.addEventListener('click', (e) => {
         e.stopPropagation();
         dropdown.classList.add('hidden');
         menuBtn.classList.remove('active');
+        menuBtn.setAttribute('aria-expanded', 'false');
 
         // The open button steps aside for the field, and renderSidebar()
         // puts it back on save or on Escape.
@@ -675,12 +716,24 @@ export function initChat() {
 
       const deleteItem = document.createElement('button');
       deleteItem.type = 'button';
+      deleteItem.setAttribute('role', 'menuitem');
       deleteItem.className = 'dropdown-item danger';
       deleteItem.innerHTML = '<i class="fas fa-trash"></i> Delete';
-      deleteItem.addEventListener('click', (e) => {
+      deleteItem.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (isGenerating) return;
-        deleteSession(session.id);
+        dropdown.classList.add('hidden');
+        menuBtn.classList.remove('active');
+        menuBtn.setAttribute('aria-expanded', 'false');
+        // Deleting one conversation is as irreversible as clearing them all,
+        // and it is the control that gets used - it asked nothing at all
+        // while "Clear all history" two steps away asked via confirm().
+        const ok = await confirmAction({
+          title: 'Delete this chat?',
+          body: `"${session.title}" and its messages will be removed from this browser. This cannot be undone.`,
+          confirmLabel: 'Delete',
+        });
+        if (ok) deleteSession(session.id);
       });
 
       dropdown.appendChild(renameItem);
@@ -692,11 +745,15 @@ export function initChat() {
         e.stopPropagation();
         const isHidden = dropdown.classList.contains('hidden');
         document.querySelectorAll('.session-dropdown-menu').forEach(m => m.classList.add('hidden'));
-        document.querySelectorAll('.session-menu-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.session-menu-btn').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-expanded', 'false');
+        });
         if (isHidden) {
           dropdown.classList.remove('hidden');
           dropdown.classList.remove('drop-up');
           menuBtn.classList.add('active');
+          menuBtn.setAttribute('aria-expanded', 'true');
           // .ai-sidebar-history scrolls, so a menu opened near its bottom edge
           // gets clipped. Flip it above the row when it would not fit below.
           if (aiSidebarHistory) {
@@ -705,6 +762,10 @@ export function initChat() {
               dropdown.classList.add('drop-up');
             }
           }
+          // Same reasoning as the header dropdowns in js/navigation.js: an
+          // opened panel that leaves focus on its toggle gives a keyboard user
+          // nothing to tell them it opened.
+          renameItem.focus();
         }
       });
 
@@ -742,9 +803,15 @@ export function initChat() {
 
   // Clear all sessions
   if (clearAllBtn) {
-    clearAllBtn.addEventListener('click', () => {
+    clearAllBtn.addEventListener('click', async () => {
       if (isGenerating) return;
-      if (confirm('Delete all chat history? This action cannot be undone.')) {
+      const ok = await confirmAction({
+        title: 'Delete all chat history?',
+        body: `All ${sessions.length} conversation${sessions.length === 1 ? '' : 's'} `
+          + 'will be removed from this browser. This cannot be undone.',
+        confirmLabel: 'Delete all',
+      });
+      if (ok) {
         sessions = [];
         createNewSession();
       }
@@ -1162,16 +1229,14 @@ export function initChat() {
       }
       setChatOpen(!isOpen);
       if (isOpen) {
-        if (prefersReducedMotion.matches) {
-          chatInput?.focus();
-        } else {
-          dialog.addEventListener('transitionend', function focusInput(e) {
-            if (e.propertyName === 'transform') {
-              chatInput?.focus();
-              dialog.removeEventListener('transitionend', focusInput);
-            }
-          });
-        }
+        // Focused directly. This used to wait for a `transitionend` on
+        // `transform` that never fires: the global `.hidden` utility is
+        // `display: none !important`, which beats .chat-dialog.hidden, and an
+        // element leaving display:none does not run a transition. So the
+        // composer only ever got focus on the reduced-motion branch, while
+        // every open leaked another listener that later transitions - the
+        // event bubbles from descendants - could fire to steal focus back.
+        chatInput?.focus();
         if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
       } else if (e && e.currentTarget === closeBtn) {
         toggleBtn.focus();
@@ -1195,9 +1260,16 @@ export function initChat() {
     });
 
     document.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape' || !isOpen) return;
-      setChatOpen(false);
-      toggleBtn?.focus();
+      if (!isOpen) return;
+      if (event.key === 'Escape') {
+        setChatOpen(false);
+        toggleBtn?.focus();
+        return;
+      }
+      // Same trap js/modal.js gives every other dialog, and js/navigation.js
+      // gives the header dropdowns. The widget was the one scrimmed surface
+      // without it.
+      if (event.key === 'Tab') handleFocusTrap(event, dialog);
     });
   }
 
@@ -1211,21 +1283,35 @@ export function initChat() {
     setInputState(false);
   }
 
-  function setInputState(disabled) {
-    isGenerating = disabled;
-    if (aiPageInput) aiPageInput.disabled = disabled;
+  function setInputState(busy) {
+    isGenerating = busy;
+
+    // `readOnly`, not `disabled`. The visitor is almost always focused in the
+    // composer when they press Enter, and disabling the focused element drops
+    // focus to <body> - a screen reader loses its place mid-turn. A readonly
+    // field keeps focus and stays announced; both submit handlers already
+    // guard on isGenerating, so Enter cannot re-send.
+    if (aiPageInput) {
+      aiPageInput.readOnly = busy;
+      aiPageInput.setAttribute('aria-busy', String(busy));
+    }
+    if (aiPageForm) aiPageForm.setAttribute('aria-busy', String(busy));
     if (aiPageSendBtn) {
       aiPageSendBtn.disabled = false;
-      aiPageSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
-      aiPageSendBtn.title = disabled ? 'Stop generation' : 'Send message';
+      aiPageSendBtn.innerHTML = busy ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
+      aiPageSendBtn.title = busy ? 'Stop generation' : 'Send message';
     }
-    if (chatInput) chatInput.disabled = disabled;
+    if (chatInput) {
+      chatInput.readOnly = busy;
+      chatInput.setAttribute('aria-busy', String(busy));
+    }
+    if (chatForm) chatForm.setAttribute('aria-busy', String(busy));
     if (chatSendBtn) {
       chatSendBtn.disabled = false;
-      chatSendBtn.innerHTML = disabled ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
-      chatSendBtn.title = disabled ? 'Stop generation' : 'Send message';
+      chatSendBtn.innerHTML = busy ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
+      chatSendBtn.title = busy ? 'Stop generation' : 'Send message';
     }
-    if (newChatBtn) newChatBtn.disabled = disabled;
+    if (newChatBtn) newChatBtn.disabled = busy;
   }
 
   if (aiPageSendBtn) {
@@ -1248,6 +1334,17 @@ export function initChat() {
     });
   }
 
+  /**
+   * The waiting state for a turn in flight.
+   *
+   * This used to march "Initializing context -> Fetching profile data ->
+   * Querying Bedrock LLM" forward on a fixed 700ms interval with nothing
+   * behind it: on a slow turn all three read done while nothing had arrived,
+   * and on a fast turn the visitor was shown steps for work that never
+   * happened. There are only two states this code can actually observe -
+   * waiting, and streaming, at which point the indicator is replaced by the
+   * reply itself - so it reports the one it is in and nothing more.
+   */
   function createTypingIndicator() {
     const indicator = document.createElement('div');
     indicator.className = 'chat-message bot typing-indicator';
@@ -1260,64 +1357,14 @@ export function initChat() {
       return indicator;
     }
 
-    // Steps are addressed by data-step, not by id: every turn builds two of
-    // these indicators - one in the widget, one on the AI page - so ids put
-    // three duplicate ids in the document for the length of each request.
     indicator.innerHTML = `
       <div class="thinking-container">
-        <div class="thinking-header">
-          <i class="fas fa-cog fa-spin" aria-hidden="true"></i> Processing request...
-        </div>
-        <ul class="thinking-steps">
-          <li class="thinking-step active" data-step="0">
-            <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Initializing context
-          </li>
-          <li class="thinking-step" data-step="1">
-            <i class="far fa-circle" aria-hidden="true"></i> Fetching profile data
-          </li>
-          <li class="thinking-step" data-step="2">
-            <i class="far fa-circle" aria-hidden="true"></i> Querying Bedrock LLM
-          </li>
-        </ul>
+        <span class="thinking-dots" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span class="thinking-label">Thinking&hellip;</span>
       </div>
     `;
-
-    const steps = [
-      { activeIcon: 'fas fa-circle-notch fa-spin', doneIcon: 'fas fa-check-circle' },
-      { activeIcon: 'fas fa-circle-notch fa-spin', doneIcon: 'fas fa-check-circle' },
-      { activeIcon: 'fas fa-cog fa-spin', doneIcon: 'fas fa-check-circle' }
-    ];
-
-    const stepEl = (index) => indicator.querySelector(`[data-step="${index}"]`);
-
-    let currentStep = 0;
-    const interval = setInterval(() => {
-      const currentEl = stepEl(currentStep);
-      if (currentEl) {
-        currentEl.className = 'thinking-step completed';
-        const icon = currentEl.querySelector('i');
-        if (icon) icon.className = steps[currentStep].doneIcon;
-      }
-
-      currentStep++;
-      if (currentStep >= steps.length) {
-        clearInterval(interval);
-        return;
-      }
-
-      const nextEl = stepEl(currentStep);
-      if (nextEl) {
-        nextEl.className = 'thinking-step active';
-        const icon = nextEl.querySelector('i');
-        if (icon) icon.className = steps[currentStep].activeIcon;
-      }
-    }, 700);
-
-    const originalRemove = indicator.remove.bind(indicator);
-    indicator.remove = () => {
-      clearInterval(interval);
-      originalRemove();
-    };
 
     return indicator;
   }
@@ -1749,7 +1796,13 @@ export function initChat() {
       setInputState(false);
       if (aiPageInput) {
         aiPageInput.style.height = 'auto'; // Reset height
-        aiPageInput.focus();
+        // Only if the AI page is still the section on screen. This refocused
+        // unconditionally, so a turn that finished after the visitor had
+        // navigated to Work or Contact pulled focus back to a composer they
+        // could no longer see.
+        if (document.getElementById('ai')?.classList.contains('active')) {
+          aiPageInput.focus();
+        }
       }
       if (chatInput && isOpen) chatInput.focus();
     }

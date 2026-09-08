@@ -1,5 +1,5 @@
 import { compactViewport, mobileDevice, prefersReducedMotion, supportsHover } from "./config.js";
-import { handleFocusTrap } from "./modal.js";
+import { handleFocusTrap, lockBodyScroll, unlockBodyScroll } from "./modal.js";
 import { onOnline, onOffline, isNetworkOnline } from "./utils.js";
 import { SwipeHandler } from "./swipe-handler.js";
 
@@ -27,17 +27,34 @@ function isTypingTarget(element) {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 }
 
+/* Tracked so the reference-counted lock is taken exactly once per open.
+   setMobileMenuState(false) is called defensively from several paths - a
+   dropdown opening, a resize, every navigation - and an unbalanced release
+   would unlock the page under an open modal. */
+let navScrollLocked = false;
+
 function setMobileMenuState(isOpen) {
   if (!navMenu || !hamburger) return;
+
+  const wasOpen = navMenu.classList.contains("show-menu");
 
   if (isOpen) {
     navMenu.classList.add("show-menu");
     navMenu.setAttribute("aria-hidden", "false");
-    document.body.style.overflow = 'hidden';
+    // The reference-counted lock from modal.js rather than a bare
+    // `body.style.overflow`: it preserves the scroll offset and applies the
+    // `position: fixed` that is what actually stops iOS scroll-chaining.
+    if (!navScrollLocked) {
+      lockBodyScroll();
+      navScrollLocked = true;
+    }
   } else {
     navMenu.classList.remove("show-menu");
     navMenu.setAttribute("aria-hidden", "true");
-    document.body.style.overflow = '';
+    if (navScrollLocked) {
+      unlockBodyScroll();
+      navScrollLocked = false;
+    }
   }
 
   hamburger.setAttribute("aria-expanded", String(isOpen));
@@ -47,6 +64,18 @@ function setMobileMenuState(isOpen) {
   if (icon) {
     icon.classList.toggle("fa-bars", !isOpen);
     icon.classList.toggle("fa-times", isOpen);
+  }
+
+  // Focus management, which this panel was the only one on the site to lack -
+  // js/modal.js, the header dropdowns and the command palette all have it,
+  // and on a phone THIS is the navigation. Opening it left focus on the
+  // hamburger behind a scrim; closing it dropped focus entirely.
+  if (isOpen && !wasOpen) {
+    document.getElementById("nav-menu-close")?.focus();
+  } else if (!isOpen && wasOpen) {
+    // Only reclaim focus if it is still inside the panel being closed;
+    // navigating away has already put it somewhere deliberate.
+    if (navMenu.contains(document.activeElement)) hamburger.focus();
   }
 }
 
@@ -268,6 +297,9 @@ export function initNavigation() {
     if (event.key === "Escape") {
       const openDropdown = document.querySelector('.header-dropdown.is-open');
       const openToggle = openDropdown?.querySelector('button');
+      // `openToggle` is null when the thing that was open is the nav menu, so
+      // Escape used to drop focus there. setMobileMenuState now returns it to
+      // the hamburger itself; this only handles the dropdown case.
       closeTransientUi();
       openToggle?.focus();
       return;
@@ -277,6 +309,12 @@ export function initNavigation() {
     // whole form - presets, three colour buttons, a nested popover, Apply and
     // Reset - and Tab used to walk straight out of it into the page behind.
     if (event.key === "Tab") {
+      // The mobile nav is scrim-backed and scroll-locked, so Tab leaving it
+      // put focus on a page the visitor could neither see nor click.
+      if (navMenu?.classList.contains("show-menu")) {
+        handleFocusTrap(event, navMenu);
+        return;
+      }
       const openDropdown = document.querySelector('.header-dropdown.is-open');
       const menu = openDropdown?.querySelector('.header-dropdown-menu');
       if (menu) handleFocusTrap(event, menu);
@@ -348,37 +386,40 @@ export function initNavigation() {
     window.scrollTo(0, 0);
   }
 
-  // Offline indicator
+  // Offline indicator.
+  //
+  // Appended EMPTY. role="alert" fires when content enters the live region, so
+  // building this with its text already in place meant the announcement was
+  // spent at page load - before there was anything to announce - and the real
+  // offline transition later said nothing. Styling lives in the
+  // .offline-banner rule; it used to be an inline cssText with hardcoded
+  // colours, which is why it ignored the theme.
   const offlineBanner = document.createElement('div');
   offlineBanner.className = 'offline-banner';
   offlineBanner.setAttribute('role', 'alert');
-  offlineBanner.innerHTML = '<i class="fas fa-wifi" style="text-decoration: line-through;"></i> You are offline';
-  offlineBanner.style.cssText = `
-    position: fixed;
-    bottom: 24px;
-    left: 24px;
-    background: #fde68a;
-    color: #0f172a;
-    padding: 12px 20px;
-    border-radius: var(--radius-full);
-    font-size: 14px;
-    font-weight: 600;
-    box-shadow: var(--shadow-lg);
-    z-index: 10000;
-    transform: translateY(150%);
-    transition: transform var(--motion-medium) var(--ease-standard);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  `;
   document.body.appendChild(offlineBanner);
 
   function showOfflineBanner() {
-    offlineBanner.style.transform = 'translateY(0)';
+    if (offlineBanner.dataset.shown === 'true') return;
+    offlineBanner.dataset.shown = 'true';
+    offlineBanner.innerHTML =
+      '<i class="fas fa-wifi offline-banner__icon" aria-hidden="true"></i> You are offline';
+    offlineBanner.classList.add('is-visible');
   }
 
   function hideOfflineBanner() {
-    offlineBanner.style.transform = 'translateY(150%)';
+    if (offlineBanner.dataset.shown !== 'true') return;
+    delete offlineBanner.dataset.shown;
+    offlineBanner.classList.remove('is-visible');
+    // Emptied on the way out so the next offline event is a fresh insertion
+    // into the live region, and so announces again.
+    offlineBanner.addEventListener(
+      'transitionend',
+      () => {
+        if (offlineBanner.dataset.shown !== 'true') offlineBanner.replaceChildren();
+      },
+      { once: true }
+    );
   }
 
   if (!isNetworkOnline()) {
@@ -460,7 +501,26 @@ export function initNavigation() {
   }
 }
 
+/**
+ * True when the stylesheet says the bottom bar is switched on.
+ *
+ * The bar was built and appended on every load while `.mobile-bottom-nav` was
+ * `display: none` at every width, so the JS and the CSS disagreed about
+ * whether a whole navigation surface existed - and the comment below still
+ * described it as the phone's primary navigation. The `--mobile-bottom-nav`
+ * flag in the DESIGN TOKENS region is now the one switch both read.
+ */
+function bottomNavEnabled() {
+  if (typeof getComputedStyle !== "function") return false;
+  const flag = getComputedStyle(document.documentElement)
+    .getPropertyValue("--mobile-bottom-nav")
+    .trim();
+  return flag === "1";
+}
+
 function initMobileBottomNav() {
+  if (!bottomNavEnabled()) return;
+
   // Create mobile bottom navigation
   const mobileNav = document.createElement('nav');
   mobileNav.className = 'mobile-bottom-nav';
@@ -471,9 +531,11 @@ function initMobileBottomNav() {
   // the header called it "About" behind a person, so the two bars disagreed
   // about what the first section was.
   //
-  // This listed four of the six, so Hobbies and Activity were reachable on a
-  // phone only through the hamburger - and on a phone the bottom bar *is* the
-  // navigation.
+  // NOTE: this bar is currently switched off (see bottomNavEnabled above); the
+  // centred hamburger is the phone navigation. The list is kept complete so
+  // that turning the flag back on restores a bar that already agrees with the
+  // header nav rather than one missing half its sections, which is what it
+  // used to be.
   //
   // Eight entries since Apps joined the header nav. At 320px, the narrowest
   // width still worth supporting, `flex: 1 1 0` divides the bar into 40px

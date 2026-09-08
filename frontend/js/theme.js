@@ -47,6 +47,23 @@ export function toggleTheme() {
   return nextValue;
 }
 
+/**
+ * The saved theme, or null when there is no choice to honour.
+ *
+ * Returns null both when nothing is stored and when storage is unreachable,
+ * because the caller does the same thing in either case: fall back to the OS.
+ */
+function readStoredTheme() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem("theme");
+  } catch {
+    // Storage blocked - follow the OS for this view.
+    return null;
+  }
+  return stored === null ? null : stored === "dark";
+}
+
 export function initTheme() {
   themeBtn = document.getElementById("theme-toggle");
   themeIcon = document.getElementById("theme-icon");
@@ -54,15 +71,24 @@ export function initTheme() {
   // Must match the inline bootstrap in index.html exactly: a saved choice wins,
   // otherwise follow the OS. If these two disagree the theme visibly changes at
   // DOMContentLoaded, which is the flash the bootstrap exists to prevent.
-  const savedTheme = localStorage.getItem("theme");
-  applyTheme(savedTheme ? savedTheme === "dark" : prefersDarkScheme.matches);
+  //
+  // Reading storage throws outright where it is blocked - Safari with "Block
+  // All Cookies", strict privacy extensions - and this is the FIRST init
+  // main.js runs. An uncaught throw here used to unwind the whole
+  // DOMContentLoaded handler, so `initAnimations` never ran and every
+  // `.reveal` element stayed at opacity 0: the contact form, both Apps tiles
+  // and the About cards rendered as blank space. Same guard as the write in
+  // toggleTheme above.
+  applyTheme(readStoredTheme() ?? prefersDarkScheme.matches);
 
   themeBtn?.addEventListener("click", () => {
     toggleTheme();
   });
 
   prefersDarkScheme.addEventListener("change", (event) => {
-    if (!localStorage.getItem("theme")) {
+    // No stored choice - which is also what a blocked store reports - means
+    // the OS is the authority.
+    if (readStoredTheme() === null) {
       applyTheme(event.matches);
     }
   });
