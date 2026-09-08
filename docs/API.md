@@ -208,6 +208,11 @@ Returns a `UserResponse` (`id`, `email`, `username`, `created_at`, `is_active`,
 registered"`. An account soft-deleted more than 30 days ago is purged and the
 address freed.
 
+Registering does **not** sign the caller in, and returns no tokens. The account
+is created with `email_verified_at` NULL, and `POST /auth/login` answers **403**
+until the mailed link is redeemed — so a client must not chase a 201 here with a
+login. `auth.js` did, and painted the resulting 403 as a registration failure.
+
 > Registration does **not** run the Have I Been Pwned check. That check applies
 > to `/auth/change-password` and `/auth/reset-password`.
 

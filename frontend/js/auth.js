@@ -214,8 +214,23 @@ export async function registerUser(email, password) {
         throw new Error(getErrorMessage(errorData, 'Registration failed'));
     }
 
-    // Auto-login after successful registration
-    return await loginUser(cleanEmail, password);
+    /* No auto-login. This used to call loginUser() here, which was right when
+       registration handed back a usable account - but `authenticate_user`
+       refuses an address that has not been confirmed, and every registration
+       now creates exactly that. So the login could never succeed: it returned
+       403 "Confirm your email address", registerUser rethrew it, and the
+       modal's catch painted that into the *error* slot of a form whose
+       account had in fact just been created. The visitor saw a red message,
+       no success toast, an open dialog - and got "Email already registered"
+       if they tried again.
+
+       It also spent a second request on /auth/login, which shares the strict
+       5-per-minute auth budget with /auth/register, on a call guaranteed to
+       fail.
+
+       The created user is returned instead; the caller tells the visitor to
+       go and confirm. */
+    return await response.json();
   } catch (err) {
     console.error('Registration error:', err);
     throw err;

@@ -40,6 +40,7 @@ export async function initAuthUI() {
     const forgotForm = document.getElementById('forgot-form');
     const loginError = document.getElementById('login-error');
     const registerError = document.getElementById('register-error');
+    const registerSuccess = document.getElementById('register-success');
     const forgotError = document.getElementById('forgot-error');
     const forgotSuccess = document.getElementById('forgot-success');
 
@@ -251,7 +252,8 @@ export async function initAuthUI() {
             const el = document.getElementById(id);
             if (el) el.textContent = '';
         });
-        const successToHide = ['change-pw-success', 'reset-pw-success', 'delete-account-success', 'magic-link-success', '2fa-enable-success'];
+        document.getElementById('register-resend-verification')?.remove();
+        const successToHide = ['register-success', 'change-pw-success', 'reset-pw-success', 'delete-account-success', 'magic-link-success', '2fa-enable-success'];
         successToHide.forEach(id => {
             const el = document.getElementById(id);
             if (el) { el.textContent = ''; el.style.display = 'none'; }
@@ -472,11 +474,11 @@ export async function initAuthUI() {
     /* The resend affordance, appended under the login error. Built fresh each
        time and removed on the next attempt, so a stale one never lingers after
        a different failure. */
-    function offerVerificationResend(email) {
-        document.getElementById('login-resend-verification')?.remove();
+    function offerVerificationResend(email, anchor = loginError, id = 'login-resend-verification') {
+        document.getElementById(id)?.remove();
 
         const wrap = document.createElement('p');
-        wrap.id = 'login-resend-verification';
+        wrap.id = id;
         wrap.className = 'auth-inline-action';
 
         const button = document.createElement('button');
@@ -502,7 +504,7 @@ export async function initAuthUI() {
         });
 
         wrap.appendChild(button);
-        loginError.insertAdjacentElement('afterend', wrap);
+        anchor.insertAdjacentElement('afterend', wrap);
     }
 
     const magicLinkTrigger = document.getElementById('magic-link-trigger');
@@ -757,17 +759,37 @@ export async function initAuthUI() {
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
                 btn.disabled = true;
                 registerError.textContent = '';
+                if (registerSuccess) {
+                    registerSuccess.textContent = '';
+                    registerSuccess.style.display = 'none';
+                }
+                document.getElementById('register-resend-verification')?.remove();
 
                 await registerUser(email, password);
 
-                // Success
-                showToast('Account created. You are signed in.', 'success');
+                /* Created, but not signed in: the address has to be confirmed
+                   before `authenticate_user` will issue a token. This used to
+                   toast "You are signed in", close the dialog and announce
+                   `auth-changed` - none of which was true - and in practice
+                   never ran at all, because registerUser's auto-login threw the
+                   403 straight into the catch below. The visitor was told
+                   registration had failed when it had not. */
                 registerForm.reset();
                 if (typeof updatePasswordValidation === 'function') {
                     updatePasswordValidation();
                 }
-                closeAuthModal();
-                window.dispatchEvent(new Event('auth-changed'));
+                if (registerSuccess) {
+                    registerSuccess.textContent =
+                        'Account created. Check your inbox for a confirmation link, '
+                        + 'then sign in.';
+                    registerSuccess.style.display = 'block';
+                    // The link can be slow, spam-filed, or simply missed, and a
+                    // second registration attempt only answers "Email already
+                    // registered". Offer the resend where the visitor is.
+                    offerVerificationResend(email, registerSuccess, 'register-resend-verification');
+                } else {
+                    showToast('Account created. Check your inbox to confirm your address.', 'success');
+                }
 
             } catch (err) {
                 registerError.textContent = err.message || 'Registration failed. Please try again.';

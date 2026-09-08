@@ -100,6 +100,57 @@ async def test_register_returns_the_created_user(async_client):
 
 
 @pytest.mark.asyncio
+async def test_a_fresh_registration_cannot_log_in_until_it_is_confirmed(async_client):
+    """The contract `auth.js` has to respect.
+
+    `registerUser()` used to call `loginUser()` straight after a 201 - correct
+    when registration handed back a usable account, but every registration now
+    creates an unconfirmed one, so that login could never succeed. The browser
+    painted the 403 into the register form's *error* slot and suppressed every
+    success signal, telling the visitor registration had failed when it had
+    not. Pinned here so the client-side flow cannot drift back.
+    """
+    email = _email()
+    password = "Str0ngPassw0rd!"
+
+    created = await async_client.post(
+        "/api/auth/register", json={"email": email, "password": password}
+    )
+    assert created.status_code == 201, created.text
+
+    refused = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert refused.status_code == 403, "an unconfirmed address must not get a token pair"
+    assert "confirm" in refused.json()["detail"].lower()
+
+    # And the confirmation is the only thing standing in the way.
+    await verify_registered_email(async_client, email)
+    allowed = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert allowed.status_code == 200
+    assert allowed.json()["access_token"]
+
+
+@pytest.mark.asyncio
+async def test_a_token_naming_a_purged_account_is_401_not_404(async_client):
+    """`get_current_user` answered 404 for a well-formed token whose user row
+    was gone, which reads to a client as "no such endpoint" rather than "this
+    credential is dead" - so the browser kept a stale token forever. Every
+    other path in the codebase answers 401 for this, `refresh_user_token`
+    included."""
+    from server.auth.security import create_access_token
+
+    orphan = create_access_token(subject=str(uuid.uuid4()))
+    response = await async_client.get(
+        "/api/auth/me", headers={"Authorization": f"Bearer {orphan}"}
+    )
+    assert response.status_code == 401, response.text
+    assert response.headers.get("www-authenticate") == "Bearer"
+
+
+@pytest.mark.asyncio
 async def test_login_issues_a_token_pair(async_client):
     email, password = await _register(async_client)
     body = await _login(async_client, email, password)

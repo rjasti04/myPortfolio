@@ -85,7 +85,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,409 lines)
+### `auth-ui.js` (1,431 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -179,7 +179,7 @@ stale session and starting a fresh one.
 count, reason, ok, at}` to `onTelemetry` subscribers. `serverMs` is parsed from
 the `Server-Timing: app;dur=…` header; `networkMs` is the remainder.
 
-### `auth.js` (422 lines)
+### `auth.js` (437 lines)
 
 Token storage and every authenticated call.
 
@@ -188,7 +188,7 @@ Token storage and every authenticated call.
 | `AUTH_TOKEN_KEY`, `REFRESH_TOKEN_KEY` | `rj_access_token`, `rj_refresh_token` |
 | `getAuthToken()`, `setTokens(a, r)`, `clearTokens()` | `localStorage` accessors |
 | `getErrorMessage(errorData, fallback)` | Normalises FastAPI's string / array `detail` shapes |
-| `loginUser`, `registerUser`, `logoutUser` | Credential flows; register auto-logs-in |
+| `loginUser`, `registerUser`, `logoutUser` | Credential flows. `registerUser` returns the created `UserResponse` and signs **nobody** in — the address has to be confirmed first |
 | `setup2FA`, `enable2FA`, `disable2FA`, `verify2FA` | TOTP enrolment and challenge |
 | `requestMagicLink`, `verifyMagicLink` | Passwordless sign-in |
 | `requestPasswordReset`, `resetPassword`, `changePassword` | Password flows |
@@ -204,6 +204,20 @@ mid-session, with the last loser also overwriting the winner's new pair. A
 module-level `refreshInFlight` promise makes every concurrent 401 share one
 refresh, and it is cleared before awaiting callers resume so a later 401 starts
 a fresh attempt. Guarded by `frontend/tests/auth-refresh.test.js`.
+
+**Registration does not log anyone in.** `registerUser` used to call
+`loginUser` straight after a 201 — correct when registration handed back a
+usable account, but `authenticate_user` refuses an unconfirmed address and every
+registration creates exactly that, so the login could never succeed. It returned
+`403`, `registerUser` rethrew it, and `auth-ui.js` painted "Confirm your email
+address" into the register form's **error** slot: no success toast, the dialog
+still open, and `"Email already registered"` if the visitor tried again. It also
+spent a second request on `/auth/login`, which shares the strict 5-per-minute
+auth budget with `/auth/register`, on a call certain to fail. `registerUser` now
+returns the created user, and the register panel paints `#register-success` with
+a "check your inbox" message plus the same resend affordance the login panel
+offers. Pinned by `frontend/tests/auth-register.test.js` and, server-side, by
+`test_a_fresh_registration_cannot_log_in_until_it_is_confirmed`.
 
 **Only a refused credential ends the session.** `refreshAccessTokenOnce()`
 returns `{token, rejected}` rather than a bare token, and `clearTokens()` runs
