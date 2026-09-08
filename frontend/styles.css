@@ -11755,6 +11755,36 @@ body.dark-theme .mobile-bottom-nav {
   opacity: 0.85;
 }
 
+/* Content results. The palette searches the page as well as the command
+   registry, and the two kinds have to be told apart at a glance without
+   breaking the flat listbox that the option semantics depend on. */
+.cmd-palette-item--content .cmd-palette-name {
+  color: var(--terminal-text);
+  font-weight: 600;
+}
+
+.cmd-palette-item--content .cmd-palette-summary {
+  /* An excerpt of the matched sentence, clamped so one long bullet cannot
+     push the rest of the results out of view. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cmd-palette-kind {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border: 1px solid rgb(142 161 201 / 30%);
+  border-radius: 999px;
+  color: var(--terminal-green);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  opacity: 0.9;
+}
+
 .cmd-palette-empty {
   padding: 14px 12px;
   color: var(--terminal-muted);

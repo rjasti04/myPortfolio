@@ -90,6 +90,12 @@ jobs:
       - name: Verify Documentation Counts
         run: python3 scripts/check_docs.py
 
+      # content/resume.json is the source of truth for the biography that used
+      # to be typed into five files. A hand-edit to a generated region fails
+      # here rather than silently becoming the next drift.
+      - name: Verify Generated Resume Copies
+        run: python3 scripts/generate_resume.py --check
+
       # `npm run audit` existed from the start and was never called by CI. It
       # currently reports high-severity advisories in the dev toolchain
       # (postcss, ws, via stylelint and jsdom). Not blocking, because a

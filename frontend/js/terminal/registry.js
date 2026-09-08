@@ -35,6 +35,7 @@ const FORTUNES = [
   "It works on my machine. — Every developer, ever.",
 ];
 
+/* GENERATED:skill-groups */
 const SKILL_GROUPS = [
   ["Cloud & Serverless:", "Amazon Redshift, Amazon Bedrock, S3, AWS Glue, Lambda, Athena, DynamoDB, EKS, ECS, RDS, CloudWatch"],
   ["Backend & APIs:", "Python, FastAPI, boto3, SQLAlchemy (asyncpg), Pydantic, Multiprocessing, Multithreading"],
@@ -43,12 +44,15 @@ const SKILL_GROUPS = [
   ["Languages & Scripting:", "Python, T-SQL, PL/pgSQL, SQL, Bash / Linux"],
   ["DevOps & Tooling:", "Git, Docker, Terraform, Kubernetes, GitHub Actions CI/CD, Pytest"],
 ];
+/* /GENERATED:skill-groups */
 
+/* GENERATED:skill-tags */
 const SKILL_TAGS = [
   "AWS", "Amazon Bedrock", "Amazon Redshift", "FastAPI", "Python", "PySpark",
   "PostgreSQL", "SQL Server", "Looker", "Matillion", "Dell Boomi",
   "Apache Kafka", "Docker", "Kubernetes", "Terraform", "GitHub Actions",
 ];
+/* /GENERATED:skill-tags */
 
 export const commands = [
   {

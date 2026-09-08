@@ -375,7 +375,7 @@ highlighting library.
 `frontend/js/terminal/` — the interactive prompt in the About section, plus the
 `Ctrl+K` command palette. Seven modules.
 
-### `registry.js` (297 lines)
+### `registry.js` (301 lines)
 
 **Commands are data, not behaviour bolted onto a DOM closure.** Each descriptor
 carries everything three surfaces need — the terminal, the mobile chip row and
@@ -438,12 +438,39 @@ completion on an empty prompt. Claiming Tab in both directions made
 `#terminal-input` a keyboard trap (WCAG 2.1.2): focus could enter the About
 prompt and never leave it without a mouse.
 
-### `palette.js` (177 lines)
+### `palette.js` (271 lines)
 
-`initPalette({registry, run, panel})` — the `Ctrl+K` overlay. A second renderer
-over the same registry, which is the payoff for modelling commands as data:
-every terminal command is reachable site-wide with no duplicated list.
+`initPalette({registry, run, panel, navigate})` — the `Ctrl+K` overlay. A second
+renderer over the same registry, which is the payoff for modelling commands as
+data: every terminal command is reachable site-wide with no duplicated list.
 `role="dialog"`, `aria-modal`, focus restoration on close.
+
+It searches page content on that same seam. `matches()` merges command hits
+with hits from `CONTENT_INDEX` (`js/search-index.js`), capped at
+`MAX_CONTENT_RESULTS = 6` so a broad word cannot push every command off the
+list; commands always render first. A content result carries `section` and
+sometimes `anchor`: selecting one calls the injected `navigate` — the same
+`ctx.navigate` the `cd` command uses, so there is one router entry point rather
+than two — then focuses the anchor with `tabindex="-1"` and scrolls to it.
+
+The list stays one flat listbox. A group-header `<li>` between options is
+invalid inside `role="listbox"`, so the kind is a badge *inside* each option
+(`.cmd-palette-kind`), which a screen reader announces as part of the label.
+
+Find-in-page is not a substitute: the router keeps one section in the DOM at a
+time, so the browser never has the other seven to search.
+
+### `search-index.js` (155 lines, generated)
+
+`CONTENT_INDEX` — the entries the `Ctrl+K` palette searches alongside the
+command registry. Each is `{section, title, text, kind}` plus an optional
+`anchor`.
+
+**Generated** by `scripts/generate_resume.py` from `content/resume.json` and the
+section headings read back out of `index.html`. Do not hand-edit:
+`npm run check:resume` fails CI when it drifts from the source. Section titles
+and intros are read from the page rather than duplicated into the source file,
+so a new section becomes searchable as soon as it is written.
 
 ### `index.js` (324 lines)
 
