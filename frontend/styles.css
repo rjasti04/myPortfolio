@@ -271,6 +271,17 @@
      Turning it back on is this flag, `display: flex` in that region, and
      --mobile-bottom-nav-height back to 56px in the RESPONSIVE region. */
   --mobile-bottom-nav: 0;
+
+  /* ---- Bottom-left rail -------------------------------------------------
+     Two fixed surfaces share this corner: .scroll-to-top at the base and the
+     offline banner stacked above it. They used to carry independent hardcoded
+     offsets - 30/30 against 24/24 - so the pill painted straight over the
+     button, and at z-index 10000 against 999 it took the tap with it. One set
+     of numbers places both; the RESPONSIVE region retunes them for phones. */
+  --rail-inset-block: 30px;
+  --rail-inset-inline: 30px;
+  --rail-gap: 12px;
+  --scroll-to-top-size: 50px;
 }
 
 /* ---- Breakpoint tiers -------------------------------------------------
@@ -5794,6 +5805,15 @@ body.dark-theme .skill-tag.primary .fas {
        .scroll-to-top's offset) reserves space for a bar that never paints
        otherwise. Restore to 56px together with the bar itself. */
     --mobile-bottom-nav-height: 0px;
+
+    /* Bottom-left rail on a phone: a smaller button pulled in tighter, held
+       clear of the bottom bar's reserved space and of any home-indicator
+       inset. The rail keeps its own stacking - see the base :root. */
+    --rail-inset-block: calc(
+      20px + var(--mobile-bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px)
+    );
+    --rail-inset-inline: calc(20px + env(safe-area-inset-left, 0px));
+    --scroll-to-top-size: 46px;
   }
 
   .section-title,
@@ -11269,10 +11289,10 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
 /* Scroll to Top Button */
 .scroll-to-top {
   position: fixed;
-  bottom: 30px;
-  left: 30px;
-  width: 50px;
-  height: 50px;
+  bottom: var(--rail-inset-block);
+  left: var(--rail-inset-inline);
+  width: var(--scroll-to-top-size);
+  height: var(--scroll-to-top-size);
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent-fill), var(--secondary-fill));
   color: var(--on-accent);
@@ -11308,16 +11328,6 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
 
 .scroll-to-top:active {
   transform: scale(0.95);
-}
-
-@media (width <=1150px) {
-  .scroll-to-top {
-    bottom: calc(var(--mobile-bottom-nav-height, 56px) + 20px + env(safe-area-inset-bottom, 0px));
-    left: calc(20px + env(safe-area-inset-left, 0px));
-    right: auto;
-    width: 46px;
-    height: 46px;
-  }
 }
 
 /* #endregion */
@@ -11597,8 +11607,8 @@ body.dark-theme .mobile-bottom-nav {
    fill is the same pairing --on-accent uses, and holds in both themes. */
 .offline-banner {
   position: fixed;
-  left: 24px;
-  bottom: 24px;
+  left: var(--rail-inset-inline);
+  bottom: calc(var(--rail-inset-block) + var(--scroll-to-top-size) + var(--rail-gap));
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -11610,11 +11620,26 @@ body.dark-theme .mobile-bottom-nav {
   box-shadow: var(--elev-3);
   font-size: var(--text-sm);
   font-weight: 600;
+
+  /* Hidden state. The transform alone never cleared the viewport: the pill is
+     anchored off the bottom edge and hideOfflineBanner() empties it, so it
+     measures 24px of padding and nothing else - 150% of that is 36px of
+     travel against the ~50px it needed, and the remainder sat in the corner
+     as an amber sliver on every load, online or not. Visibility and opacity
+     do the hiding now, so it holds whatever the content measures and
+     whatever the rail offset becomes; the transform is only the slide. */
+  opacity: 0;
+  visibility: hidden;
   transform: translateY(150%);
-  transition: transform var(--motion-medium) var(--ease-standard);
+  transition:
+    transform var(--motion-medium) var(--ease-standard),
+    opacity var(--motion-medium) var(--ease-standard),
+    visibility var(--motion-medium) var(--ease-standard);
 }
 
 .offline-banner.is-visible {
+  opacity: 1;
+  visibility: visible;
   transform: translateY(0);
 }
 

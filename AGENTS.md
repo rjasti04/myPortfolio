@@ -70,7 +70,7 @@ these files the number here has to move with it.
 
 | File | Lines | ~Tokens | How to navigate instead |
 | :--- | ---: | ---: | :--- |
-| `frontend/styles.css` | 11,819 | ~87,000 | `grep -n '#region' frontend/styles.css` returns a 27-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
+| `frontend/styles.css` | 11,844 | ~87,500 | `grep -n '#region' frontend/styles.css` returns a 27-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
 | `package-lock.json` | 3,453 | ~32,500 | Never read. `package.json` lists every direct dep in 25 lines. |
 | `frontend/index.html` | 2,350 | ~36,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
 | `frontend/js/chat.js` | 1,904 | ~20,000 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (37 hits). |
