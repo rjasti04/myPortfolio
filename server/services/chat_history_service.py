@@ -161,3 +161,22 @@ async def delete_conversation(
     )
     await db.commit()
     return result.rowcount > 0
+
+
+async def delete_all_conversations(db: AsyncSession, user_id: UUID) -> int:
+    """Delete every conversation belonging to user_id. Returns the row count.
+
+    Clearing all history was a browser-only operation: it emptied
+    `rj_chat_sessions` and left every `ai_conversations` row in place, so the
+    next `syncServerHistory()` listed them all again and the history the
+    visitor had just deleted came back. Deleting them one at a time from the
+    client would not have fixed it either - `GET /chat/history` is capped at
+    100 rows and `MAX_SESSIONS` truncates the rail at 50, so rows the browser
+    has never seen are unreachable from it by construction. One statement,
+    scoped by `user_id`, is the only thing that actually empties the account.
+    """
+    result = await db.execute(
+        delete(AIConversation).where(AIConversation.user_id == user_id)
+    )
+    await db.commit()
+    return result.rowcount or 0

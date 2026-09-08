@@ -611,6 +611,16 @@ indistinguishable.
 
 `{"detail": "Conversation deleted successfully"}`. **404** as above.
 
+### `DELETE /chat/history` 🔒 → 200
+
+`{"deleted": 7}` — every conversation the caller owns, in one statement.
+Idempotent: an already-empty account returns `{"deleted": 0}` rather than a
+404. Backs the rail's **Delete all**, which used to clear only `localStorage`
+and left the server copies for the next `syncServerHistory()` to list straight
+back. A client-side loop cannot replace it — `GET /chat/history` is capped at
+100 rows and the rail truncates at `MAX_SESSIONS`, so older conversations are
+not reachable from the browser to delete one by one.
+
 ---
 
 ## Owner analytics 🔒
@@ -735,4 +745,4 @@ endpoint in the left column exists on the backend.
 | `GET /admin/analytics/*` | `owner-analytics.js` — lazily imported by `activity.js`; a 401/403 leaves the section as a visitor sees it |
 | `POST /events` (single) | — server/API consumers only |
 | `GET /models` · `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |
-| `GET/DELETE /chat/history*` | `chat.js` — `syncServerHistory()` lists on load and on `auth-changed`, `hydrateSession()` fetches one transcript when its rail row is opened, `deleteRemoteConversation()` removes the server copy |
+| `GET/DELETE /chat/history*` | `chat.js` — `syncServerHistory()` lists on load and on `auth-changed`, `hydrateSession()` fetches one transcript when its rail row is opened, `deleteRemoteConversation()` removes one server copy and `deleteAllRemoteConversations()` empties the account behind **Delete all** |

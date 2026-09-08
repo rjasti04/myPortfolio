@@ -864,6 +864,24 @@ export function initChat() {
     return Number.isFinite(parsed) ? parsed : Date.now();
   }
 
+  /* Empty the account's history in one request.
+
+     Looping `deleteRemoteConversation()` over the rail would not do it:
+     `GET /chat/history` is capped and `saveSessions()` truncates at
+     MAX_SESSIONS, so a conversation older than the newest 50 is not in
+     `sessions` to loop over - it is simply re-listed by the next sync. Returns
+     false when the server copy is still there, so the caller can say so. */
+  async function deleteAllRemoteConversations() {
+    if (!isSignedIn()) return true;
+    try {
+      const res = await authenticatedFetch(`${API_BASE}/chat/history`, { method: 'DELETE' });
+      return res.ok;
+    } catch (e) {
+      console.warn('Could not clear the server copy of this history:', e);
+      return false;
+    }
+  }
+
   async function deleteRemoteConversation(session) {
     if (!session?.conversationId || !isSignedIn()) return;
     try {
@@ -987,15 +1005,32 @@ export function initChat() {
   if (clearAllBtn) {
     clearAllBtn.addEventListener('click', async () => {
       if (isGenerating) return;
+      const signedIn = isSignedIn();
       const ok = await confirmAction({
         title: 'Delete all chat history?',
         body: `All ${sessions.length} conversation${sessions.length === 1 ? '' : 's'} `
-          + 'will be removed from this browser. This cannot be undone.',
+          + (signedIn
+            ? 'will be removed from this browser and from your account on every device.'
+            : 'will be removed from this browser.')
+          + ' This cannot be undone.',
         confirmLabel: 'Delete all',
       });
       if (ok) {
+        // Local first: the clear is what the visitor asked for and must not
+        // wait on - or be undone by - a request. Then the server copy, for the
+        // same reason deleteSession() deletes one: history left in
+        // ai_conversations is listed straight back by the next
+        // syncServerHistory(), which is exactly what "I cleared it and it came
+        // back" was.
         sessions = [];
         createNewSession();
+        if (signedIn && !(await deleteAllRemoteConversations())) {
+          renderTranscriptNotice({
+            text: 'Cleared on this device. Your saved conversations could not be '
+              + 'deleted from the server and may reappear - try again in a moment.',
+            className: 'chat-transcript-error',
+          });
+        }
       }
     });
   }

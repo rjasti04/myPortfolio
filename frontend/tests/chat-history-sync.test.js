@@ -9,6 +9,7 @@ import { JSDOM } from 'jsdom';
 const HTML = `<!DOCTYPE html><html><body>
   <div id="chat-widget"><div id="chat-messages"></div></div>
   <div id="ai-sidebar-history"></div>
+  <button id="clear-all-btn" type="button">Clear all</button>
   <div id="ai-page-container"><div id="ai-page-messages"></div></div>
 </body></html>`;
 
@@ -207,6 +208,66 @@ describe('Chat server-history sync', () => {
     const deletes = calls.filter((c) => c.method === 'DELETE' && c.url.endsWith(`/chat/history/${id}`));
     assert.equal(deletes.length, 1, `expected one DELETE, saw ${JSON.stringify(calls)}`);
     assert.ok(!rows().includes('Goes away'));
+  });
+
+  it('clears the server history too, in one request, on Delete all', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
+    const id = '66666666-6666-4666-8666-666666666666';
+    handlers['/chat/history'] = async (url, options) => {
+      if (options.method === 'DELETE') return { ok: true, status: 200, json: async () => ({ deleted: 1 }) };
+      return { ok: true, status: 200, json: async () => ({ conversations: [conversation(id, 'Comes back', '2026-01-01T00:00:00Z')] }) };
+    };
+    initChat();
+    await settle();
+    assert.ok(rows().includes('Comes back'));
+
+    document.getElementById('clear-all-btn')
+      .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    await settle();
+    document.querySelector('.confirm-modal-confirm')
+      .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    await settle();
+
+    const deletes = calls.filter((c) => c.method === 'DELETE');
+    assert.deepEqual(
+      deletes.map((c) => c.url.replace(/^.*\/chat/, '/chat')),
+      ['/chat/history'],
+      `Delete all must issue one bulk DELETE, not a per-row loop and not nothing: ${JSON.stringify(calls)}`
+    );
+    assert.ok(!rows().includes('Comes back'));
+  });
+
+  it('leaves the server alone when a signed-out visitor clears history', async () => {
+    initChat();
+    await settle();
+    document.getElementById('clear-all-btn')
+      .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    await settle();
+    document.querySelector('.confirm-modal-confirm')
+      .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    await settle();
+
+    assert.equal(calls.filter((c) => c.url.includes('/chat/history')).length, 0);
+  });
+
+  it('says so when the server copy could not be cleared', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
+    handlers['/chat/history'] = async (url, options) => {
+      if (options.method === 'DELETE') return { ok: false, status: 500, json: async () => ({}) };
+      return { ok: true, status: 200, json: async () => ({ conversations: [] }) };
+    };
+    initChat();
+    await settle();
+    document.getElementById('clear-all-btn')
+      .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    await settle();
+    document.querySelector('.confirm-modal-confirm')
+      .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    await settle();
+
+    const notice = document.querySelector('#ai-page-messages .chat-transcript-error');
+    assert.ok(notice, 'a history that will reappear must not report as cleared');
+    assert.equal(notice.getAttribute('role'), 'alert');
   });
 
   it('survives an unreachable history API', async () => {

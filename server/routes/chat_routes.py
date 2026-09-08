@@ -14,6 +14,7 @@ from server.models.user import User
 from server.schemas.chat import ChatStreamRequest
 from server.services.bedrock_service import bedrock_service
 from server.services.chat_history_service import (
+    delete_all_conversations,
     delete_conversation,
     get_conversation_detail,
     get_user_conversations,
@@ -219,6 +220,24 @@ async def get_chat_history_detail(
     if not detail:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return detail
+
+
+# Registered before the parameterised route so the intent reads in one place;
+# the two paths are distinct, so ordering is style rather than precedence.
+@router.delete("/history", summary="Delete every conversation the caller owns")
+async def delete_all_chat_history(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Empty the caller's server-side history.
+
+    The rail's "Delete all" only ever cleared `localStorage`, so every
+    transcript stayed in `ai_conversations` and the next sync listed them
+    straight back. The client cannot fix that by looping over the rail: the
+    listing is capped and the rail is truncated at `MAX_SESSIONS`, so rows
+    older than the newest 50 are not reachable from the browser at all.
+    """
+    return {"deleted": await delete_all_conversations(db=db, user_id=current_user.id)}
 
 
 @router.delete("/history/{conversation_id}", summary="Delete one conversation")
