@@ -306,6 +306,17 @@ edit was accidental, revert instead.
 
 ---
 
+### Someone is locked out of their account by 2FA
+
+Their authenticator is gone and there is no way back in through the site: there
+are no recovery codes, `disable` demands a live TOTP code, `/2fa/setup` refuses
+to reissue a secret while one is enrolled, password reset does not touch the 2FA
+columns, and the magic-link path re-challenges. `docs/review/2fa.md` finding 9
+has the detail. Clear the factor for them — see
+[Clear a lost second factor](#clear-a-lost-second-factor) below.
+
+---
+
 ## Manual procedures
 
 ### Deploy without CI
@@ -332,6 +343,40 @@ Generate with `openssl rand -hex 32`, update the host `.env`, restart
 `fastapi.service`. **Every** outstanding token becomes invalid: all users are
 logged out, pending reset and magic links stop working, and every live analytics
 session token is refused (browsers create fresh sessions automatically).
+
+### Clear a lost second factor
+
+For an account whose authenticator is gone. Runs on the host, against the
+database — there is no self-service path (`docs/SECURITY.md`, "Known
+limitations").
+
+```bash
+cd ~/fastapi
+python scripts/clear_2fa.py --email someone@example.com
+```
+
+It prints the account's 2FA and lockout state, asks you to type the address back
+to confirm, then clears `totp_secret` and `is_totp_enabled` — and with them
+`failed_login_attempts` and `locked_until`, which the wrong codes that led here
+will normally have set. The same four fields `disable_2fa` clears, so the row
+ends up in the state the supported path would have left it in.
+
+| Flag | Effect |
+| :--- | :--- |
+| `--yes` | Skip the confirmation prompt. Also required for a soft-deleted account. |
+| `--keep-sessions` | Leave existing logins and pending links alive. Off by default: the usual cause is a phone that is lost or wiped, and anything still authenticated on it should go with it. |
+
+Needs `DATABASE_URL` and nothing else — it reads the ORM through
+`server/config/env.py`, not `config/settings.py`, so it runs over SSH without
+the service's `JWT_SECRET` or Bedrock configuration, the same way `alembic` does.
+
+Two things it does not do. It **sends no security email** — the notification is
+scheduled through `BackgroundTasks` inside the running service, so tell the
+account holder yourself. And it leaves **no audit trail** beyond the timestamped
+line it prints; there is no account-level audit log.
+
+Afterwards the account signs in with email and password alone, and **Manage 2FA**
+will hand out a fresh QR code and secret key for the new authenticator.
 
 ### Add or upgrade a Python dependency
 

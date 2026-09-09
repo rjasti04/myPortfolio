@@ -240,6 +240,19 @@ generate-on-enable step that shows them once, and acceptance of one in place of
 a TOTP code at `/2fa/verify` and `/2fa/disable`. Needs a migration, which put
 it outside this change. Now recorded in `SECURITY.md` "Known limitations".
 
+**Settled, for whoever builds it:** a recovery code signs the user in and
+leaves 2FA *on*, rather than stripping the second factor as a side effect of
+logging in. Moving to a new authenticator is then the ordinary two steps —
+sign in with one code, disable with a second — and a single leaked code buys a
+session rather than a session *and* the removal of the factor.
+
+**Operator escape hatch (applied).** `scripts/clear_2fa.py` clears the factor
+for one account from the host, mirroring `disable_2fa`'s own mutation including
+the lockout counters, and revoking sessions by default. It does not close this
+finding: it needs database access, so it is a remedy for the owner and not a
+path for a user. Documented in `docs/OPERATIONS.md`, "Clear a lost second
+factor"; covered by four cases in `tests/backend/integration/test_auth.py`.
+
 ### 10. `totp_secret` is stored in plaintext *(open)*
 
 **`server/models/user.py:22`**
