@@ -112,15 +112,23 @@ def check_nav_table(text: str, rep: Report) -> None:
             continue
         actual_lines = lines(path)
         actual_tokens = tokens(path, DIV_CODE)
-        if int(claimed_lines.replace(",", "")) != actual_lines:
+        lines_drifted = int(claimed_lines.replace(",", "")) != actual_lines
+        tokens_drifted = int(claimed_tokens.replace(",", "")) != actual_tokens
+        if lines_drifted:
             rep.drift("AGENTS.md", f"{name} lines", claimed_lines, f"{actual_lines:,}")
-            rep.edit(ROOT / "AGENTS.md",
-                     f"| `{name}` | {claimed_lines} |", f"| `{name}` | {actual_lines:,} |")
-        if int(claimed_tokens.replace(",", "")) != actual_tokens:
+        if tokens_drifted:
             rep.drift("AGENTS.md", f"{name} tokens", f"~{claimed_tokens}", f"~{actual_tokens:,}")
+
+        # One edit for the whole row rather than one per figure. Both are cut
+        # from the row as it reads NOW, and the token edit has to name the line
+        # count to place itself - so when both drift, the line edit lands first
+        # and leaves the token edit anchored on a number that is no longer
+        # there. It then matched nothing, silently, and --fix had to be run
+        # twice to settle a file whose row moved in both columns.
+        if lines_drifted or tokens_drifted:
             rep.edit(ROOT / "AGENTS.md",
-                     f"| {claimed_lines} | ~{claimed_tokens} |",
-                     f"| {claimed_lines} | ~{actual_tokens:,} |")
+                     f"| `{name}` | {claimed_lines} | ~{claimed_tokens} |",
+                     f"| `{name}` | {actual_lines:,} | ~{actual_tokens:,} |")
 
 
 def check_grep_recipes(text: str, rep: Report) -> None:
@@ -275,14 +283,23 @@ def main() -> int:
         return 0
 
     if args.fix and rep.edits:
+        # Counted as they land, not as they were queued. An edit whose anchor
+        # has already been rewritten by an earlier one matches nothing, and
+        # reporting that as a rewrite is how a drifted number reaches CI
+        # believing it was fixed.
+        applied = 0
+        stuck: list[str] = []
         for path, pairs in rep.edits.items():
             body = path.read_text(encoding="utf-8")
             for old, new in pairs:
+                if old not in body:
+                    stuck.append(f"{path.name}: nothing matching `{old}` left to rewrite")
+                    continue
                 body = body.replace(old, new, 1)
+                applied += 1
             path.write_text(body, encoding="utf-8")
-        applied = sum(len(v) for v in rep.edits.values())
         print(f"check_docs: rewrote {applied} figure(s); re-run to confirm")
-        unfixable = [p for p in rep.problems if " says " not in p]
+        unfixable = [p for p in rep.problems if " says " not in p] + stuck
         for problem in unfixable:
             print(f"  still open: {problem}")
         return 1 if unfixable else 0
