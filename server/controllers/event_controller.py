@@ -407,7 +407,14 @@ async def get_session_path_funnel(
         for row in transitions_result
     ]
 
-    total = sum(step["hits"] for step in steps)
+    # Over every path in the session, not just the `limit` returned above.
+    # Summing the returned steps meant `total_hits` silently omitted the tail
+    # the LIMIT cut, and every `share` was a fraction of the visible rows - so
+    # the shares always came to 1.0 however much had been left out.
+    total = (
+        await db.execute(select(func.count()).select_from(ordered))
+    ).scalar_one() or 0
+
     for step in steps:
         step["share"] = round(step["hits"] / total, 4) if total else 0.0
 

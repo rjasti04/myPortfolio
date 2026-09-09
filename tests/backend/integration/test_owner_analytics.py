@@ -175,6 +175,62 @@ async def test_the_overview_counts_across_sessions(async_client, owner_configure
 
 
 @pytest.mark.asyncio
+async def test_funnel_totals_count_paths_the_limit_cut(async_client, owner_configured):
+    """`total_hits` used to be the sum of the returned steps.
+
+    With more distinct paths than the limit that under-reports by the whole
+    tail, and every `share` becomes a fraction of the visible rows - so they
+    added to 1.0 however much had been left out.
+    """
+    gen = app.dependency_overrides[get_db]()
+    db = await gen.__anext__()
+    now = datetime.now(timezone.utc)
+    session_id = uuid.uuid4()
+    try:
+        db.add(
+            UserSession(
+                session_id=session_id,
+                ip_address="203.0.113.99",
+                user_agent="pytest",
+                device_type="desktop",
+                started_at=now - timedelta(hours=1),
+                last_active_at=now,
+                is_active=True,
+            )
+        )
+        await db.flush()
+        # Twelve distinct paths against a limit of three.
+        for index in range(12):
+            db.add(
+                UserActivityEvent(
+                    session_id=session_id,
+                    event_type="page_view",
+                    page_path=f"/wide-{index}",
+                    event_data={},
+                    created_at=now - timedelta(minutes=40 - index),
+                )
+            )
+        await db.commit()
+    finally:
+        await gen.aclose()
+
+    headers = await _headers(async_client, OWNER_EMAIL)
+    response = await async_client.get(
+        f"/api/admin/analytics/funnel{WINDOW}&limit=3", headers=headers
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+
+    assert len(body["steps"]) == 3
+    assert body["total_hits"] > sum(step["hits"] for step in body["steps"]), (
+        "the total must count the paths the limit cut"
+    )
+    assert sum(step["share"] for step in body["steps"]) < 1.0, (
+        "three of twelve paths cannot be the whole visit"
+    )
+
+
+@pytest.mark.asyncio
 async def test_the_funnel_never_invents_a_cross_session_transition(async_client, owner_configured):
     """LEAD is partitioned by session.
 

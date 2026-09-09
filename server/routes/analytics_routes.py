@@ -166,7 +166,13 @@ async def funnel(
         )
     ).all()
 
-    total = sum(row.hits for row in steps)
+    # Over every path in the window, not just the `limit` rows returned. The sum
+    # of the returned steps made `total_hits` under-report by whatever the LIMIT
+    # cut, and made the shares add to 1.0 no matter how much was missing.
+    total = (
+        await db.execute(select(func.count()).select_from(ordered))
+    ).scalar_one() or 0
+
     return {
         "window_days": days,
         "total_hits": total,
