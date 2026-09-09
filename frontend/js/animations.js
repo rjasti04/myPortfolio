@@ -1,13 +1,21 @@
-import { prefersReducedMotion, mobileDevice, supportsHover } from "./config.js";
+import { prefersReducedMotion, mobileDevice, supportsHover, motionMs } from "./config.js";
 import { animateSpring } from "./physics.js";
 
-// Animation timing constants
+// Animation timing constants. These four have no CSS counterpart - nothing in
+// the stylesheet stages the reveal, counts the stats or steps the matrix - so
+// they are constants here rather than tokens read back from the cascade.
 const REVEAL_STAGGER_MS = 80;
 const STAT_COUNT_DURATION_MS = 900;
-const TERMINAL_INTRO_START_MS = 180;
-const TERMINAL_INTRO_STEP_MS = 180;
 const MATRIX_FRAME_MS = 28;
 const MATRIX_ITERATION_STEP = 0.2;
+
+/* The terminal intro's start delay and per-line step were both a literal 180,
+   which is --motion-base restated in JS: change the token and these silently
+   kept the old cadence. Read from the scale instead, with 180 as the fallback
+   so a missing stylesheet degrades to exactly what it used to do. Lazily,
+   because module scope runs before the stylesheet is guaranteed to apply. */
+const terminalIntroStartMs = () => motionMs("base", 180);
+const terminalIntroStepMs = () => motionMs("base", 180);
 
 /* The section fade lives entirely in CSS - `.js-enabled section.active` runs
    `section-enter` at --motion-page in the SECTION ROUTER region. A JS
@@ -119,11 +127,11 @@ function initTerminalIntro() {
     return;
   }
 
-  let delay = TERMINAL_INTRO_START_MS;
+  let delay = terminalIntroStartMs();
   terminalChildren.forEach((child) => {
     child.style.opacity = "0";
     child.style.animation = `slide-up var(--motion-medium) var(--ease-enter) forwards ${delay}ms`;
-    delay += TERMINAL_INTRO_STEP_MS;
+    delay += terminalIntroStepMs();
   });
 }
 
