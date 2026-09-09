@@ -12,6 +12,7 @@ Reference documentation for `rjWebApp`. Start with the root
 | [`BACKEND.md`](BACKEND.md) | What each `server/` package does and why it is shaped that way |
 | [`DATABASE.md`](DATABASE.md) | Tables, columns, indexes, the migration chain, and the rules for changing them |
 | [`FRONTEND.md`](FRONTEND.md) | The page shell, CSS organisation, PWA behaviour, fonts, the build |
+| [`DESIGN.md`](DESIGN.md) | The design tokens: the scales, the colour rules, and what is deliberately off-scale |
 | [`JAVASCRIPT.md`](JAVASCRIPT.md) | Any ES module: its exports, its responsibilities, its storage keys |
 | [`CONFIGURATION.md`](CONFIGURATION.md) | Any environment variable, its default, and what breaks without it |
 | [`SECURITY.md`](SECURITY.md) | The auth model, capability tokens, rate limits, CSP, or the pre-merge checklist |
@@ -30,7 +31,7 @@ this repository, including context-efficient navigation of the large files.
 | Add or change an API endpoint | [`API.md`](API.md) → [`BACKEND.md`](BACKEND.md) → [`SECURITY.md`](SECURITY.md#checklist-for-changes) |
 | Change the database schema | [`DATABASE.md`](DATABASE.md#working-with-migrations) |
 | Add or refactor a frontend module | [`JAVASCRIPT.md`](JAVASCRIPT.md) → [`FRONTEND.md`](FRONTEND.md) |
-| Change styling | [`FRONTEND.md`](FRONTEND.md#styling) — get the `#region` map first |
+| Change styling | [`DESIGN.md`](DESIGN.md) for the token to use → [`FRONTEND.md`](FRONTEND.md#styling) — get the `#region` map first |
 | Edit `index.html` | [`FRONTEND.md`](FRONTEND.md#content-security-policy) — the CSP hashes will bite otherwise |
 | Add a config value | [`CONFIGURATION.md`](CONFIGURATION.md) and `.env.example` |
 | Add a dependency | [`OPERATIONS.md`](OPERATIONS.md#manual-procedures) — regenerate **both** locks |
