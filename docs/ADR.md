@@ -7,6 +7,15 @@ superseded — what replaced it and why.
 kept for history) · `Amended` (in force, with the correction noted) ·
 `Proposed` (not implemented).
 
+**Adding one:** take the next free number from the table below — currently
+**026** — append the record at the end of the file and add its row above. The
+shape is `## ADR-0NN: Title`, `**Status**:`, then `### Context` (the forces in
+play), `### Decision` (what was chosen, in the present tense), `### Rationale`
+(why — ideally with the measurement that settled it) and `### Consequences`
+(what this costs, including what it makes harder). Superseding a record does not
+delete it: set its status to `Superseded by ADR-0NN`, add a `### Why it was
+superseded` section, and cut the body back to a summary.
+
 | # | Decision | Status |
 | ---: | :--- | :--- |
 | 001 | Vanilla JavaScript over a framework | Accepted |
@@ -32,6 +41,8 @@ kept for history) · `Amended` (in force, with the correction noted) ·
 | 021 | Hash-pinned, universally-resolved dependency locks | Accepted |
 | 022 | Commands as data | Accepted |
 | 023 | Server owns the chat persona and its cost ceilings | Accepted |
+| 024 | Design tokens are the styling contract | Accepted |
+| 025 | One motion scale, shared by CSS and JS | Accepted |
 
 ---
 
@@ -546,3 +557,112 @@ and a concurrency semaphore that `/chat/summarize` must also take.
 - The concurrency slot must be released idempotently from two paths, because a
   client that disconnects before the body is iterated would otherwise leak it
   permanently.
+
+---
+
+## ADR-024: Design tokens are the styling contract
+
+**Status**: Accepted
+
+### Context
+`frontend/styles.css` carries roughly 200 custom properties in its first 470
+lines, and the reasoning behind them was written down only as comments beside
+them. None of it was reachable from `docs/ADR.md`, from the `docs/README.md`
+task index, or from `scripts/check_docs.py`. An agent sent to "change styling"
+is routed to `FRONTEND.md#styling`, which would not have told it that the
+three-hue separation is a standing constraint rather than an aesthetic
+preference — so the most-cited rule in the stylesheet was also the least
+discoverable thing in the repo.
+
+Spacing made the cost concrete. Blur went from nine radii to four, the sheen
+edge from twenty alphas to two, and type, elevation and radius were each
+laddered deliberately — but spacing was never given the same treatment, and had
+drifted to 36 distinct literals, because nothing recorded that putting a visual
+dimension on a scale was the house rule.
+
+### Decision
+The token layer is the contract every stylesheet rule is written against, and
+`docs/DESIGN.md` is its specification. Four rules hold:
+
+1. **Three-hue separation.** The palette is built from exactly three hues, no
+   two closer than 60° on the wheel. Saturation travels with the hue.
+2. **Contrast is measured, not estimated.** Every `-text` variant is chosen
+   against a computed ratio and clears WCAG AA for normal text on `--bg`.
+3. **Every visual dimension is a scale.** Type, spacing, radius, elevation,
+   blur, sheen and motion are ramps. A new value joins a ramp or becomes a named
+   token; it does not become the 37th literal.
+4. **Both themes, always.** A colour or elevation token defined under `:root`
+   with no counterpart under `body.dark-theme` is a bug in one of the themes.
+
+### Rationale
+- The palette two revisions back paired amber with Solarized's own green and
+  yellow: two of three hues within 30° of each other, which is one colour twice.
+  The separation rule is what stops that recurring.
+- `#fff` on the accent fill failed WCAG AA sitewide before `--on-accent` existed.
+  Dark ink measures 11.2:1 on citron and 4.9:1 on azure, against 1.7:1 and 3.9:1
+  for white — the kind of judgement eyes get wrong and a contrast function gets
+  right.
+- A scale nothing is obliged to use is documentation, not a system. Making the
+  ramp the contract is what turns 36 spacing literals into eight rungs.
+
+### Consequences
+- New CSS must reach for a token. Where none fits, the change is to add a rung
+  and say why, not to write a literal.
+- The runtime palette engine (`frontend/js/theme-customizer.js`) writes over this
+  layer on `body`, so **renaming a colour token is a two-file change**: the
+  `clearCustomPalette` list must move with it, or a custom palette will fail to
+  clear and the old property stays on `body` permanently.
+- Values tuned against a specific layout stay off the ramp on purpose. The 10px,
+  14px, 18px and 22px spacings in the hero, activity and chat regions are
+  recorded exceptions, not debt.
+- `docs/DESIGN.md` is a file that can go stale. It is prose, so
+  `scripts/check_docs.py` cannot verify it beyond its size and heading count.
+
+---
+
+## ADR-025: One motion scale, shared by CSS and JS
+
+**Status**: Accepted
+
+### Context
+The stylesheet defines six durations and three easings, and then went around
+them. Of 132 `transition` declarations, 21 carried a raw duration; nine UI-state
+transitions ran at a 200ms that is not a rung on the general ramp; five
+`cubic-bezier()` curves sat inline with no name; and `frontend/js/animations.js`
+declared `TERMINAL_INTRO_START_MS = 180` and `TERMINAL_INTRO_STEP_MS = 180` —
+`--motion-base` restated in a second language, free to drift the moment the
+token moved.
+
+### Decision
+`--motion-*` and `--ease-*` are the whole vocabulary of motion. Every UI-state
+transition names a rung. Every easing is a token, including the single-purpose
+ones. JS that animates alongside CSS reads the scale through
+`motionMs(name, fallback)` in `frontend/js/config.js` rather than restating it.
+
+### Rationale
+- The five signature curves were folded *into* the token layer rather than onto
+  `--ease-press`, because they are not interchangeable: the portrait flip, the
+  hero title's per-character roll-up and the press ripple each read wrong on
+  another curve. Homogenising them would have cost the site its character to buy
+  tidiness — the opposite of the trade this decision is making.
+- Snapping 250ms, 200ms and 150ms onto `--motion-medium`, `--motion-base` and
+  `--motion-fast` moves each by 10–30ms, under the threshold at which a duration
+  change is perceptible, and buys 38 declaration lines onto the scale.
+- `--motion-page` (200ms) and `--motion-reveal` (520ms) are named for one job
+  each — the section router and the IntersectionObserver reveal — and are
+  deliberately not general rungs. Reaching for `--motion-page` on a button hover
+  because the number looked close is the mistake this distinction prevents.
+- Long-running ambient animations stay off the ramp. The scale spans 120–320ms
+  and describes UI state changes; a 10s scanline or a 1.4s typing indicator has
+  nothing to do with it.
+
+### Consequences
+- `motionMs` caches per token, so a stylesheet whose motion tokens changed at
+  runtime would not be observed. Nothing does that today — the customiser writes
+  colour only.
+- The fallback argument is load-bearing under jsdom and in the window before the
+  stylesheet applies, where the property resolves empty.
+- Three transitions keep a raw duration by design: the 0.35s hero panel lift,
+  the 0.45s portrait bounce and the 760ms portrait flip.
+- The blanket `prefers-reduced-motion` rule in the ACCESSIBILITY region still
+  overrides all of this, and must keep doing so.

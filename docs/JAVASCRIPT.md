@@ -123,9 +123,10 @@ nothing resolved to read.
 
 ## Core services
 
-### `config.js` (18 lines)
+### `config.js` (59 lines)
 
-Media queries and the contact address. **Does not** hold `API_BASE`.
+Media queries, the contact address, and the bridge from the CSS motion scale
+into JS. **Does not** hold `API_BASE`.
 
 | Export | Value |
 | :--- | :--- |
@@ -136,6 +137,7 @@ Media queries and the contact address. **Does not** hold `API_BASE`.
 | `supportsHover` | `(hover: hover) and (pointer: fine)` |
 | `mobileDevice` | `(pointer: coarse) and (max-width: 768px)` — phones only; iPads are 768px+ in portrait and laptops always have a fine pointer |
 | `desktopBackground` | `(min-width: 1024px) and (pointer: fine)` — the animated-background gate. Phones and tablets fail the pointer test, narrow desktop windows the width test; `styles.css` mirrors the negation as `@media (width < 1024px), (pointer: coarse)` |
+| `motionMs(name, fallbackMs)` | A `--motion-*` token as milliseconds, e.g. `motionMs("base", 180)`. Reads the computed value off the root element and caches per token; returns the fallback when the property is absent or unparseable, which is the case under jsdom and before the stylesheet applies. Exists so JS animating alongside CSS reads the scale rather than restating it — see ADR-025 |
 
 ### `analytics.js` (599 lines)
 
@@ -859,12 +861,19 @@ Never animates off-screen or on a hidden tab, motion is time-based so it looks
 identical at 60 Hz and 120 Hz, a resize rescales the field in place rather than
 reseeding it, and everything it attaches is removable via the returned teardown.
 
-### `animations.js` (296 lines)
+### `animations.js` (304 lines)
 
 `initAnimations()` — scroll reveals via `IntersectionObserver` (all revealed
 immediately under reduced motion or without the API), animated stat counters,
 the terminal intro sequence, a matrix-style text decode effect, spring-driven
 hover states, and page transitions.
+
+The terminal intro's start delay and per-line step come from `--motion-base`
+through `config.js`'s `motionMs()`, not from a constant here — they were a
+literal 180 twice, which is a CSS token restated in JS and free to drift from
+it (ADR-025). The four constants that remain (`REVEAL_STAGGER_MS`,
+`STAT_COUNT_DURATION_MS`, `MATRIX_FRAME_MS`, `MATRIX_ITERATION_STEP`) have no
+counterpart in the stylesheet, so they stay constants.
 
 ### `hero-title.js` (194 lines)
 

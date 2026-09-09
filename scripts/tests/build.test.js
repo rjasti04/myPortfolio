@@ -7,11 +7,15 @@
  * and inspects `dist/`, because every bug this file exists to catch was a
  * mismatch between what the build emitted and what something else assumed it
  * had emitted.
+ *
+ * It also guards the size budget, for the same reason: the budget is only worth
+ * having if breaching it actually stops the build, and that is a property of
+ * the build script rather than of any number written down beside it.
  */
 import { describe, it, before } from "node:test";
 import assert from "node:assert";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -208,6 +212,49 @@ describe("build: caching contract", () => {
           writeFileSync(source, original);
         }
       });
+    }
+  });
+});
+
+describe("build: size budget", () => {
+  const readBudgets = () =>
+    readFileSync(join(ROOT, "scripts", "build.mjs"), "utf8")
+      .match(/const BUDGETS_KIB = (\{[^}]*\});/)[1];
+
+  const shippedKib = (extension) =>
+    walk(join(DIST, "assets"))
+      .filter((rel) => rel.endsWith(extension) && !rel.endsWith(".map"))
+      .reduce((total, rel) => total + statSync(join(DIST, "assets", rel)).size, 0) / 1024;
+
+  before(() => {
+    build();
+  });
+
+  // Sourcemaps are four times the size of the code they describe. Counting them
+  // would make the budget a measure of how much debug information ships, which
+  // is not what anyone is trying to hold the line on.
+  it("measures minified code only, not sourcemaps or images", () => {
+    const budgets = JSON.parse(readBudgets().replace(/(\w+):/g, '"$1":'));
+    for (const [kind, ceiling] of Object.entries(budgets)) {
+      const used = shippedKib(`.${kind}`);
+      assert.ok(used > 0, `no shipped .${kind} found under dist/assets`);
+      assert.ok(
+        used <= ceiling,
+        `${kind} is ${used.toFixed(1)} KiB, over its ${ceiling} KiB budget`,
+      );
+    }
+  });
+
+  // The gate is the point. A budget the build reports but does not enforce is a
+  // log line, and this is the case that would have caught it being one.
+  it("fails the build when a budget is breached", () => {
+    const source = join(ROOT, "scripts", "build.mjs");
+    const original = readFileSync(source, "utf8");
+    try {
+      writeFileSync(source, original.replace(/const BUDGETS_KIB = \{[^}]*\};/, "const BUDGETS_KIB = { js: 1, css: 1 };"));
+      assert.throws(build, /Size budget exceeded/);
+    } finally {
+      writeFileSync(source, original);
     }
   });
 });
