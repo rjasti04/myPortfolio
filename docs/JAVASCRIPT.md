@@ -137,7 +137,7 @@ Media queries and the contact address. **Does not** hold `API_BASE`.
 | `mobileDevice` | `(pointer: coarse) and (max-width: 768px)` — phones only; iPads are 768px+ in portrait and laptops always have a fine pointer |
 | `desktopBackground` | `(min-width: 1024px) and (pointer: fine)` — the animated-background gate. Phones and tablets fail the pointer test, narrow desktop windows the width test; `styles.css` mirrors the negation as `@media (width < 1024px), (pointer: coarse)` |
 
-### `analytics.js` (585 lines)
+### `analytics.js` (599 lines)
 
 API base resolution, session lifecycle, the event queue, and request telemetry.
 
@@ -266,7 +266,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (2,204 lines, lazy)
+### `chat.js` (2,213 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -304,7 +304,7 @@ Internals worth knowing:
 | Destructive actions | Deleting one conversation and clearing all history both go through `confirmAction` from `confirm-dialog.js`. Delete used to ask nothing while Clear All called the browser's blocking `confirm()` |
 | Accessibility | `announceToScreenReader` for streamed replies. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
 
-### `activity.js` (1,218 lines, lazy)
+### `activity.js` (1,244 lines, lazy)
 
 `initActivity()`, `loadActivity()`, `loadActivitySummary()`,
 `loadActivityFunnel()`.
@@ -323,11 +323,19 @@ failure as "No navigation recorded yet." and left the headline stats at `0` and
 an em dash — placeholders reading as measurements. `renderPaths` takes a
 `failed` option, and the stat grid marks unconfirmed figures.
 
-**Four families over ten event types**, because four hues are learnable at a
-glance and seven are a legend: `nav` (page_view, scroll_depth), `tap` (click,
+**Five families over ten event types**, because five hues are learnable at a
+glance and ten are a legend: `nav` (page_view, scroll_depth), `tap` (click,
 terminal_command), `pref` (theme_change and other preferences), `reach`
-(copy_email, contact_submission, contact_prompt). The grouping carries the
-colour encoding across the strip, chips, dots and bars.
+(copy_email, contact_submission, contact_prompt) and `sys` (ai_llm_telemetry,
+client_error). The grouping carries the colour encoding across the strip, chips,
+dots and bars.
+
+`sys` is the odd one out deliberately: telemetry and crash reports are things
+the site recorded about itself, not things a visitor did, so it takes the only
+neutral hue in the set. Those two and `contact_prompt` were missing from
+`EVENT_FAMILY` entirely, so `familyOf` fell back to `nav` — a JavaScript crash
+report rendered as Navigation, filed under the one label that hides it and
+reachable only from the filter chip with nothing to do with it.
 
 Also owns: the live SSE connection (`EventSource` with `withCredentials: true`
 so the `HttpOnly` session cookie is sent even when the API is on another port),
@@ -357,7 +365,7 @@ a filter control that needs to be a real focusable, labelled element. Colours
 come from CSS custom properties, so both themes and any accent change flow
 through without touching this file.
 
-### `form.js` (417 lines)
+### `form.js` (448 lines)
 
 `export function initContactForm()` — the contact section.
 

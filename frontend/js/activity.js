@@ -51,12 +51,19 @@ const LATENCY_SAMPLE_LIMIT = 200;
 const MIN_TIMELINE_SPAN_MS = 5 * 60 * 1000;
 
 /**
- * Seven event types, four families.
+ * Ten event types, five families.
  *
- * Four hues are learnable at a glance; seven are a legend. The grouping is the
- * one a reader would make unprompted - moving through the site, acting on it,
- * setting a preference, getting in touch - which is the test for whether an
- * abstraction is real rather than convenient.
+ * Four of the five hues are learnable at a glance; ten types would be a legend.
+ * The grouping is the one a reader would make unprompted - moving through the
+ * site, acting on it, setting a preference, getting in touch - which is the
+ * test for whether an abstraction is real rather than convenient.
+ *
+ * The fifth, `sys`, is the exception that proves it: `ai_llm_telemetry` and
+ * `client_error` are not things a visitor did, they are things the site
+ * recorded about itself. All three of the types below it were missing from this
+ * map entirely, so `familyOf` fell back to "nav" and a JavaScript crash report
+ * rendered as Navigation - filed under the one label that hides it, and
+ * reachable only from the filter chip that has nothing to do with it.
  */
 const EVENT_FAMILY = {
   page_view: "nav",
@@ -66,6 +73,9 @@ const EVENT_FAMILY = {
   theme_change: "pref",
   copy_email: "reach",
   contact_submission: "reach",
+  contact_prompt: "reach",
+  ai_llm_telemetry: "sys",
+  client_error: "sys",
 };
 
 const FAMILY_META = {
@@ -73,6 +83,7 @@ const FAMILY_META = {
   tap: { label: "Interaction", icon: "fa-hand-pointer" },
   pref: { label: "Preference", icon: "fa-sliders" },
   reach: { label: "Contact", icon: "fa-paper-plane" },
+  sys: { label: "System", icon: "fa-gear" },
 };
 const FAMILY_IDS = Object.keys(FAMILY_META);
 
@@ -191,8 +202,15 @@ const CLICK_TAGS = { A: "a link", BUTTON: "a button", INPUT: "a field" };
  * Every branch reads from the payload the client actually sends (see the
  * `trackEvent` calls across the frontend), so nothing here invents a field.
  * The raw JSON stays one keystroke away on the row itself.
+ *
+ * The returned `text` is HTML - `code()` and the `<b>` emphasis below are the
+ * point - and it reaches the DOM through innerHTML in `eventRow`. So every
+ * value interpolated into it has to be escaped, and `event_data` is the
+ * visitor's own JSON round-tripped through the API. Exported for that reason:
+ * the escaping is the contract, and `activity-charts.js` exports its pure
+ * renderers for the same kind of test.
  */
-function describeEvent(event) {
+export function describeEvent(event) {
   const data = event.event_data && typeof event.event_data === "object" ? event.event_data : {};
   const path = event.page_path ? code(event.page_path) : "the page";
 
@@ -210,7 +228,15 @@ function describeEvent(event) {
         : { text: `Scrolled ${path}` };
     }
     case "click": {
-      const what = CLICK_TAGS[data.tag] || (data.tag ? `a ${String(data.tag).toLowerCase()}` : "something");
+      // `data.tag` is escaped and the lookup is guarded, like every other
+      // branch here. It reaches innerHTML through `text`, and event_data is
+      // round-tripped through the API, so a tag of `<img src=x onerror=...>`
+      // used to execute when the row painted. A bare `CLICK_TAGS[data.tag]`
+      // also walked the prototype chain: "constructor" resolved to Object and
+      // stringified the native function into the sentence.
+      const known = Object.hasOwn(CLICK_TAGS, data.tag) ? CLICK_TAGS[data.tag] : null;
+      const what = known
+        || (data.tag ? `a ${escapeHTML(String(data.tag).toLowerCase())}` : "something");
       const origin = data.link_origin ? hostOf(data.link_origin) : null;
       const offsite = origin && origin !== hostOf(window.location.origin);
       return { text: `Clicked ${what} on ${path}`, aside: offsite ? `→ ${origin}` : "" };

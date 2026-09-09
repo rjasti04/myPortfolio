@@ -363,6 +363,20 @@ export function trackEvent(eventType, eventData = {}) {
   }
 }
 
+/**
+ * Holds the queue at MAX_QUEUE_SIZE by dropping its oldest entries.
+ *
+ * Both callers unshift a failed batch back onto the head, so the queue is
+ * ordered oldest-first. `eventQueue.length = MAX_QUEUE_SIZE` truncates the
+ * tail, which is the newest events - the opposite of the intent, and the same
+ * inversion the server-side write buffer had.
+ */
+function trimQueueToCap() {
+  if (eventQueue.length > MAX_QUEUE_SIZE) {
+    eventQueue.splice(0, eventQueue.length - MAX_QUEUE_SIZE);
+  }
+}
+
 async function flushEvents(flushReason = "threshold") {
   if (eventQueue.length === 0 || !sessionId) return;
 
@@ -401,10 +415,11 @@ async function flushEvents(flushReason = "threshold") {
       if (response.status >= 500 || response.status === 429) {
         // Put events back at the start of the queue to retry later for temporary failures
         eventQueue.unshift(...eventsToSend);
-        // Prevent unbounded growth when API is persistently down
-        if (eventQueue.length > MAX_QUEUE_SIZE) {
-          eventQueue.length = MAX_QUEUE_SIZE;
-        }
+        // Prevent unbounded growth when API is persistently down. Trimmed from
+        // the front: the retried batch went back at the head, so truncating by
+        // length discarded whatever the visitor had done most recently and kept
+        // the stale backlog instead.
+        trimQueueToCap();
         saveEventQueue();
         console.error(`Analytics: Server returned ${response.status}, retrying ${eventsToSend.length} event(s)`);
       } else {
@@ -434,10 +449,9 @@ async function flushEvents(flushReason = "threshold") {
   } catch (error) {
     // Put events back in queue on network error
     eventQueue.unshift(...eventsToSend);
-    // Prevent unbounded growth when offline
-    if (eventQueue.length > MAX_QUEUE_SIZE) {
-      eventQueue.length = MAX_QUEUE_SIZE;
-    }
+    // Prevent unbounded growth when offline. Drops the oldest, not the newest -
+    // see trimQueueToCap.
+    trimQueueToCap();
     saveEventQueue();
     console.warn("Analytics: Network error bulk sending events (likely blocked or offline).", error);
   }

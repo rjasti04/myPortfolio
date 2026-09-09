@@ -451,7 +451,16 @@ export function initChat() {
     }
     if (raw) {
       try {
-        sessions = JSON.parse(raw);
+        // Shape, not just parseability. `JSON.parse` succeeding says nothing
+        // about what came back: "null" gave `sessions = null` and the length
+        // check below threw, while an object left `.length` undefined and
+        // `sessions.some` threw instead. Either took initChat() down with it,
+        // leaving the AI page with no transcript, no rail and no error state -
+        // the failure the guard above was written to prevent, one layer up.
+        const parsed = JSON.parse(raw);
+        sessions = Array.isArray(parsed)
+          ? parsed.filter(entry => entry && typeof entry === 'object' && entry.id)
+          : [];
       } catch (e) {
         sessions = [];
       }
