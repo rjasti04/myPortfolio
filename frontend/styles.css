@@ -263,6 +263,30 @@
   --radius-xl: 20px;
   --radius-full: 999px;
 
+  /* ---- Spacing -----------------------------------------------------------
+     The last visual dimension that was never put on a scale. Blur went from
+     nine radii to four, the sheen edge from twenty alphas to two, and type,
+     elevation and radius were all laddered - spacing stayed 37 distinct
+     literals across every padding, margin and gap in the file.
+
+     Four-pixel base, doubling, with half-steps where this UI genuinely uses
+     them. The seven rungs below already ARE the seven most-used values in the
+     stylesheet - 12px (111 uses), 8px (94), 16px (68), 6px (66), 4px (51),
+     24px (22), 32px (11) - so adopting them is a rename, not a reflow.
+
+     10px, 14px, 18px and 22px are deliberately NOT on the ramp. They live in
+     the hero, activity and chat regions, tuned against layouts a 28-finding
+     UI review already settled; rounding them onto a rung would move pixels
+     for no reason. New CSS uses the ramp - see docs/DESIGN.md. */
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 6px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+
   /* Motion */
   --motion-fast: 120ms;
   --motion-base: 180ms;
@@ -273,6 +297,23 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-press: cubic-bezier(0.34, 1.2, 0.64, 1);
+
+  /* Signature easings. Unlike the three above these are single-purpose: each
+     belongs to one named effect and is tuned against it, so they are NOT
+     interchangeable and folding them onto --ease-press would flatten the
+     character of the animations they drive. They are tokens anyway because
+     the alternative is five anonymous cubic-bezier() literals scattered
+     across 9,000 lines, which is how they got here. */
+  --ease-overshoot-soft: cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  /* hero panel lift - overshoots just past its resting scale */
+  --ease-overshoot: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* portrait hover - a real bounce, the strongest curve on the site */
+  --ease-rollup: cubic-bezier(0.16, 1.08, 0.38, 1.02);
+  /* kinetic-optical-rollup, the hero title's per-character reveal */
+  --ease-flip: cubic-bezier(0.22, 0.75, 0.2, 1);
+  /* the 760ms home-portrait card flip - slow in, no overshoot */
+  --ease-ripple: cubic-bezier(0.16, 1, 0.3, 1);
+  /* the press ripple's decel; a ripple that overshoots reads as a glitch */
 
   /* Minimum Touch Target Size */
   --min-touch-target: 44px;
@@ -1079,9 +1120,9 @@ body.dark-theme #nav-menu a:not(.active):hover {
   transform: translateY(-12px) scale(0.98);
   pointer-events: none;
   transition:
-    opacity 0.25s var(--ease-standard),
-    transform 0.25s var(--ease-enter),
-    visibility 0.25s var(--ease-standard);
+    opacity var(--motion-medium) var(--ease-standard),
+    transform var(--motion-medium) var(--ease-enter),
+    visibility var(--motion-medium) var(--ease-standard);
   z-index: 1300;
 }
 
@@ -1097,8 +1138,8 @@ body.dark-theme #nav-menu a:not(.active):hover {
      Overriding it to 0s on the way in makes the panel interactive immediately;
      the base rule still animates it out on close. */
   transition:
-    opacity 0.25s var(--ease-standard),
-    transform 0.25s var(--ease-enter),
+    opacity var(--motion-medium) var(--ease-standard),
+    transform var(--motion-medium) var(--ease-enter),
     visibility 0s;
 }
 
@@ -1266,7 +1307,10 @@ body:not(.dark-theme) .token-number {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: background 180ms ease, transform 180ms ease, color 180ms ease;
+  transition:
+    background var(--motion-base) ease,
+    transform var(--motion-base) ease,
+    color var(--motion-base) ease;
   z-index: 10;
 }
 
@@ -1341,7 +1385,7 @@ body:not(.dark-theme) .token-number {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--skill-bg);
-  transition: border-color 0.2s var(--ease-standard);
+  transition: border-color var(--motion-base) var(--ease-standard);
 }
 
 .theme-chip:hover {
@@ -1443,9 +1487,9 @@ body:not(.dark-theme) .token-number {
   font-size: var(--text-2xs);
   cursor: pointer;
   transition:
-    border-color 0.2s var(--ease-standard),
-    background-color 0.2s var(--ease-standard),
-    color 0.2s var(--ease-standard);
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
 }
 
 /* Deleting is the destructive half of the pill, so it is the half that turns
@@ -1498,9 +1542,9 @@ body:not(.dark-theme) .token-number {
   font-weight: 700;
   cursor: pointer;
   transition:
-    border-color 0.2s var(--ease-standard),
-    background-color 0.2s var(--ease-standard),
-    color 0.2s var(--ease-standard);
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
 }
 
 .theme-save-confirm {
@@ -1543,10 +1587,10 @@ body:not(.dark-theme) .token-number {
   align-items: center;
   justify-content: center;
   transition:
-    border-color 0.2s var(--ease-standard),
-    background-color 0.2s var(--ease-standard),
-    color 0.2s var(--ease-standard),
-    transform 0.15s var(--ease-standard);
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 
 .preset-btn:hover,
@@ -1602,10 +1646,10 @@ body:not(.dark-theme) .token-number {
   text-transform: uppercase;
   cursor: pointer;
   transition:
-    border-color 0.2s var(--ease-standard),
-    background-color 0.2s var(--ease-standard),
-    color 0.2s var(--ease-standard),
-    transform 0.15s var(--ease-standard);
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 
 .customizer-shuffle:hover,
@@ -1678,10 +1722,10 @@ body:not(.dark-theme) .token-number {
   padding: 5px 10px;
   font: inherit;
   transition:
-    border-color 0.2s var(--ease-standard),
-    background-color 0.2s var(--ease-standard),
-    box-shadow 0.2s var(--ease-standard),
-    transform 0.15s var(--ease-standard);
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 
 .color-input-wrapper:hover,
@@ -2042,7 +2086,7 @@ main {
   color: inherit;
   filter: drop-shadow(0 0 18px var(--accent-soft));
   transition:
-    transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    transform 0.35s var(--ease-overshoot-soft),
     filter 0.35s var(--ease-standard);
 
   /* ── Why the zero opacity has a deadline ──
@@ -2072,7 +2116,7 @@ main {
 }
 
 .hero-char.kinetic-entering {
-  animation: kinetic-optical-rollup 0.78s cubic-bezier(0.16, 1.08, 0.38, 1.02) both;
+  animation: kinetic-optical-rollup 0.78s var(--ease-rollup) both;
   animation-delay: var(--stagger-delay, 0ms);
 }
 
@@ -2090,11 +2134,13 @@ main {
 .hero-char.is-hovered {
   filter: brightness(1.4) drop-shadow(0 0 20px var(--accent-fill));
   z-index: 10;
-  transition: transform 0.1s ease-out, filter 0.2s ease-out;
+  transition:
+    transform var(--motion-fast) ease-out,
+    filter var(--motion-base) ease-out;
 }
 
 .hero-char.is-recovering {
-  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.35s ease-out;
+  transition: transform 0.45s var(--ease-overshoot), filter 0.35s ease-out;
 }
 
 @keyframes kinetic-optical-rollup {
@@ -2969,7 +3015,7 @@ body.dark-theme .home-portrait picture {
   /* Slower than the site's --motion-slow and on a curve that decelerates hard:
      a portrait turning over is a physical object, and at the button speeds
      used elsewhere it reads as a glitch rather than a turn. */
-  transition: transform 760ms cubic-bezier(0.22, 0.75, 0.2, 1);
+  transition: transform 760ms var(--ease-flip);
 }
 
 .home-portrait-flip[aria-pressed="true"] .home-portrait-card {
@@ -3451,9 +3497,9 @@ body.dark-theme .home-portrait picture {
 .item {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  padding: 32px;
+  padding: var(--space-2xl);
   border-radius: var(--radius);
-  margin-bottom: 24px;
+  margin-bottom: var(--space-xl);
   transition:
     border-color var(--motion-medium) var(--ease-standard),
     box-shadow var(--motion-medium) var(--ease-standard),
@@ -3502,13 +3548,13 @@ body.dark-theme .home-portrait picture {
 .item-badge {
   font-size: var(--text-body-xs);
   background: var(--skill-bg);
-  padding: 4px 10px;
+  padding: var(--space-2xs) 10px;
   border-radius: 6px;
 }
 
 .item-description {
   color: var(--muted);
-  margin-top: 12px;
+  margin-top: var(--space-md);
 }
 
 /* Experience bullets & tech tags */
@@ -3521,7 +3567,7 @@ body.dark-theme .home-portrait picture {
 .item-bullets li {
   position: relative;
   padding-left: 18px;
-  margin-bottom: 6px;
+  margin-bottom: var(--space-xs);
   color: var(--muted);
   font-size: var(--text-body-sm);
   line-height: var(--leading-body);
@@ -3537,7 +3583,7 @@ body.dark-theme .home-portrait picture {
 .item-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-sm);
   margin-top: 18px;
 }
 
@@ -3945,14 +3991,14 @@ body.dark-theme .home-portrait picture {
 
 .contact-title {
   font-size: var(--text-fluid-4xl);
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
   font-weight: 800;
   line-height: var(--leading-tight);
   text-align: left;
 }
 
 .contact-description {
-  margin-bottom: 32px;
+  margin-bottom: var(--space-2xl);
   color: var(--muted);
   font-size: var(--text-body);
   line-height: var(--leading-body);
@@ -3982,8 +4028,8 @@ body.dark-theme .home-portrait picture {
   flex: 1 1 auto;
   min-width: 0;
   align-items: center;
-  gap: 16px;
-  padding: 14px 16px;
+  gap: var(--space-lg);
+  padding: 14px var(--space-lg);
   background: var(--surface-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -4031,7 +4077,7 @@ body.dark-theme .home-portrait picture {
 }
 
 .contact-channel-label {
-  margin-bottom: 2px;
+  margin-bottom: var(--space-3xs);
   color: var(--muted);
   font-size: var(--text-xs);
   font-weight: 600;
@@ -4069,11 +4115,11 @@ body.dark-theme .home-portrait picture {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: var(--space-2xs);
   flex-shrink: 0;
   width: 76px;
   min-height: var(--min-touch-target);
-  padding: 8px;
+  padding: var(--space-sm);
   background: var(--surface-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -4122,7 +4168,7 @@ body.dark-theme .home-portrait picture {
   align-items: center;
   gap: 9px;
   min-height: var(--min-touch-target);
-  padding: 8px 16px;
+  padding: var(--space-sm) var(--space-lg);
   background: var(--surface-soft);
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -4164,7 +4210,7 @@ body.dark-theme .home-portrait picture {
 }
 
 .contact-prompts-label {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-md);
   color: var(--muted);
   font-size: var(--text-body-xs);
   line-height: var(--leading-body);
@@ -4173,15 +4219,15 @@ body.dark-theme .home-portrait picture {
 .contact-prompt-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .contact-prompt {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   min-height: 38px;
-  padding: 8px 14px;
+  padding: var(--space-sm) 14px;
   background: transparent;
   border: 1px dashed var(--accent-mild);
   border-radius: 999px;
@@ -4242,13 +4288,13 @@ body.dark-theme .home-portrait picture {
 }
 
 .contact-form-note {
-  margin: 4px 0 0;
+  margin: var(--space-2xs) 0 0;
   color: var(--muted);
   font-size: var(--text-body-xs);
 }
 
 .form-counter {
-  margin: 6px 0 0;
+  margin: var(--space-xs) 0 0;
   color: var(--muted);
   font-size: var(--text-2xs);
   font-variant-numeric: tabular-nums;
@@ -4263,7 +4309,7 @@ body.dark-theme .home-portrait picture {
 .contact-form-privacy {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   margin: 14px 0 0;
   color: var(--muted);
   font-size: var(--text-2xs);
@@ -4289,12 +4335,12 @@ body.dark-theme .home-portrait picture {
 
 @media (width <=640px) {
   .contact-primary {
-    gap: 8px;
+    gap: var(--space-sm);
   }
 
   .contact-primary-link {
-    gap: 12px;
-    padding: 12px 14px;
+    gap: var(--space-md);
+    padding: var(--space-md) 14px;
   }
 
   .contact-channel-icon {
@@ -4312,11 +4358,11 @@ body.dark-theme .home-portrait picture {
   }
 
   .contact-links {
-    gap: 8px;
+    gap: var(--space-sm);
   }
 
   .contact-link {
-    padding: 8px 14px;
+    padding: var(--space-sm) 14px;
   }
 
   .contact-prompts {
@@ -4328,7 +4374,7 @@ body.dark-theme .home-portrait picture {
     flex: 1 1 auto;
     justify-content: center;
     min-height: 36px;
-    padding: 7px 12px;
+    padding: 7px var(--space-md);
   }
 
   .contact-form-header {
@@ -4351,7 +4397,7 @@ body.dark-theme .home-portrait picture {
 
 .contact-form textarea {
   width: 100%;
-  padding: 12px;
+  padding: var(--space-md);
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
@@ -4370,7 +4416,7 @@ body.dark-theme .home-portrait picture {
 
 .contact-submit-btn {
   width: 100%;
-  padding: 16px;
+  padding: var(--space-lg);
   font-size: var(--text-base);
   font-weight: 700;
   border-radius: var(--radius-md);
@@ -4378,7 +4424,7 @@ body.dark-theme .home-portrait picture {
   justify-content: center;
   align-items: center;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: var(--space-sm);
   background: linear-gradient(135deg, var(--accent-fill) 0%, var(--secondary-fill) 100%);
   color: var(--on-accent);
   border: none;
@@ -4496,7 +4542,7 @@ body.dark-theme .home-portrait picture {
 
 .form-group input {
   width: 100%;
-  padding: 12px 40px 12px 12px;
+  padding: var(--space-md) 40px var(--space-md) var(--space-md);
   border: 1px solid var(--control-border);
   border-radius: 8px;
   background: var(--bg);
@@ -4769,7 +4815,7 @@ body.dark-theme .stat-card:hover {
 /* #region BUTTONS & LOGO ----------------------------------------------*/
 /* Buttons */
 .btn {
-  padding: 16px 36px;
+  padding: var(--space-lg) 36px;
   background: linear-gradient(135deg, var(--accent-fill) 0%, var(--secondary-fill) 100%);
   color: var(--on-accent);
   text-decoration: none;
@@ -4777,7 +4823,7 @@ body.dark-theme .stat-card:hover {
   font-weight: 700;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-md);
   transition:
     background-color var(--motion-base) var(--ease-standard),
     /* background-image was missing, so the gradient swapped instantly
@@ -4820,7 +4866,7 @@ body.dark-theme .stat-card:hover {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 2px;
+  padding: var(--space-3xs);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), transparent);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
@@ -4902,8 +4948,8 @@ body.dark-theme .stat-card:hover {
    face in place of the gradient. */
 .hero-buttons .btn {
   border-radius: var(--radius-full);
-  padding: 10px 24px;
-  gap: 16px;
+  padding: 10px var(--space-xl);
+  gap: var(--space-lg);
   background: var(--accent-fill);
   border: none;
   justify-content: center;
@@ -4952,7 +4998,7 @@ body.dark-theme .stat-card:hover {
   border: 2px solid currentColor;
   color: #fff;
   transition: transform var(--motion-medium) var(--ease-enter), box-shadow var(--motion-medium) var(--ease-standard), color var(--motion-medium) var(--ease-standard);
-  margin-left: 4px;
+  margin-left: var(--space-2xs);
 }
 
 .hero-buttons .btn:hover i {
@@ -4972,7 +5018,7 @@ body.dark-theme .stat-card:hover {
   display: inline-flex;
   align-items: center;
   min-height: var(--min-touch-target);
-  padding-inline: 4px;
+  padding-inline: var(--space-2xs);
   /* font-size is also layout-affecting; scale the glyph instead. */
   transition:
     transform var(--motion-base) var(--ease-standard),
@@ -6111,9 +6157,9 @@ body.dark-theme .skill-tag.primary .fas {
     visibility: hidden;
     pointer-events: none;
     transition:
-      opacity 0.25s var(--ease-standard),
-      transform 0.25s var(--ease-enter),
-      visibility 0.25s var(--ease-standard);
+      opacity var(--motion-medium) var(--ease-standard),
+      transform var(--motion-medium) var(--ease-enter),
+      visibility var(--motion-medium) var(--ease-standard);
   }
 
   body.dark-theme #nav-menu {
@@ -6170,11 +6216,11 @@ body.dark-theme .skill-tag.primary .fas {
     text-align: left;
     position: relative;
     transition:
-      border-color 0.2s var(--ease-standard),
-      transform 0.15s var(--ease-standard),
-      background-color 0.2s var(--ease-standard),
-      box-shadow 0.2s var(--ease-standard),
-      color 0.2s var(--ease-standard);
+      border-color var(--motion-base) var(--ease-standard),
+      transform var(--motion-fast) var(--ease-standard),
+      background-color var(--motion-base) var(--ease-standard),
+      box-shadow var(--motion-base) var(--ease-standard),
+      color var(--motion-base) var(--ease-standard);
   }
 
   #nav-menu a:active {
@@ -6213,10 +6259,10 @@ body.dark-theme .skill-tag.primary .fas {
     margin-right: 0;
     flex-shrink: 0;
     transition:
-      transform 0.2s var(--ease-standard),
-      background-color 0.2s var(--ease-standard),
-      border-color 0.2s var(--ease-standard),
-      color 0.2s var(--ease-standard);
+      transform var(--motion-base) var(--ease-standard),
+      background-color var(--motion-base) var(--ease-standard),
+      border-color var(--motion-base) var(--ease-standard),
+      color var(--motion-base) var(--ease-standard);
   }
 
   body.dark-theme #nav-menu .nav-icon {
@@ -6254,9 +6300,9 @@ body.dark-theme .skill-tag.primary .fas {
     opacity: 0.55;
     flex-shrink: 0;
     transition:
-      transform 0.2s var(--ease-standard),
-      opacity 0.2s var(--ease-standard),
-      color 0.2s var(--ease-standard);
+      transform var(--motion-base) var(--ease-standard),
+      opacity var(--motion-base) var(--ease-standard),
+      color var(--motion-base) var(--ease-standard);
   }
 
   #nav-menu a.active .nav-arrow {
@@ -7524,7 +7570,10 @@ body:not(.dark-theme) .chat-message.user {
   font-size: var(--text-xs);
   opacity: 0.85;
   user-select: none;
-  transition: opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  transition:
+    opacity var(--motion-base) ease,
+    background-color var(--motion-base) ease,
+    border-color var(--motion-base) ease;
   width: fit-content;
 }
 
@@ -7591,7 +7640,11 @@ body.dark-theme .chat-message.bot .msg-actions {
      surfaced above the middle of the whole bubble instead of over the button -
      on a long answer, hundreds of pixels from the pointer. */
   position: relative;
-  transition: background-color 0.2s ease, transform 0.1s ease, color 0.2s ease, opacity 0.2s ease;
+  transition:
+    background-color var(--motion-base) ease,
+    transform var(--motion-fast) ease,
+    color var(--motion-base) ease,
+    opacity var(--motion-base) ease;
 }
 
 .msg-action-btn i {
@@ -7661,7 +7714,9 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity var(--motion-base) ease,
+    transform var(--motion-base) ease;
   box-shadow: var(--elev-2);
   border: 1px solid rgba(255, 255, 255, 0.12);
   z-index: 100;
@@ -9067,7 +9122,7 @@ nav a:hover .nav-shortcut {
 
 .act-owner[data-busy="true"] {
   opacity: 0.55;
-  transition: opacity 120ms ease;
+  transition: opacity var(--motion-fast) ease;
 }
 
 .act-owner-head {
@@ -11587,7 +11642,7 @@ body.dark-theme #ai .chat-message.bot.typing-indicator {
   background: radial-gradient(circle, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.2) 40%, rgba(255, 255, 255, 0) 70%);
   transform: translate3d(0, 0, 0) scale(0);
   opacity: 1;
-  animation: ripple-animation 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: ripple-animation 0.65s var(--ease-ripple) forwards;
   pointer-events: none;
   will-change: transform, opacity;
 }
