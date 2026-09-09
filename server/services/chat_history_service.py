@@ -36,6 +36,32 @@ def generate_title_from_messages(messages: list[dict[str, Any]]) -> str:
     return "New Conversation"
 
 
+class ConversationNotOwned(Exception):
+    """A conversation_id that names a row belonging to somebody else.
+
+    The lookup below is scoped by `user_id`, so another user's row simply misses
+    and control used to fall through to the create branch - which built the row
+    with `id=conversation_id`, an INSERT onto an occupied primary key. The
+    IntegrityError was caught and logged by the streaming route, so the
+    visitor's transcript was silently never saved.
+    """
+
+
+async def conversation_belongs_to_other_user(
+    db: AsyncSession, user_id: UUID, conversation_id: UUID
+) -> bool:
+    """True when the id exists but is not this user's.
+
+    Lets the route answer before it starts streaming, when a status code can
+    still reach the client.
+    """
+    result = await db.execute(
+        select(AIConversation.user_id).where(AIConversation.id == conversation_id)
+    )
+    owner = result.scalar_one_or_none()
+    return owner is not None and owner != user_id
+
+
 async def save_or_update_conversation(
     db: AsyncSession,
     user_id: UUID,
@@ -48,6 +74,9 @@ async def save_or_update_conversation(
     Save or update an AI conversation compressed in PostgreSQL.
     If conversation_id is provided and exists, update it.
     Otherwise create a new record.
+
+    Raises ConversationNotOwned when the id names another user's row, rather
+    than colliding with it on insert.
     """
     compressed_blob = compress_messages(messages)
     message_count = len(messages)
@@ -71,6 +100,12 @@ async def save_or_update_conversation(
             await db.commit()
             await db.refresh(existing)
             return existing
+
+        # The scoped lookup missing does not mean the id is free. Falling
+        # through to the create branch with it would INSERT onto a primary key
+        # another account already holds.
+        if await conversation_belongs_to_other_user(db, user_id, conversation_id):
+            raise ConversationNotOwned(str(conversation_id))
 
     # Create new conversation
     new_title = custom_title or generate_title_from_messages(messages)

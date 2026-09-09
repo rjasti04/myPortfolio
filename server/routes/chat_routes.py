@@ -14,6 +14,7 @@ from server.models.user import User
 from server.schemas.chat import ChatStreamRequest
 from server.services.bedrock_service import bedrock_service
 from server.services.chat_history_service import (
+    conversation_belongs_to_other_user,
     delete_all_conversations,
     delete_conversation,
     get_conversation_detail,
@@ -62,6 +63,30 @@ async def chat_stream_endpoint(
             )
 
     messages_payload = ensure_alternating_roles([msg.model_dump() for msg in request_data.messages])
+
+    # Bedrock rejects an empty `messages` array, and the service turns that
+    # ValidationException into an error frame inside an otherwise-successful 200
+    # - after spending a concurrency slot and a rate-limit token. A blank
+    # message is refused by `ChatMessage.content` before it reaches here; this
+    # is the backstop for any other way the payload could come back empty.
+    if not messages_payload:
+        raise HTTPException(status_code=400, detail="A message cannot be empty.")
+
+    # Before the slot is taken and the stream begins, while a status code can
+    # still reach the client. A conversation_id naming somebody else's row used
+    # to fall through to an INSERT on their primary key; the IntegrityError was
+    # swallowed by the generator's except-clause and the transcript was lost
+    # without the visitor being told anything.
+    if current_user is not None and request_data.conversation_id:
+        try:
+            claimed_id = uuid.UUID(request_data.conversation_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid conversation_id.") from None
+        if await conversation_belongs_to_other_user(db, current_user.id, claimed_id):
+            # 404, not 403: confirming the id exists would make this an oracle
+            # for other people's conversation ids.
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
     session_id_raw = request.headers.get("X-Session-ID") or request.cookies.get("session_id")
 
     session_uuid = None
@@ -179,17 +204,31 @@ async def chat_summarize_endpoint(request_data: ChatStreamRequest):
     # This calls Bedrock exactly like the streaming route does, but used to take
     # no slot at all, so it could drive unbounded concurrent inference straight
     # past CHAT_MAX_CONCURRENCY.
+    if not messages_payload:
+        raise HTTPException(status_code=400, detail="There is nothing to summarize.")
+
     slot = await acquire_bedrock_slot("AI summarization service is busy. Try again shortly.")
     try:
         summary_text = ""
+        stream_error = None
         async for chunk in bedrock_service.stream_chat_response(
             messages=messages_payload,
             system_prompt="Summarize the key points of the preceding conversation concisely in 2-3 sentences.",
         ):
             if chunk.get("type") == "delta":
                 summary_text += chunk.get("text", "")
-        if not summary_text:
-            summary_text = "Summary of preceding conversation."
+            elif chunk.get("type") == "error":
+                stream_error = chunk.get("error")
+
+        # A failed call used to be indistinguishable from a successful one: this
+        # loop read only `delta` frames, so an error frame left `summary_text`
+        # empty and the placeholder below was returned with a 200 - a summary
+        # the model never produced, cached by the client as if it had.
+        if stream_error:
+            logger.error(f"Bedrock summarization failed: {stream_error}")
+            raise HTTPException(status_code=502, detail="Could not summarize the conversation.")
+        if not summary_text.strip():
+            raise HTTPException(status_code=502, detail="Could not summarize the conversation.")
         return {"summary": summary_text}
     finally:
         await slot.release()
