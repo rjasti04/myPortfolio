@@ -729,7 +729,7 @@ Calls `syncThemeColorMeta()` from `theme-customizer.js` after
 `reapplyCustomTheme`, which covers the plain light/dark flip on the shipped
 colours — the palette paths sync the tag themselves.
 
-### `theme-customizer.js` (1,155 lines)
+### `theme-customizer.js` (1,163 lines)
 
 `initThemeCustomizer()`, `reapplyCustomTheme(isDark)`, `randomPalette(hex)`,
 `syncThemeColorMeta(isDark)`.

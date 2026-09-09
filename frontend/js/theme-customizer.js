@@ -931,9 +931,17 @@ export function initThemeCustomizer() {
       apply.type = 'button';
       apply.className = 'preset-btn theme-chip-apply';
       apply.dataset.themeId = entry.id;
-      apply.textContent = entry.name;
       apply.title = `Apply ${entry.name}`;
       apply.setAttribute('aria-pressed', 'false');
+
+      // The name is a span rather than a bare text node so it can truncate:
+      // `text-overflow` needs a block-level box and the button itself is a
+      // flex container. `textContent` still reads as the name either way,
+      // which is what the title above and `syncThemeChipState` go on.
+      const label = document.createElement('span');
+      label.className = 'theme-chip-name';
+      label.textContent = entry.name;
+      apply.append(label);
 
       const remove = document.createElement('button');
       remove.type = 'button';
