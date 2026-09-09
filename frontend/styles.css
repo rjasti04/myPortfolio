@@ -1312,20 +1312,72 @@ body:not(.dark-theme) .token-number {
 /* ── A saved theme ──
    Two controls in one pill: the name applies it, the cross deletes it. They
    are separate buttons because a button inside a button is invalid markup and
-   because each genuinely needs its own accessible name. The pair is welded
-   into one shape by dropping the border radius where they meet. */
+   because each genuinely needs its own accessible name.
+
+   The pill is drawn by the wrapper, not by the halves. The halves used to draw
+   a border and a radius each and cancel the ones where they met, but
+   `.preset-btn` is declared LATER in this file at equal specificity, and its
+   `border` and `border-radius` SHORTHANDS reset those longhands - so the weld
+   never applied and a saved theme rendered as a rounded chip with a second
+   rounded box stuck beside it. One border and one radius, on the wrapper,
+   cannot come apart that way whatever the halves inherit.
+
+   `min-height` matches `.preset-btn` exactly so a saved chip and a built-in
+   one line up in the same wrapping row; it is border-box, so the halves inside
+   must not carry a 40px minimum of their own. */
 .theme-chip {
   display: inline-flex;
+  align-items: stretch;
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--skill-bg);
+  transition: border-color 0.2s var(--ease-standard);
 }
 
-.theme-chip-apply {
+.theme-chip:hover {
+  border-color: var(--accent-mild);
+}
+
+/* The apply half keeps `.preset-btn` for its typography, padding and hit size
+   and gives up everything that would draw a box of its own. Scoped under
+   `.theme-chip` so it wins on specificity rather than on source order - the
+   ordering trap above is what broke the pill the first time.
+
+   Inner radii are 11px, the outer 12px less the 1px border, so a filled half
+   stays inside the pill's corners instead of squaring them off. */
+.theme-chip .theme-chip-apply {
   flex: 1 1 auto;
   min-width: 0;
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-  border-right: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 11px 0 0 11px;
+  background: transparent;
+}
+
+/* No lift and no squash: half a pill cannot move without tearing it open. */
+.theme-chip .theme-chip-apply:hover,
+.theme-chip .theme-chip-apply:focus-visible,
+.theme-chip .theme-chip-apply:active {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  transform: none;
+}
+
+/* Inset, because an outward offset would be drawn across the pill's own border
+   and over the other half - the ring has to read as "this half of the pill". */
+.theme-chip .theme-chip-apply:focus-visible,
+.theme-chip-remove:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: -3px;
+}
+
+/* `text-overflow` needs a block-level box and the button is a flex container,
+   so the name is its own span - long names truncate inside the pill instead of
+   stretching it past the panel. */
+.theme-chip-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1340,21 +1392,22 @@ body:not(.dark-theme) .token-number {
 
    Deliberately not the hover treatment: this state persists, so it carries a
    full-strength border rather than the hover's `--accent-mild`, and it does
-   not lift. */
-.theme-chip-apply.is-active {
+   not lift. The border now belongs to the pill, so `:has()` is what carries
+   the state out to it; where that does not resolve the tinted half still says
+   which theme is loaded. */
+.theme-chip:has(.theme-chip-apply.is-active) {
   border-color: var(--accent-fill);
-  background: var(--accent-soft);
-  color: var(--accent-text);
 }
 
-.theme-chip-apply.is-active + .theme-chip-remove {
-  border-color: var(--accent-fill);
+.theme-chip .theme-chip-apply.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 /* Edited past what the saved theme holds. An edit is a preview until Save, and
    this dot is the only place that is visible while it is still true - the
    chip's `title` says the same thing in words. */
-.theme-chip-apply.is-edited::after {
+.theme-chip .theme-chip-apply.is-edited::after {
   content: "";
   flex: 0 0 auto;
   width: 5px;
@@ -1364,16 +1417,21 @@ body:not(.dark-theme) .token-number {
   background: var(--accent-fill);
 }
 
+/* The cross is the other half of the same pill: no box of its own, just a
+   hairline where the two halves meet so the delete target is findable without
+   being a second chip. 32px against a 38px inner height clears the 24px
+   minimum target comfortably. */
 .theme-chip-remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  min-height: 40px;
+  flex: 0 0 auto;
+  width: 32px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 0 12px 12px 0;
-  background: var(--skill-bg);
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0 11px 11px 0;
+  background: transparent;
   color: var(--muted);
   font-size: var(--text-2xs);
   cursor: pointer;
@@ -1384,17 +1442,13 @@ body:not(.dark-theme) .token-number {
 }
 
 /* Deleting is the destructive half of the pill, so it is the half that turns
-   red - and only on approach, so the row is not a wall of warning colour. */
+   red - and only on approach, so the row is not a wall of warning colour. The
+   divider goes red with it rather than staying a grey seam through the fill. */
 .theme-chip-remove:hover,
 .theme-chip-remove:focus-visible {
-  border-color: var(--color-error);
+  border-left-color: var(--color-error);
   background: var(--color-error);
   color: var(--on-accent-inverse);
-}
-
-.theme-chip-remove:focus-visible {
-  outline: 3px solid var(--focus-ring);
-  outline-offset: 2px;
 }
 
 /* ── Naming a theme ──
