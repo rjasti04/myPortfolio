@@ -8,6 +8,7 @@ exist mainly so that class of wiring break cannot pass CI again.
 """
 
 import re
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -69,6 +70,43 @@ async def _login(async_client, email, password):
 
 async def _auth_header(async_client, email, password):
     return {"Authorization": f"Bearer {(await _login(async_client, email, password))['access_token']}"}
+
+
+def _totp_now(secret):
+    """A code with enough of its 30-second step left to survive the round trip.
+
+    `TOTP.now()` returns the code for the step containing *this instant*. Taken
+    near a boundary it can expire between generation and the server's
+    `verify()`, which runs with pyotp's default `valid_window=0` and so accepts
+    only the current step. That made every TOTP test intermittently red under
+    load - a real race, not a flaky assertion. Waiting out the tail of a nearly
+    spent window costs at most two seconds and removes the boundary entirely.
+    """
+    totp = pyotp.TOTP(secret)
+    remaining = totp.interval - (time.time() % totp.interval)
+    if remaining < 2:
+        time.sleep(remaining + 0.1)
+    return totp.now()
+
+
+async def _auth_header_2fa(async_client, email, password, secret):
+    """A bearer token for an account that already has 2FA on.
+
+    `_auth_header` cannot serve one: password login on an enrolled account
+    returns a challenge rather than a token pair, so the second factor has to be
+    walked through to get an access token at all.
+    """
+    challenge = await _login(async_client, email, password)
+    assert challenge["requires_2fa"] is True
+    verified = await async_client.post(
+        "/api/auth/2fa/verify",
+        json={
+            "pre_auth_token": challenge["pre_auth_token"],
+            "code": _totp_now(secret),
+        },
+    )
+    assert verified.status_code == 200, verified.text
+    return {"Authorization": f"Bearer {verified.json()['access_token']}"}
 
 
 # --- wiring ----------------------------------------------------------------
@@ -420,7 +458,9 @@ async def test_setup_2fa_cannot_rotate_a_live_secret(async_client):
     secret = setup.json()["secret"]
 
     enabled = await async_client.post(
-        "/api/auth/2fa/enable", headers=headers, json={"code": pyotp.TOTP(secret).now()}
+        "/api/auth/2fa/enable",
+        headers=headers,
+        json={"current_password": password, "code": _totp_now(secret)},
     )
     assert enabled.status_code == 200, enabled.text
 
@@ -439,7 +479,7 @@ async def test_setup_2fa_cannot_rotate_a_live_secret(async_client):
         "/api/auth/2fa/verify",
         json={
             "pre_auth_token": challenge.json()["pre_auth_token"],
-            "code": pyotp.TOTP(secret).now(),
+            "code": _totp_now(secret),
         },
     )
     assert verified.status_code == 200, verified.text
@@ -585,9 +625,11 @@ async def _enable_2fa(async_client, email, password):
     headers = await _auth_header(async_client, email, password)
     secret = (await async_client.post("/api/auth/2fa/setup", headers=headers)).json()["secret"]
     enabled = await async_client.post(
-        "/api/auth/2fa/enable", headers=headers, json={"code": pyotp.TOTP(secret).now()}
+        "/api/auth/2fa/enable",
+        headers=headers,
+        json={"current_password": password, "code": _totp_now(secret)},
     )
-    assert enabled.status_code == 200
+    assert enabled.status_code == 200, enabled.text
     return secret
 
 
@@ -605,13 +647,13 @@ async def test_a_pre_auth_token_cannot_be_replayed(async_client):
 
     first = await async_client.post(
         "/api/auth/2fa/verify",
-        json={"pre_auth_token": pre_auth, "code": pyotp.TOTP(secret).now()},
+        json={"pre_auth_token": pre_auth, "code": _totp_now(secret)},
     )
     assert first.status_code == 200
 
     replay = await async_client.post(
         "/api/auth/2fa/verify",
-        json={"pre_auth_token": pre_auth, "code": pyotp.TOTP(secret).now()},
+        json={"pre_auth_token": pre_auth, "code": _totp_now(secret)},
     )
     assert replay.status_code == 400, "a spent pre-auth token must not work twice"
 
@@ -650,7 +692,7 @@ async def test_a_pre_auth_token_without_a_jti_is_refused(async_client):
 
     response = await async_client.post(
         "/api/auth/2fa/verify",
-        json={"pre_auth_token": jti_less, "code": pyotp.TOTP(secret).now()},
+        json={"pre_auth_token": jti_less, "code": _totp_now(secret)},
     )
     assert response.status_code == 400, "a pre-auth token with no jti must not be spendable"
 
@@ -678,6 +720,164 @@ async def test_repeated_bad_2fa_codes_lock_the_account(async_client):
     )
     assert locked.status_code == 400
     assert "locked" in locked.text.lower()
+
+
+# --- turning the second factor off ------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_2fa_can_be_disabled_and_re_enrolled(async_client):
+    """The endpoint shipped with 2FA and nothing ever called it, so the only
+    way off a second factor was a database edit - and `/2fa/setup` refuses to
+    reissue a secret while one is live, which made a lost authenticator
+    terminal."""
+    email, password = await _register(async_client)
+    secret = await _enable_2fa(async_client, email, password)
+    headers = await _auth_header_2fa(async_client, email, password, secret)
+
+    disabled = await async_client.post(
+        "/api/auth/2fa/disable",
+        headers=headers,
+        json={"current_password": password, "code": _totp_now(secret)},
+    )
+    assert disabled.status_code == 200, disabled.text
+
+    # Off means off: the login no longer challenges...
+    plain = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert plain.status_code == 200
+    assert plain.json()["requires_2fa"] is False
+
+    # ...and enrolment is reachable again, which is the whole point of disable.
+    again = await async_client.post("/api/auth/2fa/setup", headers=headers)
+    assert again.status_code == 200, again.text
+    assert again.json()["secret"] != secret
+
+
+@pytest.mark.asyncio
+async def test_disable_2fa_needs_both_the_password_and_a_live_code(async_client):
+    """Either credential alone must be useless. A stolen access token carries
+    neither, and that is what stops it stripping the second factor off."""
+    email, password = await _register(async_client)
+    secret = await _enable_2fa(async_client, email, password)
+    headers = await _auth_header_2fa(async_client, email, password, secret)
+
+    wrong_pw = await async_client.post(
+        "/api/auth/2fa/disable",
+        headers=headers,
+        json={"current_password": "NotThePassword1!", "code": _totp_now(secret)},
+    )
+    assert wrong_pw.status_code == 401
+
+    wrong_code = await async_client.post(
+        "/api/auth/2fa/disable",
+        headers=headers,
+        json={"current_password": password, "code": "000000"},
+    )
+    assert wrong_code.status_code == 400
+
+    # Still on after both refusals.
+    challenge = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert challenge.json()["requires_2fa"] is True
+
+
+@pytest.mark.asyncio
+async def test_disable_2fa_is_refused_when_2fa_is_off(async_client):
+    """A state error, not a guess - so it must not count toward the lockout
+    tally the way a wrong password or a wrong code does."""
+    email, password = await _register(async_client)
+    headers = await _auth_header(async_client, email, password)
+
+    res = await async_client.post(
+        "/api/auth/2fa/disable",
+        headers=headers,
+        json={"current_password": password, "code": "123456"},
+    )
+    assert res.status_code == 400
+    assert "not enabled" in res.text.lower()
+
+    # Six probes, well past the threshold of five, and the account still logs in.
+    for _ in range(5):
+        await async_client.post(
+            "/api/auth/2fa/disable",
+            headers=headers,
+            json={"current_password": password, "code": "123456"},
+        )
+    still_fine = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert still_fine.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_repeated_bad_disable_codes_lock_the_account(async_client):
+    """`/2fa/disable` counted nothing, so the six digits on it could be walked
+    at will by anyone holding an access token and the password."""
+    email, password = await _register(async_client)
+    secret = await _enable_2fa(async_client, email, password)
+    headers = await _auth_header_2fa(async_client, email, password, secret)
+
+    for _ in range(5):
+        attempt = await async_client.post(
+            "/api/auth/2fa/disable",
+            headers=headers,
+            json={"current_password": password, "code": "000000"},
+        )
+        assert attempt.status_code == 400
+
+    locked = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert locked.status_code == 400
+    assert "locked" in locked.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_enabling_2fa_requires_the_current_password(async_client):
+    """An access token was on its own enough to bind an authenticator to an
+    account that had no second factor - which locks the real owner out rather
+    than merely reading their data."""
+    email, password = await _register(async_client)
+    headers = await _auth_header(async_client, email, password)
+    secret = (await async_client.post("/api/auth/2fa/setup", headers=headers)).json()["secret"]
+
+    missing = await async_client.post(
+        "/api/auth/2fa/enable", headers=headers, json={"code": _totp_now(secret)}
+    )
+    assert missing.status_code == 422, "current_password is required"
+
+    wrong = await async_client.post(
+        "/api/auth/2fa/enable",
+        headers=headers,
+        json={"current_password": "NotThePassword1!", "code": _totp_now(secret)},
+    )
+    assert wrong.status_code == 401
+
+    ok = await async_client.post(
+        "/api/auth/2fa/enable",
+        headers=headers,
+        json={"current_password": password, "code": _totp_now(secret)},
+    )
+    assert ok.status_code == 200, ok.text
+
+
+@pytest.mark.asyncio
+async def test_totp_codes_must_be_six_digits(async_client):
+    """The code fields took any string and handed it straight to pyotp."""
+    email, password = await _register(async_client)
+    headers = await _auth_header(async_client, email, password)
+    await async_client.post("/api/auth/2fa/setup", headers=headers)
+
+    for bad in ("12345", "1234567", "abcdef", ""):
+        res = await async_client.post(
+            "/api/auth/2fa/enable",
+            headers=headers,
+            json={"current_password": password, "code": bad},
+        )
+        assert res.status_code == 422, f"{bad!r} should not reach pyotp"
 
 
 # --- single-use token isolation ---------------------------------------------

@@ -38,7 +38,7 @@ from server.auth.security import (
 from server.services.hibp_service import check_password_breached
 from server.services.notification_service import (
     send_security_notification_email, send_password_reset_email, send_magic_link_email,
-    send_email_verification_email
+    send_email_verification_email, send_2fa_change_notification
 )
 from sqlalchemy.exc import IntegrityError
 import structlog
@@ -869,25 +869,79 @@ async def setup_2fa(db: AsyncSession, user: User) -> Setup2FAResponse:
     return Setup2FAResponse(secret=secret, qr_code=qr_code_data_uri)
 
 
-async def enable_2fa(db: AsyncSession, user: User, data: Enable2FARequest) -> dict:
+# Both of the routes below turn a second factor on or off, so both are
+# credential changes and both follow the same order:
+#
+#   lockout -> password -> state -> code -> mutate -> revoke -> notify
+#
+# A wrong password or a wrong code is a *guess* and counts toward the shared
+# lockout tally. A state error ("2FA is not enabled") is not a guess and does
+# not count - otherwise probing an endpoint that refuses everyone equally would
+# lock accounts. Neither route counted anything before, so the six digits on
+# them could be walked at will by anyone holding an access token.
+
+
+async def enable_2fa(
+    db: AsyncSession,
+    user: User,
+    data: Enable2FARequest,
+    current_jti: Optional[str] = None,
+    background_tasks: Optional[BackgroundTasks] = None,
+) -> dict:
+    now = datetime.now(timezone.utc)
+    enforce_lockout(user, now, "2fa_enable_rejected_account_locked")
+
+    if not verify_password(data.current_password, user.hashed_password):
+        register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa_enable")
+        await db.commit()
+        logger.warning("2fa_enable_invalid_password", user_id=str(user.id))
+        raise HTTPException(status_code=401, detail="Incorrect current password")
+
     if not user.totp_secret:
         raise HTTPException(status_code=400, detail="2FA setup not initiated")
 
     totp = pyotp.TOTP(user.totp_secret)
     if not totp.verify(data.code):
+        register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa_enable")
+        await db.commit()
         logger.warning("2fa_enable_invalid_code", user_id=str(user.id))
         raise HTTPException(status_code=400, detail="Invalid 2FA code")
 
     user.is_totp_enabled = True
+    user.failed_login_attempts = 0
+    user.locked_until = None
     db.add(user)
     await db.commit()
+
+    # Anything else holding a live token predates the second factor and has not
+    # been asked for it. `revoke_all_other_sessions` rather than
+    # `revoke_user_tokens` so the caller keeps the session they are enrolling
+    # from - signing them out of the tab they just used would be its own bug.
+    await revoke_all_other_sessions(db, user, current_jti)
+
+    if background_tasks:
+        background_tasks.add_task(
+            send_2fa_change_notification, user.email, str(user.id), True
+        )
 
     logger.info("2fa_enabled_successfully", user_id=str(user.id))
     return {"message": "2FA successfully enabled"}
 
 
-async def disable_2fa(db: AsyncSession, user: User, data: Disable2FARequest) -> dict:
+async def disable_2fa(
+    db: AsyncSession,
+    user: User,
+    data: Disable2FARequest,
+    current_jti: Optional[str] = None,
+    background_tasks: Optional[BackgroundTasks] = None,
+) -> dict:
+    now = datetime.now(timezone.utc)
+    enforce_lockout(user, now, "2fa_disable_rejected_account_locked")
+
     if not verify_password(data.current_password, user.hashed_password):
+        register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa_disable")
+        await db.commit()
+        logger.warning("2fa_disable_invalid_password", user_id=str(user.id))
         raise HTTPException(status_code=401, detail="Incorrect current password")
 
     if not user.totp_secret or not user.is_totp_enabled:
@@ -895,12 +949,24 @@ async def disable_2fa(db: AsyncSession, user: User, data: Disable2FARequest) -> 
 
     totp = pyotp.TOTP(user.totp_secret)
     if not totp.verify(data.code):
+        register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa_disable")
+        await db.commit()
+        logger.warning("2fa_disable_invalid_code", user_id=str(user.id))
         raise HTTPException(status_code=400, detail="Invalid 2FA code")
 
     user.is_totp_enabled = False
     user.totp_secret = None
+    user.failed_login_attempts = 0
+    user.locked_until = None
     db.add(user)
     await db.commit()
+
+    await revoke_all_other_sessions(db, user, current_jti)
+
+    if background_tasks:
+        background_tasks.add_task(
+            send_2fa_change_notification, user.email, str(user.id), False
+        )
 
     logger.info("2fa_disabled_successfully", user_id=str(user.id))
     return {"message": "2FA successfully disabled"}

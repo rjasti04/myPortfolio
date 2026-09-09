@@ -1,4 +1,4 @@
-import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, isCredentialRejection, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, verify2FA, requestMagicLink, verifyMagicLink, verifyEmail, resendVerification, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession, clearTokens } from './auth.js';
+import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, isCredentialRejection, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, disable2FA, verify2FA, requestMagicLink, verifyMagicLink, verifyEmail, resendVerification, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession, clearTokens } from './auth.js';
 import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
 import { closeModal, openModal } from './modal.js';
@@ -113,6 +113,7 @@ export async function initAuthUI() {
         'magic-link': 'auth-title-magic-link',
         '2fa-verify': 'auth-title-2fa-verify',
         '2fa-setup': 'auth-title-2fa-setup',
+        '2fa-manage': 'auth-title-2fa-manage',
         sessions: 'auth-title-sessions',
         'delete-account': 'auth-title-delete-account',
     };
@@ -174,18 +175,49 @@ export async function initAuthUI() {
         openAuthModal('magic-link');
     });
 
+    /**
+     * Drops the enrolment secret out of the DOM.
+     *
+     * The QR and the secret string are the TOTP secret in two renderings, and
+     * nothing used to remove them: one successful enrolment left both sitting
+     * in the document for the rest of the page's life, and re-opening the panel
+     * showed a stale, already-consumed QR next to whatever error had just come
+     * back. `removeAttribute` rather than `src = ''` because an empty `src`
+     * resolves to the document URL and makes the browser re-fetch index.html as
+     * an image.
+     */
+    function clearTwoFactorEnrolment() {
+        const container = document.getElementById('2fa-setup-container');
+        const qrImg = document.getElementById('2fa-qr-img');
+        const secretText = document.getElementById('2fa-secret-text');
+        if (container) container.hidden = true;
+        if (qrImg) qrImg.removeAttribute('src');
+        if (secretText) secretText.textContent = '';
+    }
+
     window.addEventListener('request-2fa-setup-modal', async () => {
+        clearTwoFactorEnrolment();
         openAuthModal('2fa-setup');
         try {
             const data = await setup2FA();
+            const container = document.getElementById('2fa-setup-container');
             const qrImg = document.getElementById('2fa-qr-img');
             const secretText = document.getElementById('2fa-secret-text');
             if (qrImg) qrImg.src = data.qr_code;
             if (secretText) secretText.textContent = data.secret;
+            if (container) container.hidden = false;
         } catch (e) {
             const errEl = document.getElementById('2fa-enable-error');
             if (errEl) errEl.textContent = e.message || 'Failed to initialize 2FA setup.';
         }
+    });
+
+    // An enrolled account has nothing to enrol. This used to route here anyway,
+    // and the server's (correct) refusal to re-issue a live secret was rendered
+    // as a bare error over an empty QR frame, telling the user to disable a
+    // second factor through a control that did not exist.
+    window.addEventListener('request-2fa-manage-modal', () => {
+        openAuthModal('2fa-manage');
     });
 
     window.addEventListener('request-sessions-modal', async () => {
@@ -206,7 +238,7 @@ export async function initAuthUI() {
     });
 
     // Tab switching
-    const hiddenTabIds = ['forgot', 'change-password', 'reset-password', 'delete-account', 'magic-link', '2fa-verify', '2fa-setup', 'sessions'];
+    const hiddenTabIds = ['forgot', 'change-password', 'reset-password', 'delete-account', 'magic-link', '2fa-verify', '2fa-setup', '2fa-manage', 'sessions'];
     function switchTab(tabId) {
         resetPasswordVisibility();
         tabs.forEach(t => t.classList.remove('active'));
@@ -247,13 +279,16 @@ export async function initAuthUI() {
             forgotSuccess.textContent = '';
             forgotSuccess.style.display = 'none';
         }
-        const fieldsToClear = ['change-pw-error', 'reset-pw-error', 'delete-account-error', 'magic-link-error', '2fa-verify-error', '2fa-enable-error', 'sessions-error'];
+        const fieldsToClear = ['change-pw-error', 'reset-pw-error', 'delete-account-error', 'magic-link-error', '2fa-verify-error', '2fa-enable-error', '2fa-disable-error', 'sessions-error'];
         fieldsToClear.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = '';
         });
         document.getElementById('register-resend-verification')?.remove();
-        const successToHide = ['register-success', 'change-pw-success', 'reset-pw-success', 'delete-account-success', 'magic-link-success', '2fa-enable-success'];
+        // Leaving the setup panel drops the secret with it. The enrolment
+        // handler re-populates on its way in.
+        if (tabId !== '2fa-setup') clearTwoFactorEnrolment();
+        const successToHide = ['register-success', 'change-pw-success', 'reset-pw-success', 'delete-account-success', 'magic-link-success', '2fa-enable-success', '2fa-disable-success'];
         successToHide.forEach(id => {
             const el = document.getElementById(id);
             if (el) { el.textContent = ''; el.style.display = 'none'; }
@@ -515,6 +550,17 @@ export async function initAuthUI() {
             switchTab('magic-link');
         });
     }
+    const twoFactorBackToLoginTrigger = document.getElementById('2fa-back-to-login-trigger');
+    if (twoFactorBackToLoginTrigger) {
+        twoFactorBackToLoginTrigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            // The pre-auth token dies with the attempt, so abandoning the
+            // challenge has to clear it rather than leave a spent one behind.
+            const preInput = document.getElementById('2fa-pre-auth-token-input');
+            if (preInput) preInput.value = '';
+            switchTab('login');
+        });
+    }
     if (magicBackToLoginTrigger) {
         magicBackToLoginTrigger.addEventListener('click', (e) => {
             e.preventDefault();
@@ -573,9 +619,24 @@ export async function initAuthUI() {
 
                 twoFactorVerifyForm.reset();
                 closeAuthModal();
+                showToast('Signed in.', 'success');
                 window.dispatchEvent(new Event('auth-changed'));
             } catch (err) {
-                if (verifyError) verifyError.textContent = err.message || 'Invalid 2FA code.';
+                // Every failure here is terminal, not just the expired one. The
+                // server burns the single-use pre-auth token *before* it checks
+                // the code, so the token in this form is already spent whatever
+                // went wrong. Leaving the user on the panel to retype only got
+                // them "This sign-in attempt has expired" on the second submit,
+                // with no way back to the login form. Send them back to start
+                // over instead, and take the dead token with us.
+                const preInput = document.getElementById('2fa-pre-auth-token-input');
+                if (preInput) preInput.value = '';
+                twoFactorVerifyForm.reset();
+                switchTab('login');
+                if (loginError) {
+                    loginError.textContent =
+                        `${err.message || 'Invalid 2FA code.'} Please sign in again.`;
+                }
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -587,6 +648,7 @@ export async function initAuthUI() {
     if (twoFactorEnableForm) {
         twoFactorEnableForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const currentPassword = document.getElementById('2fa-enable-password').value;
             const code = document.getElementById('2fa-enable-code').value;
             const btn = twoFactorEnableForm.querySelector('button[type="submit"]');
             const originalText = btn.innerHTML;
@@ -599,7 +661,7 @@ export async function initAuthUI() {
                 if (enableError) enableError.textContent = '';
                 if (enableSuccess) { enableSuccess.textContent = ''; enableSuccess.style.display = 'none'; }
 
-                await enable2FA(code);
+                await enable2FA(currentPassword, code);
 
                 if (enableSuccess) {
                     enableSuccess.textContent = '2FA successfully enabled!';
@@ -612,6 +674,68 @@ export async function initAuthUI() {
                 }, 1500);
             } catch (err) {
                 if (enableError) enableError.textContent = err.message || 'Failed to enable 2FA.';
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
+
+    // Disable 2FA. The endpoint and the `disable2FA` client have both existed
+    // since 2FA shipped; nothing ever called them, so the only way off a second
+    // factor was a database edit - and the error the server returns when you
+    // re-enrol tells you to disable it first.
+    const twoFactorDisableForm = document.getElementById('2fa-disable-form');
+    const twoFactorDisablePassword = document.getElementById('2fa-disable-password');
+    const twoFactorDisableCode = document.getElementById('2fa-disable-code');
+    const twoFactorDisableSubmitBtn = document.getElementById('2fa-disable-submit-btn');
+    const twoFactorDisableError = document.getElementById('2fa-disable-error');
+    const twoFactorDisableSuccess = document.getElementById('2fa-disable-success');
+
+    function updateTwoFactorDisableValidation() {
+        if (!twoFactorDisablePassword || !twoFactorDisableCode || !twoFactorDisableSubmitBtn) return;
+        const hasPw = twoFactorDisablePassword.value.length > 0;
+        const codeReady = /^\d{6}$/.test(twoFactorDisableCode.value.trim());
+        setSubmitReadiness(
+            twoFactorDisableSubmitBtn,
+            hasPw && codeReady,
+            !hasPw ? 'Enter your current password.' : 'Enter the 6-digit code from your authenticator.'
+        );
+    }
+
+    if (twoFactorDisablePassword) twoFactorDisablePassword.addEventListener('input', updateTwoFactorDisableValidation);
+    if (twoFactorDisableCode) twoFactorDisableCode.addEventListener('input', updateTwoFactorDisableValidation);
+    updateTwoFactorDisableValidation();
+
+    if (twoFactorDisableForm) {
+        twoFactorDisableForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currentPassword = twoFactorDisablePassword.value;
+            const code = twoFactorDisableCode.value.trim();
+            const btn = twoFactorDisableForm.querySelector('button[type="submit"]');
+            if (blockedBeforeSubmit(btn, twoFactorDisableError, twoFactorDisablePassword)) return;
+            const originalText = btn.innerHTML;
+
+            try {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Disabling...';
+                btn.disabled = true;
+                if (twoFactorDisableError) twoFactorDisableError.textContent = '';
+                if (twoFactorDisableSuccess) {
+                    twoFactorDisableSuccess.textContent = '';
+                    twoFactorDisableSuccess.style.display = 'none';
+                }
+
+                await disable2FA(currentPassword, code);
+
+                twoFactorDisableForm.reset();
+                updateTwoFactorDisableValidation();
+                closeAuthModal();
+                showToast('Two-factor authentication disabled.', 'success');
+                window.dispatchEvent(new Event('auth-changed'));
+            } catch (err) {
+                if (twoFactorDisableError) {
+                    twoFactorDisableError.textContent = err.message || 'Failed to disable 2FA.';
+                }
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -1303,7 +1427,7 @@ async function setupNavUI() {
                     </div>
                     <div class="nav-user-dropdown" id="nav-user-dropdown">
                         <button class="nav-dropdown-item" id="nav-2fa-btn">
-                            <i class="fas fa-shield-halved"></i> ${user.is_totp_enabled ? '2FA Enabled' : 'Setup 2FA'}
+                            <i class="fas fa-shield-halved"></i> ${user.is_totp_enabled ? 'Manage 2FA' : 'Setup 2FA'}
                         </button>
                         <button class="nav-dropdown-item" id="nav-sessions-btn">
                             <i class="fas fa-laptop"></i> Active Devices
@@ -1346,9 +1470,17 @@ async function setupNavUI() {
                 });
 
                 if (btn2FA) {
+                    // Routes on state. The label used to read "2FA Enabled"
+                    // while the handler still asked to enrol, so an enrolled
+                    // user got the enrolment panel and the server's refusal to
+                    // reissue a live secret - an empty QR frame, an empty
+                    // "Secret Key:" and an error naming a Disable control that
+                    // did not exist.
                     btn2FA.addEventListener('click', () => {
                         dropdown.classList.remove('show');
-                        window.dispatchEvent(new Event('request-2fa-setup-modal'));
+                        window.dispatchEvent(new Event(
+                            user.is_totp_enabled ? 'request-2fa-manage-modal' : 'request-2fa-setup-modal'
+                        ));
                     });
                 }
 

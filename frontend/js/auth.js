@@ -72,11 +72,11 @@ export async function setup2FA() {
   return await res.json();
 }
 
-export async function enable2FA(code) {
+export async function enable2FA(currentPassword, code) {
   const res = await authenticatedFetch(`${API_BASE}/auth/2fa/enable`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code })
+    body: JSON.stringify({ current_password: currentPassword, code })
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

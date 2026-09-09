@@ -2236,7 +2236,7 @@
           <div class="form-group floating-label-group">
             <div class="input-wrapper">
               <input type="text" id="2fa-verify-code" name="code" placeholder=" " required maxlength="6"
-                pattern="[0-9]{6}" autocomplete="one-time-code" />
+                pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" />
               <label class="form-label" for="2fa-verify-code">6-Digit Code</label>
               <i class="fas fa-shield-halved input-icon"></i>
             </div>
@@ -2245,6 +2245,11 @@
           <button type="submit" class="btn btn-accent auth-submit-btn">
             Verify & Log In <i class="fas fa-check"></i>
           </button>
+          <div class="back-to-login-wrapper">
+            <button type="button" class="back-to-login-btn" id="2fa-back-to-login-trigger">
+              <i class="fas fa-arrow-left"></i> Back to Login
+            </button>
+          </div>
         </form>
       </div>
 
@@ -2252,17 +2257,32 @@
       <div class="auth-tab-content" id="auth-tab-2fa-setup">
         <h3 id="auth-title-2fa-setup">Setup Two-Factor Authentication</h3>
         <p class="auth-modal-subtitle">Scan the QR code with Google Authenticator or Authy, then enter the code.</p>
-        <div id="2fa-setup-container" class="twofa-setup">
+        <!-- Hidden until setup2FA() resolves. An always-visible block left an
+             empty <img> (which the browser resolves to the document URL and
+             re-fetches) and a bare "Secret Key:" label on screen whenever the
+             request failed. -->
+        <div id="2fa-setup-container" class="twofa-setup" hidden>
           <div id="2fa-qr-code-wrapper" class="twofa-qr-wrapper">
-            <img id="2fa-qr-img" src="" alt="2FA QR Code" class="twofa-qr-img" width="180" height="180" />
+            <img id="2fa-qr-img" alt="2FA QR Code" class="twofa-qr-img" width="180" height="180" />
           </div>
           <p class="twofa-secret-line">Secret Key: <code id="2fa-secret-text" class="twofa-secret-code"></code></p>
         </div>
         <form class="auth-form" id="2fa-enable-form">
           <div class="form-group floating-label-group">
             <div class="input-wrapper">
+              <input type="password" id="2fa-enable-password" name="current_password" placeholder=" " required
+                autocomplete="current-password" />
+              <label class="form-label" for="2fa-enable-password">Current Password</label>
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="2fa-enable-password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
               <input type="text" id="2fa-enable-code" name="code" placeholder=" " required maxlength="6"
-                pattern="[0-9]{6}" />
+                pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" />
               <label class="form-label" for="2fa-enable-code">Enter 6-Digit Code</label>
               <i class="fas fa-key input-icon"></i>
             </div>
@@ -2271,6 +2291,49 @@
           <div class="auth-success" role="status" id="2fa-enable-success"></div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
             Enable 2FA <i class="fas fa-shield-halved"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- 2FA Manage Tab - what an already-enrolled user sees -->
+      <div class="auth-tab-content" id="auth-tab-2fa-manage">
+        <h3 id="auth-title-2fa-manage">Two-Factor Authentication</h3>
+        <p class="auth-modal-subtitle">Two-factor authentication is active on this account.</p>
+        <div class="twofa-status" role="status">
+          <i class="fas fa-shield-halved twofa-status-icon"></i>
+          <span>Protected by an authenticator app</span>
+        </div>
+        <div class="auth-warning-box">
+          <p><strong>Turning 2FA off</strong> removes the second factor from your
+            account and deletes the stored secret, so your authenticator entry stops
+            working. To move to a new authenticator, disable 2FA here and then set it
+            up again.</p>
+        </div>
+        <form class="auth-form" id="2fa-disable-form">
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="password" id="2fa-disable-password" name="current_password" placeholder=" " required
+                autocomplete="current-password" />
+              <label class="form-label" for="2fa-disable-password">Current Password</label>
+              <button type="button" class="password-toggle-btn" aria-label="Show password"
+                data-toggle-target="2fa-disable-password">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <div class="form-group floating-label-group">
+            <div class="input-wrapper">
+              <input type="text" id="2fa-disable-code" name="code" placeholder=" " required maxlength="6"
+                pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" />
+              <label class="form-label" for="2fa-disable-code">6-Digit Code</label>
+              <i class="fas fa-key input-icon"></i>
+            </div>
+          </div>
+          <div class="auth-error" role="alert" id="2fa-disable-error"></div>
+          <div class="auth-success" role="status" id="2fa-disable-success"></div>
+          <button type="submit" class="btn auth-submit-btn auth-btn-danger" id="2fa-disable-submit-btn"
+            aria-disabled="true">
+            Disable 2FA <i class="fas fa-shield-halved"></i>
           </button>
         </form>
       </div>

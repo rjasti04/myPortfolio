@@ -85,12 +85,13 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,431 lines)
+### `auth-ui.js` (1,563 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
 meter and requirement checklist, confirm-password matching, visibility toggles,
-2FA enrolment with the QR code, active-session list with per-session and
+2FA enrolment with the QR code and the manage panel that turns it back off,
+active-session list with per-session and
 "log out everywhere else" revocation, change password, delete account, magic-link
 and reset-token handling from query parameters, and the injected profile
 dropdown in the header (`setupNavUI`).
@@ -191,7 +192,7 @@ Token storage and every authenticated call.
 | `getAuthToken()`, `setTokens(a, r)`, `clearTokens()` | `localStorage` accessors |
 | `getErrorMessage(errorData, fallback)` | Normalises FastAPI's string / array `detail` shapes |
 | `loginUser`, `registerUser`, `logoutUser` | Credential flows. `registerUser` returns the created `UserResponse` and signs **nobody** in — the address has to be confirmed first |
-| `setup2FA`, `enable2FA`, `disable2FA`, `verify2FA` | TOTP enrolment and challenge |
+| `setup2FA`, `enable2FA(pw, code)`, `disable2FA(pw, code)`, `verify2FA` | TOTP enrolment, teardown and challenge. Enable and disable both re-authenticate with the password |
 | `requestMagicLink`, `verifyMagicLink` | Passwordless sign-in |
 | `requestPasswordReset`, `resetPassword`, `changePassword` | Password flows |
 | `deleteAccount` | Soft delete |

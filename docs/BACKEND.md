@@ -304,7 +304,7 @@ one-time-token purposes (`password_reset`, `magic_link`, `2fa_pre_auth`).
 | `reset_password_with_token` | Burn the token first, then the same pipeline, plus clearing lockout |
 | `delete_user_account` | Requires the literal phrase `DELETE` and the current password; soft delete with 30-day reactivation |
 | `setup_2fa` | **Refuses** if 2FA is already enabled — re-enrolling would overwrite the live secret and lock the account behind a factor nobody can produce |
-| `enable_2fa` / `disable_2fa` | Disable requires both the password and a valid code |
+| `enable_2fa` / `disable_2fa` | Both require the current password **and** a valid code, and both run **lockout → password → state → code → mutate → revoke → notify**. Wrong credentials count toward the shared lockout; a state error ("2FA is not enabled") does not. Each revokes every *other* session and emails the owner |
 | `verify_2fa_login` | Burns the pre-auth `jti` (otherwise a captured token bought unlimited code guesses) and counts failed codes toward the lockout |
 | `verify_magic_link` | Redeems, then still routes through 2FA if enabled |
 | `get_user_sessions` / `revoke_all_other_sessions` / `revoke_specific_session` | Session management for the account UI |
