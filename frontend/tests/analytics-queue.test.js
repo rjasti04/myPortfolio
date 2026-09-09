@@ -125,3 +125,51 @@ test("a restored queue is filtered down to the owning session's events", async (
     "a foreign event must never survive into a flush"
   );
 });
+
+test("a queue over the cap drops its oldest events, not its newest", async () => {
+  // The retry path unshifts a failed batch back onto the head, so the queue is
+  // ordered oldest-first. `eventQueue.length = MAX_QUEUE_SIZE` truncated the
+  // tail - the newest events - and kept the stale backlog instead.
+  const MAX_QUEUE_SIZE = 200;
+  window.sessionStorage.setItem("rj_session_id", TAB_B_SESSION);
+  window.sessionStorage.setItem("rj_session_token", "token-b");
+
+  // Start exactly at the cap, oldest first. (loadEventQueue restores at most
+  // MAX_QUEUE_SIZE, so seeding more than this would not reach the queue.)
+  const queued = Array.from({ length: MAX_QUEUE_SIZE }, (_, i) => ({
+    session_id: TAB_B_SESSION,
+    event_type: "click",
+    page_path: `/n-${i}`,
+    event_data: {},
+  }));
+  window.localStorage.setItem(`${QUEUE_PREFIX}:${TAB_B_SESSION}`, JSON.stringify(queued));
+
+  // Every flush fails with a 503, which is the branch that re-queues.
+  global.fetch = async () => ({
+    ok: false,
+    status: 503,
+    headers: { get: () => null },
+    json: async () => ({}),
+  });
+
+  const analytics = await import(`../js/analytics.js?queue-cap-${Date.now()}`);
+  analytics.initAnalytics();
+  // One more event puts the queue one over its cap. The flush it triggers
+  // fails, so all 201 come back and the trim has to choose.
+  analytics.trackEvent("theme_change", { theme: "newest-event" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  const stored = JSON.parse(
+    window.localStorage.getItem(`${QUEUE_PREFIX}:${TAB_B_SESSION}`) || "[]"
+  );
+  assert.equal(stored.length, MAX_QUEUE_SIZE, "the queue must stay at its cap");
+  assert.ok(
+    !stored.some((event) => event.page_path === "/n-0"),
+    "the oldest event is the one to drop"
+  );
+  assert.equal(
+    stored[stored.length - 1].event_data?.theme,
+    "newest-event",
+    "the newest event must survive the trim"
+  );
+});

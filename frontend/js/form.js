@@ -342,7 +342,12 @@ export function initContactForm() {
             _honey: honeypot,
           });
           viaFirstParty = response.ok;
-          if (!response.ok && response.status !== 502) throw new Error("Request failed");
+          if (!response.ok && response.status !== 502) {
+            // Carried so the handler can tell a spent budget from an outage.
+            const refused = new Error("Request failed");
+            refused.status = response.status;
+            throw refused;
+          }
         } catch (firstPartyError) {
           if (firstPartyError?.name === "AbortError") throw firstPartyError;
           if (response && !response.ok && response.status !== 502) throw firstPartyError;
@@ -393,23 +398,49 @@ export function initContactForm() {
       // successful messages twice, and the visitor saw a full-page navigation
       // away from the site for their trouble. Ask instead.
       const timedOut = error?.name === "AbortError";
+      // The API answering is not the same as the API being unreachable. A 429
+      // means the hourly budget is spent and a 422 means the payload was
+      // refused; both used to be reported as "could not reach the mail service.
+      // Please try again" - which is wrong about the cause and, for the 429,
+      // invites a retry that cannot succeed for up to an hour.
+      const status = error?.status ?? null;
+      const reason = timedOut
+        ? "timeout"
+        : status === 429
+          ? "rate_limited"
+          : status === 422
+            ? "rejected"
+            : "network";
+
+      const MESSAGES = {
+        timeout: [
+          "That took longer than expected. Your message may still have arrived - "
+            + "check before resending, or email me directly.",
+          "Send timed out - check before resending.",
+        ],
+        rate_limited: [
+          "You have sent several messages recently. Please try again later, "
+            + "or email me directly.",
+          "Too many messages - try again later.",
+        ],
+        rejected: [
+          "That message was not accepted. Please check the fields and try again.",
+          "Message not accepted - check the fields.",
+        ],
+        network: [
+          "Could not reach the mail service. Please try again, or email me directly.",
+          "Could not send. Please try again.",
+        ],
+      };
+      const [statusMessage, toastMessage] = MESSAGES[reason];
+
       trackEvent("contact_submission", {
         success: false,
         native_fallback: false,
-        reason: timedOut ? "timeout" : "network",
+        reason,
       });
-      setFormStatus(
-        contactStatus,
-        timedOut
-          ? "That took longer than expected. Your message may still have arrived - "
-            + "check before resending, or email me directly."
-          : "Could not reach the mail service. Please try again, or email me directly.",
-        "error"
-      );
-      showToast(
-        timedOut ? "Send timed out - check before resending." : "Could not send. Please try again.",
-        "error"
-      );
+      setFormStatus(contactStatus, statusMessage, "error");
+      showToast(toastMessage, "error");
     } finally {
       setSubmitState(contactForm, submitBtn, false);
     }

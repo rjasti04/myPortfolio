@@ -27,9 +27,20 @@ class ChatMessage(BaseModel):
     @field_validator("content")
     @classmethod
     def validate_content(cls, v: str) -> str:
+        """Strips, and refuses what is left empty.
+
+        `max_length` bounded the top but nothing bounded the bottom, so "   "
+        validated as "". `ensure_alternating_roles` then dropped it and Bedrock
+        was called with no messages at all - a ValidationException the service
+        turned into an error frame inside a 200 response. The same guard
+        `ContactRequest` already applies to its own free-text fields.
+        """
         if not isinstance(v, str):
             v = str(v) if v is not None else ""
-        return v.strip()
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("must not be blank")
+        return stripped
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage] = Field(..., min_length=1, max_length=MAX_MESSAGES)

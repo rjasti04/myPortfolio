@@ -332,16 +332,32 @@ revoked. Signing in within 30 days automatically reactivates the account.
 
 ### `GET /auth/sessions` → 200 `[UserSessionResponse]`
 
-Active `user_sessions` rows for the caller, newest activity first. `is_current`
-is always `false` — the API cannot correlate a bearer token with an analytics
-session row.
+The caller's live sessions — one per unrevoked, unexpired `refresh_tokens` row,
+newest first. `session_id` is the row id, not the `jti`, which is a credential.
+`is_current` marks the session the request was made from, resolved from the
+`sid` claim in the caller's access token.
+
+These read `refresh_tokens`, not `user_sessions`. The latter is written only by
+the anonymous `POST /sessions` and never carries a `user_id`, so the list was
+permanently empty and revoking from it ended nothing — one `refresh_tokens` row
+*is* one live login, so revoking one signs that device out as soon as its access
+token expires (≤30 min).
 
 ### `POST /auth/sessions/revoke-others` → 200
 
-`{"current_session_id": "<uuid>"}` (optional, embedded). With no id, **every**
-session is ended — the safe reading of the request. Declared before
+No body. Ends every session but the caller's own, identified by the `sid` claim
+in their access token — it used to be an optional `current_session_id` body
+parameter the client had no way to fill in, so the call signed the caller out
+too. An access token minted before that claim shipped resolves to no session and
+ends everything, which stays the safe reading. Declared before
 `DELETE /auth/sessions/{session_id}` so the literal path segment is not captured
 as a UUID.
+
+### `DELETE /auth/sessions/{session_id}` → 200
+
+Revokes one of the caller's sessions. **404** when the id is unknown, already
+revoked, or belongs to another account — it used to report success for all
+three.
 
 ---
 

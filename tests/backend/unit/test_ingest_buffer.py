@@ -86,3 +86,52 @@ async def test_the_pipeline_stops_reporting_healthy_once_events_are_dropped():
     postgres = ks.pipeline_snapshot()["stages"]["postgres"]
     assert postgres["health"] == "error", "silent data loss must not read as healthy"
     assert postgres["dropped_rejected"] == 3
+
+
+@pytest.mark.asyncio
+async def test_a_failed_flush_keeps_events_in_arrival_order(monkeypatch):
+    """Events that arrive *during* a failed flush are newer than the batch.
+
+    The retry used to `extend`, appending the older batch after them. That both
+    scrambled the order and, because the cap trims from the front, made an
+    outage evict the newest arrivals while keeping the stale backlog - the
+    opposite of what the buffer's own comment promises.
+    """
+    class _BoomAfterArrivals:
+        """Fails the write, but only after new events have landed behind it."""
+
+        async def __aenter__(self):
+            ks.batch_buffer.extend(_events(2, start=100))
+            raise OperationalError("stmt", {}, Exception("down"))
+
+        async def __aexit__(self, *a): return False
+
+    ks.batch_buffer.extend(_events(3))          # the batch about to be flushed
+    monkeypatch.setattr(ks, "AsyncSessionLocal", lambda: _BoomAfterArrivals())
+
+    await ks.save_batch()
+
+    ids = [event["session_id"] for event in ks.batch_buffer]
+    assert ids == ["s0", "s1", "s2", "s100", "s101"], (
+        "the retried batch belongs before the events that arrived during the flush"
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_cap_drops_the_oldest_not_the_newest(monkeypatch):
+    class _Boom:
+        async def __aenter__(self): raise OperationalError("stmt", {}, Exception("down"))
+        async def __aexit__(self, *a): return False
+
+    monkeypatch.setattr(ks, "AsyncSessionLocal", lambda: _Boom())
+    monkeypatch.setattr(ks, "MAX_BUFFERED_EVENTS", 4)
+
+    ks.batch_buffer.extend(_events(3, start=200))   # newest, already waiting
+    await ks.save_batch()                           # flushes and returns them
+    ks.batch_buffer.extend(_events(3, start=300))   # newer still
+    await ks.save_batch()
+
+    ids = [event["session_id"] for event in ks.batch_buffer]
+    assert len(ids) == 4
+    assert ids[-1] == "s302", "the newest event must survive the trim"
+    assert "s200" not in ids, "the oldest event is the one to drop"

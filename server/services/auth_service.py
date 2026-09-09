@@ -1,13 +1,15 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import update, delete
-from fastapi import HTTPException, status, BackgroundTasks
-from typing import Optional
+from fastapi import HTTPException, Request, status, BackgroundTasks
+from typing import Any, Optional
 from server.models.user import User
 from server.models.token import RefreshToken
-from server.models.session import UserSession
 from server.models.one_time_token import OneTimeToken
 from server.models.password_history import PasswordHistory
+from server.config.settings import TRUSTED_PROXY_NETWORKS
+from server.utils.ip_utils import client_ip_from_request
+from server.utils.user_agent import device_type_from_user_agent
 import pyotp
 import qrcode
 import io
@@ -56,6 +58,28 @@ LOCKOUT_DURATION = timedelta(minutes=15)
 def _as_utc(value: datetime) -> datetime:
     """A naive timestamp from SQLite read as UTC; a tz-aware one left alone."""
     return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
+def _session_context(request: Optional[Request]) -> dict[str, Any]:
+    """Where a refresh token was minted, for the session panel to display.
+
+    Captured here rather than at display time because it describes the moment of
+    sign-in, and the device that holds a token is not the one asking to see the
+    list. `client_ip_from_request` is the same reader the analytics session and
+    the rate limiter use, so a deployment that has named its proxy correctly
+    records the visitor rather than the proxy in all three places.
+
+    Every field is optional: a caller that is not a browser has no User-Agent,
+    and a token is worth listing either way.
+    """
+    if request is None:
+        return {"ip_address": None, "user_agent": None, "device_type": None}
+    user_agent = request.headers.get("user-agent")
+    return {
+        "ip_address": client_ip_from_request(request, TRUSTED_PROXY_NETWORKS)[:64],
+        "user_agent": user_agent[:512] if user_agent else None,
+        "device_type": device_type_from_user_agent(user_agent),
+    }
 
 
 def enforce_lockout(user: User, now: datetime, event: str) -> None:
@@ -211,7 +235,9 @@ async def register_user(
             detail="Email already registered"
         ) from None
 
-async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> TokenResponseOr2FA:
+async def authenticate_user(
+    db: AsyncSession, user_data: UserLogin, request: Optional[Request] = None
+) -> TokenResponseOr2FA:
     email_normalized = user_data.email.strip().lower()
     result = await db.execute(select(User).where(User.email == email_normalized))
     user = result.scalars().first()
@@ -319,7 +345,9 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> TokenResp
     db_token = RefreshToken(
         user_id=user.id,
         token_jti=jti,
-        expires_at=expires_at
+        expires_at=expires_at,
+        last_used_at=now,
+        **_session_context(request),
     )
     db.add(db_token)
     await db.commit()
@@ -328,12 +356,14 @@ async def authenticate_user(db: AsyncSession, user_data: UserLogin) -> TokenResp
 
     return TokenResponseOr2FA(
         requires_2fa=False,
-        access_token=create_access_token(subject=str(user.id)),
+        access_token=create_access_token(subject=str(user.id), session_jti=jti),
         refresh_token=create_refresh_token(subject=str(user.id), jti=jti),
         token_type="bearer"
     )
 
-async def refresh_user_token(db: AsyncSession, token_data: RefreshTokenRequest) -> Token:
+async def refresh_user_token(
+    db: AsyncSession, token_data: RefreshTokenRequest, request: Optional[Request] = None
+) -> Token:
     payload = verify_token(token_data.refresh_token, expected_type="refresh")
     user_id_str = payload.get("sub")
     jti = payload.get("jti")
@@ -346,14 +376,35 @@ async def refresh_user_token(db: AsyncSession, token_data: RefreshTokenRequest) 
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid token subject") from None
 
-    # Look up the refresh token in the database
+    now = datetime.now(timezone.utc)
+
+    # Claim the token and revoke it in one statement. Reading the row, checking
+    # `is_revoked` in Python and writing it back left a window between the read
+    # and the commit: under READ COMMITTED - PostgreSQL's default - two requests
+    # presenting the *same* refresh token could both see it unrevoked and both
+    # rotate, so one credential became two live ones and the reuse detection
+    # below never fired. A conditional UPDATE makes the check and the claim the
+    # same operation, so exactly one caller can win.
+    claimed = await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.token_jti == jti)
+        .where(RefreshToken.user_id == user_id)
+        .where(RefreshToken.is_revoked == False)  # noqa: E712 - SQL, not Python truthiness
+        .values(is_revoked=True, last_used_at=now)
+    )
+    if claimed.rowcount != 1:
+        # Unknown, already rotated, or presented by someone other than its subject.
+        logger.warning("refresh_token_invalid_or_revoked", jti=jti, user_id=user_id_str)
+        raise HTTPException(status_code=401, detail="Refresh token has been revoked or expired")
+
+    # Expiry is checked after the claim rather than in the WHERE clause: the
+    # comparison is against a stored timestamp whose timezone handling differs
+    # between SQLite and PostgreSQL, and burning an expired token is harmless.
     token_result = await db.execute(select(RefreshToken).where(RefreshToken.token_jti == jti))
     db_token = token_result.scalars().first()
-
-    now = datetime.now(timezone.utc)
-    if not db_token or db_token.is_revoked or db_token.expires_at.replace(tzinfo=timezone.utc) < now:
-        # If a refresh token is reused/revoked/expired, reject the request
-        logger.warning("refresh_token_invalid_or_revoked", jti=jti, user_id=user_id_str)
+    if db_token is None or _as_utc(db_token.expires_at) < now:
+        await db.commit()
+        logger.warning("refresh_token_expired", jti=jti, user_id=user_id_str)
         raise HTTPException(status_code=401, detail="Refresh token has been revoked or expired")
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -362,18 +413,27 @@ async def refresh_user_token(db: AsyncSession, token_data: RefreshTokenRequest) 
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
 
-    # Revoke the old refresh token (rotation)
-    db_token.is_revoked = True
-    db.add(db_token)
-
     # Generate new JTI and save new refresh token record
     new_jti = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expires_at = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+    # The rotated token inherits the device it was rotated from when the request
+    # carries no context of its own, so a session does not lose its identity in
+    # the panel every thirty minutes.
+    context = _session_context(request)
+    if not context["user_agent"]:
+        context = {
+            "ip_address": db_token.ip_address,
+            "user_agent": db_token.user_agent,
+            "device_type": db_token.device_type,
+        }
 
     new_db_token = RefreshToken(
         user_id=user.id,
         token_jti=new_jti,
-        expires_at=expires_at
+        expires_at=expires_at,
+        last_used_at=now,
+        **context,
     )
     db.add(new_db_token)
     await db.commit()
@@ -381,16 +441,21 @@ async def refresh_user_token(db: AsyncSession, token_data: RefreshTokenRequest) 
     logger.info("token_refreshed", user_id=str(user.id), old_jti=jti, new_jti=new_jti)
 
     return Token(
-        access_token=create_access_token(subject=str(user.id)),
+        access_token=create_access_token(subject=str(user.id), session_jti=new_jti),
         refresh_token=create_refresh_token(subject=str(user.id), jti=new_jti),
         token_type="bearer"
     )
 
-async def revoke_user_tokens(
-    db: AsyncSession,
-    user_id: uuid.UUID,
-    end_reason: str = "password_change",
-) -> None:
+async def revoke_user_tokens(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """Ends every session this user holds: refresh tokens and pending links.
+
+    There used to be a third statement here deactivating the user's
+    `user_sessions` rows, guarded by `hasattr(UserSession, "user_id")` - a
+    condition that is always true, over a column nothing ever writes. It matched
+    zero rows on every call. `user_sessions` is the anonymous analytics table
+    written by `POST /sessions`; it has never described a login, and the session
+    panel now reads `refresh_tokens`, which does.
+    """
     # Mark all active refresh tokens for this user as revoked
     await db.execute(
         update(RefreshToken)
@@ -398,14 +463,6 @@ async def revoke_user_tokens(
         .where(RefreshToken.is_revoked == False)
         .values(is_revoked=True)
     )
-    # Deactivate any user session records if attribute exists
-    if hasattr(UserSession, "user_id"):
-        await db.execute(
-            update(UserSession)
-            .where(UserSession.user_id == user_id)
-            .where(UserSession.is_active == True)
-            .values(is_active=False, ended_at=datetime.now(timezone.utc), end_reason=end_reason)
-        )
     # Pending reset and magic links are credentials too, so a password change or
     # a logout must void them. They used to live in refresh_tokens and got swept
     # up by accident; now it is deliberate and scoped.
@@ -427,7 +484,7 @@ async def logout_user(db: AsyncSession, user: User) -> dict:
     revoking the set is the only option that actually ends the session, and is
     the safer default regardless.
     """
-    await revoke_user_tokens(db, user.id, end_reason="logout")
+    await revoke_user_tokens(db, user.id)
     logger.info("user_logged_out", user_id=str(user.id))
     return {"message": "Logged out successfully."}
 
@@ -849,7 +906,9 @@ async def disable_2fa(db: AsyncSession, user: User, data: Disable2FARequest) -> 
     return {"message": "2FA successfully disabled"}
 
 
-async def verify_2fa_login(db: AsyncSession, data: Verify2FARequest) -> TokenResponseOr2FA:
+async def verify_2fa_login(
+    db: AsyncSession, data: Verify2FARequest, request: Optional[Request] = None
+) -> TokenResponseOr2FA:
     payload = verify_token(data.pre_auth_token, expected_type="2fa_pre_auth")
     user_id_str = payload.get("sub")
     pre_auth_jti = payload.get("jti")
@@ -866,8 +925,13 @@ async def verify_2fa_login(db: AsyncSession, data: Verify2FARequest) -> TokenRes
     # The pre-auth token is single-use. Without this it stayed valid for its
     # full five minutes, so capturing one bought unlimited attempts at a
     # six-digit code.
+    # A token with no `jti` is refused rather than waved through. This used to
+    # read `if pre_auth_jti and not pre_auth_valid`, so a pre-auth token that
+    # carried no jti skipped the burn check entirely and stayed replayable for
+    # its full five minutes - the exact window the check exists to close.
+    # `create_pre_auth_token` now requires a jti, and this is the other half.
     pre_auth_valid = await consume_one_time_token(db, pre_auth_jti, PURPOSE_2FA_PRE_AUTH)
-    if pre_auth_jti and not pre_auth_valid:
+    if not pre_auth_valid:
         logger.warning("2fa_pre_auth_token_reused_or_expired", user_id=user_id_str)
         raise HTTPException(
             status_code=400,
@@ -899,14 +963,20 @@ async def verify_2fa_login(db: AsyncSession, data: Verify2FARequest) -> TokenRes
     jti = str(uuid.uuid4())
     expires_at = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
-    db_token = RefreshToken(user_id=user.id, token_jti=jti, expires_at=expires_at)
+    db_token = RefreshToken(
+        user_id=user.id,
+        token_jti=jti,
+        expires_at=expires_at,
+        last_used_at=now,
+        **_session_context(request),
+    )
     db.add(db_token)
     await db.commit()
 
     logger.info("2fa_login_completed", user_id=str(user.id))
     return TokenResponseOr2FA(
         requires_2fa=False,
-        access_token=create_access_token(subject=str(user.id)),
+        access_token=create_access_token(subject=str(user.id), session_jti=jti),
         refresh_token=create_refresh_token(subject=str(user.id), jti=jti),
         token_type="bearer"
     )
@@ -945,7 +1015,9 @@ async def request_magic_link(
     return generic_response
 
 
-async def verify_magic_link(db: AsyncSession, data: MagicLinkVerifyRequest) -> TokenResponseOr2FA:
+async def verify_magic_link(
+    db: AsyncSession, data: MagicLinkVerifyRequest, request: Optional[Request] = None
+) -> TokenResponseOr2FA:
     payload = verify_token(data.token, expected_type="magic_link")
     user_id_str = payload.get("sub")
     magic_jti = payload.get("jti")
@@ -982,57 +1054,115 @@ async def verify_magic_link(db: AsyncSession, data: MagicLinkVerifyRequest) -> T
     new_jti = str(uuid.uuid4())
     expires_at = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
-    new_db_token = RefreshToken(user_id=user.id, token_jti=new_jti, expires_at=expires_at)
+    new_db_token = RefreshToken(
+        user_id=user.id,
+        token_jti=new_jti,
+        expires_at=expires_at,
+        last_used_at=now,
+        **_session_context(request),
+    )
     db.add(new_db_token)
     await db.commit()
 
     logger.info("magic_link_login_completed", user_id=str(user.id))
     return TokenResponseOr2FA(
         requires_2fa=False,
-        access_token=create_access_token(subject=str(user.id)),
+        access_token=create_access_token(subject=str(user.id), session_jti=new_jti),
         refresh_token=create_refresh_token(subject=str(user.id), jti=new_jti),
         token_type="bearer"
     )
 
 
-async def get_user_sessions(db: AsyncSession, user: User) -> list[UserSessionResponse]:
+# ── The session panel ────────────────────────────────────────────────────────
+# These three read and write `refresh_tokens`, not `user_sessions`. The latter
+# is written only by `POST /sessions`, which is anonymous by design and never
+# sets `user_id`, so every row had a null owner: the list was permanently empty,
+# and revoking from it flipped a flag on an analytics record that was never a
+# login in the first place. "Log out all other devices" therefore reported
+# success while leaving every stolen credential live for its full thirty days.
+#
+# One `refresh_tokens` row *is* one live session, so revoking one genuinely ends
+# it - the device is out as soon as its access token expires, at most
+# ACCESS_TOKEN_EXPIRE_MINUTES later.
+
+
+def _live_sessions_for(user: User, now: datetime):
+    """Unrevoked, unexpired refresh tokens: the user's live sessions."""
+    return (
+        select(RefreshToken)
+        .where(RefreshToken.user_id == user.id)
+        .where(RefreshToken.is_revoked == False)  # noqa: E712 - SQL, not Python truthiness
+        .where(RefreshToken.expires_at > now)
+    )
+
+
+async def get_user_sessions(
+    db: AsyncSession, user: User, current_jti: Optional[str] = None
+) -> list[UserSessionResponse]:
+    now = datetime.now(timezone.utc)
     result = await db.execute(
-        select(UserSession)
-        .where(UserSession.user_id == user.id)
-        .where(UserSession.is_active == True)
-        .order_by(UserSession.last_active_at.desc())
+        _live_sessions_for(user, now).order_by(RefreshToken.created_at.desc())
     )
     sessions = result.scalars().all()
     return [
         UserSessionResponse(
-            session_id=s.session_id,
-            ip_address=s.ip_address,
+            # The row id, not the jti: the jti is the credential, and this value
+            # goes to the browser and comes back in a DELETE path.
+            session_id=s.id,
+            ip_address=s.ip_address or "unknown",
             user_agent=s.user_agent,
             device_type=s.device_type,
-            started_at=s.started_at,
-            last_active_at=s.last_active_at,
-            is_current=False
+            started_at=_as_utc(s.created_at),
+            last_active_at=_as_utc(s.last_used_at or s.created_at),
+            is_current=bool(current_jti) and s.token_jti == current_jti,
         ) for s in sessions
     ]
 
 
-async def revoke_all_other_sessions(db: AsyncSession, user: User, current_session_id: Optional[uuid.UUID] = None) -> dict:
-    query = update(UserSession).where(UserSession.user_id == user.id).where(UserSession.is_active == True)
-    if current_session_id:
-        query = query.where(UserSession.session_id != current_session_id)
-    await db.execute(query.values(is_active=False, ended_at=datetime.now(timezone.utc), end_reason="user_revoked_others"))
+async def revoke_all_other_sessions(
+    db: AsyncSession, user: User, current_jti: Optional[str] = None
+) -> dict:
+    """Ends every session but the caller's own.
+
+    Which one is the caller's comes from the `sid` claim their access token
+    carries, not from the request body - the client never had a way to know its
+    own session id, so the old optional body parameter was never sent and every
+    call signed the caller out along with everybody else. An access token minted
+    before `sid` shipped resolves to None here, in which case this does what it
+    says on the tin and ends everything, the caller included.
+    """
+    query = (
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id)
+        .where(RefreshToken.is_revoked == False)  # noqa: E712 - SQL, not Python truthiness
+    )
+    if current_jti:
+        query = query.where(RefreshToken.token_jti != current_jti)
+    result = await db.execute(query.values(is_revoked=True))
     await db.commit()
-    logger.info("user_revoked_other_sessions", user_id=str(user.id))
+    logger.info(
+        "user_revoked_other_sessions", user_id=str(user.id), revoked=result.rowcount or 0
+    )
     return {"message": "Logged out of all other active sessions successfully."}
 
 
 async def revoke_specific_session(db: AsyncSession, user: User, session_id: uuid.UUID) -> dict:
-    await db.execute(
-        update(UserSession)
-        .where(UserSession.user_id == user.id)
-        .where(UserSession.session_id == session_id)
-        .values(is_active=False, ended_at=datetime.now(timezone.utc), end_reason="user_revoked_session")
+    """Ends one session. 404 when it is not the caller's, or already gone.
+
+    The result used to be discarded and the success message returned whatever
+    happened - including for an id belonging to somebody else's account, which
+    told the caller a device had been signed out when nothing had.
+    """
+    result = await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id)
+        .where(RefreshToken.id == session_id)
+        .where(RefreshToken.is_revoked == False)  # noqa: E712 - SQL, not Python truthiness
+        .values(is_revoked=True)
     )
     await db.commit()
+    if not result.rowcount:
+        logger.info("user_revoked_unknown_session", user_id=str(user.id), session_id=str(session_id))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
     logger.info("user_revoked_specific_session", user_id=str(user.id), session_id=str(session_id))
     return {"message": "Session revoked successfully."}

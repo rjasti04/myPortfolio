@@ -66,12 +66,31 @@ def spend_verification_time() -> None:
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(_get_sha256_hex(password))
 
-def create_access_token(subject: Union[str, int], expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(
+    subject: Union[str, int],
+    expires_delta: Optional[timedelta] = None,
+    session_jti: Optional[str] = None,
+) -> str:
+    """Bearer credential. `session_jti` names the refresh token that minted it.
+
+    Without that link the server could not tell which of a user's sessions was
+    making a request, so `GET /auth/sessions` had to report `is_current: false`
+    for every row and "log out all other devices" had no "this one" to exclude -
+    it signed the caller out along with everybody else. The claim is an
+    identifier for a row the caller already holds the credential for, so it
+    grants nothing on its own.
+
+    Optional because tokens minted before this shipped do not carry it; they are
+    treated as belonging to no known session until they expire, which is at most
+    ACCESS_TOKEN_EXPIRE_MINUTES away.
+    """
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = {"exp": expire, "sub": str(subject), "type": "access"}
+    if session_jti:
+        to_encode["sid"] = session_jti
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -118,17 +137,22 @@ def verify_token(token: str, expected_type: str = "access") -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
 
-def create_pre_auth_token(subject: Union[str, int], jti: Optional[str] = None) -> str:
+def create_pre_auth_token(subject: Union[str, int], jti: str) -> str:
     """Half-authenticated token issued between password and second factor.
 
     Carries a `jti` so the server can burn it on use; without one the token was
     replayable for its full five-minute life, letting an attacker who captured
     it keep retrying codes.
+
+    `jti` is required, and the burn check in `verify_2fa_login` refuses a token
+    without one. It used to default to None while that check read
+    `if pre_auth_jti and not pre_auth_valid`, so a token carrying no jti skipped
+    the single-use guard entirely - reopening the unlimited-retry window this
+    argument exists to close. Both halves are needed: an optional argument and a
+    guard that treats its absence as consent is one caller away from a hole.
     """
     expire = datetime.now(timezone.utc) + timedelta(minutes=5)
-    to_encode = {"exp": expire, "sub": str(subject), "type": "2fa_pre_auth"}
-    if jti:
-        to_encode["jti"] = jti
+    to_encode = {"exp": expire, "sub": str(subject), "type": "2fa_pre_auth", "jti": jti}
     return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
 
 def create_email_verification_token(subject: Union[str, int], jti: str) -> str:

@@ -91,6 +91,37 @@ describe('Chat server-history sync', () => {
     );
   });
 
+  for (const [label, corrupt] of [
+    ['null', 'null'],
+    ['an object', '{"a":1}'],
+    ['a bare number', '42'],
+    ['a string', '"nope"'],
+  ]) {
+    it(`survives ${label} in stored history instead of taking the page down`, async () => {
+      // JSON.parse succeeding says nothing about the shape. `null` made the
+      // length check throw and an object left `.length` undefined so `.some`
+      // threw instead - either way initChat() died and the AI page rendered
+      // with no transcript, no rail and no error state.
+      dom.window.localStorage.setItem(STORAGE_KEY, corrupt);
+      assert.doesNotThrow(() => initChat(), `stored ${label} must not break initChat`);
+      await settle();
+      assert.ok(Array.isArray(stored()), 'a usable session list is restored');
+      assert.equal(stored().length, 1, 'a fresh conversation replaces the unusable value');
+    });
+  }
+
+  it('drops entries that are not conversation objects', async () => {
+    dom.window.localStorage.setItem(STORAGE_KEY, JSON.stringify([
+      null,
+      'not-a-session',
+      { id: '1717171717171', title: 'Real', messages: [], createdAt: 1, updatedAt: 2 },
+    ]));
+    initChat();
+    await settle();
+    assert.equal(stored().length, 1, 'only the real conversation survives');
+    assert.equal(stored()[0].title, 'Real');
+  });
+
   it('backfills conversations stored before conversationId existed', async () => {
     // Exactly the shape saveSessions() wrote before this shipped.
     dom.window.localStorage.setItem(STORAGE_KEY, JSON.stringify([

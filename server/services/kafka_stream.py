@@ -52,6 +52,9 @@ SIMULATED_CONSUMER_GROUP = os.getenv("SIMULATED_KAFKA_GROUP", "activity-dashboar
 LAG_SAMPLE_INTERVAL_SECONDS = float(os.getenv("KAFKA_LAG_SAMPLE_INTERVAL", "5.0"))
 _last_lag_sample_at: float = 0.0
 
+# Backoff between reconnect attempts when a configured broker drops out.
+KAFKA_RECONNECT_SECONDS = float(os.getenv("KAFKA_RECONNECT_SECONDS", "5.0"))
+
 # Fraction of the simulated backlog still outstanding two seconds later, i.e.
 # the modelled consumer clears ~55% of what is queued every 2s.
 DRAIN_PER_2S = 0.45
@@ -129,6 +132,10 @@ METRICS: Dict[str, Any] = {
     "kafka_messages": 0,
     "kafka_lag": None,
     "kafka_connected": False,
+    # Why the last connection attempt failed. Set only when a broker is
+    # configured, so `pipeline_mode` can tell "no broker wanted" from "the
+    # broker we want is down" instead of reporting both as a simulation.
+    "kafka_last_error": None,
     "simulator_running": False,
     "rows_written": 0,
     "flush_count": 0,
@@ -456,9 +463,17 @@ async def broadcast_pipeline(session_id: UUID) -> None:
 
 
 def pipeline_mode() -> str:
-    """Which ingest path is reported: kafka, simulator, or bypass."""
+    """Which ingest path is reported: kafka, failed, simulator, simulated, bypass.
+
+    `failed` is the honest answer when a broker is configured and not connected.
+    Without it the simulated figures stood in for a dead consumer: the stage
+    reported plausible throughput derived from the API's own traffic, and the
+    DAG node stayed green while nothing was being consumed at all.
+    """
     if METRICS["kafka_connected"]:
         return "kafka"
+    if KAFKA_BOOTSTRAP_SERVERS and KAFKA_AVAILABLE:
+        return "failed"
     if METRICS["simulator_running"]:
         return "simulator"
     if SIMULATE_KAFKA_METRICS:
@@ -572,12 +587,18 @@ def pipeline_snapshot() -> Dict[str, Any]:
                 "flush_reasons": dict(METRICS["flush_reasons"]),
             },
             "kafka": _simulated_kafka_stats() if mode == "simulated" else {
-                "health": {"kafka": "ok", "simulator": "warn", "bypass": "bypass"}[mode],
+                "health": {
+                    "kafka": "ok",
+                    "failed": "error",
+                    "simulator": "warn",
+                    "bypass": "bypass",
+                }[mode],
                 "mode": mode,
                 "simulated": mode == "simulator",
                 "messages": METRICS["kafka_messages"],
                 "lag": METRICS["kafka_lag"],
-                "topic": KAFKA_TOPIC if mode == "kafka" else None,
+                "topic": KAFKA_TOPIC if mode in ("kafka", "failed") else None,
+                "last_error": METRICS["kafka_last_error"] if mode == "failed" else None,
             },
             "fastapi": {
                 "health": "ok" if listeners else "idle",
@@ -652,8 +673,14 @@ async def save_batch() -> None:
         logger.error("kafka_stream_batch_write_recoverable_error", error=str(e))
         # Return the events for a later attempt, but never past the cap: a long
         # outage would otherwise buffer until the process died.
+        #
+        # Prepended, not appended. Anything already in the buffer arrived while
+        # this flush was in flight, so it is *newer* than the batch coming back:
+        # `extend` put the older events last, which both scrambled the order and
+        # - because the trim below drops from the front - made the cap evict the
+        # newest arrivals instead of the oldest backlog.
         async with batch_lock:
-            batch_buffer.extend(events_to_save)
+            batch_buffer[:0] = events_to_save
             overflow = len(batch_buffer) - MAX_BUFFERED_EVENTS
             if overflow > 0:
                 del batch_buffer[:overflow]
@@ -756,40 +783,53 @@ async def run_kafka_consumer() -> None:
 
     logger.info("kafka_client_connecting", servers=KAFKA_BOOTSTRAP_SERVERS, topic=KAFKA_TOPIC)
 
-    try:
-        consumer = AIOKafkaConsumer(
-            KAFKA_TOPIC,
-            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-            value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-            auto_offset_reset="latest"
-        )
-        await consumer.start()
-        METRICS["kafka_connected"] = True
-    except Exception as e:
-        METRICS["kafka_connected"] = False
-        logger.error("kafka_connection_failed", error=str(e), action="Falling back to Simulator mode")
-        await run_simulated_consumer()
-        return
+    # Reconnect rather than return. This used to log the exception and let the
+    # coroutine end; main.py schedules it exactly once at startup, so a broker
+    # restart, a rebalance timeout or one message that tripped the deserializer
+    # killed ingest until the process was restarted - and with
+    # SIMULATE_KAFKA_METRICS on, `pipeline_mode()` then answered "simulated" and
+    # the dashboard's DAG went green over a consumer that no longer existed.
+    global _last_lag_sample_at
+    while True:
+        consumer = None
+        try:
+            consumer = AIOKafkaConsumer(
+                KAFKA_TOPIC,
+                bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+                value_deserializer=lambda m: json.loads(m.decode("utf-8")),
+                auto_offset_reset="latest"
+            )
+            await consumer.start()
+            METRICS["kafka_connected"] = True
+            METRICS["kafka_last_error"] = None
+            logger.info("kafka_client_connected", topic=KAFKA_TOPIC)
 
-    try:
-        async for msg in consumer:
-            logger.info("kafka_message_received", partition=msg.partition, offset=msg.offset)
-            METRICS["kafka_messages"] += 1
-            global _last_lag_sample_at
-            monotonic_now = time.monotonic()
-            if monotonic_now - _last_lag_sample_at >= LAG_SAMPLE_INTERVAL_SECONDS:
-                _last_lag_sample_at = monotonic_now
-                await _record_lag(consumer)
-            if isinstance(msg.value, dict):
-                await process_incoming_event(msg.value)
-    except asyncio.CancelledError:
-        logger.info("kafka_consumer_cancelled")
-        raise
-    except Exception as e:
-        logger.exception("kafka_consumer_error", error=str(e))
-    finally:
-        METRICS["kafka_connected"] = False
-        await consumer.stop()
+            async for msg in consumer:
+                logger.info("kafka_message_received", partition=msg.partition, offset=msg.offset)
+                METRICS["kafka_messages"] += 1
+                monotonic_now = time.monotonic()
+                if monotonic_now - _last_lag_sample_at >= LAG_SAMPLE_INTERVAL_SECONDS:
+                    _last_lag_sample_at = monotonic_now
+                    await _record_lag(consumer)
+                if isinstance(msg.value, dict):
+                    await process_incoming_event(msg.value)
+
+            logger.warning("kafka_consumer_stream_ended")
+        except asyncio.CancelledError:
+            logger.info("kafka_consumer_cancelled")
+            raise
+        except Exception as e:
+            METRICS["kafka_last_error"] = str(e)
+            logger.exception("kafka_consumer_error", error=str(e))
+        finally:
+            METRICS["kafka_connected"] = False
+            if consumer is not None:
+                try:
+                    await consumer.stop()
+                except Exception:  # noqa: BLE001 - a failed close must not end the loop
+                    logger.warning("kafka_consumer_stop_failed")
+
+        await asyncio.sleep(KAFKA_RECONNECT_SECONDS)
 
 async def run_simulated_consumer() -> None:
     """

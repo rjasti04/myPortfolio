@@ -134,9 +134,21 @@ payload filtering needs.
 | `expires_at` | `TIMESTAMPTZ` | no | 30 days from issue |
 | `created_at` | `TIMESTAMPTZ` | no | `now()` |
 | `is_revoked` | `BOOLEAN` | no | Set on rotation, logout, password change or delete |
+| `ip_address` | `VARCHAR(64)` | yes | Client IP at sign-in, via `client_ip_from_request` |
+| `user_agent` | `VARCHAR(512)` | yes | Raw header at sign-in, truncated |
+| `device_type` | `VARCHAR(50)` | yes | `desktop` / `mobile` / `tablet`, derived from the header |
+| `last_used_at` | `TIMESTAMPTZ` | yes | Bumped on rotation |
 
 Refresh tokens are **rotated**: a successful `/auth/refresh` revokes the
-presented `jti` and issues a new row.
+presented `jti` and issues a new row. The claim and the revocation are one
+conditional `UPDATE`, so two requests presenting the same token cannot both
+rotate it — reading the row, checking `is_revoked` in Python and writing it back
+left a window under READ COMMITTED where both won and one credential became two.
+
+The four context columns are what `GET /auth/sessions` displays: one live row
+here **is** one live session, which is why the session panel reads this table
+rather than `user_sessions`. They are nullable because tokens issued before they
+shipped have no request to read them from.
 
 ### `one_time_tokens`
 

@@ -202,3 +202,33 @@ def test_real_broker_metrics_are_never_overwritten_by_the_simulation(clock, monk
         ks.METRICS["kafka_connected"] = False
         ks.METRICS["kafka_messages"] = 0
         ks.METRICS["kafka_lag"] = None
+
+
+def test_a_configured_broker_that_is_down_reports_error_not_simulation(clock, monkeypatch):
+    """The simulation must not stand in for a consumer that has died.
+
+    `run_kafka_consumer` used to return for good on any exception, and with the
+    simulation on, the stage then reported plausible throughput derived from the
+    API's own traffic. The DAG node went green over an ingest path that was
+    consuming nothing at all.
+    """
+    monkeypatch.setattr(ks, "SIMULATE_KAFKA_METRICS", True)
+    monkeypatch.setattr(ks, "KAFKA_BOOTSTRAP_SERVERS", "broker:9092")
+    monkeypatch.setattr(ks, "KAFKA_AVAILABLE", True)
+    ks.METRICS["kafka_connected"] = False
+    ks.METRICS["kafka_last_error"] = "KafkaConnectionError"
+    try:
+        stage = _kafka()
+        assert stage["mode"] == "failed"
+        assert stage["health"] == "error"
+        assert stage["simulated"] is False
+        assert stage["last_error"] == "KafkaConnectionError"
+    finally:
+        ks.METRICS["kafka_last_error"] = None
+
+
+def test_no_broker_configured_still_reports_the_simulation(clock, monkeypatch):
+    """The failed state is only for a broker somebody actually asked for."""
+    monkeypatch.setattr(ks, "SIMULATE_KAFKA_METRICS", True)
+    monkeypatch.setattr(ks, "KAFKA_BOOTSTRAP_SERVERS", "")
+    assert _kafka()["mode"] == "simulated"

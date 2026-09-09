@@ -102,18 +102,23 @@
   --code-action-hover: #020617;
 
   /* ---- Event families -----------------------------------------------------
-     Seven event types collapse into four families, and colour is what makes
-     the log readable without parsing every row. Four hues rather than seven:
-     four are learnable at a glance, seven need a legend. Each is AA on both
-     --surface and --skill-bg; --*-soft is the row/bar wash, never text. */
+     Ten event types collapse into five families, and colour is what makes the
+     log readable without parsing every row. Five hues rather than ten: five are
+     learnable at a glance, ten need a legend. Each is AA on both --surface and
+     --skill-bg; --*-soft is the row/bar wash, never text.
+     `sys` is the odd one out by design - telemetry and crash reports are things
+     the site recorded about itself, not things a visitor did - so it is the
+     only neutral hue in the set. */
   --fam-nav: hsl(32, 88%, 34%);
   --fam-tap: #0f766e;
   --fam-pref: #6d28d9;
   --fam-reach: #4d7c0f;
+  --fam-sys: #475569;
   --fam-nav-soft: hsla(32, 88%, 45%, 0.14);
   --fam-tap-soft: rgba(15, 118, 110, 0.13);
   --fam-pref-soft: rgba(109, 40, 217, 0.12);
   --fam-reach-soft: rgba(77, 124, 15, 0.13);
+  --fam-sys-soft: rgba(71, 85, 105, 0.12);
 
   /* Status Colors */
   --color-success: #047857;
@@ -350,10 +355,12 @@ body.dark-theme {
   --fam-tap: #2dd4bf;
   --fam-pref: #a78bfa;
   --fam-reach: #a3e635;
+  --fam-sys: #94a3b8;
   --fam-nav-soft: rgba(240, 162, 46, 0.18);
   --fam-tap-soft: rgba(45, 212, 191, 0.18);
   --fam-pref-soft: rgba(167, 139, 250, 0.2);
   --fam-reach-soft: rgba(163, 230, 53, 0.18);
+  --fam-sys-soft: rgba(148, 163, 184, 0.18);
   --code-action: #93c5fd;
   --code-action-hover: #fff;
   --glass-light-bg: rgba(30, 41, 59, 0.45);
@@ -8340,6 +8347,11 @@ nav a:hover .nav-shortcut {
   background: var(--fam-reach);
 }
 
+[data-fam="sys"] .act-tl-seg,
+.act-key li[data-fam="sys"] i {
+  background: var(--fam-sys);
+}
+
 .act-tl-seg[data-fam="nav"] {
   background: var(--fam-nav);
 }
@@ -8354,6 +8366,10 @@ nav a:hover .nav-shortcut {
 
 .act-tl-seg[data-fam="reach"] {
   background: var(--fam-reach);
+}
+
+.act-tl-seg[data-fam="sys"] {
+  background: var(--fam-sys);
 }
 
 /* Paths. The bar is the row's own background rather than a separate column:
@@ -8567,6 +8583,10 @@ nav a:hover .nav-shortcut {
   color: var(--fam-reach);
 }
 
+.act-fam[data-family="sys"] {
+  color: var(--fam-sys);
+}
+
 .act-fam-all {
   color: var(--text);
 }
@@ -8703,6 +8723,10 @@ nav a:hover .nav-shortcut {
 
 .act-ev[data-fam="reach"] .act-ev-dot {
   background: var(--fam-reach);
+}
+
+.act-ev[data-fam="sys"] .act-ev-dot {
+  background: var(--fam-sys);
 }
 
 .act-ev-say {

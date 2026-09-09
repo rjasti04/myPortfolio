@@ -348,3 +348,71 @@ async def test_anonymous_streaming_saves_nothing(async_client):
     assert (await async_client.get("/api/chat/history", headers=headers)).json()[
         "conversations"
     ] == []
+
+
+@pytest.mark.asyncio
+async def test_another_users_conversation_id_is_not_found(async_client):
+    """A foreign conversation_id used to collide on the primary key.
+
+    The ownership lookup is scoped by user_id, so another account's row missed
+    and control fell through to the create branch - which built the record with
+    `id=conversation_id`, an INSERT onto an occupied key. The IntegrityError was
+    caught and logged inside the response generator, so the reply streamed
+    normally and the visitor's transcript was silently never saved.
+    """
+    owner_headers = await _register_and_login(async_client)
+    with patch(
+        "server.services.bedrock_service.bedrock_service.client.converse_stream"
+    ) as mock_converse:
+        mock_converse.return_value = _stream("Saved for the owner.")
+        seeded = await async_client.post(
+            "/api/chat/stream",
+            headers=owner_headers,
+            json={
+                "model_id": "google.gemma-3-4b-it",
+                "messages": [{"role": "user", "content": "Mine"}],
+            },
+        )
+        assert seeded.status_code == 200
+        await seeded.aread()
+
+    listed = await async_client.get("/api/chat/history", headers=owner_headers)
+    conversation_id = listed.json()["conversations"][0]["id"]
+
+    intruder_headers = await _register_and_login(async_client)
+    response = await async_client.post(
+        "/api/chat/stream",
+        headers=intruder_headers,
+        json={
+            "model_id": "google.gemma-3-4b-it",
+            "conversation_id": conversation_id,
+            "messages": [{"role": "user", "content": "Yours now"}],
+        },
+    )
+    assert response.status_code == 404, "someone else's conversation is not found"
+
+    # And the owner's transcript is untouched.
+    detail = await async_client.get(
+        f"/api/chat/history/{conversation_id}", headers=owner_headers
+    )
+    assert detail.status_code == 200
+    assert detail.json()["messages"][0]["content"] == "Mine"
+
+
+@pytest.mark.asyncio
+async def test_a_blank_message_is_rejected_before_bedrock_is_called(async_client):
+    """"   " stripped to "", was dropped by ensure_alternating_roles, and Bedrock
+    was called with no messages - answered 200 with an error frame in the body,
+    after spending a concurrency slot and a rate-limit token."""
+    with patch(
+        "server.services.bedrock_service.bedrock_service.client.converse_stream"
+    ) as mock_converse:
+        response = await async_client.post(
+            "/api/chat/stream",
+            json={
+                "model_id": "google.gemma-3-4b-it",
+                "messages": [{"role": "user", "content": "   "}],
+            },
+        )
+        assert response.status_code == 422, response.text
+        mock_converse.assert_not_called()
