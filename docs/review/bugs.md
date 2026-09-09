@@ -1,5 +1,25 @@
 # Correctness Review
 
+> **Status: all 14 fixed.** Landed across six commits on
+> `claude/correctness-bugs-review-begqsy`, grouped by theme rather than by
+> finding number. This document is kept as the record of *why* each change was
+> made — the line numbers in each entry point at the code **as it was**, before
+> the fix. The reference docs describe the code as it is now.
+>
+> Two things worth recording, because both changed what shipped:
+>
+> - **Finding 4's prescribed fix was wrong**, and the existing
+>   `test_ingest_buffer.py` caught it. The defect is real, but the correction is
+>   to prepend the retried batch, not to trim the other end of the buffer. See
+>   the note in that entry.
+> - **Finding 1 needed a decision, not just a patch.** `user_sessions` can never
+>   sign anyone out, so stamping its `user_id` would have fixed the empty list
+>   while leaving "log out all other devices" just as untrue. The three routes
+>   were repointed at `refresh_tokens` instead, with a migration
+>   (`k4f5a6b7c8d9`) carrying the device context the panel displays, and access
+>   tokens gained a `sid` claim so "this session" is a thing the server can
+>   actually identify.
+
 Read-only pass over `rjWebApp` hunting for correctness defects: swallowed
 exceptions, race conditions, boundary and off-by-one cases, null paths,
 non-idempotent retries, transaction scope, and silent type coercion. Style is
@@ -147,15 +167,24 @@ then trims from the **front**, which is now the newest data. The comment at
 `MAX_BUFFERED_EVENTS` (10,000) of traffic. Chronological order is also inverted
 inside the buffer, so `created_at` ordering in the eventual write is arbitrary.
 
-**Fix.** Put the retry back at the head where it belongs chronologically and
-trim from the tail:
+**Fix.** Put the retry back at the head, where it belongs chronologically, and
+keep trimming from the front. The trim direction was never the bug — dropping
+the oldest is right, and `del batch_buffer[:overflow]` is what does it. Only the
+insertion side was wrong:
 
 ```python
-batch_buffer[:0] = events_to_save
+batch_buffer[:0] = events_to_save          # was: batch_buffer.extend(...)
 overflow = len(batch_buffer) - MAX_BUFFERED_EVENTS
 if overflow > 0:
-    del batch_buffer[MAX_BUFFERED_EVENTS:]
+    del batch_buffer[:overflow]            # unchanged
 ```
+
+> **Correction.** This entry first prescribed trimming the *tail*
+> (`del batch_buffer[MAX_BUFFERED_EVENTS:]`). That is wrong: when no events
+> arrive during the flush — the ordinary case, and the one
+> `tests/backend/unit/test_ingest_buffer.py` already covered — the returned
+> batch is the whole buffer, so trimming the tail would evict the newest events
+> and break that test. Prepending is the whole fix.
 
 Or make `batch_buffer` a `deque(maxlen=MAX_BUFFERED_EVENTS)` and let it evict
 from the left on its own.

@@ -106,7 +106,7 @@ whole doc only when you genuinely need all of it.
 | Doc | ~Tokens | Read it before... | Jump to a section with |
 | :--- | ---: | :--- | :--- |
 | `docs/ARCHITECTURE.md` | ~7,500 | you need the repo map, the request lifecycle, or how the tiers interact | `grep -n '^#\{2,3\} '` (19 headings) |
-| `docs/API.md` | ~8,500 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (36 endpoint sections) |
+| `docs/API.md` | ~8,500 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (37 endpoint sections) |
 | `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
 | `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
 | `docs/JAVASCRIPT.md` | ~17,500 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (52 module sections) |
