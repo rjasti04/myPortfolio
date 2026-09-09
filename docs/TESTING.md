@@ -85,7 +85,7 @@ suite.
 
 | File | Lines | Covers |
 | :--- | ---: | :--- |
-| `build.test.js` | 213 | The caching contract, which is only observable after a build. Every service-worker precache URL resolves to a file that actually shipped; the precache lists the *hashed* LCP image and the width `index.html` preloads, not a bare filename; the `.htaccess` immutable rule matches only content-hashed names; every shipped image and PDF is hashed, so nothing gets a year of caching under a reusable name; no page or manifest points at an un-hashed asset; and `CACHE_NAME` is stable when nothing changes but moves when any precached input does |
+| `build.test.js` | 260 | The caching contract, which is only observable after a build. Every service-worker precache URL resolves to a file that actually shipped; the precache lists the *hashed* LCP image and the width `index.html` preloads, not a bare filename; the `.htaccess` immutable rule matches only content-hashed names; every shipped image and PDF is hashed, so nothing gets a year of caching under a reusable name; no page or manifest points at an un-hashed asset; and `CACHE_NAME` is stable when nothing changes but moves when any precached input does. It also guards the size budget: shipped JS and CSS sit under `BUDGETS_KIB`, and — the case that matters — breaching a budget actually **fails** the build rather than only reporting it |
 
 A stale precache entry or an unhashed asset cannot be caught by linting or by
 the frontend suite — both only appear once `dist/` exists, which is why these

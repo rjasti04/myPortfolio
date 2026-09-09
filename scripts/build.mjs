@@ -45,6 +45,22 @@ const HASHED_COPY_EXTENSIONS = new Set([
 /** Never shipped: tests are excluded from the deploy already, .htaccess is copied explicitly. */
 const SKIP_DIRS = new Set(["tests"]);
 
+/* Size budgets, in KiB, over the minified code the browser actually executes
+   and parses on the critical path.
+
+   CI had thirteen frontend gates and not one of them was about weight: lint,
+   tests, CSP hashes, doc counts, resume, audit. The build was already
+   computing every number a budget needs - each esbuild call passes
+   `metafile: true` - and printing a single total to a log nobody reads.
+
+   Code only. Images, fonts and sourcemaps are excluded deliberately: they are
+   content rather than critical-path bytes, and a budget that fires whenever a
+   photo is added is a budget people learn to raise reflexively. The ceilings
+   sit roughly 20% above the measured baseline, so ordinary work fits and a
+   dependency landing in the bundle does not. Raise them on purpose, in a
+   commit that says why - that argument is the whole point of the gate. */
+const BUDGETS_KIB = { js: 300, css: 240 };
+
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);
 
@@ -359,6 +375,34 @@ async function main() {
   console.log(`  ${copied.length} static files copied`);
   console.log(`  precache entries: ${shell.length} (was 40 hand-maintained)`);
   console.log(`  dist total: ${((await sizes(OUT)) / 1024 / 1024).toFixed(2)} MB`);
+
+  // --- Budget --------------------------------------------------------------
+  const assets = join(OUT, "assets");
+  const byExtension = async (extension) => {
+    let total = 0;
+    for (const rel of await walk(assets)) {
+      if (rel.endsWith(".map") || !rel.endsWith(extension)) continue;
+      total += (await stat(join(assets, rel))).size;
+    }
+    return total / 1024;
+  };
+
+  const overspent = [];
+  for (const [kind, ceiling] of Object.entries(BUDGETS_KIB)) {
+    const used = await byExtension(`.${kind}`);
+    const share = ((used / ceiling) * 100).toFixed(0);
+    console.log(
+      `  ${kind.toUpperCase().padEnd(4)} ${used.toFixed(1).padStart(7)} KiB` +
+      ` of ${ceiling} KiB budget (${share}%)`
+    );
+    if (used > ceiling) overspent.push(`${kind} is ${used.toFixed(1)} KiB, over its ${ceiling} KiB budget`);
+  }
+  if (overspent.length > 0) {
+    throw new Error(
+      `Size budget exceeded:\n  ${overspent.join("\n  ")}\n` +
+      "Trim the bundle, or raise BUDGETS_KIB in scripts/build.mjs and say why in the commit."
+    );
+  }
 }
 
 main().catch((error) => {
