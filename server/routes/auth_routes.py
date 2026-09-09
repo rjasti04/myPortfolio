@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Body, Depends, status, BackgroundTasks
+from fastapi import APIRouter, Depends, Request, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.db.database import get_db
 from server.schemas.auth import (
@@ -11,7 +11,7 @@ from server.schemas.auth import (
     VerifyEmailRequest, ResendVerificationRequest
 )
 from server.services import auth_service
-from server.auth.dependencies import get_current_user
+from server.auth.dependencies import get_current_session_jti, get_current_user
 from server.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -45,12 +45,14 @@ async def resend_verification(
     return await auth_service.resend_verification_email(db, data, background_tasks)
 
 @router.post("/login", response_model=TokenResponseOr2FA)
-async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
-    return await auth_service.authenticate_user(db, user)
+async def login(user: UserLogin, request: Request, db: AsyncSession = Depends(get_db)):
+    return await auth_service.authenticate_user(db, user, request)
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token(token_data: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
-    return await auth_service.refresh_user_token(db, token_data)
+async def refresh_token(
+    token_data: RefreshTokenRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
+    return await auth_service.refresh_user_token(db, token_data, request)
 
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
@@ -69,8 +71,8 @@ async def disable_2fa(data: Disable2FARequest, current_user: User = Depends(get_
     return await auth_service.disable_2fa(db, current_user, data)
 
 @router.post("/2fa/verify", response_model=TokenResponseOr2FA)
-async def verify_2fa(data: Verify2FARequest, db: AsyncSession = Depends(get_db)):
-    return await auth_service.verify_2fa_login(db, data)
+async def verify_2fa(data: Verify2FARequest, request: Request, db: AsyncSession = Depends(get_db)):
+    return await auth_service.verify_2fa_login(db, data, request)
 
 @router.post("/magic-link/request")
 async def request_magic_link(
@@ -81,8 +83,10 @@ async def request_magic_link(
     return await auth_service.request_magic_link(db, data, background_tasks)
 
 @router.post("/magic-link/verify", response_model=TokenResponseOr2FA)
-async def verify_magic_link(data: MagicLinkVerifyRequest, db: AsyncSession = Depends(get_db)):
-    return await auth_service.verify_magic_link(db, data)
+async def verify_magic_link(
+    data: MagicLinkVerifyRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
+    return await auth_service.verify_magic_link(db, data, request)
 
 @router.post("/logout")
 async def logout(
@@ -133,23 +137,26 @@ async def delete_account(
 @router.get("/sessions", response_model=list[UserSessionResponse])
 async def get_active_sessions(
     current_user: User = Depends(get_current_user),
+    current_jti: Optional[str] = Depends(get_current_session_jti),
     db: AsyncSession = Depends(get_db)
 ):
-    return await auth_service.get_user_sessions(db, current_user)
+    return await auth_service.get_user_sessions(db, current_user, current_jti)
 
 @router.post("/sessions/revoke-others")
 async def revoke_other_sessions(
     current_user: User = Depends(get_current_user),
+    current_jti: Optional[str] = Depends(get_current_session_jti),
     db: AsyncSession = Depends(get_db),
-    current_session_id: Optional[UUID] = Body(default=None, embed=True),
 ):
-    """End every session except the one the caller names.
+    """End every session except the caller's own.
 
-    `revoke_all_other_sessions` existed but had no route, so the frontend's
-    "log out everywhere else" button always 404'd. With no `current_session_id`
-    the call ends every session, which is the safe reading of the request.
+    Which one that is comes from the `sid` claim in the caller's access token.
+    It used to be an optional body parameter, which the frontend had no way to
+    fill in and never sent - so the endpoint signed the caller out along with
+    everybody else. A token predating that claim still ends every session,
+    which remains the safe reading when the server cannot tell them apart.
     """
-    return await auth_service.revoke_all_other_sessions(db, current_user, current_session_id)
+    return await auth_service.revoke_all_other_sessions(db, current_user, current_jti)
 
 # Declared before /sessions/{session_id} so the literal path segment is not
 # captured as a UUID by the parameterised route.

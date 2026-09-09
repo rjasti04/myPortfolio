@@ -65,6 +65,29 @@ async def get_current_user(
 
     return user
 
+async def get_current_session_jti(
+    token: str = Depends(optional_oauth2_scheme),
+) -> Optional[str]:
+    """The refresh-token jti this access token was minted alongside.
+
+    Identifies which of the caller's sessions is making the request, which is
+    what lets `GET /auth/sessions` mark one row `is_current` and what lets
+    "log out all other devices" keep the caller signed in. Returns None for a
+    token issued before the `sid` claim shipped, or for anything unreadable -
+    this only ever *narrows* a revocation, so failing to resolve it costs the
+    caller their own session rather than sparing somebody else's.
+
+    Deliberately does no authorisation of its own: it is always paired with
+    `get_current_user`, which is what actually rejects a bad token.
+    """
+    if not token:
+        return None
+    try:
+        return verify_token(token, "access").get("sid")
+    except HTTPException:
+        return None
+
+
 async def get_optional_current_user(
     token: str = Depends(optional_oauth2_scheme),
     db: AsyncSession = Depends(get_db)

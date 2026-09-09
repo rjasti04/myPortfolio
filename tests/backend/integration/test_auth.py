@@ -262,12 +262,104 @@ async def test_reset_password_rejects_a_garbage_token(async_client):
 
 
 @pytest.mark.asyncio
-async def test_list_active_sessions_returns_a_list(async_client):
+async def test_a_login_shows_up_in_the_session_list(async_client):
+    """The list used to be empty for everybody, forever.
+
+    It read `user_sessions`, which only `POST /sessions` writes and which never
+    carries a `user_id`, so the filter matched nothing. Asserting the response
+    was *a list* was true of that bug too, which is how it survived.
+    """
+    email, password = await _register(async_client)
+    tokens = await _login(async_client, email, password)
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    response = await async_client.get(
+        "/api/auth/sessions", headers={**headers, "User-Agent": "Mozilla/5.0 (iPhone)"}
+    )
+    assert response.status_code == 200, response.text
+    sessions = response.json()
+    assert len(sessions) == 1, "the caller's own login is a session"
+    assert sessions[0]["is_current"] is True, "the caller is looking at their own session"
+
+
+@pytest.mark.asyncio
+async def test_the_session_list_records_the_device_that_signed_in(async_client):
+    email, password = await _register(async_client)
+    signin = await async_client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+        headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Mobile/15E148"},
+    )
+    assert signin.status_code == 200, signin.text
+    headers = {"Authorization": f"Bearer {signin.json()['access_token']}"}
+
+    sessions = (await async_client.get("/api/auth/sessions", headers=headers)).json()
+    assert sessions[0]["device_type"] == "mobile"
+    assert "iPhone" in sessions[0]["user_agent"]
+
+
+@pytest.mark.asyncio
+async def test_revoking_a_session_actually_ends_it(async_client):
+    """The point of the panel: revoking has to invalidate the credential.
+
+    Against `user_sessions` this flipped `is_active` on an analytics row and
+    left the refresh token live for its full thirty days, while telling the
+    caller the device had been signed out.
+    """
+    email, password = await _register(async_client)
+    doomed = await _login(async_client, email, password)
+    keeper = await _login(async_client, email, password)
+    keeper_headers = {"Authorization": f"Bearer {keeper['access_token']}"}
+
+    sessions = (await async_client.get("/api/auth/sessions", headers=keeper_headers)).json()
+    assert len(sessions) == 2
+    target = next(s for s in sessions if not s["is_current"])
+
+    revoked = await async_client.delete(
+        f"/api/auth/sessions/{target['session_id']}", headers=keeper_headers
+    )
+    assert revoked.status_code == 200, revoked.text
+
+    refused = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": doomed["refresh_token"]}
+    )
+    assert refused.status_code == 401, "a revoked session must not be able to refresh"
+
+    survived = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": keeper["refresh_token"]}
+    )
+    assert survived.status_code == 200, "revoking one session must not touch the others"
+
+
+@pytest.mark.asyncio
+async def test_revoking_an_unknown_session_is_a_404(async_client):
+    """It used to answer "Session revoked successfully." for any id at all."""
     email, password = await _register(async_client)
     headers = await _auth_header(async_client, email, password)
-    response = await async_client.get("/api/auth/sessions", headers=headers)
-    assert response.status_code == 200, response.text
-    assert isinstance(response.json(), list)
+    response = await async_client.delete(
+        f"/api/auth/sessions/{uuid.uuid4()}", headers=headers
+    )
+    assert response.status_code == 404, response.text
+
+
+@pytest.mark.asyncio
+async def test_a_session_cannot_be_revoked_from_another_account(async_client):
+    email_a, password_a = await _register(async_client)
+    email_b, password_b = await _register(async_client)
+    headers_a = await _auth_header(async_client, email_a, password_a)
+    victim = await _login(async_client, email_b, password_b)
+    headers_b = {"Authorization": f"Bearer {victim['access_token']}"}
+
+    target = (await async_client.get("/api/auth/sessions", headers=headers_b)).json()[0]
+    response = await async_client.delete(
+        f"/api/auth/sessions/{target['session_id']}", headers=headers_a
+    )
+    assert response.status_code == 404, "another account's session is not found, not revoked"
+
+    still_works = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": victim["refresh_token"]}
+    )
+    assert still_works.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -380,12 +472,35 @@ async def test_logout_requires_authentication(async_client):
 
 
 @pytest.mark.asyncio
-async def test_revoke_other_sessions_is_routed(async_client):
+async def test_revoke_others_ends_every_session_but_the_caller_own(async_client):
+    """"Every session except this one" has to actually mean that.
+
+    The caller's own session is identified by the `sid` claim in their access
+    token. Before that claim existed the route took an optional body parameter
+    the frontend had no way to fill in, so it signed the caller out too.
+    """
     email, password = await _register(async_client)
-    headers = await _auth_header(async_client, email, password)
-    response = await async_client.post("/api/auth/sessions/revoke-others", headers=headers)
+    other = await _login(async_client, email, password)
+    caller = await _login(async_client, email, password)
+    caller_headers = {"Authorization": f"Bearer {caller['access_token']}"}
+
+    response = await async_client.post(
+        "/api/auth/sessions/revoke-others", headers=caller_headers
+    )
     assert response.status_code == 200, response.text
-    assert "message" in response.json()
+
+    refused = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": other["refresh_token"]}
+    )
+    assert refused.status_code == 401, "the other device must be signed out"
+
+    survived = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": caller["refresh_token"]}
+    )
+    assert survived.status_code == 200, "the caller must not sign themselves out"
+
+    remaining = (await async_client.get("/api/auth/sessions", headers=caller_headers)).json()
+    assert len(remaining) == 1
 
 
 @pytest.mark.asyncio
@@ -499,6 +614,45 @@ async def test_a_pre_auth_token_cannot_be_replayed(async_client):
         json={"pre_auth_token": pre_auth, "code": pyotp.TOTP(secret).now()},
     )
     assert replay.status_code == 400, "a spent pre-auth token must not work twice"
+
+
+@pytest.mark.asyncio
+async def test_a_pre_auth_token_without_a_jti_is_refused(async_client):
+    """The burn check used to read `if pre_auth_jti and not pre_auth_valid`.
+
+    A token carrying no jti therefore skipped it entirely and was replayable for
+    its full five minutes - the hole the jti was added to close. `jti` is now
+    required when minting one, and this is the receiving half of that.
+    """
+    import jwt as pyjwt
+    from datetime import datetime as dt
+
+    from server.auth.security import ALGORITHM, JWT_SECRET
+
+    email, password = await _register(async_client)
+    secret = await _enable_2fa(async_client, email, password)
+    challenge = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    subject = pyjwt.decode(
+        challenge.json()["pre_auth_token"], JWT_SECRET, algorithms=[ALGORITHM]
+    )["sub"]
+
+    jti_less = pyjwt.encode(
+        {
+            "exp": dt.now(timezone.utc) + timedelta(minutes=5),
+            "sub": subject,
+            "type": "2fa_pre_auth",
+        },
+        JWT_SECRET,
+        algorithm=ALGORITHM,
+    )
+
+    response = await async_client.post(
+        "/api/auth/2fa/verify",
+        json={"pre_auth_token": jti_less, "code": pyotp.TOTP(secret).now()},
+    )
+    assert response.status_code == 400, "a pre-auth token with no jti must not be spendable"
 
 
 @pytest.mark.asyncio
