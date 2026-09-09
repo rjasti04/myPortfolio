@@ -8,9 +8,11 @@ exist mainly so that class of wiring break cannot pass CI again.
 """
 
 import re
+import sys
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pyotp
 import pytest
@@ -24,6 +26,9 @@ from tests.backend.helpers import (
     register_verified_account,
     verify_registered_email,
 )
+
+
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def _email() -> str:
@@ -878,6 +883,163 @@ async def test_totp_codes_must_be_six_digits(async_client):
             json={"current_password": password, "code": bad},
         )
         assert res.status_code == 422, f"{bad!r} should not reach pyotp"
+
+
+# --- the operator escape hatch ----------------------------------------------
+
+
+def _load_clear_2fa():
+    """Import scripts/clear_2fa.py by path.
+
+    `scripts/` is not a package and pytest.ini scopes collection to
+    tests/backend, so there is no import path to it. Cached in sys.modules
+    because the module runs `load_dotenv` and touches sys.path at import.
+    """
+    import importlib.util
+
+    if "clear_2fa" in sys.modules:
+        return sys.modules["clear_2fa"]
+    spec = importlib.util.spec_from_file_location("clear_2fa", ROOT / "scripts" / "clear_2fa.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["clear_2fa"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+async def _run_clear_2fa(email: str, *, revoke_sessions: bool = True):
+    """Drive the script's logic against the suite's database.
+
+    Reaches it through the `get_db` override the conftest installed on the app,
+    for the reason `_expire_the_lock` gives - importing the conftest from a test
+    module builds a second, empty engine.
+    """
+    from server.db.database import get_db
+    from server.main import app
+
+    module = _load_clear_2fa()
+    sessions = app.dependency_overrides[get_db]()
+    session = await sessions.__anext__()
+    try:
+        user = await module.fetch_account(session, email)
+        assert user is not None, f"the script could not find the account for {email}"
+        return await module.clear_second_factor(session, user, revoke_sessions=revoke_sessions)
+    finally:
+        await sessions.aclose()
+
+
+@pytest.mark.asyncio
+async def test_the_unlock_script_reopens_an_account_whose_authenticator_is_gone(async_client):
+    """`scripts/clear_2fa.py` is the only way back from a lost authenticator.
+
+    Finding 9 in docs/review/2fa.md is still open - there are no recovery codes,
+    so an enrolled user whose authenticator is gone has no route out at all:
+    disable wants a live code, /2fa/setup refuses to reissue a secret, password
+    reset does not touch the 2FA columns and the magic link re-challenges. This
+    asserts the state the script has to leave behind for the account to be
+    genuinely reachable again, not merely edited.
+    """
+    email, password = await _register(async_client)
+    await _enable_2fa(async_client, email, password)
+
+    # What the owner actually does first: try codes that cannot work. Each one
+    # feeds the shared tally, so the account arrives at the script locked as
+    # well as enrolled - which is why clearing the secret alone is not enough.
+    for _ in range(auth_service.LOCKOUT_THRESHOLD):
+        challenge = await async_client.post(
+            "/api/auth/login", json={"email": email, "password": password}
+        )
+        await async_client.post(
+            "/api/auth/2fa/verify",
+            json={"pre_auth_token": challenge.json()["pre_auth_token"], "code": "000000"},
+        )
+
+    locked = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert locked.status_code == 400
+    assert "locked" in locked.text.lower()
+
+    outcome = await _run_clear_2fa(email)
+    assert outcome.changed is True
+
+    # Password login goes straight through: no challenge, and no lingering lock.
+    reopened = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert reopened.status_code == 200, reopened.text
+    assert reopened.json()["requires_2fa"] is False
+
+    # And enrolment is reachable again. This is the assertion that matters:
+    # clearing `is_totp_enabled` while leaving `totp_secret` set would pass the
+    # login check above and still leave /2fa/setup refusing to reissue.
+    headers = {"Authorization": f"Bearer {reopened.json()['access_token']}"}
+    again = await async_client.post("/api/auth/2fa/setup", headers=headers)
+    assert again.status_code == 200, again.text
+
+
+@pytest.mark.asyncio
+async def test_the_unlock_script_ends_the_sessions_on_the_lost_device(async_client):
+    """The usual reason to run it is a phone that is gone, so whatever is still
+    authenticated on it must not survive the unlock."""
+    email, password = await _register(async_client)
+    secret = await _enable_2fa(async_client, email, password)
+
+    # The full second-factor login, kept rather than discarded: the refresh
+    # token it hands back is what a session on the lost device actually holds.
+    challenge = await _login(async_client, email, password)
+    verified = await async_client.post(
+        "/api/auth/2fa/verify",
+        json={"pre_auth_token": challenge["pre_auth_token"], "code": _totp_now(secret)},
+    )
+    assert verified.status_code == 200, verified.text
+    stale_refresh = verified.json()["refresh_token"]
+
+    outcome = await _run_clear_2fa(email)
+    assert outcome.changed is True
+    assert outcome.sessions_revoked >= 1
+
+    # Revoked, not merely stale: the token is inside its 30-day lifetime and is
+    # still refused, which is what makes the device out rather than trusted.
+    refused = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": stale_refresh}
+    )
+    assert refused.status_code == 401, refused.text
+
+
+@pytest.mark.asyncio
+async def test_the_unlock_script_can_leave_sessions_alone(async_client):
+    """`--keep-sessions` is for the case the factor was rotated rather than
+    lost, where signing every device out is gratuitous."""
+    email, password = await _register(async_client)
+    secret = await _enable_2fa(async_client, email, password)
+
+    challenge = await _login(async_client, email, password)
+    verified = await async_client.post(
+        "/api/auth/2fa/verify",
+        json={"pre_auth_token": challenge["pre_auth_token"], "code": _totp_now(secret)},
+    )
+    kept_refresh = verified.json()["refresh_token"]
+
+    outcome = await _run_clear_2fa(email, revoke_sessions=False)
+    assert outcome.changed is True
+    assert outcome.sessions_revoked == 0
+
+    still_good = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": kept_refresh}
+    )
+    assert still_good.status_code == 200, still_good.text
+
+
+@pytest.mark.asyncio
+async def test_the_unlock_script_changes_nothing_when_2fa_is_already_off(async_client):
+    """An operator running it on the wrong account must not silently revoke that
+    account's sessions as a side effect."""
+    email, _ = await _register(async_client)
+
+    outcome = await _run_clear_2fa(email)
+    assert outcome.changed is False
+    assert "already off" in outcome.reason
+    assert outcome.sessions_revoked == 0
 
 
 # --- single-use token isolation ---------------------------------------------
