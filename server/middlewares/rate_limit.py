@@ -27,6 +27,18 @@ AUTH_RATE_LIMITED_PATHS = frozenset({
     # credential respectively - the same shape as the two above.
     "/auth/resend-verification",
     "/auth/verify-email",
+    # Both check a password *and* six digits, so both are guessing surfaces
+    # even though they sit behind `get_current_user`. An access token is not a
+    # password, and these are the two routes that can turn the second factor
+    # on or off.
+    #
+    # `/auth/2fa/setup` is deliberately NOT here. It guesses nothing - it hands
+    # the caller a secret they already have the right to - and this budget is
+    # 5 requests per minute shared across every path in this set, so putting
+    # setup on it would spend the allowance the enable step needs seconds
+    # later.
+    "/auth/2fa/enable",
+    "/auth/2fa/disable",
 })
 
 # Bedrock inference. These sat on the general 60/min budget, which is far too

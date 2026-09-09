@@ -43,15 +43,21 @@ class Setup2FAResponse(BaseModel):
     qr_code: str
 
 class Enable2FARequest(BaseModel):
-    code: str
+    # Re-authentication, not decoration. Without it an access token was on its
+    # own enough to bind an authenticator to an account that had no second
+    # factor - which locks the real owner out rather than merely reading their
+    # data. `change-password` and `delete-account` already re-auth; this is the
+    # third credential change and it belongs on the same footing.
+    current_password: str
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 class Disable2FARequest(BaseModel):
     current_password: str
-    code: str
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 class Verify2FARequest(BaseModel):
-    pre_auth_token: str
-    code: str
+    pre_auth_token: str = Field(..., max_length=2048)
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 class MagicLinkRequest(BaseModel):
     email: EmailStr

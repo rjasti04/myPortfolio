@@ -192,7 +192,7 @@ access token.
 | GET | `/auth/me` | 🔒 | Current user |
 | POST | `/auth/logout` | 🔒 | Revoke all refresh tokens and end sessions |
 | POST | `/auth/2fa/setup` | 🔒 | Generate a TOTP secret + QR code |
-| POST | `/auth/2fa/enable` | 🔒 | Confirm a code and enable TOTP |
+| POST | `/auth/2fa/enable` | 🔒 | Confirm a code and enable TOTP (password **and** code required) |
 | POST | `/auth/2fa/disable` | 🔒 | Disable TOTP (password **and** code required) |
 | POST | `/auth/2fa/verify` | pre-auth token in body | Complete a 2FA sign-in |
 | POST | `/auth/magic-link/request` | — | Email a passwordless sign-in link |
@@ -269,12 +269,37 @@ rotation is destructive, clients must serialise concurrent refreshes —
 `{"secret": "BASE32", "qr_code": "data:image/png;base64,…"}`.
 **400** if 2FA is already enabled — re-enrolling would overwrite the secret the
 authenticator already holds and lock the account behind a factor nobody can
-produce.
+produce. Disable first. Deliberately *not* on the strict auth budget: it guesses
+nothing, and that budget is shared across every path on it, so spending it here
+would starve the `/2fa/enable` call moments later.
+
+### `POST /auth/2fa/enable` → 200
+
+`{"current_password": "…", "code": "123456"}`. Confirms the secret handed out by
+`/2fa/setup` and turns the second factor on. **Both** credentials are required:
+without the password an access token alone could bind an attacker's
+authenticator to an account that had none, locking the owner out rather than
+merely reading their data. **401** on a wrong password, **400** on a wrong code
+or when no setup was initiated; either wrong credential increments the lockout
+counter, 5 → 15-minute lock. On success every *other* session is revoked and the
+account owner is emailed. On the strict 5/min auth budget.
+
+### `POST /auth/2fa/disable` → 200
+
+`{"current_password": "…", "code": "123456"}`. Clears `totp_secret` and
+`is_totp_enabled`, so the authenticator entry stops working and `/2fa/setup`
+becomes available again — this is the only supported way to move to a new
+authenticator. Same credential rules, lockout behaviour, session revocation,
+notification and rate budget as `/2fa/enable`. **400** with "2FA is not enabled"
+when it is already off; that state error does *not* count toward the lockout,
+since it refuses every caller equally.
 
 ### `POST /auth/2fa/verify` → 200 `TokenResponseOr2FA`
 
 `{"pre_auth_token": "…", "code": "123456"}`. The pre-auth `jti` is burned on
-use. Failed codes increment the lockout counter; 5 → 15-minute lock.
+use — **before** the code is checked, so a failed attempt spends the token and
+the client must start the sign-in over rather than retry on the same challenge.
+Failed codes increment the lockout counter; 5 → 15-minute lock.
 **400** — `"This sign-in attempt has expired. Please log in again."` on replay.
 
 ### `POST /auth/verify-email` → 200

@@ -604,6 +604,21 @@
   border-radius: 4px;
 }
 
+/* --- 2FA manage ---------------------------------------------------------- */
+.twofa-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  font-size: var(--text-sm);
+  color: var(--color-success, #34d399);
+}
+
+.twofa-status-icon {
+  font-size: var(--text-base);
+}
+
 /* --- Sessions ----------------------------------------------------------- */
 .sessions-list {
   margin: 1rem 0;

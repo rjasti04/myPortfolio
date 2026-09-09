@@ -63,12 +63,24 @@ async def setup_2fa(current_user: User = Depends(get_current_user), db: AsyncSes
     return await auth_service.setup_2fa(db, current_user)
 
 @router.post("/2fa/enable")
-async def enable_2fa(data: Enable2FARequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    return await auth_service.enable_2fa(db, current_user, data)
+async def enable_2fa(
+    data: Enable2FARequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    current_jti: Optional[str] = Depends(get_current_session_jti),
+    db: AsyncSession = Depends(get_db),
+):
+    return await auth_service.enable_2fa(db, current_user, data, current_jti, background_tasks)
 
 @router.post("/2fa/disable")
-async def disable_2fa(data: Disable2FARequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    return await auth_service.disable_2fa(db, current_user, data)
+async def disable_2fa(
+    data: Disable2FARequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    current_jti: Optional[str] = Depends(get_current_session_jti),
+    db: AsyncSession = Depends(get_db),
+):
+    return await auth_service.disable_2fa(db, current_user, data, current_jti, background_tasks)
 
 @router.post("/2fa/verify", response_model=TokenResponseOr2FA)
 async def verify_2fa(data: Verify2FARequest, request: Request, db: AsyncSession = Depends(get_db)):

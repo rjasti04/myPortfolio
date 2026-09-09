@@ -132,6 +132,15 @@ def test_code_driven_login_surfaces_are_strict_limited():
     assert "/auth/magic-link/request" in AUTH_RATE_LIMITED_PATHS
 
 
+def test_second_factor_changes_are_strict_limited():
+    """Both check a password and six digits, so both are guessing surfaces even
+    behind `get_current_user` - an access token is not a password. Setup stays
+    off the list on purpose: it guesses nothing, and the budget is shared."""
+    assert "/auth/2fa/enable" in AUTH_RATE_LIMITED_PATHS
+    assert "/auth/2fa/disable" in AUTH_RATE_LIMITED_PATHS
+    assert "/auth/2fa/setup" not in AUTH_RATE_LIMITED_PATHS
+
+
 @pytest.mark.parametrize(
     "path, expected",
     [("/api/events", "/events"), ("/events", "/events"), ("/api", "/"), ("/apiary", "/apiary")],

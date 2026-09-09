@@ -181,6 +181,50 @@ async def send_security_notification_email(email: str, user_id: str) -> None:
     )
 
 
+async def send_2fa_change_notification(email: str, user_id: str, enabled: bool) -> None:
+    """Tells the account owner their second factor was just turned on or off.
+
+    A separate sender rather than a reuse of `send_security_notification_email`:
+    that one's copy names the password specifically, and a mail saying "your
+    password was changed" when it was not is worse than no mail at all - it
+    sends the owner chasing the wrong credential.
+
+    Disabling is the more dangerous half and reads accordingly. Someone who
+    turned 2FA off without knowing it has an attacker holding both their
+    password and, until a moment ago, their authenticator.
+    """
+    action = "enabled" if enabled else "disabled"
+    logger.info(
+        "sending_2fa_change_notification",
+        recipient_email=email,
+        user_id=user_id,
+        enabled=enabled,
+    )
+
+    plain = (
+        f"Two-factor authentication was just {action} on your rjasti.com account.\n\n"
+        "If this was you, no action is needed.\n\n"
+        "If it was not, your account may be compromised: reset your password "
+        "immediately at https://rjasti.com/ and review your active sessions."
+    )
+    html = _wrap_html(
+        f"Two-factor authentication {action}",
+        f"<p>Two-factor authentication was just <strong>{action}</strong> on your "
+        "rjasti.com account.</p>"
+        "<p>If this was you, no action is needed.</p>"
+        "<p><strong>If it was not</strong>, your account may be compromised: "
+        '<a href="https://rjasti.com/">reset your password</a> immediately and '
+        "review your active sessions.</p>",
+    )
+    await _send(
+        subject=f"Security alert: two-factor authentication {action} - rjasti.com",
+        recipient=email,
+        plain=plain,
+        html=html,
+        log_event="2fa_change_notification",
+    )
+
+
 async def send_password_reset_email(email: str, reset_token: str) -> None:
     """
     Asynchronously sends a password reset link email to the user via local/configured SMTP server.

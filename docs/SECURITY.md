@@ -155,12 +155,31 @@ TOTP via `pyotp`, enrolled with a QR code returned as a base64 data URI.
   `is_totp_enabled`, locking the account behind a factor nobody can produce —
   and would let anyone holding a stolen access token swap the second factor for
   one of their own.
-- `/auth/2fa/disable` requires **both** the current password and a valid code.
-- The pre-auth token issued between password and code is single-use. Without
-  that, capturing one bought unlimited attempts at a six-digit code for its full
-  five-minute life.
-- `/auth/2fa/verify` is on the strict 5/min auth rate budget, alongside
-  `/auth/magic-link/request` — both hand out a login on a guessable secret.
+- `/auth/2fa/enable` and `/auth/2fa/disable` both require the current password
+  **and** a valid code. Re-authentication is the point: an access token is not a
+  password, so without it a stolen token could bind an attacker's authenticator
+  to an account that had no second factor — locking the owner out rather than
+  merely reading their data.
+- Both run the same order — **lockout → password → state → code → mutate →
+  revoke → notify**. A wrong password or a wrong code counts toward the shared
+  lockout tally; a *state* error ("2FA is not enabled") does not, because it
+  refuses every caller equally and counting it would let a prober lock arbitrary
+  accounts.
+- Turning the second factor on or off revokes every **other** session
+  (`revoke_all_other_sessions`, so the caller keeps the session they are working
+  in) and emails the account owner, matching what a password change already did.
+- The pre-auth token issued between password and code is single-use, and is
+  burned **before** the code is checked. Without that, capturing one bought
+  unlimited attempts at a six-digit code for its full five-minute life. The
+  consequence is that every failed challenge is terminal — the client starts the
+  sign-in again rather than retrying on a spent token.
+- `/auth/2fa/verify`, `/auth/2fa/enable` and `/auth/2fa/disable` are on the
+  strict 5/min auth rate budget, alongside `/auth/magic-link/request`.
+  `/auth/2fa/setup` is deliberately **not**: it guesses nothing, and the budget
+  is shared across every path on it, so putting setup there would spend the
+  allowance the enable step needs seconds later.
+- Every TOTP code field is bounded to exactly six digits at the schema, so a
+  malformed code is refused before it reaches `pyotp`.
 
 ---
 
@@ -420,6 +439,8 @@ growing table, and an unbounded range is the query that eventually times out.
 | No CSRF tokens | Mitigated: the API is JSON + bearer token, and the one cookie is `SameSite=Strict` | Revisit if cookie-authenticated state-changing routes are added |
 | No HSTS header | A first plain-HTTP request is possible | Add `Strict-Transport-Security` to `.htaccess` |
 | No account-level audit log | Security events are in application logs only | Add a table if accounts grow beyond personal use |
+| No 2FA recovery codes | A lost authenticator is unrecoverable: disable needs a live code, password reset does not clear `is_totp_enabled`, and the magic-link path re-challenges | Hashed single-use backup codes issued at enrolment, accepted at `/2fa/verify` and `/2fa/disable` — needs a migration (`docs/review/2fa.md`, finding 9) |
+| `totp_secret` stored in plaintext | A database read discloses every enrolled account's second factor | Encrypt at rest under a new required secret, with a migration to re-wrap existing rows (`docs/review/2fa.md`, finding 10) |
 | HIBP fails open | An HIBP outage lets a breached password through | Deliberate; failing closed would block all password changes |
 | Deploy host key is TOFU without `EC2_HOST_KEY` | A first-run MITM on the deploy channel | Set the `EC2_HOST_KEY` secret |
 
