@@ -140,6 +140,7 @@ from elsewhere.
         assumptions you chose in your summary, then implement it. Never end such a
         session having produced nothing but a question.
 *   **Minor/Trivial Edits:** (CSS tweaks, typo fixes, simple UI styling, single-line adjustments) May proceed directly with targeted diffs to maintain high interaction velocity and reduce token overhead.
+*   **Intent & Spec Documents:** When preparing feature requirements or technical specifications, never overwrite `.claude/templates/intent.md` or `spec.md`. Always save to a distinct file: `.claude/intents/YYYY-MM-DD-<feature-slug>.md` and `.claude/specs/YYYY-MM-DD-<feature-slug>.md`.
 
 ## 3. Technical Collaboration & Constraints
 *   **Environment Awareness:** Always prioritize best practices for modern static frontends and asynchronous Python backends.

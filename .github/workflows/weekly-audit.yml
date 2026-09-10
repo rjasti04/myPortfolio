@@ -1,0 +1,57 @@
+name: Weekly AI Health & Security Audit
+
+on:
+  schedule:
+    # Runs every Monday at 04:00 UTC
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+jobs:
+  codebase-audit:
+    name: Weekly Codebase & Security Health Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: server/requirements*.txt
+
+      - name: Install Frontend Tools & Audit
+        run: |
+          npm ci --no-audit --no-fund
+          npm run audit || true
+          npm run lint
+
+      - name: Install Backend Dependencies & Lint
+        run: |
+          python -m pip install --upgrade pip
+          pip install --require-hashes -r server/requirements-dev.txt
+          ruff check server tests
+
+      - name: Run Backend Pytest Suite
+        run: pytest --cov=server --cov-report=term-missing --cov-fail-under=55
+        env:
+          PYTHONPATH: .
+          TESTING: 'true'
+          DATABASE_URL: 'sqlite+aiosqlite:///:memory:'
+          AWS_REGION: 'us-east-1'
+          DEFAULT_MODEL_ID: 'google.gemma-3-4b-it'
+          JWT_SECRET: 'ci-only-jwt-secret-not-used-by-any-deployment'
+
+      - name: Verify CSP Hashes
+        run: python3 scripts/check_csp_hashes.py
+
+      - name: Verify Documentation Token & Line Counts
+        run: python3 scripts/check_docs.py
