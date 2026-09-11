@@ -1,6 +1,8 @@
 ---
 name: frontend-module
 description: Architecture standards, vanilla ES module rules, zero third-party asset constraints, and token contracts for rjWebApp frontend.
+paths:
+  - frontend/**/*.{js,css,html}
 ---
 
 # Frontend Module & Architecture Standards

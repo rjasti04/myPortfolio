@@ -1,4 +1,6 @@
-All read-only. Run each in a fresh session (`/clear` between) so findings don't bleed together.
+All read-only. Primary review orchestration is via /review.
+
+Run each in a fresh session (`/clear` between) so findings don't bleed together.
 
 **1. Correctness**
 ```
@@ -94,8 +96,8 @@ something you saw in the code.
 
 **6. Instruction-file audit**
 ```
-Audit CLAUDE.md, any AGENTS.md,
-.claude/rules/, and .claude/agents/
+Audit .claude/CLAUDE.md, AGENTS.md,
+.claude/skills/, and .claude/agents/
 against the actual code.
 
 Flag: rules the codebase contradicts,
@@ -105,13 +107,12 @@ that should be path-scoped or a hook.
 
 Report only — don't rewrite.
 ```
-Then `/doctor` for the trim pass and `/context` to confirm what loaded.
 
 **7. Agentic setup**
 ```
 Audit my agentic setup for this repo:
-CLAUDE.md, rules/, agents/, skills/,
-settings.json, hooks.
+.claude/CLAUDE.md, .claude/skills/, .claude/agents/,
+.claude/hooks/, and .claude/settings.json.
 
 Tell me:
 1. Advisory rules that should be enforced
@@ -140,5 +141,3 @@ ship independently. Don't fix anything.
 ```
 
 Then `/batch implement docs/review/batch-1.md` to fan the approved batch out across worktrees.
-
-Say the word if you want these as a `.md` file or wired up as `.claude/skills/` entries so they're slash commands.

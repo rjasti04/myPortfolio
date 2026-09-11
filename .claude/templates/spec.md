@@ -8,7 +8,7 @@ Create the .claude/specs/ directory if it does not already exist.
 
 # Technical Specification: [Feature Name]
 
-**Related Intent**: [Link to `.claude/templates/intent.md` instance or PR description]
+**Related Intent**: [Link to `.claude/intents/YYYY-MM-DD-<feature-slug>.md` or PR description]
 **Target Audience**: [Visitor / Recruiter / Work Sample / Owner]
 
 ---
@@ -45,9 +45,9 @@ Create the .claude/specs/ directory if it does not already exist.
   - Table: `[table_name]` in `server/models/[file].py`
   - Columns / Constraints:
 - **Migration Strategy**:
-  - Alembic revision command: `PYTHONPATH=. alembic revision --autogenerate -m "..."`
-  - Backward compatibility: Verify expand/contract approach so rollback doesn't fail.
-  - Reversibility: `alembic upgrade head -> alembic downgrade -1 -> alembic upgrade head`.
+  - Local creation: `PYTHONPATH=. alembic revision --autogenerate -m "..."`
+  - Reversibility test: `alembic upgrade head -> alembic downgrade -1 -> alembic upgrade head` (CI full-chain validation).
+  - Production deployment & rollback policy: Production rollbacks restore previous code but do not downgrade schema. Migrations must maintain backward compatibility with previous code.
 
 ---
 
@@ -67,13 +67,18 @@ Create the .claude/specs/ directory if it does not already exist.
 ---
 
 ## 6. Verification & Test Plan
-- **Backend Unit / Integration Tests**: `tests/backend/unit/test_[...].py`
-- **Frontend Tests**: `frontend/tests/[...].test.js`
-- **Quality Gates**:
-  ```bash
-  npm run lint
-  npm test
-  $env:PYTHONPATH='.'; pytest
-  python scripts/check_csp_hashes.py
-  python scripts/check_docs.py --fix
-  ```
+Select quality gates based on impacted layers:
+
+```bash
+# Frontend
+npm run lint
+npm test
+npm run build
+
+# Backend
+PYTHONPATH=. pytest
+
+# Docs / Hashes Verification (non-mutating)
+python3 scripts/check_csp_hashes.py
+python3 scripts/check_docs.py
+```

@@ -12,6 +12,26 @@ on:
       - main
 
 jobs:
+  # ─── AGENT CONFIGURATION GATE ───────────────────────────────────────
+  agent-config-check:
+    name: Verify Agent Configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: agent-config-check-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Run Agent Config Validator
+        run: python3 scripts/check_agent_config.py
+
   # ─── 1. FRONTEND QUALITY GATE ─────────────────────────────────────────
   frontend-check:
     name: Frontend Lint & Tests
