@@ -1183,6 +1183,11 @@
             title="Toggle Light/Dark Theme">
             <i class="fas fa-moon"></i>
           </button>
+          <button id="autofill-btn" class="btn btn-outline"
+            aria-label="Randomly fill undecided stages and matches across the tournament"
+            title="Random fill remaining matches">
+            <i class="fas fa-dice"></i> <span class="sr-only-mobile">Random Fill</span>
+          </button>
           <button id="reset-btn" class="btn btn-outline" aria-label="Reset Bracket predictions">
             <i class="fas fa-rotate-left"></i> <span class="sr-only-mobile">Reset</span>
           </button>
@@ -2550,6 +2555,104 @@
       showToast("🏆 Congratulations! Champion crowned!", "success");
     }
 
+    // Helper: 50/50 Coin-flip simulation between two advancing teams
+    function pickRandomCoinFlipWinner(team1, team2) {
+      if (!team1 && !team2) return null;
+      if (!team1) return team2;
+      if (!team2) return team1;
+      return Math.random() < 0.5 ? team1 : team2;
+    }
+
+    // Helper: Fisher-Yates array permutation
+    function shuffleArray(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // Settles untouched tournament stages and remaining knockout matches
+    function autoFillTournament() {
+      const beforeCount = Object.keys(state.bracketWinner).length;
+      const beforeFinalDecided = Boolean(state.bracketWinner["final"]);
+      const hasExistingBracketPicks = beforeCount > 0;
+
+      // 1. Group Stage Shuffling
+      // Only shuffle groups that remain in default order if no bracket picks exist yet
+      if (!hasExistingBracketPicks) {
+        Object.keys(state.groups).forEach(gLetter => {
+          const current = state.groups[gLetter];
+          const initial = INITIAL_GROUPS[gLetter];
+          const isUntouched = current.every((t, idx) => t.name === initial[idx].name);
+          if (isUntouched) {
+            state.groups[gLetter] = shuffleArray(current);
+          }
+        });
+
+        // 2. Wildcards Selection
+        // If wildcards match the default 8 groups ["A".."H"], select 8 random groups out of 12
+        const defaultWildcards = ["A", "B", "C", "D", "E", "F", "G", "H"];
+        const isDefaultWildcards = state.wildcards.length === 8 &&
+          defaultWildcards.every((g, idx) => state.wildcards[idx] === g);
+
+        if (isDefaultWildcards) {
+          const allGroups = Object.keys(INITIAL_GROUPS);
+          state.wildcards = shuffleArray(allGroups).slice(0, 8);
+        }
+      }
+
+      // 3. Sequential Knockout Resolution (32 matches across all rounds)
+      const rounds = [
+        // Round of 32
+        Array.from({ length: 16 }, (_, i) => `r32-${i + 1}`),
+        // Round of 16
+        Array.from({ length: 8 }, (_, i) => `r16-${i + 1}`),
+        // Quarterfinals
+        Array.from({ length: 4 }, (_, i) => `qf-${i + 1}`),
+        // Semifinals
+        ["sf-1", "sf-2"],
+        // Finals
+        ["final", "third-place"]
+      ];
+
+      rounds.forEach(roundMatches => {
+        const currentMatches = calculateMatchesData();
+        roundMatches.forEach(mId => {
+          // Preserve manual pick if already chosen
+          if (state.bracketWinner[mId]) return;
+
+          const m = currentMatches[mId];
+          if (m) {
+            const winner = pickRandomCoinFlipWinner(m.team1, m.team2);
+            if (winner) {
+              state.bracketWinner[mId] = winner.name;
+            }
+          }
+        });
+      });
+
+      // 4. Persistence & View Refresh
+      saveStateToLocalStorage();
+      renderAllViews();
+
+      // Trigger celebration if final was decided during this run
+      if (!beforeFinalDecided && state.bracketWinner["final"]) {
+        const champ = getMatchWinner(calculateMatchesData(), "final");
+        if (champ) {
+          triggerGoldPodiumCelebration();
+        }
+      }
+
+      const added = Object.keys(state.bracketWinner).length - beforeCount;
+      if (added > 0) {
+        showToast(`Filled ${added} ${added === 1 ? "match" : "matches"} with random outcomes!`, "success");
+      } else {
+        showToast("All tournament matches were already decided. Reset the bracket to re-roll.", "warning");
+      }
+    }
+
     // SETUP UI EVENT LISTENERS
     function setupThemeToggle() {
       const btn = document.getElementById("theme-toggle-btn");
@@ -2600,7 +2703,10 @@
     }
 
     function setupUtilityButtons() {
-      // 1. Reset
+      // 1. Auto-fill
+      document.getElementById("autofill-btn").addEventListener("click", autoFillTournament);
+
+      // 2. Reset
       document.getElementById("reset-btn").addEventListener("click", () => {
         if (confirm("Are you sure you want to reset all bracket predictions? This cannot be undone.")) {
           resetToDefaults(true);
