@@ -21,6 +21,8 @@ when the API is unreachable, so the portfolio itself never depends on it.
 
 - [Tech stack](#tech-stack)
 - [Repository layout](#repository-layout)
+  - [Application layout](#application-layout)
+  - [AI and agent tooling layout](#ai-and-agent-tooling-layout)
 - [Prerequisites](#prerequisites)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
@@ -51,6 +53,8 @@ renderer.
 ---
 
 ## Repository layout
+
+### Application layout
 
 ```text
 .
@@ -95,6 +99,47 @@ renderer.
 ├── assets/                      # Generator sources (icon, headshot, landing portrait, paint swipe) — deliberately outside the published web root
 ├── .github/workflows/deploy.yml # CI/CD pipeline
 └── AGENTS.md                    # Single source of truth for AI-agent operating rules
+```
+
+### AI and agent tooling layout
+
+```text
+.
+├── AGENTS.md                    # Single source of truth for AI-agent operating protocol (v2.0), personas, and rules
+├── AI_CONTEXT.md                # Deprecated pointer → AGENTS.md (anti-drift redirect)
+├── .claude/                     # Claude Code configuration & agent orchestration
+│   ├── CLAUDE.md                # Claude Code entry point (imports @../AGENTS.md)
+│   ├── REVIEW.md                # Multi-agent review protocol and structured findings criteria
+│   ├── settings.json            # Tool permissions (.env protection) & pre/post tool hooks
+│   ├── agents/                  # Specialist reviewer subagents
+│   │   ├── backend-reviewer.md  # Python/FastAPI/SQLAlchemy expert reviewer
+│   │   ├── frontend-reviewer.md # Vanilla ES modules, CSS, and accessibility reviewer
+│   │   ├── security-reviewer.md # Auth, CSP, rate-limit, and data-integrity auditor
+│   │   └── verifier.md          # Non-mutating verification agent (tests & linters)
+│   ├── skills/                  # Domain-specific agent skills (loaded on-demand)
+│   │   ├── alembic-guard/       # Migration safety rules, downgrade invariance, and drift checks
+│   │   ├── frontend-module/     # Vanilla ES module rules & zero third-party asset constraints
+│   │   ├── intent-planner/      # User requirement capture and feature interview protocol
+│   │   ├── review/              # Orchestrator delegating to specialist reviewer subagents
+│   │   ├── security-audit/      # Security pre-merge verification checklist
+│   │   ├── testing/             # Canonical test-runner protocol across frontend/backend
+│   │   └── verify/              # Gatekeeping orchestration invoking verifier subagent
+│   ├── templates/               # Standardized templates for feature development
+│   │   ├── intent.md            # Feature requirements capture template
+│   │   └── spec.md              # Technical specification template
+│   ├── intents/                 # Captured feature requirement records (YYYY-MM-DD-<slug>.md)
+│   ├── specs/                   # Technical architecture specifications (YYYY-MM-DD-<slug>.md)
+│   └── hooks/                   # PreToolUse/PostToolUse shell hooks
+│       ├── protect-migrations.sh # Blocks edits to existing Alembic revisions
+│       ├── protect-spa-egress.sh # Blocks third-party asset links/scripts in the SPA
+│       ├── verify-csp.sh        # Validates index.html inline script hashes
+│       └── verify-docs.sh       # Verifies line counts and token metrics in docs
+├── .agents/                     # Standard agent directory (skills symlink → .claude/skills)
+├── .antigravity/                # Google Antigravity IDE setup (instructions & architecture stubs → AGENTS.md)
+├── .amazonq/                    # Amazon Q developer configuration (rules/AMAZONQ.md → AGENTS.md)
+├── .codex/                      # OpenAI Codex CLI configuration (AGENTS.md → ../AGENTS.md)
+├── ai_prompts/                  # Operational prompt blueprints (sdlc.txt, code_review.txt, to_do.txt)
+└── docs/review/                 # Consolidated specialist subagent review findings
 ```
 
 ---

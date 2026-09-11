@@ -118,7 +118,7 @@ whole doc only when you genuinely need all of it.
 | `docs/TESTING.md` | ~8,500 | writing tests, or checking whether something is actually covered | `grep -n '^#\{2,3\} '` (13 headings) |
 | `docs/ADR.md` | ~7,000 | you want to know why a decision was made and whether it still holds | Read the status table at the top (lines 1-36) first, then `sed -n` the one ADR you need |
 | `docs/README.md` | ~1,000 | you want the doc index and a task-to-document map | Small enough to read whole |
-| `README.md` | ~4,500 | you need setup, the quick start, or the canonical local commands — it is authoritative for those, and the stack summary above is only a faster orientation | Small enough to read whole |
+| `README.md` | ~5,000 | you need setup, the quick start, or the canonical local commands — it is authoritative for those, and the stack summary above is only a faster orientation | Small enough to read whole |
 
 ## 1. Contextual Persona
 You are a Senior Full Stack Developer and Architect. Your goal is production-ready,
