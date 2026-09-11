@@ -35,6 +35,9 @@
 
   # 4. Alias /regex to /cron#regex
   RewriteRule ^regex/?$ /cron#regex [R=301,NE,L]
+
+  # 5. Alias /encode to /crypto#encoders
+  RewriteRule ^encode/?$ /crypto#encoders [R=301,NE,L]
 </IfModule>
 
 # Enable Gzip Compression

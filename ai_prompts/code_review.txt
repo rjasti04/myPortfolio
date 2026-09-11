@@ -1,0 +1,144 @@
+All read-only. Run each in a fresh session (`/clear` between) so findings don't bleed together.
+
+**1. Correctness**
+```
+Read-only pass. Find correctness bugs.
+
+Look for: swallowed exceptions, race
+conditions, boundary/off-by-one cases,
+null paths, non-idempotent retries,
+transaction scope too wide or narrow,
+silent type coercion.
+
+Write docs/review/bugs.md:
+severity P0-P3 | file:line | what breaks
+and on what input | the fix.
+
+No edits. Skip style. Only report things
+with a concrete failure mode. Mark
+guesses as guesses.
+```
+
+**2. Security**
+```
+Read-only security review of the repo.
+
+Cover: authz gaps on non-obvious paths,
+injection (SQL, shell, template), secrets
+in code/config/CI, over-broad IAM and DB
+grants, unsafe deserialization, SSRF,
+validation at trust boundaries, dependency
+CVEs from the lockfiles.
+
+Write docs/review/security.md:
+severity | file:line | attack path | fix.
+
+Split "exploitable today" from "hardening."
+```
+Pair with `/security-review` on each diff going forward.
+
+**3. Performance**
+```
+Read-only performance review.
+
+Cover: N+1 queries, queries with no index
+support, SELECT * on wide tables, missing
+pagination, blocking I/O on async paths,
+per-request work that could be cached or
+batched, unbounded memory growth, I/O in
+hot loops.
+
+Per finding: the code path, why it's slow,
+rough magnitude, the fix.
+Write docs/review/performance.md.
+
+Say which ones you'd need to profile to
+confirm instead of asserting them.
+```
+
+**4. UI/UX**
+```
+Read-only review of the UI layer.
+
+Cover: missing loading/empty/error states,
+inconsistent components doing the same job,
+forms with no validation feedback, focus
+order and keyboard traps, contrast, touch
+targets, destructive actions with no
+confirm, flows that leave the user unsure
+whether something worked.
+
+Write docs/review/uiux.md with file:line
+and the concrete change. Rank by traffic
+on the affected path.
+```
+
+**5. Features**
+```
+Read @README.md and the codebase, then
+propose features.
+
+Context: <who uses this, what they do with
+it, what they complain about, what's
+already on the roadmap>.
+
+Per idea: the user problem, why this
+codebase is positioned for it, rough
+implementation shape, effort. Rank by
+value-to-effort.
+
+Flag anything already half-built. No
+generic ideas — ground each one in
+something you saw in the code.
+```
+
+**6. Instruction-file audit**
+```
+Audit CLAUDE.md, any AGENTS.md,
+.claude/rules/, and .claude/agents/
+against the actual code.
+
+Flag: rules the codebase contradicts,
+rules restating what's derivable from the
+repo, conflicts between files, and rules
+that should be path-scoped or a hook.
+
+Report only — don't rewrite.
+```
+Then `/doctor` for the trim pass and `/context` to confirm what loaded.
+
+**7. Agentic setup**
+```
+Audit my agentic setup for this repo:
+CLAUDE.md, rules/, agents/, skills/,
+settings.json, hooks.
+
+Tell me:
+1. Advisory rules that should be enforced
+   — propose the PreToolUse hook for each
+2. Rules that should be path-scoped
+   rather than always loaded
+3. What's missing: test gate, formatter,
+   guard on destructive commands
+4. Permissions too broad, and prompts I
+   could safely allowlist
+5. Subagents whose tool lists are wider
+   than their job
+
+Table first, then the files you'd write.
+Don't write them yet.
+```
+
+**8. Triage**
+```
+Read docs/review/*.md. Produce one
+prioritized fix list, deduped, P0 first.
+
+Per item: the fix, blast radius, whether
+it needs a test. Group into batches that
+ship independently. Don't fix anything.
+```
+
+Then `/batch implement docs/review/batch-1.md` to fan the approved batch out across worktrees.
+
+Say the word if you want these as a `.md` file or wired up as `.claude/skills/` entries so they're slash commands.

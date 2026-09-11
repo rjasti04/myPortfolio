@@ -71,7 +71,7 @@ these files the number here has to move with it.
 | :--- | ---: | ---: | :--- |
 | `frontend/styles.css` | 12,258 | ~91,000 | `grep -n '#region' frontend/styles.css` returns a 27-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
 | `package-lock.json` | 3,453 | ~32,500 | Never read. `package.json` lists every direct dep in 25 lines. |
-| `frontend/index.html` | 2,457 | ~38,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
+| `frontend/index.html` | 2,471 | ~38,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
 | `frontend/js/chat.js` | 2,213 | ~23,500 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (48 hits). |
 | `frontend/js/auth-ui.js` | 1,563 | ~19,500 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (14 hits). |
 | `frontend/three-bg.js` | 1,559 | ~14,000 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
@@ -91,7 +91,7 @@ in order ("add or change an API endpoint" -> `API.md` -> `BACKEND.md` ->
 `SECURITY.md#checklist-for-changes`). The table below is for budgeting the read
 once you know which doc you want.
 
-**These docs are also too big to read whole.** Together they are ~92,500
+**These docs are also too big to read whole.** Together they are ~93,000
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -100,7 +100,7 @@ grep -n '^#\{2,3\} ' docs/JAVASCRIPT.md   # ~40 headings, ~400 tokens
 sed -n '284,298p' docs/JAVASCRIPT.md      # just the module you are touching
 ```
 
-That turns a 18,000-token read into roughly 500. Use it by default; read a
+That turns a 18,500-token read into roughly 500. Use it by default; read a
 whole doc only when you genuinely need all of it.
 
 | Doc | ~Tokens | Read it before... | Jump to a section with |
@@ -109,7 +109,7 @@ whole doc only when you genuinely need all of it.
 | `docs/API.md` | ~9,000 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (39 endpoint sections) |
 | `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
 | `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
-| `docs/JAVASCRIPT.md` | ~18,000 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (57 module sections) |
+| `docs/JAVASCRIPT.md` | ~18,500 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (63 module sections) |
 | `docs/FRONTEND.md` | ~12,000 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (20 headings) |
 | `docs/DESIGN.md` | ~2,500 | adding a colour, a size, a duration or an easing to the stylesheet - it is the token contract, not the plumbing | `grep -n '^#\{2,3\} '` (12 headings) |
 | `docs/CONFIGURATION.md` | ~4,500 | adding or interpreting an environment variable | `grep -n '^## '` (16 headings), or just grep the variable name |

@@ -211,9 +211,22 @@ async function main() {
     }
   }
 
+  // The crypto & encoders workbench at /crypto is a separate standalone page with its own entry.
+  const cryptoApp = await esbuild.build({
+    entryPoints: [join(SRC, "js/crypto/crypto-main.js")],
+    bundle: true, minify: true, sourcemap: true, format: "esm", target: ["es2022"],
+    outdir: join(OUT, "assets"), entryNames: "crypto-[hash]", metafile: true, logLevel: "warning",
+  });
+  for (const [outPath, meta] of Object.entries(cryptoApp.metafile.outputs)) {
+    if (outPath.endsWith(".map")) continue;
+    if (meta.entryPoint) {
+      rewrites.set("js/crypto/crypto-main.js", relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
+    }
+  }
+
   // --- CSS -----------------------------------------------------------------
   const cssAssets = new Set();
-  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "arcade.css", "cron.css"]) {
+  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "arcade.css", "cron.css", "crypto.css"]) {
     const result = await esbuild.build({
       entryPoints: [join(SRC, css)],
       bundle: true, minify: true, sourcemap: true,

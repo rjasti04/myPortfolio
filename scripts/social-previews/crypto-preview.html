@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Open Graph card — Crypto &amp; Encoders Workbench</title>
+  <link rel="stylesheet" href="card.css">
+  <style>
+    .card {
+      background: linear-gradient(160deg, #090d16 0%, #0d1a2d 100%);
+      color: #f8fafc;
+    }
+
+    .glow-crypto {
+      width: 700px;
+      height: 700px;
+      top: -300px;
+      left: -180px;
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.26), transparent 66%);
+    }
+
+    .glow-encoder {
+      width: 650px;
+      height: 650px;
+      bottom: -280px;
+      right: -120px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.24), transparent 66%);
+    }
+
+    .rule {
+      background: linear-gradient(90deg, #0ea5e9, #38bdf8 50%, #818cf8);
+    }
+
+    .eyebrow {
+      color: #38bdf8;
+    }
+
+    .left {
+      width: 580px;
+    }
+
+    .title {
+      font-size: 60px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 40%, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 26px;
+      font-weight: 700;
+      color: #818cf8;
+      letter-spacing: -0.01em;
+      margin-bottom: 16px;
+    }
+
+    .lead {
+      font-size: 19px;
+      line-height: 1.5;
+      color: #cbd5e1;
+      margin-bottom: 24px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip {
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #e2e8f0;
+    }
+
+    .chip.cyan {
+      background: rgba(14, 165, 233, 0.18);
+      border-color: rgba(14, 165, 233, 0.4);
+      color: #38bdf8;
+    }
+
+    .chip.indigo {
+      background: rgba(99, 102, 241, 0.18);
+      border-color: rgba(99, 102, 241, 0.4);
+      color: #818cf8;
+    }
+
+    .art {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 480px;
+    }
+
+    .mockup-card {
+      background: rgba(19, 29, 49, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    }
+
+    .mockup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .mockup-badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .badge-crypto {
+      background: rgba(14, 165, 233, 0.2);
+      color: #38bdf8;
+      border: 1px solid rgba(14, 165, 233, 0.4);
+    }
+
+    .badge-uuid {
+      background: rgba(99, 102, 241, 0.2);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+    }
+
+    .code-box {
+      font-family: ui-monospace, monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: #38bdf8;
+      background: rgba(9, 13, 22, 0.9);
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 8px;
+      word-break: break-all;
+    }
+
+    .mockup-desc {
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    .footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer .url {
+      font-size: 17px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .footer .meta {
+      font-size: 15px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="glow glow-crypto"></div>
+    <div class="glow glow-encoder"></div>
+
+    <div class="body">
+      <div class="left">
+        <div class="rule"></div>
+        <div class="eyebrow">Data Workbench &bull; Security Utility</div>
+        <h1 class="title">Crypto &amp; Encoders</h1>
+        <div class="subtitle">Client-Side Transformation Workbench</div>
+        <p class="lead">Real-time SHA-256/512/1 cryptographic hashing, bidirectional Base64/Hex/URL encoding, RFC 9562 UUID v7 generator, and live Unix timestamp inspection.</p>
+        <div class="chips">
+          <span class="chip cyan">Web Cryptography API</span>
+          <span class="chip indigo">RFC 9562 UUID v7</span>
+          <span class="chip">Zero Dependencies</span>
+          <span class="chip">100% Client-Side</span>
+        </div>
+      </div>
+
+      <div class="art">
+        <div class="mockup-card">
+          <div class="mockup-header">
+            <span class="mockup-badge badge-crypto">SHA-256 Digest</span>
+            <span style="font-size: 13px; color: #38bdf8; font-weight: 600;">256-bit &bull; 0.2ms</span>
+          </div>
+          <div class="code-box">b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9</div>
+          <div class="mockup-desc">&ldquo;hello world&rdquo; &rarr; Real-time native crypto.subtle digest</div>
+        </div>
+
+        <div class="mockup-card">
+          <div class="mockup-header">
+            <span class="mockup-badge badge-uuid">UUID v7 Generator</span>
+            <span style="font-size: 13px; color: #818cf8; font-weight: 600;">Time-Ordered</span>
+          </div>
+          <div class="code-box" style="color: #818cf8;">0191e4f2-58e1-7d9a-8fbc-9b2f6b4e1a02</div>
+          <div class="mockup-desc">Millisecond timestamp prefix &bull; Monotonic sorting guarantee</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="url">rjasti.com/crypto</span>
+      <span class="meta">SHA-256 &bull; RFC 9562 UUID v7 &bull; Base64 &bull; Hex &bull; Unix Epoch</span>
+    </div>
+  </div>
+</body>
+
+</html>

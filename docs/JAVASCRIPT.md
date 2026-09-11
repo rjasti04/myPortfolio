@@ -12,6 +12,7 @@ syntax; `frontend/` runs directly in a browser.
 - [UI and interaction](#ui-and-interaction)
 - [Visual effects](#visual-effects)
 - [Logic Inspector (`/cron` and `/regex`)](#logic-inspector-cron-and-regex)
+- [Crypto & Encoders (`/crypto` and `/encode`)](#crypto--encoders-crypto-and-encode)
 - [Browser storage keys](#browser-storage-keys)
 - [Conventions](#conventions)
 
@@ -1110,6 +1111,36 @@ DOM controller for the Regex Visualizer view. Binds pattern input and flag toggl
 
 ---
 
+## Crypto & Encoders (`/crypto` and `/encode`)
+
+A standalone client-side cryptographic and data transformation workbench for software engineers and technical visitors. Like the Logic Inspector and Arcade, it lives on its own page (`frontend/crypto.html`) with its own entry point (`js/crypto/crypto-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
+
+### `crypto-main.js` (122 lines)
+
+The application controller. Manages tab switching across `#encoders`, `#hasher`, `#generators`, and `#time`, synchronizes state with the URL hash, handles dark/light theme toggling, provides shareable link copying, and initializes workbench UI handlers.
+
+### `crypto-ui.js` (504 lines)
+
+DOM controller for the Crypto & Encoders workbench. Manages live text encoding/decoding, file drag-and-drop for Base64 Data URIs (enforcing the 5 MB limit), real-time cryptographic hash updates, generator controls with customizable character sets, live ticking clock, and the "Clear All" privacy wipe action.
+
+### `encoders.js` (216 lines)
+
+Bidirectional transformation utilities for UTF-8 Base64, URL encoding, byte-level Hexadecimal, HTML entity escaping/restoration, and 8-bit Binary representation. Includes FileReader integration for local file conversion to Base64 Data URIs.
+
+### `hasher.js` (68 lines)
+
+Cryptographic hash computation module leveraging native `window.crypto.subtle.digest`. Supports real-time asynchronous computation of SHA-256, SHA-512, and SHA-1 with character and UTF-8 byte metric calculations.
+
+### `generators.js` (220 lines)
+
+Cryptographically secure random generators using `window.crypto.getRandomValues()` and `crypto.randomUUID()`. Generates RFC 4122 UUID v4, RFC 9562 time-ordered UUID v7 with millisecond precision, secure hex and Base64URL tokens, and customizable passwords with guaranteed character sets.
+
+### `time-workbench.js` (159 lines)
+
+Unix timestamp inspection and conversion module. Provides a live reference clock (UTC & Local seconds and milliseconds), bidirectional conversions between Unix Epoch and ISO 8601 / Local dates, and relative time calculations.
+
+---
+
 ## Browser storage keys
 
 | Key | Store | Written by | Holds |
@@ -1131,6 +1162,7 @@ DOM controller for the Regex Visualizer view. Binds pattern input and flag toggl
 | `rj-arcade:best:<game>` | localStorage | `arcade/storage.js` | Best score per arcade game |
 | `rj-arcade:muted` | localStorage | `arcade/storage.js` | Arcade sound preference |
 | `rj-inspector:state` | localStorage | `cron/cron-main.js` | Active tab, last expressions and test text |
+| `rj-crypto:preferences` | localStorage | `crypto/crypto-main.js` | Last active tab and workbench preferences |
 | `rj_session_token` | **cookie** | the API | Same token, `HttpOnly; SameSite=Strict` — what `EventSource` sends |
 
 A session stored before capability tokens existed is discarded on load, so a

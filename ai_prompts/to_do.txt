@@ -1,0 +1,69 @@
+Here are 5 standalone, client-side app ideas tailored for the portfolio. They fit the site's vanilla architecture (zero external dependencies, runs entirely in-browser, no telemetry, instant first paint) while doubling as technical showcases for recruiters.
+
+---
+
+### 1. **JSON Workbench & Query Studio** (`/json`)
+*Inspired by your suggestion, but elevated into an interactive developer utility.*
+* **Core Features**:
+  - Format, minify, validate, and repair malformed JSON (auto-fix trailing commas, unquoted keys).
+  - Live query filtering with JSONPath or dot-notation syntax (`items[0].id`, `filter(price > 50)`).
+  - Side-by-side visual JSON tree vs. code view with collapsible nodes and path breadcrumb copy.
+  - Multi-format conversion: JSON ↔ YAML, JSON ↔ CSV, and JSON ↔ TypeScript interfaces.
+* **Why it fits the portfolio**: Demonstrates string parsing, AST traversal, recursive tree DOM rendering, and Web Worker execution for multi-megabyte payloads. Safe for pasting production logs and API payloads because zero data leaves the client.
+* **Trade-off**: *Speed vs. Maintenance* — High initial utility; straightforward maintenance once the parser and tree renderer are built.
+
+---
+
+### 2. **JWT & Auth Token Inspector** (`/jwt`)
+*A secure, offline token debugger.*
+* **Core Features**:
+  - Paste any JWT: auto-decodes header, payload, and signature into color-coded blocks.
+  - Live expiry status: countdown timer for `exp`, formatted human-readable dates for `iat`/`nbf`.
+  - Permission/Scope matrix table for quick claim auditing.
+  - Signature validation playground using Web Crypto API (`HMAC-SHA256`).
+* **Why it fits the portfolio**: Public JWT tools often raise security red flags for developers pasting sensitive auth tokens. An explicitly zero-network, 100% offline token analyzer reinforces the security-first engineering ethos already present in this repo.
+* **Trade-off**: *Speed vs. Maintenance* — Quickest to build (under 400 lines of vanilla JS) with virtually zero maintenance overhead.
+
+---
+
+### 3. **Encoder & Cryptographic Toolbox** (`/crypto` or `/encode`)
+*All-in-one data transformation workbench.*
+* **Core Features**:
+  - **Encoders**: Base64 (text and file data URI), URL encode/decode, Hex, HTML Entities, Binary.
+  - **Hasher**: Real-time SHA-256, SHA-512, SHA-1 using browser-native `crypto.subtle`.
+  - **Generators**: UUID v4 & UUID v7, secure random tokens (hex/base64/password presets).
+  - **Time**: Unix timestamp converter (seconds/ms/ISO 8601) with live clock tick.
+* **Why it fits the portfolio**: Utilitarian everyday tool; demonstrates mastery of the modern browser Web Cryptography and TextEncoder APIs without importing utility bloat.
+* **Trade-off**: *Speed vs. Maintenance* — Very fast to implement; modular design makes adding new conversions trivial.
+
+---
+
+### 4. **Client-Side Image Compressor & WebP Studio** (`/squash`)
+*Zero-server image optimization in browser memory.*
+* **Core Features**:
+  - Drag-and-drop PNG, JPEG, or WebP files.
+  - In-browser canvas/`OffscreenCanvas` compression with custom quality, dimension scale, and format export (`.webp`, `.jpeg`, `.png`).
+  - Interactive before/after split-screen comparison slider.
+  - Live byte-saving gauge showing compression percentage and size difference.
+* **Why it fits the portfolio**: Visually impressive and demonstrates advanced HTML5 canvas manipulation, Blob/ObjectURL lifecycle management, and file drag-and-drop UX.
+* **Trade-off**: *Cost vs. Performance* — Higher initial UI polish required for the split-screen slider, but compelling showcase for both desktop and mobile visitors.
+
+---
+
+### 5. **Cron & Regex Visualizer** (`/cron` or `/regex`)
+*Visual logic inspector for back-end developers.*
+* **Core Features**:
+  - **Cron**: Human-language translation of any standard 5-part cron schedule, interactive picker (minute/hour/day/month), and a visual timeline showing the exact next 10 scheduled triggers.
+  - **Regex**: Real-time regex pattern matcher with syntax color-coding, regex flags toggle, and visual match breakdown (capturing groups & indices).
+* **Why it fits the portfolio**: Aligns directly with the backend Python/scheduling stack of the portfolio and provides practical utility.
+* **Trade-off**: *Speed vs. Maintenance* — Moderate complexity; handling edge cases in cron syntax requires targeted unit testing.
+
+---
+
+### Recommendation
+
+If you want the **most useful and quickest to ship**:
+1. **JSON Workbench (`/json`)** — Directly matches your prompt, gives recruiters an interactive playground to test, and fits naturally as the 4th tile in `#apps`.
+2. **Crypto & Encoder Toolbox (`/transform`)** — Covers formatting, encoding, hashing, and token generation in a unified tabbed layout.
+
+Let me know if you would like to proceed with one of these (or a tailored combination), and we can plan its standalone page, tile preview card, and build integration.

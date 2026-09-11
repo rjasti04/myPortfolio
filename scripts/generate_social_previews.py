@@ -48,6 +48,7 @@ CARDS = {
     "arcade": ("arcade-preview.html", "arcade-preview.png"),
     "worldcup": ("worldcup-preview.html", "worldcup-preview.png"),
     "cron": ("cron-preview.html", "cron-preview.png"),
+    "crypto": ("crypto-preview.html", "crypto-preview.png"),
 }
 
 CHROME_CANDIDATES = [
