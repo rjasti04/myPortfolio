@@ -1,5 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { webcrypto } from "node:crypto";
+
+// Ensure Web Crypto API is available in Node test environments (e.g. Node 18)
+if (!globalThis.crypto || !globalThis.crypto.subtle) {
+  globalThis.crypto = webcrypto;
+}
+
 import {
   generateUuidV4,
   generateUuidV7,

@@ -17,6 +17,41 @@ const CHARSET_NUMBERS = "0123456789";
 const CHARSET_SYMBOLS = "!@#$%^&*()-_=+[]{}|;:,.<>?";
 
 /**
+ * Safely resolves the Web Cryptography API instance across environments
+ * (browser window, web workers, and Node.js test runtimes).
+ * @returns {Crypto|null}
+ */
+function getCrypto() {
+  if (typeof crypto !== "undefined") {
+    return crypto;
+  }
+  if (typeof globalThis !== "undefined" && globalThis.crypto) {
+    return globalThis.crypto;
+  }
+  if (typeof window !== "undefined" && window.crypto) {
+    return window.crypto;
+  }
+  if (typeof self !== "undefined" && self.crypto) {
+    return self.crypto;
+  }
+  return null;
+}
+
+/**
+ * Safely fills a typed array with cryptographically secure random values.
+ * Throws if Web Cryptography API is unavailable.
+ * @param {Uint8Array|Uint32Array} array
+ * @returns {Uint8Array|Uint32Array}
+ */
+function getRandomValues(array) {
+  const c = getCrypto();
+  if (c && typeof c.getRandomValues === "function") {
+    return c.getRandomValues(array);
+  }
+  throw new Error("crypto.getRandomValues() is not available in this environment");
+}
+
+/**
  * Converts a 16-byte Uint8Array into a canonical UUID string (8-4-4-4-12).
  * @param {Uint8Array} bytes
  * @returns {string}
@@ -34,12 +69,13 @@ function bytesToUuid(bytes) {
  * @returns {string}
  */
 export function generateUuidV4() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
+  const c = getCrypto();
+  if (c && typeof c.randomUUID === "function") {
+    return c.randomUUID();
   }
 
   const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
+  getRandomValues(bytes);
   // Set version 4: bits 12-15 of time_hi_and_version to 0100
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   // Set variant 1: bits 6-7 of clock_seq_hi_and_reserved to 10
@@ -56,7 +92,7 @@ export function generateUuidV4() {
  */
 export function generateUuidV7(timestampMs = Date.now()) {
   const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
+  getRandomValues(bytes);
 
   // 48-bit millisecond timestamp
   const ts = Math.floor(timestampMs);
@@ -106,7 +142,7 @@ export function generateSecureToken(length = 32, type = "hex", passwordOptions =
   if (type === "hex") {
     const byteCount = Math.ceil(safeLength / 2);
     const bytes = new Uint8Array(byteCount);
-    crypto.getRandomValues(bytes);
+    getRandomValues(bytes);
     return Array.from(bytes)
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("")
@@ -116,7 +152,7 @@ export function generateSecureToken(length = 32, type = "hex", passwordOptions =
   if (type === "base64url") {
     const byteCount = Math.ceil((safeLength * 3) / 4);
     const bytes = new Uint8Array(byteCount);
-    crypto.getRandomValues(bytes);
+    getRandomValues(bytes);
     let binary = "";
     for (let i = 0; i < bytes.length; i++) {
       binary += String.fromCharCode(bytes[i]);
@@ -166,7 +202,7 @@ export function generateSecureToken(length = 32, type = "hex", passwordOptions =
 
   if (remainingCount > 0) {
     const randomBytes = new Uint32Array(remainingCount);
-    crypto.getRandomValues(randomBytes);
+    getRandomValues(randomBytes);
     for (let i = 0; i < remainingCount; i++) {
       result.push(pool[randomBytes[i] % pool.length]);
     }
@@ -185,7 +221,7 @@ export function generateSecureToken(length = 32, type = "hex", passwordOptions =
  */
 function getRandomChar(chars) {
   const buf = new Uint32Array(1);
-  crypto.getRandomValues(buf);
+  getRandomValues(buf);
   return chars[buf[0] % chars.length];
 }
 
@@ -195,7 +231,7 @@ function getRandomChar(chars) {
  */
 function shuffleArray(arr) {
   const randomBuf = new Uint32Array(arr.length);
-  crypto.getRandomValues(randomBuf);
+  getRandomValues(randomBuf);
   for (let i = arr.length - 1; i > 0; i--) {
     const j = randomBuf[i] % (i + 1);
     const temp = arr[i];

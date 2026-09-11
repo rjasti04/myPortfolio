@@ -9,6 +9,27 @@
 export const SUPPORTED_ALGORITHMS = ["SHA-256", "SHA-512", "SHA-1"];
 
 /**
+ * Safely resolves the Web Cryptography API instance across environments
+ * (browser window, web workers, and Node.js test runtimes).
+ * @returns {Crypto|null}
+ */
+function getCrypto() {
+  if (typeof crypto !== "undefined") {
+    return crypto;
+  }
+  if (typeof globalThis !== "undefined" && globalThis.crypto) {
+    return globalThis.crypto;
+  }
+  if (typeof window !== "undefined" && window.crypto) {
+    return window.crypto;
+  }
+  if (typeof self !== "undefined" && self.crypto) {
+    return self.crypto;
+  }
+  return null;
+}
+
+/**
  * Calculates cryptographic hash of a text string using native crypto.subtle.digest.
  * @param {string} text - Plaintext string to hash
  * @param {string} algorithm - "SHA-256" | "SHA-512" | "SHA-1"
@@ -26,9 +47,14 @@ export async function computeHash(text, algorithm = "SHA-256") {
     throw new Error(`Unsupported hash algorithm: ${algorithm}`);
   }
 
+  const c = getCrypto();
+  if (!c || !c.subtle) {
+    throw new Error("Web Cryptography API (crypto.subtle) is not available");
+  }
+
   const start = performance.now();
   const encoded = new TextEncoder().encode(text || "");
-  const hashBuffer = await crypto.subtle.digest(algorithm, encoded);
+  const hashBuffer = await c.subtle.digest(algorithm, encoded);
   const durationMs = performance.now() - start;
 
   const hashArray = Array.from(new Uint8Array(hashBuffer));

@@ -1127,11 +1127,11 @@ DOM controller for the Crypto & Encoders workbench. Manages live text encoding/d
 
 Bidirectional transformation utilities for UTF-8 Base64, URL encoding, byte-level Hexadecimal, HTML entity escaping/restoration, and 8-bit Binary representation. Includes FileReader integration for local file conversion to Base64 Data URIs.
 
-### `hasher.js` (68 lines)
+### `hasher.js` (94 lines)
 
 Cryptographic hash computation module leveraging native `window.crypto.subtle.digest`. Supports real-time asynchronous computation of SHA-256, SHA-512, and SHA-1 with character and UTF-8 byte metric calculations.
 
-### `generators.js` (220 lines)
+### `generators.js` (256 lines)
 
 Cryptographically secure random generators using `window.crypto.getRandomValues()` and `crypto.randomUUID()`. Generates RFC 4122 UUID v4, RFC 9562 time-ordered UUID v7 with millisecond precision, secure hex and Base64URL tokens, and customizable passwords with guaranteed character sets.
 
