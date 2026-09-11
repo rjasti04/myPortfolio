@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import math
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -70,9 +71,16 @@ def lines(path: Path) -> int:
 
 def grep_count(pattern: str, path: str, extended: bool = False) -> int:
     """Hit count for one of the recipes AGENTS.md advertises."""
-    cmd = ["grep", "-cE" if extended else "-c", pattern, str(ROOT / path)]
-    out = subprocess.run(cmd, capture_output=True, text=True)
-    return int(out.stdout.strip() or 0)
+    file_path = ROOT / path
+    if not file_path.exists():
+        return 0
+    if shutil.which("grep"):
+        cmd = ["grep", "-cE" if extended else "-c", pattern, str(file_path)]
+        out = subprocess.run(cmd, capture_output=True, text=True)
+        return int(out.stdout.strip() or 0)
+    regex = re.compile(pattern)
+    with file_path.open(encoding="utf-8", errors="replace") as fh:
+        return sum(1 for line in fh if regex.search(line))
 
 
 def resolve(name: str, roots: list[str]) -> Path | None:
