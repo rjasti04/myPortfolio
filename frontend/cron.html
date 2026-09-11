@@ -158,11 +158,11 @@
             </button>
           </div>
 
-          <div id="cron-error" class="error-banner" hidden></div>
+          <div id="cron-error" class="error-banner" role="alert" aria-live="polite" hidden></div>
 
           <div class="presets-wrap">
             <span class="presets-label">Presets:</span>
-            <div id="cron-presets" class="presets-wrap"></div>
+            <div id="cron-presets"></div>
           </div>
 
           <!-- Human Language Translation Card -->
@@ -347,11 +347,11 @@
             </button>
           </div>
 
-          <div id="regex-error" class="error-banner" hidden></div>
+          <div id="regex-error" class="error-banner" role="alert" aria-live="polite" hidden></div>
 
           <div class="presets-wrap">
             <span class="presets-label">Common Presets:</span>
-            <div id="regex-presets" class="presets-wrap"></div>
+            <div id="regex-presets"></div>
           </div>
 
           <!-- Syntax Tokens Bar -->
@@ -395,6 +395,13 @@
         </div>
       </section>
     </main>
+
+    <footer class="app-footer">
+      <div class="footer-container">
+        <p>100% Client-Side Logic Inspection &bull; Zero Server Processing &bull; No Network Egress</p>
+        <p><a href="/" class="footer-link">Rajeev Jasti &mdash; Portfolio</a> &bull; <a href="/#apps" class="footer-link">Apps Shelf</a> &bull; <a href="/crypto" class="footer-link">Crypto &amp; Encoders</a></p>
+      </div>
+    </footer>
 
     <script type="module" src="js/cron/cron-main.js"></script>
   </body>

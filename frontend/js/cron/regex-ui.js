@@ -300,12 +300,19 @@ export function initRegexUI({ container, onStateChange, initialPattern = "", ini
     debounceTimer = setTimeout(update, 60);
   }
 
-  // Scroll synchronization between textarea and backdrop
+  // Scroll and size synchronization between textarea and backdrop
   if (testTextarea && highlightOverlay) {
     testTextarea.addEventListener("scroll", () => {
       highlightOverlay.scrollTop = testTextarea.scrollTop;
       highlightOverlay.scrollLeft = testTextarea.scrollLeft;
     });
+
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(() => {
+        highlightOverlay.style.height = `${testTextarea.clientHeight}px`;
+      });
+      ro.observe(testTextarea);
+    }
   }
 
   // Bind inputs
@@ -321,17 +328,26 @@ export function initRegexUI({ container, onStateChange, initialPattern = "", ini
   // Copy button
   if (copyBtn) {
     copyBtn.addEventListener("click", async () => {
+      const fullRegex = `/${pattern}/${flags}`;
       try {
-        const fullRegex = `/${pattern}/${flags}`;
         await navigator.clipboard.writeText(fullRegex);
-        const orig = copyBtn.textContent;
-        copyBtn.textContent = "Copied!";
-        setTimeout(() => {
-          copyBtn.textContent = orig;
-        }, 1500);
       } catch {
-        // Fallback
+        const ta = document.createElement("textarea");
+        ta.value = fullRegex;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
       }
+      const orig = copyBtn.innerHTML;
+      copyBtn.classList.add("copied");
+      copyBtn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> <span>Copied!</span>';
+      setTimeout(() => {
+        copyBtn.classList.remove("copied");
+        copyBtn.innerHTML = orig;
+      }, 1500);
     });
   }
 

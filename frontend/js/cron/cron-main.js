@@ -183,16 +183,37 @@ document.addEventListener("DOMContentLoaded", () => {
       : "dark";
   }
 
+  function syncThemeColorMeta(theme) {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute("content", theme === "dark" ? "#090d16" : "#f8fafc");
+    }
+  }
+
+  function updateThemeIcon(theme) {
+    if (!themeToggleBtn) return;
+    const icon = themeToggleBtn.querySelector("i");
+    if (icon) {
+      icon.className = theme === "dark" ? "fas fa-sun" : "fas fa-moon";
+    }
+    themeToggleBtn.setAttribute(
+      "aria-label",
+      `Switch to ${theme === "dark" ? "light" : "dark"} theme`
+    );
+  }
+
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
+    updateThemeIcon(theme);
+    syncThemeColorMeta(theme);
     try {
-      localStorage.setItem("rj-theme", theme);
+      localStorage.setItem("theme", theme);
     } catch {
       // ignore
     }
   }
 
-  const storedTheme = localStorage.getItem("rj-theme") || getSystemTheme();
+  const storedTheme = localStorage.getItem("theme") || getSystemTheme();
   applyTheme(storedTheme);
 
   if (themeToggleBtn) {

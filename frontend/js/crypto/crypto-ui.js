@@ -196,6 +196,12 @@ function setupEncodersUI() {
   // Drag and drop for Base64 Data URI conversion
   if (dropZone && fileInput) {
     dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
 
     ["dragenter", "dragover"].forEach((eventName) => {
       dropZone.addEventListener(eventName, (e) => {
@@ -398,8 +404,11 @@ function setupTimeUI() {
   const dateMsOut = document.getElementById("time-date-ms-out");
   const dateRelOut = document.getElementById("time-date-rel-out");
 
-  // Live ticking clock (ticks every 100ms for smooth updates)
+  // Live ticking clock (only updates when panel is active and document visible)
   function tick() {
+    const panelTime = document.getElementById("panel-time");
+    if (panelTime && panelTime.hidden) return;
+    if (document.hidden) return;
     const clock = getLiveClock();
     if (liveEpochSecEl) liveEpochSecEl.textContent = clock.epochSeconds;
     if (liveEpochMsEl) liveEpochMsEl.textContent = clock.epochMs;
@@ -408,7 +417,7 @@ function setupTimeUI() {
   }
 
   tick();
-  setInterval(tick, 200);
+  setInterval(tick, 500);
 
   function convertEpoch() {
     if (!epochInput) return;
@@ -451,6 +460,14 @@ function setupTimeUI() {
   dateToEpochBtn?.addEventListener("click", convertDate);
   dateInput?.addEventListener("input", convertDate);
 
+  const dateNowBtn = document.getElementById("time-date-now-btn");
+  dateNowBtn?.addEventListener("click", () => {
+    if (dateInput) {
+      dateInput.value = new Date().toISOString();
+      convertDate();
+    }
+  });
+
   // Set initial converter sample values
   if (epochInput && !epochInput.value) {
     epochInput.value = Math.floor(Date.now() / 1000);
@@ -469,11 +486,23 @@ function setupPrivacyClear() {
   const clearBtn = document.getElementById("privacy-clear-all-btn");
   if (!clearBtn) return;
 
+  let confirmTimeout = null;
+  const originalHtml = clearBtn.innerHTML;
+
   clearBtn.addEventListener("click", () => {
-    const confirmed = window.confirm(
-      "Clear all inputs, outputs, and cached state from this tool? No data will remain in your browser."
-    );
-    if (!confirmed) return;
+    if (!clearBtn.classList.contains("confirming")) {
+      clearBtn.classList.add("confirming");
+      clearBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> <span>Confirm Wipe?</span>';
+      clearTimeout(confirmTimeout);
+      confirmTimeout = setTimeout(() => {
+        clearBtn.classList.remove("confirming");
+        clearBtn.innerHTML = originalHtml;
+      }, 3000);
+      return;
+    }
+
+    clearTimeout(confirmTimeout);
+    clearBtn.classList.remove("confirming");
 
     // Clear all inputs and textareas
     document.querySelectorAll("input[type=text], input[type=number], textarea").forEach((el) => {
@@ -481,7 +510,7 @@ function setupPrivacyClear() {
     });
 
     // Clear stats and info spans
-    document.querySelectorAll(".stat-value, .file-info-pill, .output-details").forEach((el) => {
+    document.querySelectorAll(".io-stats, .file-info-pill, .output-details").forEach((el) => {
       el.textContent = "";
     });
 
@@ -492,12 +521,11 @@ function setupPrivacyClear() {
       // Ignore storage errors
     }
 
-    // Flash visual confirmation toast
-    const originalText = clearBtn.innerHTML;
-    clearBtn.innerHTML = '<i class="fas fa-check"></i> Cleared!';
+    // Flash visual confirmation
+    clearBtn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> <span>Cleared!</span>';
     clearBtn.classList.add("cleared");
     setTimeout(() => {
-      clearBtn.innerHTML = originalText;
+      clearBtn.innerHTML = originalHtml;
       clearBtn.classList.remove("cleared");
     }, 2000);
   });

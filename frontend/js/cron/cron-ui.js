@@ -57,13 +57,37 @@ export function initCronUI({ container, onExpressionChange, initialExpr = "*/15 
     }
   }
 
+  function setSelectValueWithCustom(selectEl, value) {
+    if (!selectEl) return;
+    const val = value || "*";
+    let found = false;
+    for (const opt of selectEl.options) {
+      if (opt.value === val) {
+        found = true;
+        break;
+      }
+    }
+    const existingCustom = selectEl.querySelector('option[data-custom="true"]');
+    if (existingCustom && existingCustom.value !== val) {
+      existingCustom.remove();
+    }
+    if (!found) {
+      const customOpt = document.createElement("option");
+      customOpt.value = val;
+      customOpt.textContent = `${val} (Custom)`;
+      customOpt.setAttribute("data-custom", "true");
+      selectEl.appendChild(customOpt);
+    }
+    selectEl.value = val;
+  }
+
   function syncPartPickers(parts) {
     if (!parts) return;
-    if (partMin) partMin.value = parts.minute || "*";
-    if (partHour) partHour.value = parts.hour || "*";
-    if (partDom) partDom.value = parts.dayOfMonth || "*";
-    if (partMon) partMon.value = parts.month || "*";
-    if (partDow) partDow.value = parts.dayOfWeek || "*";
+    setSelectValueWithCustom(partMin, parts.minute);
+    setSelectValueWithCustom(partHour, parts.hour);
+    setSelectValueWithCustom(partDom, parts.dayOfMonth);
+    setSelectValueWithCustom(partMon, parts.month);
+    setSelectValueWithCustom(partDow, parts.dayOfWeek);
   }
 
   function update() {
@@ -188,16 +212,26 @@ export function initCronUI({ container, onExpressionChange, initialExpr = "*/15 
   // Bind copy button
   if (copyBtn) {
     copyBtn.addEventListener("click", async () => {
+      const text = inputEl ? inputEl.value.trim() : "";
       try {
-        await navigator.clipboard.writeText(inputEl.value.trim());
-        const originalText = copyBtn.textContent;
-        copyBtn.textContent = "Copied!";
-        setTimeout(() => {
-          copyBtn.textContent = originalText;
-        }, 1500);
+        await navigator.clipboard.writeText(text);
       } catch {
-        // Fallback or ignore
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
       }
+      const originalHtml = copyBtn.innerHTML;
+      copyBtn.classList.add("copied");
+      copyBtn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> <span>Copied!</span>';
+      setTimeout(() => {
+        copyBtn.classList.remove("copied");
+        copyBtn.innerHTML = originalHtml;
+      }, 1500);
     });
   }
 

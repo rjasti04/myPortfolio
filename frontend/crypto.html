@@ -81,6 +81,7 @@
             role="tab"
             aria-selected="true"
             aria-controls="panel-encoders"
+            aria-label="Encoders"
             id="tab-encoders"
           >
             <i class="fas fa-code" aria-hidden="true"></i>
@@ -93,6 +94,7 @@
             role="tab"
             aria-selected="false"
             aria-controls="panel-hasher"
+            aria-label="Hasher"
             id="tab-hasher"
           >
             <i class="fas fa-shield-halved" aria-hidden="true"></i>
@@ -105,6 +107,7 @@
             role="tab"
             aria-selected="false"
             aria-controls="panel-generators"
+            aria-label="Generators"
             id="tab-generators"
           >
             <i class="fas fa-key" aria-hidden="true"></i>
@@ -117,6 +120,7 @@
             role="tab"
             aria-selected="false"
             aria-controls="panel-time"
+            aria-label="Time Workbench"
             id="tab-time"
           >
             <i class="fas fa-sync-alt" aria-hidden="true"></i>
@@ -527,6 +531,9 @@
               <div class="result-field">
                 <span class="result-label">Local Date:</span>
                 <input type="text" id="time-epoch-local-out" class="field-output" readonly />
+                <button type="button" class="btn-sm btn-secondary" data-copy-target="time-epoch-local-out" title="Copy Local Date">
+                  <i class="fas fa-copy" aria-hidden="true"></i>
+                </button>
               </div>
               <div class="result-field">
                 <span class="result-label">Relative:</span>
@@ -545,6 +552,7 @@
                 class="text-input"
                 placeholder="ISO 8601 or date (e.g. 2026-09-10T12:00:00Z)"
               />
+              <button type="button" id="time-date-now-btn" class="btn btn-secondary">Now</button>
               <button type="button" id="time-date-btn" class="btn btn-primary">Convert</button>
             </div>
 

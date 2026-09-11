@@ -36,9 +36,35 @@ document.addEventListener("DOMContentLoaded", () => {
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
   const htmlEl = document.documentElement;
 
-  const savedTheme = localStorage.getItem("theme") || "dark";
+  function getSystemTheme() {
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
+      ? "light"
+      : "dark";
+  }
+
+  function syncThemeColorMeta(theme) {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute("content", theme === "dark" ? "#090d16" : "#f8fafc");
+    }
+  }
+
+  function updateThemeIcon(theme) {
+    if (!themeToggleBtn) return;
+    const icon = themeToggleBtn.querySelector("i");
+    if (icon) {
+      icon.className = theme === "dark" ? "fas fa-sun" : "fas fa-moon";
+    }
+    themeToggleBtn.setAttribute(
+      "aria-label",
+      `Switch to ${theme === "dark" ? "light" : "dark"} theme`
+    );
+  }
+
+  const savedTheme = localStorage.getItem("theme") || getSystemTheme();
   htmlEl.setAttribute("data-theme", savedTheme);
   updateThemeIcon(savedTheme);
+  syncThemeColorMeta(savedTheme);
 
   themeToggleBtn?.addEventListener("click", () => {
     const currentTheme = htmlEl.getAttribute("data-theme") || "dark";
@@ -50,15 +76,8 @@ document.addEventListener("DOMContentLoaded", () => {
       // Ignore storage errors
     }
     updateThemeIcon(nextTheme);
+    syncThemeColorMeta(nextTheme);
   });
-
-  function updateThemeIcon(theme) {
-    if (!themeToggleBtn) return;
-    const icon = themeToggleBtn.querySelector("i");
-    if (icon) {
-      icon.className = theme === "dark" ? "fas fa-sun" : "fas fa-moon";
-    }
-  }
 
   // 2. Tab Navigation
   const tabButtons = document.querySelectorAll(".tab-btn");

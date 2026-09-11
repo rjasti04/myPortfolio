@@ -128,6 +128,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Typography Utilities */
@@ -269,6 +270,12 @@ body {
   background-color: var(--border);
 }
 
+.action-btn.copied {
+  background-color: var(--color-success);
+  color: #ffffff;
+  border-color: var(--color-success);
+}
+
 /* Main Container Layout */
 .main-content {
   flex: 1;
@@ -294,7 +301,7 @@ body {
 }
 
 .card-title {
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 700;
   margin-bottom: 0.75rem;
   display: flex;
@@ -305,6 +312,7 @@ body {
 /* Input Bar & Form Controls */
 .input-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
   position: relative;
@@ -528,8 +536,9 @@ body {
 }
 
 .flag-pill {
-  width: 32px;
-  height: 32px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.35rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background-color: var(--bg-subtle);
@@ -778,6 +787,34 @@ mark.match-alt-1 {
   transform: translateY(0);
 }
 
+/* Footer */
+.app-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  background-color: var(--surface);
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.footer-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.footer-link {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  color: var(--primary);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .header-container {
@@ -798,5 +835,17 @@ mark.match-alt-1 {
     width: 36px;
     height: 36px;
     font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .input-group .primary-input {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  .flags-bar {
+    flex: 1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
