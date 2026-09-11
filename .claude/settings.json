@@ -1,19 +1,45 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Write(./.env)"
+    ]
+  },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-migrations.sh",
+            "timeout": 15,
+            "statusMessage": "Verifying migration immutability"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-spa-egress.sh",
+            "timeout": 15,
+            "statusMessage": "Verifying SPA external asset egress allowlist"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "d=\"${CLAUDE_PROJECT_DIR:-$PWD}\"; jq -r '.tool_input.file_path // .tool_response.filePath // empty' | { read -r f; [ -n \"$f\" ] || exit 0; case \"${f#$d/}\" in frontend/index.html) cd \"$d\" && python3 scripts/check_csp_hashes.py >&2 || exit 2 ;; esac; }",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/verify-csp.sh",
             "timeout": 30,
             "statusMessage": "Verifying CSP inline-script hashes"
           },
           {
             "type": "command",
-            "command": "d=\"${CLAUDE_PROJECT_DIR:-$PWD}\"; jq -r '.tool_input.file_path // .tool_response.filePath // empty' | { read -r f; [ -n \"$f\" ] || exit 0; case \"${f#$d/}\" in docs/*.md|AGENTS.md|frontend/styles.css|frontend/index.html|frontend/three-bg.js|frontend/js/*.js|frontend/tests/*.test.js|scripts/tests/*.test.js) cd \"$d\" && python3 scripts/check_docs.py >&2 || exit 2 ;; esac; }",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/verify-docs.sh",
             "timeout": 60,
             "statusMessage": "Verifying documented counts"
           }

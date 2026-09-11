@@ -24,14 +24,13 @@ Create the .claude/intents/ directory if it does not already exist.
 - **Explicit Non-Goals**:
   - [List what this initiative will NOT do or solve to prevent scope creep.]
 
-## 3. Success Metrics & Verifiable Criteria
-- **User-Facing Behavior**:
-  [What should the user see, experience, or be able to do once shipped?]
-- **Deterministic Quality Gates**:
-  - [ ] Frontend tests pass (`npm test`) and linters pass (`npm run lint`).
-  - [ ] Backend tests pass (`$env:PYTHONPATH='.'; pytest`) with >= 55% coverage.
-  - [ ] Schema drift check passes (`alembic check`).
-  - [ ] Documentation and CSP hashes remain in sync (`scripts/check_docs.py`, `scripts/check_csp_hashes.py`).
+## 3. Impacted Layer Matrix & Quality Gates
+Determine impacted layers and execute matching quality gates:
+
+- [ ] **Frontend**: `npm run lint` && `npm test` && `npm run build`
+- [ ] **Backend**: `ruff check server tests` && `PYTHONPATH=. pytest --cov=server --cov-report=term-missing --cov-fail-under=55`
+- [ ] **Database**: `PYTHONPATH=. alembic check` (from `server/`)
+- [ ] **Docs / Hashes**: `python3 scripts/check_csp_hashes.py` && `python3 scripts/check_docs.py`
 
 ## 4. Risks & Mitigations
 - **Performance / Asset Size Impact**: [Evaluate bundle size or paint latency impact]

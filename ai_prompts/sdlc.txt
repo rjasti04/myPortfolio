@@ -5,8 +5,8 @@ SPEC
 Review .claude/intents/ and draft a companion technical spec using .claude/templates/
 
 VERIFY
-all - "Run the verifier subagent (.claude/agents/verifier.md) to check all quality gates."
-frontend - "Run the frontend quality gates from the verifier (hashes, docs, and frontend tests)."
+all - Execute /verify to run quality gates and delegate to the verifier subagent (.claude/agents/verifier.md).
+frontend - Execute /frontend-module and run frontend quality gates (npm run lint, npm test, npm run build, CSP hashes).
 
 RUN
 python3 scripts/check_docs.py --fix --show-tokens

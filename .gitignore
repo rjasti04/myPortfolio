@@ -8,6 +8,11 @@ __pycache__/
 .venv/
 server/.venv/
 
+# Local environment secret variables
+# AGENTS.md §6 instructs developers to create a root .env containing credentials (e.g. JWT_SECRET).
+.env
+.env.local
+
 # Test/tooling caches
 .pytest_cache/
 

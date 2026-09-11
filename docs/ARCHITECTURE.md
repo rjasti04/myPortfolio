@@ -160,8 +160,10 @@ domain logic for auth, Bedrock, chat history, ingest, breach checks and email.
 | `scripts/` | `build.mjs`, `check_csp_hashes.py`, `vendor_fonts.py`, `clear_2fa.py` (the operator unlock for a lost second factor — the one script here that touches the database, and the only one that needs `DATABASE_URL`), seven Pillow image helpers (`generate_social_previews.py` renders the cards in `scripts/social-previews/`; `generate_launch_images.py` renders the maskable icon and the iOS launch screens; `generate_brush_backdrop.py` composes the landing portrait's painted panel from one photographed swipe; `generate_profile_cutout.py` crops and mattes the landing portrait, and is the only one with a dependency beyond Pillow) |
 | `docs/` | This documentation set |
 | `assets/` | `master-icon.png`, `brush-stroke-master.jpg`, and three portrait masters — `profile-pic-master.jpg` (the tight headshot behind the `profile-pic*` variants) plus the two the landing portrait's flip card crops its busts from, `profile-portrait-master.jpg` (front, the outdoor shot) and `profile-portrait-back-master.jpg` (back, the studio shot) — with a committed matte beside each, `profile-cutout-master.png` and `profile-cutout-back-master.png`. All kept outside `frontend/` so the deploy never publishes them |
-| `.github/workflows/` | `deploy.yml` — the whole CI/CD pipeline |
-| `.claude/`, `.codex/`, `.amazonq/`, `.antigravity/` | Per-tool agent config; all deprecated stubs pointing at `AGENTS.md` |
+| `.github/workflows/` | `deploy.yml` (CI/CD pipeline and deployment), `weekly-audit.yml` (scheduled verification), and `agent-evals.yml` (AI benchmark workflows) |
+| `.claude/` | Active Claude Code agent configuration (skills, subagent, hooks, templates, intents, specs) |
+| `.agents/` | Mirrored cross-tool skill repository maintained alongside `.claude/skills/` |
+| `.codex/`, `.amazonq/`, `.antigravity/` | Per-tool agent config stubs pointing at `AGENTS.md` |
 
 ---
 

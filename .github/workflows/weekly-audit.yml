@@ -55,3 +55,6 @@ jobs:
 
       - name: Verify Documentation Token & Line Counts
         run: python3 scripts/check_docs.py
+
+      - name: Verify Agent Configuration
+        run: python3 scripts/check_agent_config.py
