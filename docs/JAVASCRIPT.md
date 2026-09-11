@@ -1089,7 +1089,7 @@ resolved in as many slices as that takes.
 
 A standalone visual developer utility for back-end engineers and technical visitors. Like the Arcade, it lives on its own page (`frontend/cron.html`) with its own entry point (`js/cron/cron-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
 
-### `cron-main.js` (227 lines)
+### `cron-main.js` (244 lines)
 
 The application controller. Binds the tab switcher between Cron and Regex views, synchronizes state to the URL hash and query string (`#cron?expr=...` and `#regex?pattern=...&flags=...`), handles clipboard sharing with visual toast feedback, and persists user inputs in `localStorage`.
 
@@ -1115,7 +1115,7 @@ DOM controller for the Regex Visualizer view. Binds pattern input and flag toggl
 
 A standalone client-side cryptographic and data transformation workbench for software engineers and technical visitors. Like the Logic Inspector and Arcade, it lives on its own page (`frontend/crypto.html`) with its own entry point (`js/crypto/crypto-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
 
-### `crypto-main.js` (141 lines)
+### `crypto-main.js` (160 lines)
 
 The application controller. Manages tab switching across `#encoders`, `#hasher`, `#generators`, and `#time`, synchronizes state with the URL hash, handles dark/light theme toggling, provides shareable link copying, and initializes workbench UI handlers.
 

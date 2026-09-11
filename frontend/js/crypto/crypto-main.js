@@ -93,7 +93,19 @@ document.addEventListener("DOMContentLoaded", () => {
     return VALID_TABS.includes(hash) ? hash : "encoders";
   }
 
-  function switchTab(tabId) {
+  function scrollToActivePanel(panel) {
+    if (!panel) return;
+    const header = document.querySelector(".app-header");
+    const headerOffset = header ? header.offsetHeight + 16 : 80;
+    const panelTop = panel.getBoundingClientRect().top + window.pageYOffset;
+    const targetY = Math.max(0, panelTop - headerOffset);
+    window.scrollTo({
+      top: targetY,
+      behavior: "smooth",
+    });
+  }
+
+  function switchTab(tabId, shouldScroll = false) {
     if (!VALID_TABS.includes(tabId)) tabId = "encoders";
 
     tabButtons.forEach((btn) => {
@@ -102,14 +114,21 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.setAttribute("aria-selected", String(isTarget));
     });
 
+    let activePanel = null;
     Object.entries(panels).forEach(([key, panel]) => {
       if (panel) {
-        panel.hidden = key !== tabId;
+        const isCurrent = key === tabId;
+        panel.hidden = !isCurrent;
+        if (isCurrent) activePanel = panel;
       }
     });
 
     if (window.location.hash !== `#${tabId}`) {
       history.replaceState(null, "", `#${tabId}`);
+    }
+
+    if (shouldScroll) {
+      scrollToActivePanel(activePanel);
     }
 
     savePreferences({ lastTab: tabId });
@@ -118,12 +137,12 @@ document.addEventListener("DOMContentLoaded", () => {
   tabButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
       const tabId = btn.getAttribute("data-tab");
-      switchTab(tabId);
+      switchTab(tabId, true);
     });
   });
 
   window.addEventListener("hashchange", () => {
-    switchTab(getActiveTabFromHash());
+    switchTab(getActiveTabFromHash(), true);
   });
 
   // Initial tab load

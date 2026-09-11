@@ -71,7 +71,19 @@ document.addEventListener("DOMContentLoaded", () => {
   let cronController;
   let regexController;
 
-  function switchTab(tabName) {
+  function scrollToActivePanel(panel) {
+    if (!panel) return;
+    const header = document.querySelector(".app-header");
+    const headerOffset = header ? header.offsetHeight + 16 : 80;
+    const panelTop = panel.getBoundingClientRect().top + window.pageYOffset;
+    const targetY = Math.max(0, panelTop - headerOffset);
+    window.scrollTo({
+      top: targetY,
+      behavior: "smooth",
+    });
+  }
+
+  function switchTab(tabName, shouldScroll = false) {
     activeTab = tabName;
 
     tabButtons.forEach((btn) => {
@@ -80,6 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.setAttribute("aria-selected", String(isTarget));
     });
 
+    const activePanel = tabName === "cron" ? panelCron : panelRegex;
     if (tabName === "cron") {
       panelCron.hidden = false;
       panelRegex.hidden = true;
@@ -90,13 +103,17 @@ document.addEventListener("DOMContentLoaded", () => {
       history.replaceState(null, "", `#regex${window.location.search}`);
     }
 
+    if (shouldScroll) {
+      scrollToActivePanel(activePanel);
+    }
+
     persistCurrentState();
   }
 
   tabButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
       const targetTab = btn.getAttribute("data-tab");
-      switchTab(targetTab);
+      switchTab(targetTab, true);
     });
   });
 
@@ -105,7 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const newHash = window.location.hash;
     const nextTab = newHash.startsWith("#regex") ? "regex" : "cron";
     if (nextTab !== activeTab) {
-      switchTab(nextTab);
+      switchTab(nextTab, true);
     }
   });
 
