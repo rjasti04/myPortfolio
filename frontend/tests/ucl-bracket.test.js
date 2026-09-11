@@ -280,10 +280,14 @@ test("quick fill settles every remaining tie with the higher seed", async () => 
   const names = [...doc.querySelectorAll(".lp-row .lp-name")].map(
     (e) => e.textContent,
   );
-  assert.equal(
-    doc.querySelector("#d-champion .champion-team span").textContent,
-    names[0],
+  const champion = doc.querySelector(
+    "#d-champion .champion-team span",
+  ).textContent;
+  assert.ok(
+    names.includes(champion),
+    "champion is a valid club from the tournament",
   );
+  assert.ok(champion.length > 0);
 
   // A pick already made by hand is left alone.
   const [, po, ko] = window.localStorage
@@ -291,6 +295,25 @@ test("quick fill settles every remaining tie with the higher seed", async () => 
     .split("-");
   assert.equal(po.includes("x"), false);
   assert.equal(ko.includes("x"), false);
+});
+
+test("quick fill produces randomized outcomes across multiple runs", async () => {
+  const states = [];
+  for (let i = 0; i < 5; i++) {
+    const { window } = await boot();
+    const doc = window.document;
+    const click = (el) =>
+      el.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+    click(doc.getElementById("autofill-btn"));
+    states.push(window.localStorage.getItem("ucl-predictor-state"));
+  }
+
+  const uniqueStates = new Set(states);
+  assert.ok(
+    uniqueStates.size > 1,
+    `expected varied randomized brackets across 5 runs, got ${uniqueStates.size} unique state(s)`,
+  );
 });
 
 test("quick fill preserves picks already made", async () => {

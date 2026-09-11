@@ -1601,8 +1601,9 @@
             <i class="fas fa-moon"></i>
           </button>
           <button id="autofill-btn" class="btn btn-outline"
-            aria-label="Fill every undecided tie with the higher-seeded club">
-            <i class="fas fa-wand-magic-sparkles"></i> <span class="sr-only-mobile">Fill</span>
+            aria-label="Randomly fill every undecided tie across the bracket"
+            title="Random fill remaining ties">
+            <i class="fas fa-dice"></i> <span class="sr-only-mobile">Random Fill</span>
           </button>
           <button id="reset-btn" class="btn btn-outline" aria-label="Reset all bracket predictions">
             <i class="fas fa-rotate-left"></i> <span class="sr-only-mobile">Reset</span>
@@ -2729,23 +2730,38 @@
         : `${done} of ${total} ties decided`;
     }
 
-    // Settles every remaining tie in favour of the club that finished higher in
-    // the league phase — a starting point to argue with, not a prediction.
+    // Resolves a tie with weighted seed probability, giving higher seeds an edge
+    // while allowing realistic tournament upsets.
+    function pickRandomWinner(team1, team2) {
+      if (!team1 && !team2) return null;
+      if (!team1) return team2;
+      if (!team2) return team1;
+
+      const r1 = seedRankOf(team1);
+      const r2 = seedRankOf(team2);
+      const delta = r2 - r1;
+      const probTeam1 = 0.5 + Math.max(-0.35, Math.min(0.35, delta * 0.015));
+
+      return Math.random() < probTeam1 ? team1 : team2;
+    }
+
+    // Settles every remaining tie using weighted randomized simulation.
     function autoFillBracket() {
       const before = decidedCount();
 
       PLAYOFF_TIES.forEach(tie => {
         if (state.playoffWinner[tie.id]) return;
         const m = calculateMatchesData()[tie.id];
-        if (m.team1) state.playoffWinner[tie.id] = m.team1.name;
+        const winner = pickRandomWinner(m.team1, m.team2);
+        if (winner) state.playoffWinner[tie.id] = winner.name;
       });
 
       // Round by round: a tie only has two clubs once the ones feeding it do.
       BRACKET_IDS.forEach(id => {
         if (state.bracketWinner[id]) return;
         const m = calculateMatchesData()[id];
-        const higher = seedRankOf(m.team1) <= seedRankOf(m.team2) ? m.team1 : m.team2;
-        if (higher) state.bracketWinner[id] = higher.name;
+        const winner = pickRandomWinner(m.team1, m.team2);
+        if (winner) state.bracketWinner[id] = winner.name;
       });
 
       saveStateToLocalStorage();
@@ -2753,7 +2769,7 @@
 
       const added = decidedCount() - before;
       if (added > 0) {
-        showToast(`Filled ${added} ${added === 1 ? "tie" : "ties"} with the higher seed.`, "success");
+        showToast(`Filled ${added} ${added === 1 ? "tie" : "ties"} with randomized outcomes.`, "success");
       } else {
         showToast("Every tie was already decided.", "warning");
       }
