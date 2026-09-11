@@ -1235,7 +1235,7 @@
           <h2 id="wildcards-title">Third-Place Team Advancement</h2>
           <p>Under the 48-team format, the 12 third-place finishers are ranked. Choose exactly 8 teams from these 12
             third-place finishers to advance to the Round of 32.</p>
-          <div class="wildcard-counter" id="wildcard-counter-label" aria-live="polite">Selected: 8 of 12</div>
+          <div class="wildcard-counter" id="wildcard-counter-label" aria-live="polite">Selected: 8 of 8</div>
         </div>
 
         <div class="wildcard-grid" id="wildcards-container">
@@ -2164,10 +2164,10 @@
 
       // Gold
       html += `
-        <div class="podium-place">
+        <div class="podium-place podium-item gold">
           <span class="medal medal-gold"><i class="fas fa-crown"></i></span>
           <div class="podium-team">
-            ${gold ? `<img class="podium-team-flag" src="${getFlagUrl(gold.code)}" alt=""> <span>${gold.name}</span>` : '<span class="podium-empty">Winner Undecided</span>'}
+            ${gold ? `<img class="podium-team-flag" src="${getFlagUrl(gold.code)}" alt=""> <span class="podium-team-name">${gold.name}</span>` : '<span class="podium-empty">Winner Undecided</span>'}
           </div>
           <span class="podium-place-label">World Champion</span>
         </div>
@@ -2175,10 +2175,10 @@
 
       // Silver
       html += `
-        <div class="podium-place">
+        <div class="podium-place podium-item silver">
           <span class="medal medal-silver"><i class="fas fa-award"></i></span>
           <div class="podium-team">
-            ${silver ? `<img class="podium-team-flag" src="${getFlagUrl(silver.code)}" alt=""> <span>${silver.name}</span>` : '<span class="podium-empty">Runner-up Undecided</span>'}
+            ${silver ? `<img class="podium-team-flag" src="${getFlagUrl(silver.code)}" alt=""> <span class="podium-team-name">${silver.name}</span>` : '<span class="podium-empty">Runner-up Undecided</span>'}
           </div>
           <span class="podium-place-label">Second Place</span>
         </div>
@@ -2186,10 +2186,10 @@
 
       // Bronze
       html += `
-        <div class="podium-place">
+        <div class="podium-place podium-item bronze">
           <span class="medal medal-bronze"><i class="fas fa-award"></i></span>
           <div class="podium-team">
-            ${bronze ? `<img class="podium-team-flag" src="${getFlagUrl(bronze.code)}" alt=""> <span>${bronze.name}</span>` : '<span class="podium-empty">Undecided</span>'}
+            ${bronze ? `<img class="podium-team-flag" src="${getFlagUrl(bronze.code)}" alt=""> <span class="podium-team-name">${bronze.name}</span>` : '<span class="podium-empty">Undecided</span>'}
           </div>
           <span class="podium-place-label">Third Place</span>
         </div>
@@ -2505,8 +2505,10 @@
     // Canvas-based particles confetti
     function triggerGoldPodiumCelebration() {
       const canvas = document.getElementById("celebration-canvas");
-      canvas.style.display = "block";
+      if (!canvas) return;
       const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      canvas.style.display = "block";
 
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;

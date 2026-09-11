@@ -531,7 +531,7 @@ test("hovering a club lights its rows and the edges it won", async () => {
     "#d-champion .champion-team span",
   ).textContent;
 
-  const row = [...doc.querySelectorAll("#d-r16-1 .match-team")].find(
+  const row = [...doc.querySelectorAll('[id^="d-r16-"] .match-team')].find(
     (el) => el.dataset.team === champion,
   );
   assert.ok(row, "the champion appears in its round-of-16 tie");

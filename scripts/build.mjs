@@ -71,7 +71,7 @@ async function walk(dir, base = dir) {
       if (SKIP_DIRS.has(entry.name)) continue;
       out.push(...(await walk(join(dir, entry.name), base)));
     } else {
-      out.push(relative(base, join(dir, entry.name)));
+      out.push(relative(base, join(dir, entry.name)).replace(/\\/g, "/"));
     }
   }
   return out;

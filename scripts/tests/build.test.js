@@ -44,7 +44,7 @@ function walk(dir, base = dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) out.push(...walk(full, base));
-    else out.push(relative(base, full));
+    else out.push(relative(base, full).replace(/\\/g, "/"));
   }
   return out;
 }

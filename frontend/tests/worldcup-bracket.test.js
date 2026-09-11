@@ -34,7 +34,7 @@ test("renders 12 groups with 4 teams each", async () => {
   assert.equal(wildcards.length, 12, "12 wildcard candidate cards");
   assert.equal(
     doc.getElementById("wildcard-counter-label").textContent,
-    "Selected: 8 of 12",
+    "Selected: 8 of 8",
   );
 });
 
