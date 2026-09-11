@@ -29,7 +29,7 @@ npm run build
 
 # 3. Hash & Documentation Drift Checks
 python3 scripts/check_csp_hashes.py
-python3 scripts/check_docs.py
+python3 scripts/check_docs.py --show-tokens
 ```
 
 ## Reporting Format

@@ -221,7 +221,9 @@ is not a licence to pad — §4's "Zero Fluff" still governs. For every finding:
     run automatically after you edit a covered file — but know what they are:
     *   `python3 scripts/check_docs.py --fix` — line counts, grep yields and token
         estimates in the tables above, plus per-module counts in `docs/JAVASCRIPT.md`
-        and `docs/TESTING.md`.
+        and `docs/TESTING.md`. Pass `--show-tokens` to display the document token estimates table.
+        **Rule:** After completing any task modifying `.md` files or tracked assets, run
+        `python3 scripts/check_docs.py --fix --show-tokens` and display the token table in your final response.
     *   `python3 scripts/check_csp_hashes.py` — the three pinned `sha256-` hashes in
         `frontend/index.html`'s CSP. **Editing any inline `<script>` in `index.html`
         invalidates one of them and fails CI.** There is no `--fix`: on failure it

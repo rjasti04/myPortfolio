@@ -1092,7 +1092,7 @@ A standalone visual developer utility for back-end engineers and technical visit
 
 The application controller. Binds the tab switcher between Cron and Regex views, synchronizes state to the URL hash and query string (`#cron?expr=...` and `#regex?pattern=...&flags=...`), handles clipboard sharing with visual toast feedback, and persists user inputs in `localStorage`.
 
-### `cron-parser.js` (503 lines)
+### `cron-parser.js` (502 lines)
 
 Pure mathematical parser and validator for standard 5-part POSIX cron schedules (`minute hour day-of-month month day-of-week`). Evaluates step expressions, lists, ranges, and month/weekday names. Provides natural language translation (`translateCron`) and calculates the next sequential trigger timestamps (`getNextRuns`) with leap year and calendar edge awareness.
 

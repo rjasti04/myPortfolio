@@ -23,9 +23,10 @@ Checks:
 
 Exits non-zero listing each drifted figure and the value it should be.
 
-    python scripts/check_docs.py [--fix]
+    python scripts/check_docs.py [--fix] [--show-tokens]
 
 `--fix` rewrites the numbers in place rather than just reporting them.
+`--show-tokens` displays current document token estimates.
 """
 
 from __future__ import annotations
@@ -271,10 +272,56 @@ def check_testing_doc(rep: Report) -> None:
                 rep.missing("TESTING.md", f"no row for test file {root}{p.name}")
 
 
+def display_token_usage() -> None:
+    """Print the document token budget table."""
+    print("\nDocument Token Usage (PROSE divisor: 4.0, rounded to 500):")
+    print(f"  {'Document':<30} {'Tokens':>10}")
+    print(f"  {'-'*30} {'-'*10}")
+    docs = sorted((ROOT / "docs").glob("*.md"))
+    doc_total = 0
+    for doc in docs:
+        t = tokens(doc, DIV_PROSE)
+        doc_total += t
+        rel = doc.relative_to(ROOT).as_posix()
+        formatted_tok = f"~{t:,}"
+        print(f"  {rel:<30} {formatted_tok:>10}")
+    for standalone in ["AGENTS.md", "README.md"]:
+        p = ROOT / standalone
+        if p.exists():
+            t = tokens(p, DIV_PROSE)
+            formatted_tok = f"~{t:,}"
+            print(f"  {standalone:<30} {formatted_tok:>10}")
+    print(f"  {'-'*30} {'-'*10}")
+    formatted_total = f"~{doc_total:,}"
+    print(f"  {'Total (docs/*.md)':<30} {formatted_total:>10}")
+
+    print("\nMonitored Code & Assets (CODE divisor: 3.7, rounded to 500):")
+    print(f"  {'File':<30} {'Lines':>10} {'Tokens':>10}")
+    print(f"  {'-'*30} {'-'*10} {'-'*10}")
+    nav_files = [
+        "frontend/styles.css",
+        "package-lock.json",
+        "frontend/index.html",
+        "frontend/js/chat.js",
+        "frontend/js/auth-ui.js",
+        "frontend/three-bg.js",
+    ]
+    for rel in nav_files:
+        p = ROOT / rel
+        if p.exists():
+            t = tokens(p, DIV_CODE)
+            line_count = lines(p)
+            formatted_tok = f"~{t:,}"
+            print(f"  {rel:<30} {line_count:>10,} {formatted_tok:>10}")
+    print()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fix", action="store_true",
                         help="rewrite drifted numbers in place")
+    parser.add_argument("--show-tokens", action="store_true",
+                        help="display current document token estimates")
     args = parser.parse_args()
 
     agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
@@ -288,6 +335,8 @@ def main() -> int:
 
     if not rep.problems:
         print("check_docs: all documented figures match the repository")
+        if args.show_tokens:
+            display_token_usage()
         return 0
 
     if args.fix and rep.edits:
@@ -310,11 +359,15 @@ def main() -> int:
         unfixable = [p for p in rep.problems if " says " not in p] + stuck
         for problem in unfixable:
             print(f"  still open: {problem}")
+        if args.show_tokens:
+            display_token_usage()
         return 1 if unfixable else 0
 
     print(f"check_docs: {len(rep.problems)} documented figure(s) no longer match the repo\n")
     for problem in rep.problems:
         print(f"  {problem}")
+    if args.show_tokens:
+        display_token_usage()
     print("\nRun `python scripts/check_docs.py --fix` to update the counts,")
     print("then re-read the surrounding prose - a number that moved a long way")
     print("usually means the description above it is stale too.")

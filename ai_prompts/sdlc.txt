@@ -8,3 +8,4 @@ SPEC
 VERIFY
 all - "Run the verifier subagent (.claude/agents/verifier.md) to check all quality gates."
 frontend - "Run the frontend quality gates from the verifier (hashes, docs, and frontend tests)."
+docs - "Run """python3 scripts/check_docs.py --fix --show-tokens""" to verify drift and display document token estimates."
