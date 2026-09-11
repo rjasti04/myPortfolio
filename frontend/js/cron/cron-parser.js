@@ -49,8 +49,7 @@ function normalizeToken(token, fieldIndex) {
   const num = parseInt(token, 10);
   if (Number.isNaN(num)) return null;
 
-  // In cron, dayOfWeek 7 is Sunday (same as 0)
-  if (fieldIndex === 4 && num === 7) return 0;
+  // In cron, dayOfWeek 7 is Sunday (same as 0). Retain 7 during tokenization so range checks (e.g. 1-7) succeed, then normalize to 0 when inserting into values.
   return num;
 }
 
@@ -89,11 +88,11 @@ function parseField(fieldStr, fieldIndex) {
     }
 
     let start = min;
-    let end = max;
+    let end = fieldIndex === 4 ? 6 : max;
 
     if (rangePart === "*") {
       start = min;
-      end = max;
+      end = fieldIndex === 4 ? 6 : max;
     } else if (rangePart.includes("-")) {
       const rangeParts = rangePart.split("-");
       if (rangeParts.length !== 2) {
@@ -119,15 +118,15 @@ function parseField(fieldStr, fieldIndex) {
       }
       if (token.includes("/")) {
         start = val;
-        end = max;
+        end = fieldIndex === 4 ? 6 : max;
       } else {
-        values.add(val);
+        values.add(fieldIndex === 4 && val === 7 ? 0 : val);
         continue;
       }
     }
 
     for (let i = start; i <= end; i += step) {
-      values.add(i);
+      values.add(fieldIndex === 4 && i === 7 ? 0 : i);
     }
   }
 

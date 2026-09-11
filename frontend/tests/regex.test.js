@@ -23,7 +23,8 @@ test("tokenizeRegex: recognizes capturing, non-capturing, and named groups", () 
 
 test("normalizeFlags: filters and deduplicates valid flags", () => {
   assert.equal(normalizeFlags("gimgi"), "gim");
-  assert.equal(normalizeFlags("xyzg"), "g");
+  assert.equal(normalizeFlags("xzg"), "g");
+  assert.equal(normalizeFlags("xyzg"), "yg");
   assert.equal(normalizeFlags(""), "");
 });
 

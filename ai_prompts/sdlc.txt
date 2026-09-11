@@ -1,0 +1,10 @@
+INTENT
+"I'm thinking about adding [feature]. Interview me and draft an intent document."
+
+SPEC
+"Review .claude/intents/YYYY-MM-DD-<feature-slug>.md and draft a companion technical spec using .claude/templates/spec.md."
+"Implement .claude/intents/YYYY-MM-DD-<feature-slug>.md. Start in plan mode and give me the file-by-file plan before editing any code."
+
+VERIFY
+all - "Run the verifier subagent (.claude/agents/verifier.md) to check all quality gates."
+frontend - "Run the frontend quality gates from the verifier (hashes, docs, and frontend tests)."

@@ -37,7 +37,7 @@ class TestPersonaPromptIntegrity:
         for tech in forbidden_tech:
             assert tech in DEFAULT_SYSTEM_PROMPT
             # Ensure each is framed under negation
-            assert f"no {tech}" in DEFAULT_SYSTEM_PROMPT or f"no frontend framework — no React" in DEFAULT_SYSTEM_PROMPT
+            assert f"no {tech}" in DEFAULT_SYSTEM_PROMPT or "no frontend framework — no React" in DEFAULT_SYSTEM_PROMPT
 
     def test_persona_bounds_scope_to_rajeev_portfolio(self):
         """System prompt must specify personal portfolio domain bounds."""

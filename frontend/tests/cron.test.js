@@ -24,6 +24,9 @@ test("parseCron: handles steps and ranges correctly", () => {
   assert.deepEqual(res.fields.minutes, [0, 15, 30, 45]);
   assert.deepEqual(res.fields.hours, [9, 10, 11, 12, 13, 14, 15, 16, 17]);
   assert.deepEqual(res.fields.daysOfWeek, [1, 2, 3, 4, 5]);
+
+  assert.deepEqual(parseCron("* * * * 7").fields.daysOfWeek, [0]);
+  assert.deepEqual(parseCron("* * * * 1-7").fields.daysOfWeek, [0, 1, 2, 3, 4, 5, 6]);
 });
 
 test("parseCron: handles month and day names", () => {
