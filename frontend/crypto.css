@@ -114,8 +114,9 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  text-decoration: none;
   color: var(--text);
+  cursor: default;
+  user-select: none;
 }
 
 .brand-icon {
@@ -220,6 +221,7 @@ body {
   font-weight: 500;
   border-radius: var(--radius-md);
   cursor: pointer;
+  text-decoration: none;
   transition: all 0.15s ease;
 }
 
@@ -237,6 +239,23 @@ body {
   background: var(--color-success);
   color: #ffffff;
   border-color: var(--color-success);
+}
+
+.back-btn {
+  font-weight: 600;
+}
+
+.back-btn .short-label {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .back-btn .full-label {
+    display: none;
+  }
+  .back-btn .short-label {
+    display: inline;
+  }
 }
 
 /* Main Container */

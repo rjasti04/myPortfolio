@@ -170,8 +170,9 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  text-decoration: none;
   color: inherit;
+  cursor: default;
+  user-select: none;
 }
 
 .brand-icon {
@@ -267,6 +268,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  text-decoration: none;
   transition: all 0.15s ease;
 }
 
@@ -278,6 +280,23 @@ body {
   background-color: var(--color-success);
   color: #ffffff;
   border-color: var(--color-success);
+}
+
+.back-btn {
+  font-weight: 600;
+}
+
+.back-btn .short-label {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .back-btn .full-label {
+    display: none;
+  }
+  .back-btn .short-label {
+    display: inline;
+  }
 }
 
 /* Main Container Layout */
