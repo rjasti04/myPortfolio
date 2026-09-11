@@ -47,6 +47,7 @@ CARDS = {
     "ucl": ("ucl-preview.html", "ucl-preview.png"),
     "arcade": ("arcade-preview.html", "arcade-preview.png"),
     "worldcup": ("worldcup-preview.html", "worldcup-preview.png"),
+    "cron": ("cron-preview.html", "cron-preview.png"),
 }
 
 CHROME_CANDIDATES = [

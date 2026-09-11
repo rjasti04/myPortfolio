@@ -44,5 +44,15 @@
       <image:title>2026 World Cup Bracket Predictor</image:title>
       <image:caption>Preview card for the World Cup bracket predictor</image:caption>
     </image:image>
+  <url>
+    <loc>https://rjasti.com/cron</loc>
+    <lastmod>2026-09-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <image:image>
+      <image:loc>https://rjasti.com/cron-preview.png</image:loc>
+      <image:title>Cron &amp; Regex Visualizer | Logic Inspector for Developers</image:title>
+      <image:caption>Preview card for the Cron and Regex Visualizer page</image:caption>
+    </image:image>
   </url>
 </urlset>

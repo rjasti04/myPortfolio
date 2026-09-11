@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none';"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta
+      name="description"
+      content="Visual logic inspector for developers. Real-time cron schedule translator, trigger timeline, and interactive regex pattern matcher with syntax color-coding."
+    />
+    <meta name="theme-color" content="#090d16" />
+    <title>Cron &amp; Regex Visualizer — Logic Inspector for Developers</title>
+    <link rel="canonical" href="https://rjasti.com/cron" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="Rajeev Jasti" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://rjasti.com/cron" />
+    <meta
+      property="og:title"
+      content="Cron &amp; Regex Visualizer — Logic Inspector for Developers"
+    />
+    <meta
+      property="og:description"
+      content="Translate cron schedules, inspect next 10 triggers, and match regex patterns in real time with syntax breakdown and capture group extraction."
+    />
+    <meta property="og:image" content="https://rjasti.com/cron-preview.png" />
+    <meta
+      property="og:image:secure_url"
+      content="https://rjasti.com/cron-preview.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Cron and Regex Visualizer preview card" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Cron &amp; Regex Visualizer — Logic Inspector for Developers"
+    />
+    <meta
+      name="twitter:description"
+      content="Interactive cron schedule translator, trigger timeline, and real-time regex pattern matcher."
+    />
+    <meta
+      name="twitter:image"
+      content="https://rjasti.com/cron-preview.png"
+    />
+    <meta name="twitter:image:alt" content="Cron and Regex Visualizer preview card" />
+    <link rel="icon" href="/favicon.ico" />
+
+    <!-- Self-hosted fonts subset -->
+    <link rel="stylesheet" href="fonts.css" />
+    <link rel="stylesheet" href="cron.css" />
+  </head>
+
+  <body>
+    <header class="app-header">
+      <div class="header-container">
+        <a href="/" class="brand-wrap" title="Return to Rajeev Jasti Portfolio">
+          <div class="brand-icon" aria-hidden="true">
+            <i class="fas fa-code"></i>
+          </div>
+          <div>
+            <div class="brand-title">Logic Inspector</div>
+            <span class="brand-tag">Developer Utility</span>
+          </div>
+        </a>
+
+        <!-- Mode Toggle Tabs -->
+        <nav class="mode-tabs" role="tablist" aria-label="Visualizer Mode">
+          <button
+            type="button"
+            class="tab-btn active"
+            data-tab="cron"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-cron"
+            id="tab-cron"
+          >
+            <i class="fas fa-sliders" aria-hidden="true"></i>
+            <span>Cron Schedule</span>
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            data-tab="regex"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-regex"
+            id="tab-regex"
+          >
+            <i class="fas fa-search" aria-hidden="true"></i>
+            <span>Regex Matcher</span>
+          </button>
+        </nav>
+
+        <div class="header-actions">
+          <button
+            type="button"
+            id="share-link-btn"
+            class="action-btn"
+            title="Copy shareable permalink to clipboard"
+          >
+            <i class="fas fa-copy" aria-hidden="true"></i>
+            <span>Share</span>
+          </button>
+          <button
+            type="button"
+            id="theme-toggle-btn"
+            class="action-btn"
+            title="Toggle Light / Dark theme"
+            aria-label="Toggle theme"
+          >
+            <i class="fas fa-sun" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <!-- CRON INSPECTOR PANEL -->
+      <section
+        id="panel-cron"
+        class="panel-container"
+        role="tabpanel"
+        aria-labelledby="tab-cron"
+      >
+        <div class="card">
+          <h2 class="card-title">
+            <i class="fas fa-sliders text-muted" aria-hidden="true"></i>
+            <span>Cron Schedule Expression</span>
+          </h2>
+
+          <div class="input-group">
+            <input
+              type="text"
+              id="cron-input"
+              class="primary-input"
+              placeholder="* * * * *"
+              spellcheck="false"
+              autocomplete="off"
+              aria-label="Cron schedule expression"
+            />
+            <button
+              type="button"
+              id="cron-copy-btn"
+              class="action-btn"
+              title="Copy expression"
+            >
+              <i class="fas fa-copy" aria-hidden="true"></i>
+              <span>Copy</span>
+            </button>
+          </div>
+
+          <div id="cron-error" class="error-banner" hidden></div>
+
+          <div class="presets-wrap">
+            <span class="presets-label">Presets:</span>
+            <div id="cron-presets" class="presets-wrap"></div>
+          </div>
+
+          <!-- Human Language Translation Card -->
+          <div class="card translation-card">
+            <h3 class="card-title text-muted">Plain-English Translation</h3>
+            <div id="cron-translation" class="translation-text">
+              Translating schedule&hellip;
+            </div>
+          </div>
+        </div>
+
+        <!-- 5-Part Interactive Picker -->
+        <div class="card">
+          <h2 class="card-title">
+            <i class="fas fa-diagram-project text-muted" aria-hidden="true"></i>
+            <span>Interactive 5-Part Builder</span>
+          </h2>
+          <div class="builder-grid">
+            <div class="builder-field">
+              <label for="part-minute" class="builder-label">Minute</label>
+              <select id="part-minute" class="builder-select">
+                <option value="*">* (Every minute)</option>
+                <option value="0">0 (On the hour)</option>
+                <option value="*/5">*/5 (Every 5 mins)</option>
+                <option value="*/15">*/15 (Every 15 mins)</option>
+                <option value="*/30">*/30 (Every 30 mins)</option>
+                <option value="0,30">0,30 (Top &amp; bottom)</option>
+              </select>
+            </div>
+
+            <div class="builder-field">
+              <label for="part-hour" class="builder-label">Hour</label>
+              <select id="part-hour" class="builder-select">
+                <option value="*">* (Every hour)</option>
+                <option value="0">0 (Midnight / 12 AM)</option>
+                <option value="9">9 (09:00 AM)</option>
+                <option value="12">12 (Noon / 12 PM)</option>
+                <option value="17">17 (05:00 PM)</option>
+                <option value="9-17">9-17 (Business hours)</option>
+                <option value="*/2">*/2 (Every 2 hours)</option>
+                <option value="*/6">*/6 (Every 6 hours)</option>
+              </select>
+            </div>
+
+            <div class="builder-field">
+              <label for="part-dom" class="builder-label">Day of Month</label>
+              <select id="part-dom" class="builder-select">
+                <option value="*">* (Every day)</option>
+                <option value="1">1 (1st day of month)</option>
+                <option value="15">15 (Mid-month)</option>
+                <option value="1,15">1,15 (Bi-monthly)</option>
+                <option value="1-7">1-7 (First week)</option>
+              </select>
+            </div>
+
+            <div class="builder-field">
+              <label for="part-month" class="builder-label">Month</label>
+              <select id="part-month" class="builder-select">
+                <option value="*">* (Every month)</option>
+                <option value="1">1 (January)</option>
+                <option value="*/3">*/3 (Quarterly)</option>
+                <option value="*/6">*/6 (Semi-annually)</option>
+                <option value="12">12 (December)</option>
+              </select>
+            </div>
+
+            <div class="builder-field">
+              <label for="part-dow" class="builder-label">Day of Week</label>
+              <select id="part-dow" class="builder-select">
+                <option value="*">* (Every day)</option>
+                <option value="1-5">1-5 (Monday–Friday)</option>
+                <option value="0,6">0,6 (Weekends)</option>
+                <option value="0">0 (Sunday only)</option>
+                <option value="1">1 (Monday only)</option>
+                <option value="5">5 (Friday only)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Next 10 Triggers Timeline -->
+        <div class="card">
+          <h2 class="card-title">
+            <i class="fas fa-chart-line text-muted" aria-hidden="true"></i>
+            <span>Next 10 Scheduled Triggers</span>
+          </h2>
+          <div id="cron-timeline"></div>
+        </div>
+      </section>
+
+      <!-- REGEX INSPECTOR PANEL -->
+      <section
+        id="panel-regex"
+        class="panel-container"
+        role="tabpanel"
+        aria-labelledby="tab-regex"
+        hidden
+      >
+        <div class="card">
+          <h2 class="card-title">
+            <i class="fas fa-search text-muted" aria-hidden="true"></i>
+            <span>Regular Expression</span>
+          </h2>
+
+          <div class="input-group">
+            <input
+              type="text"
+              id="regex-pattern"
+              class="primary-input"
+              placeholder="e.g. [a-z0-9_]+@\w+\.\w+"
+              spellcheck="false"
+              autocomplete="off"
+              aria-label="Regular expression pattern"
+            />
+
+            <!-- Flag Toggles -->
+            <div id="regex-flags" class="flags-bar" role="group" aria-label="Regex Flags">
+              <button
+                type="button"
+                class="flag-pill active"
+                data-flag="g"
+                title="Global (match all instances)"
+                aria-pressed="true"
+              >
+                g
+              </button>
+              <button
+                type="button"
+                class="flag-pill"
+                data-flag="i"
+                title="Case-insensitive"
+                aria-pressed="false"
+              >
+                i
+              </button>
+              <button
+                type="button"
+                class="flag-pill"
+                data-flag="m"
+                title="Multiline (^ and $ match line boundaries)"
+                aria-pressed="false"
+              >
+                m
+              </button>
+              <button
+                type="button"
+                class="flag-pill"
+                data-flag="s"
+                title="dotAll (. matches newlines)"
+                aria-pressed="false"
+              >
+                s
+              </button>
+              <button
+                type="button"
+                class="flag-pill"
+                data-flag="u"
+                title="Unicode support"
+                aria-pressed="false"
+              >
+                u
+              </button>
+              <button
+                type="button"
+                class="flag-pill"
+                data-flag="y"
+                title="Sticky (match from lastIndex only)"
+                aria-pressed="false"
+              >
+                y
+              </button>
+            </div>
+
+            <button
+              type="button"
+              id="regex-copy-btn"
+              class="action-btn"
+              title="Copy regex with flags"
+            >
+              <i class="fas fa-copy" aria-hidden="true"></i>
+              <span>Copy</span>
+            </button>
+          </div>
+
+          <div id="regex-error" class="error-banner" hidden></div>
+
+          <div class="presets-wrap">
+            <span class="presets-label">Common Presets:</span>
+            <div id="regex-presets" class="presets-wrap"></div>
+          </div>
+
+          <!-- Syntax Tokens Bar -->
+          <div class="builder-field">
+            <span class="builder-label">Syntax Breakdown</span>
+            <div id="regex-tokens" class="syntax-tokens-bar"></div>
+          </div>
+        </div>
+
+        <!-- Test Text with Synchronized Highlight Overlay -->
+        <div class="card">
+          <h2 class="card-title">
+            <i class="fas fa-file-lines text-muted" aria-hidden="true"></i>
+            <span>Test String &amp; Live Match Highlighting</span>
+          </h2>
+
+          <div class="test-text-wrapper">
+            <div
+              id="regex-highlight-overlay"
+              class="test-backdrop"
+              aria-hidden="true"
+            ></div>
+            <textarea
+              id="regex-textarea"
+              class="test-textarea"
+              placeholder="Type or paste sample text here to test your regular expression..."
+              spellcheck="false"
+              aria-label="Sample test text"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Matches & Capture Groups Results Panel -->
+        <div class="card">
+          <h2 class="card-title">
+            <i class="fas fa-check-circle text-muted" aria-hidden="true"></i>
+            <span>Match Results &amp; Capturing Groups</span>
+          </h2>
+          <div id="regex-matches-summary" class="matches-summary"></div>
+          <ul id="regex-matches-list" class="matches-list"></ul>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="js/cron/cron-main.js"></script>
+  </body>
+</html>

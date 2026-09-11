@@ -198,9 +198,22 @@ async function main() {
     }
   }
 
+  // The logic inspector at /cron is a separate standalone page with its own entry.
+  const cron = await esbuild.build({
+    entryPoints: [join(SRC, "js/cron/cron-main.js")],
+    bundle: true, minify: true, sourcemap: true, format: "esm", target: ["es2022"],
+    outdir: join(OUT, "assets"), entryNames: "cron-[hash]", metafile: true, logLevel: "warning",
+  });
+  for (const [outPath, meta] of Object.entries(cron.metafile.outputs)) {
+    if (outPath.endsWith(".map")) continue;
+    if (meta.entryPoint) {
+      rewrites.set("js/cron/cron-main.js", relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
+    }
+  }
+
   // --- CSS -----------------------------------------------------------------
   const cssAssets = new Set();
-  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "arcade.css"]) {
+  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "arcade.css", "cron.css"]) {
     const result = await esbuild.build({
       entryPoints: [join(SRC, css)],
       bundle: true, minify: true, sourcemap: true,

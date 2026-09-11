@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Open Graph card — Cron &amp; Regex Visualizer</title>
+  <link rel="stylesheet" href="card.css">
+  <style>
+    .card {
+      background: linear-gradient(160deg, #090d16 0%, #131d31 100%);
+      color: #f8fafc;
+    }
+
+    .glow-cron {
+      width: 700px;
+      height: 700px;
+      top: -300px;
+      left: -180px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.26), transparent 66%);
+    }
+
+    .glow-regex {
+      width: 650px;
+      height: 650px;
+      bottom: -280px;
+      right: -120px;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.24), transparent 66%);
+    }
+
+    .rule {
+      background: linear-gradient(90deg, #10b981, #3b82f6 50%, #8b5cf6);
+    }
+
+    .eyebrow {
+      color: #34d399;
+    }
+
+    .left {
+      width: 580px;
+    }
+
+    .title {
+      font-size: 64px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 40%, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 26px;
+      font-weight: 700;
+      color: #a78bfa;
+      letter-spacing: -0.01em;
+      margin-bottom: 16px;
+    }
+
+    .lead {
+      font-size: 19px;
+      line-height: 1.5;
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #e2e8f0;
+    }
+
+    .chip.green {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.35);
+      color: #34d399;
+    }
+
+    .chip.purple {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: rgba(139, 92, 246, 0.35);
+      color: #c084fc;
+    }
+
+    /* Right Preview Mockup */
+    .art {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      justify-content: center;
+    }
+
+    .mockup-card {
+      background: rgba(19, 29, 49, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 20px 24px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(12px);
+    }
+
+    .mockup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .mockup-badge {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+
+    .badge-cron {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-regex {
+      background: rgba(139, 92, 246, 0.2);
+      color: #c084fc;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .code-box {
+      font-family: ui-monospace, "SF Mono", monospace;
+      font-size: 20px;
+      font-weight: 700;
+      color: #38bdf8;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+    }
+
+    .mockup-desc {
+      font-size: 15px;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+
+    .regex-tokens-preview {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .tok-p {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .tp-group { background: rgba(192, 132, 252, 0.25); color: #c084fc; }
+    .tp-class { background: rgba(56, 189, 248, 0.25); color: #38bdf8; }
+    .tp-quant { background: rgba(251, 146, 60, 0.25); color: #fb923c; }
+
+    .footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer .url {
+      font-size: 17px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .footer .meta {
+      font-size: 15px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="glow glow-cron"></div>
+    <div class="glow glow-regex"></div>
+
+    <div class="body">
+      <div class="left">
+        <div class="rule"></div>
+        <div class="eyebrow">Logic Inspector &bull; Developer Utility</div>
+        <h1 class="title">Logic Inspector</h1>
+        <div class="subtitle">Cron &amp; Regex Visualizer</div>
+        <p class="lead">Human-language cron translation, interactive trigger timeline, and real-time regex pattern matcher with syntax color-coding &amp; capture group breakdowns.</p>
+        <div class="chips">
+          <span class="chip green">5-Part POSIX Cron</span>
+          <span class="chip purple">ECMAScript RegExp</span>
+          <span class="chip">Trigger Timeline</span>
+          <span class="chip">Zero Dependencies</span>
+        </div>
+      </div>
+
+      <div class="art">
+        <div class="mockup-card">
+          <div class="mockup-header">
+            <span class="mockup-badge badge-cron">Cron Schedule</span>
+            <span style="font-size: 13px; color: #34d399; font-weight: 600;">Next in 12m</span>
+          </div>
+          <div class="code-box">*/15 9-17 * * 1-5</div>
+          <div class="mockup-desc">&ldquo;Every 15 minutes, between 09:00 AM and 05:59 PM, Monday through Friday&rdquo;</div>
+        </div>
+
+        <div class="mockup-card">
+          <div class="mockup-header">
+            <span class="mockup-badge badge-regex">Regex Matcher</span>
+            <span style="font-size: 13px; color: #c084fc; font-weight: 600;">2 matches (0.4ms)</span>
+          </div>
+          <div class="code-box" style="color: #c084fc;">/(?&lt;year&gt;\d{4})-(?&lt;month&gt;\d{2})/g</div>
+          <div class="regex-tokens-preview">
+            <span class="tok-p tp-group">(?&lt;year&gt;</span>
+            <span class="tok-p tp-class">\d</span>
+            <span class="tok-p tp-quant">{4}</span>
+            <span class="tok-p tp-group">)</span>
+            <span class="tok-p tp-group">(?&lt;month&gt;</span>
+            <span class="tok-p tp-class">\d</span>
+            <span class="tok-p tp-quant">{2}</span>
+            <span class="tok-p tp-group">)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="url">rjasti.com/cron</span>
+      <span class="meta">POSIX 5-Part Cron &bull; Timeline &bull; ECMAScript RegExp &bull; Capture Groups</span>
+    </div>
+  </div>
+</body>
+
+</html>

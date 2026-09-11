@@ -11,6 +11,7 @@ syntax; `frontend/` runs directly in a browser.
 - [The command prompt](#the-command-prompt)
 - [UI and interaction](#ui-and-interaction)
 - [Visual effects](#visual-effects)
+- [Logic Inspector (`/cron` and `/regex`)](#logic-inspector-cron-and-regex)
 - [Browser storage keys](#browser-storage-keys)
 - [Conventions](#conventions)
 
@@ -1083,6 +1084,32 @@ resolved in as many slices as that takes.
 
 ---
 
+## Logic Inspector (`/cron` and `/regex`)
+
+A standalone visual developer utility for back-end engineers and technical visitors. Like the Arcade, it lives on its own page (`frontend/cron.html`) with its own entry point (`js/cron/cron-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
+
+### `cron-main.js` (206 lines)
+
+The application controller. Binds the tab switcher between Cron and Regex views, synchronizes state to the URL hash and query string (`#cron?expr=...` and `#regex?pattern=...&flags=...`), handles clipboard sharing with visual toast feedback, and persists user inputs in `localStorage`.
+
+### `cron-parser.js` (503 lines)
+
+Pure mathematical parser and validator for standard 5-part POSIX cron schedules (`minute hour day-of-month month day-of-week`). Evaluates step expressions, lists, ranges, and month/weekday names. Provides natural language translation (`translateCron`) and calculates the next sequential trigger timestamps (`getNextRuns`) with leap year and calendar edge awareness.
+
+### `cron-ui.js` (228 lines)
+
+DOM controller for the Cron Visualizer view. Renders quick-select preset chips, an interactive 5-part picker with synchronized dropdowns, real-time error banner, human translation card, and next-10 scheduled triggers timeline with relative countdown badges.
+
+### `regex-parser.js` (437 lines)
+
+Browser RegExp tokenizer and safe execution engine. Breaks regular expressions into semantic tokens (character classes, quantifiers, capturing groups, anchors, alternations, escapes, literals) for syntax highlighting. Evaluates matches with boundary indices and extracts numbered and named capture groups with zero-length match guards to prevent infinite loops and ReDoS.
+
+### `regex-ui.js` (354 lines)
+
+DOM controller for the Regex Visualizer view. Binds pattern input and flag toggles (`gimsuy`), renders a color-coded syntax token breakdown bar, manages mirrored backdrop match highlighting in the sample textarea, and displays match summary cards and capture group tables.
+
+---
+
 ## Browser storage keys
 
 | Key | Store | Written by | Holds |
@@ -1103,6 +1130,7 @@ resolved in as many slices as that takes.
 | `rj_session_token` | **sessionStorage** | `analytics.js` | Capability token (per tab) |
 | `rj-arcade:best:<game>` | localStorage | `arcade/storage.js` | Best score per arcade game |
 | `rj-arcade:muted` | localStorage | `arcade/storage.js` | Arcade sound preference |
+| `rj-inspector:state` | localStorage | `cron/cron-main.js` | Active tab, last expressions and test text |
 | `rj_session_token` | **cookie** | the API | Same token, `HttpOnly; SameSite=Strict` — what `EventSource` sends |
 
 A session stored before capability tokens existed is discarded on load, so a
