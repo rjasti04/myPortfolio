@@ -90,6 +90,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const isTarget = btn.getAttribute("data-tab") === tabName;
       btn.classList.toggle("active", isTarget);
       btn.setAttribute("aria-selected", String(isTarget));
+      if (isTarget && typeof btn.scrollIntoView === "function") {
+        btn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      }
     });
 
     const activePanel = tabName === "cron" ? panelCron : panelRegex;

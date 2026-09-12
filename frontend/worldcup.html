@@ -1194,9 +1194,6 @@
           <button id="share-btn" class="btn btn-outline" aria-label="Copy share link for predictions">
             <i class="fas fa-share-nodes"></i> <span class="sr-only-mobile">Share</span>
           </button>
-          <button id="download-btn" class="btn btn-primary" aria-label="Download prediction summary">
-            <i class="fas fa-download"></i> <span class="sr-only-mobile">Export</span>
-          </button>
         </div>
       </div>
       <div class="hero-title-section">
@@ -2742,9 +2739,6 @@
         }
         document.body.removeChild(input);
       }
-
-      // 3. Export
-      document.getElementById("download-btn").addEventListener("click", exportPredictions);
     }
 
     // TRIGGER INITIAL RUN

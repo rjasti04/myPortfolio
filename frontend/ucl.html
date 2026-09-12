@@ -1611,9 +1611,6 @@
           <button id="share-btn" class="btn btn-outline" aria-label="Copy a share link for these predictions">
             <i class="fas fa-share-nodes"></i> <span class="sr-only-mobile">Share</span>
           </button>
-          <button id="download-btn" class="btn btn-primary" aria-label="Download a prediction summary">
-            <i class="fas fa-download"></i> <span class="sr-only-mobile">Export</span>
-          </button>
         </div>
       </div>
       <div class="hero-title-section">
@@ -3104,7 +3101,6 @@
 
       document.getElementById("autofill-btn").addEventListener("click", autoFillBracket);
       document.getElementById("share-btn").addEventListener("click", () => copyToClipboard(createShareableUrl()));
-      document.getElementById("download-btn").addEventListener("click", exportPredictions);
     }
 
     function initSystem() {

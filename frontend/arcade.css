@@ -279,6 +279,13 @@ a {
   filter: brightness(1.08);
 }
 
+.btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentcolor;
+  flex-shrink: 0;
+}
+
 /* Square-ish control in the play bar: an icon plus a hidden label. */
 .btn--icon {
   width: 42px;
