@@ -245,6 +245,8 @@ a {
   border: 0;
   border-radius: var(--pill);
   padding: 11px 18px;
+  min-height: 44px;
+  box-sizing: border-box;
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;

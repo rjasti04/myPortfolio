@@ -62,17 +62,53 @@
   <body>
     <header class="app-header">
       <div class="header-container">
-        <div class="brand-wrap">
-          <div class="brand-icon" aria-hidden="true">
-            <i class="fas fa-code"></i>
+        <!-- Tier 1: Primary App Bar -->
+        <div class="header-primary-bar">
+          <div class="header-left">
+            <a
+              href="/"
+              class="action-btn back-btn"
+              title="Back to Rajeev Jasti Portfolio"
+              aria-label="Back to Portfolio"
+            >
+              <i class="fas fa-arrow-left" aria-hidden="true"></i>
+              <span class="back-label">Portfolio</span>
+            </a>
+            <div class="brand-wrap">
+              <div class="brand-icon" aria-hidden="true">
+                <i class="fas fa-code"></i>
+              </div>
+              <div class="brand-text">
+                <div class="brand-title">Logic Inspector</div>
+                <span class="brand-tag">Developer Utility</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <div class="brand-title">Logic Inspector</div>
-            <span class="brand-tag">Developer Utility</span>
+
+          <div class="header-actions">
+            <button
+              type="button"
+              id="share-link-btn"
+              class="action-btn"
+              title="Copy shareable permalink to clipboard"
+              aria-label="Share permalink"
+            >
+              <i class="fas fa-copy" aria-hidden="true"></i>
+              <span class="action-label">Share</span>
+            </button>
+            <button
+              type="button"
+              id="theme-toggle-btn"
+              class="action-btn action-btn-icon"
+              title="Toggle Light / Dark theme"
+              aria-label="Toggle theme"
+            >
+              <i class="fas fa-sun" aria-hidden="true"></i>
+            </button>
           </div>
         </div>
 
-        <!-- Mode Toggle Tabs -->
+        <!-- Tier 2: Segmented Mode Switcher -->
         <nav class="mode-tabs" role="tablist" aria-label="Visualizer Mode">
           <button
             type="button"
@@ -99,37 +135,6 @@
             <span>Regex Matcher</span>
           </button>
         </nav>
-
-        <div class="header-actions">
-          <a
-            href="/"
-            class="action-btn back-btn"
-            title="Back to Rajeev Jasti Portfolio"
-            aria-label="Back to Portfolio"
-          >
-            <i class="fas fa-arrow-left" aria-hidden="true"></i>
-            <span class="full-label">Back to Portfolio</span>
-            <span class="short-label">Portfolio</span>
-          </a>
-          <button
-            type="button"
-            id="share-link-btn"
-            class="action-btn"
-            title="Copy shareable permalink to clipboard"
-          >
-            <i class="fas fa-copy" aria-hidden="true"></i>
-            <span>Share</span>
-          </button>
-          <button
-            type="button"
-            id="theme-toggle-btn"
-            class="action-btn"
-            title="Toggle Light / Dark theme"
-            aria-label="Toggle theme"
-          >
-            <i class="fas fa-sun" aria-hidden="true"></i>
-          </button>
-        </div>
       </div>
     </header>
 
