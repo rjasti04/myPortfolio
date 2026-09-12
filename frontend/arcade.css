@@ -856,6 +856,35 @@ a {
   }
 }
 
+/* ---- Footer ----------------------------------------------------------- */
+
+.arcade-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--edge);
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.footer-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.footer-link {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.footer-link:hover {
+  color: var(--orange);
+}
+
 /* ---- Playing ----------------------------------------------------------
    One viewport, no scroll, and every pixel that is not chrome is board. */
 
@@ -872,6 +901,10 @@ body.is-playing .shell {
 }
 
 body.is-playing .masthead {
+  display: none;
+}
+
+body.is-playing .arcade-footer {
   display: none;
 }
 
@@ -992,11 +1025,58 @@ body.is-playing #stage {
   .tetris-stats dd {
     font-size: 17px;
   }
+
+  /* Hide back label on narrow screens */
+  .back-label {
+    display: none;
+  }
+
+  /* Tighter footer on mobile */
+  .arcade-footer {
+    padding: 1rem;
+    font-size: 0.75rem;
+  }
+
+  /* Tighter lede */
+  .lede {
+    font-size: 13.5px;
+    margin: 10px 0 20px;
+  }
 }
 
-/* Motion here is decoration on top of games that still need to animate, so
-   this trims the ambient effects and leaves the gameplay alone. The games read
-   the same preference themselves and drop their own trails and pops. */
+@media (max-width: 430px) {
+  .shell {
+    padding: 14px 10px 30px;
+  }
+
+  .launch-card {
+    padding: 22px 18px 18px;
+    border-radius: 26px;
+  }
+
+  .launch-name {
+    font-size: 22px;
+  }
+
+  .launch-tagline {
+    font-size: 12.5px;
+  }
+
+  .launch-controls {
+    font-size: 11px;
+    padding: 4px 10px 4px 8px;
+  }
+
+  .lede {
+    font-size: 13px;
+    margin: 8px 0 16px;
+  }
+
+  .arcade-footer {
+    padding: 0.75rem;
+    font-size: 0.7rem;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .btn,
   .launch-card {

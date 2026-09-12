@@ -957,6 +957,106 @@ body {
   }
 }
 
+@media (max-width: 640px) {
+  /* Hash card header wraps on small screens */
+  .hash-header {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .hash-bits {
+    font-size: 0.7rem;
+    flex-basis: 100%;
+    order: 3;
+  }
+  /* Hash values: prevent horizontal overflow */
+  .hash-input {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.6rem;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+  /* Clock grid: 2 columns */
+  .clock-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  .clock-item {
+    padding: 0.65rem;
+  }
+  .clock-val {
+    font-size: 0.875rem;
+  }
+  .clock-val.mono-val {
+    font-size: 0.875rem;
+  }
+  /* Code areas shorter on mobile */
+  .code-area {
+    height: 140px;
+    font-size: 0.8rem;
+    padding: 0.65rem;
+  }
+  .code-area.short-area {
+    height: 80px;
+  }
+  /* Dropzone compact on mobile */
+  .dropzone {
+    padding: 1rem;
+  }
+  .dropzone-icon {
+    font-size: 1.5rem;
+  }
+  .dropzone-text {
+    font-size: 0.85rem;
+  }
+  /* Input row wraps */
+  .input-row {
+    flex-wrap: wrap;
+  }
+  .input-row .text-input {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  .input-row .btn {
+    flex: 1 1 auto;
+  }
+  /* Result field tighter */
+  .result-field {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .result-label {
+    min-width: auto;
+    font-size: 0.75rem;
+  }
+  .field-output {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.5rem;
+  }
+  /* Actions toolbar wraps nicely */
+  .actions-toolbar {
+    gap: 0.5rem;
+  }
+  .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+  /* Gen config grid tighter */
+  .gen-config-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  /* Checkboxes bar wraps */
+  .checkboxes-bar {
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+  }
+  /* Footer tighter */
+  .app-footer {
+    padding: 1rem;
+    font-size: 0.75rem;
+  }
+}
+
 @media (max-width: 480px) {
   .header-container {
     padding: 0.35rem 0.65rem;
@@ -988,4 +1088,42 @@ body {
     min-height: 36px;
     gap: 0.3rem;
   }
+  /* Clock grid single column on smallest screens */
+  .clock-grid {
+    grid-template-columns: 1fr;
+  }
+  /* Card tighter */
+  .card {
+    padding: 1rem;
+    gap: 1rem;
+    border-radius: var(--radius-md);
+  }
+  .card-title {
+    font-size: 1rem;
+    gap: 0.4rem;
+  }
+  .card-header-row {
+    gap: 0.5rem;
+  }
+  /* Hash card tighter */
+  .hash-card {
+    padding: 0.75rem;
+  }
+  .hash-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+  }
+  /* Time results tighter */
+  .time-results-stack {
+    gap: 0.5rem;
+  }
+  /* Chips row tighter */
+  .chips-row {
+    gap: 0.35rem;
+  }
+  .hasher-chip {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+  }
 }
+
