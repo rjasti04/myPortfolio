@@ -61,64 +61,16 @@ precedent for the SPA.
 
 ## Navigating This Repo Without Burning Context
 
-**Never read these files end-to-end.** Sizes are measured, not guessed: token
-figures are `bytes ÷ 3.7` for code and markup, `bytes ÷ 4.0` for markdown
-prose, rounded up to the next 500 — so they run slightly high rather than low.
-`scripts/check_docs.py` recomputes this table in CI, so if you change one of
-these files the number here has to move with it.
+Two rules files carry this, so they load only when you actually touch the code
+or docs they describe rather than on every session:
 
-| File | Lines | ~Tokens | How to navigate instead |
-| :--- | ---: | ---: | :--- |
-| `frontend/styles.css` | 12,258 | ~91,000 | `grep -n '#region' frontend/styles.css` returns a 27-entry map with live line numbers (~500 tokens). Then `sed -n 'START,ENDp'`. |
-| `package-lock.json` | 3,453 | ~32,500 | Never read. `package.json` lists every direct dep in 25 lines. |
-| `frontend/index.html` | 2,471 | ~38,000 | `grep -n '<section id=' frontend/index.html` for the 8-section map. |
-| `frontend/js/chat.js` | 2,213 | ~23,500 | One large `initChat()` from line 57; almost nothing is top-level. Map it with `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/chat.js` (48 hits). |
-| `frontend/js/auth-ui.js` | 1,563 | ~19,500 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (14 hits). |
-| `frontend/three-bg.js` | 1,559 | ~14,000 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
+- `.claude/rules/navigation.md` — the six files never to read end-to-end, the
+  grep recipe that replaces each one, and the `server/.venv/` search trap.
+- `.claude/rules/reference-docs.md` — per-doc token costs and the heading-map
+  recipe that turns a whole-document read into a section read.
 
-`server/.venv/` holds ~7,500 dependency files (136 MB) against 147 tracked
-files. It is gitignored, so ripgrep-backed `Grep`/`Glob` skip it — but plain
-Bash `find` / `grep -r` / `du` do **not**. Always pass `--exclude-dir=.venv`
-(or `-not -path '*/.venv/*'`) when searching from Bash. Without it a
-repo-wide `grep -r --include=*.py` returns 1,950 files instead of 40 and
-takes over two minutes.
-
-## Reference Docs - Read Only When Relevant
-
-Do not preload these. Each entry states its trigger. If you know the task but
-not the document, use the task index in `docs/README.md` — it chains the reads
-in order ("add or change an API endpoint" -> `API.md` -> `BACKEND.md` ->
-`SECURITY.md#checklist-for-changes`). The table below is for budgeting the read
-once you know which doc you want.
-
-**These docs are also too big to read whole.** Together they are ~93,500
-tokens, and every one is cleanly sectioned. Get the heading map first, then
-pull only the section you need:
-
-```bash
-grep -n '^#\{2,3\} ' docs/JAVASCRIPT.md   # ~40 headings, ~400 tokens
-sed -n '284,298p' docs/JAVASCRIPT.md      # just the module you are touching
-```
-
-That turns a 18,500-token read into roughly 500. Use it by default; read a
-whole doc only when you genuinely need all of it.
-
-| Doc | ~Tokens | Read it before... | Jump to a section with |
-| :--- | ---: | :--- | :--- |
-| `docs/ARCHITECTURE.md` | ~7,500 | you need the repo map, the request lifecycle, or how the tiers interact | `grep -n '^#\{2,3\} '` (19 headings) |
-| `docs/API.md` | ~9,000 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (39 endpoint sections) |
-| `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
-| `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
-| `docs/JAVASCRIPT.md` | ~18,500 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (63 module sections) |
-| `docs/FRONTEND.md` | ~12,500 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (21 headings) |
-| `docs/DESIGN.md` | ~2,500 | adding a colour, a size, a duration or an easing to the stylesheet - it is the token contract, not the plumbing | `grep -n '^#\{2,3\} '` (12 headings) |
-| `docs/CONFIGURATION.md` | ~4,500 | adding or interpreting an environment variable | `grep -n '^## '` (16 headings), or just grep the variable name |
-| `docs/SECURITY.md` | ~6,500 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (18 headings) |
-| `docs/OPERATIONS.md` | ~5,000 | changing CI/CD, diagnosing a deploy, or running a manual procedure | `grep -n '^#\{2,3\} '` (28 headings) |
-| `docs/TESTING.md` | ~8,500 | writing tests, or checking whether something is actually covered | `grep -n '^#\{2,3\} '` (13 headings) |
-| `docs/ADR.md` | ~7,000 | you want to know why a decision was made and whether it still holds | Read the status table at the top (lines 1-36) first, then `sed -n` the one ADR you need |
-| `docs/README.md` | ~1,000 | you want the doc index and a task-to-document map | Small enough to read whole |
-| `README.md` | ~5,000 | you need setup, the quick start, or the canonical local commands — it is authoritative for those, and the stack summary above is only a faster orientation | Small enough to read whole |
+`scripts/check_docs.py` recomputes the figures in both, and both are still the
+source of truth for them — do not restate a count here.
 
 ## 1. Contextual Persona
 You are a Senior Full Stack Developer and Architect. Your goal is production-ready,
@@ -145,10 +97,11 @@ from elsewhere.
 ## 3. Technical Collaboration & Constraints
 *   **Environment Awareness:** Always prioritize best practices for modern static frontends and asynchronous Python backends.
 *   **Ambiguity Halt:** If a request lacks context (UI component structure, schema
-    details, target environment), look for it first — the reference table above
-    usually answers it, and the repo is the cheaper source. Stop and ask only when two
-    readings would produce materially different work *and* somebody is there to
-    answer. Otherwise state the assumption you picked and keep going.
+    details, target environment), look for it first — the reference table in
+    `.claude/rules/reference-docs.md` usually answers it, and the repo is the
+    cheaper source. Stop and ask only when two readings would produce materially
+    different work *and* somebody is there to answer. Otherwise state the
+    assumption you picked and keep going.
 *   **Trade-off Analysis:** When presenting options, provide a 1-sentence "Cost vs. Performance" or "Speed vs. Maintenance" comparison.
 
 ## 4. Interaction Efficiency (Strict)
@@ -217,11 +170,14 @@ is not a licence to pad — §4's "Zero Fluff" still governs. For every finding:
         and `~/.local/bin` before concluding you cannot run a gate. Skipping a gate is
         a last resort and must be stated explicitly in your report.
 *   **Generated Counts and Hashes:** Two CI gates recompute things you can invalidate
-    by hand. Both are wired as `PostToolUse` hooks in `.claude/settings.json`, so they
-    run automatically after you edit a covered file — but know what they are:
+    by hand. Both are wired as `PostToolUse` hooks in `.claude/settings.json` — for
+    `Write`/`Edit` and for the `Bash` commands that write the same files — so they run
+    automatically after you touch a covered file. The hooks run the *check*, not the
+    repair: they block with the drifted figures and leave the fix to you.
     *   `python3 scripts/check_docs.py --fix` — line counts, grep yields and token
-        estimates in the tables above, plus per-module counts in `docs/JAVASCRIPT.md`
-        and `docs/TESTING.md`. Pass `--show-tokens` to display the document token estimates table.
+        estimates in `.claude/rules/navigation.md` and
+        `.claude/rules/reference-docs.md`, plus per-module counts in
+        `docs/JAVASCRIPT.md` and `docs/TESTING.md`. Pass `--show-tokens` to display the document token estimates table.
         **Rule:** After completing any task modifying `.md` files or tracked assets, run
         `python3 scripts/check_docs.py --fix --show-tokens` and display the token table in your final response.
     *   `python3 scripts/check_csp_hashes.py` — the three pinned `sha256-` hashes in

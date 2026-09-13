@@ -11,7 +11,7 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 REL_PATH="${FILE_PATH#$PROJECT_DIR/}"
 
 case "$REL_PATH" in
-    docs/*.md|AGENTS.md|frontend/styles.css|frontend/index.html|frontend/three-bg.js|frontend/js/*.js|frontend/js/**/*.js|frontend/tests/*.test.js|scripts/tests/*.test.js)
+    docs/*.md|AGENTS.md|.claude/rules/*.md|frontend/styles.css|frontend/index.html|frontend/three-bg.js|frontend/js/*.js|frontend/js/**/*.js|frontend/tests/*.test.js|scripts/tests/*.test.js)
         cd "$PROJECT_DIR"
         python3 scripts/check_docs.py >&2 || exit 2
         ;;

@@ -5,17 +5,17 @@ The prose in `docs/` is maintained by hand and stays accurate. The *numbers*
 embedded in it do not: line counts, grep yields and token estimates decay
 silently every time a file grows, and nothing fails when they do. A stale
 figure is worse than a missing one, because the whole point of the navigation
-table in AGENTS.md is that an agent budgets against it. Every entry it checks
+table is that an agent budgets against it. Every entry it checks
 was wrong by 14-39% when this script was written, all in the direction that
 makes an agent under-budget and blow its context.
 
 Checks:
 
-  1. AGENTS.md navigation table  - line counts and token estimates for the six
+  1. rules/navigation.md     - line counts and token estimates for the six
      files agents are told never to read whole.
-  2. AGENTS.md grep recipes      - the advertised hit counts actually match what
-     the commands return.
-  3. AGENTS.md reference table   - per-doc token estimates and heading counts,
+  2. rules/navigation.md     - the advertised grep hit counts actually match
+     what the commands return.
+  3. rules/reference-docs.md - per-doc token estimates and heading counts,
      plus the two totals stated in the prose above it.
   4. JAVASCRIPT.md               - every documented module exists, every shipped
      module is documented, and the per-module line counts are right.
@@ -42,8 +42,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # Token estimate divisors. Code and markup tokenise denser than prose because
-# punctuation and identifiers split more; these are the divisors AGENTS.md
-# documents, and the rounding runs up so a figure is never an under-estimate.
+# punctuation and identifiers split more; these are the divisors
+# .claude/rules/navigation.md documents, and the rounding runs up so a figure is
+# never an under-estimate.
 DIV_CODE = 3.7
 DIV_PROSE = 4.0
 ROUND_TO = 500
@@ -71,7 +72,7 @@ def lines(path: Path) -> int:
 
 
 def grep_count(pattern: str, path: str, extended: bool = False) -> int:
-    """Hit count for one of the recipes AGENTS.md advertises."""
+    """Hit count for one of the recipes .claude/rules/navigation.md advertises."""
     file_path = ROOT / path
     if not file_path.exists():
         return 0
@@ -107,26 +108,27 @@ class Report:
         self.edits.setdefault(path, []).append((old, new))
 
 
-def check_nav_table(text: str, rep: Report) -> None:
-    """AGENTS.md's 'never read these end-to-end' table."""
+def check_nav_table(text: str, rep: Report, src: Path) -> None:
+    """The 'never read these end-to-end' table in .claude/rules/navigation.md."""
+    where = src.relative_to(ROOT).as_posix()
     rows = re.findall(
         r"^\| `([\w./-]+)` \| ([\d,]+) \| ~([\d,]+) \|", text, re.M
     )
     if len(rows) < 6:
-        rep.missing("AGENTS.md", f"navigation table has {len(rows)} rows, expected 6")
+        rep.missing(where, f"navigation table has {len(rows)} rows, expected 6")
     for name, claimed_lines, claimed_tokens in rows:
         path = ROOT / name
         if not path.exists():
-            rep.missing("AGENTS.md", f"navigation table lists missing file {name}")
+            rep.missing(where, f"navigation table lists missing file {name}")
             continue
         actual_lines = lines(path)
         actual_tokens = tokens(path, DIV_CODE)
         lines_drifted = int(claimed_lines.replace(",", "")) != actual_lines
         tokens_drifted = int(claimed_tokens.replace(",", "")) != actual_tokens
         if lines_drifted:
-            rep.drift("AGENTS.md", f"{name} lines", claimed_lines, f"{actual_lines:,}")
+            rep.drift(where, f"{name} lines", claimed_lines, f"{actual_lines:,}")
         if tokens_drifted:
-            rep.drift("AGENTS.md", f"{name} tokens", f"~{claimed_tokens}", f"~{actual_tokens:,}")
+            rep.drift(where, f"{name} tokens", f"~{claimed_tokens}", f"~{actual_tokens:,}")
 
         # One edit for the whole row rather than one per figure. Both are cut
         # from the row as it reads NOW, and the token edit has to name the line
@@ -135,13 +137,14 @@ def check_nav_table(text: str, rep: Report) -> None:
         # there. It then matched nothing, silently, and --fix had to be run
         # twice to settle a file whose row moved in both columns.
         if lines_drifted or tokens_drifted:
-            rep.edit(ROOT / "AGENTS.md",
+            rep.edit(src,
                      f"| `{name}` | {claimed_lines} | ~{claimed_tokens} |",
                      f"| `{name}` | {actual_lines:,} | ~{actual_tokens:,} |")
 
 
-def check_grep_recipes(text: str, rep: Report) -> None:
+def check_grep_recipes(text: str, rep: Report, src: Path) -> None:
     """The hit counts the navigation table promises for its grep recipes."""
+    where = src.relative_to(ROOT).as_posix()
     recipes = [
         (r"#region", "frontend/styles.css", False, r"returns a (\d+)-entry map"),
         (r"<section id=", "frontend/index.html", False, r"for the (\d+)-section map"),
@@ -153,25 +156,26 @@ def check_grep_recipes(text: str, rep: Report) -> None:
     for pattern, path, extended, claim_re in recipes:
         m = re.search(claim_re, text)
         if not m:
-            rep.missing("AGENTS.md", f"no advertised hit count for the {path} recipe")
+            rep.missing(where, f"no advertised hit count for the {path} recipe")
             continue
         actual = grep_count(pattern, path, extended)
         if int(m.group(1)) != actual:
-            rep.drift("AGENTS.md", f"{path} recipe yield", m.group(1), str(actual))
-            rep.edit(ROOT / "AGENTS.md", m.group(0), m.group(0).replace(m.group(1), str(actual), 1))
+            rep.drift(where, f"{path} recipe yield", m.group(1), str(actual))
+            rep.edit(src, m.group(0), m.group(0).replace(m.group(1), str(actual), 1))
 
 
-def check_reference_table(text: str, rep: Report) -> None:
+def check_reference_table(text: str, rep: Report, src: Path) -> None:
     """Per-doc token estimates and heading counts in the reference table."""
+    where = src.relative_to(ROOT).as_posix()
     for name, claimed in re.findall(r"^\| `((?:docs/)?[A-Z]+\.md)` \| ~([\d,]+) \|", text, re.M):
         path = ROOT / name
         if not path.exists():
-            rep.missing("AGENTS.md", f"reference table lists missing doc {name}")
+            rep.missing(where, f"reference table lists missing doc {name}")
             continue
         actual = tokens(path, DIV_PROSE)
         if int(claimed.replace(",", "")) != actual:
-            rep.drift("AGENTS.md", f"{name} tokens", f"~{claimed}", f"~{actual:,}")
-            rep.edit(ROOT / "AGENTS.md",
+            rep.drift(where, f"{name} tokens", f"~{claimed}", f"~{actual:,}")
+            rep.edit(src,
                      f"| `{name}` | ~{claimed} |", f"| `{name}` | ~{actual:,} |")
 
     # The count must match whatever the row's own recipe would return: some rows
@@ -194,29 +198,30 @@ def check_reference_table(text: str, rep: Report) -> None:
         else:
             continue
         if int(claimed) != actual:
-            rep.drift("AGENTS.md", f"{name} {kind}", claimed, str(actual))
-            rep.edit(ROOT / "AGENTS.md", f"({claimed} {kind})", f"({actual} {kind})")
+            rep.drift(where, f"{name} {kind}", claimed, str(actual))
+            rep.edit(src, f"({claimed} {kind})", f"({actual} {kind})")
 
 
-def check_derived_prose(text: str, rep: Report) -> None:
+def check_derived_prose(text: str, rep: Report, src: Path) -> None:
     """The two totals stated in prose above the reference table.
 
     They are sums of the table below them, so they drift whenever any doc grows
     - and unlike a table cell, a number buried in a sentence is easy to skim
     past while updating everything around it.
     """
+    where = src.relative_to(ROOT).as_posix()
     docs = sorted((ROOT / "docs").glob("*.md"))
     total = sum(tokens(p, DIV_PROSE) for p in docs)
     m = re.search(r"Together they are ~([\d,]+)\ntokens", text)
     if m and int(m.group(1).replace(",", "")) != total:
-        rep.drift("AGENTS.md", "docs/ token total", f"~{m.group(1)}", f"~{total:,}")
-        rep.edit(ROOT / "AGENTS.md", f"Together they are ~{m.group(1)}", f"Together they are ~{total:,}")
+        rep.drift(where, "docs/ token total", f"~{m.group(1)}", f"~{total:,}")
+        rep.edit(src, f"Together they are ~{m.group(1)}", f"Together they are ~{total:,}")
 
     js = tokens(ROOT / "docs/JAVASCRIPT.md", DIV_PROSE)
     m = re.search(r"That turns a ([\d,]+)-token read", text)
     if m and int(m.group(1).replace(",", "")) != js:
-        rep.drift("AGENTS.md", "JAVASCRIPT.md read-cost example", m.group(1), f"{js:,}")
-        rep.edit(ROOT / "AGENTS.md", f"That turns a {m.group(1)}-token read",
+        rep.drift(where, "JAVASCRIPT.md read-cost example", m.group(1), f"{js:,}")
+        rep.edit(src, f"That turns a {m.group(1)}-token read",
                  f"That turns a {js:,}-token read")
 
 
@@ -285,7 +290,9 @@ def display_token_usage() -> None:
         rel = doc.relative_to(ROOT).as_posix()
         formatted_tok = f"~{t:,}"
         print(f"  {rel:<30} {formatted_tok:>10}")
-    for standalone in ["AGENTS.md", "README.md"]:
+    for standalone in ["AGENTS.md", "README.md",
+                       ".claude/rules/navigation.md",
+                       ".claude/rules/reference-docs.md"]:
         p = ROOT / standalone
         if p.exists():
             t = tokens(p, DIV_PROSE)
@@ -324,12 +331,15 @@ def main() -> int:
                         help="display current document token estimates")
     args = parser.parse_args()
 
-    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    nav_src = ROOT / ".claude/rules/navigation.md"
+    ref_src = ROOT / ".claude/rules/reference-docs.md"
+    nav = nav_src.read_text(encoding="utf-8")
+    ref = ref_src.read_text(encoding="utf-8")
     rep = Report()
-    check_nav_table(agents, rep)
-    check_grep_recipes(agents, rep)
-    check_reference_table(agents, rep)
-    check_derived_prose(agents, rep)
+    check_nav_table(nav, rep, nav_src)
+    check_grep_recipes(nav, rep, nav_src)
+    check_reference_table(ref, rep, ref_src)
+    check_derived_prose(ref, rep, ref_src)
     check_javascript_doc(rep)
     check_testing_doc(rep)
 

@@ -1,7 +1,7 @@
 ---
 name: backend-reviewer
 description: Read-only backend specialist subagent auditing FastAPI routes, async correctness, SQLAlchemy ORM patterns, rate limiting, and Pydantic schemas.
-model: anthropic.claude-3-7-sonnet-20250219-v1:0
+model: sonnet
 tools:
   - Read
   - Grep

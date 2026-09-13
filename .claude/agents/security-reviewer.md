@@ -1,7 +1,7 @@
 ---
 name: security-reviewer
 description: Read-only security specialist subagent auditing authentication, API endpoints, secret handling, CSP, DOM sanitization, and egress policies.
-model: anthropic.claude-3-7-sonnet-20250219-v1:0
+model: sonnet
 tools:
   - Read
   - Grep

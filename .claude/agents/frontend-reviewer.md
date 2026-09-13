@@ -1,7 +1,7 @@
 ---
 name: frontend-reviewer
 description: Read-only frontend specialist subagent auditing vanilla ES modules, CSP compliance, DOM sanitization, CSS tokens, and performance.
-model: anthropic.claude-3-7-sonnet-20250219-v1:0
+model: sonnet
 tools:
   - Read
   - Grep

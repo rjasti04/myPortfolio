@@ -7,6 +7,7 @@ and pytest for the backend. Both run in CI on every push and pull request to
 - [Running the suites](#running-the-suites)
 - [Frontend tests](#frontend-tests)
 - [Backend tests](#backend-tests)
+- [Tooling tests](#tooling-tests)
 - [The test harness](#the-test-harness)
 - [Coverage](#coverage)
 - [Linting](#linting)
@@ -138,13 +139,22 @@ existing, and `POST /auth/delete-account` was only served as `DELETE
 
 ---
 
+## Tooling tests
+
+`tests/tooling/` — 1 file, 34 test functions. Repo tooling rather than the app;
+nothing here imports `server/`, so it contributes no backend coverage.
+
+| File | Tests | Guards |
+| :--- | ---: | :--- |
+| `test_bash_write_guard.py` | 34 | **The Bash hooks hold the same lines the `Write`/`Edit` hooks do.** Claude Code matches hooks on tool name, so every `.sh` guard in `.claude/hooks/` was wired to `Write`/`Edit` and a `sed -i` or a `>` reached none of them. These cover both directions: a tracked migration stays immutable through `sed -i`, `tee`, `cp`, `rm`, a redirection and an opaque `python3 -c`; the intent and spec templates are never written in place; a secrets file is never read from the shell; ADR-016's origin allowlist applies to shell writes into SPA files; a repo-wide `grep`/`find` that would descend into `server/.venv/` is refused. The rest are the false positives that would get the guard switched off — `npm ci`, `PYTHONPATH=. pytest`, the documented `sed -n` and `grep -n` recipes, a scoped search, an exempt predictor page, and a heredoc whose *body* mentions a guarded path — all of which must pass through untouched |
+
 ## The test harness
 
 ### `pytest.ini`
 
 ```ini
 asyncio_mode = strict
-testpaths = tests/backend
+testpaths = tests/backend tests/evals tests/tooling
 addopts = --strict-markers --strict-config
 ```
 
