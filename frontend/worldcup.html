@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description"
     content="Interactive 2026 FIFA World Cup Bracket Predictor. Predict group standings, select third-place wildcards, and simulate the knockout stage all the way to crowning the champion.">
+  <meta name="theme-color" content="#0d1424">
   <title>2026 World Cup Bracket Predictor</title>
   <link rel="canonical" href="https://rjasti.com/worldcup">
   <meta property="og:locale" content="en_US">
@@ -35,6 +36,26 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Theme resolution, before first paint. `theme` is the same localStorage
+       key the portfolio and the other apps write, so arriving here from
+       rjasti.com keeps whatever the visitor already chose; with nothing saved
+       the operating system decides. Doing it here rather than at
+       DOMContentLoaded is what stops a dark visitor seeing a white flash. -->
+  <script>
+    (function () {
+      var saved = null;
+      try {
+        saved = localStorage.getItem("theme");
+      } catch (err) {
+        /* Storage is blocked; fall through to the system preference. */
+      }
+      var theme = saved === "light" || saved === "dark"
+        ? saved
+        : (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+      document.documentElement.setAttribute("data-theme", theme);
+    }());
+  </script>
 
   <style>
     /* CSS VARIABLES & SYSTEM DESIGN */
@@ -79,9 +100,22 @@
       --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
       --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
       --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+      /* Shared app-chrome contract. The header and footer rules below name
+         only these seven, so /cron, /crypto, /arcade, /ucl and this page all
+         run the same chrome markup and each still wears its own palette. */
+      --chrome-bg: var(--surface);
+      --chrome-border: var(--border);
+      --chrome-text: var(--text);
+      --chrome-muted: var(--text-muted);
+      --chrome-action-bg: transparent;
+      --chrome-action-hover: var(--border);
+      --chrome-accent: var(--primary);
+
+      color-scheme: dark;
     }
 
-    body.light-theme {
+    :root[data-theme="light"] {
       --bg: hsl(210, 20%, 97%);
       --surface: hsl(0, 0%, 100%);
       --surface-card: hsl(210, 20%, 92%);
@@ -100,6 +134,8 @@
       --badge-warning-text: #92400e;
       --badge-danger-bg: #fee2e2;
       --badge-danger-text: #991b1b;
+
+      color-scheme: light;
     }
 
     /* GLOBAL RESET & BASE STYLES */
@@ -127,53 +163,104 @@
       padding: 24px 16px 80px 16px;
     }
 
-    /* PREMIUM APP HEADER */
-    header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      margin-bottom: 32px;
-      padding: 24px;
-      background: radial-gradient(circle at top, rgba(var(--primary-rgb), 0.12), transparent 60%);
-      border-bottom: 1px solid var(--border);
-      position: relative;
+    /* APP CHROME - HEADER
+       Same structure and class names as /cron, /crypto, /arcade and /ucl: a
+       sticky bar carrying the brand on the left and the actions on the right,
+       with the page's own hero underneath it. */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      background-color: var(--chrome-bg);
+      border-bottom: 1px solid var(--chrome-border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
 
-    .header-top {
-      width: 100%;
+    .header-container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 10px 16px;
+    }
+
+    .header-primary-bar {
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
+      gap: 16px;
+      min-height: 44px;
     }
 
-    .brand {
+    .header-left {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .brand-wrap {
       display: flex;
       align-items: center;
       gap: 12px;
+      min-width: 0;
     }
 
-    .brand-logo {
-      font-size: 28px;
-      color: var(--primary);
-      text-shadow: 0 0 12px rgba(var(--primary-rgb), 0.4);
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.35);
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
     }
 
     .brand-title {
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
       text-transform: uppercase;
-      background: linear-gradient(135deg, var(--text), var(--primary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: var(--chrome-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-tag {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--chrome-muted);
+      white-space: nowrap;
     }
 
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* HERO
+       The radial-gradient banner the old <header> painted, now a plain block
+       under the chrome bar. */
+    .hero-title-section {
+      text-align: center;
+      margin-bottom: 32px;
+      padding: 24px;
+      background: radial-gradient(circle at top, rgba(var(--primary-rgb), 0.12), transparent 60%);
+      border-bottom: 1px solid var(--border);
     }
 
     .hero-title-section h1 {
@@ -191,51 +278,43 @@
       margin: 0 auto;
     }
 
-    /* BUTTONS SYSTEM */
-    .btn {
+    /* CHROME ACTION BUTTONS */
+    .action-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 10px 18px;
+      min-height: 40px;
+      padding: 0 14px;
       border-radius: var(--radius-md);
+      background-color: var(--chrome-action-bg);
+      border: 1px solid var(--chrome-border);
+      color: var(--chrome-text);
       font-family: var(--font-family);
       font-size: 14px;
       font-weight: 600;
+      white-space: nowrap;
       cursor: pointer;
-      border: 1px solid transparent;
       text-decoration: none;
       transition: var(--transition-base);
     }
 
-    .btn-primary {
-      background-color: var(--primary);
-      color: #fff;
+    .action-btn:hover {
+      background-color: var(--chrome-action-hover);
+      border-color: var(--chrome-muted);
     }
 
-    .btn-primary:hover {
-      background-color: hsl(348, 85%, 45%);
-      box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
-      transform: translateY(-1px);
-    }
-
-    .btn-outline {
-      background-color: transparent;
-      border-color: var(--border);
-      color: var(--text);
-    }
-
-    .btn-outline:hover {
-      background-color: var(--border);
-      border-color: var(--text-muted);
-    }
-
-    .btn-icon-only {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
+    .action-btn-icon {
+      min-width: 40px;
       padding: 0;
+      border-radius: 50%;
       font-size: 16px;
+    }
+
+    /* "Portfolio" on a desktop, "Back" once the bar tightens - see the
+       responsive block at the end of this stylesheet. */
+    .back-label-short {
+      display: none;
     }
 
     /* TAB NAVIGATION */
@@ -303,7 +382,7 @@
     /* GRID LAYOUTS */
     .groups-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
       gap: 24px;
     }
 
@@ -579,7 +658,7 @@
 
     .wildcard-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
       gap: 16px;
       margin-top: 24px;
     }
@@ -1031,24 +1110,38 @@
       }
     }
 
-    /* FOOTER & ACCESSIBILITY ACCENTS */
-    footer {
+    /* APP CHROME - FOOTER
+       Privacy/attribution line on top, cross-links to the portfolio, the apps
+       shelf and two sibling apps underneath. */
+    .app-footer {
+      border-top: 1px solid var(--chrome-border);
+      background-color: var(--chrome-bg);
+      padding: 24px 16px;
       text-align: center;
-      margin-top: 60px;
-      color: var(--text-muted);
-      font-size: 12px;
-      border-top: 1px solid var(--border);
-      padding-top: 24px;
+      font-size: 13px;
+      color: var(--chrome-muted);
     }
 
-    footer a {
-      color: var(--primary);
+    .footer-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .footer-fine-print {
+      font-size: 11px;
+    }
+
+    .footer-link {
+      color: var(--chrome-muted);
       text-decoration: none;
       font-weight: 600;
     }
 
-    footer a:hover {
-      text-decoration: underline;
+    .footer-link:hover {
+      color: var(--chrome-accent);
     }
 
     .sr-only {
@@ -1085,7 +1178,7 @@
 
       .mobile-bracket-list {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
         gap: 16px;
         animation: fadeIn 0.3s ease-out;
       }
@@ -1110,22 +1203,53 @@
       }
     }
 
+    /* Tablet - the four labelled actions go icon-only and "Portfolio"
+       shortens to "Back", which is what keeps the bar on one line. */
+    @media (max-width: 1023px) {
+      .action-label {
+        display: none;
+      }
+
+      .action-btn {
+        min-width: 40px;
+        padding: 0 10px;
+      }
+
+      .back-label-long {
+        display: none;
+      }
+
+      .back-label-short {
+        display: inline;
+      }
+    }
+
     @media (max-width: 768px) {
-      header {
-        padding: 16px;
+      .app-container {
+        padding: 16px 12px 64px 12px;
+      }
+
+      .header-container {
+        padding: 8px 12px;
+      }
+
+      .hero-title-section {
+        padding: 18px 8px;
+        margin-bottom: 24px;
       }
 
       .brand-title {
         font-size: 16px;
       }
 
-      .brand-logo {
-        font-size: 22px;
+      .brand-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
       }
 
       .header-actions {
-        flex-wrap: wrap;
-        justify-content: flex-end;
+        gap: 6px;
       }
 
       .hero-title-section h1 {
@@ -1148,15 +1272,92 @@
         min-height: 44px;
       }
 
-      .sr-only-mobile {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        border: 0;
+      /* The icons are decoration; on a phone the labels need the room. */
+      .tab-btn i {
+        display: none;
+      }
+
+      .groups-grid {
+        gap: 16px;
+      }
+    }
+
+    /* Mobile L - every action is icon-only, at a 44px touch target. */
+    @media (max-width: 640px) {
+      .header-container {
+        padding: 6px 10px;
+      }
+
+      .back-label {
+        display: none;
+      }
+
+      .action-btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0 8px;
+      }
+
+      .action-btn-icon {
+        min-width: 44px;
+        min-height: 44px;
+      }
+
+      .groups-grid,
+      .wildcard-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .app-footer {
+        padding: 18px 12px;
+        font-size: 12px;
+      }
+    }
+
+    /* Mobile S */
+    @media (max-width: 430px) {
+      /* Five actions at a 44px target leave about 110px of bar, so the
+         wordmark takes it and the icon steps aside. */
+      .brand-tag,
+      .brand-icon {
+        display: none;
+      }
+
+      .brand-title {
+        font-size: 15px;
+      }
+
+      .brand-wrap {
+        gap: 8px;
+      }
+
+      .header-actions {
+        gap: 4px;
+      }
+
+      .action-btn {
+        padding: 0 4px;
+      }
+
+      .hero-title-section {
+        padding: 14px 4px;
+      }
+
+      .hero-title-section h1 {
+        font-size: 21px;
+      }
+
+      .hero-title-section p {
+        font-size: 13px;
+      }
+
+      .tab-btn {
+        font-size: 11px;
+        padding: 10px 4px;
+      }
+
+      .mobile-bracket-list {
+        grid-template-columns: minmax(0, 1fr);
       }
     }
   </style>
@@ -1164,44 +1365,59 @@
 
 <body>
 
+  <!-- APP CHROME - HEADER -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="header-primary-bar">
+        <div class="header-left">
+          <div class="brand-wrap">
+            <div class="brand-icon" aria-hidden="true">
+              <i class="fas fa-trophy"></i>
+            </div>
+            <div class="brand-text">
+              <div class="brand-title">FIFA 26</div>
+              <span class="brand-tag">Bracket Predictor</span>
+            </div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <a href="/" class="action-btn back-btn" aria-label="Back to the portfolio home page"
+            title="Back to portfolio">
+            <i class="fas fa-arrow-left" aria-hidden="true"></i>
+            <span class="back-label"><span class="back-label-long">Portfolio</span><span
+                class="back-label-short">Back</span></span>
+          </a>
+          <button id="autofill-btn" class="action-btn"
+            aria-label="Randomly fill undecided stages and matches across the tournament"
+            title="Random fill remaining matches">
+            <i class="fas fa-dice" aria-hidden="true"></i> <span class="action-label">Random Fill</span>
+          </button>
+          <button id="reset-btn" class="action-btn" aria-label="Reset Bracket predictions"
+            title="Reset all predictions">
+            <i class="fas fa-rotate-left" aria-hidden="true"></i> <span class="action-label">Reset</span>
+          </button>
+          <button id="share-btn" class="action-btn" aria-label="Copy share link for predictions"
+            title="Copy share link">
+            <i class="fas fa-share-nodes" aria-hidden="true"></i> <span class="action-label">Share</span>
+          </button>
+          <button id="theme-toggle-btn" class="action-btn action-btn-icon" aria-label="Switch to light theme"
+            title="Toggle Light/Dark Theme">
+            <i class="fas fa-sun" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
   <!-- APP CONTENT GRID -->
   <div class="app-container">
 
-    <!-- HEADER -->
-    <header>
-      <div class="header-top">
-        <div class="brand">
-          <i class="fas fa-trophy brand-logo"></i>
-          <span class="brand-title">FIFA 26</span>
-        </div>
-        <div class="header-actions">
-          <a href="/" class="btn btn-outline" aria-label="Back to the portfolio home page"
-            title="Back to portfolio">
-            <i class="fas fa-arrow-left"></i> <span class="sr-only-mobile">Portfolio</span>
-          </a>
-          <button id="theme-toggle-btn" class="btn btn-outline btn-icon-only" aria-label="Toggle theme"
-            title="Toggle Light/Dark Theme">
-            <i class="fas fa-moon"></i>
-          </button>
-          <button id="autofill-btn" class="btn btn-outline"
-            aria-label="Randomly fill undecided stages and matches across the tournament"
-            title="Random fill remaining matches">
-            <i class="fas fa-dice"></i> <span class="sr-only-mobile">Random Fill</span>
-          </button>
-          <button id="reset-btn" class="btn btn-outline" aria-label="Reset Bracket predictions">
-            <i class="fas fa-rotate-left"></i> <span class="sr-only-mobile">Reset</span>
-          </button>
-          <button id="share-btn" class="btn btn-outline" aria-label="Copy share link for predictions">
-            <i class="fas fa-share-nodes"></i> <span class="sr-only-mobile">Share</span>
-          </button>
-        </div>
-      </div>
-      <div class="hero-title-section">
-        <h1>2026 WORLD CUP BRACKET</h1>
-        <p>Predict the Group Stages, advance the best third-place wildcard teams, and simulate the knockout stage to
-          crown your world champion.</p>
-      </div>
-    </header>
+    <!-- HERO -->
+    <section class="hero-title-section">
+      <h1>2026 WORLD CUP BRACKET</h1>
+      <p>Predict the Group Stages, advance the best third-place wildcard teams, and simulate the knockout stage to
+        crown your world champion.</p>
+    </section>
 
     <!-- NAVIGATION TABS -->
     <nav class="navigation-tabs" aria-label="Prediction stages">
@@ -1358,14 +1574,20 @@
 
     </main>
 
-    <!-- FOOTER -->
-    <footer>
-      <p>&copy; 2026 World Cup Bracket Predictor. Built by <a href="https://rjasti.com" target="_blank"
-          rel="noopener noreferrer">Rajeev Jasti</a>.</p>
-      <p style="margin-top: 6px; font-size: 11px;">Flag CDN courtesy of <a href="https://flagcdn.com/" target="_blank"
-          rel="noopener noreferrer">FlagCDN</a>. State is saved automatically to your browser session.</p>
-    </footer>
   </div>
+
+  <!-- APP CHROME - FOOTER -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <p>Picks Saved To This Browser &bull; No Account &bull; Not Affiliated With FIFA</p>
+      <p class="footer-fine-print">Flags courtesy of <a href="https://flagcdn.com/" class="footer-link"
+          target="_blank" rel="noopener noreferrer">FlagCDN</a>. State is saved automatically to your browser
+        session.</p>
+      <p><a href="/" class="footer-link">Rajeev Jasti &mdash; Portfolio</a> &bull; <a href="/#apps"
+          class="footer-link">Apps Shelf</a> &bull; <a href="/ucl" class="footer-link">UCL Predictor</a> &bull; <a
+          href="/arcade" class="footer-link">Arcade</a></p>
+    </div>
+  </footer>
 
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
@@ -1530,12 +1752,9 @@
 
     // INITIALIZATION & RESET ROUTINES
     function initSystem() {
-      // 1. Theme Configuration
-      const savedTheme = localStorage.getItem("predictor-theme") || "light";
-      if (savedTheme === "light") {
-        document.body.classList.add("light-theme");
-        document.querySelector("#theme-toggle-btn i").className = "fas fa-sun";
-      }
+      // 1. Theme Configuration. The <head> script resolved the theme before
+      //    first paint; this only catches the icon and the browser bar up.
+      applyTheme(currentTheme());
 
       // 2. Load State from LocalStorage or Defaults
       const loaded = loadStateFromLocalStorage();
@@ -2653,22 +2872,40 @@
     }
 
     // SETUP UI EVENT LISTENERS
+    // The theme lives on <html data-theme> under the shared `theme` key, the
+    // mechanism the portfolio and the other apps use, so a choice made here
+    // survives the walk to /ucl, /cron or /crypto and back.
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      const btn = document.getElementById("theme-toggle-btn");
+      const icon = btn && btn.querySelector("i");
+      if (icon) {
+        icon.className = theme === "dark" ? "fas fa-sun" : "fas fa-moon";
+      }
+      if (btn) {
+        btn.setAttribute("aria-label", `Switch to ${theme === "dark" ? "light" : "dark"} theme`);
+      }
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) {
+        meta.setAttribute("content", theme === "light" ? "#f5f7f9" : "#0d1424");
+      }
+      try {
+        localStorage.setItem("theme", theme);
+      } catch (err) {
+        /* Theme preference just will not persist. */
+      }
+    }
+
+    function currentTheme() {
+      return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+    }
+
     function setupThemeToggle() {
       const btn = document.getElementById("theme-toggle-btn");
       btn.addEventListener("click", () => {
-        const isDark = !document.body.classList.contains("light-theme");
-
-        if (isDark) {
-          document.body.classList.add("light-theme");
-          btn.querySelector("i").className = "fas fa-sun";
-          localStorage.setItem("predictor-theme", "light");
-          showToast("Light mode enabled", "normal");
-        } else {
-          document.body.classList.remove("light-theme");
-          btn.querySelector("i").className = "fas fa-moon";
-          localStorage.setItem("predictor-theme", "dark");
-          showToast("Dark mode enabled", "normal");
-        }
+        const next = currentTheme() === "light" ? "dark" : "light";
+        applyTheme(next);
+        showToast(next === "light" ? "Light mode enabled" : "Dark mode enabled", "normal");
       });
     }
 

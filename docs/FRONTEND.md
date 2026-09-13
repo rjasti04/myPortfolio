@@ -494,12 +494,80 @@ missing, so a failed update is visible but not dangerous.
 | `robots.txt` | Allows everything except `/api/`; points at the sitemap |
 | `sitemap.xml` | Four URL entries — `/`, `/ucl`, `/arcade` and `/worldcup`, each with its Open Graph card as an image annotation |
 | `arcade.html`, `arcade.css` | Standalone games page served at `/arcade` — 2048, Tetris, Flapper, Stack, Snake and Breaker, with the game code in `js/arcade/` and built as its own esbuild entry point. Unlike the two predictors it holds the SPA's line on third-party origins: it links the site's own `fonts.css` for Plus Jakarta Sans and, for the wordmark alone, Sniglet subset to the 26 letters it can set, and draws its icons as inline SVG, so it loads nothing the site does not already serve itself, and its own CSP is `script-src 'self'` with no inline script to hash. Two layouts, switched by `is-playing` on `<body>` from `shell.js`: the launcher scrolls normally, and a running game collapses the page to one viewport with a single play bar so the board takes the rest of the screen. Which game is on screen is the URL fragment, so `/arcade#snake` is a link straight into one and the browser's back button leaves a game rather than the site. Linked from the **Apps** section of the SPA as a tile in `.app-grid`; the game rules are covered by `frontend/tests/arcade.test.js` |
-| `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup`, with its own canonical and Open Graph tags — see [Apache configuration](#apache-configuration) |
-| `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the **Apps** section of the SPA as a tile in `.app-grid` — `#ucl-link` in the header is a second, hidden entry point kept only as a fallback; covered by `frontend/tests/ucl-bracket.test.js` |
+| `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup`, with its own canonical and Open Graph tags — see [Apache configuration](#apache-configuration). Its header and footer follow the shared [App chrome](#app-chrome) pattern, and its theme is `data-theme` on `<html>` under the shared `theme` key |
+| `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the **Apps** section of the SPA as a tile in `.app-grid` — `#ucl-link` in the header is a second, hidden entry point kept only as a fallback; covered by `frontend/tests/ucl-bracket.test.js`. Its header and footer follow the shared [App chrome](#app-chrome) pattern, and its theme is `data-theme` on `<html>` under the shared `theme` key |
 
 Every generator source lives **outside** `frontend/`, in `assets/` -
 `master-icon.png`, the headshot masters, and `brush-stroke-master.jpg` - so the
 deploy's `rsync frontend/` never publishes any of them to the web root.
+
+---
+
+## App chrome
+
+The five standalone apps linked from `/#apps` - `/ucl`, `/worldcup`, `/arcade`,
+`/cron` and `/crypto` - were written independently and had three unrelated
+header patterns between them. They now share one **structure** and keep five
+different palettes: same class names, same DOM shape, same breakpoints, each
+app colouring it from its own tokens.
+
+Header, in every app:
+
+```html
+<header class="app-header">
+  <div class="header-container">
+    <div class="header-primary-bar">
+      <div class="header-left">
+        <div class="brand-wrap">
+          <div class="brand-icon">…</div>
+          <div class="brand-text">
+            <div class="brand-title">…</div><span class="brand-tag">…</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">…<a class="action-btn back-btn">…</a></div>
+    </div>
+  </div>
+</header>
+```
+
+Footer is `.app-footer > .footer-container`, two lines: a privacy or
+attribution statement, then cross-links to the portfolio, the apps shelf and
+two sibling apps. `/arcade` names its wrapper `.arcade-footer` /
+`.footer-inner` because the masthead there predates the pattern; the rules are
+the same.
+
+Each app defines these seven, and the chrome rules name **only** these - which
+is what lets the same CSS land in Champions League navy on `/ucl` and in the
+arcade's warm palette on `/arcade`:
+
+| Token | Colours |
+| :--- | :--- |
+| `--chrome-bg` | Header and footer background |
+| `--chrome-border` | Header bottom border, footer top border |
+| `--chrome-text` | Primary text and action-button labels |
+| `--chrome-muted` | Brand subtitle, footer text |
+| `--chrome-action-bg` | Action-button background |
+| `--chrome-action-hover` | Action-button hover background |
+| `--chrome-accent` | Brand icon tint, footer link hover |
+
+Four breakpoint tiers, and the chrome behaves the same way at each:
+
+| Tier | Width | Chrome |
+| :--- | :--- | :--- |
+| Desktop | ≥ 1024px | Full labels on every action |
+| Tablet | ≤ 1023px | Actions go icon-only; the back link shortens from "Portfolio" to "Back" (`.back-label-long` / `.back-label-short`) |
+| Mobile L | ≤ 640px | Back label drops too; every target is at least 44x44 (WCAG 2.5.5) |
+| Mobile S | ≤ 430px | Brand subtitle hides, brand icon and title step down |
+
+`/arcade` is dark-only by design. The other four share the `theme` key with the
+SPA, applied as `data-theme="dark"|"light"` on `<html>`: a visitor who picks
+light on the portfolio arrives at `/ucl` in light. `ucl.html` and
+`worldcup.html` resolve it in an inline `<head>` script before first paint -
+the saved value, else `prefers-color-scheme` - and their toggles update
+`<meta name="theme-color">` the way `cron-main.js` and `crypto-main.js` do.
+Neither page is under the SPA's CSP, so those inline scripts need no hash;
+`scripts/check_csp_hashes.py` only covers `index.html`.
 
 ---
 
