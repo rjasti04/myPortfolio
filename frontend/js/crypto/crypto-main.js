@@ -144,6 +144,36 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  /**
+   * Arrow-key navigation across the tablist. The markup already declares
+   * role="tablist"/role="tab", which promises this behaviour to assistive
+   * tech; without it the widget announced itself as a tablist and then only
+   * responded to Tab and clicks.
+   */
+  function bindTabKeyNav(buttons, activate) {
+    const list = Array.from(buttons);
+    if (list.length === 0) return;
+
+    list.forEach((btn, idx) => {
+      btn.addEventListener("keydown", (e) => {
+        let nextIdx = null;
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % list.length;
+        else if (e.key === "ArrowLeft" || e.key === "ArrowUp")
+          nextIdx = (idx - 1 + list.length) % list.length;
+        else if (e.key === "Home") nextIdx = 0;
+        else if (e.key === "End") nextIdx = list.length - 1;
+        if (nextIdx === null) return;
+
+        e.preventDefault();
+        const target = list[nextIdx];
+        target.focus();
+        activate(target.getAttribute("data-tab"), false);
+      });
+    });
+  }
+
+  bindTabKeyNav(tabButtons, switchTab);
+
   window.addEventListener("hashchange", () => {
     switchTab(getActiveTabFromHash(), true);
   });

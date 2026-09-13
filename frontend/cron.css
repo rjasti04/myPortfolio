@@ -42,6 +42,15 @@
   --tok-escape-bg: #ccfbf1;
   --tok-literal: #334155;
 
+  /* Cron Field Map — one hue per cron field, reused by the segment strip,
+     the builder dots and the builder focus ring. Tints are mixed from the hue
+     at the point of use, so each field costs one token, not two. */
+  --seg-1: #0369a1;
+  --seg-2: #6d28d9;
+  --seg-3: #c2410c;
+  --seg-4: #0f766e;
+  --seg-5: #be185d;
+
   /* Match Highlighting */
   --match-color-0: rgba(16, 185, 129, 0.28);
   --match-border-0: #10b981;
@@ -50,6 +59,9 @@
 
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+  /* Sticky-header height; the results rail and scroll-margin key off it. */
+  --header-h: 57px;
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -109,6 +121,13 @@
   --tok-escape: #2dd4bf;
   --tok-escape-bg: rgba(45, 212, 191, 0.18);
   --tok-literal: #cbd5e1;
+
+  /* Cron Field Map (dark) */
+  --seg-1: #38bdf8;
+  --seg-2: #c084fc;
+  --seg-3: #fb923c;
+  --seg-4: #2dd4bf;
+  --seg-5: #f472b6;
 
   /* Match Highlighting */
   --match-color-0: rgba(52, 211, 153, 0.35);
@@ -363,66 +382,146 @@ body {
   }
 }
 
-/* Main Container Layout */
+/* Main Container Layout
+   The panels used to be a single column of full-width cards, which put the
+   answer (translation, timeline, matches) a screen-height below the question.
+   Now: one full-width "hero" card for the thing you edit, then a two-column
+   workspace with the controls on the left and a sticky live-results rail on
+   the right, so an edit and its consequence are visible at the same time. */
 .main-content {
   flex: 1;
-  max-width: 1280px;
+  max-width: 1320px;
   width: 100%;
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
 }
 
-/* Visualizer Cards & Containers */
 .panel-container {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  padding: 0.5rem 0 2rem;
-  scroll-margin-top: 84px;
+  gap: 1.5rem;
+  padding: 0.25rem 0 2rem;
+  scroll-margin-top: calc(var(--header-h) + 16px);
 }
 
+.panel-container:focus {
+  outline: none;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1080px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  }
+
+  .rail-card {
+    position: sticky;
+    top: calc(var(--header-h) + 1.5rem);
+    max-height: calc(100vh - var(--header-h) - 3.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Visualizer Cards & Containers */
 .card {
   background-color: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1.75rem;
+  padding: 1.5rem;
   box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.hero-card {
+  border-color: var(--accent-soft-border, var(--border));
+  box-shadow: var(--shadow-md);
+}
+
+.card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .card-title {
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  margin-bottom: 0.75rem;
+  letter-spacing: -0.01em;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.card-title > i {
+  color: var(--panel-accent, var(--text-muted));
+  font-size: 0.95em;
+}
+
+.card-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* Per-panel accent, so each mode is colour-coded end to end. */
+#panel-cron {
+  --panel-accent: var(--accent-cron);
+  --panel-accent-soft: var(--accent-cron-soft);
+}
+
+#panel-regex {
+  --panel-accent: var(--accent-regex);
+  --panel-accent-soft: var(--accent-regex-soft);
 }
 
 /* Input Bar & Form Controls */
 .input-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  align-items: stretch;
+  gap: 0.6rem;
   position: relative;
 }
 
 .primary-input {
-  flex: 1;
+  flex: 1 1 240px;
+  min-width: 0;
   font-family: var(--font-mono);
-  font-size: 1.15rem;
-  padding: 0.75rem 1rem;
+  font-size: 1.2rem;
+  letter-spacing: 0.02em;
+  padding: 0.8rem 1rem;
   background-color: var(--bg-subtle);
   border: 2px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text);
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .primary-input:focus {
-  border-color: var(--primary);
+  border-color: var(--panel-accent, var(--primary));
   background-color: var(--surface);
+}
+
+.action-btn-strong {
+  background-color: var(--panel-accent, var(--primary));
+  border-color: var(--panel-accent, var(--primary));
+  color: #ffffff;
+  padding-inline: 1rem;
+}
+
+.action-btn-strong:hover {
+  filter: brightness(1.08);
+  background-color: var(--panel-accent, var(--primary));
 }
 
 .error-banner {
@@ -433,7 +532,6 @@ body {
   padding: 0.6rem 0.9rem;
   font-size: 0.85rem;
   font-weight: 600;
-  margin-bottom: 0.75rem;
 }
 
 /* Preset Chips */
@@ -441,14 +539,21 @@ body {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 0.6rem;
 }
 
 .presets-label {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .chip-btn {
@@ -465,48 +570,186 @@ body {
 }
 
 .chip-btn:hover {
-  background-color: var(--primary-soft);
-  border-color: var(--primary);
-  color: var(--primary);
+  background-color: var(--panel-accent-soft, var(--primary-soft));
+  border-color: var(--panel-accent, var(--primary));
+  color: var(--panel-accent, var(--primary));
 }
 
-/* Cron Human Translation Banner */
-.translation-card {
-  background: linear-gradient(135deg, var(--surface), var(--bg-subtle));
+.chip-btn:focus-visible {
+  outline: 2px solid var(--panel-accent, var(--primary));
+  outline-offset: 2px;
+}
+
+/* Cron Field Map — the five tokens, colour-coded and labelled, so the
+   expression string maps 1:1 onto the builder selects below it. */
+.segment-strip {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 0.5rem;
+}
+
+/* The list item is the grid track; the button has to fill it, or the chips
+   come out ragged at their own content widths. */
+.segment-strip > li {
+  display: flex;
+  min-width: 0;
+}
+
+.segment {
+  --seg: var(--text-muted);
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.7rem;
+  background-color: color-mix(in srgb, var(--seg) 12%, transparent);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--seg);
+  border-radius: var(--radius-md);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.segment:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.segment:focus-visible {
+  outline: 2px solid var(--seg);
+  outline-offset: 2px;
+}
+
+.segment[data-part="minute"],
+.builder-field[data-part="minute"] {
+  --seg: var(--seg-1);
+}
+.segment[data-part="hour"],
+.builder-field[data-part="hour"] {
+  --seg: var(--seg-2);
+}
+.segment[data-part="dayOfMonth"],
+.builder-field[data-part="dayOfMonth"] {
+  --seg: var(--seg-3);
+}
+.segment[data-part="month"],
+.builder-field[data-part="month"] {
+  --seg: var(--seg-4);
+}
+.segment[data-part="dayOfWeek"],
+.builder-field[data-part="dayOfWeek"] {
+  --seg: var(--seg-5);
+}
+
+.segment-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--seg);
+}
+
+.segment-value {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.segment-meaning {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.segment.is-invalid {
+  --seg: var(--color-error);
+}
+
+/* Cron Human Translation Banner — promoted out of the nested card it used to
+   sit in; this is the panel's headline answer, not a footnote to the input. */
+.translation-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1rem 1.15rem;
+  background: linear-gradient(135deg, var(--accent-cron-soft), transparent 70%);
+  border: 1px solid var(--border);
   border-left: 4px solid var(--accent-cron);
+  border-radius: var(--radius-md);
+}
+
+.translation-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--accent-cron);
 }
 
 .translation-text {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.tz-pill {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text);
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.05rem 0.35rem;
 }
 
 /* 5-Part Cron Interactive Builder */
 .builder-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-  margin-top: 0.5rem;
+  gap: 0.9rem;
 }
 
 .builder-field {
+  --seg: var(--text-muted);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
 
 .builder-label {
-  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
+}
+
+.builder-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--seg);
+  flex-shrink: 0;
 }
 
 .builder-select {
   font-family: var(--font-mono);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   padding: 0.6rem 0.75rem;
   background-color: var(--bg-subtle);
   border: 1px solid var(--border);
@@ -514,10 +757,31 @@ body {
   color: var(--text);
   outline: none;
   cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
-.builder-select:focus {
-  border-color: var(--accent-cron);
+.builder-select:focus,
+.builder-select:focus-visible {
+  border-color: var(--seg);
+  outline: 2px solid var(--seg);
+  outline-offset: 1px;
+}
+
+/* Flash the target field when its segment chip is clicked, so the jump from
+   the expression string to the control that owns it is visible. */
+.builder-field.is-flashing .builder-select {
+  border-color: var(--seg);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seg) 28%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment,
+  .builder-field.is-flashing .builder-select {
+    transition: none;
+  }
+  .segment:hover {
+    transform: none;
+  }
 }
 
 /* Timeline Layout */
@@ -611,29 +875,71 @@ body {
   color: var(--text-muted);
 }
 
-.timeline-empty {
-  color: var(--text-muted);
-  font-style: italic;
-  padding: 1rem 0;
+/* Regex Literal Shell
+   The pattern input, its delimiters and its flags used to be three siblings in
+   one wrapping flex row, which read as unrelated controls and wrapped badly.
+   Framing them as `/pattern/flags` matches how the expression is written
+   everywhere else and makes it obvious the slashes are not yours to type. */
+.regex-literal {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  background-color: var(--bg-subtle);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s ease;
+}
+
+.regex-literal:focus-within {
+  border-color: var(--accent-regex);
+}
+
+.regex-delim {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--accent-regex);
+  user-select: none;
+  line-height: 1;
+}
+
+/* The input sheds its own chrome inside the shell — the shell is the field. */
+.regex-literal .primary-input {
+  flex: 1 1 180px;
+  border: none;
+  background: transparent;
+  padding: 0.45rem 0.15rem;
+  font-size: 1.05rem;
+}
+
+.regex-literal .primary-input:focus {
+  background: transparent;
 }
 
 /* Regex Flag Buttons */
 .flags-bar {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  padding-left: 0.25rem;
+  border-left: 1px solid var(--border);
 }
 
 .flag-pill {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0.35rem;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0.3rem;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background-color: var(--bg-subtle);
+  border: 1px solid transparent;
+  background-color: transparent;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
@@ -653,7 +959,26 @@ body {
   color: #ffffff;
 }
 
+.flag-pill:focus-visible {
+  outline: 2px solid var(--accent-regex);
+  outline-offset: 1px;
+}
+
 /* Syntax Token Display */
+.tokens-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.block-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
 .syntax-tokens-bar {
   display: flex;
   flex-wrap: wrap;
@@ -709,10 +1034,15 @@ body {
   color: var(--tok-literal);
 }
 
-/* Test Area & Mirrored Overlay */
+/* Test Area & Mirrored Overlay
+   The textarea and its highlight backdrop must stay exactly the same size, so
+   the textarea is not user-resizable: dragging it used to slide the text out
+   from under the highlights and clip it against the wrapper's hidden
+   overflow. Both share --test-h instead. */
 .test-text-wrapper {
+  --test-h: 320px;
   position: relative;
-  min-height: 160px;
+  height: var(--test-h);
   border: 2px solid var(--border);
   border-radius: var(--radius-md);
   background-color: var(--bg-subtle);
@@ -732,7 +1062,7 @@ body {
   white-space: pre-wrap;
   word-wrap: break-word;
   width: 100%;
-  height: 180px;
+  height: var(--test-h);
   margin: 0;
   border: none;
   box-sizing: border-box;
@@ -752,7 +1082,7 @@ body {
   position: relative;
   background-color: transparent;
   color: var(--text);
-  resize: vertical;
+  resize: none;
   outline: none;
   z-index: 2;
 }
@@ -775,9 +1105,48 @@ mark.match-alt-1 {
 
 /* Matches Breakdown Panel */
 .matches-summary {
-  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.4rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  margin-bottom: 0.75rem;
+  color: var(--accent-regex);
+  background-color: var(--accent-regex-soft);
+  border-radius: var(--radius-full);
+  padding: 0.2rem 0.7rem;
+}
+
+.matches-summary.text-error {
+  color: var(--color-error);
+  background-color: var(--error-bg);
+}
+
+.matches-summary:empty {
+  display: none;
+}
+
+/* Empty / starter states — both panels used to open on a blank box with no
+   indication of what to do next. */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-state i {
+  font-size: 1.5rem;
+  opacity: 0.45;
+}
+
+.empty-state-text {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  max-width: 34ch;
 }
 
 .matches-list {
@@ -906,15 +1275,33 @@ mark.match-alt-1 {
 
 /* Responsive adjustments */
 @media (max-width: 860px) {
+  :root,
+  [data-theme="dark"] {
+    /* Two-tier header below this width. */
+    --header-h: 88px;
+  }
   .main-content {
     padding: 1.5rem 1rem 3rem;
   }
   .panel-container {
-    gap: 1.5rem;
+    gap: 1.25rem;
     padding: 0.25rem 0 1.5rem;
+  }
+  .workspace {
+    gap: 1.25rem;
   }
   .card {
     padding: 1.25rem;
+  }
+  .segment-strip {
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+    gap: 0.4rem;
+  }
+  .segment-value {
+    font-size: 1rem;
+  }
+  .test-text-wrapper {
+    --test-h: 260px;
   }
   .app-header {
     min-height: 88px;
@@ -1036,19 +1423,31 @@ mark.match-alt-1 {
     width: 100%;
     flex: 1 1 100%;
   }
+  .input-group .action-btn-strong {
+    flex: 1 1 100%;
+  }
+  .regex-literal {
+    flex: 1 1 100%;
+  }
   .flags-bar {
-    flex: 1;
+    flex: 1 1 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
+    padding-left: 0;
+    padding-top: 0.35rem;
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
   /* Reduce primary input font on mobile */
   .primary-input {
     font-size: 1rem;
     padding: 0.6rem 0.85rem;
   }
-  /* Reduce translation card text */
   .translation-text {
     font-size: 1.05rem;
+  }
+  .translation-banner {
+    padding: 0.85rem 1rem;
   }
   /* Timeline mobile tightening */
   .timeline-item {
@@ -1069,11 +1468,13 @@ mark.match-alt-1 {
     padding: 0.65rem 0.75rem;
   }
   /* Test area smaller on mobile */
+  .test-text-wrapper {
+    --test-h: 220px;
+  }
   .test-backdrop,
   .test-textarea {
     font-size: 0.85rem;
     padding: 0.65rem;
-    height: 140px;
   }
   /* Syntax tokens smaller */
   .syntax-token {
@@ -1149,7 +1550,17 @@ mark.match-alt-1 {
   .translation-text {
     font-size: 0.95rem;
   }
-  .translation-card {
-    padding: 1rem;
+  /* Field map two-up rather than a single tall column. */
+  .segment-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .segment {
+    padding: 0.45rem 0.55rem;
+  }
+  .segment-meaning {
+    font-size: 0.68rem;
+  }
+  .test-text-wrapper {
+    --test-h: 190px;
   }
 }

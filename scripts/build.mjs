@@ -58,8 +58,17 @@ const SKIP_DIRS = new Set(["tests"]);
    photo is added is a budget people learn to raise reflexively. The ceilings
    sit roughly 20% above the measured baseline, so ordinary work fits and a
    dependency landing in the bundle does not. Raise them on purpose, in a
-   commit that says why - that argument is the whole point of the gate. */
-const BUDGETS_KIB = { js: 300, css: 240 };
+   commit that says why - that argument is the whole point of the gate.
+
+   Raised 300/240 -> 305/250 for the /cron and /crypto main-content redesign:
+   the two-column workspaces, the cron field-map strip, the encoder transform
+   rail and the empty states are new UI, not a dependency, and both stylesheets
+   were already trimmed of the selectors the redesign orphaned. The standing
+   fat is elsewhere: arcade.css, cron.css and crypto.css each carry their own
+   copy of the same app chrome (header, brand, mode tabs, action buttons,
+   footer and their responsive rules), roughly 10 KiB of triplication that a
+   shared chrome stylesheet would reclaim. That is its own change. */
+const BUDGETS_KIB = { js: 305, css: 250 };
 
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);

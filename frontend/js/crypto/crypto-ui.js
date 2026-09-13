@@ -109,12 +109,31 @@ function setupEncodersUI() {
   const swapBtn = document.getElementById("encoder-swap-btn");
   const clearBtn = document.getElementById("encoder-clear-btn");
   const dropZone = document.getElementById("file-dropzone");
+  const dropZoneWrap = document.getElementById("file-dropzone-wrap");
   const fileInput = document.getElementById("file-input");
   const fileInfo = document.getElementById("file-info");
   const hexSpacedCheckbox = document.getElementById("hex-spaced-toggle");
   const hexOptionWrap = document.getElementById("hex-option-wrap");
 
   if (!inputEl || !outputEl) return;
+
+  // The transform direction is a mode, not a one-shot command. It used to be
+  // neither: typing always re-ran runTransform(true), so editing the input
+  // after pressing Decode silently flipped you back to encoding.
+  let isEncoding = true;
+
+  function setDirection(nextIsEncoding) {
+    isEncoding = nextIsEncoding;
+    encodeBtn?.classList.toggle("active", isEncoding);
+    encodeBtn?.setAttribute("aria-pressed", String(isEncoding));
+    decodeBtn?.classList.toggle("active", !isEncoding);
+    decodeBtn?.setAttribute("aria-pressed", String(!isEncoding));
+    if (outputEl) {
+      outputEl.placeholder = isEncoding
+        ? "Encoded output will appear here..."
+        : "Decoded output will appear here...";
+    }
+  }
 
   function runTransform(isEncode) {
     const text = inputEl.value;
@@ -155,43 +174,61 @@ function setupEncodersUI() {
     }
   }
 
-  encodeBtn?.addEventListener("click", () => runTransform(true));
-  decodeBtn?.addEventListener("click", () => runTransform(false));
-
-  inputEl.addEventListener("input", () => {
-    // Live encode as default
+  encodeBtn?.addEventListener("click", () => {
+    setDirection(true);
     runTransform(true);
   });
+  decodeBtn?.addEventListener("click", () => {
+    setDirection(false);
+    runTransform(false);
+  });
+
+  inputEl.addEventListener("input", () => {
+    // Live transform, in whichever direction is currently selected.
+    runTransform(isEncoding);
+  });
+
+  /**
+   * Format-dependent controls. These used to carry `style="display:none"` in
+   * the markup, which this page's CSP (`style-src 'self'`, no
+   * `'unsafe-inline'`) refuses — so they painted visible until the deferred
+   * module ran. The `hidden` attribute is styled by the stylesheet instead.
+   */
+  function syncFormatControls() {
+    if (!formatSelect) return;
+    if (hexOptionWrap) hexOptionWrap.hidden = formatSelect.value !== "hex";
+    // File -> Data URI only makes sense for Base64.
+    if (dropZoneWrap) dropZoneWrap.hidden = formatSelect.value !== "base64";
+  }
 
   formatSelect?.addEventListener("change", () => {
-    const isHex = formatSelect.value === "hex";
-    const isBase64 = formatSelect.value === "base64";
-    if (hexOptionWrap) {
-      hexOptionWrap.style.display = isHex ? "inline-flex" : "none";
-    }
-    if (dropZone) {
-      dropZone.style.display = isBase64 ? "block" : "none";
-    }
-    runTransform(true);
+    syncFormatControls();
+    runTransform(isEncoding);
   });
 
   hexSpacedCheckbox?.addEventListener("change", () => {
-    runTransform(true);
+    runTransform(isEncoding);
   });
 
+  // Round-trip: the output becomes the input, and the direction inverts, so
+  // Swap verifies a transform rather than leaving a stale output behind.
   swapBtn?.addEventListener("click", () => {
-    const temp = inputEl.value;
     inputEl.value = outputEl.value;
-    outputEl.value = temp;
-    updateEncoderStats();
+    setDirection(!isEncoding);
+    runTransform(isEncoding);
   });
 
   clearBtn?.addEventListener("click", () => {
     inputEl.value = "";
     outputEl.value = "";
+    outputEl.classList.remove("has-error");
     if (fileInfo) fileInfo.textContent = "";
     updateEncoderStats();
+    inputEl.focus();
   });
+
+  setDirection(true);
+  syncFormatControls();
 
   // Drag and drop for Base64 Data URI conversion
   if (dropZone && fileInput) {
@@ -232,6 +269,7 @@ function setupEncodersUI() {
       try {
         const dataUri = await fileToBase64DataUri(file);
         formatSelect.value = "base64";
+        syncFormatControls();
         outputEl.value = dataUri;
         outputEl.classList.remove("has-error");
         if (fileInfo) fileInfo.textContent = `Converted "${file.name}" to Base64 Data URI.`;
@@ -327,9 +365,10 @@ function setupGeneratorsUI() {
     const isToken = typeSelect?.value === "hex" || typeSelect?.value === "base64url";
     const needsLength = isPassword || isToken;
 
+    // `hidden`, not an inline style: this page's CSP rejects style attributes.
     const lengthWrap = document.getElementById("gen-length-wrap");
-    if (lengthWrap) lengthWrap.style.display = needsLength ? "flex" : "none";
-    if (passwordOptionsWrap) passwordOptionsWrap.style.display = isPassword ? "flex" : "none";
+    if (lengthWrap) lengthWrap.hidden = !needsLength;
+    if (passwordOptionsWrap) passwordOptionsWrap.hidden = !isPassword;
   }
 
   typeSelect?.addEventListener("change", syncVisibility);

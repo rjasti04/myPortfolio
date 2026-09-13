@@ -176,15 +176,22 @@
         class="panel-container"
         role="tabpanel"
         aria-labelledby="tab-encoders"
+        tabindex="0"
       >
         <div class="card">
           <div class="card-header-row">
-            <h2 class="card-title">
-              <i class="fas fa-code text-muted" aria-hidden="true"></i>
-              <span>Data Transformation</span>
-            </h2>
+            <div class="card-head">
+              <h2 class="card-title">
+                <i class="fas fa-code" aria-hidden="true"></i>
+                <span>Data Transformation</span>
+              </h2>
+              <p class="card-hint">
+                Transforms as you type, in the direction you picked. Nothing
+                leaves the browser.
+              </p>
+            </div>
             <div class="control-row">
-              <label for="encoder-format" class="sr-only">Encoding Format</label>
+              <label for="encoder-format" class="control-label">Format</label>
               <select id="encoder-format" class="select-input">
                 <option value="base64">Base64 (UTF-8 &amp; Files)</option>
                 <option value="url">URL Encode / Decode</option>
@@ -192,26 +199,19 @@
                 <option value="html">HTML Entities</option>
                 <option value="binary">Binary (8-bit)</option>
               </select>
-              <label id="hex-option-wrap" class="checkbox-label" style="display: none;">
+              <label id="hex-option-wrap" class="checkbox-label" hidden>
                 <input type="checkbox" id="hex-spaced-toggle" />
                 <span>Spaced</span>
               </label>
             </div>
           </div>
 
-          <!-- Base64 File Drop Zone -->
-          <div id="file-dropzone" class="dropzone" role="button" tabindex="0" aria-label="Upload file for Base64 Data URI conversion (maximum 5 MB)">
-            <input type="file" id="file-input" class="visually-hidden" />
-            <i class="fas fa-file-lines dropzone-icon" aria-hidden="true"></i>
-            <p class="dropzone-text"><strong>Click to upload</strong> or drag and drop any file to convert to a Base64 Data URI</p>
-            <span class="dropzone-limit">Strict 5 MB client-side limit &bull; Evaluated 100% locally</span>
-            <div id="file-info" class="file-info-pill" aria-live="polite"></div>
-          </div>
-
+          <!-- Input, the action that connects them, then output: the controls
+               sit on the data-flow path instead of below the result. -->
           <div class="io-grid">
             <div class="io-col">
               <div class="io-header">
-                <label for="encoder-input" class="io-label">Input Text</label>
+                <label for="encoder-input" class="io-label">Input</label>
                 <span id="encoder-in-stats" class="io-stats">0 chars | 0 bytes</span>
               </div>
               <textarea
@@ -222,9 +222,59 @@
               ></textarea>
             </div>
 
+            <div
+              class="transform-rail"
+              role="group"
+              aria-label="Transform direction and actions"
+            >
+              <div class="direction-toggle">
+                <button
+                  type="button"
+                  id="encoder-encode-btn"
+                  class="dir-btn active"
+                  aria-pressed="true"
+                  title="Encode input into output"
+                >
+                  <i class="fas fa-chevron-right rail-arrow" aria-hidden="true"></i>
+                  <span>Encode</span>
+                </button>
+                <button
+                  type="button"
+                  id="encoder-decode-btn"
+                  class="dir-btn"
+                  aria-pressed="false"
+                  title="Decode input into output"
+                >
+                  <i class="fas fa-chevron-left rail-arrow" aria-hidden="true"></i>
+                  <span>Decode</span>
+                </button>
+              </div>
+
+              <div class="rail-tools">
+                <button
+                  type="button"
+                  id="encoder-swap-btn"
+                  class="btn-sm btn-secondary"
+                  title="Move the output back into the input"
+                >
+                  <i class="fas fa-shuffle" aria-hidden="true"></i>
+                  <span>Swap</span>
+                </button>
+                <button
+                  type="button"
+                  id="encoder-clear-btn"
+                  class="btn-sm btn-secondary"
+                  title="Clear both panes"
+                >
+                  <i class="fas fa-trash-can" aria-hidden="true"></i>
+                  <span>Clear</span>
+                </button>
+              </div>
+            </div>
+
             <div class="io-col">
               <div class="io-header">
-                <label for="encoder-output" class="io-label">Output Result</label>
+                <label for="encoder-output" class="io-label">Output</label>
                 <div class="header-tools">
                   <span id="encoder-out-stats" class="io-stats">0 chars | 0 bytes</span>
                   <button
@@ -247,20 +297,31 @@
             </div>
           </div>
 
-          <div class="actions-toolbar">
-            <button type="button" id="encoder-encode-btn" class="btn btn-primary">
-              <i class="fas fa-arrow-down" aria-hidden="true"></i> Encode
-            </button>
-            <button type="button" id="encoder-decode-btn" class="btn btn-secondary">
-              <i class="fas fa-arrow-up" aria-hidden="true"></i> Decode
-            </button>
-            <button type="button" id="encoder-swap-btn" class="btn btn-secondary" title="Swap input and output">
-              <i class="fas fa-sync-alt" aria-hidden="true"></i> Swap
-            </button>
-            <button type="button" id="encoder-clear-btn" class="btn btn-secondary">
-              <i class="fas fa-trash-can" aria-hidden="true"></i> Clear
-            </button>
-          </div>
+          <!-- File -> Data URI is a Base64-only feature, so it is folded away
+               by default and hidden outright for the other formats. -->
+          <details id="file-dropzone-wrap" class="dropzone-disclosure">
+            <summary class="dropzone-summary">
+              <i class="fas fa-file-lines" aria-hidden="true"></i>
+              <span>Convert a file to a Base64 Data URI instead</span>
+            </summary>
+            <div
+              id="file-dropzone"
+              class="dropzone"
+              role="button"
+              tabindex="0"
+              aria-label="Upload file for Base64 Data URI conversion (maximum 5 MB)"
+            >
+              <input type="file" id="file-input" class="visually-hidden" />
+              <i class="fas fa-file-lines dropzone-icon" aria-hidden="true"></i>
+              <p class="dropzone-text">
+                <strong>Click to upload</strong> or drag and drop any file
+              </p>
+              <span class="dropzone-limit"
+                >5 MB limit &bull; Read locally, never uploaded</span
+              >
+              <div id="file-info" class="file-info-pill" aria-live="polite"></div>
+            </div>
+          </details>
         </div>
       </section>
 
@@ -270,25 +331,32 @@
         class="panel-container"
         role="tabpanel"
         aria-labelledby="tab-hasher"
+        tabindex="0"
         hidden
       >
         <div class="card">
           <div class="card-header-row">
-            <h2 class="card-title">
-              <i class="fas fa-shield-halved text-muted" aria-hidden="true"></i>
-              <span>Real-Time Cryptographic Hasher</span>
-            </h2>
+            <div class="card-head">
+              <h2 class="card-title">
+                <i class="fas fa-shield-halved" aria-hidden="true"></i>
+                <span>Cryptographic Hasher</span>
+              </h2>
+              <p class="card-hint">
+                All three digests recompute on every keystroke via
+                <code>crypto.subtle</code>.
+              </p>
+            </div>
             <div class="control-row">
               <label class="checkbox-label">
                 <input type="checkbox" id="hasher-uppercase" />
-                <span>Uppercase Hex</span>
+                <span>Uppercase hex</span>
               </label>
             </div>
           </div>
 
           <div class="input-block">
             <div class="io-header">
-              <label for="hasher-input" class="io-label">Plaintext Input</label>
+              <label for="hasher-input" class="io-label">Plaintext</label>
               <span id="hasher-metrics" class="io-stats">0 characters | 0 bytes</span>
             </div>
             <textarea
@@ -297,14 +365,14 @@
               placeholder="Type or paste text to compute real-time cryptographic digests..."
               spellcheck="false"
             ></textarea>
-          </div>
 
-          <div class="chips-row">
-            <span class="chips-label">Presets:</span>
-            <button type="button" class="hasher-chip" data-sample="hello world">hello world</button>
-            <button type="button" class="hasher-chip" data-sample="password123">password123</button>
-            <button type="button" class="hasher-chip" data-sample="Rajeev Jasti">Rajeev Jasti</button>
-            <button type="button" class="hasher-chip" data-sample="WebCrypto 2026">WebCrypto 2026</button>
+            <div class="chips-row">
+              <span class="chips-label">Try</span>
+              <button type="button" class="hasher-chip" data-sample="hello world">hello world</button>
+              <button type="button" class="hasher-chip" data-sample="password123">password123</button>
+              <button type="button" class="hasher-chip" data-sample="Rajeev Jasti">Rajeev Jasti</button>
+              <button type="button" class="hasher-chip" data-sample="WebCrypto 2026">WebCrypto 2026</button>
+            </div>
           </div>
 
           <div class="hashes-stack">
@@ -312,7 +380,7 @@
             <div class="hash-card">
               <div class="hash-header">
                 <span class="hash-badge badge-sha256">SHA-256</span>
-                <span class="hash-bits">256 bits (64 hex characters) &bull; Native crypto.subtle</span>
+                <span class="hash-bits">64 hex chars</span>
                 <button
                   type="button"
                   class="btn-sm btn-secondary"
@@ -327,6 +395,7 @@
                 id="hash-sha256"
                 class="hash-input"
                 readonly
+                aria-label="SHA-256 digest"
                 placeholder="SHA-256 digest will appear here..."
               />
             </div>
@@ -335,7 +404,7 @@
             <div class="hash-card">
               <div class="hash-header">
                 <span class="hash-badge badge-sha512">SHA-512</span>
-                <span class="hash-bits">512 bits (128 hex characters) &bull; Native crypto.subtle</span>
+                <span class="hash-bits">128 hex chars</span>
                 <button
                   type="button"
                   class="btn-sm btn-secondary"
@@ -350,6 +419,7 @@
                 id="hash-sha512"
                 class="hash-input"
                 readonly
+                aria-label="SHA-512 digest"
                 placeholder="SHA-512 digest will appear here..."
               />
             </div>
@@ -358,7 +428,11 @@
             <div class="hash-card">
               <div class="hash-header">
                 <span class="hash-badge badge-sha1">SHA-1</span>
-                <span class="hash-bits">160 bits (40 hex characters) &bull; Legacy verification</span>
+                <span class="hash-bits">40 hex chars</span>
+                <span class="hash-warn" title="SHA-1 is collision-broken">
+                  <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                  Legacy &mdash; verification only
+                </span>
                 <button
                   type="button"
                   class="btn-sm btn-secondary"
@@ -373,6 +447,7 @@
                 id="hash-sha1"
                 class="hash-input"
                 readonly
+                aria-label="SHA-1 digest"
                 placeholder="SHA-1 digest will appear here..."
               />
             </div>
@@ -386,83 +461,108 @@
         class="panel-container"
         role="tabpanel"
         aria-labelledby="tab-generators"
+        tabindex="0"
         hidden
       >
-        <div class="card">
-          <div class="card-header-row">
-            <h2 class="card-title">
-              <i class="fas fa-key text-muted" aria-hidden="true"></i>
-              <span>Secure Token &amp; UUID Generators</span>
-            </h2>
-          </div>
-
-          <div class="gen-config-grid">
-            <div class="config-field">
-              <label for="gen-type" class="config-label">Generator Type</label>
-              <select id="gen-type" class="select-input">
-                <option value="uuidv7">UUID v7 (RFC 9562 Time-Ordered)</option>
-                <option value="uuidv4">UUID v4 (RFC 4122 Random)</option>
-                <option value="hex">Secure Hex Token</option>
-                <option value="base64url">Base64URL Token</option>
-                <option value="password">Custom Secure Password</option>
-              </select>
+        <!-- Settings on the left, the thing you came for on the right. -->
+        <div class="workspace">
+          <div class="card">
+            <div class="card-head">
+              <h2 class="card-title">
+                <i class="fas fa-key" aria-hidden="true"></i>
+                <span>Token &amp; UUID Generator</span>
+              </h2>
+              <p class="card-hint">
+                Backed by <code>crypto.getRandomValues()</code>.
+              </p>
             </div>
 
-            <div id="gen-length-wrap" class="config-field" style="display: none;">
-              <label for="gen-length" class="config-label">
-                Length: <span id="gen-length-val" class="highlight-val">32</span> chars
+            <div class="gen-config-grid">
+              <div class="config-field">
+                <label for="gen-type" class="config-label">Generator type</label>
+                <select id="gen-type" class="select-input">
+                  <option value="uuidv7">UUID v7 (RFC 9562 Time-Ordered)</option>
+                  <option value="uuidv4">UUID v4 (RFC 4122 Random)</option>
+                  <option value="hex">Secure Hex Token</option>
+                  <option value="base64url">Base64URL Token</option>
+                  <option value="password">Custom Secure Password</option>
+                </select>
+              </div>
+
+              <div class="config-field">
+                <label for="gen-batch" class="config-label">How many</label>
+                <select id="gen-batch" class="select-input">
+                  <option value="1">1 Item</option>
+                  <option value="5">5 Items</option>
+                  <option value="10">10 Items</option>
+                  <option value="25">25 Items</option>
+                </select>
+              </div>
+
+              <div id="gen-length-wrap" class="config-field config-field-wide" hidden>
+                <label for="gen-length" class="config-label">
+                  Length: <span id="gen-length-val" class="highlight-val">32</span> chars
+                </label>
+                <input
+                  type="range"
+                  id="gen-length"
+                  min="6"
+                  max="128"
+                  value="32"
+                  class="range-input"
+                />
+              </div>
+            </div>
+
+            <fieldset id="gen-password-options" class="checkboxes-bar" hidden>
+              <legend class="config-label">Character set</legend>
+              <label class="checkbox-label">
+                <input type="checkbox" id="pwd-uppercase" checked />
+                <span>A-Z</span>
               </label>
-              <input type="range" id="gen-length" min="6" max="128" value="32" class="range-input" />
+              <label class="checkbox-label">
+                <input type="checkbox" id="pwd-lowercase" checked />
+                <span>a-z</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="pwd-numbers" checked />
+                <span>0-9</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="pwd-symbols" checked />
+                <span>!@#$</span>
+              </label>
+            </fieldset>
+
+            <button type="button" id="gen-btn" class="btn btn-primary btn-block">
+              <i class="fas fa-sync-alt" aria-hidden="true"></i> Generate
+            </button>
+          </div>
+
+          <div class="card rail-card">
+            <div class="card-header-row">
+              <h2 class="card-title">
+                <i class="fas fa-table-list" aria-hidden="true"></i>
+                <span>Output</span>
+              </h2>
+              <button type="button" class="btn-sm btn-secondary" data-copy-target="gen-output">
+                <i class="fas fa-copy" aria-hidden="true"></i> Copy all
+              </button>
             </div>
 
-            <div class="config-field">
-              <label for="gen-batch" class="config-label">Batch Count</label>
-              <select id="gen-batch" class="select-input">
-                <option value="1">1 Item</option>
-                <option value="5">5 Items</option>
-                <option value="10">10 Items</option>
-                <option value="25">25 Items</option>
-              </select>
+            <div class="gen-output-wrap">
+              <textarea
+                id="gen-output"
+                class="code-area output-area monospace"
+                rows="10"
+                readonly
+                spellcheck="false"
+                aria-label="Generated values"
+                placeholder="Press Generate to produce values..."
+              ></textarea>
             </div>
-          </div>
 
-          <div id="gen-password-options" class="checkboxes-bar" style="display: none;">
-            <label class="checkbox-label">
-              <input type="checkbox" id="pwd-uppercase" checked />
-              <span>A-Z (Uppercase)</span>
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="pwd-lowercase" checked />
-              <span>a-z (Lowercase)</span>
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="pwd-numbers" checked />
-              <span>0-9 (Numbers)</span>
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="pwd-symbols" checked />
-              <span>!@#$ (Symbols)</span>
-            </label>
-          </div>
-
-          <div class="actions-toolbar">
-            <button type="button" id="gen-btn" class="btn btn-primary">
-              <i class="fas fa-arrows-rotate" aria-hidden="true"></i> Generate
-            </button>
-            <button type="button" class="btn btn-secondary" data-copy-target="gen-output">
-              <i class="fas fa-copy" aria-hidden="true"></i> Copy Output
-            </button>
-            <span id="gen-details" class="output-details" aria-live="polite"></span>
-          </div>
-
-          <div class="gen-output-wrap">
-            <textarea
-              id="gen-output"
-              class="code-area output-area monospace"
-              rows="6"
-              readonly
-              spellcheck="false"
-            ></textarea>
+            <p id="gen-details" class="output-details" aria-live="polite"></p>
           </div>
         </div>
       </section>
@@ -473,22 +573,29 @@
         class="panel-container"
         role="tabpanel"
         aria-labelledby="tab-time"
+        tabindex="0"
         hidden
       >
         <!-- Live Reference Clock -->
         <div class="card live-clock-card">
           <div class="card-header-row">
-            <h2 class="card-title">
-              <i class="fas fa-sync-alt text-muted" aria-hidden="true"></i>
-              <span>Live Reference Clock</span>
-            </h2>
+            <div class="card-head">
+              <h2 class="card-title">
+                <i class="fas fa-sync-alt" aria-hidden="true"></i>
+                <span>Live Reference Clock</span>
+              </h2>
+              <p class="card-hint">
+                Ticking now &mdash; use it as the &ldquo;now&rdquo; for either
+                converter below.
+              </p>
+            </div>
             <button
               type="button"
               class="btn-sm btn-secondary"
               data-copy-target="live-epoch-sec"
               title="Copy current Epoch seconds"
             >
-              <i class="fas fa-copy" aria-hidden="true"></i> Copy Epoch (s)
+              <i class="fas fa-copy" aria-hidden="true"></i> Copy epoch (s)
             </button>
           </div>
 
@@ -513,11 +620,17 @@
         </div>
 
         <!-- Bidirectional Converters -->
-        <div class="time-grid">
+        <div class="workspace">
           <!-- Converter 1: Epoch -> Dates -->
           <div class="card">
-            <h3 class="card-subtitle">Timestamp &rarr; Human Date</h3>
+            <div class="card-head">
+              <h3 class="card-title">
+                <i class="fas fa-shuffle" aria-hidden="true"></i>
+                <span>Timestamp &rarr; Human Date</span>
+              </h3>
+            </div>
             <div class="input-row">
+              <label for="time-epoch-input" class="sr-only">Epoch timestamp</label>
               <input
                 type="text"
                 id="time-epoch-input"
@@ -530,21 +643,45 @@
 
             <div class="time-results-stack">
               <div class="result-field">
-                <span class="result-label">ISO 8601:</span>
-                <input type="text" id="time-epoch-iso-out" class="field-output" readonly />
-                <button type="button" class="btn-sm btn-secondary" data-copy-target="time-epoch-iso-out">
+                <span class="result-label">ISO 8601</span>
+                <input
+                  type="text"
+                  id="time-epoch-iso-out"
+                  class="field-output"
+                  readonly
+                  aria-label="ISO 8601 result"
+                />
+                <button
+                  type="button"
+                  class="btn-sm btn-secondary btn-icon"
+                  data-copy-target="time-epoch-iso-out"
+                  title="Copy ISO 8601"
+                  aria-label="Copy ISO 8601"
+                >
                   <i class="fas fa-copy" aria-hidden="true"></i>
                 </button>
               </div>
               <div class="result-field">
-                <span class="result-label">Local Date:</span>
-                <input type="text" id="time-epoch-local-out" class="field-output" readonly />
-                <button type="button" class="btn-sm btn-secondary" data-copy-target="time-epoch-local-out" title="Copy Local Date">
+                <span class="result-label">Local date</span>
+                <input
+                  type="text"
+                  id="time-epoch-local-out"
+                  class="field-output"
+                  readonly
+                  aria-label="Local date result"
+                />
+                <button
+                  type="button"
+                  class="btn-sm btn-secondary btn-icon"
+                  data-copy-target="time-epoch-local-out"
+                  title="Copy local date"
+                  aria-label="Copy local date"
+                >
                   <i class="fas fa-copy" aria-hidden="true"></i>
                 </button>
               </div>
               <div class="result-field">
-                <span class="result-label">Relative:</span>
+                <span class="result-label">Relative</span>
                 <span id="time-epoch-rel-out" class="relative-badge">just now</span>
               </div>
             </div>
@@ -552,8 +689,14 @@
 
           <!-- Converter 2: Date -> Epoch -->
           <div class="card">
-            <h3 class="card-subtitle">Date String &rarr; Timestamp</h3>
+            <div class="card-head">
+              <h3 class="card-title">
+                <i class="fas fa-shuffle" aria-hidden="true"></i>
+                <span>Date String &rarr; Timestamp</span>
+              </h3>
+            </div>
             <div class="input-row">
+              <label for="time-date-input" class="sr-only">Date string</label>
               <input
                 type="text"
                 id="time-date-input"
@@ -566,21 +709,45 @@
 
             <div class="time-results-stack">
               <div class="result-field">
-                <span class="result-label">Epoch Seconds:</span>
-                <input type="text" id="time-date-sec-out" class="field-output" readonly />
-                <button type="button" class="btn-sm btn-secondary" data-copy-target="time-date-sec-out">
+                <span class="result-label">Epoch seconds</span>
+                <input
+                  type="text"
+                  id="time-date-sec-out"
+                  class="field-output"
+                  readonly
+                  aria-label="Epoch seconds result"
+                />
+                <button
+                  type="button"
+                  class="btn-sm btn-secondary btn-icon"
+                  data-copy-target="time-date-sec-out"
+                  title="Copy epoch seconds"
+                  aria-label="Copy epoch seconds"
+                >
                   <i class="fas fa-copy" aria-hidden="true"></i>
                 </button>
               </div>
               <div class="result-field">
-                <span class="result-label">Epoch Milliseconds:</span>
-                <input type="text" id="time-date-ms-out" class="field-output" readonly />
-                <button type="button" class="btn-sm btn-secondary" data-copy-target="time-date-ms-out">
+                <span class="result-label">Epoch millis</span>
+                <input
+                  type="text"
+                  id="time-date-ms-out"
+                  class="field-output"
+                  readonly
+                  aria-label="Epoch milliseconds result"
+                />
+                <button
+                  type="button"
+                  class="btn-sm btn-secondary btn-icon"
+                  data-copy-target="time-date-ms-out"
+                  title="Copy epoch milliseconds"
+                  aria-label="Copy epoch milliseconds"
+                >
                   <i class="fas fa-copy" aria-hidden="true"></i>
                 </button>
               </div>
               <div class="result-field">
-                <span class="result-label">Relative:</span>
+                <span class="result-label">Relative</span>
                 <span id="time-date-rel-out" class="relative-badge">just now</span>
               </div>
             </div>
