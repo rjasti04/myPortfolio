@@ -67,8 +67,23 @@ const SKIP_DIRS = new Set(["tests"]);
    fat is elsewhere: arcade.css, cron.css and crypto.css each carry their own
    copy of the same app chrome (header, brand, mode tabs, action buttons,
    footer and their responsive rules), roughly 10 KiB of triplication that a
-   shared chrome stylesheet would reclaim. That is its own change. */
-const BUDGETS_KIB = { js: 305, css: 250 };
+   shared chrome stylesheet would reclaim. That is its own change.
+
+   Raised 305/250 -> 355/265 for /json, the sixth standalone app, measured at
+   46.2 KiB of JS and 16.5 KiB of CSS. The JS cost is six hand-written parsers
+   and emitters, not a dependency: a tolerant JSON scanner with a repair log,
+   a JSONPath engine whose filter expressions are tokenised and walked rather
+   than eval'd (the page ships no 'unsafe-eval', so there was no library
+   option), a YAML emitter and subset parser, a CSV reader/writer, a
+   TypeScript interface inferencer and a lazy tree renderer. It is the largest
+   app on the shelf and also the one that does the most: /cron is 28.2 KiB for
+   two parsers, this is 46.2 KiB for six.
+
+   The CSS ceiling moves less than the JS one because json.css came in under
+   estimate. It is a fourth copy of the app chrome described above, which
+   makes that shared-stylesheet reclaim worth more than it was - still its own
+   change, and still the first place to look before raising these again. */
+const BUDGETS_KIB = { js: 355, css: 265 };
 
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);
@@ -233,9 +248,22 @@ async function main() {
     }
   }
 
+  // The JSON workbench at /json is a separate standalone page with its own entry.
+  const jsonApp = await esbuild.build({
+    entryPoints: [join(SRC, "js/json/json-main.js")],
+    bundle: true, minify: true, sourcemap: true, format: "esm", target: ["es2022"],
+    outdir: join(OUT, "assets"), entryNames: "json-[hash]", metafile: true, logLevel: "warning",
+  });
+  for (const [outPath, meta] of Object.entries(jsonApp.metafile.outputs)) {
+    if (outPath.endsWith(".map")) continue;
+    if (meta.entryPoint) {
+      rewrites.set("js/json/json-main.js", relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
+    }
+  }
+
   // --- CSS -----------------------------------------------------------------
   const cssAssets = new Set();
-  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "arcade.css", "cron.css", "crypto.css"]) {
+  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "arcade.css", "cron.css", "crypto.css", "json.css"]) {
     const result = await esbuild.build({
       entryPoints: [join(SRC, css)],
       bundle: true, minify: true, sourcemap: true,

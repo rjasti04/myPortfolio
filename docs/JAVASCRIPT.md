@@ -1141,6 +1141,48 @@ Unix timestamp inspection and conversion module. Provides a live reference clock
 
 ---
 
+## JSON Workbench (`/json`, `/yaml` and `/jsonpath`)
+
+A standalone client-side JSON toolkit: format, validate and repair; query with JSONPath or dot-notation; explore as a collapsible tree; convert to YAML, CSV and TypeScript. Like the Logic Inspector and the Crypto workbench it lives on its own page (`frontend/json.html`) with its own entry point (`js/json/json-main.js`), zero third-party assets (ADR-016) and pure vanilla ES modules (ADR-001).
+
+The structural difference from `/crypto` is that its tabs are **not** independent tools. One source document is parsed once per edit, debounced, and all four panels read that single result — which is why parsing lives in its own module rather than inside the UI controller.
+
+Two invariants hold across the whole directory. **No `eval` or `new Function`**: query filters are tokenised, parsed into an AST and walked by a `switch`, because the page ships `script-src 'self'` with no `'unsafe-eval'` and almost every JSONPath library implements filters with an evaluator. **No `innerHTML`**: every document-derived string reaches the DOM through `textContent`, so no sanitiser is needed — no HTML string is ever built.
+
+### `json-main.js` (185 lines)
+
+The application controller. Resolves the theme from the shared `theme` key before the panels render, manages the four deep-linkable tabs (`#format`, `#query`, `#tree`, `#convert`) with arrow-key roving tabindex and `hashchange` sync, persists preferences, and wraps startup in an error boundary. Document text is persisted **only** while the "Remember my document" switch is on, and that switch defaults to off.
+
+### `json-ui.js` (688 lines)
+
+DOM controller for the workbench. Owns the source pane, the debounced parse, drag-and-drop with the 5 MB cap, the repair log, copy-and-download on every output, and the four panel renderers. Holds no parsing logic of its own. Its `writeJson()` colouriser appends `<span>` elements it creates itself, so JSON containing markup is coloured without ever becoming nodes.
+
+### `json-parser.js` (578 lines)
+
+Strict parsing, error location and repair. `JSON.parse` decides validity so the module never disagrees with the platform about what JSON is; when it throws, a hand-written scanner re-reads the text to produce a stable `{ line, column, offset, message, excerpt }` that engine-specific `SyntaxError` messages cannot. A tolerant mode of the same scanner accepts trailing commas, unquoted and single-quoted keys, comments, smart quotes, Python literals, hex and leading-zero numbers, missing commas and trailing garbage — logging every accommodation. Repairs that change a value rather than syntax (`NaN`, `Infinity` and `undefined`, which JSON cannot represent, become `null`) are flagged `lossy` so the UI can mark them differently.
+
+### `json-query.js` (665 lines)
+
+The query engine, in three stages: a path parser, a precedence-climbing expression parser for filters, and an evaluator. Supports `$`, `.name`, `['name']`, `[n]`, `[-n]`, `[start:end:step]`, `[*]`, `..name`, `..*` and `[?(expr)]`, plus bare dot-notation and `filter(...)` sugar that also chains (`items.filter(price > 50)`). Filter operators are `||`, `&&`, `!`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `contains`, `startsWith` and `endsWith`. Member access goes through a helper that reads own enumerable properties only, so `@.constructor` and `@.__proto__` resolve to Nothing rather than JavaScript internals. `formatPath()` renders a path as JSONPath, dot or bracket notation and is the single source of truth for path syntax on the page.
+
+### `json-tree.js` (252 lines)
+
+The collapsible tree. Children are built on first expand and cached, collapsing hides rather than destroys, and a node renders at most `CHILD_PAGE_SIZE` (200) children before offering a "show more" control — without which a 5 MB document expanded whole would lock the tab. `expandAll()` refuses past 5,000 nodes and returns an explanation instead of hanging.
+
+### `json-yaml.js` (531 lines)
+
+`toYaml()` and `fromYaml()`. The emitter's real work is quoting: YAML 1.1 re-reads `no`, `off`, `~`, `0755` and `1:30` as non-strings, so any scalar that would change type is quoted — the "Norway problem". The parser covers block mappings and sequences, flow collections, the three scalar styles, `|` and `>` block scalars with chomping, comments and a leading `---`. Anchors, aliases, merge keys, tags, multi-document streams and complex `? ` keys are **refused by name with a line number** rather than guessed at.
+
+### `json-csv.js` (279 lines)
+
+`toCsv()` and `fromCsv()`, to RFC 4180. The header is the union of every row's keys in first-seen order, so a ragged array does not shift columns; nested objects flatten to dotted paths and are rebuilt on the way back. An API envelope — `{ "data": [ ... ] }`, the shape most responses arrive in — is tabulated from its one array-of-objects property when there is exactly one, and the returned `sourceKey` names it so the panel can say so rather than unwrapping silently; two such properties is ambiguous and is refused. Type inference is opt-in and only converts a value that round-trips exactly, leaving `00123` and `+15551234567` as strings. CSV cannot distinguish `null` from `""` — both are an empty cell — and that asymmetry is stated in the panel rather than hidden.
+
+### `json-typescript.js` (173 lines)
+
+`toTypeScript()`. Two passes: the first unifies every value reaching a position into one schema node, which is what turns a key missing from some array elements into `name?: string` rather than a second interface; the second emits, de-duplicating structurally identical shapes so repeated objects share one named interface. Array element types unify into unions, invalid identifiers are quoted, and recursion is depth-bounded. One-way by design.
+
+---
+
 ## Browser storage keys
 
 | Key | Store | Written by | Holds |
@@ -1163,6 +1205,7 @@ Unix timestamp inspection and conversion module. Provides a live reference clock
 | `rj-arcade:muted` | localStorage | `arcade/storage.js` | Arcade sound preference |
 | `rj-inspector:state` | localStorage | `cron/cron-main.js` | Active tab, last expressions and test text |
 | `rj-crypto:preferences` | localStorage | `crypto/crypto-main.js` | Last active tab and workbench preferences |
+| `rj-json:preferences` | localStorage | `json/json-main.js` | Active tab, indent, path dialect, convert format. The **document itself** is written here only while "Remember my document" is on, which defaults to off — people paste tokens into JSON tools |
 | `rj_session_token` | **cookie** | the API | Same token, `HttpOnly; SameSite=Strict` — what `EventSource` sends |
 
 A session stored before capability tokens existed is discarded on load, so a

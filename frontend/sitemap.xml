@@ -67,4 +67,15 @@
       <image:caption>Preview card for the Crypto and Encoders workbench</image:caption>
     </image:image>
   </url>
+  <url>
+    <loc>https://rjasti.com/json</loc>
+    <lastmod>2026-09-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <image:image>
+      <image:loc>https://rjasti.com/json-preview.png</image:loc>
+      <image:title>JSON Workbench &amp; Query Studio | Client-side JSON toolkit</image:title>
+      <image:caption>Preview card for the JSON Workbench and Query Studio</image:caption>
+    </image:image>
+  </url>
 </urlset>
