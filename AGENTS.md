@@ -91,7 +91,7 @@ in order ("add or change an API endpoint" -> `API.md` -> `BACKEND.md` ->
 `SECURITY.md#checklist-for-changes`). The table below is for budgeting the read
 once you know which doc you want.
 
-**These docs are also too big to read whole.** Together they are ~93,000
+**These docs are also too big to read whole.** Together they are ~93,500
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -110,7 +110,7 @@ whole doc only when you genuinely need all of it.
 | `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
 | `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
 | `docs/JAVASCRIPT.md` | ~18,500 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (63 module sections) |
-| `docs/FRONTEND.md` | ~12,000 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (20 headings) |
+| `docs/FRONTEND.md` | ~12,500 | touching `index.html`, the CSS, the service worker, the fonts, or the build | `grep -n '^#\{2,3\} '` (21 headings) |
 | `docs/DESIGN.md` | ~2,500 | adding a colour, a size, a duration or an easing to the stylesheet - it is the token contract, not the plumbing | `grep -n '^#\{2,3\} '` (12 headings) |
 | `docs/CONFIGURATION.md` | ~4,500 | adding or interpreting an environment variable | `grep -n '^## '` (16 headings), or just grep the variable name |
 | `docs/SECURITY.md` | ~6,500 | touching auth, session tokens, rate limits, the CSP, or any user-controlled output - it ends with a pre-merge checklist | `grep -n '^## '` (18 headings) |

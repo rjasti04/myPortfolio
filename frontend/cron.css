@@ -208,8 +208,8 @@ body {
 }
 
 .brand-icon {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, var(--accent-cron), var(--accent-regex));
   display: flex;
@@ -226,13 +226,13 @@ body {
 }
 
 .brand-title {
-  font-size: 1.15rem;
+  font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .brand-tag {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 0.15rem 0.4rem;
@@ -345,6 +345,22 @@ body {
 
 .back-btn {
   font-weight: 600;
+}
+
+/* "Portfolio" on a desktop, "Back" once the bar tightens - the same swap
+   /ucl and /worldcup make, so the chrome reads the same across the shelf. */
+.back-label-short {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .back-label-long {
+    display: none;
+  }
+
+  .back-label-short {
+    display: inline;
+  }
 }
 
 /* Main Container Layout */
@@ -980,7 +996,7 @@ mark.match-alt-1 {
   .tab-btn {
     flex: 0 0 auto;
     min-width: max-content;
-    min-height: 38px;
+    min-height: 44px;
     padding: 0.4rem 1.1rem;
     font-size: 0.84rem;
     justify-content: center;
@@ -1011,6 +1027,11 @@ mark.match-alt-1 {
 }
 
 @media (max-width: 640px) {
+  .back-btn .back-label,
+  .action-btn .action-label {
+    display: none;
+  }
+
   .input-group .primary-input {
     width: 100%;
     flex: 1 1 100%;
@@ -1075,10 +1096,6 @@ mark.match-alt-1 {
     padding: 0.35rem 0.65rem;
     gap: 0.35rem;
   }
-  .back-btn .back-label,
-  .action-btn .action-label {
-    display: none;
-  }
   .back-btn,
   .action-btn {
     min-width: 44px;
@@ -1099,7 +1116,7 @@ mark.match-alt-1 {
     flex: 1 1 0;
     padding: 0.35rem 0.55rem;
     font-size: 0.76rem;
-    min-height: 36px;
+    min-height: 44px;
     justify-content: center;
   }
   /* Builder grid: single column on phones */

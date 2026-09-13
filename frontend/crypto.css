@@ -108,6 +108,21 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* Neither helper was ever declared here, so the encoder's format label and the
+   file input rendered on the page - the "Choose File" control inside the drop
+   zone was that input, showing through. Same rule as arcade.css. */
+.sr-only,
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* Header & Brand */
 .app-header {
   background: var(--chrome-bg);
@@ -152,8 +167,8 @@ body {
 }
 
 .brand-icon {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-md);
   background: var(--primary-soft);
   color: var(--primary);
@@ -175,7 +190,7 @@ body {
 }
 
 .brand-tag {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 0.15rem 0.4rem;
@@ -310,6 +325,22 @@ body {
   font-weight: 600;
 }
 
+/* "Portfolio" on a desktop, "Back" once the bar tightens - the same swap
+   /ucl and /worldcup make, so the chrome reads the same across the shelf. */
+.back-label-short {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .back-label-long {
+    display: none;
+  }
+
+  .back-label-short {
+    display: inline;
+  }
+}
+
 /* Main Container */
 .main-content {
   flex: 1;
@@ -364,7 +395,9 @@ body {
 .control-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 /* Dropdown & Inputs */
@@ -372,6 +405,8 @@ body {
   font-family: inherit;
   font-size: 0.875rem;
   font-weight: 500;
+  min-width: 0;
+  max-width: 100%;
   padding: 0.45rem 0.85rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
@@ -965,7 +1000,7 @@ body {
   }
   .tab-btn {
     flex: 0 0 auto;
-    min-height: 38px;
+    min-height: 44px;
     padding: 0.4rem 0.85rem;
     font-size: 0.82rem;
     scroll-snap-align: center;
@@ -976,6 +1011,10 @@ body {
 }
 
 @media (max-width: 640px) {
+  .back-btn .back-label,
+  .action-btn .action-label {
+    display: none;
+  }
   /* Hash card header wraps on small screens */
   .hash-header {
     flex-wrap: wrap;
@@ -1057,6 +1096,7 @@ body {
   .btn {
     padding: 0.5rem 1rem;
     font-size: 0.8rem;
+    min-height: 44px;
   }
   /* Gen config grid tighter */
   .gen-config-grid {
@@ -1080,10 +1120,6 @@ body {
     padding: 0.35rem 0.65rem;
     gap: 0.35rem;
   }
-  .back-btn .back-label,
-  .action-btn .action-label {
-    display: none;
-  }
   .back-btn,
   .action-btn {
     min-width: 44px;
@@ -1103,7 +1139,7 @@ body {
   .tab-btn {
     padding: 0.35rem 0.65rem;
     font-size: 0.76rem;
-    min-height: 36px;
+    min-height: 44px;
     gap: 0.3rem;
   }
   /* Clock grid single column on smallest screens */
