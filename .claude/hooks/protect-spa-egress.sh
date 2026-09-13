@@ -26,8 +26,18 @@ case "$REL_PATH" in
         ;;
 esac
 
-# Content to inspect
-CONTENT=$(echo "$INPUT_JSON" | jq -r '.tool_input.content // .tool_input.new_content // .tool_input.text // empty')
+# Content to inspect.
+# Write carries the whole file in .content; Edit carries only the replacement in
+# .new_string and NotebookEdit in .new_source. Reading .content alone let every
+# Edit through unchecked, so collect every field that can carry new text.
+CONTENT=$(echo "$INPUT_JSON" | jq -r '
+    [ .tool_input.content,
+      .tool_input.new_string,
+      .tool_input.new_source,
+      .tool_input.new_content,
+      .tool_input.text ]
+    | map(select(type == "string"))
+    | join("\n")')
 
 if [ -z "$CONTENT" ]; then
     exit 0

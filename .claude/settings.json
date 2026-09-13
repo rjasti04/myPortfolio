@@ -2,9 +2,17 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "deny": [
-      "Read(./.env)",
-      "Read(./.env.local)",
-      "Write(./.env)"
+      "Read(./.env*)",
+      "Edit(./.env*)",
+      "Write(./.env*)",
+      "Read(./server/.env*)",
+      "Edit(./server/.env*)",
+      "Write(./server/.env*)",
+      "Edit(./.claude/templates/**)",
+      "Write(./.claude/templates/**)",
+      "Edit(./package-lock.json)",
+      "Write(./package-lock.json)",
+      "Read(./server/.venv/**)"
     ]
   },
   "hooks": {
