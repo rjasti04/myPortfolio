@@ -141,12 +141,13 @@ existing, and `POST /auth/delete-account` was only served as `DELETE
 
 ## Tooling tests
 
-`tests/tooling/` — 1 file, 34 test functions. Repo tooling rather than the app;
+`tests/tooling/` — 2 files, 43 tests. Repo tooling rather than the app;
 nothing here imports `server/`, so it contributes no backend coverage.
 
 | File | Tests | Guards |
 | :--- | ---: | :--- |
 | `test_bash_write_guard.py` | 34 | **The Bash hooks hold the same lines the `Write`/`Edit` hooks do.** Claude Code matches hooks on tool name, so every `.sh` guard in `.claude/hooks/` was wired to `Write`/`Edit` and a `sed -i` or a `>` reached none of them. These cover both directions: a tracked migration stays immutable through `sed -i`, `tee`, `cp`, `rm`, a redirection and an opaque `python3 -c`; the intent and spec templates are never written in place; a secrets file is never read from the shell; ADR-016's origin allowlist applies to shell writes into SPA files; a repo-wide `grep`/`find` that would descend into `server/.venv/` is refused. The rest are the false positives that would get the guard switched off — `npm ci`, `PYTHONPATH=. pytest`, the documented `sed -n` and `grep -n` recipes, a scoped search, an exempt predictor page, and a heredoc whose *body* mentions a guarded path — all of which must pass through untouched |
+| `test_agent_config_check.py` | 9 | **`.claude/rules/` is config the validator accepts, not config it rejects.** `check_agent_config.py` listed `.claude/rules` as prohibited before the directory existed; the path-scoped navigation tables landed later and the CI gate failed on every commit after that. These pin both directions: the real repository passes its own validator, the four genuinely prohibited paths are still rejected, and a rules file that would silently stop loading — missing, or without a `paths` frontmatter list — is an error |
 
 ## The test harness
 
