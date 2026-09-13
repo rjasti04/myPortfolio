@@ -220,10 +220,39 @@ def check_templates(errors):
             errors.append(f"Template {t_file} contains mutating '--fix' in verification block.")
 
 
+def check_rules(errors):
+    """.claude/rules/ holds the path-scoped tables AGENTS.md delegates to.
+
+    They are loaded only when Claude touches a matching file, so each one has to
+    declare a 'paths' frontmatter list - without it the file either never loads
+    or loads on every session, and the token budget AGENTS.md 'Navigating This
+    Repo' relies on is gone either way.
+    """
+    rules_dir = ROOT / ".claude" / "rules"
+    if not rules_dir.is_dir():
+        errors.append(".claude/rules directory missing.")
+        return
+
+    expected_rules = ["navigation.md", "reference-docs.md"]
+    for name in expected_rules:
+        rule_file = rules_dir / name
+        if not rule_file.exists():
+            errors.append(f"Expected rules file missing: {rule_file}")
+            continue
+
+        fm, body = parse_frontmatter(rule_file)
+        paths = fm.get("paths", [])
+        if isinstance(paths, str):
+            paths = [paths]
+        if not paths:
+            errors.append(f"Rules file {rule_file} does not declare a non-empty 'paths' frontmatter list.")
+
+
 def check_prohibited_config(errors):
+    # .claude/rules is deliberately absent from this list: it is a supported
+    # path-scoped config directory and is validated by check_rules above.
     prohibited = [
         ROOT / ".claudeignore",
-        ROOT / ".claude" / "rules",
         ROOT / ".claude" / "commands",
         ROOT / ".claude" / "adrs",
         ROOT / ".claude" / "memory",
@@ -241,6 +270,7 @@ def main():
     check_settings(errors)
     check_mirror_drift(errors)
     check_templates(errors)
+    check_rules(errors)
     check_prohibited_config(errors)
 
     if errors:
