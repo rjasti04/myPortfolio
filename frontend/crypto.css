@@ -30,6 +30,9 @@
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
 
+  /* Sticky-header height; the results rail and scroll-margin key off it. */
+  --header-h: 57px;
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
@@ -341,10 +344,14 @@ body {
   }
 }
 
-/* Main Container */
+/* Main Container
+   Generators and the time converters used to be single columns of full-width
+   cards, which put the thing you came for (the generated values, the converted
+   result) below the settings that produce it. Both now run settings-left /
+   result-right, with the result rail pinned while you scroll. */
 .main-content {
   flex: 1;
-  max-width: 1280px;
+  max-width: 1320px;
   width: 100%;
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
@@ -353,51 +360,102 @@ body {
 .panel-container {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  padding: 0.5rem 0 2rem;
-  scroll-margin-top: 84px;
+  gap: 1.5rem;
+  padding: 0.25rem 0 2rem;
+  scroll-margin-top: calc(var(--header-h) + 16px);
+}
+
+.panel-container:focus {
+  outline: none;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1080px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  }
+
+  .rail-card {
+    position: sticky;
+    top: calc(var(--header-h) + 1.5rem);
+  }
 }
 
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1.75rem;
+  padding: 1.5rem;
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .card-header-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1rem;
 }
 
+.card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
 .card-title {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
-.card-subtitle {
+  gap: 0.55rem;
   font-size: 1.05rem;
   font-weight: 700;
-  color: var(--text);
-  margin-bottom: 0.5rem;
+  letter-spacing: -0.01em;
+}
+
+.card-title > i {
+  color: var(--accent-crypto);
+  font-size: 0.95em;
+}
+
+.card-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.card-hint code {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.05rem 0.3rem;
 }
 
 .control-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.6rem;
   min-width: 0;
+}
+
+.control-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
 }
 
 /* Dropdown & Inputs */
@@ -436,15 +494,67 @@ body {
   height: 16px;
 }
 
-/* Dropzone */
-.dropzone {
-  border: 2px dashed var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  text-align: center;
+/* Dropzone
+   File -> Data URI only applies to Base64, but the drop target used to sit
+   open above the editor for every format, dominating a panel whose job is
+   text. It is a closed disclosure now, and hidden outright for the formats
+   that cannot use it. */
+.dropzone-disclosure {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   background: var(--bg-subtle);
+}
+
+.dropzone-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.dropzone-summary::-webkit-details-marker {
+  display: none;
+}
+
+.dropzone-summary::after {
+  content: "\25be";
+  margin-left: auto;
+  transition: transform 0.15s ease;
+}
+
+.dropzone-disclosure[open] .dropzone-summary {
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.dropzone-disclosure[open] .dropzone-summary::after {
+  transform: rotate(180deg);
+}
+
+.dropzone-summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.dropzone {
+  margin: 0.75rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.1rem;
+  text-align: center;
+  background: var(--surface);
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.dropzone:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .dropzone:hover,
@@ -454,15 +564,15 @@ body {
 }
 
 .dropzone-icon {
-  font-size: 2rem;
+  font-size: 1.4rem;
   color: var(--primary);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 .dropzone-text {
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   color: var(--text);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.15rem;
 }
 
 .dropzone-limit {
@@ -477,12 +587,81 @@ body {
   margin-top: 0.5rem;
 }
 
-/* IO Grid */
+/* IO Grid
+   The Encode / Decode / Swap / Clear toolbar used to sit *below* the output,
+   so the reading order was input -> result -> the control that produced it.
+   The rail now sits between the two panes, on the data-flow path. */
 .io-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: start;
 }
+
+
+.transform-rail {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+
+/* Direction is a sticky choice, not a one-shot action: live re-transforms on
+   typing follow whichever way is selected. */
+.direction-toggle {
+  display: flex;
+  flex-direction: row;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+
+.dir-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dir-btn:hover {
+  color: var(--text);
+}
+
+.dir-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.dir-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+
+.rail-tools {
+  display: flex;
+  flex-direction: row;
+  gap: 0.4rem;
+}
+
 
 .io-col {
   display: flex;
@@ -494,6 +673,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
+  /* The output header carries a Copy button and the input header does not;
+     a shared min-height keeps both textareas starting on the same line. */
+  min-height: 30px;
 }
 
 .io-label {
@@ -547,6 +730,35 @@ body {
   border-color: var(--color-error);
   background: var(--error-bg);
   color: var(--color-error);
+}
+
+/* Desktop: the panes sit side by side with the rail between them. */
+@media (min-width: 900px) {
+  .io-grid {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 1.1rem;
+  }
+
+  .transform-rail {
+    flex-direction: column;
+    /* Clears the io-header row above the textareas so the rail lines up with
+       the panes themselves, not with their labels. */
+    padding-top: 2rem;
+    width: 8.5rem;
+  }
+
+  .direction-toggle {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .rail-tools {
+    flex-direction: column;
+    width: 100%;
+  }
+  .rail-tools .btn-sm {
+    justify-content: center;
+  }
 }
 
 /* Buttons */
@@ -612,12 +824,6 @@ body {
   border-color: var(--color-success);
 }
 
-.actions-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
 
 /* Hasher Panel Styles */
 .chips-row {
@@ -670,8 +876,21 @@ body {
 .hash-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.hash-header .btn-sm {
+  margin-left: auto;
+}
+
+.hash-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-warning);
 }
 
 .hash-badge {
@@ -701,9 +920,9 @@ body {
 }
 
 .hash-bits {
-  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
   color: var(--text-muted);
-  flex: 1;
 }
 
 .hash-input {
@@ -746,20 +965,52 @@ body {
   accent-color: var(--primary);
 }
 
+/* The generator names are long enough that half a column truncates them. */
+.config-field-wide,
+.config-field:has(> #gen-type) {
+  grid-column: 1 / -1;
+}
+
 .checkboxes-bar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 1.25rem;
+  gap: 1rem;
   background: var(--bg-subtle);
+  border: 1px solid var(--border);
   padding: 0.75rem 1rem;
   border-radius: var(--radius-md);
+}
+
+.checkboxes-bar > legend {
+  padding: 0 0.35rem;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn:focus-visible,
+.btn-sm:focus-visible,
+.select-input:focus-visible,
+.hasher-chip:focus-visible,
+.text-input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.gen-output-wrap .code-area {
+  height: auto;
+  min-height: 240px;
 }
 
 .output-details {
   font-size: 0.8rem;
   color: var(--text-muted);
-  font-style: italic;
+}
+
+.output-details:empty {
+  display: none;
 }
 
 /* Time Workbench */
@@ -802,14 +1053,9 @@ body {
   color: var(--primary);
 }
 
-.time-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
 .input-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
@@ -835,17 +1081,31 @@ body {
   gap: 0.75rem;
 }
 
+/* A shared grid, so the label / value / copy columns line up down the stack
+   and across both converter cards. */
 .result-field {
-  display: flex;
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.75rem;
 }
 
 .result-label {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
-  min-width: 120px;
+}
+
+.btn-icon {
+  justify-content: center;
+  min-width: 32px;
+  padding-inline: 0.5rem;
+}
+
+.relative-badge {
+  justify-self: start;
 }
 
 .field-output {
@@ -902,20 +1162,21 @@ body {
 }
 
 /* Responsive Breakpoints */
-@media (max-width: 900px) {
-  .io-grid,
-  .time-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 960px) {
+  :root,
+  [data-theme="dark"] {
+    /* Two-tier header below this width. */
+    --header-h: 88px;
+  }
   .main-content {
     padding: 1.5rem 1rem 3rem;
   }
   .panel-container {
-    gap: 1.5rem;
+    gap: 1.25rem;
     padding: 0.25rem 0 1.5rem;
+  }
+  .workspace {
+    gap: 1.25rem;
   }
   .card {
     padding: 1.25rem;
@@ -1057,13 +1318,22 @@ body {
   }
   /* Dropzone compact on mobile */
   .dropzone {
-    padding: 1rem;
+    margin: 0.5rem;
+    padding: 0.85rem;
   }
   .dropzone-icon {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
   }
   .dropzone-text {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
+  }
+  /* Transform rail: side by side under the input, still above the output */
+  .transform-rail {
+    gap: 0.5rem;
+  }
+  .dir-btn {
+    flex: 1 1 auto;
+    min-height: 44px;
   }
   /* Input row wraps */
   .input-row {
@@ -1076,22 +1346,18 @@ body {
   .input-row .btn {
     flex: 1 1 auto;
   }
-  /* Result field tighter */
+  /* Result field: label over value once there is no room for three columns */
   .result-field {
-    flex-wrap: wrap;
-    gap: 0.35rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.3rem 0.5rem;
   }
   .result-label {
-    min-width: auto;
-    font-size: 0.75rem;
+    grid-column: 1 / -1;
+    font-size: 0.68rem;
   }
   .field-output {
     font-size: 0.8rem;
     padding: 0.35rem 0.5rem;
-  }
-  /* Actions toolbar wraps nicely */
-  .actions-toolbar {
-    gap: 0.5rem;
   }
   .btn {
     padding: 0.5rem 1rem;
@@ -1102,6 +1368,9 @@ body {
   .gen-config-grid {
     grid-template-columns: 1fr;
     gap: 0.75rem;
+  }
+  .gen-output-wrap .code-area {
+    min-height: 180px;
   }
   /* Checkboxes bar wraps */
   .checkboxes-bar {

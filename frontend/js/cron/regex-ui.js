@@ -174,25 +174,62 @@ export function initRegexUI({ container, onStateChange, initialPattern = "", ini
     highlightOverlay.appendChild(fragment);
   }
 
+  /**
+   * Empty / starter state for the matches rail. The panel used to open on a
+   * blank card with no indication of what to do, which reads as broken rather
+   * than idle.
+   */
+  function renderMatchesEmptyState(iconClass, message) {
+    const li = document.createElement("li");
+    li.className = "empty-state";
+
+    const icon = document.createElement("i");
+    icon.className = iconClass;
+    icon.setAttribute("aria-hidden", "true");
+
+    const text = document.createElement("p");
+    text.className = "empty-state-text";
+    text.textContent = message;
+
+    li.append(icon, text);
+    matchesListEl.appendChild(li);
+  }
+
   function renderMatchesList(res) {
     if (!matchesSummaryEl || !matchesListEl) return;
     matchesListEl.textContent = "";
 
     if (!res.valid) {
-      matchesSummaryEl.textContent = "Invalid regular expression";
+      matchesSummaryEl.textContent = "Invalid pattern";
       matchesSummaryEl.className = "matches-summary text-error";
+      renderMatchesEmptyState(
+        "fas fa-triangle-exclamation",
+        "The pattern above could not be compiled. See the error for details."
+      );
       return;
     }
 
     matchesSummaryEl.className = "matches-summary";
+
+    if (!patternInput?.value) {
+      matchesSummaryEl.textContent = "";
+      renderMatchesEmptyState(
+        "fas fa-wand-magic-sparkles",
+        "Write a pattern above, or pick a preset, to see matches and capture groups here."
+      );
+      return;
+    }
+
     const countText = res.matchCount === 1 ? "1 match" : `${res.matchCount} matches`;
-    matchesSummaryEl.textContent = `${countText} found in ${res.executionTimeMs}ms`;
+    matchesSummaryEl.textContent = `${countText} \u00b7 ${res.executionTimeMs}ms`;
 
     if (res.matchCount === 0) {
-      const emptyLi = document.createElement("li");
-      emptyLi.className = "match-empty";
-      emptyLi.textContent = "No matches found in the sample text.";
-      matchesListEl.appendChild(emptyLi);
+      renderMatchesEmptyState(
+        "fas fa-magnifying-glass",
+        testTextarea?.value
+          ? "No matches in the sample text. Try loosening the pattern or toggling a flag."
+          : "Paste some sample text on the left to test this pattern against it."
+      );
       return;
     }
 

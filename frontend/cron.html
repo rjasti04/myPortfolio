@@ -148,12 +148,20 @@
         class="panel-container"
         role="tabpanel"
         aria-labelledby="tab-cron"
+        tabindex="0"
       >
-        <div class="card">
-          <h2 class="card-title">
-            <i class="fas fa-sliders text-muted" aria-hidden="true"></i>
-            <span>Cron Schedule Expression</span>
-          </h2>
+        <!-- Row 1: the expression, its five fields, and what it means -->
+        <div class="card hero-card">
+          <div class="card-head">
+            <h2 class="card-title">
+              <i class="fas fa-sliders" aria-hidden="true"></i>
+              <span>Cron Expression</span>
+            </h2>
+            <p class="card-hint">
+              Five space-separated fields. Type here, click a field below, or use
+              the builder &mdash; all three stay in sync.
+            </p>
+          </div>
 
           <div class="input-group">
             <input
@@ -164,11 +172,12 @@
               spellcheck="false"
               autocomplete="off"
               aria-label="Cron schedule expression"
+              aria-describedby="cron-translation"
             />
             <button
               type="button"
               id="cron-copy-btn"
-              class="action-btn"
+              class="action-btn action-btn-strong"
               title="Copy expression"
             >
               <i class="fas fa-copy" aria-hidden="true"></i>
@@ -176,98 +185,136 @@
             </button>
           </div>
 
-          <div id="cron-error" class="error-banner" role="alert" aria-live="polite" hidden></div>
+          <div
+            id="cron-error"
+            class="error-banner"
+            role="alert"
+            aria-live="polite"
+            hidden
+          ></div>
+
+          <!-- Field map: makes the 1:1 mapping between token and meaning literal -->
+          <ol
+            id="cron-segments"
+            class="segment-strip"
+            aria-label="Expression fields"
+          ></ol>
+
+          <!-- Primary answer, promoted out of its old nested card -->
+          <div class="translation-banner">
+            <span class="translation-kicker">
+              <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>
+              In plain English
+            </span>
+            <p id="cron-translation" class="translation-text" aria-live="polite">
+              Translating schedule&hellip;
+            </p>
+          </div>
 
           <div class="presets-wrap">
-            <span class="presets-label">Presets:</span>
-            <div id="cron-presets"></div>
-          </div>
-
-          <!-- Human Language Translation Card -->
-          <div class="card translation-card">
-            <h3 class="card-title text-muted">Plain-English Translation</h3>
-            <div id="cron-translation" class="translation-text">
-              Translating schedule&hellip;
-            </div>
+            <span class="presets-label">Start from</span>
+            <div id="cron-presets" class="chip-row"></div>
           </div>
         </div>
 
-        <!-- 5-Part Interactive Picker -->
-        <div class="card">
-          <h2 class="card-title">
-            <i class="fas fa-diagram-project text-muted" aria-hidden="true"></i>
-            <span>Interactive 5-Part Builder</span>
-          </h2>
-          <div class="builder-grid">
-            <div class="builder-field">
-              <label for="part-minute" class="builder-label">Minute</label>
-              <select id="part-minute" class="builder-select">
-                <option value="*">* (Every minute)</option>
-                <option value="0">0 (On the hour)</option>
-                <option value="*/5">*/5 (Every 5 mins)</option>
-                <option value="*/15">*/15 (Every 15 mins)</option>
-                <option value="*/30">*/30 (Every 30 mins)</option>
-                <option value="0,30">0,30 (Top &amp; bottom)</option>
-              </select>
+        <!-- Row 2: controls on the left, live answer on the right -->
+        <div class="workspace">
+          <div class="card">
+            <div class="card-head">
+              <h2 class="card-title">
+                <i class="fas fa-diagram-project" aria-hidden="true"></i>
+                <span>Field Builder</span>
+              </h2>
+              <p class="card-hint">
+                Choose a value for any field to rewrite the expression above.
+              </p>
             </div>
 
-            <div class="builder-field">
-              <label for="part-hour" class="builder-label">Hour</label>
-              <select id="part-hour" class="builder-select">
-                <option value="*">* (Every hour)</option>
-                <option value="0">0 (Midnight / 12 AM)</option>
-                <option value="9">9 (09:00 AM)</option>
-                <option value="12">12 (Noon / 12 PM)</option>
-                <option value="17">17 (05:00 PM)</option>
-                <option value="9-17">9-17 (Business hours)</option>
-                <option value="*/2">*/2 (Every 2 hours)</option>
-                <option value="*/6">*/6 (Every 6 hours)</option>
-              </select>
-            </div>
+            <div class="builder-grid">
+              <div class="builder-field" data-part="minute">
+                <label for="part-minute" class="builder-label">
+                  <span class="builder-dot" aria-hidden="true"></span>Minute
+                </label>
+                <select id="part-minute" class="builder-select">
+                  <option value="*">* (Every minute)</option>
+                  <option value="0">0 (On the hour)</option>
+                  <option value="*/5">*/5 (Every 5 mins)</option>
+                  <option value="*/15">*/15 (Every 15 mins)</option>
+                  <option value="*/30">*/30 (Every 30 mins)</option>
+                  <option value="0,30">0,30 (Top &amp; bottom)</option>
+                </select>
+              </div>
 
-            <div class="builder-field">
-              <label for="part-dom" class="builder-label">Day of Month</label>
-              <select id="part-dom" class="builder-select">
-                <option value="*">* (Every day)</option>
-                <option value="1">1 (1st day of month)</option>
-                <option value="15">15 (Mid-month)</option>
-                <option value="1,15">1,15 (Bi-monthly)</option>
-                <option value="1-7">1-7 (First week)</option>
-              </select>
-            </div>
+              <div class="builder-field" data-part="hour">
+                <label for="part-hour" class="builder-label">
+                  <span class="builder-dot" aria-hidden="true"></span>Hour
+                </label>
+                <select id="part-hour" class="builder-select">
+                  <option value="*">* (Every hour)</option>
+                  <option value="0">0 (Midnight / 12 AM)</option>
+                  <option value="9">9 (09:00 AM)</option>
+                  <option value="12">12 (Noon / 12 PM)</option>
+                  <option value="17">17 (05:00 PM)</option>
+                  <option value="9-17">9-17 (Business hours)</option>
+                  <option value="*/2">*/2 (Every 2 hours)</option>
+                  <option value="*/6">*/6 (Every 6 hours)</option>
+                </select>
+              </div>
 
-            <div class="builder-field">
-              <label for="part-month" class="builder-label">Month</label>
-              <select id="part-month" class="builder-select">
-                <option value="*">* (Every month)</option>
-                <option value="1">1 (January)</option>
-                <option value="*/3">*/3 (Quarterly)</option>
-                <option value="*/6">*/6 (Semi-annually)</option>
-                <option value="12">12 (December)</option>
-              </select>
-            </div>
+              <div class="builder-field" data-part="dayOfMonth">
+                <label for="part-dom" class="builder-label">
+                  <span class="builder-dot" aria-hidden="true"></span>Day of Month
+                </label>
+                <select id="part-dom" class="builder-select">
+                  <option value="*">* (Every day)</option>
+                  <option value="1">1 (1st day of month)</option>
+                  <option value="15">15 (Mid-month)</option>
+                  <option value="1,15">1,15 (Bi-monthly)</option>
+                  <option value="1-7">1-7 (First week)</option>
+                </select>
+              </div>
 
-            <div class="builder-field">
-              <label for="part-dow" class="builder-label">Day of Week</label>
-              <select id="part-dow" class="builder-select">
-                <option value="*">* (Every day)</option>
-                <option value="1-5">1-5 (Monday–Friday)</option>
-                <option value="0,6">0,6 (Weekends)</option>
-                <option value="0">0 (Sunday only)</option>
-                <option value="1">1 (Monday only)</option>
-                <option value="5">5 (Friday only)</option>
-              </select>
+              <div class="builder-field" data-part="month">
+                <label for="part-month" class="builder-label">
+                  <span class="builder-dot" aria-hidden="true"></span>Month
+                </label>
+                <select id="part-month" class="builder-select">
+                  <option value="*">* (Every month)</option>
+                  <option value="1">1 (January)</option>
+                  <option value="*/3">*/3 (Quarterly)</option>
+                  <option value="*/6">*/6 (Semi-annually)</option>
+                  <option value="12">12 (December)</option>
+                </select>
+              </div>
+
+              <div class="builder-field" data-part="dayOfWeek">
+                <label for="part-dow" class="builder-label">
+                  <span class="builder-dot" aria-hidden="true"></span>Day of Week
+                </label>
+                <select id="part-dow" class="builder-select">
+                  <option value="*">* (Every day)</option>
+                  <option value="1-5">1-5 (Monday–Friday)</option>
+                  <option value="0,6">0,6 (Weekends)</option>
+                  <option value="0">0 (Sunday only)</option>
+                  <option value="1">1 (Monday only)</option>
+                  <option value="5">5 (Friday only)</option>
+                </select>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Next 10 Triggers Timeline -->
-        <div class="card">
-          <h2 class="card-title">
-            <i class="fas fa-chart-line text-muted" aria-hidden="true"></i>
-            <span>Next 10 Scheduled Triggers</span>
-          </h2>
-          <div id="cron-timeline"></div>
+          <div class="card rail-card">
+            <div class="card-head">
+              <h2 class="card-title">
+                <i class="fas fa-chart-line" aria-hidden="true"></i>
+                <span>Next 10 Triggers</span>
+              </h2>
+              <p class="card-hint">
+                Computed locally in <span id="cron-tz" class="tz-pill">your timezone</span>
+              </p>
+            </div>
+            <div id="cron-timeline" aria-live="polite"></div>
+          </div>
         </div>
       </section>
 
@@ -277,87 +324,103 @@
         class="panel-container"
         role="tabpanel"
         aria-labelledby="tab-regex"
+        tabindex="0"
         hidden
       >
-        <div class="card">
-          <h2 class="card-title">
-            <i class="fas fa-search text-muted" aria-hidden="true"></i>
-            <span>Regular Expression</span>
-          </h2>
+        <!-- Row 1: the pattern, as a literal, plus its syntax breakdown -->
+        <div class="card hero-card">
+          <div class="card-head">
+            <h2 class="card-title">
+              <i class="fas fa-search" aria-hidden="true"></i>
+              <span>Pattern</span>
+            </h2>
+            <p class="card-hint">
+              Write the body only &mdash; the delimiters and flags are part of the
+              editor.
+            </p>
+          </div>
 
           <div class="input-group">
-            <input
-              type="text"
-              id="regex-pattern"
-              class="primary-input"
-              placeholder="e.g. [a-z0-9_]+@\w+\.\w+"
-              spellcheck="false"
-              autocomplete="off"
-              aria-label="Regular expression pattern"
-            />
+            <div class="regex-literal">
+              <span class="regex-delim" aria-hidden="true">/</span>
+              <input
+                type="text"
+                id="regex-pattern"
+                class="primary-input"
+                placeholder="[a-z0-9_]+@\w+\.\w+"
+                spellcheck="false"
+                autocomplete="off"
+                aria-label="Regular expression pattern"
+              />
+              <span class="regex-delim" aria-hidden="true">/</span>
 
-            <!-- Flag Toggles -->
-            <div id="regex-flags" class="flags-bar" role="group" aria-label="Regex Flags">
-              <button
-                type="button"
-                class="flag-pill active"
-                data-flag="g"
-                title="Global (match all instances)"
-                aria-pressed="true"
+              <div
+                id="regex-flags"
+                class="flags-bar"
+                role="group"
+                aria-label="Regex Flags"
               >
-                g
-              </button>
-              <button
-                type="button"
-                class="flag-pill"
-                data-flag="i"
-                title="Case-insensitive"
-                aria-pressed="false"
-              >
-                i
-              </button>
-              <button
-                type="button"
-                class="flag-pill"
-                data-flag="m"
-                title="Multiline (^ and $ match line boundaries)"
-                aria-pressed="false"
-              >
-                m
-              </button>
-              <button
-                type="button"
-                class="flag-pill"
-                data-flag="s"
-                title="dotAll (. matches newlines)"
-                aria-pressed="false"
-              >
-                s
-              </button>
-              <button
-                type="button"
-                class="flag-pill"
-                data-flag="u"
-                title="Unicode support"
-                aria-pressed="false"
-              >
-                u
-              </button>
-              <button
-                type="button"
-                class="flag-pill"
-                data-flag="y"
-                title="Sticky (match from lastIndex only)"
-                aria-pressed="false"
-              >
-                y
-              </button>
+                <button
+                  type="button"
+                  class="flag-pill active"
+                  data-flag="g"
+                  title="Global — find every match, not just the first"
+                  aria-pressed="true"
+                >
+                  g
+                </button>
+                <button
+                  type="button"
+                  class="flag-pill"
+                  data-flag="i"
+                  title="Case-insensitive"
+                  aria-pressed="false"
+                >
+                  i
+                </button>
+                <button
+                  type="button"
+                  class="flag-pill"
+                  data-flag="m"
+                  title="Multiline — ^ and $ match line boundaries"
+                  aria-pressed="false"
+                >
+                  m
+                </button>
+                <button
+                  type="button"
+                  class="flag-pill"
+                  data-flag="s"
+                  title="dotAll — . also matches newlines"
+                  aria-pressed="false"
+                >
+                  s
+                </button>
+                <button
+                  type="button"
+                  class="flag-pill"
+                  data-flag="u"
+                  title="Unicode support"
+                  aria-pressed="false"
+                >
+                  u
+                </button>
+                <button
+                  type="button"
+                  class="flag-pill"
+                  data-flag="y"
+                  title="Sticky — match from lastIndex only"
+                  aria-pressed="false"
+                >
+                  y
+                </button>
+              </div>
             </div>
 
             <button
               type="button"
               id="regex-copy-btn"
-              class="action-btn"
+              class="action-btn action-btn-strong"
               title="Copy regex with flags"
             >
               <i class="fas fa-copy" aria-hidden="true"></i>
@@ -365,51 +428,62 @@
             </button>
           </div>
 
-          <div id="regex-error" class="error-banner" role="alert" aria-live="polite" hidden></div>
+          <div
+            id="regex-error"
+            class="error-banner"
+            role="alert"
+            aria-live="polite"
+            hidden
+          ></div>
 
           <div class="presets-wrap">
-            <span class="presets-label">Common Presets:</span>
-            <div id="regex-presets"></div>
+            <span class="presets-label">Start from</span>
+            <div id="regex-presets" class="chip-row"></div>
           </div>
 
-          <!-- Syntax Tokens Bar -->
-          <div class="builder-field">
-            <span class="builder-label">Syntax Breakdown</span>
+          <div class="tokens-block">
+            <span class="block-label">Syntax breakdown</span>
             <div id="regex-tokens" class="syntax-tokens-bar"></div>
           </div>
         </div>
 
-        <!-- Test Text with Synchronized Highlight Overlay -->
-        <div class="card">
-          <h2 class="card-title">
-            <i class="fas fa-file-lines text-muted" aria-hidden="true"></i>
-            <span>Test String &amp; Live Match Highlighting</span>
-          </h2>
+        <!-- Row 2: the haystack on the left, the needles on the right -->
+        <div class="workspace">
+          <div class="card">
+            <div class="card-head">
+              <h2 class="card-title">
+                <i class="fas fa-file-lines" aria-hidden="true"></i>
+                <span>Test String</span>
+              </h2>
+              <p class="card-hint">Matches highlight as you type.</p>
+            </div>
 
-          <div class="test-text-wrapper">
-            <div
-              id="regex-highlight-overlay"
-              class="test-backdrop"
-              aria-hidden="true"
-            ></div>
-            <textarea
-              id="regex-textarea"
-              class="test-textarea"
-              placeholder="Type or paste sample text here to test your regular expression..."
-              spellcheck="false"
-              aria-label="Sample test text"
-            ></textarea>
+            <div class="test-text-wrapper">
+              <div
+                id="regex-highlight-overlay"
+                class="test-backdrop"
+                aria-hidden="true"
+              ></div>
+              <textarea
+                id="regex-textarea"
+                class="test-textarea"
+                placeholder="Type or paste sample text here to test your regular expression..."
+                spellcheck="false"
+                aria-label="Sample test text"
+              ></textarea>
+            </div>
           </div>
-        </div>
 
-        <!-- Matches & Capture Groups Results Panel -->
-        <div class="card">
-          <h2 class="card-title">
-            <i class="fas fa-check-circle text-muted" aria-hidden="true"></i>
-            <span>Match Results &amp; Capturing Groups</span>
-          </h2>
-          <div id="regex-matches-summary" class="matches-summary"></div>
-          <ul id="regex-matches-list" class="matches-list"></ul>
+          <div class="card rail-card">
+            <div class="card-head">
+              <h2 class="card-title">
+                <i class="fas fa-check-circle" aria-hidden="true"></i>
+                <span>Matches</span>
+              </h2>
+              <div id="regex-matches-summary" class="matches-summary"></div>
+            </div>
+            <ul id="regex-matches-list" class="matches-list"></ul>
+          </div>
         </div>
       </section>
     </main>
