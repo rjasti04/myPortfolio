@@ -62,6 +62,15 @@
   --drop: 0 6px 0 rgba(0, 0, 0, 0.26), 0 14px 26px rgba(0, 0, 0, 0.34);
   --drop-lift: 0 10px 0 rgba(0, 0, 0, 0.26), 0 22px 38px rgba(0, 0, 0, 0.4);
   color-scheme: dark;
+
+  /* Shared Chrome Token Contract */
+  --chrome-bg: var(--bg-deep);
+  --chrome-border: var(--edge);
+  --chrome-text: var(--text);
+  --chrome-muted: var(--muted);
+  --chrome-action-bg: var(--panel-raised);
+  --chrome-action-hover: var(--edge);
+  --chrome-accent: var(--orange);
 }
 
 *,
@@ -860,11 +869,11 @@ a {
 
 .arcade-footer {
   margin-top: auto;
-  border-top: 1px solid var(--edge);
+  border-top: 1px solid var(--chrome-border);
   padding: 1.5rem;
   text-align: center;
   font-size: 0.8rem;
-  color: var(--muted);
+  color: var(--chrome-muted);
 }
 
 .footer-inner {
@@ -876,13 +885,13 @@ a {
 }
 
 .footer-link {
-  color: var(--muted);
+  color: var(--chrome-muted);
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
 .footer-link:hover {
-  color: var(--orange);
+  color: var(--chrome-accent);
 }
 
 /* ---- Playing ----------------------------------------------------------

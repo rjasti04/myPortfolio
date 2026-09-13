@@ -59,6 +59,15 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+  /* Shared Chrome Token Contract */
+  --chrome-bg: var(--surface);
+  --chrome-border: var(--border);
+  --chrome-text: var(--text);
+  --chrome-muted: var(--text-muted);
+  --chrome-action-bg: var(--surface-raised);
+  --chrome-action-hover: var(--border);
+  --chrome-accent: var(--accent-cron);
 }
 
 [data-theme="dark"] {
@@ -110,6 +119,15 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
+
+  /* Shared Chrome Token Contract (dark) */
+  --chrome-bg: var(--surface);
+  --chrome-border: var(--border);
+  --chrome-text: var(--text);
+  --chrome-muted: var(--text-muted);
+  --chrome-action-bg: var(--surface-raised);
+  --chrome-action-hover: var(--border);
+  --chrome-accent: var(--accent-cron);
 }
 
 *,
@@ -148,8 +166,8 @@ body {
 
 /* App Header & Navigation */
 .app-header {
-  border-bottom: 1px solid var(--border);
-  background-color: var(--surface);
+  border-bottom: 1px solid var(--chrome-border);
+  background-color: var(--chrome-bg);
   position: sticky;
   top: 0;
   z-index: 50;
@@ -284,9 +302,9 @@ body {
 }
 
 .action-btn {
-  background-color: var(--surface-raised);
-  border: 1px solid var(--border);
-  color: var(--text);
+  background-color: var(--chrome-action-bg);
+  border: 1px solid var(--chrome-border);
+  color: var(--chrome-text);
   border-radius: var(--radius-md);
   padding: 0.5rem 0.85rem;
   min-height: 40px;
@@ -305,7 +323,7 @@ body {
 }
 
 .action-btn:hover {
-  background-color: var(--border);
+  background-color: var(--chrome-action-hover);
 }
 
 .action-btn:focus-visible,
@@ -845,12 +863,12 @@ mark.match-alt-1 {
 /* Footer */
 .app-footer {
   margin-top: auto;
-  border-top: 1px solid var(--border);
-  background-color: var(--surface);
+  border-top: 1px solid var(--chrome-border);
+  background-color: var(--chrome-bg);
   padding: 1.5rem;
   text-align: center;
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--chrome-muted);
 }
 
 .footer-container {
@@ -862,12 +880,12 @@ mark.match-alt-1 {
 }
 
 .footer-link {
-  color: var(--text-muted);
+  color: var(--chrome-muted);
   text-decoration: none;
 }
 
 .footer-link:hover {
-  color: var(--primary);
+  color: var(--chrome-accent);
 }
 
 /* Responsive adjustments */

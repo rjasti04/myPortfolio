@@ -38,6 +38,15 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+  /* Shared Chrome Token Contract */
+  --chrome-bg: var(--surface);
+  --chrome-border: var(--border);
+  --chrome-text: var(--text);
+  --chrome-muted: var(--text-muted);
+  --chrome-action-bg: var(--surface);
+  --chrome-action-hover: var(--bg-subtle);
+  --chrome-accent: var(--accent-crypto);
 }
 
 [data-theme="dark"] {
@@ -64,6 +73,15 @@
   --color-warning: #fbbf24;
   --color-error: #f87171;
   --error-bg: rgba(248, 113, 113, 0.14);
+
+  /* Shared Chrome Token Contract (dark) */
+  --chrome-bg: var(--surface);
+  --chrome-border: var(--border);
+  --chrome-text: var(--text);
+  --chrome-muted: var(--text-muted);
+  --chrome-action-bg: var(--surface);
+  --chrome-action-hover: var(--bg-subtle);
+  --chrome-accent: var(--accent-crypto);
 }
 
 /* Base resets & layout */
@@ -92,8 +110,8 @@ body {
 
 /* Header & Brand */
 .app-header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-border);
   position: sticky;
   top: 0;
   z-index: 50;
@@ -242,9 +260,9 @@ body {
   gap: 0.4rem;
   min-height: 40px;
   padding: 0.45rem 0.85rem;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid var(--chrome-border);
+  background: var(--chrome-action-bg);
+  color: var(--chrome-text);
   font-family: inherit;
   font-size: 0.85rem;
   font-weight: 600;
@@ -257,7 +275,7 @@ body {
 }
 
 .action-btn:hover {
-  background: var(--bg-subtle);
+  background: var(--chrome-action-hover);
   border-color: var(--primary);
 }
 
@@ -819,12 +837,12 @@ body {
 /* Footer */
 .app-footer {
   margin-top: auto;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
+  border-top: 1px solid var(--chrome-border);
+  background: var(--chrome-bg);
   padding: 1.5rem;
   text-align: center;
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--chrome-muted);
 }
 
 .footer-container {
@@ -840,12 +858,12 @@ body {
 }
 
 .footer-link {
-  color: var(--text-muted);
+  color: var(--chrome-muted);
   text-decoration: none;
 }
 
 .footer-link:hover {
-  color: var(--primary);
+  color: var(--chrome-accent);
 }
 
 /* Responsive Breakpoints */
