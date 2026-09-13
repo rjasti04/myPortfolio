@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none';"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta
+      name="description"
+      content="Client-side JSON workbench. Format, validate and repair malformed JSON with line-accurate errors, query it with JSONPath or dot-notation, explore it as a collapsible tree, and convert between JSON, YAML, CSV and TypeScript interfaces."
+    />
+    <meta name="theme-color" content="#090d16" />
+    <title>JSON Workbench &amp; Query Studio</title>
+    <link rel="canonical" href="https://rjasti.com/json" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="Rajeev Jasti" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://rjasti.com/json" />
+    <meta property="og:title" content="JSON Workbench &amp; Query Studio" />
+    <meta
+      property="og:description"
+      content="Format, validate, repair, query and convert JSON entirely in your browser. Nothing you paste leaves the tab."
+    />
+    <meta property="og:image" content="https://rjasti.com/json-preview.png" />
+    <meta
+      property="og:image:secure_url"
+      content="https://rjasti.com/json-preview.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="JSON Workbench preview card" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="JSON Workbench &amp; Query Studio" />
+    <meta
+      name="twitter:description"
+      content="A zero-egress JSON workbench: format, repair, query, explore and convert."
+    />
+    <meta name="twitter:image" content="https://rjasti.com/json-preview.png" />
+    <meta name="twitter:image:alt" content="JSON Workbench preview card" />
+    <link rel="icon" href="/favicon.ico" />
+
+    <!-- Self-hosted fonts subset -->
+    <link rel="stylesheet" href="fonts.css" />
+    <link rel="stylesheet" href="json.css" />
+  </head>
+
+  <body>
+    <header class="app-header">
+      <div class="header-container">
+        <!-- Tier 1: Primary App Bar -->
+        <div class="header-primary-bar">
+          <div class="header-left">
+            <div class="brand-wrap">
+              <div class="brand-icon" aria-hidden="true">
+                <i class="fas fa-diagram-project"></i>
+              </div>
+              <div class="brand-text">
+                <div class="brand-title">JSON Workbench</div>
+                <span class="brand-tag">Query Studio</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="header-actions">
+            <a
+              href="/"
+              class="action-btn back-btn"
+              title="Back to Rajeev Jasti Portfolio"
+              aria-label="Back to Portfolio"
+            >
+              <i class="fas fa-arrow-left" aria-hidden="true"></i>
+              <span class="back-label"
+                ><span class="back-label-long">Portfolio</span
+                ><span class="back-label-short">Back</span></span
+              >
+            </a>
+            <button
+              type="button"
+              id="btn-clear-all"
+              class="action-btn text-danger"
+              title="Wipe every field and the stored preferences"
+              aria-label="Clear all workbench data and storage"
+            >
+              <i class="fas fa-trash-can" aria-hidden="true"></i>
+              <span class="action-label">Clear</span>
+            </button>
+            <button
+              type="button"
+              id="theme-toggle-btn"
+              class="action-btn action-btn-icon"
+              title="Toggle Light / Dark theme"
+              aria-label="Toggle theme"
+            >
+              <i class="fas fa-sun" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Tier 2: Segmented Mode Switcher -->
+        <nav class="mode-tabs" role="tablist" aria-label="Workbench mode">
+          <button
+            type="button"
+            class="tab-btn active"
+            data-tab="format"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-format"
+            id="tab-format"
+          >
+            <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>
+            <span>Format</span>
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            data-tab="query"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-query"
+            tabindex="-1"
+            id="tab-query"
+          >
+            <i class="fas fa-filter" aria-hidden="true"></i>
+            <span>Query</span>
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            data-tab="tree"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-tree"
+            tabindex="-1"
+            id="tab-tree"
+          >
+            <i class="fas fa-layer-group" aria-hidden="true"></i>
+            <span>Tree</span>
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            data-tab="convert"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-convert"
+            tabindex="-1"
+            id="tab-convert"
+          >
+            <i class="fas fa-table-list" aria-hidden="true"></i>
+            <span>Convert</span>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <!-- The source document. One parse feeds all four panels below. -->
+      <section class="card source-card" aria-labelledby="source-heading">
+        <div class="card-header-row">
+          <div class="card-head">
+            <h1 class="card-title" id="source-heading">
+              <i class="fas fa-code" aria-hidden="true"></i>Source document
+            </h1>
+            <p class="card-hint">
+              Paste JSON once — every tab reads the same document. Nothing is
+              uploaded, and nothing is stored unless you ask.
+            </p>
+          </div>
+          <div class="control-row">
+            <button type="button" id="btn-sample" class="btn-sm">
+              <i class="fas fa-file-lines" aria-hidden="true"></i>Load sample
+            </button>
+            <label class="checkbox-label" for="remember-document">
+              <input type="checkbox" id="remember-document" />
+              Remember my document
+            </label>
+          </div>
+        </div>
+
+        <label class="sr-only" for="source-input">JSON source document</label>
+        <textarea
+          id="source-input"
+          class="code-area source-area"
+          spellcheck="false"
+          autocomplete="off"
+          autocapitalize="off"
+          placeholder='{ "paste": "your JSON here" }'
+        ></textarea>
+
+        <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Choose a file, or drop one here">
+          <div class="dropzone-icon" aria-hidden="true">
+            <i class="fas fa-download"></i>
+          </div>
+          <div class="dropzone-text">Drop a .json, .yaml or .csv file, or click to choose</div>
+          <div class="dropzone-limit">Up to 5 MB &bull; read in your browser, never uploaded</div>
+          <input type="file" id="file-input" class="sr-only" accept=".json,.yaml,.yml,.csv,.txt,application/json,text/plain,text/csv" />
+        </div>
+
+        <p id="source-status" class="status-strip is-idle" role="status" aria-live="polite">
+          Paste or drop a JSON document to begin.
+        </p>
+      </section>
+
+      <!-- Format / validate / repair -->
+      <section class="panel-container" id="panel-format" role="tabpanel" aria-labelledby="tab-format">
+        <div class="card">
+          <div class="card-header-row">
+            <div class="card-head">
+              <h2 class="card-title"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>Format, minify &amp; repair</h2>
+              <p class="card-hint">
+                Validation errors carry a real <code>line:column</code>. Repair is a
+                separate, explicit step and reports every change it makes.
+              </p>
+            </div>
+            <div class="control-row">
+              <label class="control-label" for="indent-select">Indent</label>
+              <select id="indent-select" class="select-input">
+                <option value="2">2 spaces</option>
+                <option value="4">4 spaces</option>
+                <option value="tab">Tab</option>
+              </select>
+              <label class="checkbox-label" for="sort-keys">
+                <input type="checkbox" id="sort-keys" />
+                Sort keys
+              </label>
+            </div>
+          </div>
+
+          <div class="transform-rail">
+            <button type="button" id="btn-beautify" class="btn btn-primary">
+              <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>Beautify
+            </button>
+            <button type="button" id="btn-minify" class="btn btn-secondary">
+              <i class="fas fa-arrow-left" aria-hidden="true"></i>Minify
+            </button>
+            <button type="button" id="btn-repair" class="btn btn-secondary">
+              <i class="fas fa-screwdriver-wrench" aria-hidden="true"></i>Repair
+            </button>
+            <button type="button" id="btn-apply-format" class="btn btn-secondary">
+              <i class="fas fa-rotate-left" aria-hidden="true"></i>Use as document
+            </button>
+          </div>
+
+          <div class="output-wrap">
+            <div class="output-toolbar">
+              <span class="output-label">Result</span>
+              <button type="button" id="btn-copy-format" class="btn-sm">
+                <i class="fas fa-copy" aria-hidden="true"></i>Copy
+              </button>
+              <button type="button" id="btn-download-format" class="btn-sm">
+                <i class="fas fa-download" aria-hidden="true"></i>Download
+              </button>
+            </div>
+            <pre class="code-output"><code id="format-output"></code></pre>
+          </div>
+
+          <div id="repair-log" class="repair-log" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <!-- Query studio -->
+      <section class="panel-container" id="panel-query" role="tabpanel" aria-labelledby="tab-query" hidden>
+        <div class="card">
+          <div class="card-header-row">
+            <div class="card-head">
+              <h2 class="card-title"><i class="fas fa-filter" aria-hidden="true"></i>Query studio</h2>
+              <p class="card-hint">
+                JSONPath, plain dot-notation, or <code>filter(...)</code>. Filter
+                expressions are parsed and walked, never evaluated as script.
+              </p>
+            </div>
+            <div class="control-row">
+              <label class="control-label" for="dialect-select">Paths as</label>
+              <select id="dialect-select" class="select-input">
+                <option value="jsonpath">JSONPath</option>
+                <option value="dot">Dot notation</option>
+                <option value="bracket">Bracket</option>
+              </select>
+            </div>
+          </div>
+
+          <label class="sr-only" for="query-input">Query expression</label>
+          <input
+            type="text"
+            id="query-input"
+            class="text-input query-input"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="items[0].id   ·   $..price   ·   filter(price > 50)"
+          />
+
+          <div class="chips-row">
+            <span class="control-label">Try</span>
+            <button type="button" id="ex-dot" class="btn-sm">members[0].name</button>
+            <button type="button" id="ex-descend" class="btn-sm">$..price</button>
+            <button type="button" id="ex-filter" class="btn-sm">members.filter(price &gt; 50)</button>
+          </div>
+
+          <p id="query-status" class="status-strip is-idle" role="status" aria-live="polite">
+            Try items[0].id, $..price, or filter(price &gt; 50).
+          </p>
+
+          <div class="output-wrap">
+            <div class="output-toolbar">
+              <span class="output-label">Matches</span>
+              <button type="button" id="btn-copy-query" class="btn-sm">
+                <i class="fas fa-copy" aria-hidden="true"></i>Copy
+              </button>
+              <button type="button" id="btn-download-query" class="btn-sm">
+                <i class="fas fa-download" aria-hidden="true"></i>Download
+              </button>
+            </div>
+            <pre class="code-output"><code id="query-output"></code></pre>
+          </div>
+
+          <div id="query-paths" class="path-list" aria-label="Matched paths"></div>
+        </div>
+      </section>
+
+      <!-- Tree explorer -->
+      <section class="panel-container" id="panel-tree" role="tabpanel" aria-labelledby="tab-tree" hidden>
+        <div class="card">
+          <div class="card-header-row">
+            <div class="card-head">
+              <h2 class="card-title"><i class="fas fa-layer-group" aria-hidden="true"></i>Tree explorer</h2>
+              <p class="card-hint">
+                Nodes build as you expand them, so a large document stays
+                responsive. Click any node to put its path in the breadcrumb.
+              </p>
+            </div>
+            <div class="control-row">
+              <button type="button" id="btn-expand-all" class="btn-sm">
+                <i class="fas fa-chevron-down" aria-hidden="true"></i>Expand all
+              </button>
+              <button type="button" id="btn-collapse-all" class="btn-sm">
+                <i class="fas fa-chevron-up" aria-hidden="true"></i>Collapse all
+              </button>
+            </div>
+          </div>
+
+          <div class="breadcrumb-bar">
+            <code id="breadcrumb" class="breadcrumb">$</code>
+            <button type="button" id="btn-copy-path" class="btn-sm">
+              <i class="fas fa-copy" aria-hidden="true"></i>Copy path
+            </button>
+          </div>
+
+          <p id="tree-status" class="status-strip is-idle" role="status" aria-live="polite">
+            Waiting for a document.
+          </p>
+
+          <div class="split-view">
+            <div class="split-pane">
+              <div class="output-toolbar">
+                <span class="output-label">Tree</span>
+              </div>
+              <div id="tree-container" class="tree-view"></div>
+            </div>
+            <div class="split-pane">
+              <div class="output-toolbar">
+                <span class="output-label">Code</span>
+              </div>
+              <pre class="code-output tree-code-pane"><code id="tree-code"></code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Multi-format conversion -->
+      <section class="panel-container" id="panel-convert" role="tabpanel" aria-labelledby="tab-convert" hidden>
+        <div class="card">
+          <div class="card-header-row">
+            <div class="card-head">
+              <h2 class="card-title"><i class="fas fa-table-list" aria-hidden="true"></i>Convert</h2>
+              <p class="card-hint">
+                Each converter states its own limits — none of them guesses at
+                input it cannot represent faithfully.
+              </p>
+            </div>
+            <div class="control-row">
+              <label class="control-label" for="convert-format">Format</label>
+              <select id="convert-format" class="select-input">
+                <option value="yaml">YAML</option>
+                <option value="csv">CSV</option>
+                <option value="typescript">TypeScript</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="transform-rail" id="convert-direction">
+            <div class="direction-toggle" role="group" aria-label="Conversion direction">
+              <button type="button" class="dir-btn active" data-direction="from-json" aria-pressed="true">
+                JSON &rarr; Format
+              </button>
+              <button type="button" class="dir-btn" data-direction="to-json" aria-pressed="false">
+                Format &rarr; JSON
+              </button>
+            </div>
+          </div>
+
+          <div class="control-row" id="csv-options" hidden>
+            <label class="control-label" for="csv-delimiter">Delimiter</label>
+            <select id="csv-delimiter" class="select-input">
+              <option value=",">Comma</option>
+              <option value=";">Semicolon</option>
+              <option value="&#9;">Tab</option>
+              <option value="|">Pipe</option>
+            </select>
+            <label class="checkbox-label" for="csv-infer">
+              <input type="checkbox" id="csv-infer" checked />
+              Infer numbers and booleans
+            </label>
+          </div>
+
+          <div class="control-row" id="ts-options" hidden>
+            <label class="control-label" for="ts-root">Root interface</label>
+            <input type="text" id="ts-root" class="text-input ts-root-input" value="Root" spellcheck="false" />
+          </div>
+
+          <div id="convert-source-wrap" hidden>
+            <label class="sr-only" for="convert-source">Source to convert into JSON</label>
+            <textarea
+              id="convert-source"
+              class="code-area short-area"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="Paste YAML or CSV here"
+            ></textarea>
+          </div>
+
+          <p id="convert-status" class="status-strip is-idle" role="status" aria-live="polite">
+            Waiting for a document.
+          </p>
+
+          <div class="output-wrap">
+            <div class="output-toolbar">
+              <span class="output-label" id="convert-output-label">YAML</span>
+              <button type="button" id="btn-copy-convert" class="btn-sm">
+                <i class="fas fa-copy" aria-hidden="true"></i>Copy
+              </button>
+              <button type="button" id="btn-download-convert" class="btn-sm">
+                <i class="fas fa-download" aria-hidden="true"></i>Download
+              </button>
+              <button type="button" id="btn-use-as-document" class="btn-sm" hidden>
+                <i class="fas fa-rotate-left" aria-hidden="true"></i>Use as document
+              </button>
+            </div>
+            <pre class="code-output"><code id="convert-output"></code></pre>
+          </div>
+
+          <p id="convert-note" class="card-hint convert-note"></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <div class="footer-container">
+        <p>
+          100% Client-Side Evaluation &bull; No Network Egress &bull; Filters Are
+          Parsed, Never Evaluated
+        </p>
+        <p>
+          <a href="/" class="footer-link">Rajeev Jasti &mdash; Portfolio</a> &bull;
+          <a href="/#apps" class="footer-link">Apps Shelf</a> &bull;
+          <a href="/crypto" class="footer-link">Crypto &amp; Encoders</a> &bull;
+          <a href="/cron" class="footer-link">Cron &amp; Regex Visualizer</a>
+        </p>
+      </div>
+    </footer>
+
+    <!-- Entry Point Module -->
+    <script type="module" src="js/json/json-main.js"></script>
+  </body>
+</html>

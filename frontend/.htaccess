@@ -38,6 +38,12 @@
 
   # 5. Alias /encode to /crypto#encoders
   RewriteRule ^encode/?$ /crypto#encoders [R=301,NE,L]
+
+  # 6. Alias /yaml to /json#convert
+  RewriteRule ^yaml/?$ /json#convert [R=301,NE,L]
+
+  # 7. Alias /jsonpath to /json#query
+  RewriteRule ^jsonpath/?$ /json#query [R=301,NE,L]
 </IfModule>
 
 # Enable Gzip Compression
