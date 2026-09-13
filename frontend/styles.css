@@ -8124,8 +8124,8 @@ nav a:hover .nav-shortcut {
 
 /* ---- The stream ---------------------------------------------------------
    The coloured dots say the pipeline is healthy; this says it is moving. A
-   pulse crosses the three connectors in turn - out of Browser, past Kafka,
-   past the API, into Postgres - so one packet appears to travel the length
+   pulse crosses the three connectors in turn - out of Browser, past the API,
+   past Kafka, into Postgres - so one packet appears to travel the length
    of the chain in the direction the events really go.
 
    It is gated rather than run unconditionally. Everything else on this card

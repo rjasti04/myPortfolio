@@ -829,7 +829,7 @@ function paintChain() {
   if (!kafka) {
     setStage("act-stage-kafka", "idle", "Queue depth not reported by the API yet");
   } else if ((kafka.mode || "bypass") === "bypass") {
-    setStage("act-stage-kafka", "bypass", "Broker bypassed - events go straight to the API");
+    setStage("act-stage-kafka", "bypass", "Broker bypassed - events go straight to the database");
   } else {
     const lag = Number.isFinite(kafka.lag) ? `, lag ${kafka.lag}` : "";
     setStage("act-stage-kafka", kafka.health || "ok", `${formatCount(kafka.messages ?? 0)} messages${lag}`);
