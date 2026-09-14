@@ -1,0 +1,857 @@
+/* Code Difference Checker — standalone developer tool stylesheet.
+ * Vanilla CSS, zero third-party assets, WCAG AA contrast.
+ *
+ * Structure follows the shared app-chrome contract in docs/FRONTEND.md: the
+ * same class names and DOM shape as /cron, /crypto, /json and /arcade, coloured
+ * from this app's own palette through the seven --chrome-* tokens.
+ *
+ * The brand hue is amber. Every other Dev Tools app on the shelf sits in the
+ * blue-to-violet range, and more to the point this page spends its whole life
+ * painting green and red: an accent from either family would read as a diff
+ * state rather than as chrome.
+ */
+
+:root {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --bg-subtle: #f1f5f9;
+  --surface: #fff;
+  --surface-raised: #f8fafc;
+  --border: #e2e8f0;
+  --border-focus: #b45309;
+  --text: #0f172a;
+  --text-muted: #64748b;
+
+  --primary: #b45309;
+  --primary-hover: #92400e;
+  --primary-soft: rgb(180 83 9 / 12%);
+
+  --color-success: #10b981;
+  --color-warning: #d97706;
+  --color-error: #ef4444;
+  --error-bg: rgb(239 68 68 / 8%);
+  --warn-bg: rgb(217 119 6 / 10%);
+  --success-bg: rgb(16 185 129 / 10%);
+
+  /* Diff states. Backgrounds stay light enough for syntax colour to survive on
+     top of them; the refine tints are the same hue at roughly triple strength,
+     so a changed token reads as "more of the same" rather than a new colour. */
+  --diff-ins-bg: rgb(16 185 129 / 11%);
+  --diff-ins-edge: #059669;
+  --diff-ins-refine: rgb(16 185 129 / 32%);
+  --diff-del-bg: rgb(239 68 68 / 9%);
+  --diff-del-edge: #dc2626;
+  --diff-del-refine: rgb(239 68 68 / 28%);
+  --diff-gutter-bg: #f1f5f9;
+  --diff-gutter-text: #94a3b8;
+
+  /* Syntax categories. Diff colour always wins over these. */
+  --tok-string: #047857;
+  --tok-comment: #64748b;
+  --tok-number: #b45309;
+  --tok-keyword: #7c3aed;
+  --tok-punct: #475569;
+
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", menlo, monaco, consolas, monospace;
+
+  /* Sticky-header height; panels key their scroll-margin off it. */
+  --header-h: 57px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 5%);
+
+  /* Shared Chrome Token Contract */
+  --chrome-bg: var(--surface);
+  --chrome-border: var(--border);
+  --chrome-text: var(--text);
+  --chrome-muted: var(--text-muted);
+  --chrome-action-bg: var(--surface);
+  --chrome-action-hover: var(--bg-subtle);
+  --chrome-accent: var(--primary);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0f1a;
+  --bg-subtle: #111827;
+  --surface: #151c2c;
+  --surface-raised: #1e2739;
+  --border: #2a3446;
+  --border-focus: #fbbf24;
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+
+  --primary: #fbbf24;
+  --primary-hover: #f59e0b;
+  --primary-soft: rgb(251 191 36 / 16%);
+
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --error-bg: rgb(248 113 113 / 14%);
+  --warn-bg: rgb(251 191 36 / 14%);
+  --success-bg: rgb(52 211 153 / 14%);
+
+  --diff-ins-bg: rgb(52 211 153 / 13%);
+  --diff-ins-edge: #34d399;
+  --diff-ins-refine: rgb(52 211 153 / 34%);
+  --diff-del-bg: rgb(248 113 113 / 13%);
+  --diff-del-edge: #f87171;
+  --diff-del-refine: rgb(248 113 113 / 32%);
+  --diff-gutter-bg: #111827;
+  --diff-gutter-text: #64748b;
+
+  --tok-string: #6ee7b7;
+  --tok-comment: #7c8aa3;
+  --tok-number: #fcd34d;
+  --tok-keyword: #c4b5fd;
+  --tok-punct: #94a3b8;
+
+  /* Shared Chrome Token Contract (dark) */
+  --chrome-bg: var(--surface);
+  --chrome-border: var(--border);
+  --chrome-text: var(--text);
+  --chrome-muted: var(--text-muted);
+  --chrome-action-bg: var(--surface);
+  --chrome-action-hover: var(--bg-subtle);
+  --chrome-accent: var(--primary);
+}
+
+/* Base resets & layout */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.header-container {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 0.65rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.action-btn:focus-visible,
+.tab-btn:focus-visible,
+.seg-btn:focus-visible,
+.btn-sm:focus-visible,
+.diff-view:focus-visible,
+.diff-expander:focus-visible,
+.code-area:focus-visible,
+.opt input:focus-visible,
+.opt select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.action-btn.cleared {
+  background: var(--color-success);
+  color: #fff;
+  border-color: var(--color-success);
+}
+
+/* Main container */
+.main-content {
+  flex: 1;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.panel-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card-header-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-right: auto;
+}
+
+.card-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Panes */
+.pane-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.pane-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.code-area {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  color: var(--text);
+  resize: vertical;
+}
+
+.source-area {
+  height: 220px;
+}
+
+.pane-card.is-dragover .code-area {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+/* Buttons */
+.btn-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.7rem;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-sm:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-sm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-sm.copied {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+/* Options */
+.options-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.1rem;
+}
+
+.seg-group {
+  display: inline-flex;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 0.2rem;
+  gap: 0.2rem;
+}
+
+.seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.8rem;
+  min-height: 32px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
+.seg-btn.active {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.opt input[type="checkbox"] {
+  accent-color: var(--primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.opt select {
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.opt-remember {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+/* Result bar */
+.result-card {
+  gap: 0.85rem;
+}
+
+.result-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+}
+
+.stat-group {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.stat-add {
+  color: var(--diff-ins-edge);
+}
+
+.stat-del {
+  color: var(--diff-del-edge);
+}
+
+.stat-mod {
+  color: var(--primary);
+}
+
+.algo-note {
+  font-size: 0.75rem;
+  color: var(--color-warning);
+  background: var(--warn-bg);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.5rem;
+}
+
+.result-actions {
+  margin-left: auto;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.parse-error {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--color-error);
+  background: var(--error-bg);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+}
+
+/* The diff itself */
+.diff-view {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.diff-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+}
+
+.diff-hunk-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.3rem 0.75rem;
+  background: var(--bg-subtle);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.diff-row {
+  display: grid;
+}
+
+.diff-shell[data-view="split"] .diff-row {
+  grid-template-columns: 1fr 1fr;
+}
+
+.diff-shell[data-view="unified"] .diff-row {
+  grid-template-columns: 1fr;
+}
+
+.diff-half {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: start;
+  border-right: 1px solid var(--border);
+  min-width: 0;
+}
+
+.diff-half--unified {
+  grid-template-columns: auto auto auto minmax(0, 1fr);
+  border-right: none;
+}
+
+.diff-half:last-child {
+  border-right: none;
+}
+
+.diff-gutter {
+  padding: 0 0.5rem;
+  text-align: right;
+  color: var(--diff-gutter-text);
+  background: var(--diff-gutter-bg);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  min-width: 3ch;
+}
+
+.diff-marker {
+  width: 1.5ch;
+  text-align: center;
+  user-select: none;
+  font-weight: 700;
+}
+
+.diff-code {
+  padding: 0 0.6rem;
+  white-space: pre;
+  overflow-x: auto;
+  min-width: 0;
+  tab-size: 4;
+}
+
+.diff-shell[data-wrap="on"] .diff-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: visible;
+}
+
+/* Diff state. These win over syntax colour — the difference is the signal and
+   the token colour is only context. */
+.diff-half[data-kind="insert"] {
+  background: var(--diff-ins-bg);
+}
+
+.diff-half[data-kind="delete"] {
+  background: var(--diff-del-bg);
+}
+
+.diff-half[data-kind="insert"] .diff-marker {
+  color: var(--diff-ins-edge);
+}
+
+.diff-half[data-kind="delete"] .diff-marker {
+  color: var(--diff-del-edge);
+}
+
+/* An empty filler cell opposite an inserted or deleted line in split view. */
+.diff-half[data-kind="void"] {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 6px,
+    var(--bg-subtle) 6px,
+    var(--bg-subtle) 12px
+  );
+}
+
+.rf-ins {
+  background: var(--diff-ins-refine);
+  border-radius: 2px;
+}
+
+.rf-del {
+  background: var(--diff-del-refine);
+  border-radius: 2px;
+}
+
+.diff-row.is-current .diff-half {
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+/* Syntax categories */
+.tok-string {
+  color: var(--tok-string);
+}
+
+.tok-comment {
+  color: var(--tok-comment);
+  font-style: italic;
+}
+
+.tok-number {
+  color: var(--tok-number);
+}
+
+.tok-keyword {
+  color: var(--tok-keyword);
+  font-weight: 600;
+}
+
+.tok-punct {
+  color: var(--tok-punct);
+}
+
+/* Collapsed unchanged regions */
+.diff-expander {
+  display: block;
+  width: 100%;
+  padding: 0.35rem 0.75rem;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.diff-expander:hover {
+  color: var(--primary);
+}
+
+/* About */
+.prose-card {
+  gap: 0.85rem;
+  max-width: 74ch;
+}
+
+.prose-card p {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.prose-heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  color: var(--primary);
+}
+
+.prose-list {
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.prose-card code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.05rem 0.3rem;
+}
+
+.footer-container {
+  max-width: 1480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (max-width: 960px) {
+  :root,
+  [data-theme="dark"] {
+    --header-h: 88px;
+  }
+
+  .main-content {
+    padding: 1.5rem 1rem 3rem;
+    gap: 1.25rem;
+  }
+
+  .panel-container {
+    gap: 1.25rem;
+  }
+
+  .card {
+    padding: 1.25rem;
+  }
+
+  .app-header {
+    min-height: 88px;
+  }
+
+  .header-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    padding: 0.45rem 0.85rem;
+  }
+
+  .header-primary-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 44px;
+    gap: 0.5rem;
+  }
+
+  .header-left {
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 0.5rem;
+  }
+
+  .brand-wrap {
+    min-width: 0;
+    gap: 0.5rem;
+  }
+
+  .brand-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
+
+  .brand-title {
+    font-size: 0.98rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .brand-tag {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .action-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.45rem 0.65rem;
+  }
+
+  .mode-tabs {
+    width: max-content;
+    max-width: 100%;
+    margin-inline: auto;
+    justify-content: safe center;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .mode-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.82rem;
+    scroll-snap-align: center;
+    white-space: nowrap;
+  }
+
+  .pane-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .opt-remember {
+    margin-left: 0;
+  }
+}
+
+/* Mobile L — every target is at least 44x44 (WCAG 2.5.5), and a side-by-side
+   diff stops being readable, so the layout switch is forced rather than
+   offered. The Split control is disabled by diff-ui.js at this width. */
+@media (max-width: 640px) {
+  .back-btn .back-label,
+  .action-btn .action-label {
+    display: none;
+  }
+
+  .btn-sm {
+    min-height: 40px;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .seg-btn {
+    min-height: 40px;
+  }
+
+  .code-area {
+    font-size: 0.8rem;
+  }
+
+  .source-area {
+    height: 170px;
+  }
+
+  .diff-view {
+    font-size: 0.76rem;
+    max-height: 60vh;
+  }
+
+  .diff-shell[data-view="split"] .diff-row {
+    grid-template-columns: 1fr;
+  }
+
+  .result-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .app-footer {
+    padding: 1rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* Mobile S — the brand subtitle is already gone; step the rest down. */
+@media (max-width: 430px) {
+  .header-container {
+    padding: 0.35rem 0.65rem;
+    gap: 0.35rem;
+  }
+
+  .action-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.45rem;
+  }
+
+  .brand-title {
+    font-size: 0.92rem;
+  }
+
+  .mode-tabs {
+    padding: 0.2rem;
+    gap: 0.25rem;
+  }
+
+  .tab-btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.76rem;
+    gap: 0.3rem;
+  }
+
+  .card {
+    padding: 1rem;
+    gap: 1rem;
+    border-radius: var(--radius-md);
+  }
+
+  .card-title {
+    font-size: 1rem;
+  }
+
+  .diff-gutter {
+    padding: 0 0.3rem;
+    min-width: 2.5ch;
+  }
+}

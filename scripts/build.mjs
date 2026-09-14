@@ -82,8 +82,28 @@ const SKIP_DIRS = new Set(["tests"]);
    The CSS ceiling moves less than the JS one because json.css came in under
    estimate. It is a fourth copy of the app chrome described above, which
    makes that shared-stylesheet reclaim worth more than it was - still its own
-   change, and still the first place to look before raising these again. */
-const BUDGETS_KIB = { js: 355, css: 265 };
+   change, and still the first place to look before raising these again.
+
+   Raised 355/265 -> 390/285 for /diff, the seventh standalone app, measured
+   at 29.3 KiB of JS and 14.1 KiB of CSS. The JS is Myers' O(ND) algorithm in
+   its linear-space divide-and-conquer form, a histogram fallback for the case
+   where Myers' edit distance explodes, a token-level refiner that reuses the
+   same engine one scale down, a unified-patch writer and parser, a generic
+   syntax lexer and the renderer. No dependency: jsdiff was considered and
+   rejected at ~12 KiB, a third vendored library to audit, and the loss of the
+   written-from-scratch claim the rest of the Dev Tools shelf makes.
+
+   diff.css was a third copy of the app chrome, and that extraction has since
+   been done: app-chrome.css is emitted as its own asset and linked by
+   /crypto, /json and /diff. It reclaimed 3.0 KiB - less than the ~10 KiB
+   guessed here before anyone measured it, because only three of the apps were
+   ever really copies. /arcade never wore this chrome (its masthead is a
+   different component) and /cron only looks like it does: it breaks to two
+   tiers at 860px rather than 960px and to its smallest tier at 480px rather
+   than 430px, so adopting the shared file would move two of its breakpoints.
+   Both stay out, deliberately. The real win was removing three hand-synced
+   copies of a 200-line block, not the bytes. */
+const BUDGETS_KIB = { js: 390, css: 285 };
 
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);
@@ -261,9 +281,22 @@ async function main() {
     }
   }
 
+  // The code difference checker at /diff is a separate standalone page with its own entry.
+  const diffApp = await esbuild.build({
+    entryPoints: [join(SRC, "js/diff/diff-main.js")],
+    bundle: true, minify: true, sourcemap: true, format: "esm", target: ["es2022"],
+    outdir: join(OUT, "assets"), entryNames: "diff-[hash]", metafile: true, logLevel: "warning",
+  });
+  for (const [outPath, meta] of Object.entries(diffApp.metafile.outputs)) {
+    if (outPath.endsWith(".map")) continue;
+    if (meta.entryPoint) {
+      rewrites.set("js/diff/diff-main.js", relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
+    }
+  }
+
   // --- CSS -----------------------------------------------------------------
   const cssAssets = new Set();
-  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "arcade.css", "cron.css", "crypto.css", "json.css"]) {
+  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "app-chrome.css", "arcade.css", "cron.css", "crypto.css", "json.css", "diff.css"]) {
     const result = await esbuild.build({
       entryPoints: [join(SRC, css)],
       bundle: true, minify: true, sourcemap: true,

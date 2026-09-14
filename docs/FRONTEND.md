@@ -489,10 +489,11 @@ missing, so a failed update is visible but not dangerous.
 | `android-chrome-maskable-512x512.png` | The same badge inset into the maskable safe zone, on the manifest `background_color`. **Generated** by `scripts/generate_launch_images.py` — see [Launch screens](#launch-screens) |
 | `launch/launch-<w>x<h>-<dpr>x.png` | 17 portrait `apple-touch-startup-image` bitmaps, one per iOS device resolution. **Generated** by the same script — see [Launch screens](#launch-screens) |
 | `apple-touch-icon.png`, `favicon.ico` | iOS and browser icons |
-| `social-preview.png`, `ucl-preview.png`, `arcade-preview.png`, `worldcup-preview.png`, `cron-preview.png`, `crypto-preview.png`, `json-preview.png` | The seven 1200x630 Open Graph cards, one per shareable page. **Generated** by `scripts/generate_social_previews.py` — see [Open Graph cards](#open-graph-cards). `ucl-preview.png` and `arcade-preview.png` double as the display images for the two tiles in the Apps section |
+| `social-preview.png`, `ucl-preview.png`, `arcade-preview.png`, `worldcup-preview.png`, `cron-preview.png`, `crypto-preview.png`, `json-preview.png`, `diff-preview.png` | The eight 1200x630 Open Graph cards, one per shareable page. **Generated** by `scripts/generate_social_previews.py` — see [Open Graph cards](#open-graph-cards). `ucl-preview.png` and `arcade-preview.png` double as the display images for the two tiles in the Apps section |
 | `rjasti_resume.pdf` | Downloadable résumé (the doubled extension is the actual filename) |
 | `robots.txt` | Allows everything except `/api/`; points at the sitemap |
-| `sitemap.xml` | Seven URL entries — `/`, `/ucl`, `/arcade`, `/worldcup`, `/cron`, `/crypto` and `/json`, each with its Open Graph card as an image annotation |
+| `app-chrome.css` | The shared header and footer rules for `/crypto`, `/json` and `/diff` — see [App chrome](#app-chrome) |
+| `sitemap.xml` | Eight URL entries — `/`, `/ucl`, `/arcade`, `/worldcup`, `/cron`, `/crypto`, `/json` and `/diff`, each with its Open Graph card as an image annotation |
 | `arcade.html`, `arcade.css` | Standalone games page served at `/arcade` — 2048, Tetris, Flapper, Stack, Snake and Breaker, with the game code in `js/arcade/` and built as its own esbuild entry point. Unlike the two predictors it holds the SPA's line on third-party origins: it links the site's own `fonts.css` for Plus Jakarta Sans and, for the wordmark alone, Sniglet subset to the 26 letters it can set, and draws its icons as inline SVG, so it loads nothing the site does not already serve itself, and its own CSP is `script-src 'self'` with no inline script to hash. Two layouts, switched by `is-playing` on `<body>` from `shell.js`: the launcher scrolls normally, and a running game collapses the page to one viewport with a single play bar so the board takes the rest of the screen. Which game is on screen is the URL fragment, so `/arcade#snake` is a link straight into one and the browser's back button leaves a game rather than the site. Linked from the **Apps** section of the SPA as a tile in `.app-grid`; the game rules are covered by `frontend/tests/arcade.test.js` |
 | `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup`, with its own canonical and Open Graph tags — see [Apache configuration](#apache-configuration). Its header and footer follow the shared [App chrome](#app-chrome) pattern, and its theme is `data-theme` on `<html>` under the shared `theme` key |
 | `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the **Apps** section of the SPA as a tile in `.app-grid` — `#ucl-link` in the header is a second, hidden entry point kept only as a fallback; covered by `frontend/tests/ucl-bracket.test.js`. Its header and footer follow the shared [App chrome](#app-chrome) pattern, and its theme is `data-theme` on `<html>` under the shared `theme` key |
@@ -505,13 +506,31 @@ deploy's `rsync frontend/` never publishes any of them to the web root.
 
 ## App chrome
 
-The six standalone apps linked from `/#apps` - `/ucl`, `/worldcup`, `/arcade`,
-`/cron`, `/crypto` and `/json` - were written independently and had three
-unrelated header patterns between them. They now share one **structure** and
-keep six different palettes: same class names, same DOM shape, same breakpoints, each
-app colouring it from its own tokens.
+The standalone apps linked from `/#apps` were written independently and had
+three unrelated header patterns between them. Most now share one **structure**
+and keep their own palettes: same class names, same DOM shape, each app
+colouring it from its own tokens. `/diff` takes amber because every other Dev
+Tools app sits in the blue-to-violet range, and more to the point that page
+spends its life painting green and red — an accent from either family would read
+as a diff state rather than as chrome.
 
-Header, in every app:
+`frontend/app-chrome.css` holds the shared rules and is linked by **`/crypto`,
+`/json` and `/diff`**, before the app's own stylesheet so app rules still win.
+It is a separate `<link>` rather than an `@import` because esbuild inlines
+`@import` into every bundle, which would have kept all three copies and saved
+nothing. Extracting it reclaimed 3.0 KiB.
+
+Two apps are deliberately outside it, and neither is an oversight:
+
+| App | Why it is out |
+| :--- | :--- |
+| `/arcade` | It never wore this chrome. Its header is `.masthead` + `.wordmark`, a different component; it shares only `.footer-link`, which it defines itself |
+| `/cron` | It looks like a copy and is not one. It breaks its header to two tiers at **860px** where the others use 960px, drops to its smallest tier at **480px** rather than 430px, sizes its tabs larger and paints its brand icon with a gradient. Adopting the shared file would move two of its breakpoints — a visible change to a shipped page, and a decision for its owner rather than a side effect of a refactor |
+
+`/ucl` and `/worldcup` are single self-contained files outside the SPA's CSP and
+carry their own chrome inline.
+
+Header, in every app that shares the chrome:
 
 ```html
 <header class="app-header">
@@ -534,8 +553,8 @@ Header, in every app:
 Footer is `.app-footer > .footer-container`, two lines: a privacy or
 attribution statement, then cross-links to the portfolio, the apps shelf and
 two sibling apps. `/arcade` names its wrapper `.arcade-footer` /
-`.footer-inner` because the masthead there predates the pattern; the rules are
-the same.
+`.footer-inner` and defines its own rules — it shares the shape, not the
+stylesheet.
 
 Each app defines these seven, and the chrome rules name **only** these - which
 is what lets the same CSS land in Champions League navy on `/ucl` and in the
@@ -551,22 +570,27 @@ arcade's warm palette on `/arcade`:
 | `--chrome-action-hover` | Action-button hover background |
 | `--chrome-accent` | Brand icon tint, footer link hover |
 
-Four breakpoint tiers, and the chrome behaves the same way at each:
+Four breakpoint tiers. The first three are shared; the last is **not**, because
+the apps genuinely disagree about where it falls:
 
-| Tier | Width | Chrome |
-| :--- | :--- | :--- |
-| Desktop | ≥ 1024px | Full labels on every action |
-| Tablet | ≤ 1023px | Actions go icon-only; the back link shortens from "Portfolio" to "Back" (`.back-label-long` / `.back-label-short`) |
-| Mobile L | ≤ 640px | Back label drops too; every target is at least 44x44 (WCAG 2.5.5) |
-| Mobile S | ≤ 430px | Brand subtitle hides, brand icon and title step down |
+| Tier | Width | Chrome | Where it lives |
+| :--- | :--- | :--- | :--- |
+| Desktop | ≥ 1024px | Full labels on every action | `app-chrome.css` |
+| Tablet | ≤ 1023px | The back link shortens from "Portfolio" to "Back" (`.back-label-long` / `.back-label-short`) | `app-chrome.css` |
+| Two-tier | ≤ 960px | Brand and actions on one row, tabs beneath; every target at least 44x44 (WCAG 2.5.5) | `app-chrome.css` — but `/cron` uses **860px** and keeps its own |
+| Mobile L | ≤ 640px | Action labels drop, leaving icons | `app-chrome.css` |
+| Mobile S | ≤ 430px | Brand subtitle hides, brand icon and title step down | per app — `/json` and `/diff` at 430px, `/crypto` and `/cron` at **480px** |
 
-`/arcade` is dark-only by design. The other five share the `theme` key with the
+`--chrome-max-width` sets the header and footer container width; it defaults to
+1280px and `/diff` widens it to 1480px for side-by-side panes.
+
+`/arcade` is dark-only by design. The other six share the `theme` key with the
 SPA, applied as `data-theme="dark"|"light"` on `<html>`: a visitor who picks
 light on the portfolio arrives at `/ucl` in light. `ucl.html` and
 `worldcup.html` resolve it in an inline `<head>` script before first paint -
 the saved value, else `prefers-color-scheme` - and their toggles update
-`<meta name="theme-color">` the way `cron-main.js`, `crypto-main.js` and
-`json-main.js` do.
+`<meta name="theme-color">` the way `cron-main.js`, `crypto-main.js`,
+`json-main.js` and `diff-main.js` do.
 Neither page is under the SPA's CSP, so those inline scripts need no hash;
 `scripts/check_csp_hashes.py` only covers `index.html`.
 
@@ -834,9 +858,9 @@ or "Update on reload" in the browser's Application panel.
 
 `http.server` does not read `.htaccess`, so the extensionless paths do not
 exist locally: open the standalone pages at `/ucl.html`,
-`/arcade.html`, `/worldcup.html`, `/cron.html`, `/crypto.html` and `/json.html`
-while developing. The links point at
-`/ucl`, `/arcade`, `/worldcup`, `/cron`, `/crypto` and `/json` and will 404 on
+`/arcade.html`, `/worldcup.html`, `/cron.html`, `/crypto.html`, `/json.html`
+and `/diff.html` while developing. The links point at
+`/ucl`, `/arcade`, `/worldcup`, `/cron`, `/crypto`, `/json` and `/diff` and will 404 on
 the local server — that is expected, and the only part of the URL change that
 cannot be exercised without Apache.
 

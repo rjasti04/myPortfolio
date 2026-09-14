@@ -50,6 +50,7 @@ CARDS = {
     "cron": ("cron-preview.html", "cron-preview.png"),
     "crypto": ("crypto-preview.html", "crypto-preview.png"),
     "json": ("json-preview.html", "json-preview.png"),
+    "diff": ("diff-preview.html", "diff-preview.png"),
 }
 
 CHROME_CANDIDATES = [

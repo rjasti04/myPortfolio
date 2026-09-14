@@ -43,10 +43,16 @@ is what turns a 30 KiB app into a 50 KiB one.
 /** @typedef {{type: 'equal'|'insert'|'delete'|'replace',
  *             leftStart: number, leftLines: string[],
  *             rightStart: number, rightLines: string[],
- *             refine?: Array<{left: Span[], right: Span[]}>}} Change
+ *             refine?: Array<{left: Span[], right: Span[]}|null>}} Change
  *  @typedef {{leftStart, leftCount, rightStart, rightCount,
  *             changes: Change[], header?: string}} Hunk
- *  @typedef {{a: [number, number], b: [number, number], kind: 'same'|'diff'}} Span
+ *  @typedef {{start: number, end: number, changed: boolean}} Span
+ *
+ *  As built, `diffLines` returns the hunks inside a result object rather than a
+ *  bare Hunk[]: { changes, hunks, algorithm, identical, stats, left, right }.
+ *  The renderer needs the whole documents (for collapsed regions) and the
+ *  result bar needs `algorithm` and `stats`, so threading them separately
+ *  bought nothing.
  */
 ```
 
@@ -58,8 +64,9 @@ is what turns a 30 KiB app into a 50 KiB one.
 page ships `connect-src 'none'`, so there is no endpoint to specify, no
 authentication decision to justify, and no rate limit to configure. Platform APIs
 used: `FileReader` / `Blob.text()`, `navigator.clipboard`, `Blob` +
-`URL.createObjectURL` (download), `localStorage`, `matchMedia`,
-`requestAnimationFrame`, `IntersectionObserver` (virtualised rendering).
+`URL.createObjectURL` (download), `localStorage`, `matchMedia`.
+*As built: no `IntersectionObserver` and no `requestAnimationFrame` — collapsed
+regions made virtualisation unnecessary. See §4.4.*
 
 **Explicitly not used**: `fetch`, `XMLHttpRequest`, `WebSocket`, `eval`,
 `new Function`, `innerHTML`.
@@ -106,19 +113,20 @@ portfolio, the apps shelf and two sibling apps (`/json` and `/crypto`).
 
 ### 4.2 Module split — `frontend/js/diff/`
 
-Seven modules. Projected minified sizes in the right column; the total is what
-§5.1 of the intent budgets against.
+Seven modules. The right column held projected minified sizes while this was a
+plan. Measured against the real build, the app costs **29.3 KiB of JS and
+14.1 KiB of CSS** — JS within 1 KiB of the projection, CSS well under it.
 
 | Module | Responsibility | ~KiB |
 | :--- | :--- | ---: |
-| `diff-engine.js` | Myers O(ND) with linear-space refinement, common prefix/suffix stripping, histogram fallback, hunk assembly with context. Pure — takes two `string[]`, returns `Hunk[]`. No DOM. | 8 |
-| `diff-refine.js` | Intra-line token diff. Splits a changed line pair into word/punctuation tokens and runs the same engine at token granularity to produce `Span[]`. | 3 |
-| `diff-tokenize.js` | The generic syntax lexer: strings (3 quote styles + template), comments (`//`, `/* */`, `#`), numbers, punctuation, shared keyword set. Returns `Span[]` per line. | 2 |
-| `diff-patch.js` | Unified patch **writer** (`Hunk[]` -> text, `\ No newline at end of file` handled) and **parser** (text -> `Hunk[]`, with `line:column` errors on malformed headers). | 4 |
-| `diff-render.js` | `Hunk[]` -> DOM. Split and unified layouts, collapsed unchanged regions, virtualised row mounting, sync scroll. `textContent` only. | 6 |
-| `diff-ui.js` | Tabs, toggles, file drop, clipboard, download, change navigation, counters, the "remember my panes" switch, "Clear both". | 8 |
-| `diff-main.js` | Entry point: boots state, wires modules, resolves theme, owns debounce. | 3 |
-| | **Total** | **~34** |
+| `diff-engine.js` | Myers O(ND) with linear-space refinement, common prefix/suffix stripping, histogram fallback, hunk assembly with context. Pure — takes two `string[]`, no DOM. 615 lines. | 8 |
+| `diff-refine.js` | Intra-line token diff. Splits a changed line pair into word/punctuation tokens and runs the same engine at token granularity to produce `Span[]`. 160 lines. | 3 |
+| `diff-tokenize.js` | The generic syntax lexer: strings (3 quote styles + template), comments (`//`, `/* */`, `#`), numbers, punctuation, shared keyword set. Returns `Span[]` per line. 186 lines. | 2 |
+| `diff-patch.js` | Unified patch **writer** (`Hunk[]` -> text, `\ No newline at end of file` handled) and **parser** (text -> `Hunk[]`, with `line:column` errors on malformed headers), plus `applyPatch` for the property test. 413 lines. | 4 |
+| `diff-render.js` | `Hunk[]` -> DOM. Split and unified layouts, collapsed unchanged regions, merged syntax/refine spans, row ceiling. `textContent` only. 383 lines. | 6 |
+| `diff-ui.js` | Tabs, toggles, file drop, clipboard, download, change navigation, counters, patch parsing, the "remember my panes" switch, "Clear both". 511 lines. | 8 |
+| `diff-main.js` | Entry point: boots state, theme, the three deep-linkable tabs, error boundary. 145 lines. | 3 |
+| | **Total** (projected ~34, measured **29.3**) | **~34** |
 
 Each module is a pure ES module with named exports. `diff-engine.js`,
 `diff-refine.js`, `diff-tokenize.js` and `diff-patch.js` touch no DOM at all,
@@ -151,9 +159,13 @@ export function diffLines(left, right, opts) -> Hunk[]
 
 ### 4.4 DOM contract and rendering
 
-- Root is `<main class="diff-shell">` with `data-view="split|unified"` and
-  `data-tab="compare|patch|about"`; CSS keys off those attributes, so switching
-  view or tab is one attribute write, not a re-render.
+- Root is `<main class="diff-shell">` with `data-view="split|unified"`,
+  `data-tab="compare|patch|about"` and `data-wrap="on|off"`; CSS keys off those
+  attributes. *As built: a tab or wrap change is one attribute write, but a
+  **view** change re-renders. Split pairs a deleted line with its replacement in
+  one row; unified interleaves all deletions then all insertions. Those are
+  different row sets, not one row set restyled, and faking it in CSS would have
+  cost more than the redraw, which is a few milliseconds over the hunks alone.*
 - Each row is `<div class="diff-row" data-kind="equal|insert|delete|replace">`
   containing `.diff-gutter` (line number, `aria-hidden`) and `.diff-code`.
 - **Every token is `document.createElement('span')` + `textContent`.** There is no
@@ -163,7 +175,14 @@ export function diffLines(left, right, opts) -> Hunk[]
 - Long lines wrap by default with a per-pane no-wrap toggle; the horizontal scroll
   containers are the panes, never the page body.
 - Collapsed regions render as a single `<button class="diff-expander">` reading
-  "Show N unchanged lines", which is focusable and announced.
+  "Show N unchanged lines", which is focusable and announced. *As built, this is
+  what replaced virtualised rendering: only hunks are drawn, so a one-line change
+  in a ten-thousand-line file costs a handful of rows without any windowing
+  machinery. `MAX_RENDER_ROWS` (5,000) caps the pathological case — two large
+  files sharing nothing — and says what it left out.*
+- *As built: vertical scroll synchronisation needed no code. Both sides of a
+  split row live in the same grid row inside one scroll container, so they
+  cannot drift. Horizontal scrolling stays per-pane.*
 - **Accessibility**: the diff is a `role="table"`-free plain structure with
   `aria-label` on each pane ("Original", "Changed"); the change counter is an
   `aria-live="polite"` region so a screen reader hears `+12 −7` after a re-diff;
@@ -315,3 +334,59 @@ python3 scripts/check_docs.py --fix --show-tokens
 Steps 1-3 are ~17 KiB of the bundle and carry essentially all of the correctness
 risk; they are testable with no browser and no markup. If the change has to be
 split across two commits, it splits after step 3.
+
+---
+
+## 8. As Built — reconciliation
+
+Everything in §1-§7 shipped. Four things differ from the plan; each is corrected
+inline above and collected here so the divergence is not buried:
+
+1. **`diffLines` returns a result object**, not a bare `Hunk[]` (§1.1).
+2. **A view switch re-renders** rather than being one attribute write (§4.4) —
+   split and unified are different row sets, not one set restyled.
+3. **No virtualisation.** Collapsed unchanged regions made it unnecessary;
+   `MAX_RENDER_ROWS` handles the pathological case (§4.4).
+4. **Scroll sync needed no code** — both sides of a split row share one grid row
+   in one scroll container (§4.4).
+
+Measured against the projections: **29.3 KiB JS** (projected ~30) and
+**14.1 KiB CSS** (projected ~18). `BUDGETS_KIB` went to `{ js: 390, css: 285 }`
+exactly as §5.1 of the intent proposed, leaving 14.1 and 8.3 KiB of headroom.
+`diff.css` was a **third** copy of the app chrome. That extraction has since
+been done in its own commit: `frontend/app-chrome.css`, linked by `/crypto`,
+`/json` and `/diff`. It reclaimed **3.0 KiB**, not the ~10 KiB estimated here
+before anyone measured — only three apps were ever really copies. `/arcade`
+never wore this chrome, and `/cron` only looks like it does (it breaks at
+860px and 480px where the others use 960px and 430px), so both stay out.
+
+**Four bugs the suites caught during implementation**, all real and all fixed —
+recorded because they are the argument for building the pure core first:
+
+1. Documents differing only in a trailing newline reported as identical. The
+   no-newline marker has to go on **each side's own** final line independently:
+   two files can both end unterminated on different lines, and the shared line
+   that is last in one but not the other must still compare unequal, or the
+   emitted patch cannot round-trip. `git diff` agrees, and a test now pins it.
+2. `applyPatch` read the result's terminator off the patch even where a unified
+   diff cannot encode it — when the patch never reaches the final line, the
+   source's terminator is the right answer.
+3. Whitespace-only tokens voted in the refiner's similarity score, pushing
+   unrelated lines over the threshold on shared spaces alone.
+4. Myers emits the insertion first when the inserted run is shorter, so an
+   identical edit rendered as a `replace` or as a separate add and remove
+   depending on relative run lengths. Both orders now pair.
+
+**Verified in a real browser** (headless Chromium against the built `dist/`),
+beyond the automated suites: character-level highlighting, split and unified
+layouts, the patch tab rendering a pasted `git diff` with syntax colour and
+refinement, a malformed patch reporting `line:column`, theme toggle with
+`theme-color` sync, the forced unified layout at 390px with no horizontal
+scroll, the `.reveal` animation firing for the new shelf tile, an XSS payload
+executing nothing, **zero network requests of any kind**, and a clean console.
+
+**One incidental fix.** Re-running `scripts/vendor_fonts.py` for
+`fa-code-compare` revealed the vendored Font Awesome subset had drifted:
+`fa-gear` (activity dashboard) and `fa-play`/`fa-pause` (skills carousel) are
+referenced in the SPA but were missing from the subset, so they rendered as
+blank space. Six glyphs were added for 360 bytes.

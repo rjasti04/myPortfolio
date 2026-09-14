@@ -1183,6 +1183,107 @@ The collapsible tree. Children are built on first expand and cached, collapsing 
 
 ---
 
+## Code Difference Checker (`/diff` and `/patch`)
+
+A standalone client-side diff: compare two documents with character-level
+highlighting, or paste a unified patch and read it back as a side-by-side view.
+Like the Logic Inspector, the Crypto workbench and the JSON workbench it lives
+on its own page (`frontend/diff.html`) with its own entry point
+(`js/diff/diff-main.js`), zero third-party assets (ADR-016) and pure vanilla ES
+modules (ADR-001). The page ships `connect-src 'none'`: people compare
+production configs and proprietary source here, and nothing they paste can
+leave the tab.
+
+The structural decision is that **a computed diff and a parsed patch converge on
+one hunk structure**. `diff-engine.js` produces it from two documents;
+`diff-patch.js` produces the same thing from `git diff` text; `diff-render.js`
+draws either without knowing which it has. Reading a patch therefore costs a
+parser and no view code, and because the writer and the parser speak the same
+structure, `applyPatch(a, writePatch(diff(a, b))) === b` is a property test that
+holds all three honest.
+
+Two invariants hold across the whole directory. **No `eval` or `new Function`**:
+the syntax lexer is a character-stream scanner, and the page carries no
+`'unsafe-eval'`. **No `innerHTML`**: both panes are attacker-controlled text
+that the visitor has asked to see rendered, which is the exact shape of a
+stored-XSS bug, so every segment is a `createElement` plus `textContent` and no
+sanitiser is needed — no HTML string is ever built.
+
+### `diff-main.js` (145 lines)
+
+The application controller. Resolves the theme from the shared `theme` key,
+manages the three deep-linkable tabs (`#compare`, `#patch`, `#about`) with
+arrow-key roving tabindex and `hashchange` sync, and wraps startup in an error
+boundary.
+
+### `diff-ui.js` (511 lines)
+
+DOM controller. Owns both panes, the debounced recompute, drag-and-drop with the
+5 MB cap, the normalisation toggles, the split/unified switch, change navigation
+(`j`/`k` and the Prev/Next buttons), patch parsing and the copy/download of the
+emitted patch. Pane contents are persisted **only** while "Remember my panes" is
+on, that switch defaults to off, and switching it off deletes what was already
+stored rather than merely stopping future writes.
+
+### `diff-engine.js` (615 lines)
+
+Myers' O(ND) algorithm in its linear-space divide-and-conquer form, plus hunk
+assembly. Three layers keep a large paste from freezing the tab: the shared
+prefix and suffix are stripped before the algorithm runs, the k-loop is metered,
+and when the meter trips a histogram diff takes over — anchoring on the rarest
+line the two sides share — and the result reports which algorithm produced it, so
+a diff that stopped being minimal says so. Comparison runs on a derived key per
+line rather than the line itself, which is what lets `ignoreWhitespace` change
+what counts as equal while changing nothing about what is drawn. A final line
+with no newline after it carries a marker in its key, so it never compares equal
+to a terminated one — git agrees, and without it the emitted patch cannot
+round-trip.
+
+### `diff-patch.js` (413 lines)
+
+The unified patch writer and parser. The writer matches `git diff` byte for byte
+on hunk headers, single-line ranges written bare, zero-count ranges anchored on
+the preceding line, and `\ No newline at end of file`. The parser accepts a full
+multi-file `git diff` with `diff --git` preambles, a bare paste of hunks with no
+file headers, and context lines whose leading space a mail client has stripped;
+a malformed header or a hunk whose declared counts disagree with its body is
+refused with a `line`, `column` and an excerpt rather than half-rendered.
+`applyPatch()` exists for the round-trip property test and is dropped from the
+bundle by tree-shaking.
+
+### `diff-refine.js` (160 lines)
+
+Intra-line refinement. Each paired line is tokenised and run through
+`diffSequences` — the same engine, one scale down — so `timeout = 30` against
+`timeout = 300` highlights `30` and `300` rather than both whole lines. Two
+guards stop it making things worse: lines past `MAX_REFINE_LENGTH` are left
+whole, and a pair sharing less than `MIN_SIMILARITY` of its **non-whitespace**
+tokens is left as a plain red/green pair, because a confetti of alternating
+spans reads worse than a clean one.
+
+### `diff-tokenize.js` (186 lines)
+
+One generic syntax lexer, not a grammar per language. It handles the shapes
+rather than the languages — four comment dialects, three quote styles plus
+template literals, numeric literals including hex and exponents, and a keyword
+set pooled across the C family, JavaScript, Python, Go, Java and SQL — which
+reads well everywhere and is knowingly wrong about `#` where that is not a
+comment. Block-comment state is threaded between lines; an unterminated string
+stops at its own line end rather than repainting the rest of the document.
+
+### `diff-render.js` (383 lines)
+
+Hunks to DOM, in split or unified layout. Syntax spans and refinement spans both
+want to wrap parts of the same line, so the two lists are merged into one set of
+boundaries with a linear sweep and each segment carries whichever classes apply
+— the DOM stays flat and "diff colour wins over token colour" becomes a question
+of CSS rather than nesting order. Only hunks are drawn; the unchanged stretches
+between them collapse to an expander that renders on demand, so a one-line change
+in a ten-thousand-line file costs a handful of rows. `MAX_RENDER_ROWS` caps a
+pathological pair and says what was left out.
+
+---
+
 ## Browser storage keys
 
 | Key | Store | Written by | Holds |
@@ -1206,6 +1307,8 @@ The collapsible tree. Children are built on first expand and cached, collapsing 
 | `rj-inspector:state` | localStorage | `cron/cron-main.js` | Active tab, last expressions and test text |
 | `rj-crypto:preferences` | localStorage | `crypto/crypto-main.js` | Last active tab and workbench preferences |
 | `rj-json:preferences` | localStorage | `json/json-main.js` | Active tab, indent, path dialect, convert format. The **document itself** is written here only while "Remember my document" is on, which defaults to off — people paste tokens into JSON tools |
+| `rj-diff:preferences` | localStorage | `diff/diff-ui.js`, `diff/diff-main.js` | Active tab, split/unified view, the four normalisation toggles, wrap and context |
+| `rj-diff:left`, `rj-diff:right` | localStorage | `diff/diff-ui.js` | The two panes, written **only** while "Remember my panes" is on. It defaults to off, and switching it off deletes both keys rather than just stopping the writes |
 | `rj_session_token` | **cookie** | the API | Same token, `HttpOnly; SameSite=Strict` — what `EventSource` sends |
 
 A session stored before capability tokens existed is discarded on load, so a

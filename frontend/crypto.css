@@ -39,8 +39,10 @@
   --radius-full: 9999px;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
 
   /* Shared Chrome Token Contract */
   --chrome-bg: var(--surface);
@@ -108,7 +110,9 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 /* Neither helper was ever declared here, so the encoder's format label and the
@@ -126,18 +130,6 @@ body {
   white-space: nowrap;
 }
 
-/* Header & Brand */
-.app-header {
-  background: var(--chrome-bg);
-  border-bottom: 1px solid var(--chrome-border);
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  min-height: 57px;
-}
-
 .header-container {
   max-width: 1280px;
   margin: 0 auto;
@@ -146,18 +138,6 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-}
-
-.header-primary-bar {
-  display: contents;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  order: 1;
-  flex: 1 1 0;
 }
 
 .brand-wrap {
@@ -181,17 +161,6 @@ body {
   font-size: 1.15rem;
 }
 
-.brand-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.brand-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
 .brand-tag {
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -203,46 +172,6 @@ body {
   color: var(--text-muted);
   font-weight: 600;
   align-self: flex-start;
-}
-
-/* Tabs */
-.mode-tabs {
-  order: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  background: var(--bg-subtle);
-  padding: 0.25rem;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.45rem 1rem;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.tab-btn:hover {
-  color: var(--text);
-}
-
-.tab-btn.active {
-  background: var(--surface);
-  color: var(--primary);
-  box-shadow: var(--shadow-sm);
 }
 
 [data-tab="encoders"].active {
@@ -261,51 +190,13 @@ body {
   color: var(--primary);
 }
 
-/* Header Actions */
-.header-actions {
-  order: 3;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  flex: 1 1 0;
-}
-
+/* Everything else about .action-btn comes from app-chrome.css. Only the two
+   declarations this app actually adds live here — leaving the rest duplicated
+   would override the shared .action-btn-icon, which app-chrome.css states
+   after .action-btn and this file loads after app-chrome.css. */
 .action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  min-height: 40px;
-  padding: 0.45rem 0.85rem;
-  border: 1px solid var(--chrome-border);
-  background: var(--chrome-action-bg);
-  color: var(--chrome-text);
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.15s ease;
   position: relative;
   box-sizing: border-box;
-}
-
-.action-btn:hover {
-  background: var(--chrome-action-hover);
-  border-color: var(--primary);
-}
-
-.action-btn:focus-visible,
-.tab-btn:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-.action-btn-icon {
-  min-width: 40px;
-  padding: 0.5rem;
 }
 
 .action-btn.text-danger {
@@ -322,16 +213,6 @@ body {
   background: var(--color-success);
   color: #ffffff;
   border-color: var(--color-success);
-}
-
-.back-btn {
-  font-weight: 600;
-}
-
-/* "Portfolio" on a desktop, "Back" once the bar tightens - the same swap
-   /ucl and /worldcup make, so the chrome reads the same across the shelf. */
-.back-label-short {
-  display: none;
 }
 
 @media (max-width: 1023px) {
@@ -598,7 +479,6 @@ body {
   align-items: start;
 }
 
-
 .transform-rail {
   display: flex;
   flex-direction: row;
@@ -607,7 +487,6 @@ body {
   flex-wrap: wrap;
   gap: 0.75rem;
 }
-
 
 /* Direction is a sticky choice, not a one-shot action: live re-transforms on
    typing follow whichever way is selected. */
@@ -620,7 +499,6 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
-
 
 .dir-btn {
   display: inline-flex;
@@ -655,13 +533,11 @@ body {
   outline-offset: 2px;
 }
 
-
 .rail-tools {
   display: flex;
   flex-direction: row;
   gap: 0.4rem;
 }
-
 
 .io-col {
   display: flex;
@@ -823,7 +699,6 @@ body {
   color: #ffffff;
   border-color: var(--color-success);
 }
-
 
 /* Hasher Panel Styles */
 .chips-row {
@@ -1015,7 +890,11 @@ body {
 
 /* Time Workbench */
 .live-clock-card {
-  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-raised) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--surface) 0%,
+    var(--surface-raised) 100%
+  );
   border-color: var(--primary-soft);
 }
 
@@ -1129,17 +1008,6 @@ body {
   border-radius: var(--radius-full);
 }
 
-/* Footer */
-.app-footer {
-  margin-top: auto;
-  border-top: 1px solid var(--chrome-border);
-  background: var(--chrome-bg);
-  padding: 1.5rem;
-  text-align: center;
-  font-size: 0.8rem;
-  color: var(--chrome-muted);
-}
-
 .footer-container {
   max-width: 1280px;
   margin: 0 auto;
@@ -1150,15 +1018,6 @@ body {
 
 .footer-privacy-action {
   margin-bottom: 0.75rem;
-}
-
-.footer-link {
-  color: var(--chrome-muted);
-  text-decoration: none;
-}
-
-.footer-link:hover {
-  color: var(--chrome-accent);
 }
 
 /* Responsive Breakpoints */
@@ -1449,4 +1308,3 @@ body {
     padding: 0.2rem 0.5rem;
   }
 }
-

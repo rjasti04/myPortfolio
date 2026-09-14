@@ -44,6 +44,9 @@
 
   # 7. Alias /jsonpath to /json#query
   RewriteRule ^jsonpath/?$ /json#query [R=301,NE,L]
+
+  # 8. Alias /patch to /diff#patch
+  RewriteRule ^patch/?$ /diff#patch [R=301,NE,L]
 </IfModule>
 
 # Enable Gzip Compression

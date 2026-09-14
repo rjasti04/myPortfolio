@@ -68,6 +68,17 @@
     </image:image>
   </url>
   <url>
+    <loc>https://rjasti.com/diff</loc>
+    <lastmod>2026-09-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <image:image>
+      <image:loc>https://rjasti.com/diff-preview.png</image:loc>
+      <image:title>Code Difference Checker | Client-side diff and patch viewer</image:title>
+      <image:caption>Preview card for the Code Difference Checker</image:caption>
+    </image:image>
+  </url>
+  <url>
     <loc>https://rjasti.com/json</loc>
     <lastmod>2026-09-13</lastmod>
     <changefreq>monthly</changefreq>

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Open Graph card — Code Difference Checker</title>
+  <link rel="stylesheet" href="card.css">
+  <style>
+    .card {
+      background: linear-gradient(160deg, #0b0f1a 0%, #1c1408 100%);
+      color: #f8fafc;
+    }
+
+    .glow-amber {
+      width: 700px;
+      height: 700px;
+      top: -300px;
+      left: -180px;
+      background: radial-gradient(circle, rgba(217, 119, 6, 0.26), transparent 66%);
+    }
+
+    .glow-green {
+      width: 650px;
+      height: 650px;
+      bottom: -280px;
+      right: -120px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.18), transparent 66%);
+    }
+
+    .rule {
+      background: linear-gradient(90deg, #b45309, #fbbf24 50%, #34d399);
+    }
+
+    .eyebrow {
+      color: #fbbf24;
+    }
+
+    .left {
+      width: 560px;
+    }
+
+    .title {
+      font-size: 60px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 40%, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 26px;
+      font-weight: 700;
+      color: #fbbf24;
+      letter-spacing: -0.01em;
+      margin-bottom: 16px;
+    }
+
+    .lead {
+      font-size: 19px;
+      line-height: 1.5;
+      color: #cbd5e1;
+      margin-bottom: 24px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip {
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #e2e8f0;
+    }
+
+    .chip.amber {
+      background: rgba(217, 119, 6, 0.2);
+      border-color: rgba(217, 119, 6, 0.45);
+      color: #fbbf24;
+    }
+
+    .chip.green {
+      background: rgba(16, 185, 129, 0.18);
+      border-color: rgba(16, 185, 129, 0.42);
+      color: #6ee7b7;
+    }
+
+    .art {
+      width: 500px;
+    }
+
+    .mockup-card {
+      background: rgba(21, 28, 44, 0.88);
+      border: 1px solid rgba(251, 191, 36, 0.22);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45);
+    }
+
+    .hunk {
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #94a3b8;
+      background: rgba(11, 15, 26, 0.9);
+      padding: 7px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      letter-spacing: 0.02em;
+    }
+
+    .drow {
+      display: grid;
+      grid-template-columns: 34px 16px 1fr;
+      font-family: ui-monospace, monospace;
+      font-size: 13.5px;
+      line-height: 1.85;
+    }
+
+    .gut {
+      text-align: right;
+      padding-right: 9px;
+      color: #64748b;
+      background: rgba(11, 15, 26, 0.55);
+    }
+
+    .mark {
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .src {
+      padding-left: 8px;
+      color: #cbd5e1;
+      white-space: nowrap;
+    }
+
+    .ins {
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    .ins .mark {
+      color: #34d399;
+    }
+
+    .del {
+      background: rgba(248, 113, 113, 0.14);
+    }
+
+    .del .mark {
+      color: #f87171;
+    }
+
+    .rf-ins {
+      background: rgba(16, 185, 129, 0.4);
+      border-radius: 3px;
+      padding: 0 2px;
+    }
+
+    .rf-del {
+      background: rgba(248, 113, 113, 0.36);
+      border-radius: 3px;
+      padding: 0 2px;
+    }
+
+    .kw {
+      color: #c4b5fd;
+      font-weight: 600;
+    }
+
+    .str {
+      color: #6ee7b7;
+    }
+
+    .num {
+      color: #fcd34d;
+    }
+
+    .cmt {
+      color: #7c8aa3;
+      font-style: italic;
+    }
+
+    .statline {
+      display: flex;
+      gap: 16px;
+      padding: 10px 14px;
+      background: rgba(11, 15, 26, 0.9);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .s-add {
+      color: #34d399;
+    }
+
+    .s-del {
+      color: #f87171;
+    }
+
+    .s-mod {
+      color: #fbbf24;
+    }
+
+    .footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer .url {
+      font-size: 17px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .footer .meta {
+      font-size: 15px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="glow glow-amber"></div>
+    <div class="glow glow-green"></div>
+
+    <div class="body">
+      <div class="left">
+        <div class="rule"></div>
+        <div class="eyebrow">Developer Utility &bull; Diff &amp; Patch</div>
+        <h1 class="title">Code Difference</h1>
+        <div class="subtitle">Checker</div>
+        <p class="lead">Compare two files with character-level highlighting, read a unified patch back into a side-by-side view, and copy the result out as a standard patch.</p>
+        <div class="chips">
+          <span class="chip amber">Myers Diff, From Scratch</span>
+          <span class="chip green">Split &amp; Unified</span>
+          <span class="chip">Reads git diff</span>
+          <span class="chip">100% Client-Side</span>
+        </div>
+      </div>
+
+      <div class="art">
+        <div class="mockup-card">
+          <div class="hunk">@@ -14,6 +14,7 @@ retryPolicy</div>
+
+          <div class="drow">
+            <span class="gut">14</span><span class="mark">&nbsp;</span><span class="src"><span class="kw">const</span> policy = {</span>
+          </div>
+          <div class="drow del">
+            <span class="gut">15</span><span class="mark">&minus;</span><span class="src">&nbsp;&nbsp;timeout: <span class="num"><span class="rf-del">30</span></span>,</span>
+          </div>
+          <div class="drow ins">
+            <span class="gut">15</span><span class="mark">+</span><span class="src">&nbsp;&nbsp;timeout: <span class="num"><span class="rf-ins">300</span></span>,</span>
+          </div>
+          <div class="drow ins">
+            <span class="gut">16</span><span class="mark">+</span><span class="src">&nbsp;&nbsp;backoff: <span class="str">"exponential"</span>,</span>
+          </div>
+          <div class="drow">
+            <span class="gut">17</span><span class="mark">&nbsp;</span><span class="src">&nbsp;&nbsp;retries: <span class="num">5</span>, <span class="cmt">// tuned</span></span>
+          </div>
+          <div class="drow">
+            <span class="gut">18</span><span class="mark">&nbsp;</span><span class="src">};</span>
+          </div>
+
+          <div class="statline">
+            <span class="s-add">+2 added</span>
+            <span class="s-del">&minus;1 removed</span>
+            <span class="s-mod">~1 modified</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="url">rjasti.com/diff</span>
+      <span class="meta">Compare &bull; Refine &bull; Patch &bull; Unified &bull; Split</span>
+    </div>
+  </div>
+</body>
+
+</html>
