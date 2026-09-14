@@ -32,12 +32,12 @@ def tracked_migration() -> str:
     return files[0]
 
 
-def run(hook: Path, command: str) -> subprocess.CompletedProcess[str]:
+def run(hook: Path, command: str, root: Path = ROOT) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(hook)],
         input=json.dumps({"tool_name": "Bash", "tool_input": {"command": command}}),
-        cwd=ROOT, capture_output=True, text=True,
-        env={"PATH": "/usr/bin:/bin:/usr/local/bin", "CLAUDE_PROJECT_DIR": str(ROOT)},
+        cwd=root, capture_output=True, text=True,
+        env={"PATH": "/usr/bin:/bin:/usr/local/bin", "CLAUDE_PROJECT_DIR": str(root)},
     )
 
 
@@ -50,17 +50,11 @@ BLOCKED = [
     ("template redirect", "echo x > .claude/templates/spec.md"),
     ("egress via sed", "sed -i 's|a|https://evil.example.com/x|' frontend/js/form.js"),
     ("egress via redirect", "echo 'https://cdnjs.cloudflare.com/x.js' > frontend/sw.js"),
-    ("venv-reachable grep", "grep -r 'async def' ."),
-    ("venv-reachable grep on server", "grep -rn 'FastAPI' server"),
-    ("venv-reachable find", "find . -name '*.py'"),
 ]
 
 ALLOWED = [
     ("read a migration", "cat server/alembic/versions/{migration}"),
     ("new untracked migration", "sed -i 's/a/b/' server/alembic/versions/9999_new_head.py"),
-    ("excluded grep", "grep -r 'async def' . --exclude-dir=.venv"),
-    ("scoped grep", "grep -rn 'FastAPI' server/routes"),
-    ("scoped find", "find frontend -name '*.js'"),
     ("documented sed recipe", "sed -n '284,298p' docs/JAVASCRIPT.md"),
     ("documented grep recipe", "grep -n '#region' frontend/styles.css"),
     ("install deps", "npm ci --no-audit --no-fund"),
@@ -70,6 +64,33 @@ ALLOWED = [
     ("scratch file", "echo hi > /tmp/scratch.txt"),
     ("plain status", "git status --short"),
 ]
+
+
+# The .venv rule is the one guard that is conditional by design: it fires only
+# where server/.venv actually exists, because a fresh clone -- CI and every web
+# session -- has none, and blocking there costs a call and a retry to avoid a
+# directory walk that cannot happen. So the rule cannot be asserted against this
+# repo, where the directory is present or absent depending on whose machine it
+# is; it needs a root built either way, and both ways are pinned below.
+VENV_BLOCKED = [
+    ("venv-reachable grep", "grep -r 'async def' ."),
+    ("venv-reachable grep on server", "grep -rn 'FastAPI' server"),
+    ("venv-reachable find", "find . -name '*.py'"),
+]
+
+VENV_ALLOWED = [
+    ("excluded grep", "grep -r 'async def' . --exclude-dir=.venv"),
+    ("scoped grep", "grep -rn 'FastAPI' server/routes"),
+    ("scoped find", "find frontend -name '*.js'"),
+]
+
+
+@pytest.fixture(scope="module")
+def venv_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A project root holding server/.venv, so the repo never grows a fake one."""
+    root = tmp_path_factory.mktemp("with-venv")
+    (root / "server" / ".venv").mkdir(parents=True)
+    return root
 
 
 @pytest.mark.parametrize("label,command", BLOCKED, ids=[c[0] for c in BLOCKED])
@@ -83,6 +104,27 @@ def test_guard_blocks(label: str, command: str) -> None:
 def test_guard_allows(label: str, command: str) -> None:
     command = command.format(migration=Path(tracked_migration()).name)
     result = run(GUARD, command)
+    assert result.returncode == 0, f"{label}: blocked, stderr={result.stderr.strip()}"
+
+
+@pytest.mark.parametrize("label,command", VENV_BLOCKED, ids=[c[0] for c in VENV_BLOCKED])
+def test_guard_blocks_venv_reachable_search(label: str, command: str, venv_root: Path) -> None:
+    result = run(GUARD, command, root=venv_root)
+    assert result.returncode == 2, f"{label}: expected a block, got {result.returncode}"
+    assert result.stderr.strip(), f"{label}: blocked without telling the model why"
+
+
+@pytest.mark.parametrize("label,command", VENV_ALLOWED, ids=[c[0] for c in VENV_ALLOWED])
+def test_guard_allows_scoped_search(label: str, command: str, venv_root: Path) -> None:
+    result = run(GUARD, command, root=venv_root)
+    assert result.returncode == 0, f"{label}: blocked, stderr={result.stderr.strip()}"
+
+
+@pytest.mark.parametrize("label,command", VENV_BLOCKED, ids=[c[0] for c in VENV_BLOCKED])
+def test_venv_rule_is_quiet_without_a_venv(label: str, command: str, tmp_path: Path) -> None:
+    """Nothing to descend into, so the same searches must cost nothing (#217)."""
+    (tmp_path / "server").mkdir()
+    result = run(GUARD, command, root=tmp_path)
     assert result.returncode == 0, f"{label}: blocked, stderr={result.stderr.strip()}"
 
 
