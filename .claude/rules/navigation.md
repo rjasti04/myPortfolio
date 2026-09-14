@@ -23,9 +23,14 @@ these files the number here has to move with it.
 | `frontend/js/auth-ui.js` | 1,563 | ~19,500 | Same shape — one `initAuthUI()`. Use `grep -nE '^\s{2,6}(async )?function \w+' frontend/js/auth-ui.js` (14 hits). |
 | `frontend/three-bg.js` | 1,559 | ~14,000 | Animated plexus background. Despite the name it is plain 2D canvas — there is no Three.js in this repo. Read `docs/ARCHITECTURE.md` first to decide if you need it at all. |
 
-`server/.venv/` holds ~7,500 dependency files (136 MB) against 147 tracked
-files. It is gitignored, so ripgrep-backed `Grep`/`Glob` skip it — but plain
-Bash `find` / `grep -r` / `du` do **not**. Always pass `--exclude-dir=.venv`
-(or `-not -path '*/.venv/*'`) when searching from Bash. Without it a
-repo-wide `grep -r --include=*.py` returns 1,950 files instead of 40 and
-takes over two minutes.
+`server/.venv/`, **once you have created one locally**, holds ~7,500 dependency
+files (136 MB) against 147 tracked files. It is gitignored, so ripgrep-backed
+`Grep`/`Glob` skip it — but plain Bash `find` / `grep -r` / `du` do **not**.
+Always pass `--exclude-dir=.venv` (or `-not -path '*/.venv/*'`) when searching
+from Bash: without it a repo-wide `grep -r --include=*.py` returns 1,950 files
+instead of 40 and takes over two minutes.
+
+A fresh clone — CI, and every Claude Code web session — has no `server/.venv` at
+all, so none of that cost exists there. The guard in
+`.claude/hooks/protect-bash-writes.py` checks for the directory before it
+blocks, and an unqualified search is refused only where it really is present.

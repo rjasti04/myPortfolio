@@ -1,9 +1,6 @@
 ---
 name: alembic-guard
 description: Mandatory rules, safety invariants, and verification steps for creating and reviewing SQLAlchemy and Alembic schema migrations in rjWebApp.
-paths:
-  - server/models/**/*.py
-  - server/alembic/**/*.py
 ---
 
 # Alembic Schema Migration Safety Protocol

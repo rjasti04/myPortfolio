@@ -26,28 +26,43 @@ from _bash_targets import (  # noqa: E402
     REDIRECTS, _operands, _utility, expand, normalize, parse, segments, tokenize,
 )
 
-SEARCHERS = {"grep", "egrep", "fgrep", "rgrep", "find", "du"}
-
-# ADR-016. Kept identical to protect-spa-egress.sh, which enforces the same
-# allowlist on the Write/Edit path.
-SPA_GUARDED = ["frontend/index.html", "frontend/arcade.html", "frontend/cron.html",
-               "frontend/crypto.html", "frontend/styles.css", "frontend/three-bg.js",
-               "frontend/sw.js", "frontend/js/*.js", "frontend/js/*/*.js"]
-SPA_EXEMPT = ["frontend/ucl.html", "frontend/worldcup.html", "frontend/tests/*"]
-SPA_ALLOWED_ORIGINS = {
-    "rjasti.com", "www.rjasti.com", "staging-api.rjasti.com", "formsubmit.co",
-    "github.com", "www.linkedin.com", "w3.org", "schema.org", "localhost",
-    "127.0.0.1",
-}
-
-# Search roots from which a plain find/grep can descend into server/.venv.
-VENV_REACHABLE = {"", ".", "server"}
-
 
 def die(*lines: str) -> None:
     for line in lines:
         print(line, file=sys.stderr)
     sys.exit(2)
+
+
+SEARCHERS = {"grep", "egrep", "fgrep", "rgrep", "find", "du"}
+
+# ADR-016. Deny by default: the guarded set was a hand-listed set of page names,
+# so every page added after it was written - diff.html and json.html among them -
+# matched nothing and shipped unguarded. fnmatch's `*` matches `/` as well, so
+# "frontend/*.js" covers frontend/js/diff/diff.js. Kept identical to the case
+# patterns in protect-spa-egress.sh.
+SPA_GUARDED = ["frontend/*.html", "frontend/*.js", "frontend/*.css"]
+
+# The deliberate ADR-016 exception: standalone single-file predictors outside the
+# SPA's CSP (see AGENTS.md), plus test fixtures.
+SPA_EXEMPT = ["frontend/ucl.html", "frontend/worldcup.html", "frontend/tests/*"]
+
+# Single source of truth, shared with protect-spa-egress.sh so the two guards
+# cannot drift apart.
+_POLICY = Path(__file__).resolve().parent / "spa-egress.json"
+
+
+def _allowed_origins() -> set[str]:
+    try:
+        return set(json.loads(_POLICY.read_text(encoding="utf-8"))["allowed_origins"])
+    except (OSError, ValueError, KeyError):
+        # Fail closed: an unreadable allowlist must not silently permit egress.
+        die(f"Error: egress allowlist {_POLICY} is missing or unreadable;",
+            "refusing to pass the command unchecked (ADR-016).")
+        return set()  # unreachable; die() exits
+
+
+# Search roots from which a plain find/grep can descend into server/.venv.
+VENV_REACHABLE = {"", ".", "server"}
 
 
 def tracked(root: Path, pathspec: str) -> set[str]:
@@ -65,9 +80,17 @@ def resolve_all(tokens: set[str], root: Path) -> set[str]:
     return found
 
 
+# Tracked, committed templates that merely share the prefix. .env.example is the
+# documented variable reference (docs/CONFIGURATION.md points at it) and blocking
+# it made the one file an agent is supposed to read unreadable.
+SECRET_EXEMPT = {".env.example", ".env.sample", ".env.template"}
+
+
 def is_secret(rel: str) -> bool:
     name = Path(rel).name
     parent = Path(rel).parent.as_posix()
+    if name in SECRET_EXEMPT:
+        return False
     return name.startswith(".env") and parent in (".", "server")
 
 
@@ -80,7 +103,7 @@ def check_spa_egress(command: str, written: set[str]) -> None:
         return
     for url in sorted(set(re.findall(r"https?://[A-Za-z0-9.-]+", command))):
         host = url.split("//", 1)[1]
-        if host not in SPA_ALLOWED_ORIGINS:
+        if host not in _allowed_origins():
             die(
                 f"Error: Unapproved external asset/origin detected in {guarded[0]}: {url}",
                 "Egress protection blocked this modification per ADR-016.",
@@ -90,6 +113,11 @@ def check_spa_egress(command: str, written: set[str]) -> None:
 def check_venv_search(command: str, root: Path) -> None:
     """AGENTS.md's '--exclude-dir=.venv' rule, as an actual guarantee."""
     if ".venv" in command:
+        return
+    # A fresh clone - which is what CI and every Claude Code web session get -
+    # has no server/.venv at all. Blocking a search there cost the agent a tool
+    # call and a retry to avoid a directory walk that could not happen.
+    if not (root / "server" / ".venv").exists():
         return
     for segment in segments(tokenize(command)):
         clean = [t for t in segment if t not in REDIRECTS]

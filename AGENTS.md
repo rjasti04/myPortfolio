@@ -178,8 +178,11 @@ is not a licence to pad — §4's "Zero Fluff" still governs. For every finding:
         estimates in `.claude/rules/navigation.md` and
         `.claude/rules/reference-docs.md`, plus per-module counts in
         `docs/JAVASCRIPT.md` and `docs/TESTING.md`. Pass `--show-tokens` to display the document token estimates table.
-        **Rule:** After completing any task modifying `.md` files or tracked assets, run
-        `python3 scripts/check_docs.py --fix --show-tokens` and display the token table in your final response.
+        **Rule:** The `PostToolUse` hooks above already run the *check* after every
+        covered edit, so what is left to you is the repair and the report: after
+        completing any task that modified `.md` files or tracked assets, run
+        `python3 scripts/check_docs.py --fix --show-tokens` and display the token
+        table in your final response.
     *   `python3 scripts/check_csp_hashes.py` — the three pinned `sha256-` hashes in
         `frontend/index.html`'s CSP. **Editing any inline `<script>` in `index.html`
         invalidates one of them and fails CI.** There is no `--fix`: on failure it

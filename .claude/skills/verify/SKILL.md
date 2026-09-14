@@ -8,20 +8,14 @@ description: Independent verification orchestration skill that executes non-muta
 When `/verify` is invoked:
 
 ## 1. Targeted Quality Gate Execution
-Determine impacted layers from `git status` / `git diff` and execute applicable gates:
+Determine impacted layers from `git status` / `git diff`, then run the gates the
+`testing` skill defines for those layers - it is the single source of truth for
+the commands, and `.github/workflows/deploy.yml` runs the same ones.
 
-```bash
-# Frontend
-npm run lint && npm test && npm run build
+Two differences apply here, because verification must not mutate the tree:
 
-# Backend
-ruff check server tests
-PYTHONPATH=. pytest --cov=server --cov-report=term-missing --cov-fail-under=55
-
-# Hashes & Documentation Invariants
-python3 scripts/check_csp_hashes.py
-python3 scripts/check_docs.py --show-tokens
-```
+- `python3 scripts/check_docs.py --show-tokens` - never `--fix`.
+- Report what you ran. A gate you skipped, and why, belongs in the output.
 
 ## 2. Independent Verifier Subagent Delegation
 Invoke the `.claude/agents/verifier.md` subagent to conduct a clean-context evaluation of the repository and verify that no unwanted temporary files or uncommitted artifacts remain.

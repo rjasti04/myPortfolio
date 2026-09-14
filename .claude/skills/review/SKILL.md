@@ -21,11 +21,7 @@ Invoke selected specialist agents. Specialists perform read-only review with con
 ## 3. Findings Consolidation
 1. Consolidate findings from specialists.
 2. Deduplicate findings across agents.
-3. Format output strictly into the `AGENTS.md §5` table format:
-
-| Category | Severity | Location | The "Why" | The Fix |
-| :--- | :--- | :--- | :--- | :--- |
-| (Bug/Security/Performance/Architecture) | (Critical/High/Medium/Low) | `file:line` | Impact description | Concrete resolution |
+3. Format output strictly into the finding table defined in `AGENTS.md` §5.
 
 If no issues are identified, report:
 `REVIEW PASSED: Zero defects found across inspected layers.`

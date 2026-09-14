@@ -8,12 +8,53 @@ description: Security verification checklist covering authentication boundaries,
 Before finalizing any changes touching authentication, session tokens, rate limits, API routes, or user-controlled DOM rendering:
 
 ## 1. Authentication & Authorization Boundaries
-- **Default Deny**: Every endpoint accessing or modifying user state must require `user: User = Depends(get_current_user)` from `server/auth/dependencies.py`.
-- **Deliberately Anonymous Endpoints**: Only two endpoints are allowed to be anonymous without a token:
-  - `POST /chat` (uses `get_optional_current_user` to shield visitor demo).
-  - `POST /sessions` (creates initial session identifier).
-  - Do NOT add authentication to these two endpoints (this is an explicit non-goal in `AGENTS.md` and `docs/SECURITY.md`).
-- **Secret Hygiene**: Ensure `JWT_SECRET` is never hardcoded and meets the 32-character minimum enforced by `server/config/settings.py`.
+
+`docs/SECURITY.md` is the source of truth for the model; this is the checklist.
+
+### Find every endpoint first
+
+Routes are registered two ways, and grepping for only the first misses ten of
+them:
+
+```bash
+grep -rn --exclude-dir=.venv -E '@router\.(get|post|put|patch|delete)' server/routes
+grep -rn --exclude-dir=.venv 'add_api_route' server/routes
+```
+
+`session_routes.py`, `system_routes.py` and `event_routes.py` use
+`router.add_api_route(...)`, so their handlers - and the dependencies that guard
+them - live in `server/controllers/`, not next to the route.
+
+### The three guard tiers
+
+| Tier | Dependency | Guards |
+| :--- | :--- | :--- |
+| Account | `get_current_user` (`server/auth/dependencies.py`) | Anything reading or writing a user's own data |
+| Owner | `require_owner` (wraps `get_current_user`) | The four `/analytics/*` routes |
+| Session capability | `require_session_access` (`server/auth/session_token.py`) | `PATCH /sessions/{id}/heartbeat`, `PATCH /sessions/{id}/end`, `GET /sessions/{id}`, `/events*` - an HMAC token issued once at session creation, because these exist to track anonymous visitors and cannot require a login |
+
+A new endpoint that touches user or session state must sit in one of these three.
+Adding an endpoint that reads a `session_id` from the URL and checks nothing else
+is the exact bug `require_session_access` was introduced to close.
+
+### Deliberately unauthenticated
+
+- `POST /chat` (`get_optional_current_user`) and `POST /sessions`. Do **not** add
+  auth to these - it is a standing non-goal in `AGENTS.md`. The guard is the cost
+  budget and stream cap, not a login.
+- The account-recovery surface, which cannot require a token by definition:
+  `/register`, `/verify-email`, `/resend-verification`, `/login`, `/refresh`,
+  `/2fa/verify`, `/magic-link/request`, `/magic-link/verify`, `/forgot-password`,
+  `/reset-password`.
+- `POST /contact`.
+- `POST /chat/summarize` (`server/routes/chat_routes.py`) - **takes no auth, no
+  db and no session binding while calling Bedrock.** It holds a concurrency slot
+  but not the per-session free-message budget `POST /chat` applies, so it is the
+  one anonymous inference path not bounded by a per-visitor cost ceiling. Treat
+  any change that widens it as a cost-exposure change.
+
+**Secret Hygiene**: `JWT_SECRET` is never hardcoded and meets the 32-character
+minimum enforced by `server/config/settings.py`.
 
 ## 2. Content Security Policy (CSP) Integrity
 - The SPA enforces an ultra-strict CSP with pinned SHA-256 script hashes in `frontend/index.html`.
