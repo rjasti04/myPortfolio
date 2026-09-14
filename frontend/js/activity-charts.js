@@ -156,7 +156,11 @@ export function latencyBand(ms) {
  * occupy one strip the eye reads in a single pass, instead of a name on the
  * left and an unlabelled bar 150px to its right.
  */
-export function renderPaths(root, funnel, { escapeHTML, selected = null, failed = false } = {}) {
+export function renderPaths(
+  root,
+  funnel,
+  { escapeHTML, selected = null, failed = false, emptyText = "No navigation recorded yet." } = {},
+) {
   if (!root) return;
 
   const steps = funnel?.steps || [];
@@ -167,7 +171,7 @@ export function renderPaths(root, funnel, { escapeHTML, selected = null, failed 
     root.innerHTML = failed
       ? `<p class="act-paths-empty" data-state="error">Could not load where you went.
            <span>Use Refresh to try again &mdash; your events keep recording either way.</span></p>`
-      : `<p class="act-paths-empty">No navigation recorded yet.</p>`;
+      : `<p class="act-paths-empty">${escapeHTML(emptyText)}</p>`;
     return;
   }
 
