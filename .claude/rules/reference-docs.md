@@ -19,11 +19,11 @@ tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
 ```bash
-grep -n '^#\{2,3\} ' docs/JAVASCRIPT.md   # ~40 headings, ~400 tokens
+grep -n '^#\{2,3\} ' docs/JAVASCRIPT.md   # 92 headings, ~1,000 tokens
 sed -n '284,298p' docs/JAVASCRIPT.md      # just the module you are touching
 ```
 
-That turns a 21,500-token read into roughly 500. Use it by default; read a
+That turns a 21,500-token read into roughly 1,000. Use it by default; read a
 whole doc only when you genuinely need all of it.
 
 | Doc | ~Tokens | Read it before... | Jump to a section with |

@@ -1,0 +1,15 @@
+{
+  "_comment": "ADR-016 egress allowlist. Read by BOTH protect-spa-egress.sh (Write/Edit path) and protect-bash-writes.py (Bash path) so the two guards cannot drift apart. Hosts only, no scheme.",
+  "allowed_origins": [
+    "rjasti.com",
+    "www.rjasti.com",
+    "staging-api.rjasti.com",
+    "formsubmit.co",
+    "github.com",
+    "www.linkedin.com",
+    "w3.org",
+    "schema.org",
+    "localhost",
+    "127.0.0.1"
+  ]
+}

@@ -225,6 +225,51 @@ def check_derived_prose(text: str, rep: Report, src: Path) -> None:
                  f"That turns a {js:,}-token read")
 
 
+def check_heading_map_recipe(text: str, rep: Report, src: Path) -> None:
+    """The worked example that teaches the heading-map technique.
+
+    check_reference_table covers the table's own per-doc figures, but the recipe
+    block above it carried hand-written numbers that nothing recomputed. It had
+    drifted to less than half the real heading count - the direction that makes a
+    reader under-budget the very read this file exists to budget.
+    """
+    where = src.relative_to(ROOT).as_posix()
+    path = ROOT / "docs/JAVASCRIPT.md"
+    if not path.exists():
+        return
+
+    # What `grep -n` actually prints for the advertised pattern: one
+    # "<line>:<heading>" per hit. Measuring the real output is the only way the
+    # advertised cost stays honest as the document grows.
+    printed = "".join(
+        f"{n}:{line}\n"
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+        if re.match(r"^#{2,3} ", line)
+    )
+    count = printed.count("\n")
+    cost = math.ceil(len(printed.encode()) / DIV_PROSE / ROUND_TO) * ROUND_TO
+
+    m = re.search(r"# (\d+) headings, ~([\d,]+) tokens", text)
+    if not m:
+        rep.missing(where, "no advertised figures for the heading-map recipe")
+    else:
+        if int(m.group(1)) != count:
+            rep.drift(where, "heading-map recipe yield", m.group(1), str(count))
+            rep.edit(src, f"# {m.group(1)} headings", f"# {count} headings")
+        if int(m.group(2).replace(",", "")) != cost:
+            rep.drift(where, "heading-map recipe cost", f"~{m.group(2)}", f"~{cost:,}")
+            rep.edit(src, f"headings, ~{m.group(2)} tokens",
+                     f"headings, ~{cost:,} tokens")
+
+    # The payoff sentence quotes the same figure; when only one of the two moves
+    # the file contradicts itself.
+    m = re.search(r"read into roughly ([\d,]+)\.", text)
+    if m and int(m.group(1).replace(",", "")) != cost:
+        rep.drift(where, "heading-map payoff figure", m.group(1), f"{cost:,}")
+        rep.edit(src, f"read into roughly {m.group(1)}.",
+                 f"read into roughly {cost:,}.")
+
+
 def check_javascript_doc(rep: Report) -> None:
     """Module coverage and per-module line counts in JAVASCRIPT.md."""
     path = ROOT / "docs/JAVASCRIPT.md"
@@ -340,6 +385,7 @@ def main() -> int:
     check_grep_recipes(nav, rep, nav_src)
     check_reference_table(ref, rep, ref_src)
     check_derived_prose(ref, rep, ref_src)
+    check_heading_map_recipe(ref, rep, ref_src)
     check_javascript_doc(rep)
     check_testing_doc(rep)
 

@@ -13,13 +13,22 @@ fi
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 REL_PATH="${FILE_PATH#$PROJECT_DIR/}"
 
-# Guarded vs Exempt files check
-# Exempt: ucl.html, worldcup.html, frontend/tests/**
+# Deny by default. The guarded set used to be a hand-listed set of page names,
+# which meant every page added after it was written - diff.html and json.html
+# among them - fell through to the catch-all and shipped unguarded. Guard every
+# front-end source file and carve out the exemptions explicitly instead, so a
+# new page is covered the moment it exists.
+#
+# Note `*` in a case pattern also matches `/`, so frontend/*.js covers
+# frontend/js/diff/diff.js. Kept identical to SPA_GUARDED/SPA_EXEMPT in
+# protect-bash-writes.py.
 case "$REL_PATH" in
+    # ucl.html and worldcup.html are the deliberate ADR-016 exception: standalone
+    # single-file predictors outside the SPA's CSP (see AGENTS.md).
     frontend/ucl.html|frontend/worldcup.html|frontend/tests/*)
         exit 0
         ;;
-    frontend/index.html|frontend/arcade.html|frontend/cron.html|frontend/crypto.html|frontend/styles.css|frontend/js/*.js|frontend/js/**/*.js|frontend/three-bg.js|frontend/sw.js)
+    frontend/*.html|frontend/*.js|frontend/*.css)
         ;;
     *)
         exit 0
@@ -43,22 +52,25 @@ if [ -z "$CONTENT" ]; then
     exit 0
 fi
 
-# Extract all unique external origins (http/https URLs)
-# Allowlist: rjasti.com, www.rjasti.com, staging-api.rjasti.com, formsubmit.co, github.com, www.linkedin.com, w3.org, schema.org, localhost, 127.0.0.1
+# Single source of truth for the allowlist, shared with protect-bash-writes.py.
+POLICY="$(dirname "$0")/spa-egress.json"
+if [ ! -f "$POLICY" ]; then
+    echo "Error: egress allowlist $POLICY is missing; refusing to pass the edit unchecked." >&2
+    exit 2
+fi
+ALLOWED=$(jq -r '.allowed_origins[]' "$POLICY" | tr '\n' ' ')
 
-ALLOWED_REGEX='^(https?://)?(rjasti\.com|www\.rjasti\.com|staging-api\.rjasti\.com|formsubmit\.co|github\.com|www\.linkedin\.com|w3\.org|schema\.org|localhost|127\.0\.0\.1)(:[0-9]+)?(/.*)?$'
-
-# Find URLs in content
 URLS=$(echo "$CONTENT" | grep -oE 'https?://[a-zA-Z0-9.-]+(:[0-9]+)?' | sort -u || true)
 
 for url in $URLS; do
     domain=$(echo "$url" | sed -E 's|^https?://||' | cut -d/ -f1 | cut -d: -f1)
-    case "$domain" in
-        rjasti.com|www.rjasti.com|staging-api.rjasti.com|formsubmit.co|github.com|www.linkedin.com|w3.org|schema.org|localhost|127.0.0.1)
+    case " $ALLOWED " in
+        *" $domain "*)
             ;;
         *)
             echo "Error: Unapproved external asset/origin detected in $REL_PATH: $url" >&2
             echo "Egress protection blocked this modification per ADR-016." >&2
+            echo "If this origin is legitimate, add it to .claude/hooks/spa-egress.json." >&2
             exit 2
             ;;
     esac

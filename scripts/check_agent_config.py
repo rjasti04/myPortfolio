@@ -7,10 +7,18 @@ Ensures entrypoints, skills, agents, settings, permissions, templates, and mirro
 with repository standards.
 """
 
+import fnmatch
 import json
 import os
+import re
 import sys
 from pathlib import Path
+
+# Every lifecycle event Claude Code dispatches a hook for.
+VALID_HOOK_EVENTS = {
+    "PreToolUse", "PostToolUse", "UserPromptSubmit", "Notification",
+    "Stop", "SubagentStop", "SessionStart", "SessionEnd", "PreCompact",
+}
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -89,24 +97,21 @@ def check_skills(errors):
         if fm.get("name") != name:
             errors.append(f"Skill {skill_file} name in frontmatter '{fm.get('name')}' does not match directory name '{name}'.")
 
+        # `paths` is a valid skill key, but it makes the skill load only when
+        # Claude reaches a matching file through the Read tool. This repo's work
+        # routes through Bash - that is the whole reason the hooks in
+        # .claude/hooks/ exist (see _bash_targets.py) - so a path-gated skill
+        # here never activates and never appears in the skill list. alembic-guard
+        # and frontend-module were both invisible this way while this validator
+        # reported green. Path-scoped prose belongs in .claude/rules/, which is
+        # loaded by a different mechanism and is checked by check_rules below.
         if "paths" in fm:
-            paths = fm["paths"]
-            if isinstance(paths, str):
-                paths = [paths]
-            for glob_pattern in paths:
-                # Support recursive wildcard matching for patterns like frontend/**/*.{js,css,html}
-                if "**" in glob_pattern:
-                    base_part, _, ext_part = glob_pattern.partition("**")
-                    search_dir = ROOT / base_part.strip("/")
-                    if not search_dir.exists():
-                        errors.append(f"Skill {name} glob directory '{search_dir}' does not exist.")
-                        continue
-                    matches = list(search_dir.rglob("*"))
-                else:
-                    matches = list(ROOT.glob(glob_pattern))
-
-                if not matches:
-                    errors.append(f"Skill {name} glob pattern '{glob_pattern}' matched zero files.")
+            errors.append(
+                f"Skill {skill_file} declares 'paths'. Skills here must stay "
+                "unconditional: path-gated skills only load on a Read-tool touch, "
+                "which this repo's Bash-first workflow does not produce. Move "
+                "path-scoped guidance to .claude/rules/ instead."
+            )
 
 
 def check_agents(errors):
@@ -162,15 +167,33 @@ def check_settings(errors):
         errors.append(f".claude/settings.json is invalid JSON: {e}")
         return
 
+    # .env.example is tracked and is the documented variable reference, so no
+    # deny rule may cover it. The old test looked for the literal string
+    # ".env.example" in the rule, which a glob like "Read(./.env*)" never
+    # contains - so the one rule that actually blocked the file passed this
+    # check for as long as it existed. Resolve the glob instead.
+    example = ROOT / ".env.example"
     perms = data.get("permissions", {}).get("deny", [])
     for deny_rule in perms:
-        if ".env.example" in deny_rule:
-            errors.append(f"permissions.deny rule '{deny_rule}' incorrectly matches tracked .env.example.")
+        m = re.match(r"^\w+\((.*)\)$", deny_rule.strip())
+        if not m:
+            continue
+        pattern = m.group(1).lstrip("./")
+        if example.exists() and fnmatch.fnmatch(".env.example", pattern):
+            errors.append(
+                f"permissions.deny rule '{deny_rule}' matches tracked .env.example."
+            )
 
     hooks = data.get("hooks", {})
     for event_name, hook_list in hooks.items():
-        if event_name not in ["PreToolUse", "PostToolUse"]:
-            errors.append(f"Invalid hook event name: {event_name}")
+        # Restricting this to the two tool events rejected every other valid
+        # Claude Code lifecycle event - SessionStart among them, which is the
+        # documented way to prepare a repo for Claude Code on the web.
+        if event_name not in VALID_HOOK_EVENTS:
+            errors.append(
+                f"Invalid hook event name: {event_name} "
+                f"(expected one of {', '.join(sorted(VALID_HOOK_EVENTS))})"
+            )
         for item in hook_list:
             for h in item.get("hooks", []):
                 cmd = h.get("command", "")
@@ -189,7 +212,15 @@ def check_mirror_drift(errors):
     claude_skills = ROOT / ".claude" / "skills"
     agents_skills = ROOT / ".agents" / "skills"
 
-    mirrored_skills = ["alembic-guard", "frontend-module", "intent-planner", "security-audit"]
+    # Derived, not hand-listed. The literal list named four of the seven
+    # mirrored skills, so review/, testing/ and verify/ could drift apart
+    # silently - the exact failure this check exists to prevent.
+    mirrored_skills = sorted(
+        d.name for d in agents_skills.iterdir()
+        if d.is_dir() and (d / "SKILL.md").exists()
+    ) if agents_skills.is_dir() else []
+    if not mirrored_skills:
+        errors.append(f"No mirrored skills found under {agents_skills}.")
     for name in mirrored_skills:
         c_file = claude_skills / name / "SKILL.md"
         a_file = agents_skills / name / "SKILL.md"

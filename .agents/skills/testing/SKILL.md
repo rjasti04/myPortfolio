@@ -15,7 +15,7 @@ Identify modified files and run the corresponding targeted tests first:
 | :--- | :--- | :--- |
 | **Frontend** | `frontend/js/**`, `frontend/*.html`, `frontend/*.css` | `npm run lint` && `npm test` |
 | **Backend** | `server/**/*.py`, `tests/backend/**` | `ruff check server tests` && `PYTHONPATH=. pytest` |
-| **Database** | `server/models/**`, `server/alembic/**` | `cd server && PYTHONPATH=.. alembic check` |
+| **Database** | `server/models/**`, `server/alembic/**` | `cd server && PYTHONPATH=.. alembic check` (needs a live Postgres at `DATABASE_URL` with migrations already applied - see §2.3; it is not runnable against the SQLite test URL) |
 | **CSP / Docs** | `docs/*.md`, `frontend/index.html` | `python3 scripts/check_csp_hashes.py` && `python3 scripts/check_docs.py` |
 
 ## 2. Escalation & Full Gate Protocol
