@@ -247,7 +247,10 @@ export async function initOwnerAnalytics() {
       const paths = el("div", "act-paths");
       // The per-session renderer, unchanged: it takes {steps, transitions},
       // which is the shape this endpoint returns.
-      renderPaths(paths, funnel.data, { escapeHTML });
+      renderPaths(paths, funnel.data, {
+        escapeHTML,
+        emptyText: "No navigation recorded in this window.",
+      });
       body.appendChild(card("Where visitors go", paths));
     } else {
       body.appendChild(failure("Where visitors go"));

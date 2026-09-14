@@ -309,7 +309,7 @@ Internals worth knowing:
 | Destructive actions | Deleting one conversation and clearing all history both go through `confirmAction` from `confirm-dialog.js`. Delete used to ask nothing while Clear All called the browser's blocking `confirm()` |
 | Accessibility | `announceToScreenReader` for streamed replies. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
 
-### `activity.js` (1,244 lines, lazy)
+### `activity.js` (1,344 lines, lazy)
 
 `initActivity()`, `loadActivity()`, `loadActivitySummary()`,
 `loadActivityFunnel()`.
@@ -349,7 +349,7 @@ painted from `pipeline`/`hello` frames, a rolling 200-sample latency reservoir
 fed by `onTelemetry`, focus restoration across re-renders, and paginated
 grouped rows (`PAGE_SIZE = 20`).
 
-### `activity-charts.js` (200 lines)
+### `activity-charts.js` (204 lines)
 
 Pure paint helpers — `activity.js` owns all state; every export here renders
 from a snapshot passed in.
@@ -507,7 +507,7 @@ invalid inside `role="listbox"`, so the kind is a badge *inside* each option
 Find-in-page is not a substitute: the router keeps one section in the DOM at a
 time, so the browser never has the other seven to search.
 
-### `owner-analytics.js` (307 lines, lazy)
+### `owner-analytics.js` (310 lines, lazy)
 
 `initOwnerAnalytics()` — the aggregate panel at the foot of the Activity
 section. Everything above it is the visitor's own session, which is what the

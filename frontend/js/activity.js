@@ -38,6 +38,9 @@ const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 140;
 const COPY_RESET_DELAY_MS = 1600;
 const CLOCK_TICK_MS = 15000;
+// Consecutive EventSource failures tolerated before the live pill stops
+// saying "Connecting…" and admits the stream is not coming back.
+const STREAM_GIVE_UP_AFTER = 3;
 // "Time on site" is the one figure on the page that changes on its own, so it
 // runs on its own second-by-second clock rather than waiting for the 15s
 // repaint or a manual refresh: a stopwatch that only moves when you poke it
@@ -114,6 +117,7 @@ let clockTimer = null;
 let durationTimer = null;
 let prefersReducedMotion = false;
 let activityStreamSource = null;
+let streamErrorCount = 0;
 let latencySamples = [];
 let lastApiLatencyMs = null;
 let lastServerMs = null;
@@ -177,7 +181,9 @@ function formatRelativeTime(ms) {
 function formatCount(value) {
   if (!Number.isFinite(value)) return "-";
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 10_000) return `${(value / 1000).toFixed(1)}k`;
+  // Abbreviate from 1,000 rather than 10,000. The old floor put "9,999" and
+  // "10.0k" in adjacent slots of the same row, in two different notations.
+  if (value >= 1_000) return `${(value / 1000).toFixed(1)}k`;
   return value.toLocaleString();
 }
 
@@ -260,6 +266,12 @@ export function describeEvent(event) {
         return { text: "Started the contact form", aside: data.native_fallback ? "opened mail app" : "not sent" };
       }
       return { text: "Sent the contact form" };
+    case "contact_prompt":
+      return { text: `Saw the contact prompt on ${path}` };
+    case "ai_llm_telemetry":
+      return { text: "Used the AI assistant", aside: "usage recorded" };
+    case "client_error":
+      return { text: `Something went wrong on ${path}`, aside: "reported to the site" };
     default:
       return { text: `${escapeHTML(String(event.event_type).replace(/_/g, " "))} on ${path}` };
   }
@@ -388,6 +400,44 @@ function paintSessionPill(sessionId) {
   }
 }
 
+/**
+ * Turns a status code into something a visitor can act on.
+ *
+ * The reading column used to carry the number itself - "The API replied 503."
+ * - which tells a recruiter nothing and an engineer nothing they could not get
+ * from the console. The status still reaches the console; the page gets a
+ * sentence. Mirrors describeHttpFailure() in chat.js.
+ *
+ * The 404 detail says "reloading the page in your browser" rather than the old
+ * "Reload the page": the session bar has a button labelled Refresh a few
+ * inches away, and two near-identical words for two different actions is how a
+ * reader ends up pressing the wrong one.
+ */
+function describeHttpFailure(status) {
+  if (status === 404) {
+    return {
+      message: "This session has expired, so its events are no longer available.",
+      detail: "Start a fresh visit by reloading the page in your browser.",
+    };
+  }
+  if (status === 429) {
+    return {
+      message: "Too many requests for the moment.",
+      detail: "Wait a few seconds, then use Refresh - your events keep recording either way.",
+    };
+  }
+  if (status >= 500) {
+    return {
+      message: "The activity API is having trouble right now.",
+      detail: "Use Refresh to try again - your events keep recording either way.",
+    };
+  }
+  return {
+    message: "Could not load your events.",
+    detail: "Use Refresh to try again - your events keep recording either way.",
+  };
+}
+
 export async function loadActivity() {
   const sessionId = currentSessionId();
   paintSessionPill(sessionId);
@@ -419,14 +469,9 @@ export async function loadActivity() {
 
     if (!response.ok) {
       loadState = "error";
-      loadDetail =
-        response.status === 404
-          ? "Reload the page to start a fresh session."
-          : "Refresh to try again - your events keep recording either way.";
-      loadMessage =
-        response.status === 404
-          ? "This session has expired, so its events are no longer available."
-          : `Could not load your events. The API replied ${response.status}.`;
+      const failure = describeHttpFailure(response.status);
+      loadMessage = failure.message;
+      loadDetail = failure.detail;
       render();
       return;
     }
@@ -457,7 +502,13 @@ export async function loadActivity() {
    error properly all along; these two just skipped it. */
 export async function loadActivitySummary() {
   const sessionId = currentSessionId();
-  if (!sessionId || !isApiConfigured()) return;
+  if (!sessionId || !isApiConfigured()) {
+    // Not "zero events" - "we never asked". Without this the grid drops
+    // aria-busy and presents the fallback count as a measurement.
+    summaryFailed = true;
+    render();
+    return;
+  }
 
   try {
     const response = await apiFetch(`${API_BASE}/sessions/${sessionId}/events/summary`);
@@ -474,7 +525,11 @@ export async function loadActivitySummary() {
 
 export async function loadActivityFunnel() {
   const sessionId = currentSessionId();
-  if (!sessionId || !isApiConfigured()) return;
+  if (!sessionId || !isApiConfigured()) {
+    funnelFailed = true;
+    paintPaths();
+    return;
+  }
 
   try {
     const response = await apiFetch(`${API_BASE}/sessions/${sessionId}/events/funnel`);
@@ -498,6 +553,30 @@ function paintDuration() {
 }
 
 function paintHeadline() {
+  const grid = document.getElementById("act-stats");
+  const measured = Boolean(summaryState) || sessionEvents.length > 0;
+
+  // Still counting. Writing zeroes here - which is what this did on every
+  // first render - states a measurement the page has not made and then
+  // contradicts it a moment later.
+  if (!measured && loadState === "loading") {
+    if (grid) grid.setAttribute("aria-busy", "true");
+    return;
+  }
+
+  if (grid) grid.removeAttribute("aria-busy");
+
+  // A load that failed has not measured zero events; it has measured nothing.
+  // "0 Events recorded" beside "Could not reach the activity API" is the page
+  // contradicting itself in adjacent cards.
+  if (!measured && loadState === "error") {
+    setText("act-stat-total", "-");
+    setText("act-stat-paths", "-");
+    paintDuration();
+    if (grid) grid.dataset.stale = "true";
+    return;
+  }
+
   const total = summaryState?.total_events ?? sessionEvents.length;
   const paths = summaryState?.distinct_paths ?? new Set(sessionEvents.map((e) => e.page_path)).size;
 
@@ -505,13 +584,9 @@ function paintHeadline() {
   paintDuration();
   setText("act-stat-paths", String(paths || 0));
 
-  const grid = document.getElementById("act-stats");
-  if (grid) {
-    grid.removeAttribute("aria-busy");
-    // Marks the figures as unverified rather than letting a fallback count
-    // pass for a measured one.
-    grid.dataset.stale = String(summaryFailed);
-  }
+  // Marks the figures as unverified rather than letting a fallback count pass
+  // for a measured one.
+  if (grid) grid.dataset.stale = String(summaryFailed);
 }
 
 function paintTimeline() {
@@ -540,7 +615,7 @@ function paintFamilies() {
   const root = document.getElementById("act-families");
   if (!root) return;
 
-  const counts = { nav: 0, tap: 0, pref: 0, reach: 0 };
+  const counts = { nav: 0, tap: 0, pref: 0, reach: 0, sys: 0 };
   sessionEvents.forEach((event) => {
     counts[familyOf(event.event_type)] += 1;
   });
@@ -638,7 +713,7 @@ function eventRow(event, index) {
           ${
             hasData
               ? `<button type="button" class="act-ev-json" aria-expanded="${open}" aria-controls="${panelId}"
-                   aria-label="Show the raw data for this event">{&nbsp;}</button>`
+                   aria-label="Show the raw data for this event">{&nbsp;} data</button>`
               : ""
           }
         </span>
@@ -689,8 +764,12 @@ function paintStream() {
 
   if (loadState === "error") {
     list.dataset.state = "error";
+    // role="alert" is what announces this. The copy lands in a plain <ul>,
+    // which is not a live region, and the one live region on the page -
+    // #act-stream-status - was being cleared on exactly this path, so a
+    // screen-reader user heard the status empty out and nothing else.
     list.innerHTML = `
-      <li class="act-empty">
+      <li class="act-empty" role="alert">
         <b>${escapeHTML(loadMessage)}</b>
         <span>${escapeHTML(loadDetail)}</span>
       </li>`;
@@ -868,6 +947,10 @@ function setLiveStatus(status) {
     label.textContent = newest ? `Live · ${formatRelativeTime(newest)}` : "Live";
   } else if (status === "connecting") {
     label.textContent = "Connecting…";
+  } else if (status === "error") {
+    // Names the way out. "Not streaming" on its own left the reader with a
+    // red dot and no next step.
+    label.textContent = "Not live · use Refresh";
   } else {
     label.textContent = "Not streaming";
   }
@@ -915,6 +998,7 @@ function startActivityStream() {
     return;
   }
 
+  streamErrorCount = 0;
   setLiveStatus("connecting");
   // EventSource cannot set request headers, so this endpoint authenticates by
   // cookie: the API sets an HttpOnly SameSite=Strict token when the session is
@@ -928,7 +1012,10 @@ function startActivityStream() {
     withSessionToken(`${API_BASE}/sessions/${sessionId}/stream`),
     { withCredentials: true },
   );
-  activityStreamSource.onopen = () => setLiveStatus("connected");
+  activityStreamSource.onopen = () => {
+    streamErrorCount = 0;
+    setLiveStatus("connected");
+  };
 
   const parse = (event, handler) => {
     try {
@@ -957,7 +1044,13 @@ function startActivityStream() {
       paintChain();
     }),
   );
-  activityStreamSource.onerror = () => setLiveStatus("connecting");
+  activityStreamSource.onerror = () => {
+    // EventSource retries on its own, so the first few failures really are
+    // "connecting". Past that it is not coming back on this page load, and
+    // saying so beats a spinner that never resolves.
+    streamErrorCount += 1;
+    setLiveStatus(streamErrorCount > STREAM_GIVE_UP_AFTER ? "error" : "connecting");
+  };
 }
 
 /**
@@ -1212,14 +1305,21 @@ export function initActivity() {
   sessionPill?.addEventListener("click", async () => {
     const fullId = sessionPill.dataset.sessionId;
     if (!fullId) return;
+    const label = sessionPill.querySelector(".act-session-label");
+    const restore = label?.textContent ?? "Session";
     try {
       await copyText(fullId);
       sessionPill.dataset.copyState = "copied";
+      if (label) label.textContent = "Copied";
     } catch (error) {
       console.error("Session ID copy failed", error);
       sessionPill.dataset.copyState = "failed";
+      if (label) label.textContent = "Failed";
     }
-    setTimeout(() => delete sessionPill.dataset.copyState, COPY_RESET_DELAY_MS);
+    setTimeout(() => {
+      delete sessionPill.dataset.copyState;
+      if (label) label.textContent = restore;
+    }, COPY_RESET_DELAY_MS);
   });
 
   document.getElementById("activity-refresh-btn")?.addEventListener("click", () => {
