@@ -353,10 +353,12 @@ inline above and collected here so the divergence is not buried:
 Measured against the projections: **29.3 KiB JS** (projected ~30) and
 **14.1 KiB CSS** (projected ~18). `BUDGETS_KIB` went to `{ js: 390, css: 285 }`
 exactly as §5.1 of the intent proposed, leaving 14.1 and 8.3 KiB of headroom.
-`diff.css` is now a **fifth** copy of the app chrome, which makes the shared
-stylesheet extraction worth roughly 10 KiB; the rationale comment in
-`scripts/build.mjs` now says so and names it as the thing to do before either
-ceiling moves again.
+`diff.css` was a **third** copy of the app chrome. That extraction has since
+been done in its own commit: `frontend/app-chrome.css`, linked by `/crypto`,
+`/json` and `/diff`. It reclaimed **3.0 KiB**, not the ~10 KiB estimated here
+before anyone measured — only three apps were ever really copies. `/arcade`
+never wore this chrome, and `/cron` only looks like it does (it breaks at
+860px and 480px where the others use 960px and 430px), so both stay out.
 
 **Four bugs the suites caught during implementation**, all real and all fixed —
 recorded because they are the argument for building the pure core first:

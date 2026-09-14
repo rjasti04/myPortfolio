@@ -93,11 +93,16 @@ const SKIP_DIRS = new Set(["tests"]);
    rejected at ~12 KiB, a third vendored library to audit, and the loss of the
    written-from-scratch claim the rest of the Dev Tools shelf makes.
 
-   diff.css is now a FIFTH copy of the app chrome. That reclaim is worth about
-   10 KiB across arcade/cron/crypto/json/diff and it is the first thing to do
-   before either of these numbers moves again - at five copies it has stopped
-   being a nice-to-have. Still its own change: it touches five shipped apps,
-   and folding it into a feature commit makes both unreviewable. */
+   diff.css was a third copy of the app chrome, and that extraction has since
+   been done: app-chrome.css is emitted as its own asset and linked by
+   /crypto, /json and /diff. It reclaimed 3.0 KiB - less than the ~10 KiB
+   guessed here before anyone measured it, because only three of the apps were
+   ever really copies. /arcade never wore this chrome (its masthead is a
+   different component) and /cron only looks like it does: it breaks to two
+   tiers at 860px rather than 960px and to its smallest tier at 480px rather
+   than 430px, so adopting the shared file would move two of its breakpoints.
+   Both stay out, deliberately. The real win was removing three hand-synced
+   copies of a 200-line block, not the bytes. */
 const BUDGETS_KIB = { js: 390, css: 285 };
 
 const hash8 = (contents) =>
@@ -291,7 +296,7 @@ async function main() {
 
   // --- CSS -----------------------------------------------------------------
   const cssAssets = new Set();
-  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "arcade.css", "cron.css", "crypto.css", "json.css", "diff.css"]) {
+  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "app-chrome.css", "arcade.css", "cron.css", "crypto.css", "json.css", "diff.css"]) {
     const result = await esbuild.build({
       entryPoints: [join(SRC, css)],
       bundle: true, minify: true, sourcemap: true,
