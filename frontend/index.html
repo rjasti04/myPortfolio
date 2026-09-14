@@ -1845,17 +1845,15 @@
                      on the bar and say nothing. renderUsageSummary() reveals it. -->
                 <dl class="ai-usage" id="ai-usage" hidden title="Totals for this conversation">
                   <div class="ai-usage-stat">
-                    <dt class="ai-usage-label">In / out</dt>
+                    <dt class="ai-usage-label">Tokens in / out</dt>
                     <dd class="ai-usage-value" id="ai-usage-tokens">0 / 0</dd>
                   </div>
                   <div class="ai-usage-stat">
-                    <dt class="ai-usage-label">Avg latency</dt>
+                    <dt class="ai-usage-label">Avg response</dt>
                     <dd class="ai-usage-value" id="ai-usage-latency">&mdash;</dd>
                   </div>
                 </dl>
-                <span class="ai-topbar-model">
-                  <span class="ai-status-dot" aria-hidden="true"></span>Gemma 3-4B
-                </span>
+                <span class="ai-topbar-model" id="ai-topbar-model">AI assistant</span>
               </div>
             </div>
 
@@ -1906,7 +1904,7 @@
                    the composer's flow, and appears only once the transcript is
                    scrolled off its own bottom edge; chat.js owns `hidden`. -->
               <button type="button" class="ai-jump-btn" id="ai-jump-btn" hidden>
-                <i class="fas fa-arrow-down" aria-hidden="true"></i><span>Latest</span>
+                <i class="fas fa-arrow-down" aria-hidden="true"></i><span>Jump to latest</span>
               </button>
 
               <form class="ai-input-form" id="ai-page-form">
@@ -1942,6 +1940,7 @@
                   </button>
                 </div>
               </form>
+              <p class="ai-quota" id="ai-quota" hidden></p>
               <p class="ai-disclaimer">AI can make mistakes. Check important info.</p>
             </div>
           </div>
@@ -1951,7 +1950,7 @@
           <div class="noscript-message noscript-message--card">
             <i class="fas fa-robot noscript-message__icon--large"></i>
             <h3 class="noscript-message__title">AI Chat requires JavaScript</h3>
-            <p class="noscript-message__copy">Please enable JavaScript to interact with the Bedrock AI model.</p>
+            <p class="noscript-message__copy">Please enable JavaScript to chat with the AI assistant.</p>
           </div>
         </noscript>
       </section>

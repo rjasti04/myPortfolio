@@ -79,6 +79,8 @@ export function initChat() {
   const usageEl = document.getElementById('ai-usage');
   const usageTokensEl = document.getElementById('ai-usage-tokens');
   const usageLatencyEl = document.getElementById('ai-usage-latency');
+  const aiModelEl = document.getElementById('ai-topbar-model');
+  const aiQuotaEl = document.getElementById('ai-quota');
 
   // Voice input support for mobile & desktop.
   //
@@ -279,7 +281,9 @@ export function initChat() {
     if (!aiPageInput || !aiTokenCounter) return;
     const text = aiPageInput.value.trim();
     const tokens = estimateTokens(text);
-    aiTokenCounter.textContent = `${tokens} token${tokens !== 1 ? 's' : ''}`;
+    // "0 tokens" never said what it was counting toward - the ceiling was
+    // invisible until you crossed it and the send button went dead.
+    aiTokenCounter.textContent = `${tokens} / ${TOKEN_LIMIT} tokens`;
     // An empty composer has nothing to report, and the count sits inside the
     // pill now - so it stays out of the resting bar and appears on first keypress.
     aiTokenCounter.hidden = tokens === 0;
@@ -296,8 +300,8 @@ export function initChat() {
 
     // Visual feedback
     if (isOverLimit) {
-      aiTokenCounter.style.color = 'var(--color-error)';
-      aiTokenCounter.style.fontWeight = '800';
+      aiTokenCounter.classList.add('is-over');
+      aiTokenCounter.classList.remove('is-warn');
       aiPageInput.setAttribute('aria-invalid', 'true');
       aiPageInput.setAttribute('aria-describedby', 'token-error');
 
@@ -308,25 +312,20 @@ export function initChat() {
         errorMsg.id = 'token-error';
         errorMsg.className = 'form-error-message';
         errorMsg.setAttribute('role', 'alert');
-        errorMsg.style.cssText = 'color: var(--color-error); font-size: 12px; margin-top: 4px;';
+        // .form-error-message already carries the colour, size and offset; the
+        // cssText that used to be here restated them as literals off the ramp.
         aiPageInput.parentElement.appendChild(errorMsg);
       }
-      errorMsg.textContent = `Message exceeds ${TOKEN_LIMIT} token limit. Please shorten your message.`;
+      errorMsg.textContent = `Message exceeds the ${TOKEN_LIMIT} token limit. Please shorten it.`;
+      errorMsg.setAttribute('data-active', 'true');
     } else {
       aiPageInput.removeAttribute('aria-invalid');
       aiPageInput.removeAttribute('aria-describedby');
       document.getElementById('token-error')?.remove();
 
-      if (tokens > TOKEN_ERROR_THRESHOLD) {
-        aiTokenCounter.style.color = 'var(--color-error)';
-        aiTokenCounter.style.fontWeight = '800';
-      } else if (tokens > TOKEN_WARNING_THRESHOLD) {
-        aiTokenCounter.style.color = 'var(--color-warning)';
-        aiTokenCounter.style.fontWeight = '700';
-      } else {
-        aiTokenCounter.style.color = '';
-        aiTokenCounter.style.fontWeight = '';
-      }
+      aiTokenCounter.classList.toggle('is-over', tokens > TOKEN_ERROR_THRESHOLD);
+      aiTokenCounter.classList.toggle('is-warn',
+        tokens > TOKEN_WARNING_THRESHOLD && tokens <= TOKEN_ERROR_THRESHOLD);
     }
   }
   const newChatBtn = document.getElementById('new-chat-btn');
@@ -575,6 +574,51 @@ export function initChat() {
     return session.usage;
   }
 
+  /* The top bar used to name a model in hand-written markup, beside a status
+     dot nothing ever updated - and the <noscript> card 90 lines below named a
+     different vendor. The server owns the model (ADR-023) and reports the one
+     it actually used on the stream's metrics frame, so that is what this reads.
+     Until a turn has been measured it stays on the neutral label it ships with. */
+  function renderModelName(modelId) {
+    if (!aiModelEl || typeof modelId !== 'string' || !modelId) return;
+    const parts = modelId
+      .replace(/^(us|eu|apac)\./, '')
+      .replace(/^[a-z0-9-]+\./, '')
+      .replace(/-v\d+:\d+$/, '')
+      .replace(/-\d{8}$/, '')
+      .split(/[-_]/)
+      .filter(Boolean);
+    // "claude","3","5","sonnet" -> "claude","3.5","sonnet"
+    const merged = parts.reduce((acc, part) => {
+      const last = acc[acc.length - 1];
+      if (last && /^[\d.]+$/.test(last) && /^\d+$/.test(part)) acc[acc.length - 1] = `${last}.${part}`;
+      else acc.push(part);
+      return acc;
+    }, []);
+    const pretty = merged
+      .map((w) => (/^[\d.]+$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+      .join(' ')
+      .trim();
+    if (pretty) aiModelEl.textContent = pretty;
+  }
+
+  /* Finding 1 of the flow walk: the six-message allowance was invisible until
+     the seventh message bounced off it. Counting down from three left is late
+     enough not to nag a visitor who only wants one answer, and early enough to
+     be a warning rather than a wall. */
+  function renderQuota() {
+    if (!aiQuotaEl) return;
+    if (getAuthToken()) { aiQuotaEl.hidden = true; return; }
+    const session = getActiveSession();
+    const used = session ? session.messages.filter((m) => m.sender === 'user').length : 0;
+    const left = Math.max(0, FREE_MESSAGE_LIMIT - used);
+    if (left > 3) { aiQuotaEl.hidden = true; return; }
+    aiQuotaEl.textContent = left === 0
+      ? 'Free messages used up in this chat. Sign in to keep going.'
+      : `${left} free message${left === 1 ? '' : 's'} left in this chat. Sign in for more.`;
+    aiQuotaEl.hidden = false;
+  }
+
   function renderUsageSummary() {
     if (!usageTokensEl && !usageLatencyEl) return;
     const usage = getUsage(getActiveSession());
@@ -615,6 +659,7 @@ export function initChat() {
       usage.timedTurns += 1;
     }
     renderUsageSummary();
+    renderQuota();
   }
 
   const sidebarSearchContainer = document.getElementById('ai-sidebar-search-container');
@@ -1416,6 +1461,7 @@ export function initChat() {
       });
       renderConversationTitle();
       renderUsageSummary();
+      renderQuota();
       syncJumpBtn();
       return;
     }
@@ -1429,6 +1475,7 @@ export function initChat() {
       });
       renderConversationTitle();
       renderUsageSummary();
+      renderQuota();
       syncJumpBtn();
       return;
     }
@@ -1447,6 +1494,7 @@ export function initChat() {
     // from one call site rather than three.
     renderConversationTitle();
     renderUsageSummary();
+    renderQuota();
     syncJumpBtn();
   }
 
@@ -1640,6 +1688,40 @@ export function initChat() {
    * waiting, and streaming, at which point the indicator is replaced by the
    * reply itself - so it reports the one it is in and nothing more.
    */
+  /* Every non-401 failure used to surface as the same sentence: "Connection to
+     AI service failed. Check your internet connection and try again." A 429 is
+     not a connection problem, and telling a rate-limited visitor to go and check
+     their wifi sends them to fix something that is not broken. The status is
+     what decides the copy, and the copy names what the visitor can actually do
+     about it. */
+  function chatError(userMessage, opts = {}) {
+    const err = new Error(opts.logMessage || userMessage);
+    err.userMessage = userMessage;
+    if (opts.status) err.status = opts.status;
+    return err;
+  }
+
+  function describeHttpFailure(response) {
+    switch (response.status) {
+      case 429:
+        // Covers both the per-IP budget and the four-slot concurrency semaphore.
+        // Neither sends Retry-After, and server/main.py exposes only
+        // Server-Timing and X-Request-ID through CORS, so there is no wait to
+        // quote - both clear on their own within seconds.
+        return 'The assistant is handling too many requests right now. Try again in a moment.';
+      case 400:
+      case 422:
+        return 'That message could not be sent. It may be too long - try shortening it.';
+      case 401:
+      case 403:
+        return 'Sign in to continue this conversation.';
+      default:
+        return response.status >= 500
+          ? 'The assistant is temporarily unavailable. Try again in a moment.'
+          : 'Something went wrong sending that message. Try again.';
+    }
+  }
+
   function createTypingIndicator() {
     const indicator = document.createElement('div');
     indicator.className = 'chat-message bot typing-indicator';
@@ -1827,14 +1909,26 @@ export function initChat() {
       if (!response.ok) {
         if (response.status === 401 && !getAuthToken()) {
           window.dispatchEvent(new Event('request-login-modal'));
-          throw new Error('Please log in to continue.');
+          throw chatError(
+            'You have used the free messages for this browser. Sign in to keep chatting.',
+            { status: 401, logMessage: 'Chat free-message limit reached' }
+          );
         }
-        throw new Error('API Error');
+        throw chatError(describeHttpFailure(response), {
+          status: response.status,
+          logMessage: `Chat API ${response.status}`
+        });
       }
 
-      // Remove typing indicators
-      if (widgetIndicator) widgetIndicator.remove();
-      if (aiIndicator) aiIndicator.remove();
+      /* The indicator used to be dropped here, the moment the response HEADERS
+         arrived - but on Bedrock the first token can be a second or more behind
+         them. That left a gap with the indicator gone, the reply not started and
+         nothing on screen moving, which reads as a hang. It now survives until
+         there is actual text to replace it with. */
+      const dropIndicators = () => {
+        if (widgetIndicator) { widgetIndicator.remove(); widgetIndicator = null; }
+        if (aiIndicator) { aiIndicator.remove(); aiIndicator = null; }
+      };
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
@@ -1858,6 +1952,7 @@ export function initChat() {
       const flushParse = () => {
         if (parseTimer) clearTimeout(parseTimer);
         parseTimer = null;
+        if (botFullText) dropIndicators();
         const html = renderBotHTML(botFullText);
         if (widgetMsgEl) {
           widgetMsgEl.innerHTML = html;
@@ -1876,6 +1971,7 @@ export function initChat() {
         // a later turn moving the global on cannot double-count or overwrite
         // it. The global stays for console debugging.
         streamMetrics = metricsData;
+        renderModelName(metricsData && metricsData.model_id);
         if (typeof window !== "undefined") {
           window.lastStreamMetrics = metricsData;
         }
@@ -1906,7 +2002,7 @@ export function initChat() {
 
           if (parsed.error) {
             console.error("Stream payload error:", parsed.error);
-            botFullText += `\n\n*(Error: ${escapeHTML(parsed.error)})*`;
+            botFullText += "\n\n*(The assistant stopped early. Try again.)*";
             flushParse();
             return false;
           }
@@ -1973,7 +2069,7 @@ export function initChat() {
               parseTimer = null;
             }
             flushParse();
-            botFullText += "\n\n[Connection interrupted]";
+            botFullText += "\n\n*(Reply cut short - the connection dropped.)*";
           } else {
             throw streamError;
           }
@@ -1991,6 +2087,8 @@ export function initChat() {
 
       flushParse();
 
+      dropIndicators();
+
       // Always unmount streaming class before rendering final content or error states
       if (widgetMsgEl) widgetMsgEl.classList.remove('streaming');
       if (aiMsgEl) aiMsgEl.classList.remove('streaming');
@@ -2000,7 +2098,7 @@ export function initChat() {
         const emptyErrorMsg = `
           <div class="chat-error-boundary">
             <i class="fas fa-exclamation-triangle"></i>
-            <span>AI service returned an empty response. Check backend credentials/model access and try again.</span>
+            <span>The assistant did not return a response. Try again.</span>
             <button type="button" class="btn btn-outline retry-btn" data-retry-text="${escapeHTML(retryText)}">
               <i class="fas fa-sync-alt"></i> Retry
             </button>
@@ -2008,7 +2106,9 @@ export function initChat() {
         `;
         if (widgetMsgEl) widgetMsgEl.innerHTML = emptyErrorMsg;
         if (aiMsgEl) aiMsgEl.innerHTML = emptyErrorMsg;
+        announceToScreenReader('The assistant did not return a response.');
       } else {
+        announceToScreenReader('Response received');
         if (widgetMsgEl) {
           widgetMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated));
         }
@@ -2036,8 +2136,7 @@ export function initChat() {
         }
       }
 
-      // Announce completion to screen readers
-      announceToScreenReader('Response received');
+
 
     } catch (err) {
       console.error('Chat API Error:', err);
@@ -2061,10 +2160,15 @@ export function initChat() {
       // rendered - and Markdown reads four leading spaces as a code fence. The
       // indented template that used to be here reached the transcript as a
       // syntax-highlighted dump of its own source, Retry button and all.
+      // err.userMessage is set by chatError() and already says what happened.
+      // A thrown TypeError from fetch() itself is the one case that really IS
+      // the network, so that is the only path that still says so.
+      const detail = err.userMessage
+        || 'Could not reach the assistant. Check your connection and try again.';
       const errorMsg =
         '<div class="chat-error-boundary">' +
         '<i class="fas fa-exclamation-triangle"></i>' +
-        '<span>Connection to AI service failed. Check your internet connection and try again.</span>' +
+        `<span>${escapeHTML(detail)}</span>` +
         `<button type="button" class="btn btn-outline retry-btn" data-retry-text="${escapeHTML(retryText)}">` +
         '<i class="fas fa-sync-alt"></i> Retry' +
         '</button>' +
