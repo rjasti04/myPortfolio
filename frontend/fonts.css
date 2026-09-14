@@ -194,6 +194,9 @@
 .fa-code::before {
   content: "\f121";
 }
+.fa-code-compare::before {
+  content: "\e13a";
+}
 .fa-cog::before {
   content: "\f013";
 }
@@ -214,6 +217,9 @@
 }
 .fa-diagram-project::before {
   content: "\f542";
+}
+.fa-dice::before {
+  content: "\f522";
 }
 .fa-display::before {
   content: "\e163";
@@ -250,6 +256,9 @@
 }
 .fa-futbol::before {
   content: "\f1e3";
+}
+.fa-gear::before {
+  content: "\f013";
 }
 .fa-github::before {
   content: "\f09b";
@@ -305,6 +314,9 @@
 .fa-microphone-lines::before {
   content: "\f3c9";
 }
+.fa-mobile-screen::before {
+  content: "\f3cf";
+}
 .fa-moon::before {
   content: "\f186";
 }
@@ -317,11 +329,17 @@
 .fa-paper-plane::before {
   content: "\f1d8";
 }
+.fa-pause::before {
+  content: "\f04c";
+}
 .fa-pen::before {
   content: "\f304";
 }
 .fa-phone::before {
   content: "\f095";
+}
+.fa-play::before {
+  content: "\f04b";
 }
 .fa-plus::before {
   content: "\2b";

@@ -369,6 +369,20 @@ export function applyPatch(sourceText, patch) {
  * whole file.
  */
 export function patchToView(parsed) {
+  const empty = {
+    hunks: [],
+    changes: [],
+    algorithm: "patch",
+    identical: true,
+    stats: { additions: 0, deletions: 0, modifications: 0 },
+    left: { lines: [], noEol: false },
+    right: { lines: [], noEol: false },
+    files: [],
+  };
+  // A caller that skipped the `ok` check gets an empty view rather than a
+  // crash — this is reached from a paste handler on every keystroke.
+  if (!parsed?.ok || !parsed.files?.length) return empty;
+
   const file = parsed.files.find((entry) => entry.hunks.length > 0) ?? parsed.files[0];
   let additions = 0;
   let deletions = 0;

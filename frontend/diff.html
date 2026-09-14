@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none';"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta
+      name="description"
+      content="Client-side code difference checker. Compare two files with character-level highlighting, read and render unified patches, and copy the result as a standard patch. Nothing you paste leaves the tab."
+    />
+    <meta name="theme-color" content="#0b0f1a" />
+    <title>Code Difference Checker</title>
+    <link rel="canonical" href="https://rjasti.com/diff" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="Rajeev Jasti" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://rjasti.com/diff" />
+    <meta property="og:title" content="Code Difference Checker" />
+    <meta
+      property="og:description"
+      content="Compare two files or render a unified patch, entirely in your browser. Myers diff with character-level highlighting. Nothing you paste leaves the tab."
+    />
+    <meta property="og:image" content="https://rjasti.com/diff-preview.png" />
+    <meta
+      property="og:image:secure_url"
+      content="https://rjasti.com/diff-preview.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Code Difference Checker preview card" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Code Difference Checker" />
+    <meta
+      name="twitter:description"
+      content="A zero-egress code diff: compare two files, read a unified patch, copy one out."
+    />
+    <meta name="twitter:image" content="https://rjasti.com/diff-preview.png" />
+    <meta name="twitter:image:alt" content="Code Difference Checker preview card" />
+    <link rel="icon" href="/favicon.ico" />
+
+    <!-- Self-hosted fonts subset -->
+    <link rel="stylesheet" href="fonts.css" />
+    <link rel="stylesheet" href="diff.css" />
+  </head>
+
+  <body>
+    <header class="app-header">
+      <div class="header-container">
+        <!-- Tier 1: Primary App Bar -->
+        <div class="header-primary-bar">
+          <div class="header-left">
+            <div class="brand-wrap">
+              <div class="brand-icon" aria-hidden="true">
+                <i class="fas fa-code-compare"></i>
+              </div>
+              <div class="brand-text">
+                <div class="brand-title">Code Difference</div>
+                <span class="brand-tag">Checker</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="header-actions">
+            <a
+              href="/"
+              class="action-btn back-btn"
+              title="Back to Rajeev Jasti Portfolio"
+              aria-label="Back to Portfolio"
+            >
+              <i class="fas fa-arrow-left" aria-hidden="true"></i>
+              <span class="back-label"
+                ><span class="back-label-long">Portfolio</span
+                ><span class="back-label-short">Back</span></span
+              >
+            </a>
+            <button
+              type="button"
+              id="btn-clear-all"
+              class="action-btn text-danger"
+              title="Wipe both panes and anything stored in this browser"
+              aria-label="Clear both panes and stored data"
+            >
+              <i class="fas fa-trash-can" aria-hidden="true"></i>
+              <span class="action-label">Clear</span>
+            </button>
+            <button
+              type="button"
+              id="theme-toggle-btn"
+              class="action-btn action-btn-icon"
+              title="Toggle Light / Dark theme"
+              aria-label="Toggle theme"
+            >
+              <i class="fas fa-sun" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Tier 2: Segmented Mode Switcher -->
+        <nav class="mode-tabs" role="tablist" aria-label="Checker mode">
+          <button
+            type="button"
+            class="tab-btn active"
+            data-tab="compare"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-compare"
+            id="tab-compare"
+          >
+            <i class="fas fa-code-compare" aria-hidden="true"></i>
+            <span>Compare</span>
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            data-tab="patch"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-patch"
+            tabindex="-1"
+            id="tab-patch"
+          >
+            <i class="fas fa-file-lines" aria-hidden="true"></i>
+            <span>Patch</span>
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            data-tab="about"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-about"
+            tabindex="-1"
+            id="tab-about"
+          >
+            <i class="fas fa-circle-info" aria-hidden="true"></i>
+            <span>About</span>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-content diff-shell" data-view="split" data-tab="compare">
+      <!-- Compare -->
+      <section
+        id="panel-compare"
+        class="panel-container"
+        role="tabpanel"
+        aria-labelledby="tab-compare"
+      >
+        <div class="pane-grid">
+          <div class="card pane-card">
+            <div class="card-header-row">
+              <h2 class="card-title" id="label-left">Original</h2>
+              <span class="pane-meta" id="meta-left">empty</span>
+              <button type="button" class="btn-sm" id="btn-file-left">
+                <i class="fas fa-file-lines" aria-hidden="true"></i>Open file
+              </button>
+              <button type="button" class="btn-sm" id="btn-clear-left">
+                <i class="fas fa-times" aria-hidden="true"></i>Clear
+              </button>
+            </div>
+            <textarea
+              id="input-left"
+              class="code-area source-area"
+              spellcheck="false"
+              autocomplete="off"
+              autocapitalize="off"
+              wrap="off"
+              aria-labelledby="label-left"
+              placeholder="Paste the original here, or drop a file."
+            ></textarea>
+            <input type="file" id="file-left" class="sr-only" aria-hidden="true" tabindex="-1" />
+          </div>
+
+          <div class="card pane-card">
+            <div class="card-header-row">
+              <h2 class="card-title" id="label-right">Changed</h2>
+              <span class="pane-meta" id="meta-right">empty</span>
+              <button type="button" class="btn-sm" id="btn-file-right">
+                <i class="fas fa-file-lines" aria-hidden="true"></i>Open file
+              </button>
+              <button type="button" class="btn-sm" id="btn-clear-right">
+                <i class="fas fa-times" aria-hidden="true"></i>Clear
+              </button>
+            </div>
+            <textarea
+              id="input-right"
+              class="code-area source-area"
+              spellcheck="false"
+              autocomplete="off"
+              autocapitalize="off"
+              wrap="off"
+              aria-labelledby="label-right"
+              placeholder="Paste the changed version here, or drop a file."
+            ></textarea>
+            <input type="file" id="file-right" class="sr-only" aria-hidden="true" tabindex="-1" />
+          </div>
+        </div>
+
+        <div class="card options-card">
+          <div class="options-row">
+            <div class="seg-group" role="group" aria-label="Diff layout">
+              <button type="button" class="seg-btn active" id="btn-view-split" data-view="split">
+                <i class="fas fa-table-list" aria-hidden="true"></i>Split
+              </button>
+              <button type="button" class="seg-btn" id="btn-view-unified" data-view="unified">
+                <i class="fas fa-layer-group" aria-hidden="true"></i>Unified
+              </button>
+            </div>
+
+            <label class="opt"><input type="checkbox" id="opt-ignore-whitespace" />Ignore whitespace</label>
+            <label class="opt"><input type="checkbox" id="opt-trim-trailing" />Trim trailing</label>
+            <label class="opt"><input type="checkbox" id="opt-ignore-case" />Ignore case</label>
+            <label class="opt"><input type="checkbox" id="opt-ignore-blank" />Ignore blank lines</label>
+            <label class="opt"><input type="checkbox" id="opt-wrap" checked />Wrap long lines</label>
+
+            <label class="opt opt-select"
+              >Context
+              <select id="opt-context">
+                <option value="0">0</option>
+                <option value="3" selected>3</option>
+                <option value="8">8</option>
+                <option value="-1">All</option>
+              </select>
+            </label>
+
+            <label class="opt opt-remember"
+              ><input type="checkbox" id="opt-remember" />Remember my panes</label
+            >
+          </div>
+          <p class="card-hint" id="remember-hint">
+            Nothing you paste is stored or sent anywhere. Turn on
+            <strong>Remember my panes</strong> only if you want this browser to keep both
+            sides between visits.
+          </p>
+        </div>
+
+        <div class="card result-card">
+          <div class="result-bar">
+            <span class="stat-group" id="diff-stats" role="status" aria-live="polite"
+              >Paste something into both panes to see a difference.</span
+            >
+            <span class="algo-note" id="diff-algo" hidden></span>
+            <span class="result-actions">
+              <button type="button" class="btn-sm" id="btn-prev-change" disabled>
+                <i class="fas fa-chevron-up" aria-hidden="true"></i>Prev
+              </button>
+              <button type="button" class="btn-sm" id="btn-next-change" disabled>
+                <i class="fas fa-chevron-down" aria-hidden="true"></i>Next
+              </button>
+              <button type="button" class="btn-sm" id="btn-copy-patch" disabled>
+                <i class="fas fa-copy" aria-hidden="true"></i>Copy patch
+              </button>
+              <button type="button" class="btn-sm" id="btn-download-patch" disabled>
+                <i class="fas fa-download" aria-hidden="true"></i>Download
+              </button>
+            </span>
+          </div>
+          <div id="diff-view" class="diff-view" tabindex="0" aria-label="Difference"></div>
+        </div>
+      </section>
+
+      <!-- Patch -->
+      <section
+        id="panel-patch"
+        class="panel-container"
+        role="tabpanel"
+        aria-labelledby="tab-patch"
+        hidden
+      >
+        <div class="card">
+          <div class="card-header-row">
+            <h2 class="card-title" id="label-patch">Unified patch</h2>
+            <span class="pane-meta" id="meta-patch">empty</span>
+            <button type="button" class="btn-sm" id="btn-file-patch">
+              <i class="fas fa-file-lines" aria-hidden="true"></i>Open file
+            </button>
+            <button type="button" class="btn-sm" id="btn-clear-patch">
+              <i class="fas fa-times" aria-hidden="true"></i>Clear
+            </button>
+          </div>
+          <textarea
+            id="input-patch"
+            class="code-area source-area"
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            wrap="off"
+            aria-labelledby="label-patch"
+            placeholder="Paste `git diff` output here, or drop a .patch or .diff file."
+          ></textarea>
+          <input type="file" id="file-patch" class="sr-only" aria-hidden="true" tabindex="-1" />
+          <p class="parse-error" id="patch-error" hidden></p>
+        </div>
+
+        <div class="card result-card">
+          <div class="result-bar">
+            <span class="stat-group" id="patch-stats" role="status" aria-live="polite"
+              >Paste a patch to render it.</span
+            >
+            <span class="result-actions">
+              <button type="button" class="btn-sm" id="btn-patch-prev" disabled>
+                <i class="fas fa-chevron-up" aria-hidden="true"></i>Prev
+              </button>
+              <button type="button" class="btn-sm" id="btn-patch-next" disabled>
+                <i class="fas fa-chevron-down" aria-hidden="true"></i>Next
+              </button>
+            </span>
+          </div>
+          <div id="patch-view" class="diff-view" tabindex="0" aria-label="Rendered patch"></div>
+        </div>
+      </section>
+
+      <!-- About -->
+      <section
+        id="panel-about"
+        class="panel-container"
+        role="tabpanel"
+        aria-labelledby="tab-about"
+        hidden
+      >
+        <div class="card prose-card">
+          <h2 class="card-title">What this does, and where it stops</h2>
+          <p>
+            Everything happens in this tab. The page declares
+            <code>connect-src 'none'</code>, so it cannot make a network request even if
+            something in it tried to: no upload, no URL fetch, no analytics. That is the
+            point of it — people diff production configs and proprietary source, and
+            pasting either into someone else's server is a poor trade.
+          </p>
+
+          <h3 class="prose-heading">The engine</h3>
+          <p>
+            Line differences come from Myers' O(ND) algorithm in its linear-space
+            divide-and-conquer form, written from scratch. Before it runs, the shared
+            prefix and suffix are stripped, which collapses the common case — a few
+            changed lines in a large file — to a problem of a few lines. Inside a changed
+            pair, the same algorithm runs again over tokens to highlight the characters
+            that actually moved.
+          </p>
+          <p>
+            Myers is O(ND) in the <em>edit distance</em>, not the file size, so two large
+            files with little in common are expensive. The search is metered; when the
+            meter trips, a histogram diff takes over, anchoring on the rarest line the two
+            sides share. That result is good rather than provably minimal, and the bar
+            above says so when it happens. A diff that quietly stopped being minimal is a
+            diff you cannot calibrate against.
+          </p>
+
+          <h3 class="prose-heading">Patches</h3>
+          <p>
+            The patch this page copies out is a standard unified diff and applies with
+            <code>git apply</code>. The <strong>Patch</strong> tab reads the same format:
+            paste <code>git diff</code> output and it renders side by side, hunk headers
+            resolved. Both tabs draw from one structure, which is why a pasted patch and a
+            computed diff look identical.
+          </p>
+
+          <h3 class="prose-heading">Syntax colour</h3>
+          <p>
+            One generic lexer handles strings, comments, numbers and a pooled keyword set,
+            rather than a grammar per language. It reads well for the C family,
+            JavaScript, Python, Go, Java, SQL, JSON and YAML, and it is knowingly wrong
+            about <code>#</code> in a language where that is not a comment. Diff colour
+            always wins over syntax colour: the difference is the signal.
+          </p>
+
+          <h3 class="prose-heading">Limits</h3>
+          <ul class="prose-list">
+            <li>5 MB per pane. Larger input is refused rather than silently truncated.</li>
+            <li>No three-way merge, no folder or archive comparison.</li>
+            <li>
+              Text comparison only — two JSON documents that differ just in key order are
+              reported as different.
+            </li>
+            <li>
+              Nothing is stored unless you turn on <strong>Remember my panes</strong>, and
+              turning it back off deletes what was kept.
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <div class="footer-container">
+        <p>
+          100% Client-Side Comparison &bull; No Network Egress &bull; Myers Diff, Written
+          From Scratch
+        </p>
+        <p>
+          <a href="/" class="footer-link">Rajeev Jasti &mdash; Portfolio</a> &bull;
+          <a href="/#apps" class="footer-link">Apps Shelf</a> &bull;
+          <a href="/json" class="footer-link">JSON Workbench</a> &bull;
+          <a href="/crypto" class="footer-link">Crypto &amp; Encoders</a>
+        </p>
+      </div>
+    </footer>
+
+    <!-- Entry Point Module -->
+    <script type="module" src="js/diff/diff-main.js"></script>
+  </body>
+</html>
