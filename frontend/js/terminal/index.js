@@ -154,6 +154,15 @@ export function initTerminal() {
     }
   }
 
+  // ── Boot banner ───────────────────────────────────────────────────────────
+  // The panel is the largest object in the hero and it used to paint empty:
+  // no output, and the only instruction was a 50%-opacity placeholder inside
+  // the input. This states what the thing is and what to do with it. It is
+  // removed by `clear`, and by the first command that scrolls it away.
+  output.appendChild(
+    out.boot("rjasti@portfolio", "- an interactive shell. Pick a command below, or type your own."),
+  );
+
   // ── Starter chips ─────────────────────────────────────────────────────────
   const chipRow = document.getElementById("terminal-chips");
   if (chipRow) {
