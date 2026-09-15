@@ -6447,6 +6447,17 @@ body.dark-theme .skill-tag.primary .fas {
     padding: 32px 20px;
   }
 
+  /* 24px gap between header pill and contact card on mobile. The base
+     --page-pad-block-start + --page-card-offset over-spaces it; drop the
+     card's own offset and let main's padding carry the full 24px. */
+  main:has(> #contact.active) {
+    padding-top: 24px;
+  }
+
+  #contact .contact-section {
+    margin-top: 0;
+  }
+
   .contact-layout {
     grid-template-columns: 1fr;
     gap: 32px;
