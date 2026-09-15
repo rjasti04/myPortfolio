@@ -8252,16 +8252,6 @@ nav a:hover .nav-shortcut {
   border-color: var(--color-error);
 }
 
-/* The chain used to explain itself only through title tooltips, which touch
-   and keyboard users never see, and it names two pieces of infrastructure
-   ("Kafka", "Postgres") that mean nothing to the visitors and recruiters this
-   site is written for first. The caption is the one line that turns four
-   unexplained dots into a sentence. */
-.act-chain-caption {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
 
 /* The four stages are real infrastructure, so they stay - but as context.
    A chain of labelled dots says "healthy, end to end" in 32px; the card it
