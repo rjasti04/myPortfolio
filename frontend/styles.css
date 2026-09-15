@@ -7406,12 +7406,19 @@ section {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: var(--accent-fill);
+  /* Same fill as .scroll-to-top, deliberately. The two are the site's only
+     floating round buttons and they sit in opposite bottom corners at the same
+     time, so a flat citron disc facing a citron-to-blue one read as two
+     unrelated controls. Gradient, hover gradient and ink all come from that
+     rule; `background` rather than `background-color` in the transition for the
+     same reason it does there - a gradient is not a colour. */
+  background: linear-gradient(135deg, var(--accent-fill), var(--secondary-fill));
   /* Was `#fff !important`. The note above --on-accent in the token block
      measures white on citron at 1.7:1 and says #fff failed AA sitewide before
      that token existed; this button was a surviving instance of it. Dark ink
-     is 11.2:1 on the same fill in both themes, and the robot glyph here now
-     matches the one in .chat-avatar, which already took --on-accent. */
+     is 11.2:1 on the citron end and 4.9:1 on the blue one, clearing the 3:1
+     that a glyph this size needs, and the robot here matches the one in
+     .chat-avatar, which already took --on-accent. */
   color: var(--on-accent);
   border: none;
   font-size: var(--text-h3);
@@ -7419,7 +7426,7 @@ section {
   box-shadow: var(--glow-md);
   transition:
     transform var(--motion-base) var(--ease-standard),
-    background-color var(--motion-base) var(--ease-standard),
+    background var(--motion-base) var(--ease-standard),
     box-shadow var(--motion-base) var(--ease-standard);
   display: flex;
   align-items: center;
@@ -7428,7 +7435,7 @@ section {
 
 .chat-toggle-btn:hover {
   transform: scale(1.1);
-  background: var(--accent-hover);
+  background: linear-gradient(135deg, var(--accent-hover), color-mix(in srgb, var(--secondary-fill) 90%, #000));
   color: var(--on-accent);
   box-shadow: var(--glow-md);
 }
