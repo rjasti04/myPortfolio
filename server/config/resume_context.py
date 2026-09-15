@@ -9,7 +9,7 @@ never contained, and predated the arcade, the predictors and the whole auth tier
 """
 
 KEY_INFORMATION = """\
-- Current Role: Principal Data Engineer & Architect at Nicholas and Company (Nov 2022 – Present, Salt Lake City & Remote)
+- Current Role: Principal Data Engineer at Nicholas and Company (Nov 2022 – Present, Salt Lake City & Remote)
 - Previous Role: Data Engineer at Nicholas and Company (Feb 2018 – Oct 2022)
 - Specialization: Enterprise Data Engineering & OLAP modeling, OLTP Database Engines, Real-time Streaming, Cloud Migrations, Full-Stack & Generative AI Web Applications
 - Backend Stack: Python 3.10+, FastAPI, PostgreSQL, SQLAlchemy ORM (asyncpg), Alembic, Amazon Bedrock, Lambda, API Gateway, Boomi, Docker, Kafka, microservices

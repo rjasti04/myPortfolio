@@ -2,8 +2,8 @@
   "$comment": "Single source of truth for Rajeev Jasti's biography, experience and skills. Edit THIS file, never the generated copies. Run `npm run generate:resume` to regenerate; `npm run check:resume` fails CI on drift. See scripts/generate_resume.py for the full list of targets.",
   "person": {
     "name": "Rajeev Jasti",
-    "jobTitle": "Principal Data Engineer & Architect",
-    "description": "Principal Data Engineer & Architect with 8+ years of experience transforming enterprise systems into scalable data platforms, backend services, and AI-enabled web applications.",
+    "jobTitle": "Principal Data Engineer",
+    "description": "Principal Data Engineer with 8+ years of experience building high-throughput data pipelines, enterprise OLTP/OLAP databases, and the async Python APIs that run on them.",
     "url": "https://rjasti.com/",
     "image": {
       "url": "https://rjasti.com/profile-pic.jpeg",
@@ -18,8 +18,8 @@
   "site": {
     "url": "https://rjasti.com/",
     "name": "Rajeev Jasti",
-    "pageName": "Rajeev Jasti | Principal Data Engineer & Architect",
-    "description": "Portfolio of Rajeev Jasti, Principal Data Engineer & Architect specializing in enterprise data platforms, backend services, and AI-enabled web applications.",
+    "pageName": "Rajeev Jasti | Principal Data Engineer",
+    "description": "Portfolio of Rajeev Jasti, Principal Data Engineer specializing in enterprise data platforms, backend services, and AI-enabled web applications.",
     "inLanguage": "en-US",
     "primaryImage": {
       "url": "https://rjasti.com/social-preview.png",
@@ -235,7 +235,7 @@
   "persona": {
     "$comment": "Feeds the Bedrock chat persona's 'Key Information' block. Describing THIS SITE accurately matters: the previous hand-maintained copy claimed a Three.js frontend, which the repository has never had.",
     "summary": [
-      "Current Role: Principal Data Engineer & Architect at Nicholas and Company (Nov 2022 – Present, Salt Lake City & Remote)",
+      "Current Role: Principal Data Engineer at Nicholas and Company (Nov 2022 – Present, Salt Lake City & Remote)",
       "Previous Role: Data Engineer at Nicholas and Company (Feb 2018 – Oct 2022)",
       "Specialization: Enterprise Data Engineering & OLAP modeling, OLTP Database Engines, Real-time Streaming, Cloud Migrations, Full-Stack & Generative AI Web Applications",
       "Backend Stack: Python 3.10+, FastAPI, PostgreSQL, SQLAlchemy ORM (asyncpg), Alembic, Amazon Bedrock, Lambda, API Gateway, Boomi, Docker, Kafka, microservices",
