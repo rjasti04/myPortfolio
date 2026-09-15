@@ -391,7 +391,7 @@ used to detach "0 / 1200" permanently on the first error. Blur reports an
 every inline error and focuses the first bad one, rather than handing off to
 `reportValidity()` and its native bubble that no live region mirrors.
 
-### `resume-pdf.js` (158 lines)
+### `resume-pdf.js` (166 lines)
 
 `export function initResumePdf()` — the in-page preview for the resume PDF,
 opened from the Experience section.
@@ -864,7 +864,7 @@ Never animates off-screen or on a hidden tab, motion is time-based so it looks
 identical at 60 Hz and 120 Hz, a resize rescales the field in place rather than
 reseeding it, and everything it attaches is removable via the returned teardown.
 
-### `animations.js` (304 lines)
+### `animations.js` (309 lines)
 
 `initAnimations()` — scroll reveals via `IntersectionObserver` (all revealed
 immediately under reduced motion or without the API), animated stat counters,

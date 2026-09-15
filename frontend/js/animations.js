@@ -37,6 +37,11 @@ function initReveals() {
     return;
   }
 
+  // Arms `.reveals-armed .reveal` in styles.css. Set here, synchronously, one
+  // statement before the observer that clears it - so no code path can hide
+  // these elements without the code that reveals them already running.
+  document.documentElement.classList.add("reveals-armed");
+
   const observer = new IntersectionObserver((entries, intersectionObserver) => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {

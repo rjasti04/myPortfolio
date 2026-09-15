@@ -168,6 +168,15 @@
   --text-hero: clamp(2.027rem, 0.90rem + 5.63vw, 4.052rem);
   /* 32.4 -> 64.8 */
 
+  /* The <h2> that opens every document section. It is the one heading that was
+     still stepped by hand - --text-6xl with a --text-4xl override in the
+     RESPONSIVE region - so it read 36.5px down to 1151px and then dropped
+     straight to 28.8px. Anchored to the two breakpoints that were already
+     doing the stepping, 640 and 1150, so it lands on exactly today's value at
+     both ends and only fills in the jump between them. */
+  --text-fluid-section: clamp(1.802rem, 1.20rem + 1.50vw, 2.281rem);
+  /* 28.8 -> 36.5 */
+
   /* Legacy aliases. 71 declarations still reference these names; mapping
      them onto the ramp moves those rules onto the scale without touching
      each call site. --text-body rises 15px -> 16px (body floor). */
@@ -326,6 +335,14 @@
   --space-lg: 16px;
   --space-xl: 24px;
   --space-2xl: 32px;
+
+  /* ---- Measure ------------------------------------------------------------
+     One reading width for long-form copy. The Experience section stacked two:
+     .section-intro ran 128ch while the bullets under it ran 68ch, so the
+     intro was 60% wider than the column it introduced and the bullets left a
+     dead gutter inside the card. 68ch is the value that was already
+     considered; this is it, named once. */
+  --measure: 68ch;
 
   /* Motion */
   --motion-fast: 120ms;
@@ -1253,6 +1270,7 @@ body.dark-theme .header-dropdown-container {
   .dropdown-panel-close:focus-visible,
   .nav-menu-close:focus-visible,
   .btn:focus-visible,
+  .link-action:focus-visible,
   .contact-submit-btn:focus-visible,
   .hamburger-btn:focus-visible,
   .chat-toggle-btn:focus-visible,
@@ -1991,14 +2009,17 @@ main {
   }
 }
 
-/* Scoped to .js-enabled (set on <html> by the pre-boot script at
-   index.html:163) because only js/animations.js ever adds `.active`. Applied
-   unconditionally this hid 20 elements - the whole contact section, both Apps
-   tiles, the About stats and skills cards - from anyone with JavaScript off,
-   and from everyone if any earlier initialiser threw before initAnimations
-   ran. `.reveal.active` below is the same specificity and comes later, so it
-   still wins. */
-.js-enabled .reveal {
+/* Scoped to `.reveals-armed`, which initReveals() sets on <html> itself
+   immediately before it starts observing. That is the whole point: this used
+   to key off `.js-enabled`, set by the pre-boot script, which covers
+   JavaScript being OFF but not JavaScript loading and THROWING - and main.js
+   wraps every initialiser in try/catch, so a throw anywhere before
+   initAnimations left these 20 elements hidden for good. #resume is a single
+   .reveal holding the entire Experience page, so that failure blanked the
+   whole section with no error shown. The class cannot exist unless the code
+   that clears it is running. `.reveal.active` below is the same specificity
+   and comes later, so it still wins. */
+.reveals-armed .reveal {
   opacity: 0;
   transform: translateY(24px);
   transition:
@@ -3506,8 +3527,8 @@ body.dark-theme .home-portrait picture {
 /* Section Titles */
 .section-title,
 .contact-title {
-  font-size: var(--text-h2);
-  margin-bottom: 40px;
+  font-size: var(--text-fluid-section);
+  margin-bottom: var(--space-2xl);
   background: linear-gradient(135deg, var(--accent-text) 0%, var(--secondary-text) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -3532,7 +3553,7 @@ body.dark-theme .home-portrait picture {
   width: 60px;
   height: 4px;
   background: linear-gradient(90deg, var(--accent-fill), var(--secondary-fill));
-  border-radius: 2px;
+  border-radius: var(--radius-2xs);
 }
 
 /* Items / Cards */
@@ -3648,145 +3669,131 @@ body.dark-theme .home-portrait picture {
   margin-inline: auto;
 }
 
-/* Where the Resume links now land, so the PDF stays one tap away.
+/* Where the resume links land, so the file stays one tap away.
 
-   View PDF and Download PDF are a pair, so they are sized as one: equal grid
-   columns, never each button's own label width. `width: fit-content` is what
-   keeps that honest on desktop - the columns resolve to the wider button's
-   max-content width and the row hugs the pair instead of stretching across the
-   section. The mobile override drops the cap so the same two columns split the
-   screen 50/50 on one line. */
+   This used to be `grid-auto-columns: 1fr` holding two buttons, which forced a
+   primary and a secondary to identical width, height and icon - and the
+   secondary's hover then painted the primary's exact resting face, so the two
+   swapped identities under the cursor. There is one button here now and one
+   text link, so they need no shared track: flex lets each take its own size
+   and wrap on a narrow screen. The .section-actions .btn size override went
+   with the grid, which means the primary is the site-standard .btn rather than
+   the smallest one on the site. */
 .section-actions {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  width: fit-content;
-  gap: 12px;
-  margin: 0 0 32px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-lg);
+  margin: 0 0 var(--space-2xl);
 }
 
-.section-actions .btn {
-  padding: 12px 26px;
+/* The secondary action. A button beside a button reads as a choice between
+   equals; a link beside a button reads as "this one, or that if you prefer".
+   --accent-text is the site's link ink - a dark olive that shares the accent
+   hue without competing with a saturated --accent-fill face. */
+.link-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--min-touch-target);
+  color: var(--accent-text);
   font-size: var(--text-sm);
-  gap: 10px;
-  min-width: 0;
-  justify-content: center;
+  font-weight: var(--weight-bold);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition:
+    color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard);
 }
 
-@media (width <=768px) {
-  .section-actions {
-    width: 100%;
-    gap: 10px;
-  }
-
-  /* 26px of side padding puts "Download PDF" over a half-width column on a
-     360px screen and wraps the label. */
-  .section-actions .btn {
-    padding: 12px 12px;
-  }
+.link-action:hover {
+  color: var(--accent-hover);
+  border-bottom-color: currentColor;
 }
 
-/* At the 12px padding above, "Download PDF" needs ~355px of viewport to hold
-   one line in a half-width column; below that the label wraps and the pair
-   grows a row taller than every other button on the page. Small phones get
-   tighter metrics instead. */
-@media (width <=360px) {
-  .section-actions .btn {
-    padding: 12px 8px;
-    gap: 6px;
-    font-size: var(--text-xs);
-  }
-}
+/* This card IS the page - one .item holding the whole work history - so it is
+   styled as a document surface, not a widget. Flat --card-bg rather than the
+   145deg gradient it used to paint: the gradient existed to keep the card from
+   looking flat at --elev-3, and at --elev-2 it buys nothing while costing a
+   third competing top edge (border, shadow ring, gradient highlight) and a
+   color-mix per paint. Dropping it also lets background-color transition.
 
+   The .item primitive is shared with #contact's card, so the two leaks it
+   sends here - a translateY(-4px) hover lift and an accent hover border - are
+   reset below rather than removed from the primitive. */
 #resume .item {
-  /* The accent rail below is inset to match the block padding, so the two
-     have to move together - a literal 24px on the rail stopped tracking the
-     moment the padding became a clamp. */
   --card-pad-block: clamp(24px, 3vw, 32px);
   --card-pad-inline: clamp(24px, 3vw, 32px);
   position: relative;
   overflow: hidden;
   margin: 0;
   padding: var(--card-pad-block) var(--card-pad-inline);
-  border-radius: var(--radius);
-  background: linear-gradient(145deg, color-mix(in srgb, var(--card-bg) 92%, var(--bg)), var(--card-bg));
-  box-shadow: var(--elev-3);
-  /* No background-color here: this card paints a gradient, which is a
-     background-IMAGE and does not transition. */
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  box-shadow: var(--elev-2);
   transition:
     border-color var(--motion-medium) var(--ease-standard),
     box-shadow var(--motion-medium) var(--ease-standard);
 }
 
 #resume .item+.item {
-  margin-top: 20px;
+  margin-top: var(--space-xl);
 }
 
-#resume .item::before {
-  content: "";
-  position: absolute;
-  inset: var(--card-pad-block) auto var(--card-pad-block) 0;
-  width: 6px;
-  border-radius: 999px;
-  background: var(--accent-fill);
-  opacity: 0.85;
-  transform: scaleX(0.67);
-  transform-origin: left center;
-  transition:
-    opacity var(--motion-base) var(--ease-standard),
-    transform var(--motion-base) var(--ease-standard);
-}
-
+/* Nothing in this card is clickable, so nothing about it moves on hover. It
+   used to lift 4px and step --elev-3 -> --elev-4, which pointed a click
+   affordance at 1,100 words of prose. */
 #resume .item:hover {
-  border-color: color-mix(in srgb, var(--accent-fill) 44%, var(--border));
-  box-shadow: var(--elev-4);
-}
-
-#resume .item:hover::before {
-  transform: scaleX(1);
-  opacity: 1;
+  border-color: var(--border);
+  box-shadow: var(--elev-2);
+  transform: none;
 }
 
 #resume .item-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-md);
   margin-bottom: 0;
 }
 
-#resume .item-date,
-#resume .item-badge {
+/* The date is the scanning anchor; the location is not. They used to be two
+   near-identical accent pills sitting ABOVE the company name, so the card read
+   date -> location -> company. Now the date is one quiet chip and the location
+   is plain muted text, which leaves the <h3> as the first thing read. */
+#resume .item-date {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
-  border-radius: 999px;
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--wash-raise);
+  color: var(--text);
   font-size: var(--text-body-xs);
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   line-height: 1;
   letter-spacing: var(--tracking-normal);
   white-space: nowrap;
 }
 
-#resume .item-date {
-  padding: 7px 12px;
-  border: 1px solid color-mix(in srgb, var(--accent-fill) 24%, transparent);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
 #resume .item-badge {
-  padding: 7px 11px;
-  border: 1px solid var(--border);
-  background: var(--skill-bg);
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--muted);
+  font-size: var(--text-body-xs);
+  font-weight: var(--weight-regular);
+  line-height: 1;
+  letter-spacing: var(--tracking-normal);
 }
 
 #resume .item h3 {
-  margin: 8px 0 0;
+  margin: var(--space-sm) 0 0;
   color: var(--text);
   font-size: var(--text-fluid-xl);
-  font-weight: 850;
+  /* Was 850. fonts.css vendors 400/600/700/800, so 850 resolved to 800 and the
+     extra 50 was a claim the page never drew. */
+  font-weight: var(--weight-extrabold);
   line-height: var(--leading-snug);
   letter-spacing: var(--tracking-normal);
 }
@@ -3795,20 +3802,20 @@ body.dark-theme .home-portrait picture {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 20px;
-  margin: 10px 0 6px;
+  gap: var(--space-sm) var(--space-xl);
+  margin: var(--space-sm) 0 var(--space-xs);
 }
 
 #resume .role-entry {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   font-size: var(--text-body);
 }
 
 #resume .role-title {
-  font-weight: 700;
-  color: var(--primary-strong);
+  font-weight: var(--weight-bold);
+  color: var(--text);
 }
 
 #resume .role-period {
@@ -3817,8 +3824,8 @@ body.dark-theme .home-portrait picture {
 }
 
 #resume .item-description {
-  max-width: 68ch;
-  margin: 12px 0 0;
+  max-width: var(--measure);
+  margin: var(--space-md) 0 0;
   color: var(--muted);
   font-size: var(--text-body);
   line-height: var(--leading-body);
@@ -3826,41 +3833,52 @@ body.dark-theme .home-portrait picture {
 
 /* The resume groups its bullets under subheadings, so the card does too. The
    list keeps its own class and styling; the heading just sits between lists. */
+/* Eight of these stack down one card, so they are eyebrows: --tracking-caps
+   exists for exactly this job ("uppercase eyebrows / group labels") and was
+   not being used by the two rules that are literally that. Weight and tracking
+   carry them now instead of accent colour, which the primary action needs
+   more than eight subheadings do. */
 #resume .item-bullets-group {
-  margin: 22px 0 0;
-  color: var(--accent-text);
+  margin: var(--space-xl) 0 0;
+  color: var(--muted);
   font-size: var(--text-body-sm);
-  font-weight: 700;
-  letter-spacing: var(--tracking-wide);
+  font-weight: var(--weight-extrabold);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
 #resume .item-bullets-group:first-of-type {
-  margin-top: 18px;
+  margin-top: var(--space-lg);
 }
 
 #resume .item-bullets {
   display: grid;
-  gap: 8px;
-  margin: 10px 0 0;
+  gap: var(--space-md);
+  margin: var(--space-sm) 0 0;
 }
 
 #resume .item-bullets li {
-  max-width: 68ch;
-  padding-left: 26px;
+  max-width: var(--measure);
+  padding-left: var(--space-xl);
   margin: 0;
   color: var(--text);
   font-size: var(--text-body);
   line-height: var(--leading-body);
 }
 
+/* position/left come from the .item-bullets primitive, which this used to
+   depend on silently from 160 lines away. Stated here so the rule stands up
+   on its own. `top` is an em-relative optical offset against the first line
+   box, not a spacing value, so it is not a ramp candidate. */
 #resume .item-bullets li::before {
   content: "";
+  position: absolute;
   top: 0.8em;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--accent-fill);
+  left: 0;
+  width: var(--space-2xs);
+  height: var(--space-2xs);
+  border-radius: var(--radius-full);
+  background: var(--muted);
   box-shadow: none;
 }
 
@@ -3869,9 +3887,9 @@ body.dark-theme .home-portrait picture {
    the flat list used to be, so .item-tags span styling carries over. */
 #resume .item-tags {
   display: grid;
-  gap: 14px;
-  margin-top: 20px;
-  padding-top: 16px;
+  gap: var(--space-md);
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
   border-top: 1px solid var(--border);
 }
 
@@ -3881,76 +3899,72 @@ body.dark-theme .home-portrait picture {
 #resume .tag-group {
   display: grid;
   grid-template-columns: minmax(0, 120px) 1fr;
-  gap: 8px 16px;
+  gap: var(--space-sm) var(--space-lg);
   align-items: start;
 }
 
+/* Same eyebrow treatment as .item-bullets-group above, and the same reason for
+   --tracking-caps over --tracking-wide. */
 #resume .item-tags dt {
-  padding-top: 6px;
+  padding-top: var(--space-xs);
   color: var(--muted);
   font-size: var(--text-2xs);
-  font-weight: 800;
-  letter-spacing: var(--tracking-wide);
+  font-weight: var(--weight-extrabold);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
 #resume .item-tags dd {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-sm);
   margin: 0;
 }
 
+/* 48 of these. Fully-rounded accent pills read as interactive filter tags;
+   they are labels, so they get a label's shape and weight. The full `border`
+   shorthand is deliberate - overriding border-color alone left this depending
+   on the primitive's `1px solid var(--accent-mild)`. */
 #resume .item-tags span {
-  padding: 6px 10px;
-  border-color: var(--border);
-  background: var(--skill-bg);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--wash-raise);
   color: var(--text);
   font-size: var(--text-body-xs);
+  font-weight: var(--weight-regular);
   line-height: 1;
-  transition:
-    background-color var(--motion-base) var(--ease-standard),
-    border-color var(--motion-base) var(--ease-standard),
-    color var(--motion-base) var(--ease-standard);
-}
-
-#resume .item:hover .item-tags span {
-  border-color: color-mix(in srgb, var(--accent-fill) 28%, var(--border));
-  background: var(--accent-soft);
-  color: var(--accent-text);
 }
 
 @media (width <=768px) {
   #resume .section-title {
-    margin-bottom: 24px;
+    margin-bottom: var(--space-xl);
   }
 
   #resume .item {
-    --card-pad-block: 24px;
-    --card-pad-inline: 20px;
-    border-radius: var(--radius-lg);
+    --card-pad-block: var(--space-xl);
+    --card-pad-inline: var(--space-lg);
   }
 
   #resume .item+.item {
-    margin-top: 16px;
+    margin-top: var(--space-lg);
   }
 
+  /* Only what differs from the base rule: the date chip and the location
+     text get to wrap onto two lines instead of squeezing. */
   #resume .item-header {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--space-sm);
   }
 
   #resume .item-tags {
-    gap: 12px;
-    padding-bottom: 4px;
+    gap: var(--space-md);
+    padding-bottom: var(--space-2xs);
   }
 
   #resume .tag-group {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: var(--space-sm);
   }
 
   #resume .item-tags dt {
@@ -3967,19 +3981,15 @@ body.dark-theme .home-portrait picture {
   }
 
   #resume .item-bullets li {
-    padding-left: 22px;
+    padding-left: var(--space-lg);
     font-size: var(--text-body-sm);
   }
 }
 
 @media (width <=480px) {
   #resume .item {
-    --card-pad-block: 20px;
-    --card-pad-inline: 16px;
-  }
-
-  #resume .item::before {
-    width: 3px;
+    --card-pad-block: var(--space-lg);
+    --card-pad-inline: var(--space-lg);
   }
 }
 
@@ -4858,11 +4868,11 @@ body.dark-theme .stat-card:hover {
 /* Buttons */
 .btn {
   padding: var(--space-lg) 36px;
-  background: linear-gradient(135deg, var(--accent-fill) 0%, var(--secondary-fill) 100%);
+  background: var(--accent-fill);
   color: var(--on-accent);
   text-decoration: none;
   border-radius: var(--radius-md);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   display: inline-flex;
   align-items: center;
   gap: var(--space-md);
@@ -4936,8 +4946,8 @@ body.dark-theme .stat-card:hover {
 }
 
 .btn:hover {
-  background: linear-gradient(135deg, var(--accent-hover) 0%, color-mix(in srgb, var(--secondary-fill) 90%, #000) 100%);
-  box-shadow: 0 8px 24px var(--accent-mild), 0 0 0 1px var(--accent-fill);
+  background: var(--accent-hover);
+  box-shadow: var(--glow-lg);
   transform: translateY(-3px) scale(1.02);
 }
 
@@ -4969,20 +4979,10 @@ body.dark-theme .stat-card:hover {
   box-shadow: none;
 }
 
-.btn.btn-outline::before {
-  background: linear-gradient(135deg, var(--accent-soft), var(--secondary-fill), var(--accent-soft));
-  opacity: 0;
-  transition: opacity var(--motion-base) var(--ease-standard);
-}
-
 .btn.btn-outline:hover {
-  background: linear-gradient(135deg, var(--accent-fill) 0%, var(--secondary-fill) 100%);
-  color: var(--on-accent);
-  border-color: transparent;
-}
-
-.btn.btn-outline:hover::before {
-  opacity: 1;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-color: var(--accent-fill);
 }
 
 /* NOTE: .hero-buttons .btn is also declared in HERO & TERMINAL PANEL - change both. */
@@ -5895,14 +5895,14 @@ body.dark-theme .skill-tag.primary .fas {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  padding: 24px;
+  gap: var(--space-md);
+  padding: var(--space-xl);
   background: var(--bg);
   text-align: center;
 }
 
 .pdf-modal-status i {
-  font-size: var(--text-h3, 1.5rem);
+  font-size: var(--text-h3);
   color: var(--muted);
 }
 
@@ -5918,11 +5918,11 @@ body.dark-theme .skill-tag.primary .fas {
   margin: 0;
   color: var(--text);
   font-size: var(--text-body-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .pdf-modal-status-link {
-  margin-top: 4px;
+  margin-top: var(--space-2xs);
 }
 
 /* Only ever opened on a hover-capable, non-iOS pointer, but the panel still
@@ -6008,11 +6008,6 @@ body.dark-theme .skill-tag.primary .fas {
     );
     --rail-inset-inline: calc(20px + env(safe-area-inset-left, 0px));
     --scroll-to-top-size: 46px;
-  }
-
-  .section-title,
-  .contact-title {
-    font-size: var(--text-4xl);
   }
 
   .contact-description {
@@ -6404,7 +6399,7 @@ body.dark-theme .skill-tag.primary .fas {
 
   .section-title,
   .contact-title {
-    margin-bottom: 24px;
+    margin-bottom: var(--space-xl);
   }
 
   .stats-grid {

@@ -10,7 +10,7 @@ export const CONTENT_INDEX = [
   {
     "section": "resume",
     "title": "Experience",
-    "text": "Track record of architecting scalable data platforms, enterprise OLTP/OLAP systems, backend microservices",
+    "text": "Eight years at one company, across data platforms, OLTP and OLAP systems, and backend services. The full technology list is at the foot of this page.",
     "kind": "section"
   },
   {

@@ -553,7 +553,7 @@ function initMobileBottomNav() {
   const navItems = [
     { target: 'home', icon: 'fa-home', label: 'Home' },
     { target: 'about', icon: 'fa-user', label: 'About' },
-    { target: 'resume', icon: 'fa-briefcase', label: 'Work' },
+    { target: 'resume', icon: 'fa-briefcase', label: 'Experience' },
     { target: 'hobbies', icon: 'fa-heart', label: 'Hobbies' },
     { target: 'apps', icon: 'fa-cubes', label: 'Apps' },
     { target: 'activity', icon: 'fa-chart-line', label: 'Activity' },
