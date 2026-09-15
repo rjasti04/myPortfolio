@@ -85,7 +85,7 @@ export const commands = [
     run: () =>
       out.list([
         ["Name:", "Rajeev Jasti"],
-        ["Role:", "Principal Data Engineer & Architect"],
+        ["Role:", "Principal Data Engineer"],
         ["Experience:", "8+ Years (Feb 2018 — Present at Nicholas and Company)"],
         ["Location:", "Salt Lake City, UT (Remote)"],
         ["Contact:", "inboxtorj@gmail.com"],
