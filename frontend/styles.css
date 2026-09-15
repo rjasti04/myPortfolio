@@ -5286,6 +5286,14 @@ body.dark-theme .skill-group:hover {
   align-items: center;
   gap: var(--space-xs);
   cursor: default;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+  position: relative;
+  overflow: hidden;
 }
 
 .skill-tag i,
@@ -5312,6 +5320,33 @@ body.dark-theme .skill-tag.primary {
   color: var(--accent-text);
 }
 
+/* The chip's highlight layer, parked off its left edge. It only moves under
+   the :hover animation below, so a chip at rest paints one extra transparent
+   box and nothing else. */
+.skill-tag::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--sheen-wash-strong), transparent);
+  transform: translateX(-105%);
+}
+
+/* Same one-way sweep as .btn::before - see the note there. */
+.skill-tag:hover::before {
+  animation: sheen-sweep var(--motion-slow) var(--ease-standard) forwards;
+}
+
+/* Mixed against --wash-raise, the chip's own resting surface, rather than
+   against --skill-bg as this did before the token rebuild: --wash-raise is a
+   4% overlay where --skill-bg is a near-opaque cream, so mixing into the old
+   token would swap the chip's material on hover instead of tinting it. */
+.skill-tag:hover {
+  background: color-mix(in srgb, var(--accent-fill) 20%, var(--wash-raise));
+  transform: translateY(-1px);
+}
 
 @media (width <=1024px) {
   .skills-grid {
