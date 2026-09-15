@@ -3978,11 +3978,24 @@ body.dark-theme .home-portrait picture {
     margin-top: var(--space-lg);
   }
 
-  /* Only what differs from the base rule: the date chip and the location
-     text get to wrap onto two lines instead of squeezing. */
+  /* The chip and the location stay on one row at every phone width. Letting
+     the row wrap dropped the location under the chip on narrow screens, which
+     read as a second, unlabelled line; now the location is what gives, wrapping
+     its own text against the right edge while the chip keeps its width. */
   #resume .item-header {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: var(--space-sm);
+  }
+
+  #resume .item-date {
+    flex: 0 0 auto;
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  #resume .item-badge {
+    min-width: 0;
+    text-align: right;
+    line-height: var(--leading-snug);
   }
 
   #resume .item-tags {
@@ -6459,12 +6472,6 @@ body.dark-theme .skill-tag.primary .fas {
 
   .stat-number {
     font-size: var(--text-3xl);
-  }
-
-  .item-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
   }
 
   .contact-section {
