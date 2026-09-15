@@ -336,6 +336,24 @@
   --space-xl: 24px;
   --space-2xl: 32px;
 
+  /* ---- App launcher shelf ------------------------------------------------
+     Two values the #apps shelf needs that no existing ramp carries.
+
+     --app-tile-min is the grid's track floor: the width at which a 1200x630
+     preview stops carrying any detail. It is a layout constant, not a spacing
+     rung, which is why it is named here rather than rounded onto --space-*.
+
+     --app-media-scrim is the veil the preview sits under at rest. The seven
+     PNGs are dark marketing cards that each bake in their own eyebrow, title
+     and blurb at a larger size and higher contrast than the tile's own - so
+     unveiled they beat the tile's <h3>, and the visitor reads two different
+     names for the same app. It is colour, so it carries a dark-theme
+     counterpart: on the dark ground the preview and the tile body are nearly
+     the same value, and the scrim is what re-separates them once the media's
+     border-bottom is gone.  */
+  --app-tile-min: 320px;
+  --app-media-scrim: hsl(220, 39%, 11%, 0.28);
+
   /* ---- Measure ------------------------------------------------------------
      One reading width for long-form copy. The Experience section stacked two:
      the section intro ran 128ch while the bullets under it ran 68ch, so the
@@ -351,6 +369,11 @@
   --motion-slow: 320ms;
   --motion-page: 200ms;
   --motion-reveal: 520ms;
+  /* Off the top of the ramp on purpose: every rung above is a state CHANGE,
+     tuned to land inside one perception of "instant". This one is a waiting
+     signal - the app-shelf preview placeholder - and it has to be slow enough
+     to read as breathing rather than as a flicker. */
+  --motion-shimmer: 1400ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-press: cubic-bezier(0.34, 1.2, 0.64, 1);
@@ -428,6 +451,7 @@ body.dark-theme {
   --surface-soft: hsl(210, 30%, 12%, 0.68);
   --card-bg: var(--surface);
   --skill-bg: hsl(210, 20%, 14%, 0.72);
+  --app-media-scrim: hsl(220, 39%, 4%, 0.44);
   --wash-raise: hsl(0, 0%, 100%, 0.06);
   --wash-sink: hsl(0, 0%, 0%, 0.28);
   --select-bg: #0f1419;
@@ -6987,8 +7011,8 @@ body.dark-theme .skill-tag.primary .fas {
    ---------------------------------------------------------------------- */
 .app-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--app-tile-min)), 1fr));
+  gap: var(--space-xl);
   align-items: stretch;
 }
 
@@ -7005,17 +7029,21 @@ body.dark-theme .skill-tag.primary .fas {
   text-decoration: none;
   transition:
     transform var(--motion-medium) var(--ease-enter),
-    border-color var(--motion-medium) var(--ease-standard),
     box-shadow var(--motion-medium) var(--ease-standard);
 }
 
 /* Scoped to `a.app-tile` rather than `.app-tile`: the shell is also usable by
    a non-link tile, and lifting one of those on hover would promise a target
-   that is not there. */
+   that is not there.
+
+   The hover used to change the border colour too, on top of the lift, the
+   elevation step, a 1.04 scale on the preview and the arrow nudge - five
+   simultaneous signals for one binary fact. The accent now lives on the Launch
+   pill and nowhere else in the tile, so the border stays neutral and the
+   preview stays still. */
 a.app-tile:hover,
 a.app-tile:focus-visible {
   transform: translateY(-4px);
-  border-color: var(--accent-mild);
   box-shadow: var(--elev-3);
 }
 
@@ -7024,58 +7052,148 @@ a.app-tile:focus-visible {
   outline-offset: 3px;
 }
 
+/* Every tile opens in a NEW tab, so the tab that was clicked never changes -
+   this press is the only acknowledgement the page can give. Without it a
+   blocked popup or a cold new-tab render is indistinguishable from a dead
+   click, which is the one failure this shelf could not previously report. */
+a.app-tile:active {
+  transform: translateY(-1px) scale(0.995);
+  transition-timing-function: var(--ease-press);
+}
+
 /* The preview is the tile's whole top half, so its box has to be reserved
    before the image decodes - hence the ratio here and the width/height
    attributes in the markup. Without both, every tile below the first jumps
-   when the PNGs arrive. */
+   when the PNGs arrive.
+
+   No `border-bottom` any more. The tile already carries an outer border and
+   --elev-1's hairline ring; a third line across the middle turned every tile
+   into two stacked boxes. The scrim's dark edge does that dividing now. */
 .app-tile-media {
   display: block;
   position: relative;
   aspect-ratio: 1200 / 630;
   overflow: hidden;
   background: var(--skill-bg);
-  border-bottom: 1px solid var(--border);
 }
 
+/* LOADING. Seven lazy previews at ~330KB each, so on a cold or throttled
+   connection this box is what a visitor actually looks at - and it was a bare
+   --skill-bg rectangle, identical to a tile whose image had failed outright.
+
+   The sweep runs a fixed three times rather than forever. Three covers the
+   realistic decode window; an infinite one would keep repainting underneath an
+   opaque image for the rest of the session, which is the exact mistake
+   .section-title's gradient animation was fixed for. */
+.app-tile-media::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(100deg, transparent 20%, var(--wash-raise) 50%, transparent 80%);
+  background-size: 300% 100%;
+  animation: app-media-loading var(--motion-shimmer) var(--ease-standard) 3 both;
+}
+
+@keyframes app-media-loading {
+  from {
+    background-position: 150% 0;
+  }
+
+  to {
+    background-position: -150% 0;
+  }
+}
+
+/* The previews are dark marketing cards that each carry their OWN eyebrow,
+   title and blurb, rendered larger and with more contrast than the tile's.
+   Left unveiled they win, and the tile reads as two competing headlines - see
+   the note in index.html above this section. Holding them back one step is the
+   most this stylesheet can do about that; the real fix is re-rendering the
+   PNGs without baked-in copy. The veil lifts on hover, which gives the pointer
+   somewhere useful to go now that the image no longer scales. */
+.app-tile-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+
+  /* Three layers share this box and the order is load-bearing: the scrim sits
+     above the image (1), the loading sweep above the scrim (2), and the error
+     cover above both (3). Anything else and the veil meant for a photograph
+     ends up tinting the empty placeholder grey - which is what a shelf looks
+     like when its images are still in flight, and exactly the state this pass
+     set out to stop looking broken. */
+  z-index: 1;
+  background: var(--app-media-scrim);
+  transition: opacity var(--motion-medium) var(--ease-standard);
+}
+
+a.app-tile:hover .app-tile-media::after,
+a.app-tile:focus-visible .app-tile-media::after {
+  opacity: 0;
+}
+
+/* `position: relative` with NO z-index, deliberately: at `z-index: 0` the
+   image would open a stacking context and trap the error cover below the
+   scrim. */
 .app-tile-media img {
   display: block;
+  position: relative;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform var(--motion-slow) var(--ease-enter);
 }
 
-a.app-tile:hover .app-tile-media img {
-  transform: scale(1.04);
+/* ERROR. A preview that 404s, or that an image blocker stops, left the
+   browser's own broken-file glyph sitting in the corner of an empty box - the
+   one piece of UI on this page not drawn by this stylesheet, and on a shelf
+   whose whole job is to look finished.
+
+   A broken <img> stops being replaced content and starts generating
+   pseudo-elements, so this paints the placeholder over the glyph. On an image
+   that loads, the pseudo-element is never rendered at all, so this costs the
+   success path nothing. */
+.app-tile-media img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: var(--skill-bg);
 }
 
 .app-tile-body {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 10px;
-  padding: 20px 22px 22px;
+  gap: var(--space-md);
+  padding: var(--space-xl);
 }
 
+/* Was a filled --accent-soft pill in --accent-text: the same accent family as
+   the Launch call to action, but with a background behind it, so the category
+   label out-shouted the only thing on the tile a visitor can act on. It is a
+   label, not a control - nothing filters by it - so it reads as one now. */
 .app-tile-eyebrow {
   display: inline-flex;
   align-self: flex-start;
   align-items: center;
-  gap: 8px;
-  padding: 4px 11px;
-  border-radius: var(--radius-full);
-  background: var(--accent-soft);
-  color: var(--accent-text);
+  gap: var(--space-xs);
+  color: var(--muted);
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
+/* --weight-extrabold, and the only thing in the tile wearing it: at 700 the
+   title matched the eyebrow and the Launch label exactly, so three of the four
+   text elements claimed the same rank and none of them led. */
 .app-tile-title {
   margin: 0;
   font-size: var(--text-xl);
+  font-weight: var(--weight-extrabold);
   line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
   color: var(--text);
 }
 
@@ -7086,17 +7204,35 @@ a.app-tile:hover .app-tile-media img {
   color: var(--muted);
 }
 
-/* `margin-top: auto` pins the call to action to the bottom edge, so tiles with
-   different blurb lengths still line their Launch rows up across the grid. */
+/* The primary action, and now the only filled element in the tile - it was
+   14px accent-coloured text with no box, sitting under a full-bleed preview
+   and an extrabold title, which made the one actionable thing the quietest
+   thing present.
+
+   `margin-top: auto` pins it to the bottom edge, so tiles with different blurb
+   lengths still line their Launch rows up across the grid; `align-self` keeps
+   it intrinsic rather than stretching to the tile width. */
 .app-tile-cta {
   display: inline-flex;
+  align-self: flex-start;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   margin-top: auto;
-  padding-top: 6px;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-full);
+  background: var(--accent-fill);
+  color: var(--on-accent);
   font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--accent-text);
+  font-weight: var(--weight-bold);
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
+}
+
+a.app-tile:hover .app-tile-cta,
+a.app-tile:focus-visible .app-tile-cta {
+  background: var(--accent-hover);
+  box-shadow: var(--glow-md);
 }
 
 .app-tile-cta i {
@@ -7106,6 +7242,25 @@ a.app-tile:hover .app-tile-media img {
 a.app-tile:hover .app-tile-cta i,
 a.app-tile:focus-visible .app-tile-cta i {
   transform: translate(2px, -2px);
+}
+
+/* Local to this region rather than in RESPONSIVE - GLOBAL BREAKPOINTS,
+   because the APPS region is declared AFTER that one and both selectors carry
+   the same specificity, so a global override here loses on source order and
+   silently paints nothing. The activity and chat regions carry their own tier
+   blocks for the same reason. */
+@media (width <=640px) {
+  /* A tile runs ~460px tall on a phone, so seven of them is over 3,000px of
+     scrolling for a shelf whose entire job is "pick one". Two rungs down on
+     the gap and the body padding buys a tile of that back without putting a
+     single off-ramp number into the file. */
+  .app-grid {
+    gap: var(--space-lg);
+  }
+
+  .app-tile-body {
+    padding: var(--space-lg);
+  }
 }
 
 /* #endregion */
