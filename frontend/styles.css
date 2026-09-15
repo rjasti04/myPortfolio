@@ -6045,6 +6045,24 @@ body.dark-theme .skill-tag.primary .fas {
     padding: var(--page-pad-block-start) 14px 88px;
   }
 
+  /* A view that OPENS WITH ITS OWN HEADING does not need the full
+     --page-pad-block-start above it. That 48px is there to stop the first
+     CARD from reading as attached to the pill (see the token above), and
+     #home, #about, #contact and #ai all still get it. #resume, #hobbies,
+     #apps and #activity start with a .section-title instead: the heading's
+     weight and its 60px underline already do that separating, so the same
+     48px lands as an empty band between the pill and the title. 24px here
+     also mirrors the title's own bottom margin at <=640px, so the heading
+     block sits evenly between the pill and the content it labels.
+
+     Keyed on `.active` deliberately: with JavaScript off every section
+     renders stacked and the first one under the header is #home, which is
+     card-led - so the selector correctly does not fire and the full value
+     stands. Desktop is untouched; `main`'s padding above is unchanged. */
+  main:has(> section.active > .section-title:first-child) {
+    padding-top: var(--space-xl);
+  }
+
   #about.active {
     gap: 22px;
   }
