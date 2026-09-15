@@ -242,7 +242,7 @@ def build_skill_tags(data: dict) -> str:
 SECTION_TITLE = re.compile(
     r'<section id="(?P<id>[\w-]+)"[^>]*>\s*'
     r'<h2 class="section-title">(?P<title>.*?)</h2>'
-    r'(?:\s*<p class="section-intro">(?P<intro>.*?)</p>)?',
+    r"(?:\s*<p>(?P<intro>.*?)</p>)?",
     re.S,
 )
 

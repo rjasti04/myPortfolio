@@ -338,7 +338,7 @@
 
   /* ---- Measure ------------------------------------------------------------
      One reading width for long-form copy. The Experience section stacked two:
-     .section-intro ran 128ch while the bullets under it ran 68ch, so the
+     the section intro ran 128ch while the bullets under it ran 68ch, so the
      intro was 60% wider than the column it introduced and the bullets left a
      dead gutter inside the card. 68ch is the value that was already
      considered; this is it, named once. */
@@ -7286,12 +7286,6 @@ section {
 .js-enabled #about.active {
   display: grid;
   gap: clamp(24px, 4vh, 40px);
-}
-
-.section-intro {
-  margin: -10px 0 26px;
-  max-width: 128ch;
-  color: var(--muted);
 }
 
 .form-label {
