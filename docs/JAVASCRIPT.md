@@ -458,7 +458,7 @@ identifier can ever be resolved and no visitor-supplied string can reach the JS
 evaluator. Rejects malformed numbers, unbalanced parens, trailing input and
 non-finite results by throwing.
 
-### `output.js` (104 lines)
+### `output.js` (116 lines)
 
 DOM-node builders — `line`, `text`, `err`, `pre`, `list`, `columns`, `tags`,
 `frag`, `echoLine`. Every builder writes user-controlled strings through
@@ -543,7 +543,7 @@ section headings read back out of `index.html`. Do not hand-edit:
 and intros are read from the page rather than duplicated into the source file,
 so a new section becomes searchable as soon as it is written.
 
-### `index.js` (324 lines)
+### `index.js` (333 lines)
 
 `initTerminal()` — owns all DOM wiring, the output log (capped at
 `MAX_BLOCKS = 200`, because unbounded output left hundreds of nodes under a

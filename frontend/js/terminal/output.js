@@ -17,6 +17,18 @@ export function line(text) {
   return el("p", "terminal-line", text);
 }
 
+/**
+ * The panel's resting state - what it says before anyone has typed. Built
+ * from nodes rather than an HTML string for the reason given at the top of
+ * this file.
+ */
+export function boot(lead, hint) {
+  const node = el("p", "terminal-boot");
+  node.appendChild(el("strong", null, lead));
+  node.appendChild(document.createTextNode(` ${hint}`));
+  return node;
+}
+
 /** Standard body text. */
 export function text(value) {
   return el("p", "terminal-output-text", value);
