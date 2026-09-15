@@ -1535,17 +1535,19 @@
              but they are context, not the answer, so they ride here as a chain of
              labelled dots rather than owning a card of their own. -->
         <div class="act-bar">
-          <span class="act-live" id="act-live" data-status="disconnected" role="status" aria-live="polite">
-            <span class="act-live-dot" aria-hidden="true"></span>
-            <span id="act-live-label">Connecting&hellip;</span>
-          </span>
+          <span class="act-bar-identity">
+            <span class="act-live" id="act-live" data-status="disconnected" role="status" aria-live="polite">
+              <span class="act-live-dot" aria-hidden="true"></span>
+              <span id="act-live-label">Connecting&hellip;</span>
+            </span>
 
-          <button type="button" class="act-session" id="activity-session-pill" aria-label="Copy the full session ID"
-            disabled>
-            <span class="act-session-label">Session</span>
-            <span class="act-session-value" id="current-session-id">&mdash;</span>
-            <i class="fas fa-copy" aria-hidden="true"></i>
-          </button>
+            <button type="button" class="act-session" id="activity-session-pill" aria-label="Copy the full session ID"
+              disabled>
+              <span class="act-session-label">Session</span>
+              <span class="act-session-value" id="current-session-id">&mdash;</span>
+              <i class="fas fa-copy" aria-hidden="true"></i>
+            </button>
+          </span>
 
           <div class="act-chain">
             <span class="act-stage" id="act-stage-browser" data-health="idle">

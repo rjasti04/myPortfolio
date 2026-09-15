@@ -8269,6 +8269,12 @@ nav a:hover .nav-shortcut {
   margin-bottom: var(--space-lg);
 }
 
+.act-bar-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .act-live {
   display: inline-flex;
   align-items: center;
@@ -9441,14 +9447,32 @@ nav a:hover .nav-shortcut {
     padding: var(--space-md) var(--space-md);
   }
 
-  .act-live {
+  .act-bar-identity {
+    display: flex;
     width: 100%;
+    gap: var(--space-sm);
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .act-bar-identity > .act-live {
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .act-session {
-    width: 100%;
-    justify-content: center;
+    min-width: 0;
+    flex-shrink: 1;
     border-radius: var(--radius-md);
+  }
+
+  /* Truncate the UUID after the last '-' so the pill fits one line.
+     The full value stays in the DOM and is what gets copied on click. */
+  .act-session-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 14ch;
   }
 
   .act-refresh {
