@@ -1240,7 +1240,9 @@ body.dark-theme .header-dropdown-container {
 .hamburger-btn:focus-visible,
 .chat-toggle-btn:focus-visible,
 .chat-close-btn:focus-visible,
+.chat-header-btn:focus-visible,
 .chat-send-btn:focus-visible,
+.chat-mic-btn:focus-visible,
 .ai-send-btn:focus-visible,
 .ai-close-btn:focus-visible,
 .btn-clear:focus-visible,
@@ -1275,7 +1277,9 @@ body.dark-theme .header-dropdown-container {
   .hamburger-btn:focus-visible,
   .chat-toggle-btn:focus-visible,
   .chat-close-btn:focus-visible,
+  .chat-header-btn:focus-visible,
   .chat-send-btn:focus-visible,
+  .chat-mic-btn:focus-visible,
   .ai-send-btn:focus-visible,
   .ai-close-btn:focus-visible,
   .btn-clear:focus-visible,
@@ -7385,7 +7389,12 @@ section {
   height: 60px;
   border-radius: 50%;
   background: var(--accent-fill);
-  color: #fff !important;
+  /* Was `#fff !important`. The note above --on-accent in the token block
+     measures white on citron at 1.7:1 and says #fff failed AA sitewide before
+     that token existed; this button was a surviving instance of it. Dark ink
+     is 11.2:1 on the same fill in both themes, and the robot glyph here now
+     matches the one in .chat-avatar, which already took --on-accent. */
+  color: var(--on-accent);
   border: none;
   font-size: var(--text-h3);
   cursor: pointer;
@@ -7402,14 +7411,20 @@ section {
 .chat-toggle-btn:hover {
   transform: scale(1.1);
   background: var(--accent-hover);
-  color: #fff !important;
+  color: var(--on-accent);
   box-shadow: var(--glow-md);
 }
 
 .chat-dialog {
   width: 350px;
   height: 450px;
-  background: var(--bg);
+  /* --card-bg + blur, as .ai-container carries: the two are the same object at
+     two sizes, and flat --bg made this the one floating panel on the site with
+     no glass. --surface is 92%/90% opaque, so the no-backdrop-filter fallback
+     is the fill itself and needs no entry in the fallbacks region. */
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--blur-xl)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur-xl)) saturate(180%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--elev-3);
@@ -7430,7 +7445,10 @@ section {
 
 .chat-header {
   padding: 15px 20px;
-  background: rgba(255, 255, 255, 0.1);
+  /* Was rgba(255, 255, 255, 0.1) - a lift in the dark theme and nothing at all
+     over the light one, where the header had only its bottom border. The token
+     flips with the theme, and is what #ai's table headers already use. */
+  background: var(--wash-raise);
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
@@ -7461,7 +7479,7 @@ section {
 }
 
 .chat-name {
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   font-size: var(--text-body-sm);
   color: var(--text);
 }
@@ -7469,42 +7487,56 @@ section {
 .chat-status {
   font-size: var(--text-2xs);
   color: var(--color-success);
-  font-weight: 600;
-}
-
-.chat-close-btn {
-  background: none;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: var(--text-body-lg);
-  transition: color var(--motion-fast) var(--ease-standard);
-}
-
-.chat-close-btn:hover {
-  color: var(--accent-text);
+  font-weight: var(--weight-semibold);
 }
 
 .chat-header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-2xs);
 }
 
+/* The rail's controls on the AI page - .ai-close-btn and .ai-sidebar-toggle -
+   are a 36px box with a transparent border, an accent-soft hover and a focus
+   ring. These two do the same job in the same kind of header, so they take the
+   same treatment rather than staying bare glyphs: at 4px of padding on a
+   --text-body-sm icon the New chat target inked about 22px, and neither button
+   drew any focus indicator at all. 36px is the same compromise .ai-close-btn
+   makes against --min-touch-target - the pair sit in a row, so full 44px boxes
+   would collide - and the gap tightens to --space-2xs to pay for the wider
+   boxes without moving the header's edges. */
+.chat-close-btn,
 .chat-header-btn {
-  background: none;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: var(--text-body-sm);
-  transition: color var(--motion-fast) var(--ease-standard);
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
+.chat-close-btn {
+  font-size: var(--text-body-lg);
+}
+
+.chat-header-btn {
+  font-size: var(--text-body-sm);
+}
+
+.chat-close-btn:hover,
 .chat-header-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-mild);
   color: var(--accent-text);
 }
 
@@ -7571,19 +7603,25 @@ section {
   text-decoration: underline;
 }
 
+/* A fixed slate gradient with a second hard-coded copy under
+   `body:not(.dark-theme)`: the question bubble stayed the same graphite
+   whatever the customiser did to the accent, which is why the AI page's
+   `#ai .chat-message.user` block calls this "the one surface on the site that
+   belongs to no palette" and declines to inherit it.
+
+   That page marks its question turn with --accent-fill, as a 3px rule down the
+   leading edge. At 350px a bubble is still the right shape - the measure is too
+   narrow for the document column that rule belongs to - so the same accent
+   arrives as the fill instead, and the two surfaces now mark the user's turn
+   with one colour. --on-accent is 11.2:1 on citron in both themes, so the
+   light-theme override has nothing left to correct. */
 .chat-message.user {
-  background: linear-gradient(135deg, rgba(38, 44, 58, 0.95), rgba(28, 33, 44, 0.95));
-  color: var(--text, #f0f4f8);
+  background: var(--accent-fill);
+  color: var(--on-accent);
   align-self: flex-end;
   border-bottom-right-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--accent-hover);
   box-shadow: var(--shadow-sm);
-}
-
-body:not(.dark-theme) .chat-message.user {
-  background: linear-gradient(135deg, #2c3240, #1f2430);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* Chat Message & Integrated Action Bar */
@@ -7608,12 +7646,15 @@ body:not(.dark-theme) .chat-message.user {
   width: fit-content;
 }
 
+/* Follows the bubble above from a dark ground to a light one: white ink would
+   now be about 1.7:1 on the accent fill. The chip is a black wash and dark ink
+   instead, which is the same relationship it had before, inverted. */
 .chat-message.user .msg-actions {
   align-self: flex-end;
   margin-left: auto;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.95);
+  background: hsl(0, 0%, 0%, 0.10);
+  border: 1px solid hsl(0, 0%, 0%, 0.18);
+  color: var(--on-accent);
 }
 
 .chat-message.bot .msg-actions {
@@ -7636,14 +7677,14 @@ body.dark-theme .chat-message.bot .msg-actions {
 .chat-message.user .msg-actions .msg-action-btn,
 .chat-message.user .msg-actions span,
 .chat-message.user .msg-actions div {
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--on-accent);
 }
 
 .chat-message.user .msg-actions svg,
 .chat-message.user .msg-actions i {
-  fill: rgba(255, 255, 255, 0.9);
-  stroke: rgba(255, 255, 255, 0.9);
-  color: rgba(255, 255, 255, 0.95);
+  fill: var(--on-accent);
+  stroke: var(--on-accent);
+  color: var(--on-accent);
 }
 
 .msg-action-btn {
@@ -7686,8 +7727,8 @@ body.dark-theme .chat-message.bot .msg-actions {
 
 .chat-message.user .msg-action-btn:hover,
 .chat-message.user .msg-action-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  background: hsl(0, 0%, 0%, 0.14);
+  color: var(--on-accent);
   opacity: 1;
   transform: scale(1.06);
 }
@@ -7713,8 +7754,8 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
 }
 
 .chat-message.user .msg-action-btn.active {
-  color: #38bdf8;
-  background: rgba(255, 255, 255, 0.25);
+  color: var(--on-accent);
+  background: hsl(0, 0%, 0%, 0.22);
 }
 
 .warning-icon {
@@ -7779,6 +7820,10 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
   font-family: inherit;
   outline: none;
   transition: border-color var(--motion-base) var(--ease-standard);
+}
+
+.chat-input:focus {
+  border-color: var(--accent-fill);
 }
 
 /* A border-colour change alone is not a focus indicator: it fails WCAG 2.2
@@ -7871,36 +7916,61 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
   }
 }
 
-.chat-input:focus {
-  border-color: var(--accent-fill);
-}
 
+/* Both buttons were 40px, under --min-touch-target, and both were painted in
+   --accent-fill. The AI page's .ai-send-btn / .ai-mic-btn pair carries the
+   argument against that second part: voice input is an alternative to typing,
+   not a second Send, and two accent discs read as a choice between two equal
+   actions. Same conclusion here, so the mic keeps no disc and carries its state
+   in colour; the glyph-sizing arithmetic in that block is for a 44px control in
+   a 780px composer and is not worth importing at this size. */
 .chat-send-btn,
 .chat-mic-btn {
-  width: 40px;
-  height: 40px;
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+  min-width: var(--min-touch-target);
+  min-height: var(--min-touch-target);
   border-radius: 50%;
-  background: var(--accent-fill);
-  color: var(--on-accent) !important;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color var(--motion-base) var(--ease-standard),
+  font-size: var(--text-sm);
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard),
     transform var(--motion-base) var(--ease-standard);
   flex-shrink: 0;
 }
 
-.chat-send-btn:hover,
-.chat-mic-btn:hover {
+.chat-mic-btn {
+  background: transparent;
+  color: var(--muted);
+}
+
+.chat-mic-btn:hover:not(:disabled) {
+  color: var(--accent-text);
+}
+
+.chat-send-btn {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+
+.chat-send-btn:hover:not(:disabled) {
   background: var(--accent-hover);
+  transform: scale(1.06);
+}
+
+.chat-send-btn:disabled,
+.chat-mic-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .chat-send-btn:disabled {
   background: var(--accent-mild);
-  cursor: not-allowed;
-  opacity: 0.9;
 }
 
 @media (width <=640px) {
