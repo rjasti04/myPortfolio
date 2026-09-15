@@ -1360,7 +1360,10 @@ export function initChat() {
       } else {
         msgEl.textContent = text;
       }
-      if (showCopy) msgEl.appendChild(createMessageActions(text, isBot));
+      // The corner widget carries no per-message toolbar on either side. It is
+      // a narrow bubble stack, and a chip under every turn cost more height
+      // than the controls were worth there. The /ai page keeps its answer
+      // toolbar below.
       messagesContainer.appendChild(msgEl);
       scrollToBottom(messagesContainer, true);
     }
@@ -1381,9 +1384,8 @@ export function initChat() {
       // The page's questions carry no toolbar. Edit only retyped the prompt
       // into a composer that is always on screen here, and Copy offered back
       // text the visitor had just written - two controls hovering over every
-      // question to save work neither of them saved. Answers keep theirs.
-      // Widget-only: the corner bubbles above are a different surface and
-      // still show both.
+      // question to save work neither of them saved. Answers keep theirs, and
+      // this is the only surface that renders one at all.
       if (showCopy && isBot) msgEl2.appendChild(createMessageActions(text, isBot));
       aiPageMessages.appendChild(msgEl2);
       const aiScrollContainer = aiPageMessages.parentElement || aiPageMessages;
@@ -2109,9 +2111,7 @@ export function initChat() {
         announceToScreenReader('The assistant did not return a response.');
       } else {
         announceToScreenReader('Response received');
-        if (widgetMsgEl) {
-          widgetMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated));
-        }
+        // Widget answers get no toolbar - see appendMessage().
         if (aiMsgEl) {
           aiMsgEl.appendChild(createMessageActions(() => botFullText, true, isTruncated));
         }
