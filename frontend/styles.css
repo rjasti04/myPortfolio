@@ -4846,6 +4846,63 @@ body.dark-theme .home-portrait picture {
   padding: var(--space-xl);
   text-align: center;
   box-shadow: var(--elev-1);
+  transition:
+    transform var(--motion-medium) var(--ease-standard),
+    box-shadow var(--motion-medium) var(--ease-standard),
+    border-color var(--motion-medium) var(--ease-standard),
+    background-color var(--motion-medium) var(--ease-standard);
+  position: relative;
+  overflow: hidden;
+}
+
+/* The hover treatment is two pseudo-elements that cost nothing at rest: a
+   tri-colour rule along the top edge and a radial bloom behind the number.
+   Both sit at opacity 0 and only fade, so the card never reflows. */
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-fill), var(--secondary-fill), var(--data-fill));
+  opacity: 0;
+  transition: opacity var(--motion-medium) var(--ease-standard);
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity var(--motion-medium) var(--ease-standard);
+  pointer-events: none;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-mild);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 0 24px var(--accent-soft);
+  background: var(--sheen-wash);
+}
+
+body.dark-theme .stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 24px var(--accent-soft);
+  background: rgba(30, 41, 59, 0.65);
+}
+
+.stat-card:hover::before {
+  opacity: 1;
+}
+
+.stat-card:hover::after {
+  opacity: 0.6;
 }
 
 .stat-number {
@@ -4859,6 +4916,10 @@ body.dark-theme .home-portrait picture {
   color: transparent;
   margin-bottom: var(--space-sm);
   letter-spacing: var(--tracking-tight);
+  /* Positioned so the ::after bloom, which paints after the card's content,
+     passes behind the number instead of washing it out. */
+  position: relative;
+  z-index: 1;
 }
 
 .stat-label {
@@ -5139,7 +5200,45 @@ header.scrolled .logo-text:hover {
   display: flex;
   flex-direction: column;
   box-shadow: var(--elev-1);
+  transition:
+    transform var(--motion-medium) var(--ease-standard),
+    box-shadow var(--motion-medium) var(--ease-standard),
+    border-color var(--motion-medium) var(--ease-standard),
+    background-color var(--motion-medium) var(--ease-standard);
   position: relative;
+  overflow: hidden;
+}
+
+/* A single amber wash that fades in on hover - same idea as .stat-card's
+   pair, one layer instead of two because the group already carries its own
+   label colour. */
+.skill-group::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity var(--motion-medium) var(--ease-standard);
+  pointer-events: none;
+}
+
+.skill-group:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.10), 0 0 20px var(--accent-soft);
+  border-color: var(--accent-fill);
+  background: var(--sheen-wash);
+}
+
+body.dark-theme .skill-group:hover {
+  background: rgba(30, 41, 59, 0.65);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35), 0 0 20px var(--accent-soft);
+}
+
+.skill-group:hover::before {
+  opacity: 1;
 }
 
 .skill-group-label {
@@ -5350,6 +5449,19 @@ body.dark-theme .skill-tag.primary {
     opacity: 1 !important;
     pointer-events: auto !important;
     min-height: 320px !important;
+  }
+
+  /* The carousel positions every card with translateX, so the :hover lift
+     above would yank an off-screen card back into view on touch. Each state
+     restates its own transform. */
+  .skills-carousel.carousel-initialized .skills-grid .skill-group:hover {
+    transform: translateX(110%) !important;
+    box-shadow: none !important;
+    border-color: var(--border) !important;
+  }
+
+  .skills-carousel.carousel-initialized .skills-grid .skill-group.is-active:hover {
+    transform: translateX(0) !important;
   }
 
   .skills-carousel.carousel-initialized .skills-grid .skill-group.is-prev:hover {
