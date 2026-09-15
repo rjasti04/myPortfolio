@@ -9286,14 +9286,46 @@ nav a:hover .nav-shortcut {
     padding: var(--space-md) var(--space-md);
   }
 
+  /* Status and session pill share the first row. Each used to take a full
+     row to itself, which spent two rows on one short line of text. The
+     status is the compressible half - it is prose, and the longest string it
+     carries - "Not live - use Refresh" - wraps to two lines without harm,
+     so it is capped and the pill takes the rest. The pill wants every pixel:
+     its UUID is 36 characters and is never elided, see .act-session-value. */
   .act-live {
-    width: 100%;
+    max-width: 45%;
+    min-width: 0;
+    /* The pill beside it is two or three lines tall, so the bar's default
+       centring left the status floating against the middle of it. Both
+       columns start at the same y instead. */
+    align-self: flex-start;
   }
 
   .act-session {
-    width: 100%;
+    /* flex-basis 0, not auto. The pill's content is wider than the row it
+       sits in, so an auto basis would send it to a line of its own - wrapping
+       is decided on the hypothetical size, before any shrinking happens. */
+    flex: 1 1 0;
+    min-width: 0;
+    flex-wrap: wrap;
+    row-gap: 2px;
     justify-content: center;
     border-radius: var(--radius-md);
+  }
+
+  /* The UUID gets the pill's full width, not the sliver left beside the
+     label and the copy icon. Sharing that line left it ~33px to wrap 36
+     characters into, which is nine lines and a 213px-tall pill. Its own
+     line costs one row and holds the wrap to two.
+
+     order:1 is what keeps the copy icon up on the caption line. Without it
+     the value splits the two - label, then value, then an icon stranded on a
+     third line of its own. The icon is aria-hidden and the button carries
+     its own aria-label, so the reading order is unchanged. */
+  .act-session-value {
+    order: 1;
+    flex: 1 1 100%;
+    text-align: center;
   }
 
   .act-refresh {
@@ -9312,6 +9344,12 @@ nav a:hover .nav-shortcut {
      declaration and keep today's flex-start. */
   .act-chain {
     width: 100%;
+    /* Pinned to the same height as .act-refresh, which owes the touch
+       target. The two stack as full-width pills here, so a content-height
+       chain (~31px) directly above a 48px button read as a mismatch rather
+       than a pair. The button cannot come down - tier 1 owes 48px - so the
+       chain comes up to meet it. */
+    min-height: var(--min-touch-target);
     justify-content: safe center;
   }
 
