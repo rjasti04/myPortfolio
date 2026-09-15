@@ -10,25 +10,25 @@ export const CONTENT_INDEX = [
   {
     "section": "resume",
     "title": "Experience",
-    "text": "Eight years at one company, across data platforms, OLTP and OLAP systems, and backend services. The full technology list is at the foot of this page.",
+    "text": "",
     "kind": "section"
   },
   {
     "section": "hobbies",
     "title": "Interests & Hobbies",
-    "text": "What I do when I'm not building data pipelines — four habits that keep the other twelve hours honest.",
+    "text": "",
     "kind": "section"
   },
   {
     "section": "apps",
     "title": "Apps",
-    "text": "Side projects that live on their own pages, away from the portfolio. Pick one — each opens in a new tab.",
+    "text": "",
     "kind": "section"
   },
   {
     "section": "activity",
     "title": "Session Activity",
-    "text": "Everything this site has recorded about your visit, as it happens. It stays with your session — no third-party trackers, nothing that follows you off the page.",
+    "text": "",
     "kind": "section"
   },
   {
