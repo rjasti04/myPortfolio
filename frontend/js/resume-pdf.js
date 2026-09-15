@@ -1,6 +1,6 @@
 import { supportsHover } from "./config.js";
 import { closeModal, openModal } from "./modal.js";
-import { getResumeUrl } from "./utils.js";
+import { getResumeUrl, showToast } from "./utils.js";
 
 /**
  * In-page preview for the resume PDF, opened from the Experience section.
@@ -39,6 +39,14 @@ function supportsEmbeddedPdf() {
 }
 
 export function initResumePdf() {
+  // Bound before the guard below: `download` fires no event a page can
+  // observe, so a click that saves the file looks identical to one that did
+  // nothing. This is the only acknowledgement the visitor gets, and it must
+  // not depend on the preview modal being present.
+  document.getElementById("resume-pdf-download")?.addEventListener("click", () => {
+    showToast("Downloading the resume\u2026", "success");
+  });
+
   const trigger = document.getElementById("resume-pdf-view");
   const modal = document.getElementById("resume-pdf-modal");
   const frame = document.getElementById("resume-pdf-frame");

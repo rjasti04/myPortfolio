@@ -109,15 +109,30 @@ describe('Reveal activation', () => {
     assert.ok(all.length > 0);
     assert.strictEqual(active.length, all.length,
       'no .reveal is stranded at opacity 0');
+    // jsdom has no IntersectionObserver, so this is the path that reveals
+    // everything up front. It must not arm the hiding rule on the way past:
+    // the class and the code that clears it are a pair.
+    assert.ok(!document.documentElement.classList.contains('reveals-armed'),
+      'the hiding rule is not armed on the path that never observes');
   });
 });
 
 describe('Reveal visibility without JavaScript', () => {
-  it('hides .reveal only under .js-enabled', () => {
+  it('hides .reveal only under a class the reveal code sets itself', () => {
     const css = fs.readFileSync(path.join(repoRoot, 'frontend', 'styles.css'), 'utf8');
-    assert.match(css, /\.js-enabled \.reveal \{\s*\n\s*opacity: 0;/,
-      'the hiding rule is scoped to .js-enabled');
+    assert.match(css, /\.reveals-armed \.reveal \{\s*\n\s*opacity: 0;/,
+      'the hiding rule is scoped to .reveals-armed');
     assert.doesNotMatch(css, /\n\.reveal \{\s*\n\s*opacity: 0;/,
       'no unscoped .reveal rule hides content when JS never runs');
+    // .js-enabled is set by the pre-boot inline script, so scoping to it
+    // covered JavaScript being OFF but not JavaScript loading and THROWING -
+    // main.js try/catches every initialiser, so a throw before initAnimations
+    // stranded all 20 .reveal elements, #resume's whole Experience card among
+    // them. The arming class has to come from the module that also clears it.
+    assert.doesNotMatch(css, /\.js-enabled \.reveal \{\s*\n\s*opacity: 0;/,
+      'the hiding rule must not key off a pre-boot class');
+    const js = fs.readFileSync(path.join(repoRoot, 'frontend', 'js', 'animations.js'), 'utf8');
+    assert.match(js, /classList\.add\("reveals-armed"\)/,
+      'initReveals arms the hiding rule itself');
   });
 });
