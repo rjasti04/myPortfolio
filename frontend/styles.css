@@ -6045,6 +6045,24 @@ body.dark-theme .skill-tag.primary .fas {
     padding: var(--page-pad-block-start) 14px 88px;
   }
 
+  /* A view that OPENS WITH ITS OWN HEADING does not need the full
+     --page-pad-block-start above it. That 48px is there to stop the first
+     CARD from reading as attached to the pill (see the token above), and
+     #home, #about, #contact and #ai all still get it. #resume, #hobbies,
+     #apps and #activity start with a .section-title instead: the heading's
+     weight and its 60px underline already do that separating, so the same
+     48px lands as an empty band between the pill and the title. 24px here
+     also mirrors the title's own bottom margin at <=640px, so the heading
+     block sits evenly between the pill and the content it labels.
+
+     Keyed on `.active` deliberately: with JavaScript off every section
+     renders stacked and the first one under the header is #home, which is
+     card-led - so the selector correctly does not fire and the full value
+     stands. Desktop is untouched; `main`'s padding above is unchanged. */
+  main:has(> section.active > .section-title:first-child) {
+    padding-top: var(--space-xl);
+  }
+
   #about.active {
     gap: 22px;
   }
@@ -9626,7 +9644,13 @@ nav a:hover .nav-shortcut {
      leaves the same measured gap on both pages. Hardcoding the result
      instead was how the two drifted apart: 34 against contact's 42 on a
      desktop, and 20 against 62 on a phone, where the panel's shadow ran into
-     the pill's. */
+     the pill's.
+
+     All of which holds on a DESKTOP only. Below 1150px --ai-header-gap is
+     overridden further down this region so the sum lands on --space-xl: on a
+     phone the pages worth matching are the title-led ones, which open that
+     tight, and 62px of air above a shell that is already fighting for
+     viewport height is the wrong trade there. */
   --ai-header-gap: calc(var(--page-pad-block-start) + var(--page-card-offset) - var(--header-sticky-offset, 16px));
 
   display: flex;
@@ -11356,14 +11380,29 @@ body.dark-theme .chat-message.bot tr:nth-child(even) {
 }
 
 /* ── Below 1150px ──
-   Only the gutter changes. The header is shorter here and its sticky offset
-   drops to 10px; flex measures the first for itself and the shell rule above
-   reads the second from its token, so neither is restated. The mobile bar is
-   in that rule's bottom padding via --mobile-bottom-nav-height - 0px while
+   The gutter tightens, and the top gap stops following #contact. On a phone
+   the shell rule's desktop reasoning produces 62px of visible air above the
+   panel, and the title-led views (#resume, #hobbies, #apps, #activity) now
+   open on --space-xl instead - see the rule beside `main`'s mobile padding in
+   RESPONSIVE. #ai follows them rather than #contact here.
+
+   The token, not the padding, is what moves: the shell composes its
+   padding-block start as --header-sticky-offset plus --ai-header-gap, so
+   subtracting the offset here has the padding add it straight back and the
+   sum lands on --space-xl exactly. Same var() spelling as the padding on
+   purpose - the two cancel whatever the offset is, so the header shrinking
+   again cannot reopen the gap. This has to live here rather than in that
+   RESPONSIVE block: media queries add no specificity, and the shell rule
+   that sets --ai-header-gap comes later in the file.
+
+   The header is shorter here too and its sticky offset drops to 10px; flex
+   measures the first for itself, so it is not restated. The mobile bar is in
+   the shell rule's bottom padding via --mobile-bottom-nav-height - 0px while
    the bar is hidden, and correct again the day it comes back. */
 @media (width <=1150px) {
   .js-enabled main:has(> #ai.active) {
     --ai-gutter: 8px;
+    --ai-header-gap: calc(var(--space-xl) - var(--header-sticky-offset, 16px));
   }
 }
 
