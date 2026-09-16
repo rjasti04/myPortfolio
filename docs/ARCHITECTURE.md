@@ -249,7 +249,9 @@ or `require_session_access` (analytics capability token) — before the handler.
    threshold, otherwise the cheaper hero particle field
    (`js/particles-config.js`). Phones and tablets get the plain gradient and
    never fetch the plexus chunk. Neither mounts under
-   `prefers-reduced-motion`.
+   `prefers-reduced-motion`, and neither mounts on `#home` on any device — the
+   landing view has the schematic backdrop as its ground, so the plexus is
+   mounted on the way out of it and torn down on the way back in.
 7. **Service worker** — registered on `load`, then `registration.update()` every
    60s. A waiting worker surfaces an update banner; only the banner's button
    posts `SKIP_WAITING`, so the asset set is never swapped under a running page.

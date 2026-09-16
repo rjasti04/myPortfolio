@@ -66,7 +66,19 @@ export function initExperienceGroups() {
   // or by revealDetails, so the label never drifts from the real state.
   groups.forEach((group) => group.addEventListener("toggle", sync));
 
-  container.parentElement.insertBefore(toggle, container);
+  // Sit in the section's existing controls row rather than on a line of its
+  // own. `.section-actions` already holds the two resume actions, and a third
+  // control on its own line below them read as a second, unrelated row; styles
+  // .css pushes this one to the trailing edge so the read/download pair keeps
+  // the leading edge. The old placement stays as the fallback for a document
+  // that has no controls row - the button is injected, so it has to be able to
+  // land somewhere regardless.
+  const actions = document.querySelector("#resume .section-actions");
+  if (actions) {
+    actions.appendChild(toggle);
+  } else {
+    container.parentElement.insertBefore(toggle, container);
+  }
   sync();
 
   window.addEventListener("hashchange", syncFromHash);
