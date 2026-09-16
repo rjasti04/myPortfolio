@@ -1069,15 +1069,12 @@
               <span class="role-period">(Feb 2018 &mdash; Oct 2022)</span>
             </div>
           </div>
-          <h4 class="item-bullets-group" id="exp-data-engineering-modeling-olap">Data Engineering &amp; Modeling (OLAP)
-          </h4>
+          <h4 class="item-bullets-group" id="exp-data-engineering-modeling-olap">Data Engineering &amp; Modeling (OLAP)</h4>
           <ul class="item-bullets">
-            <li>Architected multi-source ingestion pipelines using PySpark, Matillion, and Boomi (CDC, watermark
-              extracts, SaaS
+            <li>Architected multi-source ingestion pipelines using PySpark, Matillion, and Boomi (CDC, watermark extracts, SaaS
               APIs, flat files) into Amazon Redshift, decoupling batch and near-real-time streaming via Amazon SQS for
               automated staging, deduplication, cleansing, and SQL business transformations.</li>
-            <li>Designed enterprise star and snowflake dimensional models, and developed LookML semantic models and
-              Explores for
+            <li>Designed enterprise star and snowflake dimensional models, and developed LookML semantic models and Explores for
               core supply chain metrics (inventory turns, dock-to-stock cycle times, order fill rates, freight spend)
               with optimized datagroups and PDT lifecycle policies.</li>
             <li>Implemented reverse-ETL pipelines syncing curated data back into Salesforce and Zoho, and partnered with
@@ -1086,101 +1083,77 @@
           </ul>
           <h4 class="item-bullets-group" id="exp-backend-middleware">Backend &amp; Middleware</h4>
           <ul class="item-bullets">
-            <li>Architected enterprise-grade serverless REST APIs and asynchronous order ingestion middleware using AWS
-              API
+            <li>Architected enterprise-grade serverless REST APIs and asynchronous order ingestion middleware using AWS API
               Gateway, Lambda, SQS FIFO, and Step Functions (Saga pattern), reliably fanning out multi-channel B2B/B2C
               orders to legacy ERP, WMS, and inventory distribution systems.</li>
-            <li>Engineered a distributed DynamoDB caching layer with SHA-256 payload fingerprinting and native TTL
-              eviction,
+            <li>Engineered a distributed DynamoDB caching layer with SHA-256 payload fingerprinting and native TTL eviction,
               cutting primary database load by 30&ndash;50%.</li>
-            <li>Sustained 99.9% transaction completion through idempotent request handling, API Gateway throttling, DLQ
-              redrive
+            <li>Sustained 99.9% transaction completion through idempotent request handling, API Gateway throttling, DLQ redrive
               policies, exponential backoff, and circuit breakers.</li>
             <li>Developed a high-concurrency Available-to-Promise (ATP) inventory reservation microservice using atomic
               conditional writes and distributed locks to prevent overselling.</li>
-            <li>Implemented a dual-engine search strategy combining Elasticsearch with SQL Server for sub-second search
-              across
+            <li>Implemented a dual-engine search strategy combining Elasticsearch with SQL Server for sub-second search across
               millions of historical orders and invoices.</li>
           </ul>
           <h4 class="item-bullets-group" id="exp-database-systems-oltp">Database Systems (OLTP)</h4>
           <ul class="item-bullets">
-            <li>Owned OLTP database architecture and administration running mission-critical order-to-cash operations
-              across
+            <li>Owned OLTP database architecture and administration running mission-critical order-to-cash operations across
               pricing, rebates, commissions, and ERP/WMS/TMS integration feeds.</li>
-            <li>Architected the enterprise pricing engine in SQL Server, resolving sales-rep overrides, customer
-              contract pricing,
+            <li>Architected the enterprise pricing engine in SQL Server, resolving sales-rep overrides, customer contract pricing,
               commodity pricing, COGS, and discount layers into real-time customer&ndash;item&ndash;DC prices via
               ACID-compliant T-SQL procedures.</li>
-            <li>Scaled the pricing API to sustain 100,000&ndash;200,000 executions/min at sub-100 ms latency with zero
-              deadlocks
+            <li>Scaled the pricing API to sustain 100,000&ndash;200,000 executions/min at sub-100 ms latency with zero deadlocks
               under heavy concurrent load.</li>
-            <li>Modeled SCD Type 2 temporal pricing for point-in-time auditability, and engineered PriceIQ statistical
-              pricing
+            <li>Modeled SCD Type 2 temporal pricing for point-in-time auditability, and engineered PriceIQ statistical pricing
               using IQR outlier fencing and skew-adjusted distribution analysis to intelligently price custom
               setups.</li>
-            <li>Built the vendor rebate calculation platform, sales commission payroll, and WMS/TMS activity-based
-              incentive
+            <li>Built the vendor rebate calculation platform, sales commission payroll, and WMS/TMS activity-based incentive
               payroll.</li>
           </ul>
-          <h4 class="item-bullets-group" id="exp-database-administration-reliability-oltp-olap">Database Administration
-            &amp; Reliability (OLTP &amp; OLAP)</h4>
+          <h4 class="item-bullets-group" id="exp-database-administration-reliability-oltp-olap">Database Administration &amp; Reliability (OLTP &amp; OLAP)</h4>
           <ul class="item-bullets">
             <li>Eliminated high-frequency lock-conversion deadlocks, write skew, and reader&ndash;writer blocking across
               high-throughput OLTP workloads by pairing targeted locking hints (UPDLOCK, HOLDLOCK, ROWLOCK) with
               deterministic UPSERT ordering and tuning Read Committed Snapshot Isolation (RCSI).</li>
-            <li>Resolved tempdb spills, parameter sniffing, and bookmark lookups through execution plan profiling,
-              memory grant
+            <li>Resolved tempdb spills, parameter sniffing, and bookmark lookups through execution plan profiling, memory grant
               tuning, composite clustered/covering index redesigns, and table partitioning.</li>
-            <li>Automated enterprise maintenance, index defragmentation, and statistics via Ola Hallengren on SQL Server
-              Agent,
+            <li>Automated enterprise maintenance, index defragmentation, and statistics via Ola Hallengren on SQL Server Agent,
               administered Always On Availability Groups (HA/DR), and tuned CDC replication.</li>
-            <li>Optimized Amazon Redshift storage architectures (KEY/ALL/EVEN distribution, sort keys, AZ64/ZSTD
-              compression), WLM
+            <li>Optimized Amazon Redshift storage architectures (KEY/ALL/EVEN distribution, sort keys, AZ64/ZSTD compression), WLM
               parameter queues, materialized views, PII data encryption, RBAC, and CloudWatch performance alarms.</li>
           </ul>
-          <h4 class="item-bullets-group" id="exp-cloud-architecture-modernization">Cloud Architecture &amp;
-            Modernization</h4>
+          <h4 class="item-bullets-group" id="exp-cloud-architecture-modernization">Cloud Architecture &amp; Modernization</h4>
           <ul class="item-bullets">
-            <li>Architected and provisioned an enterprise-scale, fault-tolerant AWS cloud foundation spanning multi-AZ
-              VPCs, API
+            <li>Architected and provisioned an enterprise-scale, fault-tolerant AWS cloud foundation spanning multi-AZ VPCs, API
               Gateway, Lambda, Step Functions, SQS FIFO, DynamoDB, and Amazon Redshift.</li>
-            <li>Deployed a secure, auto-scaled internal application tier on AWS (EC2 in multi-AZ VPCs, Auto Scaling,
-              hardened
+            <li>Deployed a secure, auto-scaled internal application tier on AWS (EC2 in multi-AZ VPCs, Auto Scaling, hardened
               security groups, Route 53, Apache HTTPD reverse proxies) with automated open-source TLS rotation.</li>
-            <li>Engineered an event-driven Master Data Management (MDM) ecosystem across Zoho, establishing governed
-              golden
+            <li>Engineered an event-driven Master Data Management (MDM) ecosystem across Zoho, establishing governed golden
               records for customer, item, and supplier entities with automated webhook and message-queued distribution
               to tier-1 ERP, WMS, and TMS systems to eliminate synchronization lag and discrepancies across warehouse
               fulfillment and freight routing networks.</li>
           </ul>
           <h4 class="item-bullets-group" id="exp-devops-infrastructure">DevOps &amp; Infrastructure</h4>
           <ul class="item-bullets">
-            <li>Established end-to-end operational reliability, automated maintenance, and proactive infrastructure
-              observability
+            <li>Established end-to-end operational reliability, automated maintenance, and proactive infrastructure observability
               across distributed cloud microservices and database clusters.</li>
-            <li>Automated enterprise SQL Server maintenance, index defragmentation, and statistics updates using Ola
-              Hallengren
+            <li>Automated enterprise SQL Server maintenance, index defragmentation, and statistics updates using Ola Hallengren
               orchestrated via SQL Server Agent.</li>
-            <li>Built robust monitoring and alerting in SolarWinds (waits, blocking, resource pressure) and AWS
-              CloudWatch (disk
+            <li>Built robust monitoring and alerting in SolarWinds (waits, blocking, resource pressure) and AWS CloudWatch (disk
               spill, CPU utilization, concurrency metrics).</li>
             <li>Authored custom T-SQL health audit scripts, enforced least-privilege RBAC, and implemented resilient
               fault-tolerance mechanisms including automated Dead-Letter Queue (DLQ) redrives, exponential backoff,
               circuit breakers, and zero-downtime automated TLS certificate rotations.</li>
           </ul>
-          <h4 class="item-bullets-group" id="exp-generative-ai-web-applications">Generative AI &amp; Web Applications
-          </h4>
+          <h4 class="item-bullets-group" id="exp-generative-ai-web-applications">Generative AI &amp; Web Applications</h4>
           <ul class="item-bullets">
-            <li>Integrated Google's Model Context Protocol (MCP) server in Looker, exposing curated semantic
-              definitions,
+            <li>Integrated Google's Model Context Protocol (MCP) server in Looker, exposing curated semantic definitions,
               Explores, and supply chain KPIs to generative AI agents to enable natural-language-to-SQL querying and
               prompt-driven analytical dashboard generation.</li>
-            <li>Engineered high-throughput, asynchronous FastAPI backend microservices with strict Pydantic schema
-              validation,
+            <li>Engineered high-throughput, asynchronous FastAPI backend microservices with strict Pydantic schema validation,
               standardizing departmental custom data capture and preventing operational data corruption across
               downstream pipelines.</li>
-            <li>Delivered responsive, high-performance web applications and internal portals featuring seamless API
-              integrations
+            <li>Delivered responsive, high-performance web applications and internal portals featuring seamless API integrations
               and granular role-based access control.</li>
           </ul>
           <!-- /GENERATED:experience -->
