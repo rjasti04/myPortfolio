@@ -248,8 +248,11 @@ or `require_session_access` (analytics capability token) — before the handler.
    `<canvas id="webgl-canvas">` is gone, and both modules are retained on disk
    unreferenced. In its place `<div class="site-backdrop">` in `index.html`
    carries a static schematic behind every section, painted entirely by CSS —
-   no script, no rAF loop, no capability or viewport gate, and it renders with
-   JavaScript disabled. See [Static assets](FRONTEND.md#static-assets).
+   no script and no rAF loop, and it renders with JavaScript disabled. A
+   five-path SVG overlay runs a dash along the drawing's main routes — CSS
+   animation only, gated on a fine pointer, a desktop width and
+   `prefers-reduced-motion: no-preference`. Phones get no backdrop at all.
+   See [Static assets](FRONTEND.md#static-assets).
 7. **Service worker** — registered on `load`, then `registration.update()` every
    60s. A waiting worker surfaces an update banner; only the banner's button
    posts `SKIP_WAITING`, so the asset set is never swapped under a running page.

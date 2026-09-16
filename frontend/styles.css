@@ -77,6 +77,17 @@
      at 1440px, 80% keeps the worst case - secondary text over a trace - above
      4.5:1. Lower it and the traces start winning. */
   --backdrop-scrim: color-mix(in srgb, var(--bg) 80%, transparent);
+
+  /* Mostly neutral slate with a measured third of the theme's accent hue. See
+     the `luminosity` note on `.site-backdrop::before` for why it is a mix and
+     not the accent itself. Read through `invert()` on this theme, so it is
+     tuned against the inverted result rather than against the raw file. */
+  --backdrop-tint: color-mix(in srgb, var(--accent-text) 32%, #79899a);
+
+  /* The moving dashes. Brighter than the drawing they run on - motion this
+     quiet is invisible at the traces' own weight - but still well under the
+     accent, which has actions to mark. */
+  --backdrop-flow-ink: color-mix(in srgb, var(--accent-text) 62%, transparent);
   --text: #0f172a;
   --muted: #3f4b5a;
   --border: hsl(220, 39%, 11%, 0.13);
@@ -469,6 +480,9 @@ body.dark-theme {
      inverted grey version is not. That glow needs a little more wash over it
      to stop it competing with the accent colour the UI actually uses. */
   --backdrop-scrim: color-mix(in srgb, var(--bg) 85%, transparent);
+
+  --backdrop-tint: color-mix(in srgb, var(--accent-text) 30%, #66768a);
+  --backdrop-flow-ink: color-mix(in srgb, var(--accent-text) 78%, transparent);
   --text: #f0f4f8;
   --muted: #cbd5e1;
   --border: hsl(210, 20%, 98%, 0.14);
@@ -2989,7 +3003,21 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 
   /* Solid accent fill - the mask is what gives it a shape. */
   background: var(--accent-fill);
-  opacity: 0.92;
+
+  /* ── Why opacity and not mix-blend-mode ──
+     The obvious fix for a flat slab over a drawing is to blend it, and it does
+     not work here: `.layout` is `position: relative; z-index: 1`, which makes
+     it a stacking context, and a blend mode only sees backdrop painted INSIDE
+     the nearest such ancestor. The site backdrop is outside `.layout` and
+     behind it, so `multiply` on this element would blend against transparency
+     and paint exactly what it does now.
+
+     Plain alpha does reach it, because everything between this panel and the
+     backdrop is transparent. 0.72 is where the traces read through the paint
+     without the panel giving up its own edge - the point is a flat the figure
+     stands against, and a wash the drawing passes through unchanged is no
+     longer a flat. */
+  opacity: 0.72;
   -webkit-mask-image: url("brush-backdrop.webp");
   mask-image: url("brush-backdrop.webp");
   -webkit-mask-size: contain;
@@ -3031,7 +3059,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    subject. Two thirds is where it goes back to reading as a warm wall the
    silhouette is lit against. */
 body.dark-theme .home-portrait::before {
-  opacity: 0.66;
+  opacity: 0.48;
 }
 
 /* The shadow is on the <picture>, not the <img>, because the mask below is
@@ -7045,18 +7073,6 @@ body.dark-theme .skill-tag.primary {
   }
 }
 
-@keyframes slide-down {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* #endregion */
 
 /* #region ACCESSIBILITY & PRINT PREFERENCES ---------------------------*/
@@ -7551,6 +7567,23 @@ body.dark-theme .skill-tag.primary {
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
+
+  /* ── The drawing takes its hue from the theme, not from the JPEG ──
+     The source is cyan on near-black, which is a third colour next to citron
+     and azure - it reads as a stock image rather than as part of the system.
+     Tinting it to --accent-fill outright is the other failure: the background
+     would then share a colour with every button and link and compete with the
+     things meant to be clicked.
+
+     `luminosity` takes the LUMINANCE from the image and the hue and saturation
+     from the layer underneath, which here is a colour mixed mostly out of
+     neutral slate with a measured amount of the theme's own --accent-text. So
+     the traces land near the accent's hue at a fraction of its saturation:
+     related, clearly subordinate. And because the tint is built from a token
+     rather than a literal, the theme customiser and the #home palette shuffle
+     carry the backdrop with them for free. */
+  background-color: var(--backdrop-tint);
+  background-blend-mode: luminosity;
 }
 
 .site-backdrop::after {
@@ -7572,6 +7605,101 @@ body.dark-theme .skill-tag.primary {
    drafting-paper grey rather than the tinted wash a raw inversion lands on. */
 body:not(.dark-theme) .site-backdrop::before {
   filter: invert(1) hue-rotate(180deg) saturate(0.55) brightness(1.04);
+}
+
+/* ── Directed transit ──
+   z-index rather than source order. The scrim is `.site-backdrop::after`, and
+   a pseudo-element paints after its originating element's children, so this
+   SVG would sit UNDER the scrim by default and be muted twice - once by the
+   wash it is supposed to read through, once by its own opacity. A stacking
+   position of 1 lifts it clear of the scrim while leaving it far below
+   `.layout`, which is z-index 1 in the root stacking context. */
+.site-backdrop-flow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+
+  /* Hidden by default and shown only inside the gate below, rather than the
+     other way round. A dash frozen mid-trace reads as a gap in the line, so
+     this is `display`, not `animation-play-state`. */
+  display: none;
+  color: var(--backdrop-flow-ink);
+}
+
+.backdrop-flow {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+
+  /* One dash of 26 against a synthetic length of 1000: a short pulse with a
+     long gap, so a route reads as carrying one packet rather than as a moving
+     dotted line. */
+  stroke-dasharray: 26 974;
+  animation: backdrop-flow 11s linear infinite;
+}
+
+/* Negative delays so the five are already staggered on the first frame - a
+   positive delay would start them all at the same end and let them drift
+   apart only over the first cycle. Prime-ish spacing keeps them from
+   re-synchronising on a short loop. */
+.backdrop-flow:nth-of-type(2) {
+  animation-delay: -2.3s;
+  animation-duration: 13s;
+}
+
+.backdrop-flow:nth-of-type(3) {
+  animation-delay: -5.1s;
+  animation-duration: 9.5s;
+}
+
+.backdrop-flow:nth-of-type(4) {
+  animation-delay: -7.4s;
+  animation-duration: 14.5s;
+}
+
+.backdrop-flow:nth-of-type(5) {
+  animation-delay: -9.2s;
+  animation-duration: 12s;
+}
+
+@keyframes backdrop-flow {
+  from {
+    stroke-dashoffset: 1000;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Desktop and a fine pointer, and only where motion is welcome. This is the
+   same gate the old schematic's flow used, and for the same reason:
+   `stroke-dashoffset` is a paint-level property, so every frame repaints the
+   path rather than being handed to the compositor. Five thin strokes is
+   cheap on a desktop and is not worth a phone's battery - and a phone has no
+   backdrop to run them over anyway. */
+@media (width >=1024px) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .site-backdrop-flow {
+    display: block;
+  }
+}
+
+/* ── Phones get no backdrop at all ──
+   Matches `mobileDevice` in js/config.js - a coarse pointer AND 768px or
+   under - so the codebase keeps one definition of "mobile" rather than two.
+   iPads are 768px+ in portrait and keep the drawing; a narrow desktop window
+   has a fine pointer and keeps it too.
+
+   The portrait's paint panel is deliberately NOT part of this. It is the only
+   ground the landing view has left here, and it was designed against the
+   plain gradient that phones still show. */
+@media (pointer: coarse) and (width <=768px) {
+  .site-backdrop {
+    display: none;
+  }
 }
 
 /* Ink on paper does not need a photograph of a circuit board behind it. */

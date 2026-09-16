@@ -386,7 +386,31 @@
        Deliberately NOT `.js-only`, unlike the animated canvas it replaces -
        this paints with no script running, so hiding it until `.js-enabled`
        lands would blank the page's background for the whole boot. -->
-  <div class="site-backdrop" aria-hidden="true"></div>
+  <div class="site-backdrop" aria-hidden="true">
+    <!-- Directed transit, over the drawing rather than in it. The backdrop is a
+         raster, so nothing in it can move; these five paths retrace its main
+         routes in vector and run a short dash along each one, which is the one
+         thing the still image cannot say - that these are paths with a
+         direction. Same technique the old #home schematic used.
+
+         The viewBox matches the derivative's 1920x1191 exactly and the
+         preserveAspectRatio is `slice`, so this crops in lockstep with the
+         image's `background-size: cover` and the dashes stay on their traces at
+         every viewport ratio. Change the output size in
+         scripts/generate_backdrop.py and this viewBox has to move with it.
+
+         pathLength="1000" normalises all five to one synthetic length, so a
+         single dasharray and one keyframe pair fit routes of quite different
+         real lengths. -->
+    <svg class="site-backdrop-flow" viewBox="0 0 1920 1191"
+      preserveAspectRatio="xMidYMid slice" focusable="false">
+      <path class="backdrop-flow" pathLength="1000" d="M 185 55 V 213 H 298 L 470 352 V 481 H 800" />
+      <path class="backdrop-flow" pathLength="1000" d="M 55 759 H 380 L 520 919 H 830" />
+      <path class="backdrop-flow" pathLength="1000" d="M 55 786 H 400 L 560 946 H 830" />
+      <path class="backdrop-flow" pathLength="1000" d="M 1238 826 H 1330 V 560 L 1470 420 L 1600 290" />
+      <path class="backdrop-flow" pathLength="1000" d="M 1238 942 H 1460 V 845 H 1850" />
+    </svg>
+  </div>
   <div class="noise-overlay js-only"></div>
   <div class="toast-container js-only" id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
