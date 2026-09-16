@@ -102,14 +102,59 @@ describe('Theme randomizer', () => {
     // Every harmony puts secondary and highlight at fixed offsets from the
     // primary, so the gaps that actually occur are a small closed set. Three
     // independent hues would spread across every gap there is.
-    const gaps = new Set();
+    //
+    // The four entries in SHUFFLE_HARMONIES collapse to five gaps, because
+    // hueGap is circular and caps at 180: [0,28,-28] -> 28; [0,120,240] -> 120
+    // twice; [0,150,210] -> 150 twice; [0,35,180] -> 35 and 180. Update this
+    // list when a harmony is added, which is the point of pinning it.
+    const NOMINAL_GAPS = [28, 35, 120, 150, 180];
+
+    // ── Why this does not count distinct rounded gaps ──
+    // It used to, and asserted the count was <= 12. The offsets in
+    // theme-customizer.js are exact integers, but the colours round-trip
+    // through eight-bit hex on the way back out, so a recovered hue is its
+    // nominal value give or take about 0.76 degrees and `Math.round` drops it
+    // into gap-1 or gap+1. The closed set is therefore 14 values, not 5: each
+    // nominal plus its two neighbours, except 180, which can only round down
+    // because the gap is capped there.
+    //
+    // The off-by-one buckets each land ~0.09% of the time, so whether a given
+    // 400-roll sample hit enough of them to exceed 12 was luck: over 4,000
+    // simulated runs the observed count ranged 5 to 14 (median 9) and the
+    // assertion failed 59 times, or 1.5%. That is the kind of rate that passes
+    // review and CI and then fails on someone's laptop. Raising the bound to
+    // 14 would have made it pass and stopped it testing anything, since 14 is
+    // the whole set.
+    //
+    // Snapping each gap to its nearest nominal tests the real property -
+    // offsets are fixed - deterministically and far more strictly: three
+    // independent hues fail on the first roll instead of 2.7% of the time.
+    const seen = new Set();
     for (let i = 0; i < ROLLS; i += 1) {
       const { primary, secondary, accent } = randomPalette('#F59E0B');
       const [ph] = hexToHsl(primary);
-      gaps.add(Math.round(hueGap(ph, hexToHsl(secondary)[0])));
-      gaps.add(Math.round(hueGap(ph, hexToHsl(accent)[0])));
+      for (const hex of [secondary, accent]) {
+        const gap = hueGap(ph, hexToHsl(hex)[0]);
+        const nearest = NOMINAL_GAPS.reduce((best, n) =>
+          Math.abs(gap - n) < Math.abs(gap - best) ? n : best
+        );
+        assert.ok(
+          Math.abs(gap - nearest) < 1,
+          `hue gap ${gap.toFixed(3)} is not one of ${NOMINAL_GAPS.join(', ')} ` +
+            `(nearest ${nearest}, off by ${Math.abs(gap - nearest).toFixed(3)})`
+        );
+        seen.add(nearest);
+      }
     }
-    assert.ok(gaps.size <= 12, `expected a handful of fixed hue gaps, saw ${gaps.size}`);
+
+    // Every gap being near SOME nominal is not enough on its own - a generator
+    // that only ever emitted 28 would pass that. The harmonies are picked
+    // uniformly, so 400 rolls hit all five with overwhelming probability.
+    assert.deepStrictEqual(
+      [...seen].sort((a, b) => a - b),
+      NOMINAL_GAPS,
+      'expected every harmony in SHUFFLE_HARMONIES to be reachable'
+    );
   });
 
   it('still works when no current colour is supplied', () => {
