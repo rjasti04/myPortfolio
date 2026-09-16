@@ -189,6 +189,27 @@ test("expand-all toggles every group and reports the set's state", async () => {
   assert.equal(toggle.textContent, "Expand all");
 });
 
+test("expand-all lands in the section's controls row, after the resume pair", async () => {
+  const dom = mount();
+  const { initExperienceGroups } = await import("../js/experience-groups.js");
+  const d = dom.window.document;
+  initExperienceGroups();
+
+  const actions = d.querySelector("#resume .section-actions");
+  const toggle = d.querySelector(".exp-toggle-all");
+  assert.ok(actions, "#resume must keep a .section-actions row for the toggle to join");
+  assert.equal(
+    toggle.parentElement,
+    actions,
+    "the toggle belongs in the controls row, not on a line of its own"
+  );
+  assert.equal(
+    actions.lastElementChild,
+    toggle,
+    "it is the trailing control; the resume pair keeps the leading edge"
+  );
+});
+
 test("focusing a closed group opens it, which is the palette's deep-link path", async () => {
   const dom = mount();
   const { initExperienceGroups } = await import("../js/experience-groups.js");
