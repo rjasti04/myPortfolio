@@ -3784,13 +3784,37 @@ body.dark-theme .home-portrait picture {
   margin-top: var(--space-xl);
 }
 
-/* Nothing in this card is clickable, so nothing about it moves on hover. It
-   used to lift 4px and step --elev-3 -> --elev-4, which pointed a click
-   affordance at 1,100 words of prose. */
+/* The accent rail down the left edge, inset to match the block padding so the
+   two move together - a literal 24px stopped tracking the moment the padding
+   became a clamp. It rests at two thirds width and grows to full on hover. */
+#resume .item::before {
+  content: "";
+  position: absolute;
+  inset: var(--card-pad-block) auto var(--card-pad-block) 0;
+  width: 6px;
+  border-radius: 999px;
+  background: var(--accent-fill);
+  opacity: 0.85;
+  transform: scaleX(0.67);
+  transform-origin: left center;
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+}
+
+/* One step of elevation and an accent-warmed border, not a lift: the card
+   holds prose rather than a control, so the hover reads as the page
+   acknowledging the cursor rather than as a click affordance. --elev-3 keeps
+   the same one-step rise the rule had when the card rested at --elev-3 and
+   hovered to --elev-4. */
 #resume .item:hover {
-  border-color: var(--border);
-  box-shadow: var(--elev-2);
-  transform: none;
+  border-color: color-mix(in srgb, var(--accent-fill) 44%, var(--border));
+  box-shadow: var(--elev-3);
+}
+
+#resume .item:hover::before {
+  transform: scaleX(1);
+  opacity: 1;
 }
 
 #resume .item-header {
@@ -3978,6 +4002,18 @@ body.dark-theme .home-portrait picture {
   font-size: var(--text-body-xs);
   font-weight: var(--weight-regular);
   line-height: 1;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
+}
+
+/* The tags warm with the card rather than each answering the cursor alone -
+   one hover target, one response. */
+#resume .item:hover .item-tags span {
+  border-color: color-mix(in srgb, var(--accent-fill) 28%, var(--border));
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 @media (width <=768px) {
@@ -4047,6 +4083,10 @@ body.dark-theme .home-portrait picture {
   #resume .item {
     --card-pad-block: var(--space-lg);
     --card-pad-inline: var(--space-lg);
+  }
+
+  #resume .item::before {
+    width: 3px;
   }
 }
 
