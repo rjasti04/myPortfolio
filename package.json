@@ -16,6 +16,7 @@
     "audit": "npm audit --audit-level=high",
     "build": "node scripts/build.mjs",
     "check:csp": "node --version >/dev/null && python3 scripts/check_csp_hashes.py",
+    "check:traces": "python3 scripts/check_backdrop_traces.py",
     "check:docs": "python3 scripts/check_docs.py",
     "check:resume": "python3 scripts/generate_resume.py --check",
     "generate:resume": "python3 scripts/generate_resume.py"

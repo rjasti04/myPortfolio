@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v27';
+const CACHE_NAME = 'rj-portfolio-v28';
 const CACHE_EXPIRATION_DAYS = 7;
 const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -13,7 +13,6 @@ const PRECACHE_URLS = [
   '/index.html',
   '/styles.css',
   '/auth-modal.css',
-  '/three-bg.js',
   '/manifest.json',
   '/android-chrome-192x192.png',
   '/android-chrome-512x512.png',
@@ -46,7 +45,6 @@ const PRECACHE_URLS = [
   '/js/activity.js',
   '/js/activity-charts.js',
   '/js/physics.js',
-  '/js/particles-config.js',
   '/js/skills-carousel.js',
   '/js/swipe-handler.js',
   '/js/ripple.js',

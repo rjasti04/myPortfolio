@@ -8,6 +8,13 @@
  * imported it. Renaming this module would churn the service worker precache
  * list and main.js for no functional gain, so the name stays and this note
  * explains it.
+ *
+ * RETIRED — nothing imports this module. The animated background was turned
+ * off on every page and every device; `js/main.js` no longer references it and
+ * the `<canvas id="webgl-canvas">` it mounted into is gone from index.html,
+ * along with its CSS and its service-worker precache entry. The file is kept
+ * on disk deliberately, so the work is recoverable without going through git
+ * history. Nothing below runs.
  */
 import {
   prefersReducedMotion as reducedMotionQuery,
@@ -335,12 +342,10 @@ function shouldEnableBackground() {
   // canvas stays hidden and any running field is torn down when the viewport
   // crosses the threshold mid-session.
   if (!desktopBackgroundQuery.matches) return false;
-  // #home is flat, on every device. The landing view has a ground of its own -
-  // the schematic backdrop in styles.css draws a coordinate grid and a board's
-  // worth of orthogonal traces across the same viewport - and a plexus over it
-  // is a second mesh of straight lines and vertices, so the pair read as two
-  // drawings rather than as depth. Turning the plexus down to 15% was the
-  // previous attempt at reconciling them; it is off here instead.
+  // #home was flat on every device: the landing view had a drawn ground of
+  // its own and a plexus over it read as a second drawing rather than as
+  // depth. That backdrop has since been removed too, so this is now just a
+  // record of the route rule that used to apply.
   //
   // Returning false rather than leaving the canvas mounted and hidden in CSS
   // is the point: the field is torn down, so the landing view costs no rAF

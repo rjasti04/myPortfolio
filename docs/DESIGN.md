@@ -147,6 +147,24 @@ Beyond those: five **event-family** hues for the activity log — five rather th
 ten, because five are learnable at a glance and ten need a legend — and the
 status colours.
 
+Three tokens serve the site backdrop. `--backdrop-tint` is mixed mostly out of
+neutral slate with roughly a third of `--accent-text`, and is blended under the
+image in `luminosity` mode so the drawing takes the theme's hue at a fraction
+of its saturation — related to the accent, clearly subordinate to it, and
+carried along by the customiser for free. `--backdrop-flow-ink` is the moving
+dash on top of it, brighter than the traces it runs on because motion that
+quiet is invisible at the drawing's own weight, and still well under the accent,
+which has actions to mark.
+
+`--backdrop-scrim` is the odd one out: not a colour but a *wash of one*,
+`color-mix(in srgb, var(--bg) 80%, transparent)` in the light theme and 85% in
+the dark. It sits over the site backdrop image and is the only thing standing
+between a technical drawing and every piece of body copy on the site, so it is
+a contrast control rather than a decorative choice — lower it and the drawing's
+hairlines start winning against secondary text. It follows `--bg`, so a rolled
+palette takes the wash with it. See
+[Static assets](FRONTEND.md#static-assets).
+
 ### Renaming a colour token is a two-file change
 
 `clearCustomPalette()` in `js/theme-customizer.js` holds a literal list of the

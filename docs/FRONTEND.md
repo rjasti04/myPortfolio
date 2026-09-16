@@ -152,8 +152,7 @@ connect-src 'self' https://rjasti.com https://staging-api.rjasti.com
 ```
 
 `style-src-attr 'unsafe-inline'` is required because several modules set inline
-`style` properties (the plexus canvas container, the update banner, the confetti
-canvas).
+`style` properties (the update banner, the confetti canvas).
 
 > `formsubmit.co` is the one remaining third-party origin, and it is now only
 > a **fallback**. `form.js` posts to the first-party `POST /contact` and reaches
@@ -406,7 +405,7 @@ warns when only the legacy one is present.
 
 The precache list covers the app shell only: the two entry points, everything
 they reach through **static** imports, the stylesheets and the two classic
-scripts. Dynamic-import chunks (chat, activity, plexus) are deliberately
+scripts. Dynamic-import chunks (chat, activity) are deliberately
 excluded — precaching them would undo the lazy loading `main.js` arranges. They
 are cached on first use by the runtime strategy.
 
@@ -483,6 +482,7 @@ missing, so a failed update is visible but not dangerous.
 | :--- | :--- |
 | `profile-cutout-380.{png,webp}`, `profile-cutout-570.{png,webp}`, `profile-cutout.{png,webp}` | The landing portrait's **front** face — the outdoor shot, background-removed so the page's own gradient and plexus canvas show through the silhouette. Three widths × two formats, from `scripts/generate_profile_cutout.py`, which crops the bust out of a 3024×4032 master; 900 is the 2x of the 450px cap in `styles.css`, so the ladder now covers every width the `sizes` attribute can ask for. PNG rather than JPEG because the fallback has to carry an alpha channel. `profile-cutout-380.webp` is the LCP image: `index.html` preloads it and the build precaches it, and `scripts/tests/build.test.js` asserts those two stay the same file |
 | `profile-cutout-back-380.{png,webp}`, `profile-cutout-back.{png,webp}` | The **back** face — the studio shot, which was the only landing portrait until the card learned to flip. Same generator, same shape (both mattes are held to one aspect ratio; see `SHARED_ASPECT`), two widths rather than three because its master is 1254px and 497 is all the bust there is. Nothing preloads it and it carries `fetchpriority="low"`, so it queues behind the LCP — see [The flip card](#the-flip-card) |
+| `site-backdrop.{webp,jpg}` | The site's ground — a technical schematic behind every section of the SPA, carried by `<div class="site-backdrop">` and painted by CSS alone. **Generated** by `scripts/generate_backdrop.py` from `assets/site-backdrop-master.jpg` (2624×1628), downscaled to 1920×1191; the script's `TARGET_WIDTH` is a ceiling, so a smaller master is never upscaled. Two formats because the rule uses `image-set()`: WebP at 66 KB, JPEG at 185 KB as the fallback. The source is a dark-ground drawing, so the dark theme uses it as-is and the light theme inverts it with `filter: invert(1) hue-rotate(180deg)` rather than downloading a second asset. A `--backdrop-scrim` wash on a separate pseudo-element holds text contrast, and `background-blend-mode: luminosity` over `--backdrop-tint` pulls the source's cyan toward the theme's own accent hue so the drawing belongs to the palette rather than sitting beside it — see [Colour](DESIGN.md#colour). A five-path SVG overlay (`.site-backdrop-flow`) retraces the image's main routes in vector and runs a short dash along each, which is the one thing a still raster cannot say; its `viewBox` matches the derivative's 1920×1191 with `preserveAspectRatio="xMidYMid slice"`, so it crops in lockstep with `cover` and the dashes stay on their traces at every viewport ratio. The paths were fitted against the image's own pixels rather than by eye — each scores 79–98% of its length on a lit trace. Gated to `(width >= 1024px) and (pointer: fine)` under `prefers-reduced-motion: no-preference`, because `stroke-dashoffset` is a paint-level property. **Phones get no backdrop at all** — `(pointer: coarse) and (width <= 768px)`, the same definition as `mobileDevice` in `js/config.js`; the portrait's paint panel deliberately stays, since it is then the only ground the landing view has. Referenced from `styles.css`, so esbuild's CSS asset loader hashes it rather than the copy loop, which is also why it is **not** in the service-worker precache list: `shellUrl()` cannot resolve an esbuild hash |
 | `brush-backdrop.webp` | The painted panel the landing portrait stands in front of, used by `.home-portrait::before` as an *alpha mask* over a solid `--accent-fill` - it carries the shape, the theme carries the colour, so the customiser's accent paints it with nothing to re-tune. **Generated** by `scripts/generate_brush_backdrop.py` from the one photographed swipe in `assets/brush-stroke-master.jpg` - see [The painted panel](#the-painted-panel) |
 | `profile-pic-160.{jpg,webp}`, `profile-pic-360.{jpg,webp}`, `profile-pic.{jpeg,webp}` | Three widths × two formats of the un-cut headshot, from `scripts/generate_profile_pics.py`. Only `profile-pic.jpeg` is still referenced — by the JSON-LD `Person` image — since the landing view moved to the cutout above |
 | `android-chrome-192x192.png`, `android-chrome-512x512.png` | PWA icons, generated from `assets/master-icon.png` |
@@ -499,8 +499,9 @@ missing, so a failed update is visible but not dangerous.
 | `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the **Apps** section of the SPA as a tile in `.app-grid` — `#ucl-link` in the header is a second, hidden entry point kept only as a fallback; covered by `frontend/tests/ucl-bracket.test.js`. Its header and footer follow the shared [App chrome](#app-chrome) pattern, and its theme is `data-theme` on `<html>` under the shared `theme` key |
 
 Every generator source lives **outside** `frontend/`, in `assets/` -
-`master-icon.png`, the headshot masters, and `brush-stroke-master.jpg` - so the
-deploy's `rsync frontend/` never publishes any of them to the web root.
+`master-icon.png`, the headshot masters, `brush-stroke-master.jpg` and
+`site-backdrop-master.jpg` - so the deploy's `rsync frontend/` never publishes
+any of them to the web root.
 
 ---
 
@@ -801,7 +802,7 @@ file from an unchanged one.
 | Step | Detail |
 | :--- | :--- |
 | JS entries | `js/main.js` and `js/auth-ui.js`, bundled with `splitting: true`, ESM, minified, sourcemapped, `es2022`, into `dist/assets/[name]-[hash]` |
-| Code splitting | Keeps `chat.js`, `activity.js` and `three-bg.js` as lazily-loaded chunks rather than folding them into the entry |
+| Code splitting | Keeps `chat.js` and `activity.js` as lazily-loaded chunks rather than folding them into the entry |
 | `app-logic.js` | Built separately as an **IIFE** (it is a classic script). Its `module.exports` block, present for the Node test runner, is silenced via `logOverride` |
 | `theme-bootstrap.js` | Built separately as an IIFE — it runs before first paint as a plain script |
 | `js/arcade/shell.js` | Built separately as an ESM entry for `/arcade`. Kept out of the `splitting` group on purpose: it shares no module with the SPA, and the service worker's shell list is derived from the SPA's graph |

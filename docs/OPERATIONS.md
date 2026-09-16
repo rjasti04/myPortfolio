@@ -36,7 +36,7 @@ What it produces:
 | :--- | :--- |
 | `dist/assets/main-<hash>.js` | Bundled `js/main.js` and its static imports |
 | `dist/assets/auth-ui-<hash>.js` | Bundled `js/auth-ui.js` |
-| `dist/assets/chunk-<hash>.js` | Split chunks — chat, activity, plexus stay lazily loaded |
+| `dist/assets/chunk-<hash>.js` | Split chunks — chat and activity stay lazily loaded |
 | `dist/assets/app-logic-<hash>.js` | IIFE build of the classic script |
 | `dist/assets/theme-bootstrap-<hash>.js` | IIFE build of the pre-paint script |
 | `dist/assets/styles-<hash>.css` etc. | Minified CSS with hashed font assets and rewritten `url()` |

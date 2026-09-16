@@ -98,6 +98,9 @@ jobs:
       - name: Verify CSP Inline-Script Hashes
         run: python3 scripts/check_csp_hashes.py
 
+      - name: Verify Circuit Backdrop Flow Traces
+        run: python3 scripts/check_backdrop_traces.py
+
       # The docs carry numbers an agent budgets against - file sizes, grep
       # yields, per-module line counts - and every one of them decayed silently
       # as the code grew. When this check was added the navigation table in

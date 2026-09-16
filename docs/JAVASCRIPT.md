@@ -34,9 +34,7 @@ syntax; `frontend/` runs directly in a browser.
                                              theme-customizer, error-handler, resume-pdf
                                                │
                                                ├─ dynamic ─► chat.js       (first AI interaction)
-                                               ├─ dynamic ─► activity.js   (first Activity interaction)
-                                               ├─ dynamic ─► three-bg.js   (capable devices, idle)
-                                               └─ static  ─► particles-config.js (fallback layer)
+                                               └─ dynamic ─► activity.js   (first Activity interaction)
 ```
 
 `analytics.js` is the hub: it owns `API_BASE`, `apiFetch`, the session and its
@@ -46,7 +44,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (463 lines)
+### `main.js` (333 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -71,18 +69,10 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   or by the matching location hash. Each delegated document listener is bound to
   an `AbortController` and removed once its module resolves — otherwise the
   listener runs on every click in the viewport forever.
-- Background layer selection: **desktops and wider screens only**, and then
-  exactly one animated layer. Nothing mounts unless `desktopBackground`
-  (`(min-width: 1024px) and (pointer: fine)`) matches — a phone or tablet gets
-  the plain gradient and never downloads the plexus chunk. Above that gate it is
-  the plexus (`three-bg.js`) if `hardwareConcurrency` and `deviceMemory` clear a
-  threshold, otherwise the cheaper hero particle field. Neither under
-  `prefers-reduced-motion`, and neither on `#home` on any device — that view is
-  deliberately flat and has the schematic backdrop as its ground. Both
-  preferences, the viewport gate and the active route are watched mid-session:
-  the fallback is torn down when reduced motion is enabled, when the viewport
-  drops below the gate or when the landing view becomes active, and the plexus
-  is imported on the first navigation away from `#home`.
+- Background layer selection: **gone.** `main.js` no longer mounts an animated
+  background on any device, so there is no capability gate, no viewport gate and
+  no route listener for it. `three-bg.js` and `js/particles-config.js` are both
+  retained on disk and imported by nothing.
 - Service-worker registration, an update check every 60 s, and the update
   banner whose button posts `SKIP_WAITING` and reloads on `controllerchange`.
   One banner node for the life of the page, with a dismiss control and its
@@ -546,7 +536,7 @@ section headings read back out of `index.html`. Do not hand-edit:
 and intros are read from the page rather than duplicated into the source file,
 so a new section becomes searchable as soon as it is written.
 
-### `index.js` (333 lines)
+### `index.js` (331 lines)
 
 `initTerminal()` — owns all DOM wiring, the output log (capped at
 `MAX_BLOCKS = 200`, because unbounded output left hundreds of nodes under a
@@ -878,7 +868,10 @@ is pressed.
 
 ## Visual effects
 
-### `three-bg.js` (1,558 lines, lazy)
+### `three-bg.js` (1,563 lines, retired)
+
+**Nothing imports this module.** The animated background was turned off on
+every page and every device; the description below records what it did.
 
 `export function initThreeBackground()` — the full-viewport animated plexus:
 drifting nodes joined by proximity lines, with glass facets between close
@@ -908,7 +901,10 @@ mirrors the rule with a `display: none` for the window before the gate runs.
 Its `mobile` entry in `PROFILE_CONFIG` is therefore unreachable today; it is
 kept as the tier the table would use again if the gate is ever widened.
 
-### `particles-config.js` (255 lines)
+### `particles-config.js` (259 lines, retired)
+
+**Nothing imports this module either.** It is kept beside `three-bg.js` so the
+work is recoverable without going through git history.
 
 `initParticles(containerId)` → a teardown function. The **cheap fallback** for
 the same idea, scoped to the hero, and — like the plexus — desktop-only since

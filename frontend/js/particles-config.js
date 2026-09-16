@@ -3,9 +3,13 @@
  *
  * This renders the same idea as the full-viewport plexus in `three-bg.js`
  * (drifting nodes plus proximity links), so the two are mutually exclusive:
- * `main.js` mounts the plexus on capable devices and this layer everywhere
- * else. Running both stacked two animated canvases over the hero for no
- * visual gain.
+ * `main.js` used to mount the plexus on capable devices and this layer
+ * everywhere else. Running both stacked two animated canvases over the hero
+ * for no visual gain.
+ *
+ * RETIRED — nothing imports this module. `main.js` no longer mounts either
+ * background layer on any device. Kept on disk alongside `three-bg.js` so the
+ * work is recoverable; nothing below runs.
  *
  * Design constraints, in priority order:
  *  - never animate while off-screen or on a hidden tab;

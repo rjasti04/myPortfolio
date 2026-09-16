@@ -119,7 +119,7 @@ fire-and-forget tasks are awaited, and the SQLAlchemy engine is disposed.
 | `sw.js` | Service worker: precache install, network-first for documents, stale-while-revalidate for hashed assets, API responses never cached |
 | `manifest.json` | PWA metadata (`standalone`, dark splash background, citron `theme_color`, two icons) |
 | `.htaccess` | Apache canonical-URL rewrites (extensionless paths, apex host), compression, cache headers (immutable for hashed assets), security headers |
-| `three-bg.js` | Full-viewport animated plexus background, desktop-only — plain 2D canvas despite the name |
+| `three-bg.js` | **Retired** — was the full-viewport animated plexus background (plain 2D canvas despite the name). Nothing imports it; kept on disk so the work is recoverable |
 | `js/` | ES modules; see [`JAVASCRIPT.md`](JAVASCRIPT.md) |
 | `js/arcade/` | The `/arcade` page's own modules — a shell, a loop/canvas helper, input binders, storage, a Web Audio synth and six games. Built as a separate esbuild entry point; shares nothing with the SPA |
 | `js/cron/`, `js/crypto/`, `js/json/` | The three developer utilities' own modules — the `/cron` logic inspector, the `/crypto` workbench, and the `/json` workbench (a tolerant JSON parser and repair engine, an eval-free JSONPath engine, a lazy tree renderer, and YAML/CSV/TypeScript converters). Each is a separate esbuild entry point and shares nothing with the SPA |
@@ -242,16 +242,17 @@ or `require_session_access` (analytics capability token) — before the handler.
    or the `#ai` section; `activity.js` on first interaction with `#activity`.
    Both use `AbortController` so the delegated document listeners are removed
    once the module has loaded.
-7. **Background layer** — on `requestIdleCallback`, and only on desktops and
-   wider screens (`desktopBackground`: `(min-width: 1024px) and
-   (pointer: fine)`), exactly one animated layer mounts: the full-viewport
-   plexus (`three-bg.js`) when `hardwareConcurrency` and `deviceMemory` clear a
-   threshold, otherwise the cheaper hero particle field
-   (`js/particles-config.js`). Phones and tablets get the plain gradient and
-   never fetch the plexus chunk. Neither mounts under
-   `prefers-reduced-motion`, and neither mounts on `#home` on any device — the
-   landing view has the schematic backdrop as its ground, so the plexus is
-   mounted on the way out of it and torn down on the way back in.
+7. **Background layer** — *static, and not part of the boot at all*. The
+   animated background is off on every page and every device: `main.js` imports
+   neither `three-bg.js` nor `js/particles-config.js`, the
+   `<canvas id="webgl-canvas">` is gone, and both modules are retained on disk
+   unreferenced. In its place `<div class="site-backdrop">` in `index.html`
+   carries a static schematic behind every section, painted entirely by CSS —
+   no script and no rAF loop, and it renders with JavaScript disabled. A
+   five-path SVG overlay runs a dash along the drawing's main routes — CSS
+   animation only, gated on a fine pointer, a desktop width and
+   `prefers-reduced-motion: no-preference`. Phones get no backdrop at all.
+   See [Static assets](FRONTEND.md#static-assets).
 7. **Service worker** — registered on `load`, then `registration.update()` every
    60s. A waiting worker surfaces an update banner; only the banner's button
    posts `SKIP_WAITING`, so the asset set is never swapped under a running page.
