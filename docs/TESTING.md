@@ -152,13 +152,13 @@ existing, and `POST /auth/delete-account` was only served as `DELETE
 
 ## Tooling tests
 
-`tests/tooling/` — 2 files, 46 tests. Repo tooling rather than the app;
+`tests/tooling/` — 2 files, 50 tests. Repo tooling rather than the app;
 nothing here imports `server/`, so it contributes no backend coverage.
 
 | File | Tests | Guards |
 | :--- | ---: | :--- |
 | `test_bash_write_guard.py` | 37 | **The Bash hooks hold the same lines the `Write`/`Edit` hooks do.** Claude Code matches hooks on tool name, so every `.sh` guard in `.claude/hooks/` was wired to `Write`/`Edit` and a `sed -i` or a `>` reached none of them. These cover both directions: a tracked migration stays immutable through `sed -i`, `tee`, `cp`, `rm`, a redirection and an opaque `python3 -c`; the intent and spec templates are never written in place; a secrets file is never read from the shell; ADR-016's origin allowlist applies to shell writes into SPA files; a repo-wide `grep`/`find` is refused where it would descend into `server/.venv/` and allowed where that directory does not exist, each against a project root built to have it or not rather than against this repo, whose venv is there or not depending on whose machine it is. The rest are the false positives that would get the guard switched off — `npm ci`, `PYTHONPATH=. pytest`, the documented `sed -n` and `grep -n` recipes, a scoped search, an exempt predictor page, and a heredoc whose *body* mentions a guarded path — all of which must pass through untouched |
-| `test_agent_config_check.py` | 9 | **`.claude/rules/` is config the validator accepts, not config it rejects.** `check_agent_config.py` listed `.claude/rules` as prohibited before the directory existed; the path-scoped navigation tables landed later and the CI gate failed on every commit after that. These pin both directions: the real repository passes its own validator, the four genuinely prohibited paths are still rejected, and a rules file that would silently stop loading — missing, or without a `paths` frontmatter list — is an error |
+| `test_agent_config_check.py` | 13 | **`.claude/rules/` is config the validator accepts, not config it rejects.** `check_agent_config.py` listed `.claude/rules` as prohibited before the directory existed; the path-scoped navigation tables landed later and the CI gate failed on every commit after that. These pin both directions: the real repository passes its own validator, the four genuinely prohibited paths are still rejected, and a rules file that would silently stop loading — missing, or without a `paths` frontmatter list — is an error . The last four pin the other boundary the same file now owns: ECC installs skill directories flat into `.claude/skills/` beside the project's own, so an unlisted skill, a vendored file that lost its `origin: ECC` marker, an install-state with nothing left to uninstall, and a hook that did not come from `.claude/hooks/` are each an error — otherwise a `--profile` install grows the always-loaded skill list and nothing notices |
 
 ## The test harness
 

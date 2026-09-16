@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "ecc.install.v1",
+  "installedAt": "2026-09-16T05:59:53.150Z",
+  "target": {
+    "id": "claude-project",
+    "target": "claude-project",
+    "kind": "project",
+    "root": "/home/user/myPortfolio/.claude",
+    "installStatePath": "/home/user/myPortfolio/.claude/ecc/install-state.json"
+  },
+  "request": {
+    "profile": null,
+    "modules": [],
+    "includeComponents": [
+      "skill:accessibility",
+      "skill:context-budget",
+      "skill:fastapi-patterns"
+    ],
+    "excludeComponents": [],
+    "legacyLanguages": [],
+    "legacyMode": false,
+    "hookConsent": null
+  },
+  "resolution": {
+    "selectedModules": [
+      "skill-accessibility",
+      "skill-context-budget",
+      "skill-fastapi-patterns"
+    ],
+    "skippedModules": []
+  },
+  "source": {
+    "repoVersion": "2.2.1",
+    "repoCommit": null,
+    "manifestVersion": 1
+  },
+  "operations": [
+    {
+      "kind": "copy-file",
+      "moduleId": "skill-accessibility",
+      "sourcePath": "/root/.npm/_npx/1364667e9cc171a1/node_modules/ecc-universal/skills/accessibility/SKILL.md",
+      "sourceRelativePath": "skills/accessibility/SKILL.md",
+      "destinationPath": "/home/user/myPortfolio/.claude/skills/accessibility/SKILL.md",
+      "strategy": "preserve-relative-path",
+      "ownership": "managed",
+      "scaffoldOnly": false,
+      "contentSha256": "d8578fe750e7321658450386e2112a46ea1aedca0235fbf97f3db2457e599b3a"
+    },
+    {
+      "kind": "copy-file",
+      "moduleId": "skill-context-budget",
+      "sourcePath": "/root/.npm/_npx/1364667e9cc171a1/node_modules/ecc-universal/skills/context-budget/SKILL.md",
+      "sourceRelativePath": "skills/context-budget/SKILL.md",
+      "destinationPath": "/home/user/myPortfolio/.claude/skills/context-budget/SKILL.md",
+      "strategy": "preserve-relative-path",
+      "ownership": "managed",
+      "scaffoldOnly": false,
+      "contentSha256": "920c5edde48e495b267fb0d42d8411c8b75ce1d8ab76e793b2eb6d23da01b0f1"
+    },
+    {
+      "kind": "copy-file",
+      "moduleId": "skill-fastapi-patterns",
+      "sourcePath": "/root/.npm/_npx/1364667e9cc171a1/node_modules/ecc-universal/skills/fastapi-patterns/SKILL.md",
+      "sourceRelativePath": "skills/fastapi-patterns/SKILL.md",
+      "destinationPath": "/home/user/myPortfolio/.claude/skills/fastapi-patterns/SKILL.md",
+      "strategy": "preserve-relative-path",
+      "ownership": "managed",
+      "scaffoldOnly": false,
+      "contentSha256": "f54c2bf5a61eeda47c939da265b1431d609c231611e71b688b0b734a064b18f3"
+    }
+  ]
+}

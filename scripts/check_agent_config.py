@@ -3,8 +3,8 @@
 scripts/check_agent_config.py
 
 Validator for AI agent configuration across .claude/, .agents/, and related CI workflows.
-Ensures entrypoints, skills, agents, settings, permissions, templates, and mirror drift comply
-with repository standards.
+Ensures entrypoints, skills, agents, settings, permissions, templates, mirror drift, and
+the vendored-ECC boundary comply with repository standards.
 """
 
 import fnmatch
@@ -21,6 +21,24 @@ VALID_HOOK_EVENTS = {
 }
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# The skills this repository authors and mirrors into .agents/skills/.
+PROJECT_SKILLS = [
+    "alembic-guard", "frontend-module", "intent-planner",
+    "security-audit", "testing", "review", "verify",
+]
+
+# ECC (github.com/affaan-m/ECC) is vendored deliberately narrowly: three skill
+# directories installed project-local with
+#   npx ecc-universal@<version> install --target claude-project --skills ...
+# and no ECC rules, agents, commands, hooks or memory. docs/ECC.md records why each
+# one is here and what was rejected.
+#
+# The boundary lives in this validator rather than in prose because the failure mode
+# is silent drift. A later `--profile` install, or one hand-copied SKILL.md, adds
+# always-loaded description lines and a second source of truth for testing, security
+# or review - and nothing else in the repo would notice.
+VENDORED_ECC_SKILLS = ["accessibility", "context-budget", "fastapi-patterns"]
 
 def check_entrypoint(errors):
     claude_md = ROOT / ".claude" / "CLAUDE.md"
@@ -86,8 +104,7 @@ def check_skills(errors):
         errors.append(".claude/skills directory missing.")
         return
 
-    expected_skills = ["alembic-guard", "frontend-module", "intent-planner", "security-audit", "testing", "review", "verify"]
-    for name in expected_skills:
+    for name in PROJECT_SKILLS:
         skill_file = skills_dir / name / "SKILL.md"
         if not skill_file.exists():
             errors.append(f"Expected skill missing: {skill_file}")
@@ -293,6 +310,84 @@ def check_prohibited_config(errors):
             errors.append(f"Prohibited agent configuration path exists: {path}")
 
 
+def check_vendored_ecc(errors):
+    """ECC stays inside the three skills it was vendored for.
+
+    .claude/skills/ is flat: ECC's claude-project adapter copies skill directories
+    straight into it, alongside the project's own. Nothing in that layout records
+    which side a directory belongs to, so this check does: the set of directories is
+    closed, and every vendored one has to keep the `origin: ECC` frontmatter marker
+    the installer wrote. Losing the marker means the file was hand-edited, which
+    breaks ECC's content-digest upgrade path as surely as deleting it would.
+    """
+    skills_dir = ROOT / ".claude" / "skills"
+    if not skills_dir.is_dir():
+        return  # check_skills already reported the missing directory.
+
+    present = {d.name for d in skills_dir.iterdir() if d.is_dir()}
+    for name in sorted(present - set(PROJECT_SKILLS) - set(VENDORED_ECC_SKILLS)):
+        errors.append(
+            f"Unrecognised skill directory .claude/skills/{name}: it is neither a "
+            "project skill nor one of the vendored ECC skills. Add it to "
+            "PROJECT_SKILLS or VENDORED_ECC_SKILLS (and to docs/ECC.md) on purpose, "
+            "or remove it - an unlisted skill costs always-loaded context silently."
+        )
+
+    installed = sorted(present & set(VENDORED_ECC_SKILLS))
+    for name in installed:
+        skill_file = skills_dir / name / "SKILL.md"
+        if not skill_file.exists():
+            errors.append(f"Vendored ECC skill missing its SKILL.md: {skill_file}")
+            continue
+        fm, _body = parse_frontmatter(skill_file)
+        if fm.get("origin") != "ECC":
+            errors.append(
+                f"Vendored skill {skill_file} has lost its 'origin: ECC' marker. "
+                "ECC-owned files are replaced by the installer, never hand-edited."
+            )
+
+    # The install-state is what makes the integration reversible: uninstall removes
+    # only the paths recorded in it. Skills without it are an orphaned copy.
+    state_file = ROOT / ".claude" / "ecc" / "install-state.json"
+    if installed:
+        if not state_file.exists():
+            errors.append(
+                f"Vendored ECC skills are present but {state_file} is missing; "
+                "the install is no longer uninstallable."
+            )
+        else:
+            try:
+                json.loads(state_file.read_text(encoding="utf-8"))
+            except Exception as e:
+                errors.append(f"{state_file} is invalid JSON: {e}")
+    elif state_file.exists():
+        errors.append(
+            f"{state_file} exists but no vendored ECC skill does. Run "
+            "`npx ecc-universal@<version> uninstall --target claude-project`."
+        )
+
+    # Hooks stay project-owned. ECC ships 24 of them and this repo runs none: two of
+    # its events are not even in VALID_HOOK_EVENTS, and its GateGuard hook blocks the
+    # first edit to every file. check_settings validates the events; this validates
+    # the authorship, so a third-party hook cannot arrive under a valid event name.
+    settings_file = ROOT / ".claude" / "settings.json"
+    if settings_file.exists():
+        try:
+            data = json.loads(settings_file.read_text(encoding="utf-8"))
+        except Exception:
+            return  # check_settings already reported the parse failure.
+        for event_name, hook_list in data.get("hooks", {}).items():
+            for item in hook_list:
+                for h in item.get("hooks", []):
+                    cmd = h.get("command", "")
+                    if ".claude/hooks/" not in cmd:
+                        errors.append(
+                            f"Hook under {event_name} does not run a script from "
+                            f".claude/hooks/: {cmd[:60]!r}. Hooks in this repo are "
+                            "project-owned; ECC hooks are deliberately not installed."
+                        )
+
+
 def main():
     errors = []
     check_entrypoint(errors)
@@ -303,6 +398,7 @@ def main():
     check_templates(errors)
     check_rules(errors)
     check_prohibited_config(errors)
+    check_vendored_ecc(errors)
 
     if errors:
         print("Agent configuration check failed with errors:", file=sys.stderr)

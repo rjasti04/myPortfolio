@@ -28,3 +28,11 @@ dist/
 frontend/fonts.css
 frontend/fonts/
 frontend/vendor/
+
+# Vendored from Everything Claude Code (github.com/affaan-m/ECC) by its own
+# installer, which compares content digests on upgrade. Reformatting them makes
+# every future `ecc install` either refuse the file or silently replace it, and the
+# diff would be noise either way. See docs/ECC.md.
+.claude/skills/accessibility/
+.claude/skills/context-budget/
+.claude/skills/fastapi-patterns/

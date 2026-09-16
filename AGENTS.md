@@ -46,6 +46,7 @@ standing decision. Each is a recorded choice, not an oversight:
 | Horizontal scaling of the API as it stands | Rate limiting is in-memory and single-instance; shared-store rate limiting is *proposed*, not built | ADR-012 (Proposed) |
 | Client-chosen models, system prompts or token ceilings | The server owns the chat persona and its cost ceilings; the client sends messages, nothing more | ADR-023 |
 | Raw SQL migrations | Alembic under `server/alembic/` is the only schema path, and CI runs `alembic check` | ADR-014 |
+| A broader ECC install | Three Everything Claude Code skills are vendored under `.claude/skills/`; its rules, agents, commands, hooks and memory are refused, and `check_agent_config.py` fails if a fourth skill or a foreign hook appears | `docs/ECC.md` |
 
 The inverse of that first row also holds, and matters more often: anything that
 reads or writes a user's own data takes `get_current_user`. `docs/SECURITY.md`
@@ -71,6 +72,10 @@ or docs they describe rather than on every session:
 
 `scripts/check_docs.py` recomputes the figures in both, and both are still the
 source of truth for them — do not restate a count here.
+
+The three vendored ECC skills (`fastapi-patterns`, `accessibility`, `context-budget`)
+load on demand like any other skill and are never hand-edited — `docs/ECC.md` explains
+why each is here, what was refused, and how to upgrade or remove them.
 
 ## 1. Contextual Persona
 You are a Senior Full Stack Developer and Architect. Your goal is production-ready,

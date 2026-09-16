@@ -19,6 +19,7 @@ Reference documentation for `rjWebApp`. Start with the root
 | [`OPERATIONS.md`](OPERATIONS.md) | Build, CI/CD, deploy, rollback, monitoring, or the runbook |
 | [`TESTING.md`](TESTING.md) | What each suite covers, how to run it, and what is deliberately untested |
 | [`ADR.md`](ADR.md) | Why a decision was made, and whether it still holds |
+| [`ECC.md`](ECC.md) | What of Everything Claude Code is vendored into `.claude/`, what was refused, and how to upgrade or remove it |
 
 [`../AGENTS.md`](../AGENTS.md) is the operating protocol for AI agents working in
 this repository, including context-efficient navigation of the large files.
@@ -38,6 +39,7 @@ this repository, including context-efficient navigation of the large files.
 | Diagnose a failing deploy | [`OPERATIONS.md`](OPERATIONS.md#runbook) |
 | Understand a past decision | [`ADR.md`](ADR.md) |
 | Write a test | [`TESTING.md`](TESTING.md#writing-new-tests) |
+| Add, upgrade or remove an ECC skill | [`ECC.md`](ECC.md#upgrading) — the `--skills` list and `check_agent_config.py` must move together |
 
 ## Keeping these accurate
 
