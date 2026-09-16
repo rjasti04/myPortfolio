@@ -147,6 +147,15 @@ Beyond those: five **event-family** hues for the activity log — five rather th
 ten, because five are learnable at a glance and ten need a legend — and the
 status colours.
 
+`--backdrop-scrim` is the odd one out: not a colour but a *wash of one*,
+`color-mix(in srgb, var(--bg) 80%, transparent)` in the light theme and 85% in
+the dark. It sits over the site backdrop image and is the only thing standing
+between a technical drawing and every piece of body copy on the site, so it is
+a contrast control rather than a decorative choice — lower it and the drawing's
+hairlines start winning against secondary text. It follows `--bg`, so a rolled
+palette takes the wash with it. See
+[Static assets](FRONTEND.md#static-assets).
+
 ### Renaming a colour token is a two-file change
 
 `clearCustomPalette()` in `js/theme-customizer.js` holds a literal list of the

@@ -382,6 +382,11 @@
     </div>
   </noscript>
 
+  <!-- The site's ground: a static technical drawing behind every section.
+       Deliberately NOT `.js-only`, unlike the animated canvas it replaces -
+       this paints with no script running, so hiding it until `.js-enabled`
+       lands would blank the page's background for the whole boot. -->
+  <div class="site-backdrop" aria-hidden="true"></div>
   <div class="noise-overlay js-only"></div>
   <div class="toast-container js-only" id="toast-container" aria-live="polite" aria-atomic="false"></div>
 

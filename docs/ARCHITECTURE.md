@@ -242,11 +242,14 @@ or `require_session_access` (analytics capability token) — before the handler.
    or the `#ai` section; `activity.js` on first interaction with `#activity`.
    Both use `AbortController` so the delegated document listeners are removed
    once the module has loaded.
-7. **Background layer** — *removed*. The animated background is off on every
-   page and every device. `main.js` imports neither `three-bg.js` nor
-   `js/particles-config.js`, the `<canvas id="webgl-canvas">` is gone from
-   `index.html`, and the `#home` schematic backdrop that used to be the landing
-   view's ground went with it. Both modules are retained on disk, unreferenced.
+7. **Background layer** — *static, and not part of the boot at all*. The
+   animated background is off on every page and every device: `main.js` imports
+   neither `three-bg.js` nor `js/particles-config.js`, the
+   `<canvas id="webgl-canvas">` is gone, and both modules are retained on disk
+   unreferenced. In its place `<div class="site-backdrop">` in `index.html`
+   carries a static schematic behind every section, painted entirely by CSS —
+   no script, no rAF loop, no capability or viewport gate, and it renders with
+   JavaScript disabled. See [Static assets](FRONTEND.md#static-assets).
 7. **Service worker** — registered on `load`, then `registration.update()` every
    60s. A waiting worker surfaces an update banner; only the banner's button
    posts `SKIP_WAITING`, so the asset set is never swapped under a running page.

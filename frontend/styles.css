@@ -66,6 +66,17 @@
      these the declarations were invalid and silently dropped. */
   --bg: #f8fafb;
   --bg-gradient: radial-gradient(ellipse at top left, #ffffff, hsl(64, 55%, 95%) 35%, hsl(214, 50%, 96%) 70%, #fdfdfd);
+
+  /* How much of the site backdrop's drawing survives to the page. It is a wash
+     of the theme's own --bg, so the ground under the text stays the ground the
+     palette defines and the schematic reads as texture in it rather than as a
+     picture the text is sitting on top of.
+
+     80% and not less: the drawing is hairlines at high contrast, and every one
+     of them crosses body copy somewhere on a long section. Measured on #about
+     at 1440px, 80% keeps the worst case - secondary text over a trace - above
+     4.5:1. Lower it and the traces start winning. */
+  --backdrop-scrim: color-mix(in srgb, var(--bg) 80%, transparent);
   --text: #0f172a;
   --muted: #3f4b5a;
   --border: hsl(220, 39%, 11%, 0.13);
@@ -451,6 +462,13 @@ body.dark-theme {
 
   --bg: #0a0e14;
   --bg-gradient: radial-gradient(ellipse at 20% 40%, #0f1419 0%, #0a0e14 50%, #0d0b1a 100%);
+
+  /* Five points heavier than the light theme. The source is a dark-ground
+     drawing, so on this theme it is NOT inverted - the traces keep their own
+     cyan glow, which is emissive against a near-black page in a way the
+     inverted grey version is not. That glow needs a little more wash over it
+     to stop it competing with the accent colour the UI actually uses. */
+  --backdrop-scrim: color-mix(in srgb, var(--bg) 85%, transparent);
   --text: #f0f4f8;
   --muted: #cbd5e1;
   --border: hsl(210, 20%, 98%, 0.14);
@@ -7484,6 +7502,84 @@ body.dark-theme .skill-tag.primary {
 }
 
 /* Project Empty State */
+
+/* ── Site backdrop ──
+   One fixed layer carrying the schematic behind every section of the SPA. The
+   standalone app pages (/ucl, /worldcup, /arcade, /cron, /crypto, /json,
+   /diff) are separate documents and never load this stylesheet, so they are
+   untouched by it - which is the requirement, not an accident.
+
+   `position: fixed` and not `background-attachment: fixed` on body. The latter
+   is the shorter spelling and the wrong one: iOS Safari does not honour it
+   against the visual viewport, so the image jumps as the URL bar collapses,
+   and on the engines that do honour it the fixed attachment forces a repaint
+   of the whole backdrop on every scroll frame. A fixed ELEMENT is composited
+   once and then left alone.
+
+   `z-index: -1` puts it above body's own `--bg-gradient` and below `.layout`,
+   which is `position: relative; z-index: 1`. The gradient stays underneath as
+   the ground the image is composited onto, so a failed or slow image decode
+   leaves the page looking as it did before this layer existed rather than
+   leaving it white.
+
+   ── Why the image and the scrim are two pseudo-elements ──
+   The light theme inverts the source (see below), and `filter` on a parent
+   applies to its pseudo-elements' painted output as well. Putting the scrim on
+   the same box as the image would invert the scrim along with it - an 80% wash
+   of --bg becomes an 80% wash of its complement, which is the one thing that
+   must not happen to the layer whose entire job is holding text contrast. Two
+   boxes, one filtered and one not. */
+.site-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* `image-set()` rather than a bare url(): WebP is 66 KB against the JPEG's
+   185 KB for the same 1920x1191 frame, and the fallback costs one extra line
+   rather than a script or a <picture> element. Referenced by plain filename -
+   esbuild's CSS asset loader content-hashes both and rewrites these two
+   references, so a hash must never be written here by hand. */
+.site-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: image-set(
+    url("site-backdrop.webp") type("image/webp"),
+    url("site-backdrop.jpg") type("image/jpeg"));
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.site-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--backdrop-scrim);
+}
+
+/* The source is a dark-ground drawing - cyan hairlines on near-black, measured
+   at rgb(20, 26, 38) mean. That is the dark theme's ground already, and the
+   exact inverse of the light theme's. Inverting it turns the same file into
+   dark lines on pale paper, which is what the light theme wants, from one
+   asset rather than two downloads.
+
+   `hue-rotate(180deg)` undoes the hue flip that `invert()` also performs -
+   without it the cyan traces inverted to orange, which belongs to no palette
+   this site ships. `saturate` and `brightness` then pull the result back to a
+   drafting-paper grey rather than the tinted wash a raw inversion lands on. */
+body:not(.dark-theme) .site-backdrop::before {
+  filter: invert(1) hue-rotate(180deg) saturate(0.55) brightness(1.04);
+}
+
+/* Ink on paper does not need a photograph of a circuit board behind it. */
+@media print {
+  .site-backdrop {
+    display: none;
+  }
+}
 
 /* CRT Film Grain Noise Overlay */
 .noise-overlay {
