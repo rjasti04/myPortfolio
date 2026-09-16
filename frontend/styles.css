@@ -3825,34 +3825,33 @@ body.dark-theme .home-portrait picture {
   margin-bottom: 0;
 }
 
-/* The date is the scanning anchor; the location is not. They used to be two
-   near-identical accent pills sitting ABOVE the company name, so the card read
-   date -> location -> company. Now the date is one quiet chip and the location
-   is plain muted text, which leaves the <h3> as the first thing read. */
-#resume .item-date {
+/* The header's two chips, colour-coded against each other: the date carries
+   the accent because it is what the eye scans down the column for, and the
+   location answers in neutral ink so the pair reads as primary/secondary
+   rather than as two of the same thing. */
+#resume .item-date,
+#resume .item-badge {
   display: inline-flex;
   align-items: center;
   padding: var(--space-xs) var(--space-md);
-  border: 1px solid var(--border);
   border-radius: var(--radius-full);
-  background: var(--wash-raise);
-  color: var(--text);
   font-size: var(--text-body-xs);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-extrabold);
   line-height: 1;
   letter-spacing: var(--tracking-normal);
   white-space: nowrap;
 }
 
+#resume .item-date {
+  border: 1px solid color-mix(in srgb, var(--accent-fill) 24%, transparent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
 #resume .item-badge {
-  padding: 0;
-  border: 0;
-  background: none;
+  border: 1px solid var(--border);
+  background: var(--skill-bg);
   color: var(--muted);
-  font-size: var(--text-body-xs);
-  font-weight: var(--weight-regular);
-  line-height: 1;
-  letter-spacing: var(--tracking-normal);
 }
 
 #resume .item h3 {
@@ -3883,7 +3882,10 @@ body.dark-theme .home-portrait picture {
 
 #resume .role-title {
   font-weight: var(--weight-bold);
-  color: var(--text);
+  /* --primary-strong aliases --accent-text: the job title is the one phrase
+     in the role row that is not metadata, so it takes the accent and the
+     period beside it stays --muted. */
+  color: var(--primary-strong);
 }
 
 #resume .role-period {
@@ -3901,14 +3903,13 @@ body.dark-theme .home-portrait picture {
 
 /* The resume groups its bullets under subheadings, so the card does too. The
    list keeps its own class and styling; the heading just sits between lists. */
-/* Eight of these stack down one card, so they are eyebrows: --tracking-caps
-   exists for exactly this job ("uppercase eyebrows / group labels") and was
-   not being used by the two rules that are literally that. Weight and tracking
-   carry them now instead of accent colour, which the primary action needs
-   more than eight subheadings do. */
+/* Eyebrows, so --tracking-caps ("uppercase eyebrows / group labels") rather
+   than --tracking-wide. The accent ink is back: these are the only headings
+   inside the card, and letting weight and tracking carry them alone left the
+   eight groups indistinguishable from the body they label. */
 #resume .item-bullets-group {
   margin: var(--space-xl) 0 0;
-  color: var(--muted);
+  color: var(--accent-text);
   font-size: var(--text-body-sm);
   font-weight: var(--weight-extrabold);
   letter-spacing: var(--tracking-caps);
@@ -3946,7 +3947,7 @@ body.dark-theme .home-portrait picture {
   width: var(--space-2xs);
   height: var(--space-2xs);
   border-radius: var(--radius-full);
-  background: var(--muted);
+  background: var(--accent-fill);
   box-shadow: none;
 }
 
@@ -3997,7 +3998,9 @@ body.dark-theme .home-portrait picture {
   padding: var(--space-xs) var(--space-sm);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--wash-raise);
+  /* --skill-bg, the accent-hued ground the Skills chips use, so a tag reads
+     as the same kind of object on both pages. */
+  background: var(--skill-bg);
   color: var(--text);
   font-size: var(--text-body-xs);
   font-weight: var(--weight-regular);
