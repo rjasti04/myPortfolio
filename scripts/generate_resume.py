@@ -177,16 +177,35 @@ def build_experience(data: dict) -> str:
             ]
         lines.append(f"{pad}</div>")
 
-        for group in job["groups"]:
+        # Each group is a <details>, so the section opens as a scannable list
+        # of topics instead of one wall of bullets. The FIRST group ships open:
+        # a column of seven closed rows reads as an index rather than as work,
+        # and the open one shows what is behind them.
+        #
+        # <details> was chosen over a JS accordion because it needs no script -
+        # it still expands with JS off, which is the state the rest of this
+        # section already degrades to.
+        #
+        # The anchor id moves from the <h4> to the <details>: the Ctrl+K
+        # palette resolves these by getElementById and focuses them, and it
+        # opens an element that turns out to be a closed <details>. Keeping the
+        # id on the heading would have focused something inside a closed
+        # container.
+        for index, group in enumerate(job["groups"]):
             anchor = f"exp-{slug(group['heading'])}"
+            is_open = " open" if index == 0 else ""
             lines += [
-                f'{pad}<h4 class="item-bullets-group" id="{anchor}">{esc(group["heading"])}</h4>',
-                f'{pad}<ul class="item-bullets">',
+                f'{pad}<details class="exp-group" id="{anchor}"{is_open}>',
+                f'{pad}  <summary class="exp-group-summary">',
+                f'{pad}    <h4 class="item-bullets-group">{esc(group["heading"])}</h4>',
+                f'{pad}    <span class="exp-group-count">{len(group["bullets"])}</span>',
+                f"{pad}  </summary>",
+                f'{pad}  <ul class="item-bullets">',
             ]
             for bullet in group["bullets"]:
-                wrapped = wrap(f"<li>{esc(bullet)}</li>", 118, f"{pad}    ")
-                lines += [f"{pad}  {wrapped[0]}"] + wrapped[1:]
-            lines.append(f"{pad}</ul>")
+                wrapped = wrap(f"<li>{esc(bullet)}</li>", 116, f"{pad}      ")
+                lines += [f"{pad}    {wrapped[0]}"] + wrapped[1:]
+            lines += [f"{pad}  </ul>", f"{pad}</details>"]
     return "\n".join(lines)
 
 
@@ -243,10 +262,14 @@ def build_skill_tags(data: dict) -> str:
 # and carries its own level-1 heading; the class is what styles it either way.
 # An optional comment between the <section> and its title is skipped, because
 # two sections now explain in one why their title is visually hidden.
+# The intro is matched on `class="section-lede"` specifically, not on a bare
+# <p>. #resume's first paragraph after the title is `.section-actions` - the
+# View/Download buttons - and a looser `<p[^>]*>` would index "View Resume
+# Download" as that section's summary.
 SECTION_TITLE = re.compile(
     r'<section id="(?P<id>[\w-]+)"[^>]*>\s*(?:<!--.*?-->\s*)?'
     r'<h1 class="section-title">(?P<title>.*?)</h1>'
-    r"(?:\s*<p>(?P<intro>.*?)</p>)?",
+    r'(?:\s*<p class="section-lede">(?P<intro>.*?)</p>)?',
     re.S,
 )
 

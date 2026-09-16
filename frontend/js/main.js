@@ -39,6 +39,8 @@ import { initResumePdf } from "./resume-pdf.js";
 import { initTerminal } from "./terminal/index.js";
 import { initAnalytics } from "./analytics.js";
 import { initSkillsCarousel } from "./skills-carousel.js";
+import { initAppsFilter } from "./apps-filter.js";
+import { initExperienceGroups } from "./experience-groups.js";
 import { initRipple } from "./ripple.js";
 import { initScrollToTop } from "./scroll-to-top.js";
 import { initThemeCustomizer, initHomeThemeShuffle } from "./theme-customizer.js";
@@ -115,6 +117,8 @@ document.addEventListener("DOMContentLoaded", () => {
   boot("terminal", initTerminal);
   boot("analytics", initAnalytics);
   boot("skillsCarousel", initSkillsCarousel);
+  boot("appsFilter", initAppsFilter);
+  boot("experienceGroups", initExperienceGroups);
   boot("ripple", initRipple);
   boot("scrollToTop", initScrollToTop);
   boot("themeCustomizer", initThemeCustomizer);

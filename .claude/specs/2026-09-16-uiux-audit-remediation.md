@@ -537,3 +537,104 @@ was not touched and `pytest` is not installed in this session, so it was not
 run. The CSS budget is at **99% (283.5 of 285 KiB)** — it was already at 99%
 before this work; these changes added 1.7 KiB and there is ~1.5 KiB of headroom
 left for whoever goes next.
+
+---
+
+## 9. Phase 6b–6d as shipped
+
+§8 recorded these as not implemented. They are now done, on the same branch.
+
+### 6b — Section ledes
+
+One sentence under the view title on `#resume`, `#hobbies`, `#apps` and
+`#activity`. The other four sections do not get one and that is deliberate:
+`#about` and `#ai` carry a visually hidden `<h1>` and already open with prose
+(`.hero-description`, `.ai-subtitle`), `#contact` has `.contact-description`,
+and `#home` is the hero.
+
+The ledes are not decoration. `generate_resume.py` reads an intro paragraph out
+of `index.html` into the Ctrl+K index, and those four sections were the four
+whose index entries had an empty `text` field — they are now searchable by
+description rather than by title alone. The generator matches
+`<p class="section-lede">` specifically, not a bare `<p>`: `#resume`'s first
+paragraph after the title is `.section-actions`, and a looser pattern would
+have indexed "View Resume Download" as that section's summary.
+
+**The copy is a first draft and is the owner's to edit.** It is stated plainly
+and factually to match the voice of the existing microcopy, but it describes his
+own work and should read the way he would say it.
+
+### 6c — Apps category filter
+
+A chip row over the shelf, driven by `data-app-category` on each tile rather
+than by scraping the visible eyebrow text, so the label and the filter key stay
+independent. New module `js/apps-filter.js`.
+
+Counts ship in the markup (correct before the module loads) and are recomputed
+on init, so a category that empties hides its chip instead of offering a choice
+that shows nothing. Pressing the active chip clears the filter — the row has no
+separate "clear" and a dead control is worse than a redundant one. Every change
+is announced through `#app-filter-status`, because the only other feedback is
+tiles disappearing.
+
+Hiding sets **both** `hidden` and `.is-filtered-out`: `.app-tile` is
+`display: flex` from the grid rules, and a display declaration beats the
+`hidden` attribute's UA style, so the attribute alone would leave a hidden tile
+laid out and tabbable. The row is `js-only`; with scripting off the grid shows
+everything, which is the right state for a launcher.
+
+### 6d — Experience progressive disclosure
+
+Each of the seven bullet groups is now a `<details>` emitted by
+`generate_resume.py`, with the first shipped `open` — a column of seven closed
+rows reads as an index rather than as work, and the open one shows what is
+behind them. Each summary carries its bullet count, so a closed row still says
+something about its own size. `<details>` rather than a JS accordion because it
+works with scripting off, which is what the rest of the section already does.
+
+Two integration points that would have broken silently:
+
+- **The Ctrl+K palette resolves `#exp-...` and focuses it.** With the group
+  closed that landed on a collapsed row and appeared to do nothing. The anchor
+  id therefore moved from the `<h4>` to the `<details>`, and
+  `js/experience-groups.js` opens the ancestor chain on both `hashchange` and a
+  capturing `focusin` inside `#resume`, so a pasted URL, a back/forward step and
+  the palette behave identically. `apps-experience.test.js` asserts every
+  `exp-` anchor in `search-index.js` resolves to a `<details>`.
+- **Printing.** A printed resume with six of seven groups collapsed is a blank
+  page; the print block forces the content open regardless of the `open`
+  attribute and drops the chevron, count and expand-all control.
+
+`js/experience-groups.js` also injects Expand all / Collapse all. Its label
+states what the next press will do while `aria-expanded` reports the state of
+the set it controls — two different facts, and conflating them is why this kind
+of control usually announces backwards. A `toggle` listener on every group keeps
+the label honest when one is opened individually.
+
+### The CSS budget was raised, after a reclaim
+
+These three features exceeded the 285 KiB CSS ceiling, which was already at 99%
+before any of this work — there was never 1.5 KiB to spend.
+
+The note on `BUDGETS_KIB` in `scripts/build.mjs` says to look for a reclaim
+before raising, so that came first: `.act-fam` (the activity log's family chips)
+and the new `.app-filter-chip` were declaration-for-declaration identical apart
+from one transition duration, and `.exp-toggle-all` was about to become a third
+copy. All three now share one filter-pill rule in the SECTION TITLES & CARD
+PRIMITIVES region — the same hand-synced-duplicate argument that motivated the
+`app-chrome.css` extraction. That returned 1.0 KiB of the 1.5 KiB the features
+cost; the ceiling moved 285 → 288 for the remaining 0.5 KiB of genuinely new
+surface, with the reasoning recorded at the constant.
+
+Only the base is shared. Each caller keeps its own hover, pressed and disabled
+treatment, and all three regions come later in the file so their overrides win
+without specificity games. Verified: all 14 declarations reach `.act-fam`, and
+every `.act-fam`-specific rule survives.
+
+### Gates
+
+`npm run lint`, `npm test` (**509 passing**, 9 new in
+`frontend/tests/apps-experience.test.js`), `npm run build`,
+`check_csp_hashes.py`, `check_docs.py` and `check:resume` all pass. The nine new
+tests were mutation-checked — dropping a tile's category, shipping no group
+open, and removing the filter's announcement each fail exactly one of them.

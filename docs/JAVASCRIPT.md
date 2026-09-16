@@ -46,7 +46,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (423 lines)
+### `main.js` (427 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -677,6 +677,49 @@ that already has one.
 only for the length of a live pull — left bound on `document` it would make
 every touch scroll on the site wait for JS. It cancels only while a pull that
 started at `scrollTop === 0` is still heading down.
+
+### `apps-filter.js` (94 lines)
+
+`initAppsFilter()` — a category filter over the Apps shelf. The seven tiles
+already displayed a category eyebrow (Football, Games, Dev Tools, Security);
+this makes it a control. Reads `data-app-category` on the tile rather than the
+eyebrow's text, so the visible label and the filter key are independent.
+
+Counts on each chip are rendered in the markup so they are correct before this
+module loads, then recomputed here — a category that ends up empty hides its
+chip rather than offering a choice that shows nothing. Pressing the active chip
+again clears the filter, because the row has no separate "clear" and a dead
+control is worse than a redundant one. Each change is announced through
+`#app-filter-status`, since the only other feedback is tiles disappearing.
+
+Hiding sets **both** `hidden` and `.is-filtered-out`: `.app-tile` is
+`display: flex` from the grid rules, and a display declaration beats the
+`hidden` attribute's UA style, so the attribute alone would leave a hidden tile
+laid out and tabbable.
+
+The chip row is `js-only` — with scripting off the grid shows everything, which
+is the right state for a launcher.
+
+### `experience-groups.js` (84 lines)
+
+`initExperienceGroups()` — the Experience section's seven bullet groups are
+`<details>` elements emitted by `scripts/generate_resume.py`, with the first
+shipped `open`. The collapsing needs no JavaScript; this module adds only what
+`<details>` cannot do alone:
+
+- **Expand all / Collapse all**, injected here rather than shipped in the markup
+  because it does nothing without JS. Its label states what the next press will
+  do, while `aria-expanded` reports the state of the set it controls — two
+  different facts, and conflating them is why this kind of control usually
+  announces backwards. A `toggle` listener on every group keeps the label honest
+  when one is opened individually.
+- **Revealing a navigated-to group.** The Ctrl+K palette resolves a content hit
+  to `#exp-...` and focuses it; with the group closed that landed on a collapsed
+  row and appeared to do nothing. Both a `hashchange` and a capturing `focusin`
+  inside `#resume` open the ancestor `<details>` chain, so a pasted URL, a
+  back/forward step and the palette all behave identically.
+
+This is also why the anchor id sits on the `<details>` rather than the `<h4>`.
 
 ### `skills-carousel.js` (286 lines)
 

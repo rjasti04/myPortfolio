@@ -103,7 +103,22 @@ const SKIP_DIRS = new Set(["tests"]);
    than 430px, so adopting the shared file would move two of its breakpoints.
    Both stay out, deliberately. The real win was removing three hand-synced
    copies of a 200-line block, not the bytes. */
-const BUDGETS_KIB = { js: 390, css: 285 };
+/* CSS raised 285 -> 288 for the Apps category filter, the collapsible
+   Experience groups and the section ledes. The reclaim this note asks for
+   first was done before raising: `.act-fam` and the new `.app-filter-chip`
+   were declaration-for-declaration identical apart from one transition
+   duration, and the Experience expand-all control was about to become a third
+   copy. All three now share one filter-pill rule in the SECTION TITLES & CARD
+   PRIMITIVES region, which gave back 1.0 KiB of the 1.5 KiB the features
+   cost. The remaining 0.5 KiB is new surface, not duplication.
+
+   Worth knowing for whoever raises this next: the ceiling was already at 99%
+   before that work, so there was never 1.5 KiB to spend. The next reclaim of
+   this kind is /cron and /arcade, both of which sit outside app-chrome.css
+   deliberately (see above) - so the one after that is probably a real audit of
+   the ACTIVITY and AI PAGE regions, which are the two largest by a wide
+   margin. */
+const BUDGETS_KIB = { js: 390, css: 288 };
 
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);
