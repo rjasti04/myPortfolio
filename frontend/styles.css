@@ -2871,6 +2871,11 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
      closer together than the contrast between the tiers on screen. */
   --schematic-rule: color-mix(in srgb, var(--schematic-ink) 7.5%, transparent);
   --schematic-rule-major: color-mix(in srgb, var(--schematic-ink) 15%, transparent);
+
+  /* The sheet border's margin, shared with the edge rulers below so the
+     numerals sit inside the border they are drawn against rather than
+     tracking a second, separately-tuned inset. */
+  --schematic-inset: clamp(10px, 2vw, 26px);
 }
 
 .home-schematic {
@@ -2931,13 +2936,12 @@ body.dark-theme .home-schematic {
    all start at the origin, so `background-position` is the default and is not
    declared.
 
-   No numerals. The reference labels its ticks, and at this scale that is a
-   character every 26px in a band the portrait and the two pills sit directly
-   on top of - legible enough to distract, too small to read. Two tick lengths
-   already say "this is a measured scale", which is what the numerals carried. */
+   The numerals that label these ticks are the next block: they are not part of
+   the frame because they cannot be, a gradient having no glyphs, and because
+   they are labelled per MAJOR while these strips tick per cell. */
 .home-schematic-frame {
   position: absolute;
-  inset: clamp(10px, 2vw, 26px);
+  inset: var(--schematic-inset);
   border: 1px solid var(--schematic-rule-major);
   background-repeat: no-repeat;
   background-size: 100% 5px, 5px 100%, 100% 10px, 10px 100%;
@@ -2948,20 +2952,102 @@ body.dark-theme .home-schematic {
     repeating-linear-gradient(180deg, var(--schematic-rule-major) 0 1px, transparent 1px calc(var(--schematic-cell) * 5));
 }
 
+/* ── Edge rulers ──
+   The numbered mm scale the reference runs along its top, bottom and left
+   edge. The first pass left the numerals out as too small to read and too busy
+   to ignore, and the answer to that turned out to be the alpha rather than the
+   omission: at 22% of the ink a numeral weighs what the major line it labels
+   weighs on screen - the majors paint over the minors and composite to ~0.21,
+   which is why 22 here and 15 there are the same weight, not different ones.
+
+   A grid whose track is one major - five cells - so span N lands exactly on
+   major N at either cell size, and the scale cannot drift out of step with the
+   paper underneath it. `overflow: hidden` is what makes a fixed span count
+   safe at an unknown viewport width: the tracks are fixed, so nothing here
+   measures or reflows and the spans that fall off the edge never paint.
+
+   One major in rather than at the origin, because the frame is inset up to
+   26px and a numeral at 0 would sit outside the sheet it is measuring. That
+   corner goes to `mm` instead, which is where the reference puts its unit. */
+:is(.home-schematic-rule, .home-schematic-unit) {
+  position: absolute;
+  color: color-mix(in srgb, currentColor 22%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+}
+
+.home-schematic-rule {
+  display: grid;
+  overflow: hidden;
+}
+
+/* Top and bottom. The 3px is the gap between a tick and its numeral - applied
+   to the grid's box, so it moves every numeral off its line by the same amount
+   instead of accumulating down the track the way a per-span margin would. */
+.home-schematic-rule--x {
+  top: calc(var(--schematic-inset) + 4px);
+  right: 0;
+  left: calc(var(--schematic-cell) * 5);
+  grid-auto-flow: column;
+  grid-auto-columns: calc(var(--schematic-cell) * 5);
+  padding-left: 3px;
+}
+
+.home-schematic-rule--btm {
+  top: auto;
+  bottom: calc(var(--schematic-inset) + 4px);
+}
+
+/* Left. `grid-auto-flow` is already row, so the track declaration is the whole
+   difference from the strips above. */
+.home-schematic-rule--y {
+  top: calc(var(--schematic-cell) * 5);
+  bottom: 0;
+  left: calc(var(--schematic-inset) + 5px);
+  grid-auto-rows: calc(var(--schematic-cell) * 5);
+}
+
+.home-schematic-unit {
+  top: calc(var(--schematic-inset) + 4px);
+  left: calc(var(--schematic-inset) + 5px);
+}
+
 /* ── The plan ──
    Traces, nodes and modules. `slice` rather than `meet`, because this is a
    ground and a ground covers: the viewBox is 1200x1000 and the crop falls on
    whichever axis has the surplus - vertical on a desktop (full width, middle
    ~62% of the height), horizontal on a phone (full height, middle ~48% of the
-   width). Everything that has to survive both is inside x 321-879, y 167-833,
-   which is the intersection of the two windows and is where the module cluster
-   and its bus are drawn. The trace fans reach past it on purpose: they are the
-   part a wide screen gets and a phone does not. */
+   width). Everything that has to survive both is inside x 372-828, which is the
+   intersection of the two windows at the narrowest phone this targets (360px)
+   and is where the module cluster and its spine are drawn. The trace fans reach
+   past it on purpose: they are the part a wide screen gets and a phone does not.
+
+   There is no equally safe band on Y, which is why only one axis is quoted. The
+   vertical window is what the viewport's own aspect ratio leaves over - y
+   155-845 at 1440x900 but only 273-728 at 1920x800 - so a short, wide desktop
+   crops the bottom of the cluster no matter where it sits. The cluster is drawn
+   204 deep rather than the 242 of the first pass to keep that loss to the last
+   module's lower edge. */
 .home-schematic-plan {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+
+  /* ── The paint defaults, set here to be INHERITED ──
+     `fill`, `stroke` and `stroke-width` are inherited SVG presentation
+     properties, so declaring them on the root hands them to every shape at the
+     weakest possible priority - which is the only way the modifiers below can
+     win. On the `:is(path, rect, circle)` selector they had (0,1,1) against a
+     modifier's (0,1,0) and beat it: junctions drew hollow because `fill: none`
+     held, and the 1.2 and 0.6 stroke widths never applied at all. Inherited,
+     a class on the wrapping `<g>` overrides them and the hierarchy the drawing
+     is built on - fine comb, trace, module outline - actually renders. */
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
 }
 
 /* ── Hairlines that stay hairlines ──
@@ -2969,12 +3055,13 @@ body.dark-theme .home-schematic {
    viewBox is scaled by ~1.6 on a 1920 desktop and ~0.66 on a phone, and
    without this a 1px stroke would land at 1.6px on the desktop and 0.66px on
    the phone - the one place the drawing must not vary, since a hairline that
-   thickens reads as a border and one that thins disappears. Declared once for
-   every shape in the plan; nothing below restates it. */
+   thickens reads as a border and one that thins disappears.
+
+   This one is NOT inheritable, which is why it is still a rule of its own and
+   why nothing above folds into it. Nothing overrides it either, so the
+   specificity that broke the three properties now on the root is harmless
+   here. */
 .home-schematic-plan :is(path, rect, circle) {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
 
