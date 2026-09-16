@@ -3784,13 +3784,37 @@ body.dark-theme .home-portrait picture {
   margin-top: var(--space-xl);
 }
 
-/* Nothing in this card is clickable, so nothing about it moves on hover. It
-   used to lift 4px and step --elev-3 -> --elev-4, which pointed a click
-   affordance at 1,100 words of prose. */
+/* The accent rail down the left edge, inset to match the block padding so the
+   two move together - a literal 24px stopped tracking the moment the padding
+   became a clamp. It rests at two thirds width and grows to full on hover. */
+#resume .item::before {
+  content: "";
+  position: absolute;
+  inset: var(--card-pad-block) auto var(--card-pad-block) 0;
+  width: 6px;
+  border-radius: 999px;
+  background: var(--accent-fill);
+  opacity: 0.85;
+  transform: scaleX(0.67);
+  transform-origin: left center;
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+}
+
+/* One step of elevation and an accent-warmed border, not a lift: the card
+   holds prose rather than a control, so the hover reads as the page
+   acknowledging the cursor rather than as a click affordance. --elev-3 keeps
+   the same one-step rise the rule had when the card rested at --elev-3 and
+   hovered to --elev-4. */
 #resume .item:hover {
-  border-color: var(--border);
-  box-shadow: var(--elev-2);
-  transform: none;
+  border-color: color-mix(in srgb, var(--accent-fill) 44%, var(--border));
+  box-shadow: var(--elev-3);
+}
+
+#resume .item:hover::before {
+  transform: scaleX(1);
+  opacity: 1;
 }
 
 #resume .item-header {
@@ -3801,34 +3825,33 @@ body.dark-theme .home-portrait picture {
   margin-bottom: 0;
 }
 
-/* The date is the scanning anchor; the location is not. They used to be two
-   near-identical accent pills sitting ABOVE the company name, so the card read
-   date -> location -> company. Now the date is one quiet chip and the location
-   is plain muted text, which leaves the <h3> as the first thing read. */
-#resume .item-date {
+/* The header's two chips, colour-coded against each other: the date carries
+   the accent because it is what the eye scans down the column for, and the
+   location answers in neutral ink so the pair reads as primary/secondary
+   rather than as two of the same thing. */
+#resume .item-date,
+#resume .item-badge {
   display: inline-flex;
   align-items: center;
   padding: var(--space-xs) var(--space-md);
-  border: 1px solid var(--border);
   border-radius: var(--radius-full);
-  background: var(--wash-raise);
-  color: var(--text);
   font-size: var(--text-body-xs);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-extrabold);
   line-height: 1;
   letter-spacing: var(--tracking-normal);
   white-space: nowrap;
 }
 
+#resume .item-date {
+  border: 1px solid color-mix(in srgb, var(--accent-fill) 24%, transparent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
 #resume .item-badge {
-  padding: 0;
-  border: 0;
-  background: none;
+  border: 1px solid var(--border);
+  background: var(--skill-bg);
   color: var(--muted);
-  font-size: var(--text-body-xs);
-  font-weight: var(--weight-regular);
-  line-height: 1;
-  letter-spacing: var(--tracking-normal);
 }
 
 #resume .item h3 {
@@ -3859,7 +3882,10 @@ body.dark-theme .home-portrait picture {
 
 #resume .role-title {
   font-weight: var(--weight-bold);
-  color: var(--text);
+  /* --primary-strong aliases --accent-text: the job title is the one phrase
+     in the role row that is not metadata, so it takes the accent and the
+     period beside it stays --muted. */
+  color: var(--primary-strong);
 }
 
 #resume .role-period {
@@ -3877,14 +3903,13 @@ body.dark-theme .home-portrait picture {
 
 /* The resume groups its bullets under subheadings, so the card does too. The
    list keeps its own class and styling; the heading just sits between lists. */
-/* Eight of these stack down one card, so they are eyebrows: --tracking-caps
-   exists for exactly this job ("uppercase eyebrows / group labels") and was
-   not being used by the two rules that are literally that. Weight and tracking
-   carry them now instead of accent colour, which the primary action needs
-   more than eight subheadings do. */
+/* Eyebrows, so --tracking-caps ("uppercase eyebrows / group labels") rather
+   than --tracking-wide. The accent ink is back: these are the only headings
+   inside the card, and letting weight and tracking carry them alone left the
+   eight groups indistinguishable from the body they label. */
 #resume .item-bullets-group {
   margin: var(--space-xl) 0 0;
-  color: var(--muted);
+  color: var(--accent-text);
   font-size: var(--text-body-sm);
   font-weight: var(--weight-extrabold);
   letter-spacing: var(--tracking-caps);
@@ -3922,7 +3947,7 @@ body.dark-theme .home-portrait picture {
   width: var(--space-2xs);
   height: var(--space-2xs);
   border-radius: var(--radius-full);
-  background: var(--muted);
+  background: var(--accent-fill);
   box-shadow: none;
 }
 
@@ -3973,11 +3998,25 @@ body.dark-theme .home-portrait picture {
   padding: var(--space-xs) var(--space-sm);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--wash-raise);
+  /* --skill-bg, the accent-hued ground the Skills chips use, so a tag reads
+     as the same kind of object on both pages. */
+  background: var(--skill-bg);
   color: var(--text);
   font-size: var(--text-body-xs);
   font-weight: var(--weight-regular);
   line-height: 1;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
+}
+
+/* The tags warm with the card rather than each answering the cursor alone -
+   one hover target, one response. */
+#resume .item:hover .item-tags span {
+  border-color: color-mix(in srgb, var(--accent-fill) 28%, var(--border));
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 @media (width <=768px) {
@@ -4047,6 +4086,10 @@ body.dark-theme .home-portrait picture {
   #resume .item {
     --card-pad-block: var(--space-lg);
     --card-pad-inline: var(--space-lg);
+  }
+
+  #resume .item::before {
+    width: 3px;
   }
 }
 
@@ -4846,6 +4889,63 @@ body.dark-theme .home-portrait picture {
   padding: var(--space-xl);
   text-align: center;
   box-shadow: var(--elev-1);
+  transition:
+    transform var(--motion-medium) var(--ease-standard),
+    box-shadow var(--motion-medium) var(--ease-standard),
+    border-color var(--motion-medium) var(--ease-standard),
+    background-color var(--motion-medium) var(--ease-standard);
+  position: relative;
+  overflow: hidden;
+}
+
+/* The hover treatment is two pseudo-elements that cost nothing at rest: a
+   tri-colour rule along the top edge and a radial bloom behind the number.
+   Both sit at opacity 0 and only fade, so the card never reflows. */
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-fill), var(--secondary-fill), var(--data-fill));
+  opacity: 0;
+  transition: opacity var(--motion-medium) var(--ease-standard);
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity var(--motion-medium) var(--ease-standard);
+  pointer-events: none;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-mild);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 0 24px var(--accent-soft);
+  background: var(--sheen-wash);
+}
+
+body.dark-theme .stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 24px var(--accent-soft);
+  background: rgba(30, 41, 59, 0.65);
+}
+
+.stat-card:hover::before {
+  opacity: 1;
+}
+
+.stat-card:hover::after {
+  opacity: 0.6;
 }
 
 .stat-number {
@@ -4859,6 +4959,10 @@ body.dark-theme .home-portrait picture {
   color: transparent;
   margin-bottom: var(--space-sm);
   letter-spacing: var(--tracking-tight);
+  /* Positioned so the ::after bloom, which paints after the card's content,
+     passes behind the number instead of washing it out. */
+  position: relative;
+  z-index: 1;
 }
 
 .stat-label {
@@ -5139,7 +5243,45 @@ header.scrolled .logo-text:hover {
   display: flex;
   flex-direction: column;
   box-shadow: var(--elev-1);
+  transition:
+    transform var(--motion-medium) var(--ease-standard),
+    box-shadow var(--motion-medium) var(--ease-standard),
+    border-color var(--motion-medium) var(--ease-standard),
+    background-color var(--motion-medium) var(--ease-standard);
   position: relative;
+  overflow: hidden;
+}
+
+/* A single amber wash that fades in on hover - same idea as .stat-card's
+   pair, one layer instead of two because the group already carries its own
+   label colour. */
+.skill-group::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity var(--motion-medium) var(--ease-standard);
+  pointer-events: none;
+}
+
+.skill-group:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.10), 0 0 20px var(--accent-soft);
+  border-color: var(--accent-fill);
+  background: var(--sheen-wash);
+}
+
+body.dark-theme .skill-group:hover {
+  background: rgba(30, 41, 59, 0.65);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35), 0 0 20px var(--accent-soft);
+}
+
+.skill-group:hover::before {
+  opacity: 1;
 }
 
 .skill-group-label {
@@ -5187,6 +5329,14 @@ header.scrolled .logo-text:hover {
   align-items: center;
   gap: var(--space-xs);
   cursor: default;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+  position: relative;
+  overflow: hidden;
 }
 
 .skill-tag i,
@@ -5213,6 +5363,33 @@ body.dark-theme .skill-tag.primary {
   color: var(--accent-text);
 }
 
+/* The chip's highlight layer, parked off its left edge. It only moves under
+   the :hover animation below, so a chip at rest paints one extra transparent
+   box and nothing else. */
+.skill-tag::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--sheen-wash-strong), transparent);
+  transform: translateX(-105%);
+}
+
+/* Same one-way sweep as .btn::before - see the note there. */
+.skill-tag:hover::before {
+  animation: sheen-sweep var(--motion-slow) var(--ease-standard) forwards;
+}
+
+/* Mixed against --wash-raise, the chip's own resting surface, rather than
+   against --skill-bg as this did before the token rebuild: --wash-raise is a
+   4% overlay where --skill-bg is a near-opaque cream, so mixing into the old
+   token would swap the chip's material on hover instead of tinting it. */
+.skill-tag:hover {
+  background: color-mix(in srgb, var(--accent-fill) 20%, var(--wash-raise));
+  transform: translateY(-1px);
+}
 
 @media (width <=1024px) {
   .skills-grid {
@@ -5350,6 +5527,19 @@ body.dark-theme .skill-tag.primary {
     opacity: 1 !important;
     pointer-events: auto !important;
     min-height: 320px !important;
+  }
+
+  /* The carousel positions every card with translateX, so the :hover lift
+     above would yank an off-screen card back into view on touch. Each state
+     restates its own transform. */
+  .skills-carousel.carousel-initialized .skills-grid .skill-group:hover {
+    transform: translateX(110%) !important;
+    box-shadow: none !important;
+    border-color: var(--border) !important;
+  }
+
+  .skills-carousel.carousel-initialized .skills-grid .skill-group.is-active:hover {
+    transform: translateX(0) !important;
   }
 
   .skills-carousel.carousel-initialized .skills-grid .skill-group.is-prev:hover {
