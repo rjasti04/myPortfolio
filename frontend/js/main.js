@@ -39,6 +39,8 @@ import { initResumePdf } from "./resume-pdf.js";
 import { initTerminal } from "./terminal/index.js";
 import { initAnalytics } from "./analytics.js";
 import { initSkillsCarousel } from "./skills-carousel.js";
+import { initAppsFilter } from "./apps-filter.js";
+import { initExperienceGroups } from "./experience-groups.js";
 import { initRipple } from "./ripple.js";
 import { initScrollToTop } from "./scroll-to-top.js";
 import { initThemeCustomizer, initHomeThemeShuffle } from "./theme-customizer.js";
@@ -115,6 +117,8 @@ document.addEventListener("DOMContentLoaded", () => {
   boot("terminal", initTerminal);
   boot("analytics", initAnalytics);
   boot("skillsCarousel", initSkillsCarousel);
+  boot("appsFilter", initAppsFilter);
+  boot("experienceGroups", initExperienceGroups);
   boot("ripple", initRipple);
   boot("scrollToTop", initScrollToTop);
   boot("themeCustomizer", initThemeCustomizer);
@@ -314,10 +318,37 @@ document.addEventListener("DOMContentLoaded", () => {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("/sw.js")
         .then(registration => {
-          // Check for updates periodically
-          setInterval(() => {
+          // Check for updates on a long timer, and whenever the tab comes
+          // back to the foreground.
+          //
+          // This used to be a flat 60s interval that ran regardless of
+          // visibility and was never cleared, so a tab left open for an hour
+          // made 60 requests re-fetching and re-validating /sw.js - most of
+          // them while hidden, none of them of any use to a visitor who is
+          // not looking. On a phone that is pure battery and data.
+          //
+          // A foreground check is what actually matters: a returning visitor
+          // gets the new version immediately, and the slow timer is only
+          // there for a tab that stays open and focused for a long stretch.
+          const UPDATE_INTERVAL_MS = 30 * 60 * 1000;
+          let lastUpdateCheck = Date.now();
+          const checkForUpdate = () => {
+            lastUpdateCheck = Date.now();
             registration.update();
-          }, 60000); // Check every minute
+          };
+
+          setInterval(() => {
+            if (document.hidden) return;
+            checkForUpdate();
+          }, UPDATE_INTERVAL_MS);
+
+          document.addEventListener("visibilitychange", () => {
+            if (document.hidden) return;
+            // Debounced by the same interval, so flicking between tabs does
+            // not turn into a request per switch.
+            if (Date.now() - lastUpdateCheck < UPDATE_INTERVAL_MS) return;
+            checkForUpdate();
+          });
 
           // Listen for updates
           registration.addEventListener('updatefound', () => {

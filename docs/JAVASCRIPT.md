@@ -46,7 +46,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (396 lines)
+### `main.js` (427 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -87,7 +87,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,563 lines)
+### `auth-ui.js` (1,586 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -556,7 +556,7 @@ matrix toggle (`rj_terminal_matrix`), and the `ctx` object handed to commands
 
 ## UI and interaction
 
-### `navigation.js` (637 lines)
+### `navigation.js` (714 lines)
 
 `initNavigation()`, `setActiveSection(target)`,
 `navigateToSection(target, {updateHash})`, `syncSectionWithHash(hash)`,
@@ -606,7 +606,7 @@ focus into `<main>` without navigating away from what the visitor was reading,
 and on the first sync the active section is already the one the pre-boot router
 chose — home included, since that is what the markup ships.
 
-### `modal.js` (129 lines)
+### `modal.js` (178 lines)
 
 `openModal(modal, {initialFocus, onClose})`, `closeModal(modal, {restoreFocus})`,
 `getFocusableElements(container)`, `handleFocusTrap(event, modal)`.
@@ -678,6 +678,49 @@ only for the length of a live pull — left bound on `document` it would make
 every touch scroll on the site wait for JS. It cancels only while a pull that
 started at `scrollTop === 0` is still heading down.
 
+### `apps-filter.js` (94 lines)
+
+`initAppsFilter()` — a category filter over the Apps shelf. The seven tiles
+already displayed a category eyebrow (Football, Games, Dev Tools, Security);
+this makes it a control. Reads `data-app-category` on the tile rather than the
+eyebrow's text, so the visible label and the filter key are independent.
+
+Counts on each chip are rendered in the markup so they are correct before this
+module loads, then recomputed here — a category that ends up empty hides its
+chip rather than offering a choice that shows nothing. Pressing the active chip
+again clears the filter, because the row has no separate "clear" and a dead
+control is worse than a redundant one. Each change is announced through
+`#app-filter-status`, since the only other feedback is tiles disappearing.
+
+Hiding sets **both** `hidden` and `.is-filtered-out`: `.app-tile` is
+`display: flex` from the grid rules, and a display declaration beats the
+`hidden` attribute's UA style, so the attribute alone would leave a hidden tile
+laid out and tabbable.
+
+The chip row is `js-only` — with scripting off the grid shows everything, which
+is the right state for a launcher.
+
+### `experience-groups.js` (84 lines)
+
+`initExperienceGroups()` — the Experience section's seven bullet groups are
+`<details>` elements emitted by `scripts/generate_resume.py`, with the first
+shipped `open`. The collapsing needs no JavaScript; this module adds only what
+`<details>` cannot do alone:
+
+- **Expand all / Collapse all**, injected here rather than shipped in the markup
+  because it does nothing without JS. Its label states what the next press will
+  do, while `aria-expanded` reports the state of the set it controls — two
+  different facts, and conflating them is why this kind of control usually
+  announces backwards. A `toggle` listener on every group keeps the label honest
+  when one is opened individually.
+- **Revealing a navigated-to group.** The Ctrl+K palette resolves a content hit
+  to `#exp-...` and focuses it; with the group closed that landed on a collapsed
+  row and appeared to do nothing. Both a `hashchange` and a capturing `focusin`
+  inside `#resume` open the ancestor `<details>` chain, so a pasted URL, a
+  back/forward step and the palette all behave identically.
+
+This is also why the anchor id sits on the `<details>` rather than the `<h4>`.
+
 ### `skills-carousel.js` (286 lines)
 
 `initSkillsCarousel()` — a carousel below 640 px and a static grid above.
@@ -728,7 +771,7 @@ See [The flip card](FRONTEND.md#the-flip-card) for the markup and CSS contract.
 `initTilt()` — pointer-tracked 3D tilt on `.tilt-card`, `requestAnimationFrame`
 batched, and a complete no-op without hover support or with reduced motion.
 
-### `theme.js` (95 lines)
+### `theme.js` (184 lines)
 
 `initTheme()`, `applyTheme(isDark)`, `toggleTheme()`. `toggleTheme` is exported
 so callers (the command prompt) need not synthesise a click on `#theme-toggle`.
@@ -931,7 +974,7 @@ leaving the tab.
 The rules of each game are pure exported functions, tested directly in
 `arcade.test.js` without a canvas. Everything else in a game module is drawing.
 
-### `shell.js` (369 lines)
+### `shell.js` (411 lines)
 
 The page's entry point. Builds the launcher from each game module's own `meta`,
 so adding a game is an import and one array entry. Owns the game lifecycle, the
@@ -1089,7 +1132,7 @@ resolved in as many slices as that takes.
 
 A standalone visual developer utility for back-end engineers and technical visitors. Like the Arcade, it lives on its own page (`frontend/cron.html`) with its own entry point (`js/cron/cron-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
 
-### `cron-main.js` (277 lines)
+### `cron-main.js` (281 lines)
 
 The application controller. Binds the tab switcher between Cron and Regex views, synchronizes state to the URL hash and query string (`#cron?expr=...` and `#regex?pattern=...&flags=...`), handles clipboard sharing with visual toast feedback, and persists user inputs in `localStorage`.
 
@@ -1115,7 +1158,7 @@ DOM controller for the Regex Visualizer view. Binds pattern input and flag toggl
 
 A standalone client-side cryptographic and data transformation workbench for software engineers and technical visitors. Like the Logic Inspector and Arcade, it lives on its own page (`frontend/crypto.html`) with its own entry point (`js/crypto/crypto-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
 
-### `crypto-main.js` (193 lines)
+### `crypto-main.js` (197 lines)
 
 The application controller. Manages tab switching across `#encoders`, `#hasher`, `#generators`, and `#time`, synchronizes state with the URL hash, handles dark/light theme toggling, provides shareable link copying, and initializes workbench UI handlers.
 
@@ -1153,7 +1196,7 @@ Two invariants hold across the whole directory. **No `eval` or `new Function`**:
 
 The application controller. Resolves the theme from the shared `theme` key before the panels render, manages the four deep-linkable tabs (`#format`, `#query`, `#tree`, `#convert`) with arrow-key roving tabindex and `hashchange` sync, persists preferences, and wraps startup in an error boundary. Document text is persisted **only** while the "Remember my document" switch is on, and that switch defaults to off.
 
-### `json-ui.js` (688 lines)
+### `json-ui.js` (700 lines)
 
 DOM controller for the workbench. Owns the source pane, the debounced parse, drag-and-drop with the 5 MB cap, the repair log, copy-and-download on every output, and the four panel renderers. Holds no parsing logic of its own. Its `writeJson()` colouriser appends `<span>` elements it creates itself, so JSON containing markup is coloured without ever becoming nodes.
 
@@ -1216,7 +1259,7 @@ manages the three deep-linkable tabs (`#compare`, `#patch`, `#about`) with
 arrow-key roving tabindex and `hashchange` sync, and wraps startup in an error
 boundary.
 
-### `diff-ui.js` (511 lines)
+### `diff-ui.js` (529 lines)
 
 DOM controller. Owns both panes, the debounced recompute, drag-and-drop with the
 5 MB cap, the normalisation toggles, the split/unified switch, change navigation

@@ -113,14 +113,26 @@ async function copyText(text) {
   }
 }
 
+/**
+ * Swap a button's label to `label`, then put the original markup back.
+ *
+ * Saves and restores innerHTML, not textContent. Every one of these buttons
+ * ships an icon - `<i class="fas fa-copy"></i>Copy` - and assigning
+ * textContent removes the element's child nodes, so the FIRST click deleted
+ * the <i> and the revert only ever restored the string. The icon never came
+ * back for the rest of the session.
+ *
+ * The saved value is the button's own prior markup and never user input, so
+ * this is not a sanitisation surface. Same shape as crypto-ui.js's copy.
+ */
 function flash(button, label = "Copied") {
   if (!button) return;
-  const original = button.dataset.originalLabel ?? button.textContent;
-  button.dataset.originalLabel = original;
+  const original = button.dataset.originalMarkup ?? button.innerHTML;
+  button.dataset.originalMarkup = original;
   button.textContent = label;
   button.classList.add("copied");
   window.setTimeout(() => {
-    button.textContent = button.dataset.originalLabel ?? original;
+    button.innerHTML = button.dataset.originalMarkup ?? original;
     button.classList.remove("copied");
   }, 1400);
 }

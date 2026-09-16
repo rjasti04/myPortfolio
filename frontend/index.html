@@ -386,6 +386,12 @@
   <canvas id="webgl-canvas" class="webgl-canvas js-only" aria-hidden="true"></canvas>
   <div class="toast-container js-only" id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
+  <!-- Route announcer. The router swaps one section for another in place, so
+       there is no page load for a screen reader to announce and no document
+       title change it would hear on its own. navigation.js writes the new
+       view's name here on every navigation. Outside <main> so swapping a
+       section never takes the live region with it. -->
+  <p class="sr-only" id="route-announcer" role="status" aria-live="polite" aria-atomic="true"></p>
 
   <!-- Resume preview. The <iframe> is created on open and destroyed on close: the
        PDF is 66 KB that most visitors never ask for, and a live PDF viewer left
@@ -416,14 +422,11 @@
     </div>
   </div>
 
-
-
   <div class="layout">
     <header id="header">
       <div class="header-left">
         <a href="#home" class="logo-text" id="logo-home-link" data-target="home" aria-label="Rajeev Jasti - Home">RJ</a>
       </div>
-
 
       <nav id="nav-menu" aria-label="Primary">
         <div class="nav-menu-header dropdown-panel-header">
@@ -569,8 +572,9 @@
 
               <div class="customizer-form" role="group" aria-labelledby="customizer-colors-label">
                 <div class="color-picker-group">
-                  <label for="color-primary">Primary</label>
+                  <span class="color-picker-label">Primary</span>
                   <button type="button" class="color-input-wrapper" id="color-primary" data-color-key="primary"
+                    aria-label="Primary color"
                     data-color-value="#C5CF3F" style="--selected-color: #C5CF3F;" aria-haspopup="dialog"
                     aria-expanded="false" aria-controls="theme-color-popover">
                     <span class="color-preview" aria-hidden="true"></span>
@@ -578,8 +582,9 @@
                   </button>
                 </div>
                 <div class="color-picker-group">
-                  <label for="color-secondary">Secondary</label>
+                  <span class="color-picker-label">Secondary</span>
                   <button type="button" class="color-input-wrapper" id="color-secondary" data-color-key="secondary"
+                    aria-label="Secondary color"
                     data-color-value="#3C82DD" style="--selected-color: #3C82DD;" aria-haspopup="dialog"
                     aria-expanded="false" aria-controls="theme-color-popover">
                     <span class="color-preview" aria-hidden="true"></span>
@@ -587,8 +592,9 @@
                   </button>
                 </div>
                 <div class="color-picker-group">
-                  <label for="color-accent">Highlight</label>
+                  <span class="color-picker-label">Highlight</span>
                   <button type="button" class="color-input-wrapper" id="color-accent" data-color-key="accent"
+                    aria-label="Highlight color"
                     data-color-value="#830FDB" style="--selected-color: #830FDB;" aria-haspopup="dialog"
                     aria-expanded="false" aria-controls="theme-color-popover">
                     <span class="color-preview" aria-hidden="true"></span>
@@ -624,14 +630,32 @@
           </div>
         </div>
 
-        <a href="/worldcup" target="_blank" class="header-icon-btn" id="worldcup-link" title="World Cup Predictor"
-          aria-label="Launch 2026 World Cup Bracket Predictor in a new tab">
-          <i class="fas fa-futbol"></i>
+        <!-- Two links, two glyphs. Both were `fa-futbol`: side by side in the
+             header they were pixel-identical, so a sighted pointer user could
+             not tell them apart without hovering for the tooltip. The
+             aria-labels always distinguished them, which is why the row read
+             as finished. Same failure the `.home-socials` note on the landing
+             view calls out and fixes.
+
+             The ball stays with the World Cup and the UCL takes the trophy.
+             Both glyphs are in the vendored Font Awesome subset - that is the
+             constraint on picking icons here. `scripts/vendor_fonts.py`
+             subsets to the glyphs actually used and the fonts are committed,
+             NOT rebuilt by `npm run build`, so reaching for one outside the
+             subset renders a blank box in production.
+
+             `rel="noopener"` because every other new-tab link in this file has
+             it - the app tiles and the profile links - and these two were the
+             only ones that did not. -->
+        <a href="/worldcup" target="_blank" rel="noopener" class="header-icon-btn" id="worldcup-link"
+          title="World Cup Predictor" aria-label="Launch 2026 World Cup Bracket Predictor in a new tab">
+          <i class="fas fa-futbol" aria-hidden="true"></i>
         </a>
 
-        <a href="/ucl" target="_blank" class="header-icon-btn" id="ucl-link" title="Champions League Predictor"
+        <a href="/ucl" target="_blank" rel="noopener" class="header-icon-btn" id="ucl-link"
+          title="Champions League Predictor"
           aria-label="Launch the 2026/27 Champions League Bracket Predictor in a new tab">
-          <i class="fas fa-futbol"></i>
+          <i class="fas fa-trophy" aria-hidden="true"></i>
         </a>
 
         <div class="nav-auth-container" id="nav-auth-container">
@@ -641,9 +665,14 @@
           </button>
         </div>
 
-        <button type="button" class="header-icon-btn js-only" id="theme-toggle" title="Toggle theme"
-          aria-label="Toggle theme" aria-pressed="false">
-          <i class="fas fa-moon" id="theme-icon"></i>
+        <!-- Cycles light -> dark -> system. No aria-pressed: three states are
+             not a pressed/unpressed control, and js/theme.js rewrites the
+             label and icon on every press to name the mode now in effect.
+             The attributes here are only what ships before that runs. -->
+        <button type="button" class="header-icon-btn js-only" id="theme-toggle"
+          title="Theme: following system. Switch to light."
+          aria-label="Theme: following system. Switch to light.">
+          <i class="fas fa-display" id="theme-icon" aria-hidden="true"></i>
         </button>
 
       </div>
@@ -666,7 +695,7 @@
            This view has almost no vertical slack - see the height-budget note
            on `.home-portrait` in the HOME HERO region before adding a line to
            it. -->
-      <section id="home" class="active">
+      <section id="home" class="active" tabindex="-1">
         <div class="home-hero">
           <!-- Free-form portrait, not an avatar disc, and a flip card: the
                face on top is the outdoor shot, and clicking it rotates the
@@ -837,7 +866,17 @@
         </div>
       </section>
 
-      <section id="about">
+      <section id="about" tabindex="-1">
+        <!-- Visually hidden, unlike the other six section titles.
+             The router renders one section at a time, so each view is a page
+             and needs its own <h1> - without this the bio and all six stat
+             cards sat above the document's first heading, which was
+             "Technical Skills". It is hidden rather than shown because this
+             view leads with a deliberate hero whose top line is already the
+             disciplines kicker; a full-size gradient "About" above that would
+             push the terminal panel past the fold to restate what the nav,
+             the tab title and the kicker all say. -->
+        <h1 class="sr-only">About</h1>
         <div class="hero">
           <div class="hero-text">
             <div class="hero-kicker">
@@ -1036,11 +1075,11 @@
           </div>
         </div>
 
-
       </section>
 
-      <section id="resume">
-        <h2 class="section-title">Experience</h2>
+      <section id="resume" tabindex="-1">
+        <h1 class="section-title">Experience</h1>
+        <p class="section-lede">Eight years at one company, growing from Data Engineer to Principal across data engineering, database administration, backend and cloud.</p>
         <p class="section-actions">
           <a href="rjasti_resume.pdf" target="_blank" rel="noopener noreferrer" class="btn" id="resume-pdf-view"
             data-spring-hover>
@@ -1069,206 +1108,133 @@
               <span class="role-period">(Feb 2018 &mdash; Oct 2022)</span>
             </div>
           </div>
-          <h4 class="item-bullets-group" id="exp-data-engineering-modeling-olap">Data Engineering &amp; Modeling (OLAP)</h4>
-          <ul class="item-bullets">
-            <li>Architected multi-source ingestion pipelines using PySpark, Matillion, and Boomi (CDC, watermark extracts, SaaS
-              APIs, flat files) into Amazon Redshift, decoupling batch and near-real-time streaming via Amazon SQS for
-              automated staging, deduplication, cleansing, and SQL business transformations.</li>
-            <li>Designed enterprise star and snowflake dimensional models, and developed LookML semantic models and Explores for
-              core supply chain metrics (inventory turns, dock-to-stock cycle times, order fill rates, freight spend)
-              with optimized datagroups and PDT lifecycle policies.</li>
-            <li>Implemented reverse-ETL pipelines syncing curated data back into Salesforce and Zoho, and partnered with
-              cross-functional stakeholders (Operations, Sales, Finance) to deliver executive Looker dashboards
-              standardizing KPIs across departments.</li>
-          </ul>
-          <h4 class="item-bullets-group" id="exp-backend-middleware">Backend &amp; Middleware</h4>
-          <ul class="item-bullets">
-            <li>Architected enterprise-grade serverless REST APIs and asynchronous order ingestion middleware using AWS API
-              Gateway, Lambda, SQS FIFO, and Step Functions (Saga pattern), reliably fanning out multi-channel B2B/B2C
-              orders to legacy ERP, WMS, and inventory distribution systems.</li>
-            <li>Engineered a distributed DynamoDB caching layer with SHA-256 payload fingerprinting and native TTL eviction,
-              cutting primary database load by 30&ndash;50%.</li>
-            <li>Sustained 99.9% transaction completion through idempotent request handling, API Gateway throttling, DLQ redrive
-              policies, exponential backoff, and circuit breakers.</li>
-            <li>Developed a high-concurrency Available-to-Promise (ATP) inventory reservation microservice using atomic
-              conditional writes and distributed locks to prevent overselling.</li>
-            <li>Implemented a dual-engine search strategy combining Elasticsearch with SQL Server for sub-second search across
-              millions of historical orders and invoices.</li>
-          </ul>
-          <h4 class="item-bullets-group" id="exp-database-systems-oltp">Database Systems (OLTP)</h4>
-          <ul class="item-bullets">
-            <li>Owned OLTP database architecture and administration running mission-critical order-to-cash operations across
-              pricing, rebates, commissions, and ERP/WMS/TMS integration feeds.</li>
-            <li>Architected the enterprise pricing engine in SQL Server, resolving sales-rep overrides, customer contract pricing,
-              commodity pricing, COGS, and discount layers into real-time customer&ndash;item&ndash;DC prices via
-              ACID-compliant T-SQL procedures.</li>
-            <li>Scaled the pricing API to sustain 100,000&ndash;200,000 executions/min at sub-100 ms latency with zero deadlocks
-              under heavy concurrent load.</li>
-            <li>Modeled SCD Type 2 temporal pricing for point-in-time auditability, and engineered PriceIQ statistical pricing
-              using IQR outlier fencing and skew-adjusted distribution analysis to intelligently price custom
-              setups.</li>
-            <li>Built the vendor rebate calculation platform, sales commission payroll, and WMS/TMS activity-based incentive
-              payroll.</li>
-          </ul>
-          <h4 class="item-bullets-group" id="exp-database-administration-reliability-oltp-olap">Database Administration &amp; Reliability (OLTP &amp; OLAP)</h4>
-          <ul class="item-bullets">
-            <li>Eliminated high-frequency lock-conversion deadlocks, write skew, and reader&ndash;writer blocking across
-              high-throughput OLTP workloads by pairing targeted locking hints (UPDLOCK, HOLDLOCK, ROWLOCK) with
-              deterministic UPSERT ordering and tuning Read Committed Snapshot Isolation (RCSI).</li>
-            <li>Resolved tempdb spills, parameter sniffing, and bookmark lookups through execution plan profiling, memory grant
-              tuning, composite clustered/covering index redesigns, and table partitioning.</li>
-            <li>Automated enterprise maintenance, index defragmentation, and statistics via Ola Hallengren on SQL Server Agent,
-              administered Always On Availability Groups (HA/DR), and tuned CDC replication.</li>
-            <li>Optimized Amazon Redshift storage architectures (KEY/ALL/EVEN distribution, sort keys, AZ64/ZSTD compression), WLM
-              parameter queues, materialized views, PII data encryption, RBAC, and CloudWatch performance alarms.</li>
-          </ul>
-          <h4 class="item-bullets-group" id="exp-cloud-architecture-modernization">Cloud Architecture &amp; Modernization</h4>
-          <ul class="item-bullets">
-            <li>Architected and provisioned an enterprise-scale, fault-tolerant AWS cloud foundation spanning multi-AZ VPCs, API
-              Gateway, Lambda, Step Functions, SQS FIFO, DynamoDB, and Amazon Redshift.</li>
-            <li>Deployed a secure, auto-scaled internal application tier on AWS (EC2 in multi-AZ VPCs, Auto Scaling, hardened
-              security groups, Route 53, Apache HTTPD reverse proxies) with automated open-source TLS rotation.</li>
-            <li>Engineered an event-driven Master Data Management (MDM) ecosystem across Zoho, establishing governed golden
-              records for customer, item, and supplier entities with automated webhook and message-queued distribution
-              to tier-1 ERP, WMS, and TMS systems to eliminate synchronization lag and discrepancies across warehouse
-              fulfillment and freight routing networks.</li>
-          </ul>
-          <h4 class="item-bullets-group" id="exp-devops-infrastructure">DevOps &amp; Infrastructure</h4>
-          <ul class="item-bullets">
-            <li>Established end-to-end operational reliability, automated maintenance, and proactive infrastructure observability
-              across distributed cloud microservices and database clusters.</li>
-            <li>Automated enterprise SQL Server maintenance, index defragmentation, and statistics updates using Ola Hallengren
-              orchestrated via SQL Server Agent.</li>
-            <li>Built robust monitoring and alerting in SolarWinds (waits, blocking, resource pressure) and AWS CloudWatch (disk
-              spill, CPU utilization, concurrency metrics).</li>
-            <li>Authored custom T-SQL health audit scripts, enforced least-privilege RBAC, and implemented resilient
-              fault-tolerance mechanisms including automated Dead-Letter Queue (DLQ) redrives, exponential backoff,
-              circuit breakers, and zero-downtime automated TLS certificate rotations.</li>
-          </ul>
-          <h4 class="item-bullets-group" id="exp-generative-ai-web-applications">Generative AI &amp; Web Applications</h4>
-          <ul class="item-bullets">
-            <li>Integrated Google's Model Context Protocol (MCP) server in Looker, exposing curated semantic definitions,
-              Explores, and supply chain KPIs to generative AI agents to enable natural-language-to-SQL querying and
-              prompt-driven analytical dashboard generation.</li>
-            <li>Engineered high-throughput, asynchronous FastAPI backend microservices with strict Pydantic schema validation,
-              standardizing departmental custom data capture and preventing operational data corruption across
-              downstream pipelines.</li>
-            <li>Delivered responsive, high-performance web applications and internal portals featuring seamless API integrations
-              and granular role-based access control.</li>
-          </ul>
+          <details class="exp-group" id="exp-data-engineering-modeling-olap" open>
+            <summary class="exp-group-summary">
+              <h4 class="item-bullets-group">Data Engineering &amp; Modeling (OLAP)</h4>
+              <span class="exp-group-count">3</span>
+            </summary>
+            <ul class="item-bullets">
+              <li>Architected multi-source ingestion pipelines using PySpark, Matillion, and Boomi (CDC, watermark extracts, SaaS
+                APIs, flat files) into Amazon Redshift, decoupling batch and near-real-time streaming via Amazon SQS
+                for automated staging, deduplication, cleansing, and SQL business transformations.</li>
+              <li>Designed enterprise star and snowflake dimensional models, and developed LookML semantic models and Explores for
+                core supply chain metrics (inventory turns, dock-to-stock cycle times, order fill rates, freight
+                spend) with optimized datagroups and PDT lifecycle policies.</li>
+              <li>Implemented reverse-ETL pipelines syncing curated data back into Salesforce and Zoho, and partnered with
+                cross-functional stakeholders (Operations, Sales, Finance) to deliver executive Looker dashboards
+                standardizing KPIs across departments.</li>
+            </ul>
+          </details>
+          <details class="exp-group" id="exp-backend-middleware">
+            <summary class="exp-group-summary">
+              <h4 class="item-bullets-group">Backend &amp; Middleware</h4>
+              <span class="exp-group-count">5</span>
+            </summary>
+            <ul class="item-bullets">
+              <li>Architected enterprise-grade serverless REST APIs and asynchronous order ingestion middleware using AWS API
+                Gateway, Lambda, SQS FIFO, and Step Functions (Saga pattern), reliably fanning out multi-channel
+                B2B/B2C orders to legacy ERP, WMS, and inventory distribution systems.</li>
+              <li>Engineered a distributed DynamoDB caching layer with SHA-256 payload fingerprinting and native TTL eviction,
+                cutting primary database load by 30&ndash;50%.</li>
+              <li>Sustained 99.9% transaction completion through idempotent request handling, API Gateway throttling, DLQ redrive
+                policies, exponential backoff, and circuit breakers.</li>
+              <li>Developed a high-concurrency Available-to-Promise (ATP) inventory reservation microservice using atomic
+                conditional writes and distributed locks to prevent overselling.</li>
+              <li>Implemented a dual-engine search strategy combining Elasticsearch with SQL Server for sub-second search across
+                millions of historical orders and invoices.</li>
+            </ul>
+          </details>
+          <details class="exp-group" id="exp-database-systems-oltp">
+            <summary class="exp-group-summary">
+              <h4 class="item-bullets-group">Database Systems (OLTP)</h4>
+              <span class="exp-group-count">5</span>
+            </summary>
+            <ul class="item-bullets">
+              <li>Owned OLTP database architecture and administration running mission-critical order-to-cash operations across
+                pricing, rebates, commissions, and ERP/WMS/TMS integration feeds.</li>
+              <li>Architected the enterprise pricing engine in SQL Server, resolving sales-rep overrides, customer contract
+                pricing, commodity pricing, COGS, and discount layers into real-time customer&ndash;item&ndash;DC
+                prices via ACID-compliant T-SQL procedures.</li>
+              <li>Scaled the pricing API to sustain 100,000&ndash;200,000 executions/min at sub-100 ms latency with zero deadlocks
+                under heavy concurrent load.</li>
+              <li>Modeled SCD Type 2 temporal pricing for point-in-time auditability, and engineered PriceIQ statistical pricing
+                using IQR outlier fencing and skew-adjusted distribution analysis to intelligently price custom
+                setups.</li>
+              <li>Built the vendor rebate calculation platform, sales commission payroll, and WMS/TMS activity-based incentive
+                payroll.</li>
+            </ul>
+          </details>
+          <details class="exp-group" id="exp-database-administration-reliability-oltp-olap">
+            <summary class="exp-group-summary">
+              <h4 class="item-bullets-group">Database Administration &amp; Reliability (OLTP &amp; OLAP)</h4>
+              <span class="exp-group-count">4</span>
+            </summary>
+            <ul class="item-bullets">
+              <li>Eliminated high-frequency lock-conversion deadlocks, write skew, and reader&ndash;writer blocking across
+                high-throughput OLTP workloads by pairing targeted locking hints (UPDLOCK, HOLDLOCK, ROWLOCK) with
+                deterministic UPSERT ordering and tuning Read Committed Snapshot Isolation (RCSI).</li>
+              <li>Resolved tempdb spills, parameter sniffing, and bookmark lookups through execution plan profiling, memory grant
+                tuning, composite clustered/covering index redesigns, and table partitioning.</li>
+              <li>Automated enterprise maintenance, index defragmentation, and statistics via Ola Hallengren on SQL Server Agent,
+                administered Always On Availability Groups (HA/DR), and tuned CDC replication.</li>
+              <li>Optimized Amazon Redshift storage architectures (KEY/ALL/EVEN distribution, sort keys, AZ64/ZSTD compression),
+                WLM parameter queues, materialized views, PII data encryption, RBAC, and CloudWatch performance
+                alarms.</li>
+            </ul>
+          </details>
+          <details class="exp-group" id="exp-cloud-architecture-modernization">
+            <summary class="exp-group-summary">
+              <h4 class="item-bullets-group">Cloud Architecture &amp; Modernization</h4>
+              <span class="exp-group-count">3</span>
+            </summary>
+            <ul class="item-bullets">
+              <li>Architected and provisioned an enterprise-scale, fault-tolerant AWS cloud foundation spanning multi-AZ VPCs, API
+                Gateway, Lambda, Step Functions, SQS FIFO, DynamoDB, and Amazon Redshift.</li>
+              <li>Deployed a secure, auto-scaled internal application tier on AWS (EC2 in multi-AZ VPCs, Auto Scaling, hardened
+                security groups, Route 53, Apache HTTPD reverse proxies) with automated open-source TLS
+                rotation.</li>
+              <li>Engineered an event-driven Master Data Management (MDM) ecosystem across Zoho, establishing governed golden
+                records for customer, item, and supplier entities with automated webhook and message-queued
+                distribution to tier-1 ERP, WMS, and TMS systems to eliminate synchronization lag and discrepancies
+                across warehouse fulfillment and freight routing networks.</li>
+            </ul>
+          </details>
+          <details class="exp-group" id="exp-devops-infrastructure">
+            <summary class="exp-group-summary">
+              <h4 class="item-bullets-group">DevOps &amp; Infrastructure</h4>
+              <span class="exp-group-count">4</span>
+            </summary>
+            <ul class="item-bullets">
+              <li>Established end-to-end operational reliability, automated maintenance, and proactive infrastructure
+                observability across distributed cloud microservices and database clusters.</li>
+              <li>Automated enterprise SQL Server maintenance, index defragmentation, and statistics updates using Ola Hallengren
+                orchestrated via SQL Server Agent.</li>
+              <li>Built robust monitoring and alerting in SolarWinds (waits, blocking, resource pressure) and AWS CloudWatch (disk
+                spill, CPU utilization, concurrency metrics).</li>
+              <li>Authored custom T-SQL health audit scripts, enforced least-privilege RBAC, and implemented resilient
+                fault-tolerance mechanisms including automated Dead-Letter Queue (DLQ) redrives, exponential
+                backoff, circuit breakers, and zero-downtime automated TLS certificate rotations.</li>
+            </ul>
+          </details>
+          <details class="exp-group" id="exp-generative-ai-web-applications">
+            <summary class="exp-group-summary">
+              <h4 class="item-bullets-group">Generative AI &amp; Web Applications</h4>
+              <span class="exp-group-count">3</span>
+            </summary>
+            <ul class="item-bullets">
+              <li>Integrated Google's Model Context Protocol (MCP) server in Looker, exposing curated semantic definitions,
+                Explores, and supply chain KPIs to generative AI agents to enable natural-language-to-SQL querying
+                and prompt-driven analytical dashboard generation.</li>
+              <li>Engineered high-throughput, asynchronous FastAPI backend microservices with strict Pydantic schema validation,
+                standardizing departmental custom data capture and preventing operational data corruption across
+                downstream pipelines.</li>
+              <li>Delivered responsive, high-performance web applications and internal portals featuring seamless API integrations
+                and granular role-based access control.</li>
+            </ul>
+          </details>
           <!-- /GENERATED:experience -->
 
-          <!--
-                <li><strong>Enterprise Data Engineering &amp; Modeling (OLAP):</strong> Accelerated analytics delivery and
-              unified fragmented operational reporting across ERP, WMS, and TMS domains into a centralized Amazon
-              Redshift data warehouse, substantially reducing query latency and pipeline SLA delivery times, by
-              architecting high-throughput batch/streaming pipelines, designing dimensional Star/Snowflake schemas, and
-              establishing a governed Looker semantic modeling layer.</li>
-            <li><strong>Backend &amp; Middleware:</strong> Scaled enterprise event telemetry ingestion and
-              distributed middleware integrations across heterogeneous systems, sustaining high-volume event throughput
-              with low-latency API response times and zero data loss, by engineering non-blocking Python/FastAPI REST
-              APIs with <code>asyncpg</code> connection pooling, building AWS Lambda &amp; Boomi iPaaS integration
-              layers, and designing relational event stores with structured telemetry schemas.</li>
-            <li><strong>Database Systems (OLTP):</strong> Eliminated pricing discrepancies and accelerated transactional
-              calculation throughput for mission-critical pricing and rebate engines, significantly cutting batch
-              calculation runtimes while guaranteeing strict ACID compliance under heavy transactional concurrency,
-              by designing optimized relational schemas, implementing robust stored procedures/triggers, managing
-              pessimistic/optimistic concurrency control, and automating declarative schema migrations with Alembic.
-            </li>
-            <li><strong>Database Administration &amp; Reliability (OLTP &amp; OLAP):</strong> Maintained
-              high-availability database operations and optimized query efficiency across hybrid multi-database clusters
-              (PostgreSQL, SQL Server, Amazon Redshift, Aurora), significantly reducing P95 query execution latency and
-              eliminating system deadlocks, by implementing multi-AZ failover and automated disaster recovery,
-              structuring indexing/vacuum maintenance routines, and performing execution plan profiling with
-              fine-grained lock tuning.</li>
-            <li><strong>Cloud Architecture &amp; Modernization:</strong> Modernized legacy on-premises infrastructure
-              into an elastic, event-driven AWS cloud platform, reducing infrastructure overhead and completing
-              migrations with zero cutover downtime across enterprise-scale data assets, by
-              architecting cloud topologies leveraging Amazon Redshift, AWS Glue ETL, Lambda, Athena, S3 data lake
-              tiers, DynamoDB, RDS Aurora, and containerized ECS workloads.</li>
-            <li><strong>DevOps &amp; Infrastructure:</strong> Accelerated release velocity and reinforced
-              production reliability across distributed message-driven services, dramatically shortening deployment
-              cycle times while achieving high test coverage and zero regression escapes, by orchestrating containerized
-              workloads on Docker/EKS/ECS, provisioning Kafka and RabbitMQ event brokers on Linux, and establishing
-              GitHub Actions CI/CD pipelines with automated Pytest, Node.js/JSDOM, ESLint, and Stylelint quality gates.
-            </li>
-            <li><strong>Generative AI & Web Applications:</strong> Delivered responsive Progressive Web
-              Apps (PWAs) with interactive 3D visualizations and conversational AI capabilities, achieving
-              ultra-low time-to-first-token (TTFT) streaming latency and high platform availability, by engineering
-              asynchronous FastAPI microservices, streaming Amazon Bedrock LLM inference over Server-Sent
-              Events/WebSockets,rendering Three.js GPU-accelerated graphics, and developing zero-dependency ES module
-              frontends.</li>  
-            -->
-          <!--Below text is from my resume
-            <li>Own OLTP development and administration for order-to-cash: pricing, rebates, commissions, and the ERP,
-              WMS, and TMS feeds carrying orders, POs, and receiving confirmations.</li>
-            <li>Architected the enterprise pricing engine in T-SQL, resolving rep overrides, contract and commodity
-              pricing, COGS, and discounts into one real-time customer&ndash;item&ndash;DC price.</li>
-            <li>Scaled the pricing API to 100,000&ndash;200,000 executions per minute at sub-100 ms and zero deadlocks,
-              serving e-commerce, external order entry, and ERP.</li>
-            <li>Modeled pricing and customer master as SCD Type 2, making any past, current, or future price
-              reconstructable for audits and disputes.</li>
-            <li>Built PriceIQ, which fences outliers with IQR and skew-adjusted analysis over three years of history to
-              price the combinations no contract covers.</li>
-            <li>Built the vendor rebate platform for auditable Finance accruals, plus commission payroll for sales and
-              activity-based incentive payroll from WMS and TMS data.</li>
-          </ul>
-          <h4 class="item-bullets-group">Serverless Order Pipeline &amp; APIs</h4>
-          <ul class="item-bullets">
-            <li>Architected serverless REST APIs on API Gateway, Lambda, and Step Functions for customers, items,
-              orders, payments, balances, and invoices.</li>
-            <li>Built asynchronous order ingestion on SQS FIFO and Step Functions (Saga), fanning B2B and B2C orders
-              out to legacy ERP, WMS, and inventory systems.</li>
-            <li>Cut primary database load 30&ndash;50% with a DynamoDB cache keyed on SHA-256 payload fingerprints and
-              evicted by native TTL.</li>
-            <li>Held 99.9% transaction completion through idempotent request handling, API Gateway throttling, DLQ
-              redrive, exponential backoff, and circuit breakers.</li>
-            <li>Built a high-concurrency Available-to-Promise reservation service where atomic conditional writes and
-              distributed locks hold multi-warehouse order lines without overselling.</li>
-            <li>Paired Elasticsearch full-text search with SQL Server relational filtering for sub-second self-service
-              search across millions of historical invoices and orders.</li>
-          </ul>
-          <h4 class="item-bullets-group">SQL Server &amp; Redshift Administration</h4>
-          <ul class="item-bullets">
-            <li>Removed lock-conversion deadlocks, write skew, and reader&ndash;writer blocking with targeted locking
-              hints, deterministic UPSERT ordering, and Read Committed Snapshot Isolation.</li>
-            <li>Cleared tempdb spills and bookmark lookups by correcting memory grants, parameter sniffing, and
-              stale statistics; partitioned large tables as volume grew.</li>
-            <li>Ran HA/DR on Always On Availability Groups with automated backups, CDC replication into the warehouse,
-              and Ola Hallengren maintenance jobs.</li>
-            <li>Monitored blocking, waits, and resource pressure in SolarWinds, backed by T-SQL audit scripts and
-              least-privilege role management.</li>
-            <li>Tuned Redshift storage with distribution styles, compound sort keys, and AZ64/ZSTD encoding, and sized
-              WLM queues so batch ETL never blocks BI dashboards.</li>
-            <li>Accelerated Redshift queries with materialized views and scheduled ANALYZE and VACUUM; hardened
-              clusters with PII encryption, RBAC, and CloudWatch alarms.</li>
-          </ul>
-          <h4 class="item-bullets-group">Data Warehouse &amp; Analytics Platform</h4>
-          <ul class="item-bullets">
-            <li>Architected multi-source ingestion into Redshift with PySpark, Matillion, and Boomi &mdash; CDC and
-              watermark extracts, SaaS APIs, and third-party flat files.</li>
-            <li>Decoupled batch and near-real-time pipelines with SQS, automating staging, deduplication, cleansing,
-              and business logic in SQL.</li>
-            <li>Designed star and snowflake dimensional models for Looker reporting, with reverse-ETL pushing curated
-              metrics back into Salesforce and Zoho.</li>
-            <li>Engineered LookML semantic models for inventory turns, fill rates, and freight spend, exposed to AI
-              agents through Looker's MCP server.</li>
-            <li>Enforced row- and column-level security on financial data and PII, and tuned datagroups, caching, and
-              PDT policies for dashboard render speed.</li>
-            <li>Delivered fulfillment, throughput, shipment, and inventory-variance dashboards with Operations,
-              Transportation, Sales, and Finance, standardizing KPI definitions across departments.</li>
-          </ul>
-          <h4 class="item-bullets-group">Master Data &amp; Internal Applications</h4>
-          <ul class="item-bullets">
-            <li>Architected Zoho-based Master Data Management, governing golden records for customer, item, and
-              supplier entities and distributing them to ERP, WMS, and TMS.</li>
-            <li>Designed event-driven Zoho webhook and message-queue integrations, removing synchronization lag across
-              warehouse fulfillment and freight routing.</li>
-            <li>Engineered asynchronous FastAPI microservices with Pydantic validation, standardizing departmental data
-              capture and preventing downstream corruption.</li>
-            <li>Provisioned the internal application tier on AWS &mdash; multi-AZ EC2, Auto Scaling, Apache reverse
-              proxies, Route 53, and automated TLS rotation.</li>
-              -->
+          
           <!-- GENERATED:resume-tags -->
           <dl class="item-tags">
             <div class="tag-group">
@@ -1354,9 +1320,9 @@
         </div>
       </section>
 
-
-      <section id="hobbies">
-        <h2 class="section-title">Interests &amp; Hobbies</h2>
+      <section id="hobbies" tabindex="-1">
+        <h1 class="section-title">Interests &amp; Hobbies</h1>
+        <p class="section-lede">What I do when I am away from the keyboard.</p>
         <div class="hobbies-grid">
           <article class="hobby-card tilt-card reveal hobby-card--wide">
             <span class="hobby-glyph" aria-hidden="true"><i class="fas fa-table-tennis-paddle-ball"></i></span>
@@ -1430,10 +1396,19 @@
 
            The grid is `auto-fill`, so tiles wrap on their own and a new one
            costs no CSS. -->
-      <section id="apps">
-        <h2 class="section-title">Apps</h2>
+      <section id="apps" tabindex="-1">
+        <h1 class="section-title">Apps</h1>
+        <p class="section-lede">Side projects that live outside this page. Each one is built from scratch and runs entirely in your browser.</p>
+        <div class="app-filter js-only" id="app-filter" role="group" aria-label="Filter apps by category">
+          <button type="button" class="app-filter-chip" data-app-filter="all" aria-pressed="true">All<span class="app-filter-count">7</span></button>
+          <button type="button" class="app-filter-chip" data-app-filter="dev-tools" aria-pressed="false">Dev Tools<span class="app-filter-count">3</span></button>
+          <button type="button" class="app-filter-chip" data-app-filter="football" aria-pressed="false">Football<span class="app-filter-count">2</span></button>
+          <button type="button" class="app-filter-chip" data-app-filter="games" aria-pressed="false">Games<span class="app-filter-count">1</span></button>
+          <button type="button" class="app-filter-chip" data-app-filter="security" aria-pressed="false">Security<span class="app-filter-count">1</span></button>
+        </div>
+        <p class="sr-only" id="app-filter-status" role="status" aria-live="polite"></p>
         <div class="app-grid">
-          <a class="app-tile reveal" href="/ucl" target="_blank" rel="noopener"
+          <a class="app-tile reveal" data-app-category="football" href="/ucl" target="_blank" rel="noopener"
             aria-label="Launch the 2026/27 Champions League Bracket Predictor in a new tab">
             <span class="app-tile-media">
               <img src="ucl-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
@@ -1448,7 +1423,7 @@
             </span>
           </a>
 
-          <a class="app-tile reveal" href="/worldcup" target="_blank" rel="noopener"
+          <a class="app-tile reveal" data-app-category="football" href="/worldcup" target="_blank" rel="noopener"
             aria-label="Launch the 2026 World Cup Bracket Predictor in a new tab">
             <span class="app-tile-media">
               <img src="worldcup-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
@@ -1464,7 +1439,7 @@
             </span>
           </a>
 
-          <a class="app-tile reveal" href="/arcade" target="_blank" rel="noopener"
+          <a class="app-tile reveal" data-app-category="games" href="/arcade" target="_blank" rel="noopener"
             aria-label="Launch the Arcade in a new tab">
             <span class="app-tile-media">
               <img src="arcade-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
@@ -1480,7 +1455,7 @@
             </span>
           </a>
 
-          <a class="app-tile reveal" href="/cron" target="_blank" rel="noopener"
+          <a class="app-tile reveal" data-app-category="dev-tools" href="/cron" target="_blank" rel="noopener"
             aria-label="Launch the Cron & Regex Visualizer in a new tab">
             <span class="app-tile-media">
               <img src="cron-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
@@ -1496,7 +1471,7 @@
             </span>
           </a>
 
-          <a class="app-tile reveal" href="/crypto" target="_blank" rel="noopener"
+          <a class="app-tile reveal" data-app-category="security" href="/crypto" target="_blank" rel="noopener"
             aria-label="Launch the Crypto & Encoders Toolbox in a new tab">
             <span class="app-tile-media">
               <img src="crypto-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
@@ -1511,7 +1486,7 @@
             </span>
           </a>
 
-          <a class="app-tile reveal" href="/json" target="_blank" rel="noopener"
+          <a class="app-tile reveal" data-app-category="dev-tools" href="/json" target="_blank" rel="noopener"
             aria-label="Launch the JSON Workbench and Query Studio in a new tab">
             <span class="app-tile-media">
               <img src="json-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
@@ -1527,7 +1502,7 @@
             </span>
           </a>
 
-          <a class="app-tile reveal" href="/diff" target="_blank" rel="noopener"
+          <a class="app-tile reveal" data-app-category="dev-tools" href="/diff" target="_blank" rel="noopener"
             aria-label="Launch the Code Difference Checker in a new tab">
             <span class="app-tile-media">
               <img src="diff-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
@@ -1545,8 +1520,9 @@
         </div>
       </section>
 
-      <section id="activity">
-        <h2 class="section-title">Session Activity</h2>
+      <section id="activity" tabindex="-1">
+        <h1 class="section-title">Session Activity</h1>
+        <p class="section-lede">Everything this page has recorded about your own visit, live — and nobody else's.</p>
 
         <!-- Zone 1: who you are to the site right now, and whether it is listening.
              The four pipeline stages are real (browser -> FastAPI -> Kafka -> Postgres)
@@ -1567,7 +1543,12 @@
             </button>
           </span>
 
-          <div class="act-chain">
+          <!-- `no-swipe` because this row is `overflow-x: auto` and genuinely
+               overflows a phone by 40-110px (see the ACTIVITY region). Without
+               it the document-level SwipeHandler reads a drag toward "Postgres"
+               as a section swipe and navigates away mid-scroll. Same reason,
+               same marker, as `.terminal-panel` and `.skills-carousel`. -->
+          <div class="act-chain no-swipe">
             <span class="act-stage" id="act-stage-browser" data-health="idle">
               <i class="act-stage-dot" aria-hidden="true"></i>Browser</span>
             <span class="act-chain-link" aria-hidden="true"></span>
@@ -1672,13 +1653,16 @@
         </noscript>
       </section>
 
-      <section id="contact">
+      <section id="contact" tabindex="-1">
         <div class="item contact-section reveal">
           <div class="contact-layout">
             <div class="contact-text-content">
-              <h2 class="contact-title">Let&apos;s talk.</h2>
+              <h1 class="contact-title">Let&apos;s talk.</h1>
+              <!-- No "on the right": .contact-layout collapses to one column
+                   below its breakpoint, so on a phone the form is underneath,
+                   and a direction is nothing to a screen reader either way. -->
               <p class="contact-description">Have a project in mind or want to connect? Pick whichever way is easiest
-                &mdash; email, a social link, or the form on the right.</p>
+                &mdash; email, a social link, or the message form.</p>
 
               <div class="contact-primary">
                 <a href="mailto:inboxtorj@gmail.com" class="contact-primary-link">
@@ -1795,7 +1779,7 @@
         </div>
       </section>
 
-      <section id="ai">
+      <section id="ai" tabindex="-1">
         <!-- ── AI page ──
              Three surfaces and one measure. The rail lists conversations, the
              thread is a single left-aligned reading column, and the composer
@@ -1803,6 +1787,12 @@
              thread is empty and docks to the bottom edge the moment a turn
              exists. The shell mechanics are documented in the AI PAGE region
              of styles.css. -->
+        <!-- Visually hidden, and it cannot be the "Ask me anything" heading
+             below: that one lives in .ai-empty-view, which is display:none
+             the moment a conversation has a turn in it, so promoting it would
+             give this view an <h1> only while the thread is empty. This one
+             is part of the section and survives the first message. -->
+        <h1 class="sr-only">Ask my AI</h1>
         <div class="ai-container sidebar-hidden" id="ai-layout">
           <div class="ai-sidebar-scrim" id="ai-sidebar-scrim" aria-hidden="true"></div>
 
@@ -2027,7 +2017,6 @@
         <i class="fas fa-robot"></i>
       </button>
     </div>
-
 
   </div>
 

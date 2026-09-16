@@ -103,7 +103,22 @@ const SKIP_DIRS = new Set(["tests"]);
    than 430px, so adopting the shared file would move two of its breakpoints.
    Both stay out, deliberately. The real win was removing three hand-synced
    copies of a 200-line block, not the bytes. */
-const BUDGETS_KIB = { js: 390, css: 285 };
+/* CSS raised 285 -> 288 for the Apps category filter, the collapsible
+   Experience groups and the section ledes. The reclaim this note asks for
+   first was done before raising: `.act-fam` and the new `.app-filter-chip`
+   were declaration-for-declaration identical apart from one transition
+   duration, and the Experience expand-all control was about to become a third
+   copy. All three now share one filter-pill rule in the SECTION TITLES & CARD
+   PRIMITIVES region, which gave back 1.0 KiB of the 1.5 KiB the features
+   cost. The remaining 0.5 KiB is new surface, not duplication.
+
+   Worth knowing for whoever raises this next: the ceiling was already at 99%
+   before that work, so there was never 1.5 KiB to spend. The next reclaim of
+   this kind is /cron and /arcade, both of which sit outside app-chrome.css
+   deliberately (see above) - so the one after that is probably a real audit of
+   the ACTIVITY and AI PAGE regions, which are the two largest by a wide
+   margin. */
+const BUDGETS_KIB = { js: 390, css: 288 };
 
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);
@@ -125,6 +140,48 @@ function hashedPath(rel, contents) {
   const extension = extname(rel);
   const withoutExtension = rel.slice(0, -extension.length);
   return `${withoutExtension}-${hash8(contents)}${extension}`;
+}
+
+/**
+ * Drop HTML comments from a page that ships, leaving `frontend/` untouched.
+ *
+ * index.html carries ~20 KB of architectural commentary - why the portrait is
+ * a flip card, why the app grid uses auto-fill, why the router resolves a
+ * fragment the way it does. That is deliberate: the repo is itself a
+ * portfolio piece and those notes are part of it. But index.html is also the
+ * render-blocking document, and a visitor downloads and parses every byte of
+ * prose written for a reader of the source. Stripping here keeps both: the
+ * commentary stays in the source of truth, `dist/` ships without it.
+ *
+ * Everything inside <script>, <style>, <pre> and <textarea> is passed through
+ * byte for byte. That is rule 2 at the top of this file and it is load
+ * bearing: index.html pins three inline scripts by sha256 in its CSP, so
+ * touching one stops it running. `scripts/check_csp_hashes.py` runs against
+ * dist/ and is what proves this held.
+ *
+ * Conditional comments (`<!--[if ...]>`) are kept - they are markup, not
+ * commentary - as is anything starting `<!--!`, the usual "preserve me"
+ * convention for licence headers.
+ */
+function stripHtmlComments(text) {
+  const PROTECTED = /<(script|style|pre|textarea)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+  const COMMENT = /<!--(?!\[if|!)[\s\S]*?-->/g;
+
+  // Comment removal leaves behind the blank lines the comment sat between, so
+  // each cleaned slice is collapsed too - but ONLY the cleaned slices. Running
+  // that over the whole result would reach inside the protected blocks and
+  // reflow the inline scripts, which is exactly what their sha256 pins forbid.
+  const clean = (slice) =>
+    slice.replace(COMMENT, "").replace(/\n[ \t]*(?:\n[ \t]*)+/g, "\n");
+
+  let result = "";
+  let cursor = 0;
+  for (const match of text.matchAll(PROTECTED)) {
+    result += clean(text.slice(cursor, match.index));
+    result += match[0];
+    cursor = match.index + match[0].length;
+  }
+  return result + clean(text.slice(cursor));
 }
 
 function rewriteReferences(text, rewrites) {
@@ -381,6 +438,7 @@ async function main() {
       );
       if (text === before) throw new Error("index.html: no asset references were rewritten");
     }
+    if (rel.endsWith(".html")) text = stripHtmlComments(text);
     await writeFile(join(OUT, rel), text);
   }
 

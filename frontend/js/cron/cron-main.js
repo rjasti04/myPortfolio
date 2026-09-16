@@ -90,6 +90,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const isTarget = btn.getAttribute("data-tab") === tabName;
       btn.classList.toggle("active", isTarget);
       btn.setAttribute("aria-selected", String(isTarget));
+      // Roving tabindex: role="tablist" promises one Tab stop for the whole
+      // set, with the arrow keys moving between tabs. Without this every tab
+      // stayed individually Tab-reachable. Same line as json-main.js.
+      btn.tabIndex = isTarget ? 0 : -1;
       if (isTarget && typeof btn.scrollIntoView === "function") {
         btn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
       }

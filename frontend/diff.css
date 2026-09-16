@@ -855,3 +855,30 @@ body {
     min-width: 2.5ch;
   }
 }
+
+/* ---- iOS zoom-on-focus floor ------------------------------------------
+   Mobile Safari zooms the whole viewport when a focused text control is
+   under 16px, and does not zoom back out - the visitor has to pinch. The
+   compact sizes above are deliberate for a dense workbench on a desktop
+   pointer, so the floor is scoped to coarse pointers instead of being
+   applied globally. `max()` keeps a raised root font-size winning.
+   ---------------------------------------------------------------------- */
+@media (pointer: coarse) {
+
+  input[type="text"],
+  input[type="search"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: max(16px, 1rem);
+  }
+
+  /* See json.css: the 44px floor from docs/DESIGN.md, keyed on the pointer
+     rather than the viewport width. .btn-sm reached only 40px. */
+  .btn-sm {
+    min-height: 44px;
+  }
+}

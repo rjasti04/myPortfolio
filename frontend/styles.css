@@ -79,7 +79,13 @@
      read back by the #home centring rules, which have to add it to main's
      padding: the header paints this much lower than the flow box main starts
      after, so without it the hero sits that much too high. */
-  --header-sticky-offset: 16px;
+  /* env(safe-area-inset-top) is folded in because the page opts into
+     `viewport-fit=cover` and ships standalone-PWA chrome: installed on a
+     notched or Dynamic-Island iPhone, there is no browser UI above the header
+     and a flat 16px let it sit under the status bar. The stylesheet already
+     accounts for the bottom and left insets; this is the missing one. It
+     resolves to 0px everywhere else, so nothing moves on other devices. */
+  --header-sticky-offset: calc(16px + env(safe-area-inset-top, 0px));
   /* main's top padding, hoisted out of the `main` rule because two other
      places have to reach it: the ≤1150px override below, and #ai, which
      replaces main's padding entirely and still has to land its panel on the
@@ -1286,7 +1292,7 @@ body.dark-theme .header-dropdown-container {
   opacity: 1 !important;
 }
 
-@media (prefers-contrast: high) {
+@media (prefers-contrast: more), (prefers-contrast: high) {
 
   #nav-menu a:focus-visible,
   .header-left:focus-visible,
@@ -1790,7 +1796,12 @@ body:not(.dark-theme) .token-number {
   padding: 2px 0;
 }
 
-.color-picker-group label {
+/* A <span>, not a <label>. These name a <button>, and `for` only binds to
+   labelable elements - a button is not one - so the association never existed
+   and each picker fell back to its own text content for an accessible name:
+   all three announced as "#C5CF3F, button". The name now comes from an
+   aria-label on the button; this is the visible text beside it. */
+.color-picker-group .color-picker-label {
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text);
@@ -3588,6 +3599,28 @@ body.dark-theme .home-portrait picture {
   position: relative;
 }
 
+/* One sentence under the view's title, saying what the view is for. A visitor
+   arriving on a deep link used to get a one-word heading and straight into the
+   content. Four sections carry one; #about, #contact and #ai already open with
+   intro prose of their own, and #home is the hero.
+
+   The title's own bottom margin collapses when a lede follows, because the
+   lede then owns the gap to the content. `:has()` rather than a modifier class
+   so adding a lede is a one-line markup change - same approach as the
+   `body:has(#home.active)` rules in the router region. */
+.section-title:has(+ .section-lede) {
+  margin-bottom: var(--space-lg);
+}
+
+.section-lede {
+  max-width: 68ch;
+  margin: 0 0 var(--space-2xl);
+  color: var(--muted);
+  font-size: var(--text-lg);
+  line-height: var(--leading-relaxed);
+  text-wrap: pretty;
+}
+
 .section-title::after,
 .contact-title::after {
   content: '';
@@ -3598,6 +3631,48 @@ body.dark-theme .home-portrait picture {
   height: 4px;
   background: linear-gradient(90deg, var(--accent-fill), var(--secondary-fill));
   border-radius: var(--radius-2xs);
+}
+
+/* ---- Filter pill --------------------------------------------------------
+   The outline pill worn by the activity log's family chips (.act-fam), the
+   Apps shelf's category chips and the Experience expand-all control. All
+   three are the same object: a rounded outline button, optionally with a
+   count, whose selected state is `aria-pressed`.
+
+   Shared rather than copied. `.act-fam` and `.app-filter-chip` were
+   declaration-for-declaration identical apart from one transition duration,
+   which is the same hand-synced duplication the app-chrome extraction was
+   done to remove (see the BUDGETS_KIB note in scripts/build.mjs) - and this
+   stylesheet is close enough to its ceiling that a second copy of twenty
+   declarations is a real cost rather than a tidiness argument.
+
+   --motion-fast is the duration `.act-fam` was tuned at, and DESIGN.md puts
+   micro-feedback on that rung, so it is the one that carries over.
+
+   Only the base is shared. Each caller keeps its own hover, pressed and
+   disabled treatment; all three regions come later in the file, so their
+   overrides win without needing specificity games.
+   ---------------------------------------------------------------------- */
+.act-fam,
+.app-filter-chip,
+.exp-toggle-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--min-touch-target);
+  padding: var(--space-sm) var(--space-md);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
 }
 
 /* Items / Cards */
@@ -3750,8 +3825,17 @@ body.dark-theme .home-portrait picture {
     border-color var(--motion-base) var(--ease-standard);
 }
 
+/* The underline IS the hover state; the colour deliberately does not move.
+   This used to reach for --accent-hover, which is a BACKGROUND token: correct
+   at 7.98:1 under --on-accent ink, but as a foreground on --bg it measures
+   2.27:1 - so hovering the resume Download link dropped it from an accessible
+   5.52:1 to a WCAG AA failure, in the light theme only.
+
+   Holding --accent-text keeps 5.52:1 light and 13.08:1 dark, and - unlike a
+   new hardcoded hover literal - it still tracks the theme customiser, which
+   writes --accent-text onto body.style but would never know to write a
+   sibling. A non-colour affordance is also what SC 1.4.1 asks for. */
 .link-action:hover {
-  color: var(--accent-hover);
   border-bottom-color: currentColor;
 }
 
@@ -3908,7 +3992,7 @@ body.dark-theme .home-portrait picture {
    inside the card, and letting weight and tracking carry them alone left the
    eight groups indistinguishable from the body they label. */
 #resume .item-bullets-group {
-  margin: var(--space-xl) 0 0;
+  margin: 0;
   color: var(--accent-text);
   font-size: var(--text-body-sm);
   font-weight: var(--weight-extrabold);
@@ -3916,8 +4000,89 @@ body.dark-theme .home-portrait picture {
   text-transform: uppercase;
 }
 
-#resume .item-bullets-group:first-of-type {
-  margin-top: var(--space-lg);
+/* ---- Collapsible experience groups --------------------------------------
+   Seven groups of bullets in one card read as a wall; as rows they read as an
+   index a recruiter can scan and open. The first ships `open` so the section
+   never looks like an empty list of links. No JS: <details> does this itself,
+   which matters because the rest of this section works without script too.
+   ---------------------------------------------------------------------- */
+.exp-group {
+  border-top: 1px solid var(--border);
+}
+
+.exp-group:first-of-type {
+  border-top: none;
+}
+
+.exp-group-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  /* The row IS the control, so it takes the touch-target floor rather than
+     relying on the text's own line box. */
+  min-height: var(--min-touch-target);
+  padding: var(--space-md) 0;
+  cursor: pointer;
+  list-style: none;
+  transition: color var(--motion-base) var(--ease-standard);
+}
+
+/* Safari paints its own disclosure triangle through this pseudo-element and
+   ignores `list-style: none` without it. */
+.exp-group-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* The chevron, drawn here rather than shipped as an icon in the generated
+   markup: it is presentation, and generate_resume.py should not know about it. */
+.exp-group-summary::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform var(--motion-base) var(--ease-standard);
+  flex: none;
+}
+
+.exp-group[open] > .exp-group-summary::after {
+  transform: rotate(-135deg) translate(-2px, -2px);
+}
+
+.exp-group-summary:hover .item-bullets-group {
+  color: var(--text);
+}
+
+.exp-group-summary:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* How much is behind the row, so a closed group still says something about
+   its own size. */
+.exp-group-count {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  flex: none;
+}
+
+.exp-group > .item-bullets {
+  margin-top: 0;
+  padding-bottom: var(--space-lg);
+}
+
+/* Shape and states come from the shared pill rule in the APPS region; only the
+   placement is specific to this one. */
+.exp-toggle-all {
+  margin-bottom: var(--space-sm);
 }
 
 #resume .item-bullets {
@@ -6104,7 +6269,10 @@ body.dark-theme .skill-tag.primary {
 @media (width <=1150px) {
   :root {
     --header-height: 56px;
-    --header-sticky-offset: 10px;
+    /* Carries the safe-area inset for the same reason as the base value -
+       this is the breakpoint an installed PWA on a notched phone actually
+       lands in, so dropping it here would undo the fix where it matters. */
+    --header-sticky-offset: calc(10px + env(safe-area-inset-top, 0px));
     /* Read by `main` below and by #ai's shell rule. A flat value rather than
        the desktop clamp: below this width the pill is shorter but sits over a
        full-bleed column, and the extra air is what keeps the first card from
@@ -6741,8 +6909,87 @@ body.dark-theme .skill-tag.primary {
   }
 }
 
+/* iOS zoom-on-focus floor
+   Mobile Safari zooms the viewport when a focused text control is under 16px
+   and never zooms back out - the visitor has to pinch out after every tap.
+   The contact form already had a 16px rule, but scoped to `width <= 640px`,
+   so an iPhone in LANDSCAPE (932px logical) still zoomed. Keying on the
+   pointer instead of the width covers every touchscreen at every width, and
+   in one place rather than per-control. `max()` keeps a raised root
+   font-size winning rather than clamping it back to 16px. */
+@media (pointer: coarse) {
+
+  input[type="text"],
+  input[type="search"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: max(16px, 1rem);
+  }
+
+  /* Dismiss controls, brought up to the --min-touch-target contract.
+     Every one of these is a secondary "x" and they ranged from 32px to 40px -
+     the nav-menu close being the one that matters most, since on a phone the
+     nav menu IS the primary navigation surface. Only the box grows; each is
+     already a centring flex container, so the glyph does not move or resize.
+     Keyed on the pointer rather than a width breakpoint so a touch laptop and
+     a tablet in landscape are covered too. */
+  .dropdown-panel-close,
+  .nav-menu-close,
+  .theme-save-cancel,
+  .color-popover-close,
+  .pdf-modal-close {
+    min-width: var(--min-touch-target);
+    min-height: var(--min-touch-target);
+  }
+
+  /* The scroll-to-top FAB drops to 46px under 1150px and never steps back up
+     under 640px, where --min-touch-target becomes 48px. Setting the token it
+     is already built from keeps that one source of truth. */
+  :root {
+    --scroll-to-top-size: var(--min-touch-target);
+  }
+}
+
+/* Forced Colors (Windows High Contrast Mode)
+   Three rules paint their text with a gradient and knock the glyph out with
+   `-webkit-text-fill-color: transparent` - .home-role, the section titles and
+   the stat numbers. Forced colors overrides `color`, but it does NOT reset
+   `-webkit-text-fill-color`: that property is non-standard and sits outside
+   the forced-colors-adjusted set, and it wins over `color` for text. It also
+   forces the gradient itself toward `none`. The result was transparent ink on
+   a forced ground - the job title, EVERY section heading and all six stat
+   figures rendered invisible.
+
+   `background: none` drops the gradient rather than leaving it to be forced,
+   and CanvasText is the system foreground for the user's chosen scheme. */
+@media (forced-colors: active) {
+
+  .home-role,
+  .section-title,
+  .contact-title,
+  .stat-number {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: CanvasText;
+  }
+
+  /* The 60x4 gradient rule under each title is decorative, but it is painted
+     with a background-image that forced colors blanks - leaving a 4px gap.
+     A forced border is the same mark in a colour the user picked. */
+  .section-title::after,
+  .contact-title::after {
+    background: none;
+    border-top: 4px solid CanvasText;
+  }
+}
+
 /* High Contrast Mode Support */
-@media (prefers-contrast: high) {
+@media (prefers-contrast: more), (prefers-contrast: high) {
   :root {
     --accent-text: hsl(64, 60%, 22%);
     --border: hsl(220, 39%, 11%, 0.30);
@@ -6817,6 +7064,20 @@ body.dark-theme .skill-tag.primary {
     break-inside: avoid;
     box-shadow: none !important;
     border: 1px solid #ccc !important;
+  }
+
+  /* A printed resume with six of its seven groups collapsed is a blank page.
+     `display: block` on the content forces it open regardless of the `open`
+     attribute, which printing does not otherwise honour. */
+  .exp-group > .item-bullets {
+    display: grid !important;
+  }
+
+  .exp-group-summary::after,
+  .exp-group-count,
+  .exp-toggle-all,
+  .app-filter {
+    display: none !important;
   }
 }
 
@@ -7078,6 +7339,53 @@ body.dark-theme .skill-tag.primary {
    auto-fill holds the track width constant, so a tile looks the same whether
    there are two of them or eight, and adding one never restyles the others.
    ---------------------------------------------------------------------- */
+/* ---- Category filter ----------------------------------------------------
+   The tiles always carried a category eyebrow; this makes it a control. Same
+   pill vocabulary as the activity log's family chips, deliberately - they do
+   the same job (a filter that is also the breakdown) and a visitor who has
+   used one should recognise the other.
+   The row is `js-only`: with scripting off the grid shows everything, which
+   is the correct state for a launcher, so a dead control never ships.
+   ---------------------------------------------------------------------- */
+.js-enabled .app-filter.js-only {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xl);
+}
+
+.app-filter-chip:hover,
+.exp-toggle-all:hover {
+  color: var(--text);
+  border-color: var(--control-accent-border);
+}
+
+.app-filter-chip:focus-visible,
+.exp-toggle-all:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* The selected state is carried by background AND weight, not colour alone. */
+.app-filter-chip[aria-pressed='true'] {
+  color: var(--on-accent);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+}
+
+.app-filter-count {
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+/* Belt and braces with the `hidden` attribute apps-filter.js also sets: the
+   grid makes these flex containers, and a display declaration beats `hidden`'s
+   UA style, so the attribute alone would leave the tile laid out and tabbable. */
+.app-tile.is-filtered-out {
+  display: none;
+}
+
 .app-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--app-tile-min)), 1fr));
@@ -7507,6 +7815,16 @@ section {
 .js-enabled section.active {
   display: block;
   animation: section-enter var(--motion-page) var(--ease-enter) forwards;
+}
+
+/* Each section carries tabindex="-1" so the router can move focus into the
+   view it just rendered - without that a screen reader stayed wherever it
+   was and never learned the page had changed. The ring is suppressed because
+   this focus is always programmatic: -1 keeps the section out of the Tab
+   order, so no keyboard user can land here by their own navigation and be
+   left without an indicator. */
+section:focus {
+  outline: none;
 }
 
 /* ── Pre-boot routing ──
@@ -9036,25 +9354,10 @@ nav a:hover .nav-shortcut {
 }
 
 /* Tier 2. */
-.act-fam {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-  min-height: var(--min-touch-target);
-  padding: var(--space-sm) var(--space-md);
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  transition:
-    color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard);
-}
+/* Shape, size and transition come from the shared filter pill in the SECTION
+   TITLES & CARD PRIMITIVES region. What stays here is what is specific to the
+   activity log: the per-family colours, the disabled state and the hover
+   below. */
 
 /* Hover moves the border one step towards the text and stops there. It used
    to go to currentcolor - which is exactly what pressed did - so applying a

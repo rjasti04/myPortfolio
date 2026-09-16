@@ -61,6 +61,51 @@ export function handleFocusTrap(event, modal) {
   }
 }
 
+/* Elements this module marked inert for a given modal, so close un-marks
+   exactly what open marked - never something that was already inert, and
+   never something a second, nested modal still needs held down. */
+const modalInerted = new WeakMap();
+
+/**
+ * Make everything outside `modal` inert while it is open.
+ *
+ * The Tab trap alone was not enough: it holds the Tab ring, but a screen
+ * reader's browse cursor does not use Tab, so #main-content and the header
+ * stayed readable behind every dialog - content a sighted user cannot see.
+ * `aria-modal` is not a substitute; support for it is inconsistent and it
+ * does nothing for the Tab ring in the browsers that ignore it.
+ *
+ * Walks the ancestor chain and inerts each level's siblings rather than just
+ * body's children, so it is correct wherever the dialog sits in the tree.
+ * Live regions are left alone: a toast raised while a dialog is open still
+ * has to reach assistive tech.
+ */
+function setOutsideInert(modal, inert) {
+  if (typeof document === "undefined" || !document.body) return;
+
+  if (inert) {
+    const marked = [];
+    for (let node = modal; node && node !== document.body; node = node.parentElement) {
+      const parent = node.parentElement;
+      if (!parent) break;
+      for (const sibling of Array.from(parent.children)) {
+        if (sibling === node) continue;
+        if (sibling.hasAttribute("aria-live")) continue;
+        if (sibling.hasAttribute("inert")) continue;
+        sibling.setAttribute("inert", "");
+        marked.push(sibling);
+      }
+    }
+    modalInerted.set(modal, marked);
+    return;
+  }
+
+  const marked = modalInerted.get(modal);
+  if (!marked) return;
+  marked.forEach((el) => el.removeAttribute("inert"));
+  modalInerted.delete(modal);
+}
+
 export function openModal(modal, { initialFocus = null, onClose = null } = {}) {
   if (!modal) return;
   // Idempotent: the scroll lock is reference counted, so opening the same modal
@@ -80,6 +125,7 @@ export function openModal(modal, { initialFocus = null, onClose = null } = {}) {
   modal.classList.add("active");
   modal.setAttribute("aria-hidden", "false");
   lockBodyScroll();
+  setOutsideInert(modal, true);
 
   if (!modalSwipeHandlers.has(modal)) {
     const swipeDismiss = new ModalSwipeDismiss(modal, () => closeModal(modal));
@@ -110,6 +156,9 @@ export function closeModal(modal, { restoreFocus = true } = {}) {
   modal.classList.remove("active");
   modal.setAttribute("aria-hidden", "true");
   unlockBodyScroll();
+  // Before the focus restore below: the trigger has to be reachable again
+  // for .focus() to land on it.
+  setOutsideInert(modal, false);
 
   const handler = modalKeydown.get(modal);
   if (handler) {

@@ -352,6 +352,48 @@ window.addEventListener("keydown", (event) => {
   else pause();
 });
 
+/* Focus trap for the two overlays.
+
+   Both are role="dialog"/"alertdialog", and both already move focus in and
+   restore it on the way out - but nothing held Tab inside them. They sit in
+   .stage-body, a sibling of the HUD, so Tab walked straight out to Mute,
+   Exit, Restart and Pause sitting behind the dimmed panel: reachable, and
+   invisible. A modal role promises that cannot happen.
+
+   Kept local rather than importing modal.js's handleFocusTrap, which drags
+   swipe-handler.js into the arcade bundle for one function. */
+window.addEventListener("keydown", (event) => {
+  if (event.key !== "Tab") return;
+
+  const dialog = !overlay.hidden ? overlay : !pausePanel.hidden ? pausePanel : null;
+  if (!dialog) return;
+
+  const focusable = Array.from(
+    dialog.querySelectorAll("button, [href], input, select, textarea, [tabindex]"),
+  ).filter((el) => !el.hasAttribute("disabled") && el.tabIndex !== -1);
+  if (focusable.length === 0) {
+    event.preventDefault();
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+
+  // Also catches focus sitting outside the dialog entirely - a click on the
+  // dimmed backdrop leaves it on <body>, and without this Tab would resume
+  // from there into the HUD.
+  if (!dialog.contains(document.activeElement)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  } else if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
+
 /* A backgrounded tab throttles its animation frames to a crawl, so a run left
    for a minute used to be a run spent. Pausing on the way out means the game
    is where it was left; it deliberately does not resume by itself, because
