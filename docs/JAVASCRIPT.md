@@ -46,7 +46,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (427 lines)
+### `main.js` (463 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -77,9 +77,12 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   the plain gradient and never downloads the plexus chunk. Above that gate it is
   the plexus (`three-bg.js`) if `hardwareConcurrency` and `deviceMemory` clear a
   threshold, otherwise the cheaper hero particle field. Neither under
-  `prefers-reduced-motion`. Both preferences and the viewport gate are watched
-  mid-session: the fallback is torn down when reduced motion is enabled or the
-  viewport drops below the gate, and mounted when the viewport crosses back.
+  `prefers-reduced-motion`, and neither on `#home` on any device — that view is
+  deliberately flat and has the schematic backdrop as its ground. Both
+  preferences, the viewport gate and the active route are watched mid-session:
+  the fallback is torn down when reduced motion is enabled, when the viewport
+  drops below the gate or when the landing view becomes active, and the plexus
+  is imported on the first navigation away from `#home`.
 - Service-worker registration, an update check every 60 s, and the update
   banner whose button posts `SKIP_WAITING` and reloads on `controllerchange`.
   One banner node for the life of the page, with a dismiss control and its
@@ -700,7 +703,7 @@ laid out and tabbable.
 The chip row is `js-only` — with scripting off the grid shows everything, which
 is the right state for a launcher.
 
-### `experience-groups.js` (84 lines)
+### `experience-groups.js` (96 lines)
 
 `initExperienceGroups()` — the Experience section's seven bullet groups are
 `<details>` elements emitted by `scripts/generate_resume.py`, with the first
@@ -712,7 +715,10 @@ shipped `open`. The collapsing needs no JavaScript; this module adds only what
   do, while `aria-expanded` reports the state of the set it controls — two
   different facts, and conflating them is why this kind of control usually
   announces backwards. A `toggle` listener on every group keeps the label honest
-  when one is opened individually.
+  when one is opened individually. It is appended to `#resume .section-actions`
+  so it shares a line with the View/Download resume pair, pushed to the trailing
+  edge by `margin-inline-start: auto`; the old placement above the list survives
+  only as the fallback for a document with no controls row.
 - **Revealing a navigated-to group.** The Ctrl+K palette resolves a content hit
   to `#exp-...` and focuses it; with the group closed that landed on a collapsed
   row and appeared to do nothing. Both a `hashchange` and a capturing `focusin`
@@ -872,7 +878,7 @@ is pressed.
 
 ## Visual effects
 
-### `three-bg.js` (1,547 lines, lazy)
+### `three-bg.js` (1,558 lines, lazy)
 
 `export function initThreeBackground()` — the full-viewport animated plexus:
 drifting nodes joined by proximity lines, with glass facets between close
@@ -894,6 +900,11 @@ It mounts itself on import and manages its own listeners.
 `shouldEnableBackground()` gates on `desktopBackground` as well as reduced
 motion, so the module is inert on phones and tablets even if something imports
 it directly — `main.js` is the only caller and already skips the import there.
+It also returns `false` while `#home` is the active section, which is what
+keeps the landing view flat on every device; the route listeners in
+`initThreeBackground()` re-run the gate on each navigation, so the field is
+torn down on the way into `#home` and rebuilt on the way out. `styles.css`
+mirrors the rule with a `display: none` for the window before the gate runs.
 Its `mobile` entry in `PROFILE_CONFIG` is therefore unreachable today; it is
 kept as the tier the table would use again if the gate is ever widened.
 
@@ -901,7 +912,11 @@ kept as the tier the table would use again if the gate is ever widened.
 
 `initParticles(containerId)` → a teardown function. The **cheap fallback** for
 the same idea, scoped to the hero, and — like the plexus — desktop-only since
-the `desktopBackground` gate landed. Mutually exclusive with the plexus:
+the `desktopBackground` gate landed. Currently unmounted in practice: its only
+host in this document is `.home-hero`, and `main.js` refuses a host inside
+`#home` now that the landing view is flat, so the module stays wired up for a
+host outside `#home` rather than animating where nothing can see it. Mutually
+exclusive with the plexus:
 `MAX_PARTICLES = 90`, one particle per 18,000 px², 120 px link distance.
 Never animates off-screen or on a hidden tab, motion is time-based so it looks
 identical at 60 Hz and 120 Hz, a resize rescales the field in place rather than

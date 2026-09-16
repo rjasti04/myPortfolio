@@ -234,8 +234,17 @@ document.addEventListener("DOMContentLoaded", () => {
   // pointer and a >=1024px viewport, so a coarse-pointer device gets a plain
   // gradient and never pays for a second animated canvas. styles.css hides both
   // canvases under the same condition.
+  //
+  // Neither runs on #home either, on ANY device. The landing view has a ground
+  // of its own - the schematic backdrop in styles.css - and a plexus over it
+  // reads as a second drawing rather than as depth. That is a route rule, not
+  // a device rule, so it is checked here and again in three-bg.js rather than
+  // being left to the stylesheet: a hidden canvas still burns a rAF loop.
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let destroyHeroParticles = null;
+
+  const homeIsActive = () =>
+    document.getElementById('home')?.classList.contains('active') ?? false;
 
   const canAffordPlexus = () => {
     const cores = navigator.hardwareConcurrency || 4;
@@ -255,6 +264,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const heroSection = document.querySelector('.home-hero') || document.querySelector('.hero');
     if (!heroSection || destroyHeroParticles) return;
 
+    // ...and `.home-hero` is inside #home, which is flat on every device now.
+    // A field mounted there animates under a canvas the stylesheet hides, and
+    // on every other route the router keeps #home at `display: none`, so there
+    // is no view in which it would be seen. Refuse the host rather than pay
+    // for an rAF loop with no visible output. The module stays wired up for a
+    // host outside #home if one is ever added.
+    if (heroSection.closest('#home')) return;
+
     let particlesContainer = document.getElementById('particles-canvas');
     if (!particlesContainer) {
       particlesContainer = document.createElement('div');
@@ -273,6 +290,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const loadBackground = () => {
     if (reducedMotion.matches) return;
     if (!desktopBackground.matches) return;
+    if (homeIsActive()) return;
 
     if (canAffordPlexus()) {
       // three-bg.js mounts itself on import and manages its own reduced-motion
@@ -286,6 +304,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
     mountHeroParticles();
   };
+
+  // #home is where nearly every visit starts, so the mount has to be able to
+  // happen on the way OUT of it. loadBackground() is the only importer of
+  // three-bg.js, so without this a visitor who landed on the hash-less root
+  // would never see the plexus on any section. Leaving home mounts; entering it
+  // tears the fallback down. three-bg.js owns the same listeners for its own
+  // canvas and needs nothing from here beyond that first import.
+  const syncBackgroundForRoute = () => {
+    if (!homeIsActive()) {
+      loadBackground();
+      return;
+    }
+    destroyHeroParticles?.();
+    destroyHeroParticles = null;
+  };
+
+  window.addEventListener('section-changed', syncBackgroundForRoute);
+  window.addEventListener('hashchange', syncBackgroundForRoute, { passive: true });
 
   // Reduced motion can be toggled mid-session; tear the fallback down when it is.
   reducedMotion.addEventListener('change', () => {

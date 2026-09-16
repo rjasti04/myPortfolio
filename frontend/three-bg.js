@@ -324,20 +324,31 @@ function getProfileName() {
   return "desktop";
 }
 
+/** The landing view, by the same `#home.active` signal styles.css keys on. */
+function isHomeView() {
+  return document.getElementById("home")?.classList.contains("active") ?? false;
+}
+
 function shouldEnableBackground() {
   if (reducedMotionQuery.matches) return false;
   // Desktops and wider screens only. Phones and tablets get no plexus: the
   // canvas stays hidden and any running field is torn down when the viewport
   // crosses the threshold mid-session.
   if (!desktopBackgroundQuery.matches) return false;
-  // #home used to be excluded here, which made the one view every visitor
-  // lands on the only flat surface on the site. It runs everywhere now and is
-  // turned DOWN rather than off for the landing view - styles.css sets the
-  // home opacity beside the `body:has(#home.active)` rules in the SECTION
-  // ROUTER region, so the portrait still owns the ground there without the
-  // plexus having to be absent to allow it. Keeping it mounted across the
-  // route change is also what lets the router's opacity transition carry it
-  // instead of it popping in on the first navigation away from home.
+  // #home is flat, on every device. The landing view has a ground of its own -
+  // the schematic backdrop in styles.css draws a coordinate grid and a board's
+  // worth of orthogonal traces across the same viewport - and a plexus over it
+  // is a second mesh of straight lines and vertices, so the pair read as two
+  // drawings rather than as depth. Turning the plexus down to 15% was the
+  // previous attempt at reconciling them; it is off here instead.
+  //
+  // Returning false rather than leaving the canvas mounted and hidden in CSS
+  // is the point: the field is torn down, so the landing view costs no rAF
+  // loop on any device. The route listeners in initThreeBackground() re-run
+  // this on every navigation, so the plexus returns the moment another section
+  // becomes active. styles.css mirrors it with a `display: none` so the canvas
+  // cannot paint in the window before this runs.
+  if (isHomeView()) return false;
   if (window.innerWidth < 320 || window.innerHeight < 420) return false;
   return Boolean(
     window.requestAnimationFrame &&

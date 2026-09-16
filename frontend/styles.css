@@ -4549,9 +4549,23 @@ body.dark-theme .home-portrait picture {
 }
 
 /* Shape and states come from the shared pill rule in the APPS region; only the
-   placement is specific to this one. */
+   placement is specific to this one. The margin covers the fallback placement
+   in js/experience-groups.js, where the button lands on its own line above the
+   list because the document has no controls row. */
 .exp-toggle-all {
   margin-bottom: var(--space-sm);
+}
+
+/* In the controls row, which is where it normally lands. `auto` on the inline
+   start edge is what puts it opposite the resume pair: `.section-actions` is a
+   wrapping flex row with a `gap`, so the auto margin eats the free space of
+   the line and nothing else moves. It also survives the wrap - on a narrow
+   viewport the button drops to a line of its own and stays at the trailing
+   edge. The shared pill rule sets no vertical margin, so only the fallback's
+   `margin-bottom` has to be cleared. */
+.section-actions .exp-toggle-all {
+  margin-inline-start: auto;
+  margin-bottom: 0;
 }
 
 #resume .item-bullets {
@@ -7370,9 +7384,9 @@ body.dark-theme .skill-tag.primary {
    so source order handed the unhide the win and this rule did nothing on any
    view. It went unnoticed because the canvas is inert under reduced motion
    anyway - main.js never imports three-bg.js, so nothing ever sizes or paints
-   it - and because #home carried its own later `display: none`, which is gone
-   now that the landing view runs the plexus like every other view. The extra
-   element selector takes this to (0,3,1) and settles it on specificity. */
+   it - and because #home carries its own later `display: none`, which covers
+   the landing view but no other. The extra element selector takes this to
+   (0,3,1) and settles it on specificity. */
   .js-enabled body .webgl-canvas.js-only,
   .js-enabled body .noise-overlay.js-only {
     display: none !important;
@@ -8166,59 +8180,36 @@ a.app-tile:focus-visible .app-tile-cta i {
    `.js-enabled` lands on <html>, which is well before the idle callback that
    decides whether any background belongs here. Specificity matches the
    `.js-enabled ... .js-only` rule above and this comes later, so it wins. */
-/* ── The landing view gets the plexus too, quietly ──
-   This used to be `display: none !important` on both canvases whenever #home
-   was the active view, with no reason recorded. The effect was that the one
-   view a first-time visitor is guaranteed to see - the one the nav opens on,
-   the one every inbound link lands on - was the only flat surface on the site,
-   while every interior section got the animated plexus that is the best thing
-   the front end does. The landing view was being asked to carry the first
-   impression with the site's strongest visual asset switched off.
+/* ── The landing view is flat, on every device ──
+   Both animated layers - the full-viewport plexus (#webgl-canvas) and the hero
+   particle fallback (#particles-canvas) - are off whenever #home is the active
+   view. Every other section is unchanged.
 
-   Turned down rather than back on at full strength, because the reason to keep
-   #home quiet is real: this view is a portrait, a name and six controls on a
-   lot of open ground, and a plexus at interior-page weight competes with the
-   silhouette instead of sitting behind it. These REPLACE the per-theme
-   opacities set beside `.webgl-canvas` rather than compounding with them -
-   same property, higher specificity, so the cascade picks one value - which is
-   why the dark figure is stated absolutely and not as a fraction. Against that
-   baseline (1 light, 0.5 dark) the landing view shows 34% of what #about does
-   on light and 44% on dark; dark needs the larger share because it is already
-   painting at half strength.
+   This has been all three ways now, so the reasoning is worth keeping. It was
+   `display: none` with no reason recorded; then on at interior-page weight,
+   on the argument that the one view every visitor lands on should not be the
+   only flat surface on the site; then turned down to 0.15/0.1 when that read
+   badly. The reason it read badly is the reason it is off: #home has a ground
+   of its own. The schematic backdrop (see HOME HERO) draws a millimetric
+   coordinate grid and a board's worth of orthogonal traces across this exact
+   viewport, and a plexus is ALSO a mesh of straight lines and vertices. The
+   two do not stack into depth - they read as two drawings, one of them tilted,
+   with the triangulation cutting across the 90-and-45 routing that is the
+   whole point of the layer underneath. The landing view is not being left
+   bare; it is being left to the drawing it already has.
 
-   Not a `display` toggle any more, so the canvas keeps its size and its
-   animation frame across a route change and the router's own opacity
-   transition carries it. Nothing about the mount changes: `desktopBackground`
-   in js/config.js still gates BOTH canvases on `(min-width: 1024px) and
-   (pointer: fine)`, so a phone never pays for this - the media query below is
-   still the mirror of that gate.
-
-   ── Turned down again, because #home has a ground of its own now ──
-   0.34 and 0.22 were set when the landing view's alternative was bare page.
-   It is not: the schematic backdrop (HOME HERO) draws a coordinate grid and a
-   board's worth of orthogonal traces across the same viewport, and a plexus is
-   ALSO a mesh of straight lines and vertices. Two of them at comparable weight
-   did not read as depth - they read as two drawings, one of them tilted, and
-   the triangulation cut across the 90-and-45 routing that is the whole point
-   of the layer underneath it.
-
-   So the plexus stops being the view's visual asset and becomes its
-   atmosphere: enough drift to prove the page is live, not enough to argue with
-   the drawing. The reasoning above is unchanged and still load-bearing - the
-   landing view should not be switched off - which is why this is a smaller
-   number and not `display: none`. Against the interior-page baseline (1 light,
-   0.5 dark) #home now shows 15% of what #about does on light and 20% on
-   dark. */
+   `display`, not `opacity: 0`, and unconditional rather than inside the
+   desktop media query below: the requirement is that nothing animated appears
+   here on any device, and a transparent canvas still composites. The canvases
+   are torn down in script as well - `shouldEnableBackground()` in three-bg.js
+   and `loadBackground()` in js/main.js both check the active route - so this
+   rule is the guard for the window before those run, not the whole mechanism.
+   `!important` because the `.js-enabled <sel>.js-only { display: block }`
+   unhide in this region is an exact specificity tie that source order would
+   otherwise settle the wrong way. */
 .js-enabled body:has(#home.active) .webgl-canvas.js-only,
 .js-enabled body:has(#home.active) #particles-canvas {
-  opacity: 0.15;
-}
-
-/* `.js-enabled` is carried here only to outrank the light rule above, which is
-   otherwise an exact specificity tie that source order alone would settle. */
-.js-enabled body.dark-theme:has(#home.active) .webgl-canvas.js-only,
-.js-enabled body.dark-theme:has(#home.active) #particles-canvas {
-  opacity: 0.1;
+  display: none !important;
 }
 
 @media (width < 1024px), (pointer: coarse) {
