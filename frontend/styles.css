@@ -2862,7 +2862,30 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
      block below already capped at `min(72vw, 450px)`, so the two agree by
      arithmetic rather than by coincidence. The portrait still leads at this
      size; it leads by less. */
-  width: clamp(375px, 40.5vw, 450px);
+  /* ── The height bound is a backstop, not a size ──
+     `clamp()` alone knows only about width, and its 375px FLOOR is what made
+     that a problem: on a short wide window the floor held the portrait at a
+     size the viewport had no room for, and the landing view scrolled by 20px
+     at 1280x568, 1440x568 and 1920x568 alike - the same "this view never
+     scrolls" promise the stacked layout breaks in the HOME HERO ramp below,
+     from the opposite direction.
+
+     Beside the text rather than above it, the portrait IS the tall thing here,
+     so the arithmetic is simpler than the stacked ramp's. The section gets the
+     viewport less the header's 72px flow box, less its own block padding of
+     `16px + g` on top and `g` below, with `g` the `--home-shell-gap` 3vh
+     clamp:
+
+       height = 100dvh - 72px - (16px + g) - g = 100dvh - 88px - 2g
+
+     While g is unsaturated that is `0.94 x 100dvh - 88px`, and x0.9656 for the
+     cutout's aspect gives 90.7dvh. The constant is rounded DOWN to 90 so the
+     bound still holds below 533px of height, where g bottoms out at 16px and
+     the linear form stops being exact.
+
+     It bites only under ~617px of viewport height; above that the 450px cap
+     wins and nothing here changes. dvh for the reason given in the ramp. */
+  width: min(clamp(375px, 40.5vw, 450px), calc(90dvh - 85px));
 }
 
 /* ── No wash behind the silhouette ──
@@ -3337,6 +3360,28 @@ body.dark-theme .home-portrait picture {
   transform: translateY(-2px);
 }
 
+/* ── The outline pill stays the secondary while hovered ──
+   The rule above moved BOTH pills to the accent face, which put a second fill
+   on a view whose whole argument - see the note on `.home-btn--solid` - is
+   that it carries exactly one. It did worse than that: `--accent-hover` is
+   darker than the `--accent-fill` the primary wears at rest, so a pointer
+   resting on Experience made the secondary outrank the About pill beside it,
+   and the two were indistinguishable from each other.
+
+   A soft wash instead of a fill, which is the same answer, for the same
+   reason, as `.home-social--action:hover` further down: the control
+   acknowledges the pointer without claiming the rank. `--accent-text` on
+   `--accent-soft` measures 5.14:1 light and 8.57:1 dark, so this keeps the
+   AA the note above the fill rule is protecting. The lift and the border
+   still come from `.home-btn:hover`; only the face and the ink change here,
+   and `box-shadow` is dropped because a glow is the filled pill's tell. */
+.home-btn--outline:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-hover);
+  color: var(--accent-text);
+  box-shadow: none;
+}
+
 .home-btn:active {
   transform: translateY(0);
 }
@@ -3416,9 +3461,21 @@ body.dark-theme .home-portrait picture {
    Same 44px disc as its siblings so the row keeps one rhythm, but muted rather
    than accent-outlined: everything else in the row goes somewhere, and this
    one only changes how the page looks. Reading as slightly quieter than the
-   links is the point, not an oversight. */
+   links is the point, not an oversight.
+
+   ── Why the border is --control-border and not --border ──
+   Quieter, not switched off. `--border` is `hsla(220, 39%, 11%, 0.13)`, which
+   composites to 1.31:1 against --bg (1.44:1 dark) - a hairline meant for the
+   edge between two surfaces, not for the outline of a control. Sitting in a
+   row of four identically-shaped discs outlined at 5.52:1, the one drawn at
+   1.31:1 stopped reading as "different" and started reading as "disabled".
+   --control-border is the token this stylesheet already uses for a control's
+   own boundary and measures 4.55:1 light / 4.00:1 dark, so it clears SC
+   1.4.11's 3:1 on the boundary itself rather than leaning on the glyph to
+   carry the control, and it is still visibly a step down from the accent ring
+   beside it. */
 .home-social--action {
-  border-color: var(--border);
+  border-color: var(--control-border);
   color: var(--muted);
   background: transparent;
   cursor: pointer;
@@ -3450,6 +3507,53 @@ body.dark-theme .home-portrait picture {
   background: var(--border);
 }
 
+/* ── One axis, on the two-column layout only ──
+   Everything in this column was centred, which gave the block two ragged edges
+   and nothing to hang off beside a portrait that is weighted hard to the left.
+   The greeting floated mid-column above a name that filled it, the role sat in
+   ~40px of its own indent, and the button row in ~17px of another - five
+   elements, five different left edges, none of them shared with the picture.
+
+   Left-aligning gives the greeting, the name, the role, the disciplines line,
+   the pills and the icon row one edge, and gives the portrait something to
+   face. It is the two-column form's rule and only its rule: the stacked layout
+   below 900px puts the portrait ABOVE the text and centres it, so a
+   left-aligned column there would hang off a centred picture, which is the
+   same failure the other way round. Hence the min-width query rather than an
+   override inside the <=900px block.
+
+   ── The name's own padding has to come back out ──
+   `.home-name` carries `padding: 0.22em 0.1em` to give the per-letter 3D
+   transform in js/hero-title.js somewhere to land without clipping. Centred,
+   that padding was symmetrical and invisible. Against a shared left edge it is
+   a 6.5px indent at the desktop type size, which is exactly the kind of
+   almost-aligned that reads as a mistake - so the margin cancels it and the
+   glyphs line up with the rest. What is left is the "R"'s optical side
+   bearing, which is type doing its job. */
+@media (width >=901px) {
+  .home-intro {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  /* Both classes for the reason given in the <=380px block: the shared
+     `.hero-kicker` centres this row from the RESPONSIVE region far below, so a
+     bare `.home-kicker` loses on source order at equal specificity. */
+  .hero-kicker.home-kicker {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .home-actions,
+  .home-socials {
+    justify-content: flex-start;
+  }
+
+  .home-name {
+    margin-inline-start: -0.1em;
+  }
+}
+
 /* ── Stacked layout ──
    The portrait leads on a phone, as in the two-column form; below this width
    the text column can no longer hold "Principal Data Engineer" on one line
@@ -3462,39 +3566,83 @@ body.dark-theme .home-portrait picture {
     min-height: 0;
   }
 
+  /* The portrait's cap for this layout is the ramp in the next block, not a
+     rule here. It used to carry `width: min(72vw, 450px)`, which the two
+     height steps below then stepped DOWN from; the ramp folds all three into
+     one bound and has to stay the last word, so putting a cap back here would
+     be either dead weight or a bug. */
+}
+
+/* ── The height bound, and why it is a ramp rather than two steps ──
+   This replaces `(width <=900px) and (height <=720px)` -> 300px and
+   `(width <=360px) and (height <=600px)` -> 260px. Those two stepped the
+   portrait by HEIGHT, and a step on that axis points the wrong way: the cap
+   they stepped DOWN to was the small one, so crossing 720px upwards handed the
+   portrait straight back to `min(72vw, 450px)`. One pixel of extra viewport
+   bought 136px of extra portrait, and the landing view - which is built on the
+   promise that it never scrolls - scrolled:
+
+     600x720    9px over    portrait 300
+     600x721  145px over    portrait 432   <- the step
+     768x800  114px over    900x721  196px over (worst)
+     768x900   29px over    900x760  163px over
+     820x900   36px over    880x700   57px over
+
+   Every viewport from 600x721 to 900x900 overflowed, worst of all at 900x760 -
+   a window snapped to half a 1080p screen - where both pills and the whole
+   icon row fell below the fold with no scroll cue to say so.
+
+   ── Where the numbers come from ──
+   Measured, not fitted by eye: for a grid of ten widths x eight heights, the
+   height the stack needs for everything that is NOT the portrait (the intro
+   column plus the hero gap) came out at 265px at 320x568 rising to 364px at
+   900x1024. It grows on both axes - with width because the type ramp does, and
+   with height because `--home-shell-gap` and the hero `gap` are both `3vh`
+   clamps. Regressing the portrait height the stack can afford against viewport
+   height gives a slope of 0.85 and a width-dependent intercept; multiplied by
+   the cutout's own 1:1.0356 aspect to get back to a WIDTH, the slope is 82dvh.
+
+   ── dvh, not vh ──
+   The same reason #ai pins its shell to 100dvh - see "The panel is the page"
+   in the AI PAGE region. On a phone with the address bar showing, 100vh is the
+   bar-HIDDEN height, so a vh ramp would size the portrait for room the
+   viewport does not currently have and hand the overflow back on exactly the
+   devices this is fixing. The constants below were measured where the two
+   agree, so they carry over unchanged; dvh only makes them right where they
+   differ. Nothing here reflows on scroll, because this view does not scroll.
+
+   So the height bound is `calc(82dvh - Cpx)`, and C is the only thing that
+   changes per tier. Each tier takes the value measured at its WIDEST member,
+   which is its worst case, so every viewport inside the tier has slack:
+
+     <=430px   285      <=600px   300      <=900px   331
+
+   `min()` then takes whichever of the three bounds is tightest - 72vw while
+   width is scarce, the ramp while height is, 450px once neither is (450 is the
+   source-resolution ceiling argued at `.home-portrait`, and it still wins on
+   any tall viewport, so nothing shrank on the phones the old steps protected).
+
+   The 3vh clamps saturate somewhere above 1200px of height, where the true
+   slope becomes 1.0 and this ramp turns conservative - which costs nothing,
+   because the 450px cap has taken over long before that.
+
+   Re-measure C if the intro column gains or loses a row. The <=380px block
+   below trims the disciplines line for exactly that reason. */
+@media (width <=900px) {
   .home-portrait {
-    width: min(72vw, 450px);
+    width: min(72vw, calc(82dvh - 331px), 450px);
   }
 }
 
-/* ── Short viewports keep the old cap ──
-   The stacked layout spends height on the portrait that the two-column one
-   spends on width, so the desktop step cannot follow it down here: at the
-   naive +50% the landing view scrolled by 56-83px on every phone under 380px.
-   A tall phone or a portrait tablet has the room for a smaller bump; a short
-   one has none, so it keeps exactly the cap it had. 720px is where the
-   measurement flips - 375x812 clears a 270px portrait, 375x667 does not. */
-@media (width <=900px) and (height <=720px) {
+@media (width <=600px) {
   .home-portrait {
-    width: min(62vw, 300px);
+    width: min(72vw, calc(82dvh - 300px), 450px);
   }
 }
 
-/* ── One step further for the narrowest short phones ──
-   Same reasoning as the block above, one size down. The disciplines line added
-   a row to a stack that had ~0px of slack at 320x568, and trimming that line's
-   own ramp (see the <=380px block) recovered all but 2px of it. The portrait
-   is where the remaining height comes from: it is the only element here whose
-   height scales with WIDTH, so a viewport this narrow is already spending less
-   on it than the 300px cap allows, and 56vw costs the subject ~20px it does
-   not need at this size.
-
-   Deliberately narrower than the block above on both axes. 360x640 and
-   375x667 both clear the stack at 62vw with room left, and stepping them down
-   would shrink the portrait on phones that never needed it. */
-@media (width <=360px) and (height <=600px) {
+@media (width <=430px) {
   .home-portrait {
-    width: min(56vw, 260px);
+    width: min(72vw, calc(82dvh - 285px), 450px);
   }
 }
 
@@ -3545,9 +3693,35 @@ body.dark-theme .home-portrait picture {
     gap: 4px;
   }
 
-  /* The labelled AI control drops back to a circle here. At 320px the row is
-     44px of column short of holding it, and `title`/`aria-label` still say
-     what the glyph is. */
+}
+
+/* ── The labelled AI control drops back to a circle ──
+   Its own breakpoint, 31px above the one for the pills. This used to sit in
+   the <=380px block on the assumption that the label only ran out of room
+   where the buttons did, and the two turn out to be nowhere near each other:
+   the pills are the column's own width, the icon row is seven fixed boxes plus
+   six gaps, and the row hits the edge of the screen long before the pills hit
+   the edge of the column.
+
+   Measured across the band, as the gutter left and right of `.home-socials`:
+
+     380px   49px   labelled control already collapsed
+     381px    2px   <- label reappears, row goes 282px -> 378px in one pixel
+     390px    6px   iPhone 12-16, the commonest phone width there is
+     393px    8px   Pixel
+     411px   16px
+     412px   17px   first width the labelled row is comfortable at
+
+   At 390px the 378px row is also wider than #home's own 362px content box, so
+   it broke the section's 14px inset by 8px a side. It never showed up as a
+   document scrollbar - the row is centred and still inside the viewport, just
+   outside its parent - which is why this held for so long.
+
+   411 is the last width where the collapsed row beats the labelled one, so the
+   gutter goes monotonic across the whole band instead of falling off a cliff
+   at 381. `title`/`aria-label` still say what the glyph is, exactly as they do
+   at 320px. */
+@media (width <=411px) {
   .home-social--labeled {
     width: 44px;
     padding: 0;
@@ -6894,8 +7068,18 @@ body.dark-theme .skill-tag.primary {
     scroll-behavior: auto !important;
   }
 
-  .js-enabled .webgl-canvas.js-only,
-  .js-enabled .noise-overlay.js-only {
+  /* ── `body` is here to win, not to select ──
+   Both of these are unhidden by `.js-enabled <sel>.js-only { display: block
+   !important }` in the SECTION ROUTER region, which is an exact specificity
+   tie with the bare form of this rule AND several thousand lines further down,
+   so source order handed the unhide the win and this rule did nothing on any
+   view. It went unnoticed because the canvas is inert under reduced motion
+   anyway - main.js never imports three-bg.js, so nothing ever sizes or paints
+   it - and because #home carried its own later `display: none`, which is gone
+   now that the landing view runs the plexus like every other view. The extra
+   element selector takes this to (0,3,1) and settles it on specificity. */
+  .js-enabled body .webgl-canvas.js-only,
+  .js-enabled body .noise-overlay.js-only {
     display: none !important;
   }
 
@@ -7687,11 +7871,42 @@ a.app-tile:focus-visible .app-tile-cta i {
    `.js-enabled` lands on <html>, which is well before the idle callback that
    decides whether any background belongs here. Specificity matches the
    `.js-enabled ... .js-only` rule above and this comes later, so it wins. */
-/* Animated background: hidden on the HOME landing view in desktops, and
-   hidden on all pages in vertical / mobile viewports. */
+/* ── The landing view gets the plexus too, quietly ──
+   This used to be `display: none !important` on both canvases whenever #home
+   was the active view, with no reason recorded. The effect was that the one
+   view a first-time visitor is guaranteed to see - the one the nav opens on,
+   the one every inbound link lands on - was the only flat surface on the site,
+   while every interior section got the animated plexus that is the best thing
+   the front end does. The landing view was being asked to carry the first
+   impression with the site's strongest visual asset switched off.
+
+   Turned down rather than back on at full strength, because the reason to keep
+   #home quiet is real: this view is a portrait, a name and six controls on a
+   lot of open ground, and a plexus at interior-page weight competes with the
+   silhouette instead of sitting behind it. These REPLACE the per-theme
+   opacities set beside `.webgl-canvas` rather than compounding with them -
+   same property, higher specificity, so the cascade picks one value - which is
+   why the dark figure is stated absolutely and not as a fraction. Against that
+   baseline (1 light, 0.5 dark) the landing view shows 34% of what #about does
+   on light and 44% on dark; dark needs the larger share because it is already
+   painting at half strength.
+
+   Not a `display` toggle any more, so the canvas keeps its size and its
+   animation frame across a route change and the router's own opacity
+   transition carries it. Nothing about the mount changes: `desktopBackground`
+   in js/config.js still gates BOTH canvases on `(min-width: 1024px) and
+   (pointer: fine)`, so a phone never pays for this - the media query below is
+   still the mirror of that gate. */
 .js-enabled body:has(#home.active) .webgl-canvas.js-only,
 .js-enabled body:has(#home.active) #particles-canvas {
-  display: none !important;
+  opacity: 0.34;
+}
+
+/* `.js-enabled` is carried here only to outrank the light rule above, which is
+   otherwise an exact specificity tie that source order alone would settle. */
+.js-enabled body.dark-theme:has(#home.active) .webgl-canvas.js-only,
+.js-enabled body.dark-theme:has(#home.active) #particles-canvas {
+  opacity: 0.22;
 }
 
 @media (width < 1024px), (pointer: coarse) {
