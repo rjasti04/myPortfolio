@@ -283,8 +283,8 @@
   --glass-saturate: 160%;
 
   /* ---- Glass surfaces (built on the blur + elevation scales) ------------- */
-  --glass-light-bg: #ffffff;
-  --glass-light-border: var(--border);
+  --glass-light-bg: rgba(255, 255, 255, 0.22);
+  --glass-light-border: rgba(255, 255, 255, 0.35);
   --glass-light-blur: blur(var(--blur-md)) saturate(var(--glass-saturate));
   --glass-light-shadow: var(--elev-2);
   /* 0.7 let the light page bleed through enough to drop terminal text to
@@ -536,8 +536,8 @@ body.dark-theme {
   --fam-sys-soft: rgba(148, 163, 184, 0.18);
   --code-action: #93c5fd;
   --code-action-hover: #fff;
-  --glass-light-bg: #1e293b;
-  --glass-light-border: var(--border);
+  --glass-light-bg: rgba(30, 41, 59, 0.45);
+  --glass-light-border: rgba(255, 255, 255, 0.14);
   /* The values the hardcoded rules already painted - see the :root note. */
   --sheen-edge: rgba(255, 255, 255, 0.12);
   --sheen-edge-strong: rgba(255, 255, 255, 0.14);
@@ -638,10 +638,10 @@ body {
 
 /* Base Glassmorphism Utility Classes */
 .glass-light {
-  background: var(--glass-light-bg, #ffffff);
+  background: var(--glass-light-bg, rgba(255, 255, 255, 0.22));
   backdrop-filter: var(--glass-light-blur, blur(var(--blur-md)) saturate(160%));
   -webkit-backdrop-filter: var(--glass-light-blur, blur(var(--blur-md)) saturate(160%));
-  border: 1px solid var(--glass-light-border, var(--border));
+  border: 1px solid var(--glass-light-border, rgba(255, 255, 255, 0.35));
   border-radius: var(--radius, 20px);
   box-shadow: var(--glass-light-shadow, 0 8px 32px 0 rgba(0, 0, 0, 0.08));
 }
@@ -5319,13 +5319,13 @@ body.dark-theme .home-portrait picture {
   transform: translateY(-4px);
   border-color: var(--accent-mild);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 0 24px var(--accent-soft);
-  background: #ffffff;
+  background: var(--sheen-wash);
 }
 
 body.dark-theme .stat-card:hover {
   border-color: rgba(255, 255, 255, 0.28);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 24px var(--accent-soft);
-  background: #243248;
+  background: rgba(30, 41, 59, 0.65);
 }
 
 .stat-card:hover::before {
@@ -5660,12 +5660,12 @@ header.scrolled .logo-text:hover {
   transform: translateY(-4px);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.10), 0 0 20px var(--accent-soft);
   border-color: var(--accent-fill);
-  background: #ffffff;
+  background: var(--sheen-wash);
 }
 
 body.dark-theme .skill-group:hover {
   border-color: rgba(255, 255, 255, 0.28);
-  background: #243248;
+  background: rgba(30, 41, 59, 0.65);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35), 0 0 20px var(--accent-soft);
 }
 
