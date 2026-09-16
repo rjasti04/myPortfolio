@@ -118,11 +118,88 @@ function clearBootTarget() {
   document.querySelector("section.is-boot-target")?.classList.remove("is-boot-target");
 }
 
+/**
+ * Per-view page metadata.
+ *
+ * The router renders one section at a time - every other section is
+ * `display: none` - so each view is a page in every sense except the three
+ * that were never updated: the title, the canonical URL and og:url. All eight
+ * views shared "Rajeev Jasti | Principal Data Engineer" and the bare origin,
+ * so the history dropdown read as eight identical entries, a bookmark of
+ * #resume saved the generic title, and a shared #apps link previewed as the
+ * home page. `label` is what the announcer says and is the section's own
+ * visible name, not new copy.
+ */
+const ROUTE_META = {
+  home: { title: "Rajeev Jasti | Principal Data Engineer", label: "Home" },
+  about: { title: "About | Rajeev Jasti", label: "About" },
+  resume: { title: "Experience | Rajeev Jasti", label: "Experience" },
+  hobbies: { title: "Interests & Hobbies | Rajeev Jasti", label: "Interests & Hobbies" },
+  apps: { title: "Apps | Rajeev Jasti", label: "Apps" },
+  activity: { title: "Session Activity | Rajeev Jasti", label: "Session Activity" },
+  contact: { title: "Contact | Rajeev Jasti", label: "Contact" },
+  ai: { title: "Ask my AI | Rajeev Jasti", label: "Ask my AI" },
+};
+
+const SITE_ORIGIN = "https://rjasti.com/";
+
+/** True until the first user-driven navigation. */
+let routeSyncedOnce = false;
+
+/**
+ * Point the title, the canonical link and og:url at the view now showing.
+ *
+ * `home` keeps the bare origin: the landing view IS the site root, and giving
+ * it a "#home" canonical would split it from the URL every inbound link uses.
+ */
+function applyRouteMeta(target) {
+  const meta = ROUTE_META[target];
+  if (!meta) return;
+
+  document.title = meta.title;
+
+  const url = target === "home" ? SITE_ORIGIN : `${SITE_ORIGIN}#${target}`;
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (canonical) canonical.setAttribute("href", url);
+  const ogUrl = document.querySelector('meta[property="og:url"]');
+  if (ogUrl) ogUrl.setAttribute("content", url);
+}
+
+/**
+ * Move focus into the new view and name it for a screen reader.
+ *
+ * Neither happened before: the router toggled classes and fired a
+ * `section-changed` event nothing listened to, so activating a nav link
+ * produced no announcement, no focus move and - with the title frozen - no
+ * signal at all beyond `aria-current` on the link itself.
+ *
+ * Skipped on the first sync. That one runs during boot to render whatever the
+ * hash asked for, and stealing focus there would drop the visitor past the
+ * skip link before they had a chance to use it.
+ */
+function announceRoute(target) {
+  if (!routeSyncedOnce) {
+    routeSyncedOnce = true;
+    return;
+  }
+
+  const section = sections?.find((candidate) => candidate.id === target);
+  if (section && typeof section.focus === "function") {
+    section.focus({ preventScroll: true });
+  }
+
+  const announcer = document.getElementById("route-announcer");
+  const label = ROUTE_META[target]?.label;
+  if (announcer && label) announcer.textContent = label;
+}
+
 export function setActiveSection(target) {
   if (!target || !window.AppLogic?.setActiveSection) return;
   clearBootTarget();
   window.AppLogic.setActiveSection(target, sections, navLinks);
   updateMobileNavActive(target);
+  applyRouteMeta(target);
+  announceRoute(target);
   window.dispatchEvent(new CustomEvent("section-changed", { detail: { target } }));
 }
 

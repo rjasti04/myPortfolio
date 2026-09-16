@@ -349,11 +349,29 @@ export function initWorkbench() {
 
   // --- Clipboard ------------------------------------------------------------
 
+  /**
+   * Copy `text` and acknowledge it on `button`.
+   *
+   * The label swap matters as much as the class: `.copied` only recolours the
+   * border and text, so colour was the sole signal (SC 1.4.1) and a screen
+   * reader got no confirmation at all. Swapping the label announces the change
+   * and is what json, crypto, cron and regex already do.
+   *
+   * innerHTML is saved and restored so the button's icon survives the swap -
+   * the same trap json-ui.js's flash() used to fall into. The saved value is
+   * the button's own markup, never user input.
+   */
   async function copyText(text, button) {
     try {
       await navigator.clipboard.writeText(text);
+      const originalMarkup = button.dataset.originalMarkup ?? button.innerHTML;
+      button.dataset.originalMarkup = originalMarkup;
       button.classList.add("copied");
-      setTimeout(() => button.classList.remove("copied"), 1200);
+      button.textContent = "Copied!";
+      setTimeout(() => {
+        button.classList.remove("copied");
+        button.innerHTML = button.dataset.originalMarkup ?? originalMarkup;
+      }, 1200);
     } catch {
       // Clipboard denied or unavailable; the download button is the fallback.
     }

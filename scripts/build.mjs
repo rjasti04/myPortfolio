@@ -127,6 +127,48 @@ function hashedPath(rel, contents) {
   return `${withoutExtension}-${hash8(contents)}${extension}`;
 }
 
+/**
+ * Drop HTML comments from a page that ships, leaving `frontend/` untouched.
+ *
+ * index.html carries ~20 KB of architectural commentary - why the portrait is
+ * a flip card, why the app grid uses auto-fill, why the router resolves a
+ * fragment the way it does. That is deliberate: the repo is itself a
+ * portfolio piece and those notes are part of it. But index.html is also the
+ * render-blocking document, and a visitor downloads and parses every byte of
+ * prose written for a reader of the source. Stripping here keeps both: the
+ * commentary stays in the source of truth, `dist/` ships without it.
+ *
+ * Everything inside <script>, <style>, <pre> and <textarea> is passed through
+ * byte for byte. That is rule 2 at the top of this file and it is load
+ * bearing: index.html pins three inline scripts by sha256 in its CSP, so
+ * touching one stops it running. `scripts/check_csp_hashes.py` runs against
+ * dist/ and is what proves this held.
+ *
+ * Conditional comments (`<!--[if ...]>`) are kept - they are markup, not
+ * commentary - as is anything starting `<!--!`, the usual "preserve me"
+ * convention for licence headers.
+ */
+function stripHtmlComments(text) {
+  const PROTECTED = /<(script|style|pre|textarea)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+  const COMMENT = /<!--(?!\[if|!)[\s\S]*?-->/g;
+
+  // Comment removal leaves behind the blank lines the comment sat between, so
+  // each cleaned slice is collapsed too - but ONLY the cleaned slices. Running
+  // that over the whole result would reach inside the protected blocks and
+  // reflow the inline scripts, which is exactly what their sha256 pins forbid.
+  const clean = (slice) =>
+    slice.replace(COMMENT, "").replace(/\n[ \t]*(?:\n[ \t]*)+/g, "\n");
+
+  let result = "";
+  let cursor = 0;
+  for (const match of text.matchAll(PROTECTED)) {
+    result += clean(text.slice(cursor, match.index));
+    result += match[0];
+    cursor = match.index + match[0].length;
+  }
+  return result + clean(text.slice(cursor));
+}
+
 function rewriteReferences(text, rewrites) {
   let out = text;
   for (const [from, to] of rewrites) {
@@ -381,6 +423,7 @@ async function main() {
       );
       if (text === before) throw new Error("index.html: no asset references were rewritten");
     }
+    if (rel.endsWith(".html")) text = stripHtmlComments(text);
     await writeFile(join(OUT, rel), text);
   }
 

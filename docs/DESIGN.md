@@ -156,8 +156,27 @@ on `body` permanently.
 
 ## Accessibility obligations
 
-- Every `-text` variant clears **WCAG AA for normal text** on `--bg`.
-- `--min-touch-target` is 44px, and 48px under 640px.
+- Every `-text` variant clears **WCAG AA for normal text** on `--bg`. So does
+  every state built from one. `--accent-hover` is a *background* token — 7.98:1
+  under `--on-accent` ink, but 2.27:1 as a foreground on the light `--bg`, which
+  is how `.link-action:hover` once dropped the resume Download link below AA on
+  hover. A hover that needs more emphasis than `--accent-text` gets a non-colour
+  affordance (that rule now underlines), not a lighter fill used as ink.
+- `--min-touch-target` is 44px, and 48px under 640px. Controls are sized from
+  the token under `@media (pointer: coarse)` rather than at a width breakpoint,
+  so a touch laptop and a tablet in landscape are covered too.
+- Text controls carry a **16px floor under `(pointer: coarse)`**. Below it,
+  mobile Safari zooms the viewport on focus and never zooms back out. The rule
+  is one blanket selector per stylesheet; dense monospace workbenches keep their
+  compact size on a fine pointer.
+- **Gradient text needs a `forced-colors` escape.** `background-clip: text` with
+  `-webkit-text-fill-color: transparent` renders *invisible* in Windows High
+  Contrast Mode: forced colors overrides `color` but not
+  `-webkit-text-fill-color`, which wins for text. Any new gradient heading joins
+  the `@media (forced-colors: active)` block in the ACCESSIBILITY region.
+- `prefers-contrast` queries list **`more` first**, with `high` kept only as the
+  legacy Safari alias. `high` alone never matches in Chrome or Firefox, which is
+  how two high-contrast blocks sat dead in the stylesheet.
 - The blanket `@media (prefers-reduced-motion: reduce)` rule in the
   ACCESSIBILITY region caps every animation and transition, and **overrides
   everything above**. Ten JS modules gate on the same query through `config.js`.

@@ -293,6 +293,29 @@ export async function initAuthUI() {
             const el = document.getElementById(id);
             if (el) { el.textContent = ''; el.style.display = 'none'; }
         });
+
+        // Move focus into the panel that just appeared.
+        //
+        // `.auth-tab-content` is display:none when inactive, so the switch
+        // hides whatever had focus - the "Forgot password?" link, the "Back to
+        // login" link, a Next button - and the browser drops focus to <body>.
+        // Inside a dialog that traps Tab, that left a keyboard user at the top
+        // of the ring with nothing announced.
+        //
+        // Guarded on `active` so this only covers transitions WITHIN an open
+        // dialog: on the way in, openAuthModal calls switchTab before
+        // openModal, and openModal's own initialFocus does this job.
+        if (modal.classList.contains('active')) {
+            const panel = document.getElementById(`auth-tab-${tabId}`);
+            let target = firstFieldOf(tabId);
+            if (!target && panel) {
+                // Panels with no input at all - 2FA manage, active sessions.
+                // The heading names the view, so it is the useful landing spot.
+                target = panel.querySelector('h3') || panel;
+                target.setAttribute('tabindex', '-1');
+            }
+            if (target && typeof target.focus === 'function') target.focus();
+        }
     }
 
     tabs.forEach(tab => {

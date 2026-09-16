@@ -461,3 +461,79 @@ user-impact-per-unit-risk first:
    loads are a recorded exception, their bracket layouts are explicitly out of scope, and
    a check of their interactive controls found no icon-only button lacking an accessible
    name.
+
+---
+
+## 8. What actually shipped, and where it differs from the plan above
+
+Implemented on `claude/web-uiux-review-plan-7xsm7t`. Two findings changed under
+implementation; both are corrections to §4, not scope cuts.
+
+### 5a is withdrawn — the second employer was already dead code
+
+§4 Phase 5a claimed roughly 24 live bullets across four groups were missing
+`id` anchors and absent from `search-index.js`, making them unreachable from
+Ctrl+K. **That was wrong.** The `grep` behind it matched inside HTML comments.
+With comments stripped, `index.html` at the previous commit had exactly **seven**
+live `item-bullets-group` headings, all carrying anchors, all present in the
+index — the second employer's entire block sat inside the commented-out region
+and had never rendered. `search-index.js` was complete, and regenerating it
+after the change produced a byte-identical file.
+
+So there was no discovery gap to close. The dead block was removed under 5c
+instead, and `npm run check:resume` confirms the generated copies still match
+`content/resume.json`.
+
+**Consequence worth naming:** that commented-out prose is the only copy of a
+second employer's history in the working tree. It is deleted, not archived —
+recoverable from git at `621cb42:frontend/index.html`, and nowhere else.
+
+### 2a shipped without a new token
+
+§4 Phase 2a proposed `--accent-text-hover` with measured light and dark values.
+Implementing it surfaced a defect in that proposal: the token would be a
+hardcoded citron literal, and `js/theme-customizer.js` writes 17 palette tokens
+onto `body.style` without knowing about it — so under a custom palette every
+other accent would recolour and the hover would stay citron.
+
+What shipped instead: `.link-action:hover` drops its `color` change entirely and
+keeps the underline it already had. Hover holds `--accent-text` (5.52:1 light,
+13.08:1 dark), tracks the customiser for free, adds no token, and makes the
+state change non-chromatic, which SC 1.4.1 prefers anyway.
+
+### Also found while implementing
+
+- **`scripts/generate_resume.py` scanned for `<h2 class="section-title">`.**
+  Phase 1a's promotion to `<h1>` silently broke `npm run check:resume`. The
+  pattern is updated and also skips a leading comment, since two sections now
+  explain in one why their title is visually hidden.
+- **Font Awesome is subset and committed.** `fa-earth-americas` and
+  `fa-circle-half-stroke` — the natural picks for the header link and the new
+  "system" theme state — are not in `frontend/fonts.css` and would have rendered
+  as blank boxes, with nothing failing in CI. Both were swapped for in-subset
+  glyphs (`fa-futbol`/`fa-trophy`, `fa-display`), and
+  `frontend/tests/copy-feedback.test.js` now fails the build on any glyph
+  outside the subset.
+- **The comment stripper's first draft reflowed the inline scripts.** Collapsing
+  blank lines across the whole document reached inside `<script>` and broke two
+  of the three pinned CSP hashes. `check_csp_hashes.py` caught it; the collapse
+  now runs per non-protected slice.
+- **`#ai` could not use its visible heading as the view title.** "Ask me
+  anything" lives in `.ai-empty-view`, which is `display: none` once a
+  conversation has a turn, so it carries a visually hidden `<h1>` like `#about`.
+
+### Not implemented
+
+Phase 6b–6d (section ledes, an Apps category filter, progressive disclosure on
+the 62-bullet Experience section) are untouched. They are enhancements rather
+than defects, two of the three need copy written in the owner's own voice, and
+all three change the visual design that §2 of the intent explicitly ring-fenced.
+
+### Gates
+
+`npm run lint`, `npm test` (500 passing, 12 new), `npm run build`,
+`check_csp_hashes.py`, `check_docs.py` and `check:resume` all pass. The backend
+was not touched and `pytest` is not installed in this session, so it was not
+run. The CSS budget is at **99% (283.5 of 285 KiB)** — it was already at 99%
+before this work; these changes added 1.7 KiB and there is ~1.5 KiB of headroom
+left for whoever goes next.

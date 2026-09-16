@@ -239,9 +239,13 @@ def build_skill_tags(data: dict) -> str:
     return "\n".join(lines)
 
 
+# h1, not h2. The router renders one section at a time, so each view is a page
+# and carries its own level-1 heading; the class is what styles it either way.
+# An optional comment between the <section> and its title is skipped, because
+# two sections now explain in one why their title is visually hidden.
 SECTION_TITLE = re.compile(
-    r'<section id="(?P<id>[\w-]+)"[^>]*>\s*'
-    r'<h2 class="section-title">(?P<title>.*?)</h2>'
+    r'<section id="(?P<id>[\w-]+)"[^>]*>\s*(?:<!--.*?-->\s*)?'
+    r'<h1 class="section-title">(?P<title>.*?)</h1>'
     r"(?:\s*<p>(?P<intro>.*?)</p>)?",
     re.S,
 )

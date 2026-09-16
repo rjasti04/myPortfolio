@@ -50,6 +50,11 @@
   font-size: 1.25rem;
   cursor: pointer;
   padding: 0.5rem;
+  /* The dialog's only dismiss control, and it computed to roughly 36-40px
+     from the font-size and padding alone - under the 44px floor. Only the box
+     grows; the flex centring below keeps the glyph where it was. */
+  min-width: var(--min-touch-target, 44px);
+  min-height: var(--min-touch-target, 44px);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -313,7 +318,13 @@
   border: 1px solid var(--control-border, rgb(255 255 255 / 15%));
   border-radius: 8px;
   color: var(--text, #cdd6f4);
-  font-size: 0.95rem;
+  /* 16px, not 0.95rem. Mobile Safari zooms the viewport when a focused text
+     control is under 16px and never zooms back out, so every field in login,
+     register, forgot-password, 2FA, change-password and delete-account made
+     the visitor pinch out after each tap. This file carries no media queries,
+     so there was no breakpoint overriding it either. The floating label above
+     still shrinks on focus - that rule is separate and unaffected. */
+  font-size: 1rem;
   font-family: inherit;
   transition: border-color var(--motion-base, 180ms) var(--ease-standard), box-shadow var(--motion-base, 180ms) var(--ease-standard);
 }
