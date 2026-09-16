@@ -72,11 +72,14 @@
      palette defines and the schematic reads as texture in it rather than as a
      picture the text is sitting on top of.
 
-     80% and not less: the drawing is hairlines at high contrast, and every one
-     of them crosses body copy somewhere on a long section. Measured on #about
-     at 1440px, 80% keeps the worst case - secondary text over a trace - above
-     4.5:1. Lower it and the traces start winning. */
-  --backdrop-scrim: color-mix(in srgb, var(--bg) 80%, transparent);
+     A calibrated radial gradient provides maximum legibility (92% wash) in the
+     central content aperture while opening up to 78% wash along the peripheral
+     margins so the glowing circuit buses and vias frame the viewport. */
+  --backdrop-scrim: radial-gradient(
+    ellipse 75% 65% at 50% 50%,
+    color-mix(in srgb, var(--bg) 92%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 78%, transparent) 100%
+  );
 
   /* Mostly neutral slate with a measured third of the theme's accent hue. See
      the `luminosity` note on `.site-backdrop::before` for why it is a mix and
@@ -84,10 +87,12 @@
      tuned against the inverted result rather than against the raw file. */
   --backdrop-tint: color-mix(in srgb, var(--accent-text) 32%, #79899a);
 
-  /* The moving dashes. Brighter than the drawing they run on - motion this
+  /* The moving dot streams. Brighter than the drawing they run on - motion this
      quiet is invisible at the traces' own weight - but still well under the
      accent, which has actions to mark. */
-  --backdrop-flow-ink: color-mix(in srgb, var(--accent-text) 62%, transparent);
+  --backdrop-flow-ink: color-mix(in srgb, var(--accent-text) 80%, #0f172a);
+  --backdrop-flow-glow-core: color-mix(in srgb, var(--accent-text) 65%, transparent);
+  --backdrop-flow-glow-halo: color-mix(in srgb, var(--secondary-fill) 40%, transparent);
   --text: #0f172a;
   --muted: #3f4b5a;
   --border: hsl(220, 39%, 11%, 0.13);
@@ -474,15 +479,19 @@ body.dark-theme {
   --bg: #0a0e14;
   --bg-gradient: radial-gradient(ellipse at 20% 40%, #0f1419 0%, #0a0e14 50%, #0d0b1a 100%);
 
-  /* Five points heavier than the light theme. The source is a dark-ground
-     drawing, so on this theme it is NOT inverted - the traces keep their own
-     cyan glow, which is emissive against a near-black page in a way the
-     inverted grey version is not. That glow needs a little more wash over it
-     to stop it competing with the accent colour the UI actually uses. */
-  --backdrop-scrim: color-mix(in srgb, var(--bg) 85%, transparent);
+  /* Five points heavier than the light theme. In dark mode, luminous traces
+     glow through the periphery (74% wash) while maintaining 88% wash in the
+     center to protect text contrast > 4.5:1. */
+  --backdrop-scrim: radial-gradient(
+    ellipse 75% 65% at 50% 50%,
+    color-mix(in srgb, var(--bg) 88%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 74%, transparent) 100%
+  );
 
   --backdrop-tint: color-mix(in srgb, var(--accent-text) 30%, #66768a);
-  --backdrop-flow-ink: color-mix(in srgb, var(--accent-text) 78%, transparent);
+  --backdrop-flow-ink: hsl(64, 85%, 72%);
+  --backdrop-flow-glow-core: rgba(255, 255, 255, 0.90);
+  --backdrop-flow-glow-halo: color-mix(in srgb, var(--accent-fill) 85%, transparent);
   --text: #f0f4f8;
   --muted: #cbd5e1;
   --border: hsl(210, 20%, 98%, 0.14);
@@ -7605,7 +7614,7 @@ body.dark-theme .skill-tag.primary {
    this site ships. `saturate` and `brightness` then pull the result back to a
    drafting-paper grey rather than the tinted wash a raw inversion lands on. */
 body:not(.dark-theme) .site-backdrop::before {
-  filter: invert(1) hue-rotate(180deg) saturate(0.55) brightness(1.04);
+  filter: invert(1) hue-rotate(180deg) saturate(0.45) brightness(1.04);
 }
 
 /* ── Directed transit ──
@@ -7627,43 +7636,52 @@ body:not(.dark-theme) .site-backdrop::before {
      this is `display`, not `animation-play-state`. */
   display: none;
   color: var(--backdrop-flow-ink);
+  pointer-events: none;
 }
 
 .backdrop-flow {
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.5;
+  stroke-width: 3;
   stroke-linecap: round;
-
-  /* One dash of 26 against a synthetic length of 1000: a short pulse with a
-     long gap, so a route reads as carrying one packet rather than as a moving
-     dotted line. */
-  stroke-dasharray: 26 974;
+  filter:
+    drop-shadow(0 0 2px var(--backdrop-flow-glow-core))
+    drop-shadow(0 0 5px var(--backdrop-flow-glow-halo));
   animation: backdrop-flow 11s linear infinite;
+  will-change: stroke-dashoffset;
 }
 
-/* Negative delays so the five are already staggered on the first frame - a
-   positive delay would start them all at the same end and let them drift
-   apart only over the first cycle. Prime-ish spacing keeps them from
-   re-synchronising on a short loop. */
+/* Staggered pulse streams: zero-length dashes with round caps render as
+   crisp glowing circular dots. Each path carries a distinct packet train
+   matching its route topology, followed by a resting deadband. */
+.backdrop-flow:nth-of-type(1) {
+  stroke-dasharray: 0 13 0 13 0 13 0 961;
+  animation-duration: 9s;
+  animation-delay: 0s;
+}
+
 .backdrop-flow:nth-of-type(2) {
-  animation-delay: -2.3s;
-  animation-duration: 13s;
+  stroke-dasharray: 0 12 0 12 0 12 0 464 0 12 0 12 0 12 0 464;
+  animation-duration: 13.5s;
+  animation-delay: -3.2s;
 }
 
 .backdrop-flow:nth-of-type(3) {
-  animation-delay: -5.1s;
-  animation-duration: 9.5s;
+  stroke-dasharray: 0 11 0 11 0 11 0 11 0 11 0 945;
+  animation-duration: 10.5s;
+  animation-delay: -6.1s;
 }
 
 .backdrop-flow:nth-of-type(4) {
-  animation-delay: -7.4s;
-  animation-duration: 14.5s;
+  stroke-dasharray: 0 16 0 16 0 968;
+  animation-duration: 12s;
+  animation-delay: -8.4s;
 }
 
 .backdrop-flow:nth-of-type(5) {
-  animation-delay: -9.2s;
+  stroke-dasharray: 0 16 0 16 0 968;
   animation-duration: 12s;
+  animation-delay: -2.4s;
 }
 
 @keyframes backdrop-flow {

@@ -389,26 +389,25 @@
   <div class="site-backdrop" aria-hidden="true">
     <!-- Directed transit, over the drawing rather than in it. The backdrop is a
          raster, so nothing in it can move; these five paths retrace its main
-         routes in vector and run a short dash along each one, which is the one
-         thing the still image cannot say - that these are paths with a
-         direction. Same technique the old #home schematic used.
+         routes in vector and stream glowing dot packets along each one, which
+         is the one thing the still image cannot say - that these are pathways
+         with active signal flow.
 
-         The viewBox matches the derivative's 1920x1191 exactly and the
+         The viewBox matches the derivative's 1920x1080 and the
          preserveAspectRatio is `slice`, so this crops in lockstep with the
-         image's `background-size: cover` and the dashes stay on their traces at
-         every viewport ratio. Change the output size in
-         scripts/generate_backdrop.py and this viewBox has to move with it.
+         image's `background-size: cover` and the dot streams stay on their traces
+         at every viewport ratio.
 
-         pathLength="1000" normalises all five to one synthetic length, so a
-         single dasharray and one keyframe pair fit routes of quite different
-         real lengths. -->
-    <svg class="site-backdrop-flow" viewBox="0 0 1920 1191"
+         pathLength="1000" normalises all five to one synthetic length, so
+         standardised packet dasharrays and keyframes fit routes of quite different
+         physical lengths. -->
+    <svg class="site-backdrop-flow" viewBox="0 0 1920 1080"
       preserveAspectRatio="xMidYMid slice" focusable="false">
-      <path class="backdrop-flow" pathLength="1000" d="M 189 58 V 216 H 296 V 304" />
-      <path class="backdrop-flow" pathLength="1000" d="M 510 404 V 481 H 796" />
-      <path class="backdrop-flow" pathLength="1000" d="M 55 759 H 381 V 956" />
-      <path class="backdrop-flow" pathLength="1000" d="M 1240 870 H 1410 V 567 H 1695" />
-      <path class="backdrop-flow" pathLength="1000" d="M 1704 481 H 1875 V 137" />
+      <path class="backdrop-flow" pathLength="1000" d="M 1740 60 V 350" />
+      <path class="backdrop-flow" pathLength="1000" d="M 1648 60 V 598 L 1599 647" />
+      <path class="backdrop-flow" pathLength="1000" d="M 700 940 H 1300" />
+      <path class="backdrop-flow" pathLength="1000" d="M 256 600 V 1000" />
+      <path class="backdrop-flow" pathLength="1000" d="M 288 600 V 1000" />
     </svg>
   </div>
   <div class="noise-overlay js-only"></div>
