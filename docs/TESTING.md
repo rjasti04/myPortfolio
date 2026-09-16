@@ -246,7 +246,7 @@ Known gaps, stated so nobody assumes coverage that is not there:
 | Real Bedrock is never called | Streaming is exercised against mocks | The mock shape follows the botocore event stream; both the invoke and Converse paths are covered |
 | SQLite, not PostgreSQL, in the suite | `JSONB`, the GIN index and window functions behave differently | Dialect variants on the two affected columns; the migration job uses real PostgreSQL |
 | Kafka is never exercised with a real broker | Only the simulated and bypass paths are tested | The consumer falls back automatically, and the broker path is thin |
-| `three-bg.js`, `particles-config.js`, `animations.js` are untested | Canvas rendering and animation are not asserted | Manual review; they are self-contained and degrade to no-ops |
+| `animations.js` is untested | Animation is not asserted | Manual review; it is self-contained and degrades to a no-op. `three-bg.js` and `particles-config.js` are retired and imported by nothing, so they no longer execute at all |
 | `chat.js` has no direct unit tests, and `auth-ui.js` only its reset and 2FA panels | Both are ~1,200-line single initialisers | `auth-reset-password.test.js` drives `initAuthUI` against the real `index.html`, so the reset panel's wiring - and the submit-readiness contract all four auth forms share - is asserted; `auth-refresh.test.js` and `auth-register.test.js` cover the riskiest shared paths in `auth.js`; the backend contract test covers the endpoints they call. The register panel's success painting is verified by reading only |
 | No load or soak testing | Concurrency limits are reasoned about, not measured | The limits are conservative and observable via `/system/pipeline` |
 

@@ -152,8 +152,7 @@ connect-src 'self' https://rjasti.com https://staging-api.rjasti.com
 ```
 
 `style-src-attr 'unsafe-inline'` is required because several modules set inline
-`style` properties (the plexus canvas container, the update banner, the confetti
-canvas).
+`style` properties (the update banner, the confetti canvas).
 
 > `formsubmit.co` is the one remaining third-party origin, and it is now only
 > a **fallback**. `form.js` posts to the first-party `POST /contact` and reaches
@@ -406,7 +405,7 @@ warns when only the legacy one is present.
 
 The precache list covers the app shell only: the two entry points, everything
 they reach through **static** imports, the stylesheets and the two classic
-scripts. Dynamic-import chunks (chat, activity, plexus) are deliberately
+scripts. Dynamic-import chunks (chat, activity) are deliberately
 excluded — precaching them would undo the lazy loading `main.js` arranges. They
 are cached on first use by the runtime strategy.
 
@@ -801,7 +800,7 @@ file from an unchanged one.
 | Step | Detail |
 | :--- | :--- |
 | JS entries | `js/main.js` and `js/auth-ui.js`, bundled with `splitting: true`, ESM, minified, sourcemapped, `es2022`, into `dist/assets/[name]-[hash]` |
-| Code splitting | Keeps `chat.js`, `activity.js` and `three-bg.js` as lazily-loaded chunks rather than folding them into the entry |
+| Code splitting | Keeps `chat.js` and `activity.js` as lazily-loaded chunks rather than folding them into the entry |
 | `app-logic.js` | Built separately as an **IIFE** (it is a classic script). Its `module.exports` block, present for the Node test runner, is silenced via `logOverride` |
 | `theme-bootstrap.js` | Built separately as an IIFE — it runs before first paint as a plain script |
 | `js/arcade/shell.js` | Built separately as an ESM entry for `/arcade`. Kept out of the `splitting` group on purpose: it shares no module with the SPA, and the service worker's shell list is derived from the SPA's graph |

@@ -218,16 +218,17 @@ image loading:
 
 - `animations.js` — scroll reveals and stat counters.
 - `skills-carousel.js` — initialise when visible.
-- `particles-config.js` — never animate off-screen.
+- `particles-config.js` — never animate off-screen (module now retired).
 
 Images use the browser's native `loading="lazy"` instead. The `data-src`
 mechanism and the `lazyLoadImages()` helper described in the original record
 were never implemented.
 
 The related decision that *is* in force is lazy **module** loading:
-`main.js` dynamically imports `chat.js`, `activity.js` and `three-bg.js` only
-when needed, and the build's generated precache list deliberately excludes those
-chunks so the service worker does not undo it.
+`main.js` dynamically imports `chat.js` and `activity.js` only when needed, and
+the build's generated precache list deliberately excludes those chunks so the
+service worker does not undo it. `three-bg.js` was the third such import until
+the animated background was removed.
 
 ---
 

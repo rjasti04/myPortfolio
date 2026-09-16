@@ -183,8 +183,6 @@ export function initTerminal() {
 
   // ── Input handling ────────────────────────────────────────────────────────
   input.addEventListener("keydown", (event) => {
-    if (typeof window.triggerWebGlSurge === "function") window.triggerWebGlSurge();
-
     const selection = window.getSelection();
     const hasSelection = Boolean(selection && !selection.isCollapsed);
     const intent = intentFor(event);

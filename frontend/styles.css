@@ -878,32 +878,6 @@ body.dropdown-open .header-actions>*:not(.header-dropdown.is-open):not(.nav-auth
   border-radius: 10px;
 }
 
-.webgl-canvas {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 1;
-  transition: opacity var(--motion-slow) var(--ease-standard);
-}
-
-body.dark-theme .webgl-canvas,
-body.dark-theme #particles-canvas {
-  opacity: 0.5;
-}
-
-body:not(.dark-theme) .webgl-canvas,
-body:not(.dark-theme) #particles-canvas {
-  opacity: 1;
-}
-
-.webgl-canvas[hidden] {
-  display: none !important;
-}
-
 .layout {
   position: relative;
   display: flex;
@@ -2808,393 +2782,16 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
   padding-block: 0;
 }
 
-/* ── Schematic backdrop ──
-   The landing view's ground is a technical drawing: a millimetric coordinate
-   grid, hairline traces routed at 90 and 45 degrees, terminal nodes, and a
-   cluster of framed modules carrying this stack's own names. Only #home gets
-   it. Every other section is content-dense and would be read THROUGH the
-   drawing rather than over it, which is why the whole layer is a child of this
-   section and is scoped by nothing more than that - no `.active` selector, no
-   route hook, no class for js to toggle.
-
-   ── Why markup, and not a third canvas ──
-   three-bg.js already animates a full-viewport plexus, and `desktopBackground`
-   in js/config.js gates BOTH canvases on `(min-width: 1024px) and
-   (pointer: fine)` - a phone mounts neither. This treatment was asked for on
-   phones as well as desktops, so a canvas was never on the table: it would
-   have had to break that gate and hand every phone a second rAF loop running
-   behind the LCP. Static markup costs one paint, resolves at any viewport, and
-   reads its ink straight out of the cascade - so the theme customiser's hue
-   carries the drawing with nothing here to re-tune.
-
-   ── Stacking ──
-   `z-index: -1` puts the layer behind everything in #home while leaving the
-   hero's own stacking - `.home-portrait::before` at 0 under
-   `.home-portrait-flip` at 1 - completely alone. It stays ABOVE the plexus
-   canvas either way: that canvas is `position: fixed; z-index: 0` in the root
-   stacking context, and this layer is inside `.layout`, which is `z-index: 1`.
-
-   Behind the figure rather than over it, and that is not a retreat from the
-   reference. `.home-portrait-img` already dissolves the torso into the page
-   from 68% down (see the mask on that rule), so the traces read THROUGH the
-   silhouette exactly where the reference runs them over the sweater - without
-   a second copy of the drawing sitting on top of the name, where it would have
-   to answer for text contrast on every theme.
-
-   ── Full bleed ──
-   `main` is `min(1280px, 100%)` inside its own inline padding, so #home's box
-   stops well short of the viewport on a wide screen, and a sheet that stopped
-   with it would read as a panel behind the hero rather than as the ground the
-   hero stands on. The three properties on `.home-schematic` break out of that
-   box exactly. `body` is `overflow-x: hidden` (BASE, RESET & UTILITIES), which
-   is what makes a 100vw child safe to declare at all. */
 #home {
+  /* Retained for the absolutely-positioned children of the landing view. */
   position: relative;
-
-  /* ── The drawing's whole contract, in two properties ──
-     --accent-text and not --accent-fill: the fill is a citron measuring 1.62:1
-     on --bg, which is invisible as a hairline, while -text is the same hue
-     resolved against the ground it is drawn on (5.52:1 light, 13.08:1 dark).
-     Both are rewritten by the theme customiser and by the #home shuffle, so a
-     rolled palette takes the drawing with it. */
-  --schematic-ink: var(--accent-text);
-
-  /* One minor cell. Every other figure in this block is a multiple of it - the
-     majors are five cells and the edge ticks share its pitch - so the rulers
-     cannot drift out of step with the paper they are measuring. */
-  --schematic-cell: 26px;
-
-  /* Two alphas rather than two colours, so both tiers stay the one ink. The
-     majors sit exactly on top of minors (five cells is a whole multiple), so
-     what a major line actually paints is the pair composited - ~0.21 against
-     the minor's 0.075. That doubling is the reason these two numbers look
-     closer together than the contrast between the tiers on screen. */
-  --schematic-rule: color-mix(in srgb, var(--schematic-ink) 7.5%, transparent);
-  --schematic-rule-major: color-mix(in srgb, var(--schematic-ink) 15%, transparent);
-
-  /* The sheet border's margin, shared with the edge rulers below so the
-     numerals sit inside the border they are drawn against rather than
-     tracking a second, separately-tuned inset. */
-  --schematic-inset: clamp(10px, 2vw, 26px);
-}
-
-.home-schematic {
-  position: absolute;
-  z-index: -1;
-  top: 0;
-  bottom: 0;
-
-  /* Out of main's centred column and across the viewport. */
-  left: 50%;
-  width: 100vw;
-  margin-left: -50vw;
-
-  overflow: hidden;
-  pointer-events: none;
-
-  /* Set once here; `currentColor` carries it to the gradients below and to
-     every stroke and fill in the plan, so the SVG needs no colour of its own
-     and the customiser has one property to move. */
-  color: var(--schematic-ink);
-}
-
-/* Half strength on the dark ground. --accent-text inverts between themes -
-   hsl(64 60% 26%) on light against hsl(64 60% 65%) on dark - so the same alpha
-   that reads as a pencil line on paper reads as a lit filament on near-black.
-   The drawing has to sit behind a near-black silhouette there, not compete
-   with it; this is the same argument, and the same direction, as the plexus
-   opacities in SECTION ROUTER. */
-body.dark-theme .home-schematic {
-  opacity: 0.6;
-}
-
-/* ── The coordinate grid ──
-   Engineering paper: a minor rule at one cell and a major every five, both
-   drawn from one edge so the sheet is anchored top-left the way a drafting
-   sheet is, rather than centred and drifting half a cell on every resize.
-
-   `1px` and not a fraction of a cell - a hairline is a hairline at any zoom,
-   and a percentage stop would thicken the rule as the viewport grows. */
-.home-schematic-paper {
-  position: absolute;
-  inset: 0;
-  background-image:
-    repeating-linear-gradient(90deg, var(--schematic-rule) 0 1px, transparent 1px var(--schematic-cell)),
-    repeating-linear-gradient(180deg, var(--schematic-rule) 0 1px, transparent 1px var(--schematic-cell)),
-    repeating-linear-gradient(90deg, var(--schematic-rule-major) 0 1px, transparent 1px calc(var(--schematic-cell) * 5)),
-    repeating-linear-gradient(180deg, var(--schematic-rule-major) 0 1px, transparent 1px calc(var(--schematic-cell) * 5));
-}
-
-/* ── Sheet border and edge rulers ──
-   The frame is what turns a grid into a workplane: it declares an origin and
-   an extent, so the layout inside it reads as governed rather than floating.
-
-   Ticks on the top and left only - the two origin axes, which is where a
-   drafting sheet puts its rulers and half the gradients of ticking all four.
-   Both tiers are the one alpha and differ only in length, 5px per cell against
-   10px per major, because that is how a rule is actually read. The four strips
-   all start at the origin, so `background-position` is the default and is not
-   declared.
-
-   The numerals that label these ticks are the next block: they are not part of
-   the frame because they cannot be, a gradient having no glyphs, and because
-   they are labelled per MAJOR while these strips tick per cell. */
-.home-schematic-frame {
-  position: absolute;
-  inset: var(--schematic-inset);
-  border: 1px solid var(--schematic-rule-major);
-  background-repeat: no-repeat;
-  background-size: 100% 5px, 5px 100%, 100% 10px, 10px 100%;
-  background-image:
-    repeating-linear-gradient(90deg, var(--schematic-rule-major) 0 1px, transparent 1px var(--schematic-cell)),
-    repeating-linear-gradient(180deg, var(--schematic-rule-major) 0 1px, transparent 1px var(--schematic-cell)),
-    repeating-linear-gradient(90deg, var(--schematic-rule-major) 0 1px, transparent 1px calc(var(--schematic-cell) * 5)),
-    repeating-linear-gradient(180deg, var(--schematic-rule-major) 0 1px, transparent 1px calc(var(--schematic-cell) * 5));
-}
-
-/* ── Edge rulers ──
-   The numbered mm scale the reference runs along its top, bottom and left
-   edge. The first pass left the numerals out as too small to read and too busy
-   to ignore, and the answer to that turned out to be the alpha rather than the
-   omission: at 22% of the ink a numeral weighs what the major line it labels
-   weighs on screen - the majors paint over the minors and composite to ~0.21,
-   which is why 22 here and 15 there are the same weight, not different ones.
-
-   A grid whose track is one major - five cells - so span N lands exactly on
-   major N at either cell size, and the scale cannot drift out of step with the
-   paper underneath it. `overflow: hidden` is what makes a fixed span count
-   safe at an unknown viewport width: the tracks are fixed, so nothing here
-   measures or reflows and the spans that fall off the edge never paint.
-
-   One major in rather than at the origin, because the frame is inset up to
-   26px and a numeral at 0 would sit outside the sheet it is measuring. That
-   corner goes to `mm` instead, which is where the reference puts its unit. */
-:is(.home-schematic-rule, .home-schematic-unit) {
-  position: absolute;
-  color: color-mix(in srgb, currentColor 22%, transparent);
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 9px;
-  line-height: 1;
-  letter-spacing: 0.06em;
-}
-
-.home-schematic-rule {
-  display: grid;
-  overflow: hidden;
-}
-
-/* Top and bottom. The 3px is the gap between a tick and its numeral - applied
-   to the grid's box, so it moves every numeral off its line by the same amount
-   instead of accumulating down the track the way a per-span margin would. */
-.home-schematic-rule--x {
-  top: calc(var(--schematic-inset) + 4px);
-  right: 0;
-  left: calc(var(--schematic-cell) * 5);
-  grid-auto-flow: column;
-  grid-auto-columns: calc(var(--schematic-cell) * 5);
-  padding-left: 3px;
-}
-
-.home-schematic-rule--btm {
-  top: auto;
-  bottom: calc(var(--schematic-inset) + 4px);
-}
-
-/* Left. `grid-auto-flow` is already row, so the track declaration is the whole
-   difference from the strips above. */
-.home-schematic-rule--y {
-  top: calc(var(--schematic-cell) * 5);
-  bottom: 0;
-  left: calc(var(--schematic-inset) + 5px);
-  grid-auto-rows: calc(var(--schematic-cell) * 5);
-}
-
-.home-schematic-unit {
-  top: calc(var(--schematic-inset) + 4px);
-  left: calc(var(--schematic-inset) + 5px);
-}
-
-/* ── The plan ──
-   Traces, nodes and modules. `slice` rather than `meet`, because this is a
-   ground and a ground covers: the viewBox is 1200x1000 and the crop falls on
-   whichever axis has the surplus - vertical on a desktop (full width, middle
-   ~62% of the height), horizontal on a phone (full height, middle ~48% of the
-   width). Everything that has to survive both is inside x 372-828, which is the
-   intersection of the two windows at the narrowest phone this targets (360px)
-   and is where the module cluster and its spine are drawn. The trace fans reach
-   past it on purpose: they are the part a wide screen gets and a phone does not.
-
-   There is no equally safe band on Y, which is why only one axis is quoted. The
-   vertical window is what the viewport's own aspect ratio leaves over - y
-   155-845 at 1440x900 but only 273-728 at 1920x800 - so a short, wide desktop
-   crops the bottom of the cluster no matter where it sits. The cluster is drawn
-   204 deep rather than the 242 of the first pass to keep that loss to the last
-   module's lower edge. */
-.home-schematic-plan {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-
-  /* ── The paint defaults, set here to be INHERITED ──
-     `fill`, `stroke` and `stroke-width` are inherited SVG presentation
-     properties, so declaring them on the root hands them to every shape at the
-     weakest possible priority - which is the only way the modifiers below can
-     win. On the `:is(path, rect, circle)` selector they had (0,1,1) against a
-     modifier's (0,1,0) and beat it: junctions drew hollow because `fill: none`
-     held, and the 1.2 and 0.6 stroke widths never applied at all. Inherited,
-     a class on the wrapping `<g>` overrides them and the hierarchy the drawing
-     is built on - fine comb, trace, module outline - actually renders. */
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1;
-}
-
-/* ── Hairlines that stay hairlines ──
-   `non-scaling-stroke` is the whole reason this works at both crops. The
-   viewBox is scaled by ~1.6 on a 1920 desktop and ~0.66 on a phone, and
-   without this a 1px stroke would land at 1.6px on the desktop and 0.66px on
-   the phone - the one place the drawing must not vary, since a hairline that
-   thickens reads as a border and one that thins disappears.
-
-   This one is NOT inheritable, which is why it is still a rule of its own and
-   why nothing above folds into it. Nothing overrides it either, so the
-   specificity that broke the three properties now on the root is harmless
-   here. */
-.home-schematic-plan :is(path, rect, circle) {
-  vector-effect: non-scaling-stroke;
-}
-
-.home-schematic-trace {
-  stroke-opacity: 0.32;
-}
-
-/* The second rank. Thinner and fainter, so the fans read as depth rather than
-   as one flat mat of lines - this is the 0.5px end of the reference's range. */
-.home-schematic-trace--fine {
-  stroke-width: 0.6;
-  stroke-opacity: 0.2;
-}
-
-/* Framed blocks sit a step forward of the traces that feed them: they are the
-   thing the drawing is about, and at trace weight they dissolved into the fan
-   behind them. */
-.home-schematic-module {
-  stroke-width: 1.2;
-  stroke-opacity: 0.44;
-}
-
-.home-schematic-node {
-  stroke-opacity: 0.5;
-}
-
-/* Filled, for a junction where traces actually meet, against the hollow
-   terminals above where one simply ends. Same distinction the reference draws,
-   and the only thing in the plan that is a fill rather than a stroke. */
-.home-schematic-node--junction {
-  fill: currentColor;
-  fill-opacity: 0.5;
-  stroke: none;
-}
-
-.home-schematic-label {
-  fill: currentColor;
-  fill-opacity: 0.38;
-  stroke: none;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-}
-
-.home-schematic-label--sub {
-  fill-opacity: 0.26;
-  font-size: 9px;
-}
-
-/* ── Directed transit ──
-   Three short dashes running the length of three traces - the one motion in
-   the layer, and the one thing a still image cannot say: that these are paths
-   with a direction, not decoration. `pathLength="1000"` in the markup
-   normalises all three to the same synthetic length, so one dash array and one
-   keyframe pair fit paths of quite different real lengths and nothing has to
-   be re-measured when a route changes.
-
-   Desktop only, and gated on the same `(min-width: 1024px) and (pointer:
-   fine)` as `desktopBackground` - a phone is already carrying the static layer
-   and gets no animation on top of it. Hidden rather than paused, so the dash
-   is not left frozen mid-trace where it reads as a gap in the line. */
-.home-schematic-flow {
-  display: none;
-  stroke-opacity: 0.75;
-  stroke-dasharray: 26 974;
-}
-
-@media (width >=1024px) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .home-schematic-flow {
-    display: block;
-    animation: home-schematic-flow 9s linear infinite;
-  }
-
-  .home-schematic-flow:nth-of-type(2) {
-    animation-delay: -3s;
-  }
-
-  .home-schematic-flow:nth-of-type(3) {
-    animation-delay: -6s;
-  }
-}
-
-@keyframes home-schematic-flow {
-  from {
-    stroke-dashoffset: 1000;
-  }
-
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* ── Phone ──
-   The plan survives the narrow crop intact - the cluster is inside the safe
-   box and clears a 390px viewport by ~60px - but two things have to give. The
-   labels are 11 user units against a ~0.66 scale, which is 7px of monospace
-   behind the pills: not readable, and not quiet either. And the layout is
-   stacked here, so the cluster lands directly behind the name and the two
-   buttons rather than beside them, which the desktop crop never does.
-
-   A finer cell, because the grid's job is to read as measured paper rather
-   than as tiling: 26px is 15 columns across a 390px phone, which is a lattice.
-   22px is 18, which is paper. */
-@media (width <=900px) {
-  #home {
-    --schematic-cell: 22px;
-  }
-
-  .home-schematic-plan {
-    opacity: 0.7;
-  }
-
-  .home-schematic-label {
-    display: none;
-  }
-}
-
-/* ── Opt out ──
-   The one request this layer cannot answer by turning itself down. Anyone
-   asking for more contrast, or running a forced palette, is asking for the
-   text and nothing behind it, and a drawing that is quiet by design is the
-   first thing that should go. */
-@media (prefers-contrast: more), (forced-colors: active) {
-  .home-schematic {
-    display: none;
-  }
 }
 
 /* ── Portrait ──
    Free-form, not a disc. The sources are background-removed
-   (scripts/generate_profile_cutout.py), so the page's own gradient and the
-   plexus canvas run behind the silhouette rather than stopping at a circle's
-   edge, and the shape on the page is the person.
+   (scripts/generate_profile_cutout.py), so the page's own gradient runs behind
+   the silhouette rather than stopping at a circle's edge, and the shape on the
+   page is the person.
 
    Three rules follow from having no frame. The image can carry no background,
    no border-radius and no box-shadow - a box-shadow would draw the rectangle
@@ -3279,8 +2876,8 @@ body.dark-theme .home-schematic {
 
    The note it replaces claimed the wash was most of what lifted near-black
    hair off a near-black background on the dark theme. Measured at 1440x900
-   with the plexus canvas hidden, so the page's own gradient is the only ground
-   - sampling the hairline every 3px down the top 40% of the silhouette:
+   with the plexus canvas hidden, so the page's own gradient was the only
+   ground - sampling the hairline every 3px down the top 40% of the silhouette:
 
                                      wash    rim halo
      hair vs just outside the edge   1.05     1.20
@@ -3289,8 +2886,9 @@ body.dark-theme .home-schematic {
 
    So it was not load-bearing; the close halo that replaced it did the job the
    diffuse wash was credited with, and did it better. Those are the
-   conservative numbers - the plexus behind the silhouette only adds to them.
-   That halo is gone too now (see the dark-theme note below) - the wash is
+   conservative numbers, measured against the bare gradient; the plexus that
+   used to sit behind the silhouette only added to them, and it is gone now.
+   That halo is gone too (see the dark-theme note below) - the wash is
    still not the thing to reinstate if the hairline ever needs lifting. */
 
 /* ── Painted panel behind the silhouette ──
@@ -7465,16 +7063,12 @@ body.dark-theme .skill-tag.primary {
   }
 
   /* ── `body` is here to win, not to select ──
-   Both of these are unhidden by `.js-enabled <sel>.js-only { display: block
+   The overlay is unhidden by `.js-enabled <sel>.js-only { display: block
    !important }` in the SECTION ROUTER region, which is an exact specificity
    tie with the bare form of this rule AND several thousand lines further down,
    so source order handed the unhide the win and this rule did nothing on any
-   view. It went unnoticed because the canvas is inert under reduced motion
-   anyway - main.js never imports three-bg.js, so nothing ever sizes or paints
-   it - and because #home carries its own later `display: none`, which covers
-   the landing view but no other. The extra element selector takes this to
-   (0,3,1) and settles it on specificity. */
-  .js-enabled body .webgl-canvas.js-only,
+   view. The extra element selector takes this to (0,3,1) and settles it on
+   specificity. */
   .js-enabled body .noise-overlay.js-only {
     display: none !important;
   }
@@ -7605,7 +7199,6 @@ body.dark-theme .skill-tag.primary {
 /* Print Styles */
 @media print {
 
-  .webgl-canvas,
   .noise-overlay,
   .toast-container,
   .header-actions,
@@ -8232,7 +7825,6 @@ a.app-tile:focus-visible .app-tile-cta i {
 }
 
 .js-enabled .noise-overlay.js-only,
-.js-enabled .webgl-canvas.js-only,
 .js-enabled .toast-container.js-only,
 .js-enabled .contact-prompts.js-only,
 .js-enabled .header-dropdown.js-only {
@@ -8255,55 +7847,6 @@ a.app-tile:focus-visible .app-tile-cta i {
 
 .js-enabled .home-socials-divider.js-only {
   display: block !important;
-}
-
-/* Animated background: desktops and wider screens only.
-
-   `desktopBackground` in js/config.js - `(min-width: 1024px) and
-   (pointer: fine)` - is the real gate; both the full-viewport plexus
-   (#webgl-canvas) and the hero particle fallback (#particles-canvas) refuse to
-   mount below it. This mirrors the negation so a phone never paints the fixed
-   canvas at all: the element carries `.js-only` and is unhidden the moment
-   `.js-enabled` lands on <html>, which is well before the idle callback that
-   decides whether any background belongs here. Specificity matches the
-   `.js-enabled ... .js-only` rule above and this comes later, so it wins. */
-/* ── The landing view is flat, on every device ──
-   Both animated layers - the full-viewport plexus (#webgl-canvas) and the hero
-   particle fallback (#particles-canvas) - are off whenever #home is the active
-   view. Every other section is unchanged.
-
-   This has been all three ways now, so the reasoning is worth keeping. It was
-   `display: none` with no reason recorded; then on at interior-page weight,
-   on the argument that the one view every visitor lands on should not be the
-   only flat surface on the site; then turned down to 0.15/0.1 when that read
-   badly. The reason it read badly is the reason it is off: #home has a ground
-   of its own. The schematic backdrop (see HOME HERO) draws a millimetric
-   coordinate grid and a board's worth of orthogonal traces across this exact
-   viewport, and a plexus is ALSO a mesh of straight lines and vertices. The
-   two do not stack into depth - they read as two drawings, one of them tilted,
-   with the triangulation cutting across the 90-and-45 routing that is the
-   whole point of the layer underneath. The landing view is not being left
-   bare; it is being left to the drawing it already has.
-
-   `display`, not `opacity: 0`, and unconditional rather than inside the
-   desktop media query below: the requirement is that nothing animated appears
-   here on any device, and a transparent canvas still composites. The canvases
-   are torn down in script as well - `shouldEnableBackground()` in three-bg.js
-   and `loadBackground()` in js/main.js both check the active route - so this
-   rule is the guard for the window before those run, not the whole mechanism.
-   `!important` because the `.js-enabled <sel>.js-only { display: block }`
-   unhide in this region is an exact specificity tie that source order would
-   otherwise settle the wrong way. */
-.js-enabled body:has(#home.active) .webgl-canvas.js-only,
-.js-enabled body:has(#home.active) #particles-canvas {
-  display: none !important;
-}
-
-@media (width < 1024px), (pointer: coarse) {
-  .js-enabled .webgl-canvas.js-only,
-  #particles-canvas {
-    display: none !important;
-  }
 }
 
 /* The topic chips earn their keep on a wide contact layout, where they sit
@@ -8524,16 +8067,6 @@ section:focus {
 
   .js-enabled .noise-overlay.js-only {
     display: none !important;
-  }
-
-  .js-enabled body:not(.dark-theme) .webgl-canvas.js-only,
-  .js-enabled body:not(.dark-theme) #particles-canvas.js-only {
-    opacity: 0.78;
-  }
-
-  .js-enabled body.dark-theme .webgl-canvas.js-only,
-  .js-enabled body.dark-theme #particles-canvas.js-only {
-    opacity: 0.39;
   }
 
   .header-actions {
