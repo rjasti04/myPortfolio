@@ -696,6 +696,200 @@
            on `.home-portrait` in the HOME HERO region before adding a line to
            it. -->
       <section id="home" class="active" tabindex="-1">
+        <!-- The landing view's ground: a drafting sheet. Coordinate grid,
+             hairline traces routed at 90 and 45 degrees, terminal nodes, and a
+             cluster of framed modules naming what actually runs behind this
+             site - the Kafka ingest, the pipeline, the gateway, Postgres and
+             the Bedrock runtime. It is decoration in the accessibility sense
+             and nothing else: `aria-hidden`, `pointer-events: none`, no focus
+             stop, and every word in it is repeated nowhere because it says
+             nothing a visitor needs.
+
+             Three layers, in paint order. `-paper` is the grid, two tiers of
+             rule drawn by CSS gradients so the cell stays a fixed number of
+             screen pixels instead of scaling with a viewBox. `-frame` is the
+             sheet border and its edge rulers. `-plan` is the drawing itself,
+             inline rather than a file so every stroke reads `currentColor` and
+             follows the theme customiser's accent - a `background-image` could
+             not, and a masked file would cost a request to say less.
+
+             The viewBox is cropped, not fitted (`slice`), so the sheet covers
+             whatever shape the section is: a desktop keeps the full width and
+             the middle of the height, a phone keeps the full height and the
+             middle of the width. Everything load-bearing is inside the box
+             those two windows share. See "Schematic backdrop" in HOME HERO for
+             the numbers and for why this is not a canvas. -->
+        <div class="home-schematic" aria-hidden="true">
+          <div class="home-schematic-paper"></div>
+          <div class="home-schematic-frame"></div>
+
+          <svg class="home-schematic-plan" viewBox="0 0 1200 1000" preserveAspectRatio="xMidYMid slice"
+            focusable="false">
+            <!-- Trace fans. These reach out past the shared safe box on
+                 purpose: they are the part a wide screen gets and a phone
+                 crops away. -->
+            <g class="home-schematic-trace">
+              <path d="M0 84H210l36 36h206" />
+              <path d="M0 152h104l36-36h190l36 36h132" />
+              <path d="M0 232h268l36 36h166" />
+              <path d="M0 300h140l36-36h210" />
+              <path d="M0 372h230l36 36h204l36 36h84" />
+              <path d="M0 452h86l36-36h178" />
+              <path d="M1200 78h-190l-36 36H812" />
+              <path d="M1200 146h-104l-36 36H900l-36 36h-74" />
+              <path d="M1200 228h-72l-36-36H960" />
+              <path d="M1200 296h-200l-36 36H852" />
+              <path d="M1200 372h-80l-36 36H944" />
+              <path d="M1200 448h-68" />
+              <path d="M1040 448l-36-36H896" />
+
+              <!-- Risers. A trace that changes layer rather than direction -
+                   each one leaves a run it was travelling along and ends in a
+                   terminal, which is what puts a filled junction at one end
+                   and a hollow node at the other. -->
+              <path d="M452 120v148" />
+              <path d="M246 120v84" />
+              <path d="M470 344v64" />
+              <path d="M196 500v37" />
+              <path d="M1060 182v90" />
+              <path d="M964 332v-80" />
+
+              <!-- The four feeds. One per module, entering from the left edge
+                   and landing on a pin - which is the whole reason the runs
+                   below are at the pin pitch and not at a pitch of their own. -->
+              <path d="M0 537h196l36 36h136" />
+              <path d="M0 613h124l36 36h208" />
+              <path d="M0 761h160l36-36h172" />
+              <path d="M0 837h150l36-36h182" />
+
+              <!-- The bus, and the four branches onto it. This is the part
+                   that is always on screen at every viewport. -->
+              <path d="M592 559h48" />
+              <path d="M592 635h48" />
+              <path d="M592 711h48" />
+              <path d="M592 787h48" />
+              <path d="M640 559v228" />
+
+              <!-- The return bus, out past the name where the column ends. -->
+              <path d="M1200 538h-94l-36 36h-70" />
+              <path d="M1200 626h-80l-36 36h-84" />
+              <path d="M1200 714h-70l-36 36h-94" />
+              <path d="M1000 574v176" />
+            </g>
+
+            <!-- Second rank: the combs, and the enclosure's inner divider.
+                 Parallel runs at a pitch too tight to resolve individually,
+                 which is what a ribbon of them looks like on a real board. -->
+            <g class="home-schematic-trace home-schematic-trace--fine">
+              <path d="M0 886h300M0 898h288M0 910h276M0 922h264M0 934h252" />
+              <path d="M1200 918h-220M1200 930h-208M1200 942h-196" />
+              <path d="M1040 470h92" />
+              <path d="M138 193h50" />
+            </g>
+
+            <!-- Crosshairs. Registration marks rather than connections - they
+                 sit ON a run, not at the end of one. -->
+            <g class="home-schematic-trace">
+              <path d="M631 470h18M640 461v18" />
+              <path d="M321 116h18M330 107v18" />
+              <path d="M887 332h18M896 323v18" />
+              <path d="M691 866h18M700 857v18" />
+            </g>
+
+            <!-- Modules. One column of four, stacked in the order the data
+                 moves through them, plus two unlabelled bounding boxes out in
+                 the fans - a block the drawing routes THROUGH rather than one
+                 it is about. The right-hand one is what the two `M1200 448`
+                 traces enter and leave.
+
+                 The column sits at x 380-580, which on a desktop is squarely
+                 behind the portrait and clear of the intro column to its
+                 right. That is not only composition: the cutout's own bottom
+                 fade dissolves the torso from 68% down, so the cluster reads
+                 THROUGH the figure the way the schematic runs over the sweater
+                 in the reference. A wider cluster reached the two pills and
+                 had to be narrowed, not dimmed - see the note in HOME HERO. -->
+            <g class="home-schematic-module">
+              <rect x="380" y="530" width="200" height="58" />
+              <rect x="380" y="606" width="200" height="58" />
+              <rect x="380" y="682" width="200" height="58" />
+              <rect x="380" y="758" width="200" height="58" />
+              <rect x="1040" y="418" width="92" height="104" rx="6" />
+              <rect x="58" y="164" width="80" height="58" rx="4" />
+            </g>
+
+            <!-- Pins. Three a side on every module, at the pitch the feeds
+                 above are routed to meet. -->
+            <g class="home-schematic-trace">
+              <path d="M368 545h12M368 559h12M368 573h12M580 545h12M580 559h12M580 573h12" />
+              <path d="M368 621h12M368 635h12M368 649h12M580 621h12M580 635h12M580 649h12" />
+              <path d="M368 697h12M368 711h12M368 725h12M580 697h12M580 711h12M580 725h12" />
+              <path d="M368 773h12M368 787h12M368 801h12M580 773h12M580 787h12M580 801h12" />
+            </g>
+
+            <!-- Terminals: a trace ends here and goes nowhere else. -->
+            <g class="home-schematic-node">
+              <circle cx="498" cy="152" r="4.5" />
+              <circle cx="386" cy="264" r="4.5" />
+              <circle cx="590" cy="444" r="4.5" />
+              <circle cx="300" cy="416" r="4.5" />
+              <circle cx="812" cy="114" r="4.5" />
+              <circle cx="790" cy="218" r="4.5" />
+              <circle cx="960" cy="192" r="4.5" />
+              <circle cx="852" cy="332" r="4.5" />
+              <circle cx="944" cy="408" r="4.5" />
+              <circle cx="896" cy="412" r="4.5" />
+              <circle cx="246" cy="204" r="4.5" />
+              <circle cx="470" cy="344" r="4.5" />
+              <circle cx="1060" cy="272" r="4.5" />
+              <circle cx="964" cy="252" r="4.5" />
+              <circle cx="196" cy="500" r="4.5" />
+              <circle cx="188" cy="193" r="4.5" />
+            </g>
+
+            <!-- Junctions: two or more traces actually meet here. Filled, so
+                 the difference from a terminal is readable at a glance. -->
+            <g class="home-schematic-node--junction">
+              <circle cx="640" cy="559" r="4.5" />
+              <circle cx="640" cy="635" r="4.5" />
+              <circle cx="640" cy="711" r="4.5" />
+              <circle cx="640" cy="787" r="4.5" />
+              <circle cx="1000" cy="574" r="4.5" />
+              <circle cx="1000" cy="662" r="4.5" />
+              <circle cx="1000" cy="750" r="4.5" />
+              <circle cx="452" cy="120" r="4.5" />
+              <circle cx="452" cy="268" r="4.5" />
+              <circle cx="246" cy="120" r="4.5" />
+              <circle cx="470" cy="408" r="4.5" />
+              <circle cx="196" cy="537" r="4.5" />
+              <circle cx="1060" cy="182" r="4.5" />
+              <circle cx="964" cy="332" r="4.5" />
+              <circle cx="1040" cy="448" r="4.5" />
+            </g>
+
+            <!-- Hidden under 900px, where the stacked layout puts the cluster
+                 behind the name and the crop renders these at ~7px. -->
+            <g class="home-schematic-label">
+              <text x="394" y="556">KAFKA INGEST</text>
+              <text x="394" y="574" class="home-schematic-label--sub">STREAM 01</text>
+              <text x="394" y="632">DATA PIPELINE</text>
+              <text x="394" y="650" class="home-schematic-label--sub">ETL CORE</text>
+              <text x="394" y="717">POSTGRES 16</text>
+              <text x="394" y="793">BEDROCK RUNTIME</text>
+            </g>
+
+            <!-- Directed transit. Three dashes, each normalised to
+                 `pathLength="1000"` so one dash array in CSS fits all three
+                 regardless of their real lengths. Desktop only, and off
+                 entirely under reduced motion. -->
+            <g>
+              <path class="home-schematic-flow" pathLength="1000" d="M0 372h230l36 36h204l36 36h84" />
+              <path class="home-schematic-flow" pathLength="1000" d="M1200 146h-104l-36 36H900l-36 36h-74" />
+              <path class="home-schematic-flow" pathLength="1000" d="M0 537h196l36 36h136" />
+            </g>
+          </svg>
+        </div>
+
         <div class="home-hero">
           <!-- Free-form portrait, not an avatar disc, and a flip card: the
                face on top is the outdoor shot, and clicking it rotates the

@@ -118,7 +118,26 @@ const SKIP_DIRS = new Set(["tests"]);
    deliberately (see above) - so the one after that is probably a real audit of
    the ACTIVITY and AI PAGE regions, which are the two largest by a wide
    margin. */
-const BUDGETS_KIB = { js: 390, css: 288 };
+/* CSS raised 288 -> 292 for the #home schematic backdrop - the coordinate
+   grid, sheet rulers and the plan's stroke weights. It landed at 3.6 KiB
+   against 1.9 KiB of headroom, so the reclaim came first and came out of the
+   feature itself: the edge rulers ticked all four sides and now tick the two
+   origin axes, which is both what a drafting sheet actually does and half the
+   gradients; the two `background-position` lists went with them, the frame's
+   opacity multiplier folded into one shared alpha, and the reduced-motion
+   opt-out folded into the media query that was already gating the animation.
+   That gave back 0.7 KiB of the 3.6. The remaining 2.9 KiB is twelve
+   repeating-linear-gradients and eleven small rules - it IS the grid and the
+   rulers, and there is no duplicate of it anywhere to merge with.
+
+   The note above still holds and its advice is unchanged: the ceiling was at
+   99% before this too, so there was never 3.6 KiB to spend, and the reclaim
+   it points at - a real audit of the ACTIVITY and AI PAGE regions, the two
+   largest by a wide margin - has still not been done. It is the right next
+   move for whoever needs room after this. The extra headroom here is 3 KiB
+   rather than 1 deliberately, so that audit is a decision someone makes
+   rather than one the next feature forces. */
+const BUDGETS_KIB = { js: 390, css: 292 };
 
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);
