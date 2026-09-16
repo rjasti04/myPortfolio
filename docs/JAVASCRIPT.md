@@ -872,7 +872,7 @@ is pressed.
 
 ## Visual effects
 
-### `three-bg.js` (1,559 lines, lazy)
+### `three-bg.js` (1,547 lines, lazy)
 
 `export function initThreeBackground()` — the full-viewport animated plexus:
 drifting nodes joined by proximity lines, with glass facets between close

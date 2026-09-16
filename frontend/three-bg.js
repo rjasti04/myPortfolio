@@ -324,32 +324,20 @@ function getProfileName() {
   return "desktop";
 }
 
-function isHomeSectionActive() {
-  const homeSection = document.getElementById("home");
-  if (homeSection) {
-    const activeSection = document.querySelector("main section.active");
-    if (activeSection) {
-      return activeSection.id === "home";
-    }
-    if (homeSection.classList.contains("active")) {
-      return true;
-    }
-  }
-  const hash = (window.location.hash || "").replace(/^#/, "").trim();
-  return !hash || hash === "home";
-}
-
 function shouldEnableBackground() {
   if (reducedMotionQuery.matches) return false;
   // Desktops and wider screens only. Phones and tablets get no plexus: the
   // canvas stays hidden and any running field is torn down when the viewport
   // crosses the threshold mid-session.
   if (!desktopBackgroundQuery.matches) return false;
-  // The plexus animation is turned off on the landing home view in desktops:
-  // the portrait cutout and the textured accent wash own the ground there.
-  // Other sections (#about, #resume, #apps, #activity, #contact, #ai, etc.)
-  // keep the live animated background.
-  if (isHomeSectionActive()) return false;
+  // #home used to be excluded here, which made the one view every visitor
+  // lands on the only flat surface on the site. It runs everywhere now and is
+  // turned DOWN rather than off for the landing view - styles.css sets the
+  // home opacity beside the `body:has(#home.active)` rules in the SECTION
+  // ROUTER region, so the portrait still owns the ground there without the
+  // plexus having to be absent to allow it. Keeping it mounted across the
+  // route change is also what lets the router's opacity transition carry it
+  // instead of it popping in on the first navigation away from home.
   if (window.innerWidth < 320 || window.innerHeight < 420) return false;
   return Boolean(
     window.requestAnimationFrame &&

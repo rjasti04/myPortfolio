@@ -636,8 +636,8 @@ Every edge in the output is therefore a real dry-brush edge and the interior
 variation is real loaded-bristle variation, from a single source image.
 
 The `STROKES` table at the top of the script is the whole design; coordinates
-are fractions of the canvas, so the panel re-renders at any resolution and the
-three `.home-portrait` width caps inherit the geometry with nothing to re-tune.
+are fractions of the canvas, so the panel re-renders at any resolution and
+every `.home-portrait` width cap inherits the geometry with nothing to re-tune.
 The CSS decides only where the panel sits and how big it is.
 
 **The one coupling to know about** is the bottom fade. The portrait in front of
