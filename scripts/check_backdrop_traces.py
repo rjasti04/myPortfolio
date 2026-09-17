@@ -9,14 +9,27 @@ into empty background space.
 
 from __future__ import annotations
 
+import math
 import re
 import sys
 from pathlib import Path
 
-from PIL import Image
-import numpy as np
-
 ROOT = Path(__file__).resolve().parent.parent
+
+try:
+    from PIL import Image
+except ImportError:
+    # If Pillow is missing from the invoking interpreter, check if the repo's
+    # backend virtualenv (server/.venv) has it and re-execute there.
+    venv_py = ROOT / "server" / ".venv" / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    if venv_py.exists() and Path(sys.executable).resolve() != venv_py.resolve():
+        import subprocess
+
+        sys.exit(subprocess.run([str(venv_py), __file__] + sys.argv[1:]).returncode)
+    print("Error: Pillow (PIL) is required to decode and verify site-backdrop.webp.", file=sys.stderr)
+    print("Run inside the virtualenv (server/.venv) or install Pillow.", file=sys.stderr)
+    sys.exit(1)
+
 IMAGE_PATH = ROOT / "frontend" / "site-backdrop.webp"
 INDEX_HTML = ROOT / "frontend" / "index.html"
 
@@ -70,14 +83,14 @@ def check_traces() -> int:
         return 1
 
     img = Image.open(IMAGE_PATH).convert("L")
-    arr = np.array(img)
-    h, w = arr.shape
+    w, h = img.size
+    pixels = img.load()
 
     html = INDEX_HTML.read_text(encoding="utf-8")
     paths = PATH_REGEX.findall(html)
 
     if not paths:
-        print("Error: no <path class=\"backdrop-flow\"> found in index.html")
+        print('Error: no <path class="backdrop-flow"> found in index.html')
         return 1
 
     print(f"Checking {len(paths)} backdrop flow paths against {w}x{h} derivative...")
@@ -98,19 +111,21 @@ def check_traces() -> int:
         vals = []
 
         for (x1, y1), (x2, y2) in segments:
-            dist = int(np.hypot(x2 - x1, y2 - y1))
+            dist = int(math.hypot(x2 - x1, y2 - y1))
             for step in range(dist + 1):
                 t = step / max(dist, 1)
                 x = int(round(x1 + t * (x2 - x1)))
                 y = int(round(y1 + t * (y2 - y1)))
-                
+
                 # Check within a 1px radius tolerance to accommodate hairline antialiasing
+                cx = min(max(0, x), w - 1)
+                cy = min(max(0, y), h - 1)
                 v = max(
-                    arr[min(max(0, y), h - 1), min(max(0, x), w - 1)],
-                    arr[min(max(0, y - 1), h - 1), min(max(0, x), w - 1)],
-                    arr[min(max(0, y + 1), h - 1), min(max(0, x), w - 1)],
-                    arr[min(max(0, y), h - 1), min(max(0, x - 1), w - 1)],
-                    arr[min(max(0, y), h - 1), min(max(0, x + 1), w - 1)]
+                    pixels[cx, cy],
+                    pixels[cx, min(max(0, y - 1), h - 1)],
+                    pixels[cx, min(max(0, y + 1), h - 1)],
+                    pixels[min(max(0, x - 1), w - 1), cy],
+                    pixels[min(max(0, x + 1), w - 1), cy],
                 )
                 vals.append(v)
                 if v >= TRACE_BRIGHTNESS_MIN:
@@ -118,11 +133,11 @@ def check_traces() -> int:
                 route_pts += 1
 
         pct = (route_bright / route_pts) * 100 if route_pts else 0.0
-        avg_val = np.mean(vals) if vals else 0.0
+        avg_val = (sum(vals) / len(vals)) if vals else 0.0
         status = "OK" if pct >= MIN_ROUTE_ON_TRACE_PCT else "FAIL"
 
         print(f"  [{status}] Path {idx}: len={route_pts}px, on-trace={pct:.1f}%, mean_brightness={avg_val:.1f}")
-        print(f"         d=\"{d}\"")
+        print(f'         d="{d}"')
 
         total_px_all += route_pts
         on_trace_all += route_bright

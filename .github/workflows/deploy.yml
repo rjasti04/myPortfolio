@@ -98,9 +98,6 @@ jobs:
       - name: Verify CSP Inline-Script Hashes
         run: python3 scripts/check_csp_hashes.py
 
-      - name: Verify Circuit Backdrop Flow Traces
-        run: python3 scripts/check_backdrop_traces.py
-
       # The docs carry numbers an agent budgets against - file sizes, grep
       # yields, per-module line counts - and every one of them decayed silently
       # as the code grew. When this check was added the navigation table in
@@ -199,6 +196,13 @@ jobs:
           # Test-only signing key. Production reads JWT_SECRET from the
           # service environment on the host; there is no longer a fallback.
           JWT_SECRET: 'ci-only-jwt-secret-not-used-by-any-deployment'
+
+      # Samples vector flow paths in frontend/index.html against the raster
+      # derivative in frontend/site-backdrop.webp. Pillow is required to decode
+      # WebP, so this runs here where server/requirements-dev.txt is installed
+      # rather than in frontend-check where Python has no packages.
+      - name: Verify Circuit Backdrop Flow Traces
+        run: python3 scripts/check_backdrop_traces.py
 
   # ─── 3. MIGRATIONS & SCHEMA DRIFT ─────────────────────────────────────
   migration-check:
