@@ -386,30 +386,7 @@
        Deliberately NOT `.js-only`, unlike the animated canvas it replaces -
        this paints with no script running, so hiding it until `.js-enabled`
        lands would blank the page's background for the whole boot. -->
-  <div class="site-backdrop" aria-hidden="true">
-    <!-- Directed transit, over the drawing rather than in it. The backdrop is a
-         raster, so nothing in it can move; these five paths retrace its main
-         routes in vector and stream glowing dot packets along each one, which
-         is the one thing the still image cannot say - that these are pathways
-         with active signal flow.
-
-         The viewBox matches the derivative's 1920x1080 and the
-         preserveAspectRatio is `slice`, so this crops in lockstep with the
-         image's `background-size: cover` and the dot streams stay on their traces
-         at every viewport ratio.
-
-         pathLength="1000" normalises all five to one synthetic length, so
-         standardised packet dasharrays and keyframes fit routes of quite different
-         physical lengths. -->
-    <svg class="site-backdrop-flow" viewBox="0 0 1920 1080"
-      preserveAspectRatio="xMidYMid slice" focusable="false">
-      <path class="backdrop-flow" pathLength="1000" d="M 1740 60 V 350" />
-      <path class="backdrop-flow" pathLength="1000" d="M 1648 60 V 598 L 1599 647" />
-      <path class="backdrop-flow" pathLength="1000" d="M 700 940 H 1300" />
-      <path class="backdrop-flow" pathLength="1000" d="M 256 600 V 1000" />
-      <path class="backdrop-flow" pathLength="1000" d="M 288 600 V 1000" />
-    </svg>
-  </div>
+  <div class="site-backdrop" aria-hidden="true"></div>
   <div class="noise-overlay js-only"></div>
   <div class="toast-container js-only" id="toast-container" aria-live="polite" aria-atomic="false"></div>
 

@@ -86,13 +86,6 @@
      not the accent itself. Read through `invert()` on this theme, so it is
      tuned against the inverted result rather than against the raw file. */
   --backdrop-tint: color-mix(in srgb, var(--accent-text) 32%, #79899a);
-
-  /* The moving dot streams. Brighter than the drawing they run on - motion this
-     quiet is invisible at the traces' own weight - but still well under the
-     accent, which has actions to mark. */
-  --backdrop-flow-ink: color-mix(in srgb, var(--accent-text) 80%, #0f172a);
-  --backdrop-flow-glow-core: color-mix(in srgb, var(--accent-text) 65%, transparent);
-  --backdrop-flow-glow-halo: color-mix(in srgb, var(--secondary-fill) 40%, transparent);
   --text: #0f172a;
   --muted: #3f4b5a;
   --border: hsl(220, 39%, 11%, 0.13);
@@ -489,9 +482,6 @@ body.dark-theme {
   );
 
   --backdrop-tint: color-mix(in srgb, var(--accent-text) 30%, #66768a);
-  --backdrop-flow-ink: hsl(64, 85%, 72%);
-  --backdrop-flow-glow-core: rgba(255, 255, 255, 0.90);
-  --backdrop-flow-glow-halo: color-mix(in srgb, var(--accent-fill) 85%, transparent);
   --text: #f0f4f8;
   --muted: #cbd5e1;
   --border: hsl(210, 20%, 98%, 0.14);
@@ -7617,94 +7607,6 @@ body:not(.dark-theme) .site-backdrop::before {
   filter: invert(1) hue-rotate(180deg) saturate(0.45) brightness(1.04);
 }
 
-/* ── Directed transit ──
-   z-index rather than source order. The scrim is `.site-backdrop::after`, and
-   a pseudo-element paints after its originating element's children, so this
-   SVG would sit UNDER the scrim by default and be muted twice - once by the
-   wash it is supposed to read through, once by its own opacity. A stacking
-   position of 1 lifts it clear of the scrim while leaving it far below
-   `.layout`, which is z-index 1 in the root stacking context. */
-.site-backdrop-flow {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-
-  /* Hidden by default and shown only inside the gate below, rather than the
-     other way round. A dash frozen mid-trace reads as a gap in the line, so
-     this is `display`, not `animation-play-state`. */
-  display: none;
-  color: var(--backdrop-flow-ink);
-  pointer-events: none;
-}
-
-.backdrop-flow {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 3;
-  stroke-linecap: round;
-  filter:
-    drop-shadow(0 0 2px var(--backdrop-flow-glow-core))
-    drop-shadow(0 0 5px var(--backdrop-flow-glow-halo));
-  animation: backdrop-flow 11s linear infinite;
-  will-change: stroke-dashoffset;
-}
-
-/* Staggered pulse streams: zero-length dashes with round caps render as
-   crisp glowing circular dots. Each path carries a distinct packet train
-   matching its route topology, followed by a resting deadband. */
-.backdrop-flow:nth-of-type(1) {
-  stroke-dasharray: 0 13 0 13 0 13 0 961;
-  animation-duration: 9s;
-  animation-delay: 0s;
-}
-
-.backdrop-flow:nth-of-type(2) {
-  stroke-dasharray: 0 12 0 12 0 12 0 464 0 12 0 12 0 12 0 464;
-  animation-duration: 13.5s;
-  animation-delay: -3.2s;
-}
-
-.backdrop-flow:nth-of-type(3) {
-  stroke-dasharray: 0 11 0 11 0 11 0 11 0 11 0 945;
-  animation-duration: 10.5s;
-  animation-delay: -6.1s;
-}
-
-.backdrop-flow:nth-of-type(4) {
-  stroke-dasharray: 0 16 0 16 0 968;
-  animation-duration: 12s;
-  animation-delay: -8.4s;
-}
-
-.backdrop-flow:nth-of-type(5) {
-  stroke-dasharray: 0 16 0 16 0 968;
-  animation-duration: 12s;
-  animation-delay: -2.4s;
-}
-
-@keyframes backdrop-flow {
-  from {
-    stroke-dashoffset: 1000;
-  }
-
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* Desktop and a fine pointer, and only where motion is welcome. This is the
-   same gate the old schematic's flow used, and for the same reason:
-   `stroke-dashoffset` is a paint-level property, so every frame repaints the
-   path rather than being handed to the compositor. Five thin strokes is
-   cheap on a desktop and is not worth a phone's battery - and a phone has no
-   backdrop to run them over anyway. */
-@media (width >=1024px) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .site-backdrop-flow {
-    display: block;
-  }
-}
 
 /* ── Phones get no backdrop at all ──
    Matches `mobileDevice` in js/config.js - a coarse pointer AND 768px or

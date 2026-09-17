@@ -90,8 +90,8 @@ def check_traces() -> int:
     paths = PATH_REGEX.findall(html)
 
     if not paths:
-        print('Error: no <path class="backdrop-flow"> found in index.html')
-        return 1
+        print('No backdrop flow paths found in index.html (streaming dots removed).')
+        return 0
 
     print(f"Checking {len(paths)} backdrop flow paths against {w}x{h} derivative...")
 
