@@ -1,3 +1,5 @@
+import { showToast } from "./utils.js";
+
 function hexToHsl(hex) {
   hex = hex.replace(/^#/, '');
   if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
@@ -963,7 +965,7 @@ export function initThemeCustomizer() {
   // One delegated handler instead of binding each chip: the saved ones are
   // created and destroyed as the library changes, and re-binding on every
   // render is how listeners get left behind on detached nodes.
-  themeChips?.addEventListener('click', (event) => {
+  themeChips?.addEventListener('click', async (event) => {
     const target = event.target instanceof Element ? event.target : null;
     if (!target) return;
 
@@ -977,6 +979,7 @@ export function initThemeCustomizer() {
       if (activeThemeId === remove.dataset.removeId) activeThemeId = null;
       renderThemeLibrary();
       announce(entry ? `Deleted saved theme ${entry.name}.` : 'Saved theme deleted.');
+      showToast(entry ? `Deleted saved theme "${entry.name}".` : 'Saved theme deleted.', 'info');
       return;
     }
 
@@ -1079,6 +1082,7 @@ export function initThemeCustomizer() {
     // before it.
     setActiveTheme(result.id);
     announce(result.replaced ? `Updated saved theme ${name}.` : `Saved theme ${name}.`);
+    showToast(result.replaced ? `Updated saved theme "${name}".` : `Saved theme "${name}".`, 'success');
   }
 
   saveConfirmBtn?.addEventListener('click', (event) => {
@@ -1146,6 +1150,7 @@ export function initThemeCustomizer() {
     // with it - Apply is no longer the only thing that moves the browser bar.
     applyPaletteVariables(palette, document.body.classList.contains('dark-theme'));
     closeModal();
+    showToast('Theme palette applied.', 'success');
   });
 
   resetBtn?.addEventListener('click', () => {
@@ -1159,5 +1164,6 @@ export function initThemeCustomizer() {
     setActiveTheme(null);
     clearCustomPalette();
     closeModal();
+    showToast('Theme reset to defaults.', 'info');
   });
 }

@@ -255,10 +255,10 @@
      redefined in the dark theme, so every elevation adapts with it. */
   --shadow-ring: 0 0 0 1px hsl(220, 39%, 11%, 0.06);
   --shadow-ambient: 220, 39%, 11%;
-  --elev-1: var(--shadow-ring), 0 1px 2px hsl(var(--shadow-ambient), 0.05);
-  --elev-2: var(--shadow-ring), 0 4px 12px hsl(var(--shadow-ambient), 0.07);
-  --elev-3: var(--shadow-ring), 0 12px 28px hsl(var(--shadow-ambient), 0.10);
-  --elev-4: var(--shadow-ring), 0 24px 56px hsl(var(--shadow-ambient), 0.13);
+  --elev-1: var(--shadow-ring), 0 1px 2px -0.5px hsl(var(--shadow-ambient), 0.06), 0 2px 5px hsl(var(--shadow-ambient), 0.03);
+  --elev-2: var(--shadow-ring), 0 2px 4px -1px hsl(var(--shadow-ambient), 0.06), 0 6px 16px -2px hsl(var(--shadow-ambient), 0.07);
+  --elev-3: var(--shadow-ring), 0 4px 8px -2px hsl(var(--shadow-ambient), 0.07), 0 14px 32px -4px hsl(var(--shadow-ambient), 0.10);
+  --elev-4: var(--shadow-ring), 0 8px 16px -4px hsl(var(--shadow-ambient), 0.08), 0 24px 64px -6px hsl(var(--shadow-ambient), 0.13);
 
   /* --glow-* lives on `body`, not here - see the note on that rule. */
 
@@ -538,10 +538,10 @@ body.dark-theme {
      four --elev-* steps and both glass shadows at once. */
   --shadow-ring: 0 0 0 1px hsl(210, 20%, 98%, 0.10);
   --shadow-ambient: 0, 0%, 0%;
-  --elev-1: var(--shadow-ring), 0 1px 3px hsl(var(--shadow-ambient), 0.30);
-  --elev-2: var(--shadow-ring), 0 4px 14px hsl(var(--shadow-ambient), 0.38);
-  --elev-3: var(--shadow-ring), 0 12px 32px hsl(var(--shadow-ambient), 0.46);
-  --elev-4: var(--shadow-ring), 0 24px 60px hsl(var(--shadow-ambient), 0.55);
+  --elev-1: var(--shadow-ring), 0 1px 2px -0.5px hsl(var(--shadow-ambient), 0.35), 0 2px 6px hsl(var(--shadow-ambient), 0.25);
+  --elev-2: var(--shadow-ring), 0 3px 6px -1px hsl(var(--shadow-ambient), 0.40), 0 8px 20px -2px hsl(var(--shadow-ambient), 0.35);
+  --elev-3: var(--shadow-ring), 0 6px 12px -2px hsl(var(--shadow-ambient), 0.45), 0 16px 40px -4px hsl(var(--shadow-ambient), 0.45);
+  --elev-4: var(--shadow-ring), 0 10px 24px -4px hsl(var(--shadow-ambient), 0.50), 0 28px 72px -6px hsl(var(--shadow-ambient), 0.60);
 }
 
 /* Accent glow: focus and hover state, not height - never fold into --elev-*.
@@ -1201,6 +1201,24 @@ body.dark-theme #nav-menu a:not(.active):hover {
   transform: scale(0.92) rotate(90deg);
 }
 
+@media (pointer: coarse) {
+  .dropdown-panel-close,
+  .nav-menu-close {
+    position: relative;
+  }
+
+  .dropdown-panel-close::after,
+  .nav-menu-close::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: var(--min-touch-target, 44px);
+    min-height: var(--min-touch-target, 44px);
+  }
+}
+
 .header-dropdown {
   position: relative;
 }
@@ -1635,7 +1653,7 @@ body:not(.dark-theme) .token-number {
 .theme-save-cancel {
   min-height: 36px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--skill-bg);
   color: var(--text);
   font-family: inherit;
@@ -1645,7 +1663,13 @@ body:not(.dark-theme) .token-number {
   transition:
     border-color var(--motion-base) var(--ease-standard),
     background-color var(--motion-base) var(--ease-standard),
-    color var(--motion-base) var(--ease-standard);
+    color var(--motion-base) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-press);
+}
+
+.theme-save-confirm:active,
+.theme-save-cancel:active {
+  transform: translateY(1px) scale(0.98);
 }
 
 .theme-save-confirm {
@@ -1946,7 +1970,7 @@ body:not(.dark-theme) .token-number {
 }
 
 .color-popover-preview {
-  --selected-color: #0ea5e9;
+  --selected-color: var(--secondary-fill);
   flex: 0 0 34px;
   width: 34px;
   height: 34px;
@@ -2662,7 +2686,7 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
 
 .terminal-input::placeholder {
   color: var(--terminal-muted);
-  opacity: 0.5;
+  opacity: 0.85;
 }
 
 #terminal-body {
@@ -4585,7 +4609,7 @@ body.dark-theme .home-portrait picture {
   flex-shrink: 0;
   width: 46px;
   height: 46px;
-  border-radius: 13px;
+  border-radius: var(--radius-sm);
   background: var(--accent-soft);
   border: 1px solid var(--accent-mild);
   color: var(--accent-text);
@@ -6268,7 +6292,7 @@ body.dark-theme .skill-tag.primary {
   height: min(88vh, 100%);
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   background: var(--card-bg);
   box-shadow: 0 10px 40px hsl(0, 0%, 0%, 0.30);
   transform: scale(0.96);
@@ -6825,7 +6849,7 @@ body.dark-theme .skill-tag.primary {
 
   #nav-menu a.active .nav-icon {
     background: var(--accent-fill);
-    color: var(--on-accent, #ffffff);
+    color: var(--on-accent);
     border-color: var(--accent-fill);
     box-shadow: var(--glow-sm);
   }
@@ -8612,13 +8636,13 @@ body.dark-theme .chat-message.bot .msg-actions {
 body.dark-theme .chat-message.bot .msg-action-btn:hover,
 body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
   background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  color: var(--text);
 }
 
 .msg-action-btn.active {
   opacity: 1;
-  color: var(--accent-text, #0ea5e9);
-  background: var(--accent-soft, rgba(14, 165, 233, 0.15));
+  color: var(--accent-text);
+  background: var(--accent-soft);
 }
 
 .chat-message.user .msg-action-btn.active {
@@ -8668,7 +8692,7 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
 }
 
 .msg-copy-btn.copied {
-  color: var(--color-success, #10b981) !important;
+  color: var(--color-success) !important;
 }
 
 .chat-input-area {
@@ -13045,18 +13069,18 @@ body.dark-theme .mobile-bottom-nav {
 
 /* ── Live ETL Pulse Dot Colors ── */
 .pulse-dot.active-green {
-  background-color: var(--color-success-fill, #10b981) !important;
-  box-shadow: 0 0 8px var(--color-success-fill, #10b981);
+  background-color: var(--color-success-fill) !important;
+  box-shadow: 0 0 8px var(--color-success-fill);
 }
 
 .pulse-dot.active-orange {
-  background-color: var(--color-warning-fill, #f59e0b) !important;
-  box-shadow: 0 0 8px var(--color-warning-fill, #f59e0b);
+  background-color: var(--color-warning-fill) !important;
+  box-shadow: 0 0 8px var(--color-warning-fill);
 }
 
 .pulse-dot.active-red {
-  background-color: var(--color-error-fill, #ef4444) !important;
-  box-shadow: 0 0 8px var(--color-error-fill, #ef4444);
+  background-color: var(--color-error-fill) !important;
+  box-shadow: 0 0 8px var(--color-error-fill);
 }
 
 /* Offline banner.
@@ -13123,10 +13147,18 @@ body.dark-theme .mobile-bottom-nav {
   justify-content: center;
   padding: clamp(48px, 12vh, 140px) 16px 16px;
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity var(--motion-medium) var(--ease-standard),
+    visibility var(--motion-medium) var(--ease-standard);
 }
 
 .cmd-palette[hidden] {
-  display: none;
+  display: flex;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .cmd-palette-backdrop {
@@ -13148,6 +13180,19 @@ body.dark-theme .mobile-bottom-nav {
   border-radius: 14px;
   background: var(--glass-dark-bg, rgb(15 23 42 / 92%));
   box-shadow: var(--glass-dark-shadow, 0 24px 60px rgb(0 0 0 / 45%));
+  transform: translateY(0) scale(1);
+  transition: transform var(--motion-medium) var(--ease-standard);
+}
+
+.cmd-palette[hidden] .cmd-palette-box {
+  transform: translateY(12px) scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmd-palette,
+  .cmd-palette-box {
+    transition: none;
+  }
 }
 
 .cmd-palette-field {
@@ -13177,7 +13222,7 @@ body.dark-theme .mobile-bottom-nav {
 
 .cmd-palette-input::placeholder {
   color: var(--terminal-muted);
-  opacity: 0.6;
+  opacity: 0.85;
 }
 
 .cmd-palette-list {
@@ -13284,14 +13329,14 @@ body.cmd-palette-open {
   .glass-light,
   .stat-card,
   .skill-group {
-    background: #ffffff;
+    background: var(--surface);
     border-color: var(--border);
   }
 
   body.dark-theme .glass-light,
   body.dark-theme .stat-card,
   body.dark-theme .skill-group {
-    background: #1e293b;
+    background: var(--surface);
     border-color: var(--border);
   }
 

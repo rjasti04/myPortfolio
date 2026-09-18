@@ -824,9 +824,25 @@ export async function initAuthUI() {
             container.replaceChildren(p);
         };
 
+        const renderSkeleton = () => {
+            const frag = document.createDocumentFragment();
+            for (let i = 0; i < 2; i++) {
+                const skel = document.createElement('div');
+                skel.className = 'auth-session-skeleton';
+                skel.setAttribute('aria-hidden', 'true');
+                const line1 = document.createElement('div');
+                line1.className = 'auth-session-skeleton-line auth-session-skeleton-title';
+                const line2 = document.createElement('div');
+                line2.className = 'auth-session-skeleton-line auth-session-skeleton-sub';
+                skel.append(line1, line2);
+                frag.appendChild(skel);
+            }
+            container.replaceChildren(frag);
+        };
+
         try {
             if (errEl) errEl.textContent = '';
-            note('Loading active sessions...');
+            renderSkeleton();
             const sessions = await fetchActiveSessions();
             if (!sessions || sessions.length === 0) {
                 note('No active sessions found.');

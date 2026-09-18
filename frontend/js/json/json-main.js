@@ -166,7 +166,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const clearButton = document.getElementById("btn-clear-all");
   if (clearButton) {
+    let confirmTimer = null;
     clearButton.addEventListener("click", () => {
+      if (!clearButton.classList.contains("is-confirming")) {
+        clearButton.classList.add("is-confirming");
+        const originalText = clearButton.innerHTML;
+        clearButton.dataset.originalText = originalText;
+        clearButton.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Confirm Clear?';
+        clearTimeout(confirmTimer);
+        confirmTimer = setTimeout(() => {
+          clearButton.classList.remove("is-confirming");
+          clearButton.innerHTML = originalText;
+        }, 3000);
+        return;
+      }
+      clearTimeout(confirmTimer);
+      clearButton.classList.remove("is-confirming");
+      if (clearButton.dataset.originalText) {
+        clearButton.innerHTML = clearButton.dataset.originalText;
+      }
       workbench.clearAll();
       try {
         localStorage.removeItem(STORAGE_KEY);

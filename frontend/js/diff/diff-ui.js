@@ -483,7 +483,26 @@ export function initWorkbench() {
     }
   });
 
-  document.getElementById("btn-clear-all").addEventListener("click", () => {
+  const clearAllBtn = document.getElementById("btn-clear-all");
+  let clearTimer = null;
+  clearAllBtn?.addEventListener("click", () => {
+    if (!clearAllBtn.classList.contains("is-confirming")) {
+      clearAllBtn.classList.add("is-confirming");
+      const originalText = clearAllBtn.innerHTML;
+      clearAllBtn.dataset.originalText = originalText;
+      clearAllBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Confirm Clear?';
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(() => {
+        clearAllBtn.classList.remove("is-confirming");
+        clearAllBtn.innerHTML = originalText;
+      }, 3000);
+      return;
+    }
+    clearTimeout(clearTimer);
+    clearAllBtn.classList.remove("is-confirming");
+    if (clearAllBtn.dataset.originalText) {
+      clearAllBtn.innerHTML = clearAllBtn.dataset.originalText;
+    }
     inputLeft.value = "";
     inputRight.value = "";
     if (inputPatch) inputPatch.value = "";
@@ -493,9 +512,8 @@ export function initWorkbench() {
     dropStore(STORAGE_KEY);
     recompute();
     recomputePatch();
-    const button = document.getElementById("btn-clear-all");
-    button.classList.add("cleared");
-    setTimeout(() => button.classList.remove("cleared"), 900);
+    clearAllBtn.classList.add("cleared");
+    setTimeout(() => clearAllBtn.classList.remove("cleared"), 900);
   });
 
   // --- Restore --------------------------------------------------------------

@@ -216,6 +216,14 @@
   border-color: var(--color-error);
 }
 
+.action-btn.is-confirming,
+.action-btn.confirming {
+  background-color: var(--error-bg);
+  color: var(--color-error);
+  border-color: var(--color-error);
+  font-weight: 600;
+}
+
 .action-btn.cleared,
 .action-btn.copied {
   background: var(--color-success);

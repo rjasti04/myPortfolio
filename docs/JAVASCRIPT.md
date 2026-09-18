@@ -80,7 +80,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,586 lines)
+### `auth-ui.js` (1,602 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -781,7 +781,7 @@ Calls `syncThemeColorMeta()` from `theme-customizer.js` after
 `reapplyCustomTheme`, which covers the plain light/dark flip on the shipped
 colours — the palette paths sync the tag themselves.
 
-### `theme-customizer.js` (1,163 lines)
+### `theme-customizer.js` (1,169 lines)
 
 `initThemeCustomizer()`, `reapplyCustomTheme(isDark)`, `randomPalette(hex)`,
 `syncThemeColorMeta(isDark)`.
@@ -1203,7 +1203,7 @@ The structural difference from `/crypto` is that its tabs are **not** independen
 
 Two invariants hold across the whole directory. **No `eval` or `new Function`**: query filters are tokenised, parsed into an AST and walked by a `switch`, because the page ships `script-src 'self'` with no `'unsafe-eval'` and almost every JSONPath library implements filters with an evaluator. **No `innerHTML`**: every document-derived string reaches the DOM through `textContent`, so no sanitiser is needed — no HTML string is ever built.
 
-### `json-main.js` (185 lines)
+### `json-main.js` (203 lines)
 
 The application controller. Resolves the theme from the shared `theme` key before the panels render, manages the four deep-linkable tabs (`#format`, `#query`, `#tree`, `#convert`) with arrow-key roving tabindex and `hashchange` sync, persists preferences, and wraps startup in an error boundary. Document text is persisted **only** while the "Remember my document" switch is on, and that switch defaults to off.
 
@@ -1270,7 +1270,7 @@ manages the three deep-linkable tabs (`#compare`, `#patch`, `#about`) with
 arrow-key roving tabindex and `hashchange` sync, and wraps startup in an error
 boundary.
 
-### `diff-ui.js` (529 lines)
+### `diff-ui.js` (547 lines)
 
 DOM controller. Owns both panes, the debounced recompute, drag-and-drop with the
 5 MB cap, the normalisation toggles, the split/unified switch, change navigation
