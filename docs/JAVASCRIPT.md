@@ -744,7 +744,7 @@ memory overhead and blind to dynamically created nodes.
 (hysteresis avoids flicker), and honours `prefers-reduced-motion` for the scroll
 itself.
 
-### `home-portrait.js` (60 lines)
+### `home-portrait.js` (81 lines)
 
 `initHomePortrait()` — the landing portrait's flip card. The rotation is
 entirely CSS; this module owns the two things CSS cannot do.
@@ -757,9 +757,17 @@ happened, the same pattern as the theme shuffle's status line.
 
 State lives in `aria-pressed`, which is also the selector the stylesheet
 rotates on — one source of truth, and no class that can drift from what is
-announced. The back face is `fetchpriority="low"` so it queues behind the LCP;
-the first `pointerenter` or `focus` raises it to `high`, which is the earliest
-honest signal that a click is coming.
+announced. It means "turned from rest", though, not "showing the back": above
+900px the stylesheet rests the card on the *studio* face, so `STUDIO_LEADS`
+(`matchMedia("(width >= 901px)")`, read live on every click rather than once at
+startup) is what the announcement is resolved against. That query is the
+stylesheet's own boundary, and the one number the two files have to agree on.
+
+The back face is `fetchpriority="low"` so it queues behind the LCP; the first
+`pointerenter` or `focus` raises it to `high`, which is the earliest honest
+signal that a click is coming. Above 900px that face *is* the LCP and
+`index.html` preloads it, so the warm-up is a no-op there — the `complete`
+check is what makes it one, and no width test belongs in it.
 
 See [The flip card](FRONTEND.md#the-flip-card) for the markup and CSS contract.
 

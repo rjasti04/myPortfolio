@@ -81,7 +81,10 @@ move pixels to buy nothing. New CSS uses the ramp.
   ambient shadow. `--shadow-ring` and `--shadow-ambient` are redefined in the
   dark theme, so every step adapts with it.
 - **Blur** — four steps, `--blur-sm` 8px to `--blur-xl` 24px, down from nine
-  ad-hoc radii.
+  ad-hoc radii. One surface sits off the ramp: the landing hero's glass frame
+  carries its own `--hero-frame-blur` at 2px, because the backdrop behind it is
+  1px hairlines and every rung on the ramp erases them — the same signature-
+  surface argument the frame's other five tokens are here on.
 - **Sheen** — the lit edge that makes a floating surface read as glass. White is
   specular only on a *darker* ground, so the rule ("the edge is lighter than the
   surface behind it") holds in both themes but the sign flips; the two themes

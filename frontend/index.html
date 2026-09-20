@@ -180,15 +180,32 @@
   <script>
     document.documentElement.classList.add("js-enabled");
   </script>
-  <!-- The landing portrait's FRONT face, and the LCP element.
-       imagesrcset/imagesizes repeat that <picture> below verbatim: a bare href
+  <!-- The landing portrait, and the LCP element - but not the same face on
+       both sides of the flip card's 901px boundary. Below it the card rests on
+       the FRONT face, as it always has. Above it the stylesheet rests it on the
+       BACK face instead (see "Above 900px the card rests on the STUDIO face" in
+       styles.css), so the front is the one behind the turn there. Hence two
+       preloads, each carrying the `media` its own face is actually on screen
+       for: one preload cannot warm both, and warming the wrong one is worse
+       than warming neither, because it spends the connection's first bytes on a
+       photograph the visitor has to click to see.
+
+       imagesrcset/imagesizes repeat each <picture> below verbatim: a bare href
        preloads the 380w file while a wider viewport then goes on to fetch a
-       wider one, so the preload costs a round trip instead of saving one. Only
-       the front is preloaded - the back face of the flip card is not on screen
-       until someone clicks, and it carries fetchpriority="low" so it queues
-       behind this. -->
-  <link rel="preload" href="profile-cutout-380.webp" as="image" type="image/webp"
+       wider one, so the preload costs a round trip instead of saving one.
+
+       The back face keeps `loading="lazy" fetchpriority="low"` on the <img>
+       itself and that is deliberate, not an oversight this pair forgot to
+       update: neither attribute has a media-conditional form, so changing
+       either would change the phone too, and on a phone the back face is still
+       exactly what it was - off screen until a click. The desktop preload is
+       what gets the file there in time, and a lazy <img> whose bytes are
+       already in the cache decodes without a second fetch. -->
+  <link rel="preload" href="profile-cutout-380.webp" as="image" type="image/webp" media="(width <= 900px)"
     imagesrcset="profile-cutout-380.webp 380w, profile-cutout-570.webp 570w, profile-cutout.webp 900w"
+    imagesizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)" />
+  <link rel="preload" href="profile-cutout-back-380.webp" as="image" type="image/webp" media="(width >= 901px)"
+    fetchpriority="high" imagesrcset="profile-cutout-back-380.webp 380w, profile-cutout-back.webp 497w"
     imagesizes="(width <= 900px) min(72vw, 450px), clamp(375px, 40.5vw, 450px)" />
   <link rel="preload" href="styles.css" as="style" />
   <link rel="stylesheet" href="styles.css" />
@@ -732,10 +749,15 @@
                asymmetry is deliberate. The front master is a 3024x4032
                original, so its ladder finally reaches the ~900w a 2x desktop
                asks for against the 450px cap in styles.css. The back is still
-               the 1254px master and stops at its matte's own 497 - affordable
-               on a face nothing preloads, which is fetched at low priority
-               behind the LCP and is on screen only after a deliberate
-               click. -->
+               the 1254px master and stops at its matte's own 497 - which is
+               still affordable on a phone, where this face is on screen only
+               after a deliberate click, and is the accepted cost above 900px,
+               where it leads: 497 over the 450 CSS px the portrait caps at is
+               1.1x, so a desktop at 2x gets the one face on this page that is
+               not retina-sharp. The suit master is genuinely all the portrait
+               there is - `--rebuild-matte --face back` in
+               generate_profile_cutout.py reproduces it and cannot invent
+               pixels. A higher-resolution re-shoot is the only fix. -->
           <div class="home-portrait">
             <button type="button" id="home-portrait-flip" class="home-portrait-flip" aria-pressed="false"
               aria-label="Show a different photo of Rajeev Jasti" disabled>
