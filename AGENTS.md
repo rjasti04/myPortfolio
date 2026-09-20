@@ -7,7 +7,7 @@
 - **Languages**: HTML, CSS, JavaScript ES modules, Python 3.10+
 - **Tooling**: Node.js 18+, npm, ESLint, Stylelint, Prettier, Node test runner, jsdom; ruff, pytest (+ pytest-asyncio, pytest-cov), Alembic
 - **Backend stack**: FastAPI, Pydantic v2, asyncpg, boto3/botocore, orjson, structlog
-- **Frontend stack**: Vanilla JS modules, 2D-canvas background, service worker, web app manifest, DOMPurify and marked (vendored from npm), Font Awesome and Plus Jakarta Sans (self-hosted, subset - no Google Fonts or cdnjs request)
+- **Frontend stack**: Vanilla JS modules, a CSS-painted static backdrop (the animated 2D-canvas background has been removed), service worker, web app manifest, DOMPurify and marked (vendored from npm), Font Awesome and Plus Jakarta Sans (self-hosted, subset - no Google Fonts or cdnjs request)
 - **Key integrations**: Amazon Bedrock chat API, PostgreSQL activity tracking, Kafka ingest pipeline (`server/services/kafka_stream.py`, falling back to a simulator when unconfigured), HIBP range API (`server/services/hibp_service.py` -> `api.pwnedpasswords.com`) for password screening, FormSubmit as the contact form's fallback only, browser `localStorage`/`sessionStorage`, PWA cache storage
 - **Database expectations**: PostgreSQL tables `users`, `refresh_tokens`, `one_time_tokens`, `password_history`, `user_sessions`, `user_activity_events`, `ai_conversations` - defined by the `__tablename__` values under `server/models/` and documented in `docs/DATABASE.md`, which wins if this list and the models ever disagree. Schemas/migrations are managed in-repo via Alembic under `server/alembic/` (raw SQL files are excluded). CI applies the full chain against Postgres and runs `alembic check`, so a model changed without a migration fails before deploy
 - **Constraints**: SQLAlchemy ORM (async engine + asyncpg driver); the API refuses to start without `DATABASE_URL`, `AWS_REGION`, `DEFAULT_MODEL_ID` and `JWT_SECRET` - all validated at import in `server/config/settings.py`; the frontend API base is resolved at runtime from `window.location.hostname` by `getApiBaseUrl()` in `js/analytics.js`, with no build-time configuration for it (ADR-008)
@@ -65,7 +65,7 @@ precedent for the SPA.
 Two rules files carry this, so they load only when you actually touch the code
 or docs they describe rather than on every session:
 
-- `.claude/rules/navigation.md` — the six files never to read end-to-end, the
+- `.claude/rules/navigation.md` — the five files never to read end-to-end, the
   grep recipe that replaces each one, and the `server/.venv/` search trap.
 - `.claude/rules/reference-docs.md` — per-doc token costs and the heading-map
   recipe that turns a whole-document read into a section read.

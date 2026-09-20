@@ -9,7 +9,3 @@ class SessionEnd(BaseModel):
     end_reason: Optional[
         Literal["logout", "timeout", "closed", "tab_closed_or_hidden", "unknown"]
     ] = None
-
-class SessionUpdate(BaseModel):
-    """Lightweight heartbeat - bumps last_active_at."""
-    pass

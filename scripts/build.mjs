@@ -237,9 +237,9 @@ async function main() {
 
   // --- JavaScript ----------------------------------------------------------
   // Bundled, so the ~30 module requests collapse into an entry plus the chunks
-  // the dynamic imports in main.js genuinely need. `splitting` keeps chat.js,
-  // activity.js and three-bg.js lazily loaded rather than folding them into the
-  // entry and undoing the work main.js does to defer them.
+  // the dynamic imports in main.js genuinely need. `splitting` keeps chat.js and
+  // activity.js lazily loaded rather than folding them into the entry and
+  // undoing the work main.js does to defer them.
   const jsResult = await esbuild.build({
     entryPoints: {
       main: join(SRC, "js/main.js"),
@@ -272,7 +272,7 @@ async function main() {
   }
 
   // The app shell is the two entries plus everything they reach through
-  // *static* imports. Dynamic-import chunks - chat, activity, three-bg - are
+  // *static* imports. Dynamic-import chunks - chat and activity - are
   // deliberately excluded: precaching those is exactly what the old
   // hand-maintained 40-entry list did, and it undid the lazy-loading main.js
   // goes to some trouble to arrange. They still get cached on first use by the

@@ -18,7 +18,7 @@ KEY_INFORMATION = """\
 """
 
 ABOUT_THIS_SITE = """\
-- This portfolio is a hand-written static single-page app with no frontend framework — no React, Vue, Svelte, jQuery, Three.js or CSS preprocessor. It is vanilla ES modules, hand-authored CSS, and a 2D-canvas animated background. (The file named three-bg.js is a plain 2D canvas renderer; the name is historical.)
+- This portfolio is a hand-written static single-page app with no frontend framework — no React, Vue, Svelte, jQuery, Three.js or CSS preprocessor. It is vanilla ES modules and hand-authored CSS, with a static schematic backdrop painted entirely in CSS.
 - Frontend: vanilla JavaScript ES modules, hand-written CSS, 2D-canvas backgrounds, a service worker and Web App Manifest (installable PWA), DOMPurify and marked vendored from npm, and self-hosted subset fonts. No asset is loaded from a third-party origin.
 - Frontend features: hash-routed sections, an interactive command prompt with a Ctrl+K palette, a live session-activity dashboard fed by server-sent events, this AI chat, a theme customizer, and a full account UI (register, login, TOTP 2FA, magic links, password reset, session management).
 - Backend: FastAPI with Pydantic v2, SQLAlchemy 2 (async) over asyncpg, Alembic migrations, PostgreSQL, structlog, and an optional Kafka ingest pipeline that falls back to a simulator when no broker is configured.

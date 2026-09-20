@@ -31,7 +31,6 @@ DOCS_COVERED = [
     ".claude/rules/*.md",
     "frontend/styles.css",
     "frontend/index.html",
-    "frontend/three-bg.js",
     "frontend/js/*.js",
     "frontend/js/*/*.js",
     "frontend/tests/*.test.js",

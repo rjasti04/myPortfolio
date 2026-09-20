@@ -42,11 +42,6 @@ class ChatMessage(BaseModel):
             raise ValueError("must not be blank")
         return stripped
 
-class ChatRequest(BaseModel):
-    messages: List[ChatMessage] = Field(..., min_length=1, max_length=MAX_MESSAGES)
-    model: Optional[str] = Field(default=None, max_length=256)
-    conversation_id: Optional[str] = Field(default=None, max_length=36)
-
 class ChatStreamRequest(BaseModel):
     messages: List[ChatMessage] = Field(
         ..., min_length=1, max_length=MAX_MESSAGES, description="Conversation history list"
@@ -75,12 +70,3 @@ class ChatStreamRequest(BaseModel):
                 f"({total}). Summarize the history and retry."
             )
         return self
-
-class ChatTelemetryEvent(BaseModel):
-    model_id: str
-    input_tokens: int
-    output_tokens: int
-    cache_read_tokens: int
-    cache_creation_tokens: int
-    cache_hit: bool
-    latency_ms: float

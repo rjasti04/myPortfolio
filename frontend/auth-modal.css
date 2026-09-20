@@ -146,13 +146,6 @@
   gap: 1.25rem;
 }
 
-.password-hint {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-  display: block;
-}
-
 .auth-submit-btn {
   width: 100%;
   margin-top: 0.5rem;

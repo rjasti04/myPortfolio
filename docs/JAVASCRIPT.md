@@ -1,6 +1,6 @@
 # JavaScript Module Reference
 
-Every ES module under `frontend/js/`, plus `frontend/three-bg.js`, with its real
+Every ES module under `frontend/js/`, with its real
 exports and responsibilities. Modules are plain ES modules with no build-time
 syntax; `frontend/` runs directly in a browser.
 
@@ -71,8 +71,8 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   listener runs on every click in the viewport forever.
 - Background layer selection: **gone.** `main.js` no longer mounts an animated
   background on any device, so there is no capability gate, no viewport gate and
-  no route listener for it. `three-bg.js` and `js/particles-config.js` are both
-  retained on disk and imported by nothing.
+  no route listener for it, and the two canvas modules that painted it have been
+  deleted.
 - Service-worker registration, an update check every 60 s, and the update
   banner whose button posts `SKIP_WAITING` and reloads on `controllerchange`.
   One banner node for the life of the page, with a dismiss control and its
@@ -119,7 +119,7 @@ nothing resolved to read.
 
 ## Core services
 
-### `config.js` (59 lines)
+### `config.js` (52 lines)
 
 Media queries, the contact address, and the bridge from the CSS motion scale
 into JS. **Does not** hold `API_BASE`.
@@ -132,7 +132,6 @@ into JS. **Does not** hold `API_BASE`.
 | `compactViewport` | `(max-width: 1150px)` |
 | `supportsHover` | `(hover: hover) and (pointer: fine)` |
 | `mobileDevice` | `(pointer: coarse) and (max-width: 768px)` — phones only; iPads are 768px+ in portrait and laptops always have a fine pointer |
-| `desktopBackground` | `(min-width: 1024px) and (pointer: fine)` — the animated-background gate. Phones and tablets fail the pointer test, narrow desktop windows the width test; `styles.css` mirrors the negation as `@media (width < 1024px), (pointer: coarse)` |
 | `motionMs(name, fallbackMs)` | A `--motion-*` token as milliseconds, e.g. `motionMs("base", 180)`. Reads the computed value off the root element and caches per token; returns the fallback when the property is absent or unparseable, which is the case under jsdom and before the stylesheet applies. Exists so JS animating alongside CSS reads the scale rather than restating it — see ADR-025 |
 
 ### `analytics.js` (599 lines)
@@ -243,15 +242,17 @@ shares one budget — see `docs/CONFIGURATION.md`.
 | `estimateTokens(text)` | Heuristic token count, weighted for words, punctuation, code fences and URLs |
 | `onOnline(cb)` / `onOffline(cb)` / `isNetworkOnline()` | Connectivity observers |
 
-### `error-handler.js` (198 lines)
+### `error-handler.js` (68 lines)
 
 | Export | Role |
 | :--- | :--- |
-| `AppError`, `NetworkError`, `APIError`, `ValidationError` | Typed error classes with `code`, `details`, `timestamp` |
-| `handleError(error, options)` | Map an error to a user-facing message, log it, optionally toast it |
-| `withErrorHandling(fn, options)` | Wrap an async function |
-| `retryWithBackoff(fn, options)` | Exponential backoff with a `shouldRetry` predicate |
 | `reportClientError(error, context)` | Forward one client error to the analytics pipeline as a `client_error` event |
+
+This module also carried a typed-error layer — `AppError`, `NetworkError`,
+`APIError` and `ValidationError` plus `handleError`, `withErrorHandling` and
+`retryWithBackoff`. Nothing ever imported any of it; the code that does raise
+errors throws plain `Error`s and surfaces them with `showToast`. It was removed
+rather than kept as a second, unused way to do what the code already does.
 
 `reportClientError` rides the existing analytics pipeline rather than a
 dedicated endpoint — no new surface, no new auth, no new table. It caps at
@@ -875,56 +876,6 @@ is pressed.
 ---
 
 ## Visual effects
-
-### `three-bg.js` (1,563 lines, retired)
-
-**Nothing imports this module.** The animated background was turned off on
-every page and every device; the description below records what it did.
-
-`export function initThreeBackground()` — the full-viewport animated plexus:
-drifting nodes joined by proximity lines, with glass facets between close
-triples.
-
-**The filename is historical.** It is a plain 2D-canvas renderer
-(`getContext("2d")`) and there is no Three.js anywhere in this repository. A
-1.3 MB unreferenced `three.module.js` was published to the web root on every
-deploy until it was removed; nothing had ever imported it. Renaming the module
-would churn `main.js` and the service-worker precache for no functional gain.
-
-Notable internals: spatial-grid neighbour search rather than an O(n²) sweep,
-sprite caching keyed by a palette signature so a theme change rebuilds sprites
-once, device-profile-driven particle counts, zone-based seeding that keeps the
-centre of the viewport clear (so the hero text stays readable), pointer
-interaction, and a full teardown when reduced motion is enabled mid-session.
-It mounts itself on import and manages its own listeners.
-
-`shouldEnableBackground()` gates on `desktopBackground` as well as reduced
-motion, so the module is inert on phones and tablets even if something imports
-it directly — `main.js` is the only caller and already skips the import there.
-It also returns `false` while `#home` is the active section, which is what
-keeps the landing view flat on every device; the route listeners in
-`initThreeBackground()` re-run the gate on each navigation, so the field is
-torn down on the way into `#home` and rebuilt on the way out. `styles.css`
-mirrors the rule with a `display: none` for the window before the gate runs.
-Its `mobile` entry in `PROFILE_CONFIG` is therefore unreachable today; it is
-kept as the tier the table would use again if the gate is ever widened.
-
-### `particles-config.js` (259 lines, retired)
-
-**Nothing imports this module either.** It is kept beside `three-bg.js` so the
-work is recoverable without going through git history.
-
-`initParticles(containerId)` → a teardown function. The **cheap fallback** for
-the same idea, scoped to the hero, and — like the plexus — desktop-only since
-the `desktopBackground` gate landed. Currently unmounted in practice: its only
-host in this document is `.home-hero`, and `main.js` refuses a host inside
-`#home` now that the landing view is flat, so the module stays wired up for a
-host outside `#home` rather than animating where nothing can see it. Mutually
-exclusive with the plexus:
-`MAX_PARTICLES = 90`, one particle per 18,000 px², 120 px link distance.
-Never animates off-screen or on a hidden tab, motion is time-based so it looks
-identical at 60 Hz and 120 Hz, a resize rescales the field in place rather than
-reseeding it, and everything it attaches is removable via the returned teardown.
 
 ### `animations.js` (309 lines)
 

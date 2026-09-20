@@ -215,8 +215,9 @@ return. `UserResponse` and `UserSessionResponse` use
 
 ### `session.py`
 
-`SessionCreate` (`user_agent` ≤ 2048, `device_type` literal), `SessionEnd`
-(`end_reason` literal), and `SessionUpdate` (an empty heartbeat marker).
+`SessionCreate` (`user_agent` ≤ 2048, `device_type` literal) and `SessionEnd`
+(`end_reason` literal). The heartbeat endpoint takes no body, so it has no
+schema of its own.
 
 ---
 
