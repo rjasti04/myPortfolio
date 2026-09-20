@@ -128,7 +128,30 @@ const SKIP_DIRS = new Set(["tests"]);
    points at - a real audit of the ACTIVITY and AI PAGE regions, the two
    largest by a wide margin - has still not been done, and is the right next
    move for whoever needs room. */
-const BUDGETS_KIB = { js: 390, css: 288 };
+/* CSS raised 288 -> 291 for the landing hero's glass frame and the mobile
+   paint swash. 288 was not 99% this time, it was 100.0% exactly - there was
+   literally nothing to spend, so the raise is the whole of the room.
+
+   What it bought, measured: 2.1 KiB. Five theme tokens in both themes, the
+   frame rule itself, the masked rim pseudo-element, a re-derived portrait
+   height bound, and four blocks the frame owes the rest of the system -
+   forced-colors, prefers-contrast, print and the @supports backdrop-filter
+   fallback. There is no new markup and no new JavaScript; the change is CSS
+   and one regenerated mask.
+
+   Trimmed before raising, which is the order this file asks for, though the
+   reclaim was small: the specular sheen became a background LAYER on the
+   frame rather than a second pseudo-element, and the dark theme's rim and
+   glow are built out of --accent-mild/--accent-soft instead of six
+   color-mix() calls. Together 0.4 KiB - and the tokens are the better code
+   regardless, since a custom palette now reaches them through the ramp.
+
+   The advice in the two notes above is unchanged and is now two raises old:
+   nobody has audited the ACTIVITY and AI PAGE regions, which are still the
+   two largest by a wide margin, and that is still the right move for whoever
+   needs room next. 291 leaves ~0.9 KiB, which is not room - it is the margin
+   that keeps a one-line fix from failing the build. */
+const BUDGETS_KIB = { js: 390, css: 291 };
 
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);

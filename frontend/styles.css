@@ -338,6 +338,12 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
+  /* The rung above --radius-xl, and it exists for exactly one surface: the
+     landing hero's glass frame, which is ~1050x560 on a desktop. Corner
+     radius has to grow with the box it rounds or it stops reading as a
+     radius - 20px on a frame that size is a rectangle with the corners
+     filed off. Nothing smaller should reach for this. */
+  --radius-2xl: 28px;
   --radius-full: 999px;
 
   /* ---- Spacing -----------------------------------------------------------
@@ -542,6 +548,42 @@ body.dark-theme {
   --elev-2: var(--shadow-ring), 0 3px 6px -1px hsl(var(--shadow-ambient), 0.40), 0 8px 20px -2px hsl(var(--shadow-ambient), 0.35);
   --elev-3: var(--shadow-ring), 0 6px 12px -2px hsl(var(--shadow-ambient), 0.45), 0 16px 40px -4px hsl(var(--shadow-ambient), 0.45);
   --elev-4: var(--shadow-ring), 0 10px 24px -4px hsl(var(--shadow-ambient), 0.50), 0 28px 72px -6px hsl(var(--shadow-ambient), 0.60);
+
+  /* ---- Landing hero frame, dark ------------------------------------------
+     Where the reference shot lives. Near-black gives the accent the page's
+     whole contrast range, so the rim can be the real thing - a bright edge
+     with a bloom outside it - rather than the hairline the cream ground can
+     carry. The base set and the note explaining why the two differ are on
+     `body` in the block below this one.
+
+     --surface is 0.90 alpha here, so the fill resolves to ~0.31 of
+     hsl(210, 30%, 12%) - deliberately thinner than the light theme's, and
+     thin enough that the blurred circuit traces still read INSIDE the frame.
+     That is the whole difference between glass and a dark card: at 0.46 the
+     fill closed the panel off completely and `backdrop-filter` had nothing
+     left to show. What it costs is nothing measurable - see the ratios on
+     `body`'s copy of these tokens. */
+  --hero-frame-bg: color-mix(in srgb, var(--surface) 34%, transparent);
+  /* The edge goes to the fill itself here, where `body`'s --accent-mild is
+     what the cream ground can carry. Everything below is built out of the
+     accent ramp rather than a color-mix per stop, which is both shorter and
+     one less place a custom palette has to be threaded through by hand. */
+  --hero-frame-edge: var(--accent-fill);
+  --hero-frame-rim: linear-gradient(150deg,
+      var(--accent-fill) 0%,
+      var(--accent-soft) 40%,
+      var(--accent-soft) 60%,
+      var(--accent-fill) 100%);
+  /* Three blooms at increasing spread rather than one: a single large shadow
+     at this strength is a halo with a visible outer edge of its own, and
+     stacking a tight one inside a wide one is what gives it falloff. The
+     negative spreads are what hold --accent-mild's 0.58 down to the strength
+     the reference shot has - the alpha is on the ramp, the falloff is not. */
+  --hero-frame-glow:
+    var(--elev-4),
+    0 0 22px -10px var(--accent-mild),
+    0 0 52px -12px var(--accent-mild),
+    0 0 110px -18px var(--accent-mild);
 }
 
 /* Accent glow: focus and hover state, not height - never fold into --elev-*.
@@ -603,6 +645,74 @@ body {
   --glow-md: 0 4px 14px var(--accent-soft);
   --glow-lg: 0 8px 24px var(--accent-mild);
   --glow-ring: 0 0 0 3px var(--accent-soft);
+
+  /* ---- Landing hero frame ------------------------------------------------
+     The glass panel the whole of #home sits inside above 900px, and the lit
+     edge that makes it read as glass rather than as a card. Five tokens, all
+     on `body` and not :root for the reason given above this rule: four of
+     the five are built from --accent-* or --sheen-*, which the theme
+     customiser writes to body.style, and a :root alias would freeze at the
+     light citron.
+
+     They are a set rather than five literals because the frame is a
+     SIGNATURE surface - one effect, tuned against one composition - which is
+     the case docs/DESIGN.md names for a token over a rung.
+
+     ── The light theme is not the mock, and that is the rule, not a compromise
+     The reference for this frame is a dark-theme shot with a neon rim. The
+     rule behind that rim is the one --sheen-edge already states: the edge is
+     lighter than the surface behind it. On a cream page the sign flips, so
+     the same structure lands as a restrained accent hairline over an
+     elevation shadow. A citron bloom on #f8fafb is not the dark theme's
+     effect in a light palette; it is a smudge. */
+
+  /* --surface is already 0.92 alpha, so this resolves to ~0.57 of white: a
+     real surface under the type, thin enough that the circuit backdrop still
+     reads through it. It only ever LIFTS contrast here - every ratio on this
+     view was measured against the bare --bg, and this is whiter than --bg.
+
+     ── Measured, on the rendered frame at 1440x900, both themes ──
+     Sampled per pixel over the ground each line actually sits on, with the
+     type hidden; the worse of "mean ground" and "worst single pixel" is what
+     is quoted. All three clear AA for normal text with room to spare, and
+     the ink is unchanged in both themes - it is the ground that moved.
+
+                            light          dark
+       .home-greeting       8.12:1        10.43:1     --muted
+       .home-name          16.18:1        14.39:1     --text
+       .home-kicker         5.57:1         6.97:1     --secondary-text
+
+     The kicker is the binding one at 5.57:1, and it is binding in the light
+     theme, so --hero-frame-bg is what moves if this is ever re-tuned - not
+     the type. */
+  --hero-frame-bg: color-mix(in srgb, var(--surface) 62%, transparent);
+  /* The hairline, and the one edge that survives forced-colors - which is
+     why it is a real `border` and not part of the rim gradient below.
+     --accent-mild rather than a color-mix of its own: it is the accent at
+     0.58 in both themes, which is the value this wanted anyway, and it is
+     already resolved per theme and per custom palette. */
+  --hero-frame-edge: var(--accent-mild);
+  /* The rim: lit from the upper left, dimmest across the middle of the ramp.
+     Directional rather than uniform, so the frame reads as catching light
+     rather than as being outlined. */
+  --hero-frame-rim: linear-gradient(150deg,
+      var(--accent-mild) 0%,
+      var(--accent-soft) 38%,
+      var(--accent-soft) 62%,
+      var(--accent-mild) 100%);
+  /* Elevation first, then one tight accent bloom. On this ground the bloom is
+     nearly subliminal by design; --elev-4 is what actually lifts the frame. */
+  --hero-frame-glow: var(--elev-4), 0 0 34px -14px var(--accent-mild);
+
+  /* The specular pass, and the cheapest half of "this is glass". A sheet with
+     an even fill and a bright edge is a card with a border; what separates
+     the two is a highlight that falls off across the surface. It is a
+     background LAYER on the frame rather than a pseudo-element of its own -
+     same paint order, one fewer rule, and the CSS budget is at its ceiling.
+     --sheen-wash is already the right thing in both themes - accent-tinted
+     on the light ground, white on the dark one - for the reason argued on
+     its own declaration above. */
+  --hero-frame-sheen: radial-gradient(120% 78% at 16% -8%, var(--sheen-wash) 0%, transparent 62%);
 }
 
 * {
@@ -2946,143 +3056,145 @@ body:has(main > #ai.active) .chat-widget:not(.is-visible) {
    That halo is gone too (see the dark-theme note below) - the wash is
    still not the thing to reinstate if the hairline ever needs lifting. */
 
-/* ── Painted panel behind the silhouette ──
-   The subject stands in front of a block of paint, the way a studio portrait
-   stands in front of a painted flat. `brush-backdrop.webp` is that block used
-   as an ALPHA MASK over a solid `--accent-fill`: the file is a flat white
-   sheet whose alpha carries the paint - opaque is paint, transparent is bare
-   page, and every value between is thinner paint. So the file carries the
-   shape and the theme carries the colour - whatever accent the customiser
-   sets, the paint follows it with nothing to re-tune.
+/* ── Painted swash behind the silhouette, and ONLY on a phone ──
+   The subject stands in front of a diagonal sweep of paint.
+   `brush-backdrop.webp` is that sweep used as an ALPHA MASK over a solid
+   `--accent-fill`: the file is a flat white sheet whose alpha carries the
+   paint - opaque is paint, transparent is bare page, and every value between
+   is thinner paint. So the file carries the shape and the theme carries the
+   colour - whatever accent the customiser sets, the paint follows it with
+   nothing to re-tune.
 
    It is generated, not drawn: `scripts/generate_brush_backdrop.py` lays the
-   one photographed swipe in `assets/brush-stroke-master.jpg` down eleven
-   times - upright, rescaled, flipped, at varying weights, composited
-   lightest-wins. That is why the edges are real dry-brush edges and the
-   interior has real loaded-bristle variation. Re-tune the panel THERE; the
+   one photographed swipe in `assets/brush-stroke-master.jpg` down sixteen
+   times - rescaled, tipped, flipped, at varying weights, composited
+   lightest-wins - into five overlapping sweeps, one dry shoulder and ten
+   flecks of spatter. That is why the edges are real dry-brush edges and the
+   interior has real loaded-bristle variation. Re-tune the stroke THERE; the
    only things this rule decides are where it sits and how big it is.
 
-   What it replaces: the same master, unprocessed, as a single landscape
-   swipe. One swipe is a swipe - at 125% of the portrait's width it ran out
-   past the shoulder on one side and stopped in mid-air on the other, so it
-   read as a smear the portrait happened to overlap rather than as a ground
-   the portrait stands on. A panel has to be taller than it is wide to frame a
-   standing figure, and no rotation of a landscape stroke gets there.
+   ── Why the whole rule is inside a media query ──
+   Above 900px there is no paint at all: the hero wears a glass frame there
+   instead (see the (width >= 901px) block at the end of this region), and
+   one view does not get two grounds. Scoping it here rather than overriding
+   it later means the pseudo-element is never generated on a desktop, so
+   nothing fetches the mask file there either.
+
+   ── What it replaces, and why the shape changed with the breakpoint ──
+   This was an upright PANEL, a slab the figure was posed against, sized to
+   stand beside a text column. Below 900px there is no text column beside it:
+   the portrait moves ABOVE the type and centres, and an upright slab behind a
+   centred head is a rectangle with a man in the middle of it - the exact
+   failure the panel itself was built to fix, arriving from the other side.
+   A diagonal has no such reading. It crosses the figure instead of backing
+   it, so it stays a gesture at any width, and both of its ends are off the
+   portrait's box where nothing has to line up with anything.
 
    Geometry is in percentages of `.home-portrait`, so all three width caps
    further down inherit it with nothing to re-tune. `aspect-ratio` is the
    generator's canvas, which keeps `mask-size: contain` from letterboxing the
-   panel inside a box of some other shape. */
-.home-portrait::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
+   swash inside a box of some other shape. */
+@media (width <=900px) {
+  .home-portrait::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
 
-  /* Narrower than the portrait box, not wider. The cutout's box is mostly air
-     - the shoulders are the widest thing in it and they stop well short of
-     both edges - so a panel at the box's full width clears the figure by a
-     margin that reads as a rectangle with a man in the middle of it. At 88%
-     the paint ends just outside the shoulders, which is where a flat behind a
-     sitter ends.
+    /* WIDER than the portrait box, where the panel was narrower. A diagonal
+       that stops inside the box is a diagonal panel; it has to run off both
+       ends or it stops being a gesture. 124% is bounded by the viewport, not
+       by taste: the portrait caps at `min(72vw, ...)` in the ramp below, so
+       the swash is at most 89vw and keeps a gutter at every width.
 
-     ── These two are mirrored in the generator ──
-     `width` and `top` below, plus this box's own aspect ratio, are restated as
-     constants in `scripts/generate_brush_backdrop.py`, which needs them to
-     work out where the panel's baked-in bottom fade lands on the portrait.
-     Change either here and change it there, then re-run the script: it prints
-     the band it computed, and the fade has to finish ABOVE the line where
-     `.home-portrait-img` starts dissolving. It is not a matter of taste. The
-     figure in front of the panel goes progressively transparent from 68% of
-     its height down, so any paint still opaque under it shows THROUGH the
-     jacket - not as a wash, but as the panel's own bristle texture printed
-     across the lapels in olive. */
-  width: 88%;
-  aspect-ratio: 1060 / 1120;
+       ── These two are mirrored in the generator ──
+       `width` and `top` below, plus this box's own aspect ratio, are restated
+       as constants in `scripts/generate_brush_backdrop.py`, which needs them
+       to work out where the swash's baked-in bottom fade lands on the
+       portrait. Change either here and change it there, then re-run the
+       script: it prints the band it computed, and the fade has to finish
+       ABOVE the line where `.home-portrait-img` starts dissolving. It is not
+       a matter of taste. The figure in front of the paint goes progressively
+       transparent from 68% of its height down, so any paint still opaque
+       under it shows THROUGH the jacket - not as a wash, but as the swash's
+       own bristle texture printed across the lapels in olive. */
+    width: 124%;
+    aspect-ratio: 1300 / 900;
 
-  /* Rises above the head, and stops at the chest rather than running to the
-     bottom of the figure - see the fade note above for why it has to. */
-  top: -6%;
+    /* Rises above the head; the stroke's own low end and the baked-in fade
+       are what stop it at the chest. */
+    top: -10%;
 
-  /* Centred on the FIGURE, not on the box. The cutout is not symmetrical - he
-     stands left of centre and the near shoulder runs out to the right - so a
-     panel centred at 50% hangs a hand's width off his ear on one side. 46% is
-     where the head sits near the middle of the paint and the shoulder still
-     has something behind it.
+    /* Centred on the BOX, unlike the panel, which sat at 46% to centre an
+       upright slab on a figure that stands left of centre. A diagonal's mass
+       is off-centre by construction and the generator is what places it;
+       re-applying a 4% bias on top of that double-counts the same
+       correction. */
+    left: 50%;
+    transform: translateX(-50%);
 
-     It has to serve BOTH faces of the flip card now, since the panel does not
-     rotate with it, and the two silhouettes do not agree on where the head is.
-     Alpha-weighted centroid of the top 30% of each matte, as a fraction of the
-     box width: 0.337 on the outdoor shot against 0.363 on the studio one - the
-     hat's brim pulls the front face 2.6% left. Held at 46% deliberately rather
-     than split: 2.6% is 12px at the 450px cap, moving it improves one face by
-     exactly as much as it costs the other, and re-tuning a number this
-     carefully argued for a wash is how it stops meaning anything. */
-  left: 46%;
+    /* Solid accent fill - the mask is what gives it a shape. */
+    background: var(--accent-fill);
 
-  /* Off-square by a couple of degrees: hung by hand, not printed. Any more
-     and the fade at the bottom stops being horizontal, which is the one edge
-     that has to stay level against the portrait's own. */
-  transform: translateX(-50%) rotate(-2deg);
+    /* ── Why opacity and not mix-blend-mode ──
+       The obvious fix for a flat slab over a drawing is to blend it, and it
+       does not work here: `.layout` is `position: relative; z-index: 1`,
+       which makes it a stacking context, and a blend mode only sees backdrop
+       painted INSIDE the nearest such ancestor. The site backdrop is outside
+       `.layout` and behind it, so `multiply` on this element would blend
+       against transparency and paint exactly what it does now.
 
-  /* Solid accent fill - the mask is what gives it a shape. */
-  background: var(--accent-fill);
+       Plain alpha does reach it, because everything between this paint and
+       the backdrop is transparent. And on the phones this is now scoped to,
+       there is usually nothing behind it to reach: `.site-backdrop` is
+       `display: none` under `(pointer: coarse) and (width <= 768px)`, which
+       is most of this range. 0.72 is where the traces read through the paint
+       where there are traces, and where the stroke still holds its own edge
+       against the bare gradient where there are not. */
+    opacity: 0.72;
+    -webkit-mask-image: url("brush-backdrop.webp");
+    mask-image: url("brush-backdrop.webp");
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
 
-  /* ── Why opacity and not mix-blend-mode ──
-     The obvious fix for a flat slab over a drawing is to blend it, and it does
-     not work here: `.layout` is `position: relative; z-index: 1`, which makes
-     it a stacking context, and a blend mode only sees backdrop painted INSIDE
-     the nearest such ancestor. The site backdrop is outside `.layout` and
-     behind it, so `multiply` on this element would blend against transparency
-     and paint exactly what it does now.
+    /* ── `alpha`, not `luminance`. Putting it back breaks iOS ──
+       This read `luminance` against a greyscale file that had no alpha
+       channel at all, which was right in Chrome and wrong in Safari.
+       WebKit's CSS mask is an alpha mask: its support for
+       `mask-mode: luminance` is flagged partial by browser-compat-data -
+       "does not always have the expected effect", webkit.org/b/282530 - and
+       there is no `-webkit-mask-mode` to reach for instead, because WebKit
+       never shipped one.
 
-     Plain alpha does reach it, because everything between this panel and the
-     backdrop is transparent. 0.72 is where the traces read through the paint
-     without the panel giving up its own edge - the point is a flat the figure
-     stands against, and a wash the drawing passes through unchanged is no
-     longer a flat. */
-  opacity: 0.72;
-  -webkit-mask-image: url("brush-backdrop.webp");
-  mask-image: url("brush-backdrop.webp");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
+       An engine that reads a fully-opaque greyscale file as alpha masks
+       nothing, so iOS painted the entire mask box: a hard-edged rectangle of
+       accent with the portrait standing in front of it. Measured on the file
+       this replaces - a luminance read paints 51.9% of the box, an alpha
+       read paints 100.0%.
 
-  /* ── `alpha`, not `luminance`. Putting it back breaks iOS ──
-     This read `luminance` against a greyscale file that had no alpha channel
-     at all, which was right in Chrome and wrong in Safari. WebKit's CSS mask
-     is an alpha mask: its support for `mask-mode: luminance` is flagged
-     partial by browser-compat-data - "does not always have the expected
-     effect", webkit.org/b/282530 - and there is no `-webkit-mask-mode` to
-     reach for instead, because WebKit never shipped one.
+       The shape moved into the file's alpha channel to fix it; the argument
+       is in `scripts/generate_brush_backdrop.py`. `alpha` is also what the
+       initial `match-source` resolves to for a raster image, so an engine
+       with no `mask-mode` support lands in the same place, and since the
+       file's RGB plane is flat white a luminance read would come out
+       identical anyway (the value is luminance x alpha, and the luminance is
+       1). Every path agrees now, which is the point - the file no longer
+       depends on the engine guessing right. */
+    mask-mode: alpha;
+  }
 
-     An engine that reads a fully-opaque greyscale file as alpha masks
-     nothing, so iOS painted the entire mask box: a hard-edged rectangle of
-     accent, tilted its two degrees, with the portrait standing in front of
-     it. Measured on the file this replaced - a luminance read paints 51.9% of
-     the box, an alpha read paints 100.0%.
-
-     The shape moved into the file's alpha channel to fix it; the argument is
-     in `scripts/generate_brush_backdrop.py`. `alpha` is also what the initial
-     `match-source` resolves to for a raster image, so an engine with no
-     `mask-mode` support lands in the same place, and since the file's RGB
-     plane is flat white a luminance read would come out identical anyway
-     (the value is luminance x alpha, and the luminance is 1). Every path
-     agrees now, which is the point - the file no longer depends on the
-     engine guessing right. */
-  mask-mode: alpha;
-}
-
-/* On the dark ground the same panel is a far louder object: the light theme
-   sets accent against a cream that is already 90% of the way to it, while
-   near-black gives it the page's whole contrast range to itself. At full
-   strength it stops being the ground behind the subject and becomes the
-   subject. Two thirds is where it goes back to reading as a warm wall the
-   silhouette is lit against. */
-body.dark-theme .home-portrait::before {
-  opacity: 0.48;
+  /* On the dark ground the same paint is a far louder object: the light theme
+     sets accent against a cream that is already 90% of the way to it, while
+     near-black gives it the page's whole contrast range to itself. At full
+     strength it stops being the ground behind the subject and becomes the
+     subject. Two thirds is where it goes back to reading as a lit sweep the
+     silhouette stands across. */
+  body.dark-theme .home-portrait::before {
+    opacity: 0.48;
+  }
 }
 
 /* The shadow is on the <picture>, not the <img>, because the mask below is
@@ -3152,9 +3264,11 @@ body.dark-theme .home-portrait picture {
    right fallback and it needs no rule of its own - do not add one that
    re-introduces a duration. */
 .home-portrait-flip {
-  /* Stacked over the paint panel, which is `.home-portrait::before` at
-     `z-index: 0`. This pair used to sit on the picture; it belongs here now
-     because the card is what has to clear the panel as a unit. */
+  /* Stacked over the paint, which is `.home-portrait::before` at
+     `z-index: 0` below 901px and not generated at all above it. This pair
+     used to sit on the picture; it belongs here now because the card is what
+     has to clear the swash as a unit. Unconditional, so the two widths agree
+     on the stacking whether or not there is anything under the card. */
   position: relative;
   z-index: 1;
 
@@ -3182,7 +3296,7 @@ body.dark-theme .home-portrait picture {
 
   /* The depth of the turn. Low enough that the card visibly swings through
      space rather than cross-fading, high enough that the near edge does not
-     balloon past the paint panel at the halfway point. */
+     balloon past the paint at the halfway point. */
   perspective: 1400px;
 }
 
@@ -3600,6 +3714,129 @@ body.dark-theme .home-portrait picture {
 
   .home-name {
     margin-inline-start: -0.1em;
+  }
+
+  /* ── The glass frame ──
+     Above 900px the hero stops being two loose halves on the page and becomes
+     one object: the portrait and the whole intro column inside a single
+     translucent panel with a lit edge. That is the job. Unframed, the left
+     side was a cutout with paint behind it and the right side was five
+     stacked rows of type, and the only thing saying they belonged together
+     was that they happened to be adjacent. The frame is also what puts a
+     surface between the circuit backdrop and the body copy, at the one width
+     where the drawing is on and running at full strength under the text.
+
+     The paint is gone at this width (see the (width <=900px) block at the top
+     of this region). One view, one ground.
+
+     ── Three facts about the rim, none of them stylistic ──
+     1. `position: absolute`. `.home-hero` is a GRID CONTAINER, and a
+        statically-positioned ::before on one is a grid ITEM - it would be
+        placed into a track and push the portrait over. An
+        absolutely-positioned child is not a grid item.
+     2. `isolation: isolate`, so `z-index: -1` means "over the frame's own
+        background, under the grid items" rather than "behind everything in
+        .layout", which is the stacking context two levels up. backdrop-filter
+        already establishes one - but the @supports fallback in the
+        BACKDROP-FILTER FALLBACKS region takes the filter away, and without
+        `isolation` the rim would vanish behind the fill exactly there.
+     3. It does not animate. The reference for this frame is a still, a
+        looping glow on the landing view is a WCAG 2.2 SC 2.2.2 liability,
+        and this page deliberately plays even `.home-role`'s gradient once.
+
+     The specular sheen is NOT a second pseudo-element: it is the first layer
+     of the frame's own `background`, over the fill. Same paint order as a
+     `z-index: -1` pseudo would give, one rule fewer, and the CSS budget has
+     none to spare. */
+  .home-hero {
+    position: relative;
+    isolation: isolate;
+    border-radius: var(--radius-2xl);
+    background: var(--hero-frame-sheen) var(--hero-frame-bg);
+    backdrop-filter: blur(var(--blur-lg)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(var(--glass-saturate));
+    border: 1px solid var(--hero-frame-edge);
+    box-shadow: var(--hero-frame-glow);
+  }
+
+  /* ── The frame's box ──
+     Both selectors on purpose, and this is the one place in the region where
+     that is unavoidable. `.js-enabled #home.active .home-hero` near the top
+     of HOME HERO sets `width: 100%` and `padding-block: 0` at (0,3,1); a
+     media query adds no specificity, so a bare `.home-hero` here loses to it
+     and the frame would render with no padding at all and span the full
+     1280px of main. The second selector is not a duplicate - it is the only
+     way to reach the same declarations.
+
+     `width: fit-content` is what makes this a frame rather than a band: the
+     grid's own `justify-content: center` centres the two columns inside a
+     full-width box, which is right when the box is invisible and wrong the
+     moment it has an edge. Shrink-wrapped and auto-margined, the panel hugs
+     the pair instead.
+
+     The two paddings are custom properties because the portrait rule at the
+     end of this block needs the block one: its height bound is derived
+     against a hero with NO block padding, and the frame has just given it
+     some. */
+  .home-hero,
+  .js-enabled #home.active .home-hero {
+    --hero-frame-pad-block: clamp(24px, 3.2vh, 44px);
+    --hero-frame-pad-inline: clamp(28px, 3.4vw, 60px);
+
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+    padding: var(--hero-frame-pad-block) var(--hero-frame-pad-inline);
+  }
+
+  /* The lit edge. A 1.5px ring painted as a gradient and masked to the border
+     box - the content-box/border-box `mask-composite: exclude` pair is the
+     same trick `.btn::after` uses, and the `-webkit-` line before it is what
+     Safari reads. Directional rather than uniform: the ramp in
+     --hero-frame-rim is brightest at the two ends and dimmest across the
+     middle, so the frame reads as catching light from the upper left instead
+     of being drawn round in one colour. */
+  .home-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: var(--hero-frame-rim);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* ── The portrait bound has to absorb the frame's padding ──
+     The cap on `.home-portrait` is derived, not chosen, and its derivation
+     (see the note on that rule) assumes a hero with NO block padding:
+
+       available = 100dvh - 72px - (16px + g) - g     g = clamp(16px, 3vh, 36px)
+                 = 0.94 x 100dvh - 88px               while g is unsaturated
+       width     = 0.9656 x available                 the cutout's 1:1.0356
+                 = 90.7dvh - 85px         ->          calc(90dvh - 85px)
+
+     The frame takes `2 x --hero-frame-pad-block` out of `available`, so:
+
+       width = 0.9656 x (0.94 x 100dvh - 88px - 2 x pad)
+             = 90dvh - 85px - 1.93 x pad
+
+     88px rather than 85px: the extra 3px is the frame's 1px border top and
+     bottom plus a pixel for the ring. Worked at 1440x568, the worst case the
+     existing note names - g = 17.04px, pad = 24px at its clamp floor - the
+     bound is 511.2 - 88 - 46.3 = 376.9px wide, 390.2px tall, against
+     445.9 - 48 - 2 = 395.9px of room. At 1280x800 the 450px cap wins and
+     nothing here changes.
+
+     Leave this out and short desktop windows scroll, which is the one promise
+     this view is built on. */
+  .home-portrait {
+    width: min(clamp(375px, 40.5vw, 450px),
+        calc(90dvh - 88px - 1.93 * var(--hero-frame-pad-block)));
   }
 }
 
@@ -7218,6 +7455,16 @@ body.dark-theme .skill-tag.primary {
     background: none;
     border-top: 4px solid CanvasText;
   }
+
+  /* The landing frame's lit edge and its specular wash are both painted with
+     a `background` image, which forced colors blanks - leaving a rounded gap
+     where an edge was, the same failure the rule above fixes for the section
+     rules. The frame's real `border` is forced to a system colour and is what
+     carries it here, which is the reason that border exists as a border
+     instead of being folded into the rim gradient. */
+  .home-hero::before {
+    display: none;
+  }
 }
 
 /* High Contrast Mode Support */
@@ -7252,6 +7499,17 @@ body.dark-theme .skill-tag.primary {
   #nav-menu a.active {
     border-color: var(--on-accent);
   }
+
+  /* The landing frame is glass over a technical drawing, and glass is exactly
+     what someone asking for more contrast is asking to be rid of: everything
+     in #home sits on it. An opaque --surface puts the whole ground back under
+     the type. Deliberately not width-scoped - below 901px `.home-hero` has no
+     frame background for this to override, so it costs the phone nothing. */
+  .home-hero {
+    background: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 /* Print Styles */
@@ -7285,6 +7543,21 @@ body.dark-theme .skill-tag.primary {
 
   .hero {
     grid-template-columns: 1fr;
+  }
+
+  /* backdrop-filter does not print, so the landing frame would come out as a
+     flat tint with a citron hairline and a shadow round it - toner spent on a
+     surface whose whole job was to separate the type from a backdrop that is
+     itself hidden here. */
+  .home-hero {
+    background: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .home-hero::before,
+  .home-portrait::before {
+    display: none !important;
   }
 
   .terminal-panel {
@@ -7638,9 +7911,13 @@ body:not(.dark-theme) .site-backdrop::before {
    iPads are 768px+ in portrait and keep the drawing; a narrow desktop window
    has a fine pointer and keeps it too.
 
-   The portrait's paint panel is deliberately NOT part of this. It is the only
-   ground the landing view has left here, and it was designed against the
-   plain gradient that phones still show. */
+   The portrait's paint swash is deliberately NOT part of this, and the two
+   queries are why it was redesigned. `.home-portrait::before` is scoped to
+   `(width <= 900px)`, which covers everything this one does and more, so on
+   a phone the swash is the only ground the landing view has - designed
+   against the plain gradient that is all that is left here. Above 900px
+   neither exists on that view: the drawing is on, and the hero's glass frame
+   is what stands between it and the type. */
 @media (pointer: coarse) and (width <=768px) {
   .site-backdrop {
     display: none;
@@ -13344,6 +13621,17 @@ body.cmd-palette-open {
   .terminal-panel {
     background: #0f172a;
     border-color: #334155;
+  }
+
+  /* The landing hero's frame, which only exists above 900px - the media query
+     is nested rather than dropped because an unscoped rule here would hand
+     every phone a card the stacked layout never had. `.home-hero` keeps its
+     radius, its rim and its glow; what it loses is the blur, so the fill has
+     to stop pretending to be translucent, exactly as `.glass-light` does. */
+  @media (width >=901px) {
+    .home-hero {
+      background: var(--surface);
+    }
   }
 
   header {
