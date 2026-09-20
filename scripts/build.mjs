@@ -511,11 +511,16 @@ async function main() {
     "/vendor/purify.min.js",
     "/vendor/marked.min.js",
     "/manifest.json",
-    // The LCP image, and the only hashed static asset in the shell. This is the
-    // landing portrait cutout, and it has to stay the one index.html preloads -
-    // precaching a width the page never requests costs the install a fetch and
-    // still leaves the real LCP image cold.
+    // The LCP images, and the only hashed static assets in the shell. These are
+    // the landing portrait's two faces, and each has to stay the width
+    // index.html preloads for its own side of the 901px boundary - precaching
+    // a width the page never requests costs the install a fetch and still
+    // leaves the real LCP image cold. Two entries rather than one because the
+    // card rests on the front face below that boundary and on the back face
+    // above it, so an offline desktop and an offline phone open on different
+    // photographs.
     shellUrl("profile-cutout-380.webp"),
+    shellUrl("profile-cutout-back-380.webp"),
   ].filter((p, i, all) => !p.endsWith(".map") && all.indexOf(p) === i);
 
   // A precache URL with no file behind it is silent in production: the worker

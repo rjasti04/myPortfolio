@@ -556,7 +556,7 @@ body.dark-theme {
      carry. The base set and the note explaining why the two differ are on
      `body` in the block below this one.
 
-     --surface is 0.90 alpha here, so the fill resolves to ~0.18 of
+     --surface is 0.90 alpha here, so the fill resolves to ~0.054 of
      hsl(210, 30%, 12%) - thinner again than the light theme's, because a
      dark fill over a dark ground hides the traces much faster than a light
      one over a light ground. That is the whole difference between glass and
@@ -564,7 +564,7 @@ body.dark-theme {
      `backdrop-filter` had nothing left to show through it. The dark theme's
      ratios are the comfortable ones anyway - see the table on `body`'s copy
      of these tokens. */
-  --hero-frame-bg: color-mix(in srgb, var(--surface) 20%, transparent);
+  --hero-frame-bg: color-mix(in srgb, var(--surface) 6%, transparent);
   /* The edge goes to the fill itself here, where `body`'s --accent-mild is
      what the cream ground can carry. Everything below is built out of the
      accent ramp rather than a color-mix per stop, which is both shorter and
@@ -667,33 +667,59 @@ body {
      elevation shadow. A citron bloom on #f8fafb is not the dark theme's
      effect in a light palette; it is a smudge. */
 
-  /* --surface is already 0.92 alpha, so this resolves to ~0.37 of white -
-     thin glass rather than a tinted card. The blur is what makes the frame a
-     surface; the fill only has to tell the eye where its inside is, and past
-     about 0.4 it stops doing that and starts hiding the drawing the blur is
-     there to soften.
+  /* --surface is already 0.92 alpha, so this resolves to ~0.074 of white -
+     a fill that tells the eye where the panel's inside is and does nothing
+     else. It used to be 0.4 of a percentage, and the note here used to say
+     the blur was what made the frame a surface and the fill was what hid the
+     drawing. Half of that was wrong, and the frame read as an opaque card
+     because of it: see --hero-frame-blur below. The fill was never what
+     closed the panel off. Dropping it to zero under a 16px blur changes
+     nothing you can see, because the blur had already flattened the circuit
+     to an even wash - which is why this number and that one moved together,
+     and why moving this one alone would not have fixed anything.
 
-     ── It is not what holds contrast, and that is measured, not assumed ──
-     The instinct is that thinning the fill costs the type its ground. It
-     does not: `--backdrop-scrim` already lays 80% of --bg over the backdrop
-     outside the frame, and that is the layer doing the work. Thinning the
-     fill actually moved every ratio the RIGHT way here, because it leaves
-     the ground closer to the bare --bg the ink was measured against in the
-     first place.
+     ── What it costs the type, measured rather than assumed ──
+     Now that the backdrop does come through, it comes through UNDER the
+     type, and the honest answer is that this costs a little contrast in the
+     light theme rather than gaining it. `--backdrop-scrim` still lays 92% of
+     --bg over the drawing in the central aperture, so what arrives is faint,
+     but a trace crossing behind a letter is a darker ground than the flat
+     wash was, and the worst-pixel column is where that shows up.
 
-     Sampled per pixel on the rendered frame at 1440x900, type hidden; the
-     worse of "mean ground" and "worst single pixel" is quoted. The ink is
-     unchanged in both themes - only the ground moved.
+     Sampled per pixel on the rendered frame at 1440x900, type hidden, worst
+     single pixel under each line's box. The ink is unchanged in both themes -
+     only the ground moved.
 
-                            light          dark
-       .home-greeting       7.98:1        10.56:1     --muted
-       .home-name          15.97:1        14.56:1     --text
-       .home-kicker         5.51:1         7.06:1     --secondary-text
+                           light            dark
+                        before   after   before   after
+       .home-greeting     7.98    7.81    10.56   10.83    --muted
+       .home-name        15.97   15.31    14.56   14.55    --text
+       .home-kicker       5.51    5.40     7.06    7.16    --secondary-text
 
-     The kicker is the binding one at 5.51:1 against AA's 4.5, and it binds
-     in the LIGHT theme, so that is the number to re-measure before thinning
-     this further - and --hero-frame-bg is what moves, never the type. */
-  --hero-frame-bg: color-mix(in srgb, var(--surface) 40%, transparent);
+     The dark theme gained, marginally, because there the traces are LIGHTER
+     than the ground they cross. The light theme lost about 2% across the
+     board, and the kicker is still the binding line at 5.40:1 against AA's
+     4.5 - 20% of headroom, in the theme that binds. That is the number to
+     re-measure before thinning either the fill or the blur further, and
+     --hero-frame-bg and --hero-frame-blur are what move, never the type. */
+  --hero-frame-bg: color-mix(in srgb, var(--surface) 8%, transparent);
+  /* ── The blur is what was actually opaque ──
+     The fill was never the thing hiding the backdrop. The drawing behind
+     this frame is 1px hairlines, and a gaussian erases a hairline at a
+     radius the eye still reads as "barely blurred": measured on the
+     rendered frame, --blur-lg (16px), --blur-sm (8px) and even a bare 3px
+     all flatten the circuit to an even wash, and dropping the fill to zero
+     underneath any of them changes nothing you can see. 2px is the largest
+     radius that still leaves a trace legible as a trace - soft-focus rather
+     than gone - which is what makes the panel read as something you are
+     looking THROUGH rather than at.
+
+     Its own token rather than a rung on the --blur-* ramp for the reason
+     the other five carry: this is a signature surface tuned against one
+     composition, and 2px is not a step anything else on the site should
+     reach for. --glass-saturate stays - the saturation pass is free of the
+     legibility problem and is half of what sells the refraction. */
+  --hero-frame-blur: 2px;
   /* The hairline, and the one edge that survives forced-colors - which is
      why it is a real `border` and not part of the rim gradient below.
      --accent-mild rather than a color-mix of its own: it is the accent at
@@ -3769,8 +3795,8 @@ body.dark-theme .home-portrait picture {
     isolation: isolate;
     border-radius: var(--radius-2xl);
     background: var(--hero-frame-sheen) var(--hero-frame-bg);
-    backdrop-filter: blur(var(--blur-lg)) saturate(var(--glass-saturate));
-    -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--hero-frame-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--hero-frame-blur)) saturate(var(--glass-saturate));
     border: 1px solid var(--hero-frame-edge);
     box-shadow: var(--hero-frame-glow);
   }
@@ -3853,6 +3879,39 @@ body.dark-theme .home-portrait picture {
   .home-portrait {
     width: min(clamp(375px, 40.5vw, 450px),
         calc(90dvh - 88px - 1.93 * var(--hero-frame-pad-block)));
+  }
+
+  /* ── Above 900px the card rests on the STUDIO face ──
+     The frame is a desktop-only surface and the suit shot is the portrait it
+     was composed around, so this is the face the landing view opens on here.
+     The hat shot is what a click brings round. Below 901px none of this
+     applies and the front still leads, which is the whole of the difference
+     between the two views.
+
+     Traded on the two FACES rather than by giving `.home-portrait-card` a
+     180deg rest transform, and the reason is the one the FLIP CARD block
+     states: the in-flow face is what gives the card its height, and the
+     absolute one stretches to it. Rotate the card instead and the hat shot's
+     box would still be sizing a panel showing the suit shot - right until
+     the day the two masters stop agreeing on SHARED_ASPECT, at which point
+     the back face silently letterboxes inside a box measured from the front.
+     Swapping which face is in flow keeps "the visible face sizes the card"
+     true on both sides of the breakpoint.
+
+     `.home-portrait-flip[aria-pressed="true"]`'s rotation is untouched - the
+     card still turns 180deg, it just starts from the other side. Which
+     photograph that lands on is no longer fixed, so js/home-portrait.js
+     resolves the announcement against this same 901px boundary rather than
+     assuming pressed means the back. */
+  .home-portrait-face--front {
+    position: absolute;
+    inset: 0;
+    transform: rotateY(180deg);
+  }
+
+  .home-portrait-face--back {
+    position: static;
+    transform: none;
   }
 }
 
