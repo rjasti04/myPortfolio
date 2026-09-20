@@ -482,8 +482,8 @@ missing, so a failed update is visible but not dangerous.
 | :--- | :--- |
 | `profile-cutout-380.{png,webp}`, `profile-cutout-570.{png,webp}`, `profile-cutout.{png,webp}` | The landing portrait's **front** face — the outdoor shot, background-removed so the page's own gradient and plexus canvas show through the silhouette. Three widths × two formats, from `scripts/generate_profile_cutout.py`, which crops the bust out of a 3024×4032 master; 900 is the 2x of the 450px cap in `styles.css`, so the ladder now covers every width the `sizes` attribute can ask for. PNG rather than JPEG because the fallback has to carry an alpha channel. `profile-cutout-380.webp` is the LCP image: `index.html` preloads it and the build precaches it, and `scripts/tests/build.test.js` asserts those two stay the same file |
 | `profile-cutout-back-380.{png,webp}`, `profile-cutout-back.{png,webp}` | The **back** face — the studio shot, which was the only landing portrait until the card learned to flip. Same generator, same shape (both mattes are held to one aspect ratio; see `SHARED_ASPECT`), two widths rather than three because its master is 1254px and 497 is all the bust there is. Nothing preloads it and it carries `fetchpriority="low"`, so it queues behind the LCP — see [The flip card](#the-flip-card) |
-| `site-backdrop.{webp,jpg}` | The site's ground — a technical schematic behind every section of the SPA, carried by `<div class="site-backdrop">` and painted by CSS alone. **Generated** by `scripts/generate_backdrop.py` from `assets/site-backdrop-master.jpg` (2624×1628), downscaled to 1920×1191; the script's `TARGET_WIDTH` is a ceiling, so a smaller master is never upscaled. Two formats because the rule uses `image-set()`: WebP at 66 KB, JPEG at 185 KB as the fallback. The source is a dark-ground drawing, so the dark theme uses it as-is and the light theme inverts it with `filter: invert(1) hue-rotate(180deg)` rather than downloading a second asset. A `--backdrop-scrim` wash on a separate pseudo-element holds text contrast, and `background-blend-mode: luminosity` over `--backdrop-tint` pulls the source's cyan toward the theme's own accent hue so the drawing belongs to the palette rather than sitting beside it — see [Colour](DESIGN.md#colour). **Phones get no backdrop at all** — `(pointer: coarse) and (width <= 768px)`, the same definition as `mobileDevice` in `js/config.js`; the portrait's paint swash deliberately stays, since below 901px it is then the only ground the landing view has — above that width neither exists there, because the hero's glass frame is what stands between the drawing and the type. Referenced from `styles.css`, so esbuild's CSS asset loader hashes it rather than the copy loop, which is also why it is **not** in the service-worker precache list: `shellUrl()` cannot resolve an esbuild hash |
-| `brush-backdrop.webp` | The painted swash the landing portrait stands in front of **on a phone**, used by `.home-portrait::before` as an *alpha mask* over a solid `--accent-fill` - it carries the shape, the theme carries the colour, so the customiser's accent paints it with nothing to re-tune. The rule is scoped to `(width <= 900px)`, so above that the pseudo-element is never generated and nothing fetches the file. **Generated** by `scripts/generate_brush_backdrop.py` from the one photographed swipe in `assets/brush-stroke-master.jpg` - see [The painted swash](#the-painted-swash) |
+| `site-backdrop.{webp,jpg}` | The site's ground — a technical schematic behind every section of the SPA, carried by `<div class="site-backdrop">` and painted by CSS alone. **Generated** by `scripts/generate_backdrop.py` from `assets/site-backdrop-master.jpg` (2624×1628), downscaled to 1920×1191; the script's `TARGET_WIDTH` is a ceiling, so a smaller master is never upscaled. Two formats because the rule uses `image-set()`: WebP at 66 KB, JPEG at 185 KB as the fallback. The source is a dark-ground drawing, so the dark theme uses it as-is and the light theme inverts it with `filter: invert(1) hue-rotate(180deg)` rather than downloading a second asset. A `--backdrop-scrim` wash on a separate pseudo-element holds text contrast, and `background-blend-mode: luminosity` over `--backdrop-tint` pulls the source's cyan toward the theme's own accent hue so the drawing belongs to the palette rather than sitting beside it — see [Colour](DESIGN.md#colour). **Phones get no backdrop at all** — `(pointer: coarse) and (width <= 768px)`, the same definition as `mobileDevice` in `js/config.js`; the portrait's paint panel deliberately stays, since below 901px it is then the only ground the landing view has — above that width neither exists there, because the hero's glass frame is what stands between the drawing and the type. Referenced from `styles.css`, so esbuild's CSS asset loader hashes it rather than the copy loop, which is also why it is **not** in the service-worker precache list: `shellUrl()` cannot resolve an esbuild hash |
+| `brush-backdrop.webp` | The painted panel the landing portrait stands in front of **below 901px**, used by `.home-portrait::before` as an *alpha mask* over a solid `--accent-fill` - it carries the shape, the theme carries the colour, so the customiser's accent paints it with nothing to re-tune. The rule is scoped to `(width <= 900px)`, so above that the pseudo-element is never generated and nothing fetches the file. **Generated** by `scripts/generate_brush_backdrop.py` from the one photographed swipe in `assets/brush-stroke-master.jpg` - see [The painted panel](#the-painted-panel) |
 | `profile-pic-160.{jpg,webp}`, `profile-pic-360.{jpg,webp}`, `profile-pic.{jpeg,webp}` | Three widths × two formats of the un-cut headshot, from `scripts/generate_profile_pics.py`. Only `profile-pic.jpeg` is still referenced — by the JSON-LD `Person` image — since the landing view moved to the cutout above |
 | `android-chrome-192x192.png`, `android-chrome-512x512.png` | PWA icons, generated from `assets/master-icon.png` |
 | `android-chrome-maskable-512x512.png` | The same badge inset into the maskable safe zone, on the manifest `background_color`. **Generated** by `scripts/generate_launch_images.py` — see [Launch screens](#launch-screens) |
@@ -597,12 +597,15 @@ Neither page is under the SPA's CSP, so those inline scripts need no hash;
 
 ---
 
-## The painted swash
+## The painted panel
 
-`brush-backdrop.webp` is the diagonal sweep of paint behind the landing
-portrait **below 901px**, and nothing above it — see
-[The hero glass frame](#the-hero-glass-frame) for what the desktop gets
-instead. It is
+`brush-backdrop.webp` is the block of paint behind the landing portrait, and
+it paints **below 901px only** — the stacked layout, where it is the landing
+view's only ground. Above that width the pseudo-element is never generated and
+the hero wears a glass frame instead; see
+[The hero glass frame](#the-hero-glass-frame). Nothing about the panel itself
+differs between the two, because nothing about it needed to: every number in
+it was measured against this layout. It is
 not a picture of paint on the page - it is an **alpha mask**: a flat white
 sheet whose alpha channel is opaque where the paint is, transparent where the
 page shows through, and part-way between where the paint is thin.
@@ -634,56 +637,39 @@ paint on black, which is what the landing view used to show unprocessed. One
 swipe is a swipe: at 125% of the portrait's width it ran past the shoulder on
 one side and stopped in mid-air on the other, so it read as a smear the
 portrait happened to overlap. The script uses that same photograph as a
-**brush** instead, laying it down sixteen times - rescaled, tipped, flipped,
+**brush** instead, laying it down eleven times - upright, rescaled, flipped,
 cropped to its dry tail, at varying weights - and compositing lightest-wins.
 Every edge in the output is therefore a real dry-brush edge and the interior
 variation is real loaded-bristle variation, from a single source image.
 
-The `STROKES` table at the top of the script is the whole design: five long
-sweeps at 33-37° make the body, offset *perpendicular* to their own axis so
-they read as one gesture rather than a fan; one dry shoulder sheds off the
-upper edge; and ten flecks of spatter, which are not a new primitive but
-ordinary strokes a few dozen pixels long cropped from the extreme dry tail.
-Coordinates are fractions of the canvas, so the swash re-renders at any
-resolution and every `.home-portrait` width cap inherits the geometry with
-nothing to re-tune. The CSS decides only where the swash sits and how big it
-is.
-
-**Why a diagonal and not the upright panel it replaced.** The panel was sized
-to stand beside a text column. Below 900px there is no text column beside it —
-the portrait moves *above* the type and centres — and an upright slab behind a
-centred head is a rectangle with a man in the middle of it, the exact failure
-the panel itself existed to fix, arriving from the other side. A diagonal
-crosses the figure instead of backing it, so it stays a gesture at any width,
-and both of its ends leave the portrait's box where nothing has to line up
-with anything. The canvas turned landscape (1300×900) to hold it, which is
-also what buys the stroke its length back against the bottom fade below: on
-the old portrait canvas that fade landed at 67% of the mask and amputated the
-whole lower-left half of a diagonal.
+The `STROKES` table at the top of the script is the whole design; coordinates
+are fractions of the canvas, so the panel re-renders at any resolution and
+every `.home-portrait` width cap inherits the geometry with nothing to re-tune.
+The CSS decides only where the panel sits and how big it is.
 
 **The one coupling to know about** is the bottom fade. The portrait in front of
-the paint does not end, it dissolves - `.home-portrait-img` carries
+the panel does not end, it dissolves - `.home-portrait-img` carries
 `mask-image: linear-gradient(to bottom, #000 68%, transparent 97%)` - so from
 68% of its height down the figure is progressively transparent, and any paint
 still opaque behind it shows *through* the jacket. Not as a wash: as the
-swash's own bristle texture printed across the lapels in olive. Its
+panel's own bristle texture printed across the lapels in olive. The panel's
 fade is therefore computed rather than chosen. The script mirrors the four CSS
 values it needs (`::before` width and top, the box's aspect ratio, and that 68%
 line), derives a fade that finishes just above it, and prints the band on every
 run:
 
 ```
-paint fades 41% -> 66% of the portrait box; the figure starts dissolving at 68%
+paint fades 39% -> 66% of the portrait box; the figure starts dissolving at 68%
 ```
 
-Change the swash's `width` or `top` in `styles.css`, or the portrait's own mask
+Change the panel's `width` or `top` in `styles.css`, or the portrait's own mask
 line, and the mirrors in the script have to move with them - re-run it and read
 that line back.
 
 Two encoding notes, because both look like mistakes and are not. The output is
 **lossy** WebP: bristle texture is high-frequency noise, so the equivalent
-lossless sheet is several hundred KB against 44 KB here, on a layer that paints
-under the LCP element. And a lossy mask is normally a bad idea - ringing lifts the black
+greyscale PNG is 485 KB against 74 KB here, on a layer that paints under the
+LCP element. And a lossy mask is normally a bad idea - ringing lifts the black
 field off zero, and a mask that is 2/255 everywhere is a wash of accent across
 the whole rectangle - but measured at q=80 the far corners come back at a mean
 of 0.01-0.12 of 255, so the lift stays on the pixels touching a bristle edge.
@@ -706,15 +692,26 @@ no wrapper element and no JavaScript.
 | `.home-hero` box-shadow | `--hero-frame-glow`: `--elev-4` plus the accent bloom outside the rim |
 | `.home-hero::before` | `--hero-frame-rim`, a gradient masked to the border ring with the `content-box`/`border-box` `mask-composite: exclude` pair that `.btn::after` also uses |
 
+**The fill is thin on purpose, and it is not what holds contrast.** It resolves
+to roughly 0.37 of white on the light theme and 0.18 of `hsl(210, 30%, 12%)` on
+the dark one. The blur is what makes the frame a surface; the fill only has to
+say where its inside is, and past about 0.4 it starts hiding the drawing the
+blur exists to soften. Thinning it does not cost the type its ground —
+`--backdrop-scrim` already lays 80% of `--bg` over the backdrop and that is the
+layer doing the work. Measured per pixel on the rendered frame at 1440×900 with
+the type hidden, worse of mean ground and worst single pixel: the greeting is
+7.98:1 light / 10.56:1 dark, the name 15.97 / 14.56, and the disciplines line —
+the binding one — 5.51 / 7.06, all clear of AA's 4.5:1.
+
 **Both themes, and they are not the same effect.** The reference this was built
 from is a dark-theme shot with a neon rim, and the rule behind that rim is the
 one `--sheen-edge` already states: the edge is lighter than the surface behind
 it. On a cream page the sign flips, so the same structure lands as a restrained
 accent hairline over an elevation shadow. A citron bloom on `#f8fafb` is not
 the dark theme's effect in a light palette; it is a smudge. All five tokens are
-declared on `body` rather than `:root` — three are built from `--accent-*`,
-which the theme customiser writes to `body.style`, and a `:root` alias would
-freeze at the light citron. See [Colour](DESIGN.md#colour).
+declared on `body` rather than `:root` — four are built from `--accent-*` or
+`--sheen-*`, which the theme customiser writes to `body.style`, and a `:root`
+alias would freeze at the light citron. See [Colour](DESIGN.md#colour).
 
 Three things about the implementation are load-bearing:
 
@@ -760,7 +757,7 @@ something:
 
 | Element | Owns |
 | :--- | :--- |
-| `.home-portrait-flip` | the `<button>`: the perspective, and the stacking that lifts the card over the paint |
+| `.home-portrait-flip` | the `<button>`: the perspective, and the stacking that lifts the card over the paint panel |
 | `.home-portrait-card` | the rotation, and `transform-style: preserve-3d` |
 | `.home-portrait-face` | one side, and `backface-visibility: hidden` |
 
@@ -769,15 +766,12 @@ themselves because `picture` carries the drop-shadow, and an element with a
 `filter` is flattened out of its parent's 3D context — declared together,
 `backface-visibility: hidden` is unreliable across engines.
 
-**The paint does not rotate.** It is `.home-portrait::before`, a sibling of the
-button rather than part of the card, so the figure turns in front of a ground
-that stays put. The panel this replaced sat at `left: 46%` as a compromise
-between the two silhouettes, which disagree on where the head is by 2.6% of
-the box width — the hat's brim pulls the front face left. The swash is back at
-`left: 50%`: a diagonal's mass is off-centre by construction and the generator
-is what places it, so re-applying that bias on top would double-count the same
-correction. It only exists below 901px in any case, and above that the card
-turns inside the glass frame.
+**The paint panel does not rotate.** It is `.home-portrait::before`, a sibling
+of the button rather than part of the card, so the figure turns in front of a
+wall that stays put. That is also why its `left: 46%` is now a compromise: the
+two silhouettes disagree on where the head is by 2.6% of the box width — the
+hat's brim pulls the front face left — and the panel can only be centred on
+one. The measurement and the reasoning are in the rule's own comment.
 
 Three things about it are load-bearing and easy to undo by accident, so
 `frontend/tests/home-portrait.test.js` asserts all three:

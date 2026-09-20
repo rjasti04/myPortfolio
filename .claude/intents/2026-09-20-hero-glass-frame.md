@@ -1,4 +1,13 @@
-# Intent: Landing Hero — Desktop Glass Frame, Mobile-Only Paint Swash
+# Intent: Landing Hero — Desktop Glass Frame, Mobile-Only Paint
+
+> **Revision, same day.** This began as two changes: the glass frame *and* a
+> redesign of the paint from an upright panel into a diagonal swash. The swash
+> was built, reviewed against the mocks and then **reverted at the owner's
+> direction** — the panel stays as it was. What shipped is the frame, the
+> mobile-only scoping of the paint, and a thinner frame fill. Section 1.2
+> below records the swash argument as it was made, because the reasoning about
+> the stacked layout is still the honest account of why the question came up;
+> the decision went the other way.
 
 ## 1. Problem & Persona Context
 
@@ -38,10 +47,10 @@
     translucent, backdrop-blurred surface with a lit accent rim and an outer bloom,
     so the circuit backdrop reads *through* the frame (softened) instead of *against*
     the type. The paint is removed at this width entirely.
-  - **Mobile (≤ 900px)**: the paint stays and is **redesigned from a panel into a
-    diagonal dry-brush swash** rising left-to-right behind the portrait, with spatter
-    flecks breaking its silhouette — a gesture rather than a slab. No glass frame at
-    this width.
+  - **Mobile (≤ 900px)**: the paint stays **exactly as it is** — the upright panel,
+    every number measured against this layout, now simply scoped to it. No glass
+    frame at this width. (A diagonal swash was built here and reverted; see the
+    revision note at the top.)
 
   One decoration per layout, each designed for the layout it is in.
 
@@ -53,9 +62,8 @@
   - **ADR-001**: Vanilla CSS and vanilla ES modules. No component abstraction, no
     framework, and — for this change — **no new JavaScript at all**. The frame is a
     media query and one pseudo-element.
-  - **ADR-016**: Zero third-party asset origins. The swash mask is generated in-repo by
-    `scripts/generate_brush_backdrop.py` from `assets/brush-stroke-master.jpg` and
-    self-hosted; nothing is fetched.
+  - **ADR-016**: Zero third-party asset origins. Nothing is fetched, and the frame
+    adds no asset at all — it is CSS.
   - **ADR-023**: Not applicable — no chat or model surface is touched.
   - **`docs/DESIGN.md` rules 1–4**: every new value joins a ramp or becomes a named
     token with a comment; every new colour/elevation token gets a dark-theme
@@ -68,8 +76,9 @@
   - **The paint must be gone before the figure dissolves.** `.home-portrait-img` carries
     `mask-image: linear-gradient(to bottom, #000 68%, transparent 97%)`; any opaque
     paint behind the figure below 68% prints its bristle texture through the jacket.
-    The generator computes the fade band from four mirrored CSS constants and prints it
-    on every run — the redesign keeps that mechanism rather than eyeballing a new fade.
+    The generator computes that band from four mirrored CSS constants. Wrapping the
+    rule in a media query changes none of them, which is the point: the panel's
+    geometry and its fade are untouched.
   - **Contrast**: the frame sits under every line of type on the LCP view. Body copy,
     the muted greeting and the disciplines line must still clear WCAG AA over the new
     surface in both themes, including where the circuit backdrop's brightest traces
@@ -97,9 +106,8 @@
     frame tokens across both themes), HOME HERO (the frame, the swash geometry, the revised
     portrait height bound), ACCESSIBILITY & PRINT PREFERENCES (`forced-colors`,
     `prefers-contrast`, print), BACKDROP-FILTER FALLBACKS.
-  - Asset: `frontend/brush-backdrop.webp` — regenerated as a diagonal swash.
-  - Script: `scripts/generate_brush_backdrop.py` — new stroke table, landscape
-    canvas, spatter primitive.
+  - Asset: `frontend/brush-backdrop.webp` — **unchanged**.
+  - Script: `scripts/generate_brush_backdrop.py` — **unchanged**.
   - Markup: **none**.
   - Build: `scripts/build.mjs` — `BUDGETS_KIB.css`, see the CSS-budget risk below.
   - Gates: `npm run lint` && `npm test` && `npm run build`
@@ -124,11 +132,9 @@
     `.act-card` already run the same filter over the same ground. Mitigation: the frame
     is desktop-only, so no phone GPU ever pays for it, and the blur reuses the existing
     `--blur-lg` rung rather than adding a radius.
-  - *Asset bytes.* The swash is the same generator, the same source photograph and the
-    same `alpha_quality=60` cliff as the panel; the canvas gets wider and shorter, so
-    the file should land within a few KB of the current ~85 KB. Verified by the size
-    the script prints — it came in at **43.8 KB**, roughly half, because a single
-    gesture covers far less of its canvas than a slab does.
+  - *Asset bytes.* None. The mask is byte-identical to what shipped before, and no
+    new asset is added. (The reverted swash would have halved it, 84.8 KB → 43.8 KB;
+    that saving goes with it.)
   - *CSS budget.* `scripts/build.mjs` fails past a hard ceiling of minified CSS, and
     **the ceiling was already at exactly 100.0%** (288.0 KiB of 288) before this work —
     not 99%, 100.0%. There is no headroom to spend, so the change has to trim what it

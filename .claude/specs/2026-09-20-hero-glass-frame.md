@@ -1,6 +1,12 @@
-# Technical Specification: Landing Hero — Desktop Glass Frame, Mobile-Only Paint Swash
+# Technical Specification: Landing Hero — Desktop Glass Frame, Mobile-Only Paint
 
-**Related Intent**: `.claude/intents/2026-09-20-hero-glass-frame-mobile-swash.md`
+> **Revision, same day.** §4.4 and §4.5 originally specified a redesign of the
+> paint from an upright panel into a diagonal swash. It was built and then
+> **reverted at the owner's direction**; the panel ships unchanged. Both
+> sections are rewritten below to match what shipped, and §4.1 carries the
+> thinner frame fill that replaced the first pass.
+
+**Related Intent**: `.claude/intents/2026-09-20-hero-glass-frame.md`
 **Target Audience**: Visitor / Recruiter (LCP view), Work Sample
 
 ---
@@ -10,20 +16,19 @@
 - **Impacted Layers**:
   - [x] Frontend SPA — `frontend/styles.css` only. **`frontend/index.html` is not
         touched**, so the three pinned CSP `sha256-` hashes cannot drift.
-  - [x] Generated asset — `frontend/brush-backdrop.webp` via
-        `scripts/generate_brush_backdrop.py`.
+  - [ ] Generated asset — none. `frontend/brush-backdrop.webp` and
+        `scripts/generate_brush_backdrop.py` are untouched.
   - [ ] Backend API — none.
   - [ ] Database Schema — none.
-  - [ ] CI/CD & Deploy — none. esbuild already content-hashes `brush-backdrop.webp`
-        through the CSS asset loader; the filename is unchanged, so nothing in
-        `scripts/build.mjs` or `frontend/sw.js` moves.
+  - [x] CI/CD & Deploy — `scripts/build.mjs` only, and only `BUDGETS_KIB.css`
+        plus the note above it. Nothing about the emit changes.
 
 - **The breakpoint is 901px, and it is the one the view already has.**
   `@media (width <= 900px)` is where `.home-hero` drops from two columns to a stack;
   `@media (width >= 901px)` is where `.home-intro` left-aligns. The frame joins the
   second and the paint joins the first. No third tier is introduced, so a tablet in
-  portrait keeps the stacked layout *and* the paint, which is the layout the paint is
-  being redesigned for.
+  portrait keeps the stacked layout *and* the paint, which is the layout the paint
+  was measured against in the first place.
 
 ---
 
@@ -56,7 +61,7 @@ N/A — no model, no `server/alembic/versions/` entry, no `alembic check` impact
 | Token | Where declared | Light | Dark | Why |
 | :--- | :--- | :--- | :--- | :--- |
 | `--radius-2xl` | `:root` | `28px` | inherits | The rung above `--radius-xl` (20px). The frame is ~1050×560; 20px on a box that size reads as a square with the corners filed off. |
-| `--hero-frame-bg` | `body` | `color-mix(in srgb, var(--surface) 62%, transparent)` | `color-mix(in srgb, var(--surface) 46%, transparent)` | The glass fill. `--surface` is already 0.92/0.90 alpha, so the effective alphas are ~0.57 and ~0.41 — enough to lift the frame off the scrim, thin enough that the circuit traces still read through it. |
+| `--hero-frame-bg` | `body` | `color-mix(in srgb, var(--surface) 40%, transparent)` | `color-mix(in srgb, var(--surface) 20%, transparent)` | The glass fill. `--surface` is already 0.92/0.90 alpha, so the effective alphas are ~0.37 and ~0.18. Thin on purpose: the blur is what makes the frame a surface, and past ~0.4 the fill starts hiding the drawing the blur exists to soften. It is **not** what holds contrast — `--backdrop-scrim`'s 80% of `--bg` is — which the ratios in §4.7 measure rather than assume. |
 | `--hero-frame-edge` | `body` | `var(--accent-mild)` | `var(--accent-fill)` | The hairline. It is also the *only* edge that survives `forced-colors`, which is why it is a real `border` and not part of the rim gradient. |
 | `--hero-frame-rim` | `body` | a `linear-gradient` of `--accent-mild` → `--accent-soft` → `--accent-mild` | the same ramp with `--accent-fill` at the two ends | The illuminated edge. Directional rather than uniform so the frame reads as *lit* from the upper left rather than outlined. |
 | `--hero-frame-glow` | `body` | `var(--elev-4), 0 0 34px -14px var(--accent-mild)` | `var(--elev-4)` + three `--accent-mild` blooms at increasing spread and increasing negative spread | The bloom outside the rim. Two values because the sign of "lighter than the ground" flips between themes — the same rule `--sheen-edge` is two values for. |
@@ -171,59 +176,33 @@ At 1280×800 the 450px cap wins and nothing changes.
 The mobile `82dvh` ramp (`<=900px`, `<=600px`, `<=430px`) is **untouched** — there is no
 frame at those widths, so its constants still hold.
 
-### 4.4 Mobile swash — `@media (width <= 900px)`
+### 4.4 Mobile paint — `@media (width <= 900px)`
 
-The whole of `.home-portrait::before` and its `body.dark-theme` opacity override move
-inside `@media (width <= 900px)`. Above 900px the pseudo-element is never generated, so
-the mask image is not fetched on desktop at all.
+The whole of `.home-portrait::before` and its `body.dark-theme` opacity override
+move inside `@media (width <= 900px)`. That is the entire change to the paint: the
+rule's declarations are **byte-for-byte what they were**, one indent level deeper.
+Above 900px the pseudo-element is never generated, so the mask image is not fetched
+on desktop at all.
 
-New geometry, replacing the upright panel's:
+| Property | Value | Unchanged because |
+| :--- | :--- | :--- |
+| `width` | `88%` | The cutout's box is mostly air; at 88% the paint ends just outside the shoulders, where a flat behind a sitter ends. |
+| `aspect-ratio` | `1060 / 1120` | The generator's canvas. |
+| `top` | `-6%` | Mirrored in `generate_brush_backdrop.py`, which computes the bottom fade from it. |
+| `left` | `46%` | Centred on the *figure*, not the box, and a measured compromise between the flip card's two silhouettes (alpha-weighted centroids 0.337 vs 0.363). |
+| `transform` | `translateX(-50%) rotate(-2deg)` | Hung by hand, not printed. |
+| `opacity` | `0.72` / `0.48` dark | Tuned against the ground phones actually show. |
 
-| Property | Was (panel) | Now (swash) | Why |
-| :--- | :--- | :--- | :--- |
-| `width` | `88%` | `124%` | A diagonal gesture has to leave the portrait's box on both ends or it is a panel again. 124% of the portrait's `min(72vw, …)` is 89vw at the width where 72vw governs, so it never reaches the viewport edge. |
-| `aspect-ratio` | `1060 / 1120` | `1300 / 900` | The generator's canvas. Landscape, because the stroke rises across the box rather than standing in it. |
-| `top` | `-6%` | `-10%` | Lifts the stroke's high end clear of the head. |
-| `left` | `46%` | `50%` | 46% existed to centre an upright panel on an asymmetric *figure*. A diagonal's mass is off-centre by construction and the generator places it; re-applying a 4% bias on top double-counts. |
-| `transform` | `translateX(-50%) rotate(-2deg)` | `translateX(-50%)` | The tilt is in the strokes now. |
-| `opacity` | `0.72` / `0.48` dark | unchanged | Tuned against the same ground (phones have no `.site-backdrop`), verified by screenshot rather than assumed. |
+The four constants mirrored in the generator (`PANEL_WIDTH_OF_BOX`,
+`PANEL_TOP_OF_BOX`, the box aspect, `PORTRAIT_FADE_START`) are therefore still
+correct, and the fade band it prints is still `39% -> 66% of the portrait box;
+the figure starts dissolving at 68%`. Nothing needs regenerating.
 
 ### 4.5 `scripts/generate_brush_backdrop.py`
 
-The mechanism is kept in full — one photographed swipe (`assets/brush-stroke-master.jpg`)
-re-used as a brush, composited lightest-wins, shipped as the **alpha** of a flat white
-sheet (the iOS `mask-mode` argument at the top of the file is unchanged and still
-load-bearing). Three things change:
-
-1. `CANVAS_W, CANVAS_H` → `1300, 900`, and `PANEL_*` → `SWASH_*`.
-2. `STROKES` is replaced with sixteen entries: **five long sweeps** at +33° to +37°
-   counter-clockwise (PIL rotates CCW, so a positive angle takes the source's
-   landscape swipe from lower-left to upper-right), offset *perpendicular* to
-   their own axis about the canvas centre and drifting along it so the two ends
-   are ragged; **one dry shoulder** shed off the upper edge; and **ten spatter
-   flecks** — very short, light crops from the extreme dry tail
-   (`crop=(0.88..0.94, 1.0)`) scattered clear of the band. The flecks reuse
-   `lay_stroke` unchanged; they are just small strokes.
-   The `vertical` field on `Stroke` is **removed** — every stroke is a diagonal
-   now, so length is always a fraction of canvas width.
-   Two intermediate cuts of this table were rejected and the reasons are in the
-   file: three parallel dry accents read as bars laid beside the stroke rather
-   than as bristle leaving it, and accents that keep the source's blunt loaded
-   end read as tabs, which is why the surviving shoulder is cropped at **both**
-   ends.
-3. The four mirrored CSS constants move with §4.4: `PANEL_WIDTH_OF_BOX 0.88 → 1.24`,
-   `PANEL_TOP_OF_BOX -0.06 → -0.10`. `PORTRAIT_BOX_ASPECT` and `PORTRAIT_FADE_START`
-   are unchanged because the portrait is unchanged.
-
-The bottom-fade machinery is **kept as-is**. It is the mechanism that stops paint
-printing through the dissolving jacket, and with the new constants it recomputes to a
-band ending at ~91% of the swash canvas (≈66% of the portrait box) instead of ~67% —
-the wide-and-short canvas is what buys the diagonal its full length back. The script
-prints the band on every run; that line is the check.
-
-`WEBP_QUALITY`, `ALPHA_QUALITY`, `CORE_PERCENTILE`, `PAINT_THRESHOLD`, `CUT_TAPER` and
-`FADE_SPAN` are unchanged — the encoder argument in the file was measured on this
-source and still holds.
+**No change.** An earlier pass rewrote its stroke table for a diagonal swash and
+that was reverted; the file and `frontend/brush-backdrop.webp` are both back to
+what they were.
 
 ### 4.6 Accessibility and fallback blocks
 
@@ -232,20 +211,32 @@ source and still holds.
 | `@supports not (backdrop-filter …)` (BACKDROP-FILTER FALLBACKS) | A nested `@media (width >= 901px)` gives `.home-hero` `background: var(--surface); border-color: var(--border)`, matching how `.glass-light` degrades. Scoped, or the phone layout gains a card it never had. |
 | `@media (forced-colors: active)` | `.home-hero::before { display: none }`. The rim is painted with a `background` image, which HCM blanks — leaving a rounded gap where an edge was, the same failure the block already fixes for `.section-title::after`. The frame's real `border` is forced to a system colour and is what remains. |
 | `@media (prefers-contrast: more), (prefers-contrast: high)` | `.home-hero { background: var(--surface); backdrop-filter: none; }` — an opaque surface under the type. Unscoped is safe: below 901px `.home-hero` has no frame background to override. `more` first, `high` only as the legacy Safari alias. |
-| `@media print` | `.home-hero { background: none; border: 0; box-shadow: none; }` and the two pseudo-elements dropped. `backdrop-filter` does not print and a bloom wastes toner. |
+| `@media print` | `.home-hero { background: none; border: 0; box-shadow: none; }`, with the rim and the paint panel dropped. `backdrop-filter` does not print and a bloom wastes toner. |
 
 No `prefers-reduced-motion` rule is needed: nothing added here transitions or animates.
 
-### 4.7 Contrast obligations
+### 4.7 Contrast obligations — measured, not argued
 
-The frame goes under every line on the LCP view. Over the frame, on the light theme,
-the ground is `--bg-gradient` → `--backdrop-scrim` (80% `--bg`) → `--hero-frame-bg`
-(~0.57 of 100% white), i.e. **lighter** than the bare `--bg` the existing ratios were
-measured against, so `--muted`, `--secondary-text` and `--text` all improve. On the dark
-theme the frame adds ~0.41 of `hsl(210, 30%, 12%)` over an 85%-`--bg` scrim — a lift of
-roughly one step in lightness, which is checked against `--muted` (the greeting) and
-`--secondary-text` (the disciplines line) rather than assumed. Any measured ratio that
-lands under AA moves `--hero-frame-bg`, not the type.
+The frame goes under every line on the LCP view, so the ratios are sampled from the
+rendered page rather than reasoned about: Chromium at 1440×900, the hero text hidden
+so the ground behind it can be read directly, per pixel over each line's own box,
+quoting the worse of *mean ground* and *worst single pixel*. The ink is unchanged in
+both themes; only the ground moved.
+
+| Line | Token | Light | Dark |
+| :--- | :--- | ---: | ---: |
+| `.home-greeting` | `--muted` | 7.98:1 | 10.56:1 |
+| `.home-name` | `--text` | 15.97:1 | 14.56:1 |
+| `.hero-kicker.home-kicker` | `--secondary-text` | **5.51:1** | 7.06:1 |
+
+All clear WCAG AA for normal text (4.5:1). The disciplines line binds, and it binds
+in the **light** theme, so that is the number to re-measure before thinning
+`--hero-frame-bg` further — and it is `--hero-frame-bg` that moves, never the type.
+
+The counter-intuitive result is worth recording: **thinning the fill improved every
+ratio.** `--backdrop-scrim` already lays 80% of `--bg` over the backdrop and that is
+the layer holding contrast; a thinner frame leaves the ground closer to the bare
+`--bg` the ink was originally measured against.
 
 ---
 
@@ -266,18 +257,18 @@ lands under AA moves `--hero-frame-bg`, not the type.
 ## 6. Verification & Test Plan
 
 ```bash
-# Regenerate the mask (Pillow only; no network)
-python3 scripts/generate_brush_backdrop.py     # prints size + the computed fade band
-
 # Frontend
 npm run lint          # ESLint + Stylelint
 npm test              # Node test runner + jsdom
-npm run build         # esbuild; fails past 240 KiB of minified CSS
+npm run build         # esbuild; fails past BUDGETS_KIB.css, now 291 KiB
 
 # Docs / hashes
 python3 scripts/check_csp_hashes.py
 python3 scripts/check_docs.py --fix --show-tokens
 ```
+
+The mask is not regenerated: `generate_brush_backdrop.py` and its output are
+untouched, so `python3 scripts/generate_brush_backdrop.py` is a no-op here.
 
 **Visual verification** (Chromium via Playwright, both themes):
 
@@ -288,8 +279,13 @@ python3 scripts/check_docs.py --fix --show-tokens
 | 1440×568 | Same; **no scrollbar** — the `§4.3` bound is what this checks. |
 | 1920×1080 | Frame hugs the pair rather than spanning `main`. |
 | 901 / 900px | The swap point: frame off → paint on, in one pixel, with neither layout broken. |
-| 390×844 | Swash behind the portrait, no frame, no horizontal overflow. |
+| 390×844, 430×932 | The paint panel behind the portrait, unchanged, no frame, no horizontal overflow. |
+| 768×1024 | Tablet keeps the stacked layout, the panel *and* the site backdrop. |
 | 320×568 | Worst case for the "never scrolls" promise; disciplines line still on one row. |
+
+**Media emulation** (also Chromium): `prefers-contrast: more` (opaque surface, blur
+off), `forced-colors: active` (rim dropped, real border carries the edge),
+`prefers-reduced-motion: reduce` (nothing to clamp) and `print`.
 
 **Backend / database**: not run — no Python under `server/`, no model and no migration
 is touched by this change. `PYTHONPATH=. pytest` and `alembic check` are out of scope
@@ -305,9 +301,14 @@ and that is stated rather than skipped silently.
    `(pointer: coarse) and (width <= 768px)` definition `js/config.js` uses for
    `mobileDevice`. A narrow desktop window gets the swash too, because what the paint
    is compensating for is the *stacked layout*, not the input device.
-3. The mock's neon rim is read as the **dark theme**'s treatment. The light theme gets
+3. "Add transparency to it" is read as *thinner fill*, not a weaker rim or bloom:
+   the frame reads as glass because of the blur and the lit edge, and dropping
+   those to make it see-through would remove the effect rather than lighten it.
+   The fill went 62%→40% light and 34%→20% dark, bounded by the measured
+   contrast in §4.7 rather than by eye.
+4. The mock's neon rim is read as the **dark theme**'s treatment. The light theme gets
    the same structure at a restrained strength, per `docs/DESIGN.md` rule 4 and the
    `--sheen-edge` note ("the edge is lighter than the surface behind it" holds in both
    themes, but the sign flips).
-4. The rim is **static**. The mock is a still; a pulsing glow on the landing view is a
+5. The rim is **static**. The mock is a still; a pulsing glow on the landing view is a
    SC 2.2.2 liability and the site already plays `.home-role`'s gradient exactly once.
