@@ -73,8 +73,10 @@ move pixels to buy nothing. New CSS uses the ramp.
 
 ### Radius, elevation, blur, sheen
 
-- **Radius** — `--radius-sm` 8px through `--radius-xl` 20px, plus
-  `--radius-full`.
+- **Radius** — `--radius-2xs` 2px through `--radius-xl` 20px, plus `--radius-2xl`
+  28px and `--radius-full`. The 2xl rung serves exactly one surface, the landing
+  hero's glass frame: corner radius has to grow with the box it rounds, and 20px
+  on a ~1050×560 panel is a rectangle with the corners filed off.
 - **Elevation** — `--elev-1` to `--elev-4`, each one hairline ring plus one
   ambient shadow. `--shadow-ring` and `--shadow-ambient` are redefined in the
   dark theme, so every step adapts with it.

@@ -482,8 +482,8 @@ missing, so a failed update is visible but not dangerous.
 | :--- | :--- |
 | `profile-cutout-380.{png,webp}`, `profile-cutout-570.{png,webp}`, `profile-cutout.{png,webp}` | The landing portrait's **front** face — the outdoor shot, background-removed so the page's own gradient and plexus canvas show through the silhouette. Three widths × two formats, from `scripts/generate_profile_cutout.py`, which crops the bust out of a 3024×4032 master; 900 is the 2x of the 450px cap in `styles.css`, so the ladder now covers every width the `sizes` attribute can ask for. PNG rather than JPEG because the fallback has to carry an alpha channel. `profile-cutout-380.webp` is the LCP image: `index.html` preloads it and the build precaches it, and `scripts/tests/build.test.js` asserts those two stay the same file |
 | `profile-cutout-back-380.{png,webp}`, `profile-cutout-back.{png,webp}` | The **back** face — the studio shot, which was the only landing portrait until the card learned to flip. Same generator, same shape (both mattes are held to one aspect ratio; see `SHARED_ASPECT`), two widths rather than three because its master is 1254px and 497 is all the bust there is. Nothing preloads it and it carries `fetchpriority="low"`, so it queues behind the LCP — see [The flip card](#the-flip-card) |
-| `site-backdrop.{webp,jpg}` | The site's ground — a technical schematic behind every section of the SPA, carried by `<div class="site-backdrop">` and painted by CSS alone. **Generated** by `scripts/generate_backdrop.py` from `assets/site-backdrop-master.jpg` (2624×1628), downscaled to 1920×1191; the script's `TARGET_WIDTH` is a ceiling, so a smaller master is never upscaled. Two formats because the rule uses `image-set()`: WebP at 66 KB, JPEG at 185 KB as the fallback. The source is a dark-ground drawing, so the dark theme uses it as-is and the light theme inverts it with `filter: invert(1) hue-rotate(180deg)` rather than downloading a second asset. A `--backdrop-scrim` wash on a separate pseudo-element holds text contrast, and `background-blend-mode: luminosity` over `--backdrop-tint` pulls the source's cyan toward the theme's own accent hue so the drawing belongs to the palette rather than sitting beside it — see [Colour](DESIGN.md#colour). **Phones get no backdrop at all** — `(pointer: coarse) and (width <= 768px)`, the same definition as `mobileDevice` in `js/config.js`; the portrait's paint panel deliberately stays, since it is then the only ground the landing view has. Referenced from `styles.css`, so esbuild's CSS asset loader hashes it rather than the copy loop, which is also why it is **not** in the service-worker precache list: `shellUrl()` cannot resolve an esbuild hash |
-| `brush-backdrop.webp` | The painted panel the landing portrait stands in front of, used by `.home-portrait::before` as an *alpha mask* over a solid `--accent-fill` - it carries the shape, the theme carries the colour, so the customiser's accent paints it with nothing to re-tune. **Generated** by `scripts/generate_brush_backdrop.py` from the one photographed swipe in `assets/brush-stroke-master.jpg` - see [The painted panel](#the-painted-panel) |
+| `site-backdrop.{webp,jpg}` | The site's ground — a technical schematic behind every section of the SPA, carried by `<div class="site-backdrop">` and painted by CSS alone. **Generated** by `scripts/generate_backdrop.py` from `assets/site-backdrop-master.jpg` (2624×1628), downscaled to 1920×1191; the script's `TARGET_WIDTH` is a ceiling, so a smaller master is never upscaled. Two formats because the rule uses `image-set()`: WebP at 66 KB, JPEG at 185 KB as the fallback. The source is a dark-ground drawing, so the dark theme uses it as-is and the light theme inverts it with `filter: invert(1) hue-rotate(180deg)` rather than downloading a second asset. A `--backdrop-scrim` wash on a separate pseudo-element holds text contrast, and `background-blend-mode: luminosity` over `--backdrop-tint` pulls the source's cyan toward the theme's own accent hue so the drawing belongs to the palette rather than sitting beside it — see [Colour](DESIGN.md#colour). **Phones get no backdrop at all** — `(pointer: coarse) and (width <= 768px)`, the same definition as `mobileDevice` in `js/config.js`; the portrait's paint panel deliberately stays, since below 901px it is then the only ground the landing view has — above that width neither exists there, because the hero's glass frame is what stands between the drawing and the type. Referenced from `styles.css`, so esbuild's CSS asset loader hashes it rather than the copy loop, which is also why it is **not** in the service-worker precache list: `shellUrl()` cannot resolve an esbuild hash |
+| `brush-backdrop.webp` | The painted panel the landing portrait stands in front of **below 901px**, used by `.home-portrait::before` as an *alpha mask* over a solid `--accent-fill` - it carries the shape, the theme carries the colour, so the customiser's accent paints it with nothing to re-tune. The rule is scoped to `(width <= 900px)`, so above that the pseudo-element is never generated and nothing fetches the file. **Generated** by `scripts/generate_brush_backdrop.py` from the one photographed swipe in `assets/brush-stroke-master.jpg` - see [The painted panel](#the-painted-panel) |
 | `profile-pic-160.{jpg,webp}`, `profile-pic-360.{jpg,webp}`, `profile-pic.{jpeg,webp}` | Three widths × two formats of the un-cut headshot, from `scripts/generate_profile_pics.py`. Only `profile-pic.jpeg` is still referenced — by the JSON-LD `Person` image — since the landing view moved to the cutout above |
 | `android-chrome-192x192.png`, `android-chrome-512x512.png` | PWA icons, generated from `assets/master-icon.png` |
 | `android-chrome-maskable-512x512.png` | The same badge inset into the maskable safe zone, on the manifest `background_color`. **Generated** by `scripts/generate_launch_images.py` — see [Launch screens](#launch-screens) |
@@ -599,7 +599,13 @@ Neither page is under the SPA's CSP, so those inline scripts need no hash;
 
 ## The painted panel
 
-`brush-backdrop.webp` is the block of paint behind the landing portrait. It is
+`brush-backdrop.webp` is the block of paint behind the landing portrait, and
+it paints **below 901px only** — the stacked layout, where it is the landing
+view's only ground. Above that width the pseudo-element is never generated and
+the hero wears a glass frame instead; see
+[The hero glass frame](#the-hero-glass-frame). Nothing about the panel itself
+differs between the two, because nothing about it needed to: every number in
+it was measured against this layout. It is
 not a picture of paint on the page - it is an **alpha mask**: a flat white
 sheet whose alpha channel is opaque where the paint is, transparent where the
 page shows through, and part-way between where the paint is thin.
@@ -669,6 +675,72 @@ the whole rectangle - but measured at q=80 the far corners come back at a mean
 of 0.01-0.12 of 255, so the lift stays on the pixels touching a bristle edge.
 Both figures are in the script's own comments; re-measure before lowering the
 quality.
+
+---
+
+## The hero glass frame
+
+Above 900px the landing view's decoration is not paint, it is a frame. The
+whole hero — portrait and intro column together — sits inside one translucent
+panel with a lit edge: `.home-hero` itself, plus a single `::before`. There is
+no wrapper element and no JavaScript.
+
+| Layer | What it is |
+| :--- | :--- |
+| `.home-hero` background | `--hero-frame-sheen` (a radial specular wash) over `--hero-frame-bg` (the glass fill), with `backdrop-filter: blur(var(--blur-lg)) saturate(var(--glass-saturate))` under it |
+| `.home-hero` border | 1px of `--hero-frame-edge` — the hairline, and the only edge that survives Windows High Contrast Mode |
+| `.home-hero` box-shadow | `--hero-frame-glow`: `--elev-4` plus the accent bloom outside the rim |
+| `.home-hero::before` | `--hero-frame-rim`, a gradient masked to the border ring with the `content-box`/`border-box` `mask-composite: exclude` pair that `.btn::after` also uses |
+
+**The fill is thin on purpose, and it is not what holds contrast.** It resolves
+to roughly 0.37 of white on the light theme and 0.18 of `hsl(210, 30%, 12%)` on
+the dark one. The blur is what makes the frame a surface; the fill only has to
+say where its inside is, and past about 0.4 it starts hiding the drawing the
+blur exists to soften. Thinning it does not cost the type its ground —
+`--backdrop-scrim` already lays 80% of `--bg` over the backdrop and that is the
+layer doing the work. Measured per pixel on the rendered frame at 1440×900 with
+the type hidden, worse of mean ground and worst single pixel: the greeting is
+7.98:1 light / 10.56:1 dark, the name 15.97 / 14.56, and the disciplines line —
+the binding one — 5.51 / 7.06, all clear of AA's 4.5:1.
+
+**Both themes, and they are not the same effect.** The reference this was built
+from is a dark-theme shot with a neon rim, and the rule behind that rim is the
+one `--sheen-edge` already states: the edge is lighter than the surface behind
+it. On a cream page the sign flips, so the same structure lands as a restrained
+accent hairline over an elevation shadow. A citron bloom on `#f8fafb` is not
+the dark theme's effect in a light palette; it is a smudge. All five tokens are
+declared on `body` rather than `:root` — four are built from `--accent-*` or
+`--sheen-*`, which the theme customiser writes to `body.style`, and a `:root`
+alias would freeze at the light citron. See [Colour](DESIGN.md#colour).
+
+Three things about the implementation are load-bearing:
+
+1. **`position: absolute` on the pseudo-element.** `.home-hero` is a *grid
+   container*, and a statically-positioned `::before` on one is a grid **item** —
+   it would be placed into a track and push the portrait over.
+2. **`isolation: isolate` on the frame.** It is what makes `z-index: -1` mean
+   "over the frame's own background, under the grid items" rather than "behind
+   everything in `.layout`". `backdrop-filter` establishes a stacking context
+   already, but the `@supports` fallback takes the filter away and the rim
+   would vanish behind the fill exactly there.
+3. **Nothing animates.** A looping glow on the LCP view is a WCAG 2.2 SC 2.2.2
+   liability, and this page deliberately plays even `.home-role`'s gradient
+   once.
+
+**The portrait's height bound moves with the frame.** `.home-portrait` caps at
+`min(clamp(375px, 40.5vw, 450px), calc(90dvh - 88px - 1.93 * var(--hero-frame-pad-block)))`
+above 900px. That second term is derived, not chosen: the original
+`calc(90dvh - 85px)` assumes a hero with *no* block padding, and the frame has
+just given it some, so the frame's padding comes back out of the bound at the
+cutout's own 1:1.0356 aspect. Leave it out and short desktop windows scroll —
+which is the one promise this view is built on. The arithmetic is in the rule's
+comment.
+
+Four blocks elsewhere in the stylesheet owe the frame a fallback, and all four
+exist: `@supports not (backdrop-filter)` (an opaque `--surface`, with the media
+query nested so phones do not gain a card), `forced-colors: active` (the rim is
+dropped; the real border carries it), `prefers-contrast: more` (opaque surface,
+blur off) and `@media print`.
 
 ---
 
