@@ -21,7 +21,6 @@ When authoring or refactoring frontend code in `frontend/`:
     `<img>`. The no-third-party-images rule therefore holds by convention in the
     source, not by the CSP - do not add one and assume the CSP would have caught
     it, and do not tighten `img-src` without handling chat markdown images.
-- **Plexus Canvas Background**: `frontend/three-bg.js` is plain 2D HTML5 canvas; there is no Three.js runtime.
 
 ## 2. Style & Design Token Contract
 - Modify `frontend/styles.css` using established CSS variables defined in `:root` (`docs/DESIGN.md`).

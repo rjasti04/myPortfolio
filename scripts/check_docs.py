@@ -114,8 +114,8 @@ def check_nav_table(text: str, rep: Report, src: Path) -> None:
     rows = re.findall(
         r"^\| `([\w./-]+)` \| ([\d,]+) \| ~([\d,]+) \|", text, re.M
     )
-    if len(rows) < 6:
-        rep.missing(where, f"navigation table has {len(rows)} rows, expected 6")
+    if len(rows) < 5:
+        rep.missing(where, f"navigation table has {len(rows)} rows, expected 5")
     for name, claimed_lines, claimed_tokens in rows:
         path = ROOT / name
         if not path.exists():
@@ -356,7 +356,6 @@ def display_token_usage() -> None:
         "frontend/index.html",
         "frontend/js/chat.js",
         "frontend/js/auth-ui.js",
-        "frontend/three-bg.js",
     ]
     for rel in nav_files:
         p = ROOT / rel

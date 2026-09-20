@@ -449,18 +449,6 @@ def prune_replay_buffers() -> None:
         replay_last_touched.pop(sid, None)
 
 
-async def broadcast_pipeline(session_id: UUID) -> None:
-    """Pushes a pipeline health snapshot onto one session's stream."""
-    if session_id not in active_streams:
-        return
-    frame = {"__channel__": "pipeline", **pipeline_snapshot()}
-    for queue in list(active_streams[session_id]):
-        try:
-            queue.put_nowait(frame)
-        except asyncio.QueueFull:
-            # Health frames are periodic; skipping one costs nothing.
-            METRICS["frames_dropped"] += 1
-
 
 def pipeline_mode() -> str:
     """Which ingest path is reported: kafka, failed, simulator, simulated, bypass.

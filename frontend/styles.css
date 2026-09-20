@@ -794,17 +794,6 @@ body {
   width: 80%;
 }
 
-.skeleton-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-}
-
-.skeleton-card {
-  height: 200px;
-  border-radius: var(--radius);
-}
-
 /* Skip to main content link for accessibility */
 .skip-link {
   position: absolute;
@@ -1420,17 +1409,10 @@ body.dark-theme .header-dropdown-container {
 .ai-close-btn:focus-visible,
 .btn-clear:focus-visible,
 .close-overlay-btn:focus-visible,
-.code-copy-btn:focus-visible,
-.voice-input-btn:focus-visible,
-.delete-session-btn:focus-visible {
+.code-copy-btn:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
   transition: outline-offset var(--motion-base) var(--ease-press);
-}
-
-/* Ensure the delete button is visible when focused via keyboard */
-.delete-session-btn:focus-visible {
-  opacity: 1 !important;
 }
 
 @media (prefers-contrast: more), (prefers-contrast: high) {
@@ -1457,9 +1439,7 @@ body.dark-theme .header-dropdown-container {
   .ai-close-btn:focus-visible,
   .btn-clear:focus-visible,
   .close-overlay-btn:focus-visible,
-  .code-copy-btn:focus-visible,
-  .voice-input-btn:focus-visible,
-  .delete-session-btn:focus-visible {
+  .code-copy-btn:focus-visible {
     outline-color: currentColor;
     outline-width: 4px;
   }
@@ -2462,31 +2442,6 @@ main {
   flex: 1 1 0;
   min-width: 160px;
   justify-content: center;
-}
-
-.pdf-download-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 2px;
-  color: var(--muted);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-decoration: none;
-  border-radius: var(--radius-sm);
-  transition: color var(--motion-base) var(--ease-standard);
-}
-
-.pdf-download-link:hover,
-.pdf-download-link:focus-visible {
-  color: var(--accent-text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.pdf-download-link:focus-visible {
-  outline: 3px solid var(--focus-ring);
-  outline-offset: 3px;
 }
 
 .hero-chat-btn,
@@ -4210,11 +4165,6 @@ body.dark-theme .home-portrait picture {
   border-radius: 6px;
 }
 
-.item-description {
-  color: var(--muted);
-  margin-top: var(--space-md);
-}
-
 /* Experience bullets & tech tags */
 .item-bullets {
   list-style: none;
@@ -4451,14 +4401,6 @@ body.dark-theme .home-portrait picture {
 #resume .role-period {
   font-size: var(--text-body-sm);
   color: var(--muted);
-}
-
-#resume .item-description {
-  max-width: var(--measure);
-  margin: var(--space-md) 0 0;
-  color: var(--muted);
-  font-size: var(--text-body);
-  line-height: var(--leading-body);
 }
 
 /* The resume groups its bullets under subheadings, so the card does too. The
@@ -5457,62 +5399,7 @@ body.dark-theme .home-portrait picture {
 
 /* #endregion */
 
-/* #region HEADER INFO & STAT COUNTERS ---------------------------------*/
-/* Header info groups (date/time + location/weather) */
-.header-datetime,
-.header-locweather {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  white-space: nowrap;
-}
-
-.header-info-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: var(--tracking-wide);
-  transition: opacity var(--motion-base) var(--ease-standard);
-}
-
-.header-info-group:hover {
-  opacity: 0.8;
-}
-
-.header-info-group i {
-  color: var(--accent-text);
-  font-size: var(--text-body-sm);
-  filter: none;
-}
-
-#user-time {
-  font-variant-numeric: tabular-nums;
-}
-
-.weather-icon {
-  font-size: var(--text-body);
-  margin-right: 4px;
-}
-
-@media (width <=1150px) {
-
-  .header-datetime,
-  .header-locweather {
-    display: none;
-  }
-}
-
-@media (hover: none) and (pointer: coarse) and (width <=640px) {
-
-  .header-datetime,
-  .header-locweather {
-    display: none;
-  }
-}
-
+/* #region STAT COUNTERS -----------------------------------------------*/
 /* Stat Counter - Clean 3x2 Glassmorphism Grid */
 .stats-grid {
   display: grid;
@@ -6298,18 +6185,6 @@ body.dark-theme .skill-tag.primary {
 /* #endregion */
 
 /* #region MODALS & TOASTS ---------------------------------------------*/
-/* Project Detail Modal */
-
-.detail-tag {
-  font-size: var(--text-body-xs);
-  font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  border: 1px solid var(--accent-mild);
-}
-
 /* Toast Notifications */
 .toast-container {
   position: fixed;
@@ -9162,15 +9037,6 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
   .chat-dialog {
     width: calc(100vw - 40px);
     height: 60vh;
-  }
-
-  /* Full-screen chat option for mobile */
-  .chat-dialog.fullscreen {
-    width: 100vw;
-    height: 100vh;
-    border-radius: 0;
-    bottom: 0;
-    right: 0;
   }
 
   .chat-header {
@@ -12507,36 +12373,6 @@ body.dark-theme .chat-message.bot tr:nth-child(even) {
   }
 }
 
-.typing-dot {
-  width: 6px;
-  height: 6px;
-  background-color: var(--muted);
-  border-radius: 50%;
-  animation: typing 1.4s infinite ease-in-out both;
-  opacity: 0.4;
-}
-
-.typing-dot:nth-child(1) {
-  animation-delay: -0.32s;
-}
-
-.typing-dot:nth-child(2) {
-  animation-delay: -0.16s;
-}
-
-@keyframes typing {
-
-  0%,
-  80%,
-  100% {
-    transform: scale(0);
-  }
-
-  40% {
-    transform: scale(1);
-  }
-}
-
 /* ── Tablet (769-1024px) ── */
 @media (width >=769px) and (width <=1024px) {
   #ai {
@@ -13358,22 +13194,6 @@ body.dark-theme .mobile-bottom-nav {
     border-radius: var(--radius-full);
     white-space: nowrap;
   }
-}
-
-/* ── Live ETL Pulse Dot Colors ── */
-.pulse-dot.active-green {
-  background-color: var(--color-success-fill) !important;
-  box-shadow: 0 0 8px var(--color-success-fill);
-}
-
-.pulse-dot.active-orange {
-  background-color: var(--color-warning-fill) !important;
-  box-shadow: 0 0 8px var(--color-warning-fill);
-}
-
-.pulse-dot.active-red {
-  background-color: var(--color-error-fill) !important;
-  box-shadow: 0 0 8px var(--color-error-fill);
 }
 
 /* Offline banner.

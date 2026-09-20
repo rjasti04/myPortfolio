@@ -2,7 +2,7 @@
 Profile Cutout Generator Script
 
 Builds the two free-form landing portraits: studio shots background-removed so
-the page's own gradient and plexus canvas show through the silhouette instead of
+the page's own gradient and backdrop show through the silhouette instead of
 a photographic square clipped to a circle.
 
 There are TWO of them because the landing portrait flips. `.home-portrait` is a
