@@ -104,8 +104,9 @@ The section list is duplicated in four places that have to move together: the
 **Head, in order:** meta CSP → viewport/robots/author/theme-color → Open Graph
 and Twitter cards → canonical → JSON-LD `Person` structured data → icons and
 manifest → standalone-launch meta and the `apple-touch-startup-image`
-links → `js-enabled` marker script → preloads (`profile-cutout-380.webp`,
-`styles.css`) → stylesheets (`styles.css`, `auth-modal.css`, `fonts.css`) →
+links → `js-enabled` marker script → preloads (`profile-cutout-380.webp` under
+`media="(width <= 900px)"`, `profile-cutout-back-380.webp` under
+`media="(width >= 901px)"`, `styles.css`) → stylesheets (`styles.css`, `auth-modal.css`, `fonts.css`) →
 two font preloads.
 
 **Body head, in order:** skip link → inline theme bootstrap →
@@ -480,8 +481,8 @@ missing, so a failed update is visible but not dangerous.
 
 | Path | Notes |
 | :--- | :--- |
-| `profile-cutout-380.{png,webp}`, `profile-cutout-570.{png,webp}`, `profile-cutout.{png,webp}` | The landing portrait's **front** face — the outdoor shot, background-removed so the page's own gradient and plexus canvas show through the silhouette. Three widths × two formats, from `scripts/generate_profile_cutout.py`, which crops the bust out of a 3024×4032 master; 900 is the 2x of the 450px cap in `styles.css`, so the ladder now covers every width the `sizes` attribute can ask for. PNG rather than JPEG because the fallback has to carry an alpha channel. `profile-cutout-380.webp` is the LCP image: `index.html` preloads it and the build precaches it, and `scripts/tests/build.test.js` asserts those two stay the same file |
-| `profile-cutout-back-380.{png,webp}`, `profile-cutout-back.{png,webp}` | The **back** face — the studio shot, which was the only landing portrait until the card learned to flip. Same generator, same shape (both mattes are held to one aspect ratio; see `SHARED_ASPECT`), two widths rather than three because its master is 1254px and 497 is all the bust there is. Nothing preloads it and it carries `fetchpriority="low"`, so it queues behind the LCP — see [The flip card](#the-flip-card) |
+| `profile-cutout-380.{png,webp}`, `profile-cutout-570.{png,webp}`, `profile-cutout.{png,webp}` | The landing portrait's **front** face — the outdoor shot, background-removed so the page's own gradient and plexus canvas show through the silhouette. Three widths × two formats, from `scripts/generate_profile_cutout.py`, which crops the bust out of a 3024×4032 master; 900 is the 2x of the 450px cap in `styles.css`, so the ladder now covers every width the `sizes` attribute can ask for. PNG rather than JPEG because the fallback has to carry an alpha channel. `profile-cutout-380.webp` is the LCP image **below 901px**: `index.html` preloads it under `media="(width <= 900px)"` and the build precaches it, and `scripts/tests/build.test.js` asserts those two stay the same file. Above that width this face is the one behind the turn |
+| `profile-cutout-back-380.{png,webp}`, `profile-cutout-back.{png,webp}` | The **back** face — the studio shot, which was the only landing portrait until the card learned to flip. Same generator, same shape (both mattes are held to one aspect ratio; see `SHARED_ASPECT`), two widths rather than three because its master is 1254px and 497 is all the bust there is. **This is the face the card rests on above 900px**, so it is the LCP image there: `index.html` preloads it under `media="(width >= 901px)"` and the build precaches it too. 497 over the 450px cap is 1.1x, which makes it the one face on the page that is not retina-sharp on a 2x desktop — the accepted cost of leading, and only a higher-resolution re-shoot fixes it. The `<img>` keeps `fetchpriority="low" loading="lazy"` because neither attribute has a media-conditional form and on a phone this face is still off screen until a click — see [The flip card](#the-flip-card) |
 | `site-backdrop.{webp,jpg}` | The site's ground — a technical schematic behind every section of the SPA, carried by `<div class="site-backdrop">` and painted by CSS alone. **Generated** by `scripts/generate_backdrop.py` from `assets/site-backdrop-master.jpg` (2624×1628), downscaled to 1920×1191; the script's `TARGET_WIDTH` is a ceiling, so a smaller master is never upscaled. Two formats because the rule uses `image-set()`: WebP at 66 KB, JPEG at 185 KB as the fallback. The source is a dark-ground drawing, so the dark theme uses it as-is and the light theme inverts it with `filter: invert(1) hue-rotate(180deg)` rather than downloading a second asset. A `--backdrop-scrim` wash on a separate pseudo-element holds text contrast, and `background-blend-mode: luminosity` over `--backdrop-tint` pulls the source's cyan toward the theme's own accent hue so the drawing belongs to the palette rather than sitting beside it — see [Colour](DESIGN.md#colour). **Phones get no backdrop at all** — `(pointer: coarse) and (width <= 768px)`, the same definition as `mobileDevice` in `js/config.js`; the portrait's paint panel deliberately stays, since below 901px it is then the only ground the landing view has — above that width neither exists there, because the hero's glass frame is what stands between the drawing and the type. Referenced from `styles.css`, so esbuild's CSS asset loader hashes it rather than the copy loop, which is also why it is **not** in the service-worker precache list: `shellUrl()` cannot resolve an esbuild hash |
 | `brush-backdrop.webp` | The painted panel the landing portrait stands in front of **below 901px**, used by `.home-portrait::before` as an *alpha mask* over a solid `--accent-fill` - it carries the shape, the theme carries the colour, so the customiser's accent paints it with nothing to re-tune. The rule is scoped to `(width <= 900px)`, so above that the pseudo-element is never generated and nothing fetches the file. **Generated** by `scripts/generate_brush_backdrop.py` from the one photographed swipe in `assets/brush-stroke-master.jpg` - see [The painted panel](#the-painted-panel) |
 | `profile-pic-160.{jpg,webp}`, `profile-pic-360.{jpg,webp}`, `profile-pic.{jpeg,webp}` | Three widths × two formats of the un-cut headshot, from `scripts/generate_profile_pics.py`. Only `profile-pic.jpeg` is still referenced — by the JSON-LD `Person` image — since the landing view moved to the cutout above |
@@ -687,28 +688,49 @@ no wrapper element and no JavaScript.
 
 | Layer | What it is |
 | :--- | :--- |
-| `.home-hero` background | `--hero-frame-sheen` (a radial specular wash) over `--hero-frame-bg` (the glass fill), with `backdrop-filter: blur(var(--blur-lg)) saturate(var(--glass-saturate))` under it |
+| `.home-hero` background | `--hero-frame-sheen` (a radial specular wash) over `--hero-frame-bg` (the glass fill), with `backdrop-filter: blur(var(--hero-frame-blur)) saturate(var(--glass-saturate))` under it |
 | `.home-hero` border | 1px of `--hero-frame-edge` — the hairline, and the only edge that survives Windows High Contrast Mode |
 | `.home-hero` box-shadow | `--hero-frame-glow`: `--elev-4` plus the accent bloom outside the rim |
 | `.home-hero::before` | `--hero-frame-rim`, a gradient masked to the border ring with the `content-box`/`border-box` `mask-composite: exclude` pair that `.btn::after` also uses |
 
-**The fill is thin on purpose, and it is not what holds contrast.** It resolves
-to roughly 0.37 of white on the light theme and 0.18 of `hsl(210, 30%, 12%)` on
-the dark one. The blur is what makes the frame a surface; the fill only has to
-say where its inside is, and past about 0.4 it starts hiding the drawing the
-blur exists to soften. Thinning it does not cost the type its ground —
-`--backdrop-scrim` already lays 80% of `--bg` over the backdrop and that is the
-layer doing the work. Measured per pixel on the rendered frame at 1440×900 with
-the type hidden, worse of mean ground and worst single pixel: the greeting is
-7.98:1 light / 10.56:1 dark, the name 15.97 / 14.56, and the disciplines line —
-the binding one — 5.51 / 7.06, all clear of AA's 4.5:1.
+**The blur is what was opaque, not the fill.** The frame first shipped with the
+fill at 0.37 of white (light) and 0.18 of `hsl(210, 30%, 12%)` (dark) under
+`--blur-lg`, and read as a solid card: the drawing behind it is 1px hairlines,
+and a gaussian erases a hairline at a radius the eye still reads as barely
+blurred. Measured on the rendered frame, 16px, 8px and even a bare 3px all
+flatten the circuit to an even wash, and dropping the fill to zero under any of
+them changes nothing visible. So both moved together — the fill to 0.074 of
+white and 0.054 of the dark surface, and the blur to its own token,
+`--hero-frame-blur: 2px`, the largest radius that still leaves a trace legible
+as a trace. `--glass-saturate` is untouched: the saturation pass has none of the
+legibility problem and is half of what sells the refraction.
+
+**What it costs the type, measured rather than assumed.** Now that the backdrop
+comes through, it comes through *under* the type. `--backdrop-scrim` still lays
+92% of `--bg` over the drawing in the central aperture, so what arrives is
+faint, but a trace crossing behind a letter is a darker ground than the flat
+wash was. Per pixel on the rendered frame at 1440×900, type hidden, worst single
+pixel under each line's box:
+
+| Line | light before → after | dark before → after |
+| :--- | :--- | :--- |
+| `.home-greeting` | 7.98 → **7.81** | 10.56 → **10.83** |
+| `.home-name` | 15.97 → **15.31** | 14.56 → **14.55** |
+| `.home-kicker` | 5.51 → **5.40** | 7.06 → **7.16** |
+
+The dark theme gained, marginally, because there the traces are *lighter* than
+the ground they cross. The light theme lost about 2%, and the disciplines line
+is still the binding one at 5.40:1 against AA's 4.5 — 20% of headroom, in the
+theme that binds. That is the number to re-measure before thinning either the
+fill or the blur further, and `--hero-frame-bg` and `--hero-frame-blur` are what
+move, never the type.
 
 **Both themes, and they are not the same effect.** The reference this was built
 from is a dark-theme shot with a neon rim, and the rule behind that rim is the
 one `--sheen-edge` already states: the edge is lighter than the surface behind
 it. On a cream page the sign flips, so the same structure lands as a restrained
 accent hairline over an elevation shadow. A citron bloom on `#f8fafb` is not
-the dark theme's effect in a light palette; it is a smudge. All five tokens are
+the dark theme's effect in a light palette; it is a smudge. All six tokens are
 declared on `body` rather than `:root` — four are built from `--accent-*` or
 `--sheen-*`, which the theme customiser writes to `body.style`, and a `:root`
 alias would freeze at the light citron. See [Colour](DESIGN.md#colour).
@@ -746,11 +768,22 @@ blur off) and `@media print`.
 
 ## The flip card
 
-The landing portrait is a button. Clicking it rotates the card and the studio
-shot on the back comes round; clicking again turns it back. There is no hover
-glow, no pointer cursor and no glyph in the corner — the affordance is
-deliberately absent, so the flip is something a visitor finds rather than
-something the landing view advertises.
+The landing portrait is a button. Clicking it rotates the card and the other
+photograph comes round; clicking again turns it back. There is no hover glow, no
+pointer cursor and no glyph in the corner — the affordance is deliberately
+absent, so the flip is something a visitor finds rather than something the
+landing view advertises.
+
+**Which face it rests on depends on the width.** Below 901px the card rests on
+the front (outdoor) face and the turn brings the studio shot round, as it always
+has. Above it — where the hero wears its glass frame, and the studio shot is the
+portrait that frame was composed around — the stylesheet trades the two faces
+over: `.home-portrait-face--back` goes `position: static`, the front goes
+absolute at `rotateY(180deg)`, and the turn brings the outdoor shot round
+instead. Traded on the *faces* rather than by giving the card a 180deg rest
+transform, because the in-flow face is what gives the card its height and the
+absolute one stretches to it; rotating the card would leave one face's box
+sizing a panel showing the other.
 
 Three elements, each with one job, because collapsing any two of them breaks
 something:
@@ -773,8 +806,8 @@ two silhouettes disagree on where the head is by 2.6% of the box width — the
 hat's brim pulls the front face left — and the panel can only be centred on
 one. The measurement and the reasoning are in the rule's own comment.
 
-Three things about it are load-bearing and easy to undo by accident, so
-`frontend/tests/home-portrait.test.js` asserts all three:
+Four things about it are load-bearing and easy to undo by accident, so
+`frontend/tests/home-portrait.test.js` asserts all four:
 
 1. **The button ships `disabled`**, and `js/home-portrait.js` drops that on
    init. Nothing flips without JS, and a control that is focusable and
@@ -787,11 +820,23 @@ Three things about it are load-bearing and easy to undo by accident, so
    faces are `alt=""` — neither photograph carries information the name beside
    it does not — so `#home-portrait-status` is the only place the change is
    announced, the same pattern as `#home-theme-status`.
-3. **The back face stays out of the LCP's way**: not preloaded,
-   `fetchpriority="low"`, `loading="lazy"`. The module raises it to `high` on
-   the first hover or focus, which is the earliest honest signal that a click
-   is coming and the difference between a turn that lands on a photograph and
-   one that lands on nothing.
+3. **`aria-pressed` means "turned from rest", and rest is not the same face at
+   every width**, so `js/home-portrait.js` resolves one against the other
+   through `matchMedia("(width >= 901px)")` — the same boundary the stylesheet
+   uses, and the one number the two files have to agree on. Read live rather
+   than once at startup, so a window resized across 900px announces what is
+   actually on screen. Get this backwards and the card looks right while a
+   screen reader is told the opposite.
+4. **Each face is preloaded for exactly the widths it leads at.** Two
+   media-scoped preloads, front under `(width <= 900px)` and back under
+   `(width >= 901px)`, and the front one stays first in the document because
+   `scripts/tests/build.test.js` reads the first image preload in
+   `dist/index.html` and asserts the service worker precaches that same file.
+   The `<img>` attributes stay written for the phone — `fetchpriority="low"`,
+   `loading="lazy"` on the back face — because neither has a media-conditional
+   form. The module raises the back face to `high` on the first hover or focus,
+   which is the earliest honest signal that a click is coming below 901px and a
+   no-op above it, where that image is already the preloaded LCP.
 
 Nothing here animates under `prefers-reduced-motion: reduce`. The global block
 in the ACCESSIBILITY & PRINT PREFERENCES region of `styles.css` clamps every

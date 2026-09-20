@@ -7,7 +7,7 @@ import { JSDOM } from 'jsdom';
 // worth asserting here is the part that is not: the contract between the
 // markup, the module and the stylesheet.
 //
-// Three things can break silently and none of them would fail a build.
+// Four things can break silently and none of them would fail a build.
 //
 //   1. The button ships `disabled` so that a page without JS never offers a
 //      control that cannot work. If a future edit drops that attribute the
@@ -15,9 +15,17 @@ import { JSDOM } from 'jsdom';
 //   2. The CSS selector that rotates the card reads `aria-pressed` directly,
 //      so the accessible state IS the visual state. Swap it for a class and
 //      the card still turns while screen readers are told nothing.
-//   3. The back face must stay out of the LCP's way - not preloaded, and
-//      explicitly low priority - because it is not on screen until someone
-//      clicks. That is easy to undo by copying the front face's attributes.
+//   3. Each face has to be preloaded for exactly the widths it actually leads
+//      at, and for no others. Above 900px the stylesheet rests the card on the
+//      BACK face, so the two preloads are media-scoped and swapping or
+//      dropping a `media` attribute spends the connection's first bytes on a
+//      photograph nobody has asked to see - which is invisible in every test
+//      that only checks a file is preloaded at all.
+//   4. `aria-pressed` means "turned from rest", and rest is not the same face
+//      at every width, so the status line has to resolve one against the
+//      other. Get this backwards and the card looks right while a screen
+//      reader is told the opposite of what is on screen - the one failure
+//      mode nobody sighted will ever catch.
 //
 // The rotation itself, the perspective and the reduced-motion fallback are
 // left to the browser; jsdom computes no transforms and asserting on the
@@ -42,8 +50,23 @@ describe('Home portrait flip', () => {
   let dom;
   let initHomePortrait;
 
+  // The module resolves the rest face through `matchMedia` at import time and
+  // reads `.matches` live on every click. jsdom evaluates no media queries and
+  // reports `matches: false` for everything, which is the phone - reachable,
+  // but only half the contract. A stub whose answer this suite owns is what
+  // makes the desktop half reachable at all.
+  let studioLeads = false;
+
   before(async () => {
     dom = new JSDOM(MARKUP, { url: 'https://rjasti.com/' });
+    dom.window.matchMedia = (query) => ({
+      media: query,
+      get matches() {
+        return studioLeads;
+      },
+      addEventListener() {},
+      removeEventListener() {},
+    });
     global.document = dom.window.document;
     global.window = dom.window;
     ({ initHomePortrait } = await import('../js/home-portrait.js'));
@@ -56,6 +79,7 @@ describe('Home portrait flip', () => {
   });
 
   beforeEach(() => {
+    studioLeads = false;
     dom.window.document.body.innerHTML = new JSDOM(MARKUP).window.document.body.innerHTML;
   });
 
@@ -90,6 +114,29 @@ describe('Home portrait flip', () => {
 
     assert.ok(back.length > 0 && front.length > 0, 'both faces announce something');
     assert.notStrictEqual(back, front, 'the two faces must not announce the same thing');
+  });
+
+  it('names the face the width actually rests on, not the pressed state', () => {
+    // On a phone the card rests on the outdoor shot, so the first turn lands on
+    // the studio one. Above 900px the stylesheet trades the faces over and the
+    // same turn lands on the outdoor shot instead. `aria-pressed` is identical
+    // in both runs - only the announcement may differ, and it must.
+    initHomePortrait();
+    button().click();
+    const phone = status().textContent;
+    assert.strictEqual(button().getAttribute('aria-pressed'), 'true');
+
+    studioLeads = true;
+    button().click();
+    button().click();
+    const desktop = status().textContent;
+    assert.strictEqual(button().getAttribute('aria-pressed'), 'true');
+
+    assert.notStrictEqual(
+      phone,
+      desktop,
+      'the same pressed state shows a different photograph on either side of 900px'
+    );
   });
 
   it('raises the back face priority on the first hover, once', () => {
@@ -129,33 +176,62 @@ describe('Home portrait markup contract', () => {
     assert.ok(back, 'back face image');
   });
 
-  it('keeps the front face the LCP element and the back face out of its way', () => {
+  // `loading` and `fetchpriority` have no media-conditional form, so they stay
+  // written for the phone - where the front face leads and the back one is off
+  // screen until a click. Above 900px the rest face is the other way round and
+  // the media-scoped preload below is the only lever there is; these four
+  // attributes are deliberately NOT the place that gets fixed.
+  it('keeps the phone attributes written for the phone', () => {
     assert.strictEqual(front.getAttribute('fetchpriority'), 'high');
     assert.strictEqual(front.getAttribute('loading'), 'eager');
     assert.strictEqual(back.getAttribute('fetchpriority'), 'low');
     assert.strictEqual(back.getAttribute('loading'), 'lazy');
-
-    const preloads = [...doc.querySelectorAll('link[rel="preload"][as="image"]')]
-      .map((link) => link.getAttribute('imagesrcset') || link.getAttribute('href'))
-      .join(' ');
-    assert.match(preloads, /profile-cutout-380\.webp/, 'the front face is preloaded');
-    assert.doesNotMatch(preloads, /profile-cutout-back/, 'the back face must not be');
   });
 
-  it('preloads exactly the srcset the front <picture> will pick from', () => {
-    const preload = doc.querySelector('link[rel="preload"][as="image"][type="image/webp"]');
-    const source = doc.querySelector('.home-portrait-face--front source[type="image/webp"]');
+  const imagePreloads = () => [...doc.querySelectorAll('link[rel="preload"][as="image"]')];
+  const preloadFor = (pattern) =>
+    imagePreloads().find((link) => pattern.test(link.getAttribute('imagesrcset') || ''));
+
+  it('preloads each face only for the widths that face leads at', () => {
+    const frontPreload = preloadFor(/^profile-cutout-380\.webp/);
+    const backPreload = preloadFor(/^profile-cutout-back-380\.webp/);
+
+    assert.ok(frontPreload, 'the front face is preloaded');
+    assert.ok(backPreload, 'so is the back face, which leads above 900px');
+
+    // Scoped, and scoped the right way round. Without `media` both fire at
+    // every width and one of them is always the wrong photograph; swapped,
+    // every visitor waits on a face they cannot see.
+    assert.strictEqual(frontPreload.getAttribute('media'), '(width <= 900px)');
+    assert.strictEqual(backPreload.getAttribute('media'), '(width >= 901px)');
+
+    // The front preload has to stay first: scripts/tests/build.test.js reads
+    // the first image preload in dist/index.html and asserts the service
+    // worker precaches that same file.
+    assert.strictEqual(imagePreloads()[0], frontPreload, 'the front preload comes first');
+  });
+
+  it('preloads exactly the srcset each <picture> will pick from', () => {
     const normalise = (value) => value.replace(/\s+/g, ' ').trim();
 
-    assert.strictEqual(
-      normalise(preload.getAttribute('imagesrcset')),
-      normalise(source.getAttribute('srcset')),
-      'a preload that does not match the <picture> costs a round trip instead of saving one'
-    );
-    assert.strictEqual(
-      normalise(preload.getAttribute('imagesizes')),
-      normalise(source.getAttribute('sizes'))
-    );
+    for (const [face, pattern] of [
+      ['front', /^profile-cutout-380\.webp/],
+      ['back', /^profile-cutout-back-380\.webp/],
+    ]) {
+      const preload = preloadFor(pattern);
+      const source = doc.querySelector(`.home-portrait-face--${face} source[type="image/webp"]`);
+
+      assert.strictEqual(
+        normalise(preload.getAttribute('imagesrcset')),
+        normalise(source.getAttribute('srcset')),
+        `the ${face} preload does not match its <picture>, which costs a round trip instead of saving one`
+      );
+      assert.strictEqual(
+        normalise(preload.getAttribute('imagesizes')),
+        normalise(source.getAttribute('sizes')),
+        `the ${face} preload and its <picture> disagree on sizes`
+      );
+    }
   });
 
   it('ships the flip button disabled, for the no-JS page', () => {
