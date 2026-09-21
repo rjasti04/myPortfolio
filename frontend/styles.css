@@ -698,10 +698,22 @@ body {
 
      The dark theme gained, marginally, because there the traces are LIGHTER
      than the ground they cross. The light theme lost about 2% across the
-     board, and the kicker is still the binding line at 5.40:1 against AA's
-     4.5 - 20% of headroom, in the theme that binds. That is the number to
-     re-measure before thinning either the fill or the blur further, and
-     --hero-frame-bg and --hero-frame-blur are what move, never the type. */
+     board, and the kicker is still the binding line against AA's 4.5, in the
+     theme that binds. That is the number to re-measure before thinning either
+     the fill or the blur further, and --hero-frame-bg and --hero-frame-blur
+     are what move, never the type.
+
+     ── The kicker row moved again ──
+     `.home-kicker` no longer paints --secondary-text; it paints --accent-text,
+     so the landing view is one palette (see the note on that rule). Same
+     method, same frame, re-measured:
+
+       .home-kicker       5.13 light     11.45 dark      --accent-text
+
+     Light gives up 0.27 and keeps 14% of headroom over 4.5; dark gains 4.29,
+     because the accent is far lighter on that ground than the blue was. The
+     binding line is still this one, and 5.13 is now the figure to re-measure
+     against. The other two rows are unchanged - only this ink moved. */
   --hero-frame-bg: color-mix(in srgb, var(--surface) 8%, transparent);
   /* ── The blur is what was actually opaque ──
      The fill was never the thing hiding the backdrop. The drawing behind
@@ -2306,9 +2318,15 @@ main {
   overflow: visible;
 }
 
+/* 0.26em is where Plus Jakarta Sans sets its own space at weight 800. The
+   tokeniser was emitting 0.32em, which is a quarter wider, and at the 64.8px
+   the landing name runs to that is 20.7px against 16.9px - enough that
+   "Rajeev Jasti" read as two words with a gap between them rather than as one
+   name. Shared with the #about hero title, where the smaller size was hiding
+   the same gap rather than not having it. */
 .hero-word-space {
   display: inline-block;
-  width: 0.32em;
+  width: 0.26em;
 }
 
 /* ── Colour ──
@@ -3442,6 +3460,20 @@ body.dark-theme .home-portrait picture {
   text-align: center;
   margin-top: 0;
   margin-bottom: clamp(12px, 2.5vh, 24px);
+
+  /* ── The one line that was not in the palette ──
+     `.hero-kicker` paints this --secondary-text, a blue that the #about hero
+     shares and that is right there: that hero runs on body copy and links.
+     The landing view does not. It is olive, lime and slate end to end, and
+     the single line naming what the work actually is arrived in a hue nothing
+     else on the view uses, so it read as pasted in from another page.
+
+     Scoped here rather than retuned on the token, because #about still wants
+     the blue. Costs a little contrast and the cost is measured, not assumed -
+     see the --hero-frame-bg note, whose table this line is the binding row
+     of. Source order does the work: `.hero-kicker` is declared far above at
+     equal specificity, so a bare class wins here. */
+  color: var(--accent-text);
 }
 
 /* ── Actions ── */
@@ -3634,9 +3666,31 @@ body.dark-theme .home-portrait picture {
    1.4.11's 3:1 on the boundary itself rather than leaning on the glyph to
    carry the control, and it is still visibly a step down from the accent ring
    beside it. */
+/* ── Same signal, in the row's own hue ──
+   The step down in rank above stays exactly as argued - this control is not a
+   destination and must not read as one. What changes is the hue it is spoken
+   in. --control-border is a blue-slate and --muted a blue-grey, and among four
+   olive rings a blue-grey one stops reading as "quieter" and starts reading as
+   "a different component", which is the failure mode the note above was
+   already trying to avoid from the other direction. Both are mixed a third of
+   the way to --accent-text: far enough to belong to the row, not far enough to
+   join it.
+
+   The contrast that argument rests on is not merely preserved, it improves -
+   which is the direction that matters, because the failure the note above
+   describes is the control reading as DISABLED, and a thinner ratio is how it
+   gets there. Boundary against --bg, which is the SC 1.4.11 number:
+
+                     before   after    accent ring beside it
+       light          4.55     4.89     5.52
+       dark           4.00     6.12    13.05
+
+   Still plainly subordinate in both themes, and the hue now carries the
+   difference the ratio alone was being asked to carry. The glyph measures
+   7.56:1 light and 13.00:1 dark, against 8.48 and 13.03 before. */
 .home-social--action {
-  border-color: var(--control-border);
-  color: var(--muted);
+  border-color: color-mix(in srgb, var(--control-border) 68%, var(--accent-text));
+  color: color-mix(in srgb, var(--muted) 72%, var(--accent-text));
   background: transparent;
   cursor: pointer;
   font-family: inherit;
@@ -7854,6 +7908,39 @@ body:not(.dark-theme) .site-backdrop::before {
   filter: invert(1) hue-rotate(180deg) saturate(0.45) brightness(1.04);
 }
 
+
+/* ── The band between the phone cutoff and the glass frame ──
+   The suppression below needs a coarse pointer AND 768px; the hero's glass
+   frame starts at 901px. Between those two rules the drawing is on at full
+   strength with nothing over it, and the type sits straight on the traces -
+   which is the same band a desktop window narrow enough to stack lands in,
+   because that window has a fine pointer and keeps the drawing.
+
+   The frame's own note claims it covers "the one width where the drawing is
+   on and running at full strength under the text". That is true above 901px
+   only; this block is the rest of it.
+
+   Heavier wash rather than no wash: iPad portrait keeping the drawing is a
+   recorded choice (see the note below), so the schematic stays, it just stops
+   being the ground the name is printed on. Both themes are restated because
+   the dark values live on `body.dark-theme`, which outranks a bare `:root`. */
+@media (width <=900px) {
+  :root {
+    --backdrop-scrim: radial-gradient(
+      ellipse 75% 65% at 50% 50%,
+      color-mix(in srgb, var(--bg) 97%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 88%, transparent) 100%
+    );
+  }
+
+  body.dark-theme {
+    --backdrop-scrim: radial-gradient(
+      ellipse 75% 65% at 50% 50%,
+      color-mix(in srgb, var(--bg) 95%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 84%, transparent) 100%
+    );
+  }
+}
 
 /* ── Phones get no backdrop at all ──
    Matches `mobileDevice` in js/config.js - a coarse pointer AND 768px or
