@@ -305,9 +305,38 @@ body {
 /* Options */
 .options-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 0.75rem 1.1rem;
+}
+
+/* Three kinds of decision, three groups. The four "ignores" change what counts
+   as a difference, View changes how it is drawn, and Session is a storage
+   choice - which had been sitting between "Ignore blank lines" and a context
+   selector as though it were another comparison flag. */
+.opt-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  margin: 0;
+  padding: 0.45rem 0.8rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.opt-legend {
+  padding: 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.opt-group-session {
+  margin-left: auto;
 }
 
 .seg-group {
@@ -369,10 +398,7 @@ body {
   cursor: pointer;
 }
 
-.opt-remember {
-  margin-left: auto;
-  font-weight: 600;
-}
+
 
 /* Result bar */
 .result-card {
@@ -612,40 +638,7 @@ body {
   color: var(--primary);
 }
 
-/* About */
-.prose-card {
-  gap: 0.85rem;
-  max-width: 74ch;
-}
-
-.prose-card p {
-  font-size: 0.9rem;
-  color: var(--text);
-}
-
-.prose-heading {
-  font-size: 0.95rem;
-  font-weight: 700;
-  margin-top: 0.5rem;
-  color: var(--primary);
-}
-
-.prose-list {
-  padding-left: 1.2rem;
-  font-size: 0.9rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.prose-card code {
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.05rem 0.3rem;
-}
+/* About — .prose-* now lives in app-chrome.css, shared by four apps. */
 
 .footer-container {
   max-width: 1480px;
@@ -761,7 +754,7 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .opt-remember {
+  .opt-group-session {
     margin-left: 0;
   }
 }

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-6XuTA/BFxDvJqIm0o2k13VOhDx9nZ5JDPwYSgDaaFdQ=' 'sha256-TeGe8t4CWnpLfAepac4vc5uWDriFurKq3PdPmtrkFqY='; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://staging-api.rjasti.com http://localhost:8000 http://127.0.0.1:8000 https://formsubmit.co;" />
+    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-6XuTA/BFxDvJqIm0o2k13VOhDx9nZ5JDPwYSgDaaFdQ=' 'sha256-+NERGaHQXVj8CZ/cMYiOXbVGpgNh+r3jmdEQdFYv2QI='; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://staging-api.rjasti.com http://localhost:8000 http://127.0.0.1:8000 https://formsubmit.co;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="Rajeev Jasti" />
@@ -308,7 +308,11 @@
        `python scripts/check_csp_hashes.py` prints the value to paste back. -->
   <script>
     (function () {
-      var id = (window.location.hash || "").replace(/^#/, "").trim();
+      // A fragment may carry state after the section: "#apps/dev-tools" is the
+      // apps section with a filter applied. No section id contains a slash, so
+      // the first segment is always the route and the rest belongs to whatever
+      // module reads it.
+      var id = (window.location.hash || "").replace(/^#/, "").split("/")[0].trim();
       if (!id || id === "home") return;
 
       var observer = new MutationObserver(step);
@@ -1437,13 +1441,23 @@
           <a class="app-tile reveal" data-app-category="football" href="/ucl" target="_blank" rel="noopener"
             aria-label="Launch the 2026/27 Champions League Bracket Predictor in a new tab">
             <span class="app-tile-media">
-              <img src="ucl-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
+              <picture>
+                <source type="image/webp" srcset="ucl-tile-640.webp 640w, ucl-tile-1280.webp 1280w"
+                  sizes="(min-width: 1100px) 360px, (min-width: 700px) 45vw, 92vw" />
+                <img src="ucl-tile-640.webp" alt="" width="1200" height="630" loading="lazy"
+                  decoding="async" />
+              </picture>
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-futbol" aria-hidden="true"></i>Football</span>
               <h3 class="app-tile-title">Champions League Predictor</h3>
               <p class="app-tile-text">Rank the 36-club league phase, settle the knockout play-offs, then run the
                 bracket through to the final in Madrid. Picks save in your browser and travel as a share link.</p>
+              <span class="app-tile-traits">
+                <span class="app-tile-trait">No sign-in</span>
+                <span class="app-tile-trait">Picks saved locally</span>
+                <span class="app-tile-trait">Share link</span>
+              </span>
               <span class="app-tile-cta">Launch<i class="fas fa-arrow-up-right-from-square"
                   aria-hidden="true"></i></span>
             </span>
@@ -1452,7 +1466,12 @@
           <a class="app-tile reveal" data-app-category="football" href="/worldcup" target="_blank" rel="noopener"
             aria-label="Launch the 2026 World Cup Bracket Predictor in a new tab">
             <span class="app-tile-media">
-              <img src="worldcup-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
+              <picture>
+                <source type="image/webp" srcset="worldcup-tile-640.webp 640w, worldcup-tile-1280.webp 1280w"
+                  sizes="(min-width: 1100px) 360px, (min-width: 700px) 45vw, 92vw" />
+                <img src="worldcup-tile-640.webp" alt="" width="1200" height="630" loading="lazy"
+                  decoding="async" />
+              </picture>
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-futbol" aria-hidden="true"></i>Football</span>
@@ -1460,6 +1479,11 @@
               <p class="app-tile-text">Predict the group stages, advance the best third-place wildcards, and simulate
                 the
                 knockout stage all the way to crowning the champion.</p>
+              <span class="app-tile-traits">
+                <span class="app-tile-trait">No sign-in</span>
+                <span class="app-tile-trait">Picks saved locally</span>
+                <span class="app-tile-trait">Share link</span>
+              </span>
               <span class="app-tile-cta">Launch<i class="fas fa-arrow-up-right-from-square"
                   aria-hidden="true"></i></span>
             </span>
@@ -1468,7 +1492,12 @@
           <a class="app-tile reveal" data-app-category="games" href="/arcade" target="_blank" rel="noopener"
             aria-label="Launch the Arcade in a new tab">
             <span class="app-tile-media">
-              <img src="arcade-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
+              <picture>
+                <source type="image/webp" srcset="arcade-tile-640.webp 640w, arcade-tile-1280.webp 1280w"
+                  sizes="(min-width: 1100px) 360px, (min-width: 700px) 45vw, 92vw" />
+                <img src="arcade-tile-640.webp" alt="" width="1200" height="630" loading="lazy"
+                  decoding="async" />
+              </picture>
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-cubes" aria-hidden="true"></i>Games</span>
@@ -1476,6 +1505,11 @@
               <p class="app-tile-text">2048, Tetris, Flapper, Stack, Snake and Breaker, written from scratch in
                 vanilla JavaScript &mdash; no framework, no game engine, no third-party code. Keyboard or touch, and
                 your best score for each stays in your browser.</p>
+              <span class="app-tile-traits">
+                <span class="app-tile-trait">No sign-in</span>
+                <span class="app-tile-trait">Scores saved locally</span>
+                <span class="app-tile-trait">Six games</span>
+              </span>
               <span class="app-tile-cta">Launch<i class="fas fa-arrow-up-right-from-square"
                   aria-hidden="true"></i></span>
             </span>
@@ -1484,7 +1518,12 @@
           <a class="app-tile reveal" data-app-category="dev-tools" href="/cron" target="_blank" rel="noopener"
             aria-label="Launch the Cron & Regex Visualizer in a new tab">
             <span class="app-tile-media">
-              <img src="cron-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
+              <picture>
+                <source type="image/webp" srcset="cron-tile-640.webp 640w, cron-tile-1280.webp 1280w"
+                  sizes="(min-width: 1100px) 360px, (min-width: 700px) 45vw, 92vw" />
+                <img src="cron-tile-640.webp" alt="" width="1200" height="630" loading="lazy"
+                  decoding="async" />
+              </picture>
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-code" aria-hidden="true"></i>Dev Tools</span>
@@ -1492,6 +1531,11 @@
               <p class="app-tile-text">Translate 5-part cron schedules into plain English, inspect the next 10 triggers
                 on a live timeline, and match regex patterns in real time with syntax color-coding and capture group
                 breakdowns.</p>
+              <span class="app-tile-traits">
+                <span class="app-tile-trait">No sign-in</span>
+                <span class="app-tile-trait">Stays in your browser</span>
+                <span class="app-tile-trait">Share link</span>
+              </span>
               <span class="app-tile-cta">Launch<i class="fas fa-arrow-up-right-from-square"
                   aria-hidden="true"></i></span>
             </span>
@@ -1500,13 +1544,23 @@
           <a class="app-tile reveal" data-app-category="security" href="/crypto" target="_blank" rel="noopener"
             aria-label="Launch the Crypto & Encoders Toolbox in a new tab">
             <span class="app-tile-media">
-              <img src="crypto-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
+              <picture>
+                <source type="image/webp" srcset="crypto-tile-640.webp 640w, crypto-tile-1280.webp 1280w"
+                  sizes="(min-width: 1100px) 360px, (min-width: 700px) 45vw, 92vw" />
+                <img src="crypto-tile-640.webp" alt="" width="1200" height="630" loading="lazy"
+                  decoding="async" />
+              </picture>
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-shield-halved" aria-hidden="true"></i>Security</span>
               <h3 class="app-tile-title">Crypto &amp; Encoders</h3>
               <p class="app-tile-text">Real-time SHA-256/512/1 hashing, bidirectional Base64, Hex, URL, and Binary
                 transformations, RFC 9562 UUID v7 generator, and live Unix timestamp inspection.</p>
+              <span class="app-tile-traits">
+                <span class="app-tile-trait">No sign-in</span>
+                <span class="app-tile-trait">Stays in your browser</span>
+                <span class="app-tile-trait">Web Crypto API</span>
+              </span>
               <span class="app-tile-cta">Launch<i class="fas fa-arrow-up-right-from-square"
                   aria-hidden="true"></i></span>
             </span>
@@ -1515,7 +1569,12 @@
           <a class="app-tile reveal" data-app-category="dev-tools" href="/json" target="_blank" rel="noopener"
             aria-label="Launch the JSON Workbench and Query Studio in a new tab">
             <span class="app-tile-media">
-              <img src="json-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
+              <picture>
+                <source type="image/webp" srcset="json-tile-640.webp 640w, json-tile-1280.webp 1280w"
+                  sizes="(min-width: 1100px) 360px, (min-width: 700px) 45vw, 92vw" />
+                <img src="json-tile-640.webp" alt="" width="1200" height="630" loading="lazy"
+                  decoding="async" />
+              </picture>
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-diagram-project" aria-hidden="true"></i>Dev Tools</span>
@@ -1523,6 +1582,11 @@
               <p class="app-tile-text">Format, validate and repair malformed JSON with line-accurate errors, query it
                 live with JSONPath or dot-notation filters, explore it as a collapsible tree, and convert between JSON,
                 YAML, CSV and TypeScript interfaces.</p>
+              <span class="app-tile-traits">
+                <span class="app-tile-trait">No sign-in</span>
+                <span class="app-tile-trait">Stays in your browser</span>
+                <span class="app-tile-trait">Nothing stored</span>
+              </span>
               <span class="app-tile-cta">Launch<i class="fas fa-arrow-up-right-from-square"
                   aria-hidden="true"></i></span>
             </span>
@@ -1531,7 +1595,12 @@
           <a class="app-tile reveal" data-app-category="dev-tools" href="/diff" target="_blank" rel="noopener"
             aria-label="Launch the Code Difference Checker in a new tab">
             <span class="app-tile-media">
-              <img src="diff-preview.png" alt="" width="1200" height="630" loading="lazy" decoding="async" />
+              <picture>
+                <source type="image/webp" srcset="diff-tile-640.webp 640w, diff-tile-1280.webp 1280w"
+                  sizes="(min-width: 1100px) 360px, (min-width: 700px) 45vw, 92vw" />
+                <img src="diff-tile-640.webp" alt="" width="1200" height="630" loading="lazy"
+                  decoding="async" />
+              </picture>
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-code-compare" aria-hidden="true"></i>Dev Tools</span>
@@ -1539,6 +1608,11 @@
               <p class="app-tile-text">Compare two files with Myers diff and character-level highlighting, switch
                 between split and unified views, paste a <code>git diff</code> and read it back as a side-by-side, and
                 copy the result out as a standard unified patch.</p>
+              <span class="app-tile-traits">
+                <span class="app-tile-trait">No sign-in</span>
+                <span class="app-tile-trait">Stays in your browser</span>
+                <span class="app-tile-trait">Nothing stored</span>
+              </span>
               <span class="app-tile-cta">Launch<i class="fas fa-arrow-up-right-from-square"
                   aria-hidden="true"></i></span>
             </span>

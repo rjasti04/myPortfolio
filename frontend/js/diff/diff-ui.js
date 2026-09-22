@@ -85,6 +85,44 @@ export function describeText(text) {
   return `${lines.toLocaleString()} line${lines === 1 ? "" : "s"} · ${size}`;
 }
 
+/**
+ * The cold-start demo.
+ *
+ * `/json` opens with Load sample and `/cron` and `/crypto` both ship preset
+ * chips; this page opened with two empty boxes, so anyone evaluating it had to
+ * supply their own material before it did anything at all. The snippet is real
+ * code from this repo - the roving-tabindex fix that these same apps' tablists
+ * run on - which makes the demo a work sample rather than filler about foxes.
+ */
+const SAMPLE_LEFT = `function switchTab(tabId) {
+  tabButtons.forEach((btn) => {
+    const isTarget = btn.dataset.tab === tabId;
+    btn.classList.toggle("active", isTarget);
+  });
+
+  panels.forEach((panel, name) => {
+    panel.hidden = name !== tabId;
+  });
+}
+`;
+
+const SAMPLE_RIGHT = `function switchTab(tabId, shouldScroll = false) {
+  tabButtons.forEach((btn) => {
+    const isTarget = btn.dataset.tab === tabId;
+    btn.classList.toggle("active", isTarget);
+    btn.setAttribute("aria-selected", String(isTarget));
+    // Roving tabindex: one Tab stop for the set, arrows move within it.
+    btn.tabIndex = isTarget ? 0 : -1;
+  });
+
+  panels.forEach((panel, name) => {
+    panel.hidden = name !== tabId;
+  });
+
+  if (shouldScroll) scrollToActivePanel(tabId);
+}
+`;
+
 export function initWorkbench() {
   const shell = document.querySelector(".diff-shell");
   const inputLeft = document.getElementById("input-left");
@@ -386,6 +424,22 @@ export function initWorkbench() {
 
   wirePane(inputLeft, "btn-file-left", "file-left", "btn-clear-left", scheduleRecompute);
   wirePane(inputRight, "btn-file-right", "file-right", "btn-clear-right", scheduleRecompute);
+
+  // Swap — the most common control on a diff tool, and the page had none.
+  // Pasting the two sides the wrong way round otherwise means selecting,
+  // cutting and re-pasting both.
+  document.getElementById("btn-swap")?.addEventListener("click", () => {
+    const held = inputLeft.value;
+    inputLeft.value = inputRight.value;
+    inputRight.value = held;
+    recompute();
+  });
+
+  document.getElementById("btn-sample")?.addEventListener("click", () => {
+    inputLeft.value = SAMPLE_LEFT;
+    inputRight.value = SAMPLE_RIGHT;
+    recompute();
+  });
   if (inputPatch) {
     wirePane(inputPatch, "btn-file-patch", "file-patch", "btn-clear-patch", recomputePatch);
   }
@@ -460,20 +514,19 @@ export function initWorkbench() {
     URL.revokeObjectURL(url);
   });
 
-  // `j` and `k` step through changes whenever focus is not in a text field.
-  document.addEventListener("keydown", (event) => {
-    const tag = document.activeElement?.tagName;
-    if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
+  /**
+   * Step to the next or previous change on whichever tab is open.
+   *
+   * This used to be a document-level keydown handler right here, with its own
+   * copy of the "not while you are typing" guard. It is exported instead so
+   * app-shortcuts.js can bind it through the same table it builds the `?`
+   * sheet from - which is what makes /diff's shortcuts discoverable rather
+   * than folklore.
+   */
+  function stepChange(delta) {
     const onPatch = shell.dataset.tab === "patch";
-    if (event.key === "j" || event.key === "ArrowDown") {
-      step(onPatch ? "patchRows" : "rows", onPatch ? "patchCursor" : "cursor", 1);
-      event.preventDefault();
-    } else if (event.key === "k" || event.key === "ArrowUp") {
-      step(onPatch ? "patchRows" : "rows", onPatch ? "patchCursor" : "cursor", -1);
-      event.preventDefault();
-    }
-  });
+    step(onPatch ? "patchRows" : "rows", onPatch ? "patchCursor" : "cursor", delta);
+  }
 
   window.addEventListener("resize", () => {
     const view = effectiveView();
@@ -544,4 +597,6 @@ export function initWorkbench() {
 
   recompute();
   recomputePatch();
+
+  return { stepChange };
 }

@@ -15,6 +15,37 @@
 
 const ALL = "all";
 
+/** The section this filter lives in, and the first segment of its fragment. */
+const SECTION = "apps";
+
+/**
+ * The filter carried by the fragment, if any.
+ *
+ * "#apps/dev-tools" is the apps section with the Dev Tools chip pressed. Both
+ * routers resolve a section from the first segment only, so the rest is ours
+ * to read and nothing else looks at it.
+ */
+function filterFromHash(hash) {
+  const [section, ...rest] = (hash || "").replace(/^#/, "").split("/");
+  if (section !== SECTION || rest.length === 0) return null;
+  return rest.join("/").trim() || null;
+}
+
+/**
+ * Rewrite the fragment to match the chosen filter.
+ *
+ * `replaceState`, not `pushState`: pressing four chips in a row should leave
+ * one Back press to wherever the visitor came from, not four. The chips only
+ * exist inside the shelf, so a press already means the shelf is what is on
+ * screen - there is nothing to guard against here beyond writing the fragment
+ * that is already there.
+ */
+function writeHash(next) {
+  const target = next === ALL ? `#${SECTION}` : `#${SECTION}/${next}`;
+  if (window.location.hash === target) return;
+  window.history.replaceState(null, "", target);
+}
+
 /**
  * Hide a tile from BOTH the pointer and the accessibility tree.
  *
@@ -87,8 +118,23 @@ export function initAppsFilter() {
     // nothing - the row has no separate "clear", and a dead control is worse
     // than a redundant one.
     const current = chip.getAttribute("aria-pressed") === "true";
-    apply(current ? ALL : chip.dataset.appFilter);
+    const next = current ? ALL : chip.dataset.appFilter;
+    apply(next);
+    writeHash(next);
   });
 
-  apply(ALL);
+  // A filter is a thing worth linking to: "look at the dev tools" should be a
+  // URL, not an instruction. An unknown slug falls back to All rather than
+  // painting an empty grid, which is what a renamed category would otherwise
+  // leave behind in someone's bookmark.
+  const known = new Set(chips.map((chip) => chip.dataset.appFilter));
+  const fromHash = filterFromHash(window.location.hash);
+  apply(fromHash && known.has(fromHash) ? fromHash : ALL);
+
+  // The fragment can change without this module: a nav link, the Ctrl+K
+  // palette, or the back button.
+  window.addEventListener("hashchange", () => {
+    const next = filterFromHash(window.location.hash);
+    apply(next && known.has(next) ? next : ALL);
+  });
 }

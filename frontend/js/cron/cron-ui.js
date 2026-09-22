@@ -8,7 +8,12 @@
  * Zero external dependencies.
  */
 
-import { parseCron, translateCron, getNextRuns } from "./cron-parser.js";
+import {
+  parseCron,
+  translateCron,
+  getNextRuns,
+  resolveLocalTimeZone,
+} from "./cron-parser.js";
 
 /**
  * The five cron fields, in expression order. Drives the field map strip and
@@ -111,14 +116,61 @@ export function initCronUI({ container, onExpressionChange, initialExpr = "*/15 
   renderPresets();
   renderTimezone();
 
+  /**
+   * Fill the timezone picker.
+   *
+   * A cron expression is wall-clock, so the only question the rail is ever
+   * really asked is "when does this fire on the box that runs it" - which is
+   * unanswerable while the schedule is pinned to the visitor's own zone. The
+   * list comes from Intl.supportedValuesOf, so it is the runtime's own zone
+   * database rather than a table that will be wrong the next time a country
+   * changes its rules.
+   *
+   * Two shortcuts sit above the full list: the local zone (the default, and
+   * still the right answer when you run cron on your laptop) and UTC (what
+   * most servers and every CI runner are set to).
+   */
   function renderTimezone() {
     if (!tzEl) return;
+
+    const localZone = resolveLocalTimeZone();
+    let zones = [];
     try {
-      const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (zone) tzEl.textContent = zone;
+      zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
     } catch {
-      // Keep the "your timezone" fallback already in the markup.
+      zones = [];
     }
+
+    tzEl.textContent = "";
+
+    const shortcuts = document.createElement("optgroup");
+    shortcuts.label = "Common";
+    for (const [value, label] of [["", `Your timezone (${localZone})`], ["UTC", "UTC"]]) {
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = label;
+      shortcuts.appendChild(opt);
+    }
+    tzEl.appendChild(shortcuts);
+
+    if (zones.length > 0) {
+      const all = document.createElement("optgroup");
+      all.label = "All timezones";
+      for (const zone of zones) {
+        const opt = document.createElement("option");
+        opt.value = zone;
+        opt.textContent = zone;
+        all.appendChild(opt);
+      }
+      tzEl.appendChild(all);
+    }
+
+    tzEl.value = "";
+  }
+
+  /** The zone the timeline computes in: the picker's choice, or the local one. */
+  function activeTimeZone() {
+    return tzEl?.value || resolveLocalTimeZone();
   }
 
   /**
@@ -278,8 +330,8 @@ export function initCronUI({ container, onExpressionChange, initialExpr = "*/15 
     renderSegments(parsed.rawParts, parsed.fields);
     syncPartPickers(parsed.rawParts);
 
-    // Calculate next 10 triggers
-    const nextRuns = getNextRuns(expr, 10);
+    // Calculate next 10 triggers, in whichever zone the rail is set to.
+    const nextRuns = getNextRuns(expr, 10, new Date(), activeTimeZone());
     renderTimeline(nextRuns);
 
     if (typeof onExpressionChange === "function") {
@@ -369,6 +421,9 @@ export function initCronUI({ container, onExpressionChange, initialExpr = "*/15 
       update();
     }
   }
+
+  // Changing the zone re-reads the same expression against a different clock.
+  tzEl?.addEventListener("change", update);
 
   // Bind input typing
   if (inputEl) {

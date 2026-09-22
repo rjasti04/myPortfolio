@@ -36,6 +36,8 @@ export const meta = {
   name: "Breaker",
   tagline: "Clear the wall. The angle is yours to pick.",
   controls: "Arrow keys, drag, or tap to serve",
+  rules:
+    "Every brick scores, and the deeper rows score more. Losing the ball ends the run — there are no spare lives.",
 };
 
 /**

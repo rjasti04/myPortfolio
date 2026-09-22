@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   collapse,
@@ -521,4 +522,136 @@ test("breaker: no slice of a frame is longer than the ball is wide", () => {
     assert.ok(slices >= 1, "a stationary ball still takes one step");
     assert.ok(speed / 60 / slices <= BALL_RADIUS, `skipped ahead at ${speed}`);
   }
+});
+
+/* --- Launcher rollup and rules --------------------------------------------
+ *
+ * refreshBests() already read a per-game best from storage and painted a
+ * bubble on each card; nothing tied them together, so the launcher showed six
+ * numbers and no answer to "how much of this have I played". And `controls`
+ * was the only rules text a player ever got - which made the way to learn what
+ * scores "start playing, then stop".
+ */
+
+/** A minimal localStorage, since the shell's storage layer talks to window. */
+function fakeStorage(initial = {}) {
+  const map = new Map(Object.entries(initial));
+  return {
+    get length() { return map.size; },
+    key: (i) => [...map.keys()][i] ?? null,
+    getItem: (k) => (map.has(k) ? map.get(k) : null),
+    setItem: (k, v) => map.set(k, String(v)),
+    removeItem: (k) => map.delete(k),
+    _map: map,
+  };
+}
+
+async function withStorage(store, fn) {
+  const previous = globalThis.window;
+  globalThis.window = { localStorage: store };
+  try {
+    return await fn(await import(`../js/arcade/storage.js?t=${Math.random()}`));
+  } finally {
+    globalThis.window = previous;
+  }
+}
+
+test("readAllBests reads the namespace, not a list of known ids", async () => {
+  const store = fakeStorage({
+    "rj-arcade:best:snake": "42",
+    "rj-arcade:best:tetris": "12400",
+    "rj-arcade:best:retired-game": "7",
+    "rj-arcade:muted": "1",
+    "rj-json:preferences": "{}",
+  });
+
+  await withStorage(store, ({ readAllBests }) => {
+    const bests = readAllBests();
+    assert.deepEqual(bests, { snake: 42, tetris: 12400, "retired-game": 7 });
+    assert.equal("muted" in bests, false, "the sound preference is not a score");
+  });
+});
+
+test("readAllBests ignores a zero or unparseable score", async () => {
+  const store = fakeStorage({
+    "rj-arcade:best:snake": "0",
+    "rj-arcade:best:stack": "not a number",
+    "rj-arcade:best:2048": "16",
+  });
+  await withStorage(store, ({ readAllBests }) => {
+    assert.deepEqual(readAllBests(), { 2048: 16 });
+  });
+});
+
+test("clearAllBests is a prefix sweep that leaves everything else alone", async () => {
+  const store = fakeStorage({
+    "rj-arcade:best:snake": "42",
+    "rj-arcade:best:tetris": "12400",
+    "rj-arcade:muted": "1",
+    "rj-json:preferences": "{}",
+    theme: "light",
+  });
+
+  await withStorage(store, ({ clearAllBests, readAllBests }) => {
+    assert.equal(clearAllBests(), 2, "it should report what it removed");
+    assert.deepEqual(readAllBests(), {});
+    assert.equal(store.getItem("rj-arcade:muted"), "1", "clearing scores is not resetting the arcade");
+    assert.equal(store.getItem("rj-json:preferences"), "{}");
+    assert.equal(store.getItem("theme"), "light");
+  });
+});
+
+test("clearing an empty arcade says so rather than throwing", async () => {
+  await withStorage(fakeStorage(), ({ clearAllBests }) => {
+    assert.equal(clearAllBests(), 0);
+  });
+});
+
+test("blocked storage degrades to no scores, as every other accessor does", async () => {
+  const hostile = {
+    get length() { throw new Error("SecurityError"); },
+    key() { throw new Error("SecurityError"); },
+    getItem() { throw new Error("SecurityError"); },
+    removeItem() { throw new Error("SecurityError"); },
+  };
+  await withStorage(hostile, ({ readAllBests, clearAllBests }) => {
+    assert.deepEqual(readAllBests(), {});
+    assert.equal(clearAllBests(), 0);
+  });
+});
+
+test("every game states what scores and what ends the run", async () => {
+  const modules = await Promise.all([
+    import("../js/arcade/game-2048.js"),
+    import("../js/arcade/game-tetris.js"),
+    import("../js/arcade/game-flapper.js"),
+    import("../js/arcade/game-stack.js"),
+    import("../js/arcade/game-snake.js"),
+    import("../js/arcade/game-breaker.js"),
+  ]);
+
+  for (const { meta } of modules) {
+    assert.equal(typeof meta.rules, "string", `${meta.id} has no rules line`);
+    assert.ok(meta.rules.length > 20, `${meta.id}'s rules line says nothing`);
+    assert.match(meta.rules, /(ends the run|the run ends)/i, `${meta.id} never says what ends a run`);
+    assert.notEqual(meta.rules, meta.controls, `${meta.id} just repeats its controls`);
+  }
+});
+
+test("the launcher has somewhere to put the rollup, and the pause panel the rules", () => {
+  const markup = readFileSync("frontend/arcade.html", "utf8");
+  assert.match(markup, /id="launcher-summary"/);
+  assert.match(markup, /id="clear-scores"/);
+  assert.match(markup, /id="pause-rules"/);
+  // The rules line sits above the controls, which is the order a sheet reads in.
+  assert.ok(markup.indexOf('id="pause-rules"') < markup.indexOf('id="pause-controls"'));
+});
+
+test("the arcade loads the shared chrome", () => {
+  const markup = readFileSync("frontend/arcade.html", "utf8");
+  assert.match(markup, /href="app-shared\.css"/);
+  const shell = readFileSync("frontend/js/arcade/shell.js", "utf8");
+  assert.match(shell, /initAppSwitcher\(\{ current: "arcade" \}\)/);
+  // The sheet stands down while a game owns the keyboard.
+  assert.match(shell, /suppress: \(\) => !stage\.hidden/);
 });

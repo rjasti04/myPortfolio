@@ -36,6 +36,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="app-shared.css">
 
   <!-- Theme resolution, before first paint. `theme` is the same localStorage
        key the portfolio and the other apps write, so arriving here from
@@ -278,6 +279,66 @@
       margin: 0 auto;
     }
 
+    .hero-meta {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .hero-chip {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background-color: var(--surface);
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hero-chip i {
+      color: var(--primary);
+    }
+
+    /* One bar for the whole tournament. The wildcard counter on one of three
+       tabs was the only progress signal the page had, so nothing told you how
+       much was still undecided without opening that tab. */
+    .progress-wrap {
+      max-width: 420px;
+      margin: 18px auto 0 auto;
+    }
+
+    .progress-track {
+      height: 6px;
+      border-radius: 999px;
+      background-color: var(--surface-card);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .progress-label {
+      margin-top: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
     /* CHROME ACTION BUTTONS */
     .action-btn {
       display: inline-flex;
@@ -302,6 +363,15 @@
     .action-btn:hover {
       background-color: var(--chrome-action-hover);
       border-color: var(--chrome-muted);
+    }
+
+    /* Armed state for the two-press Reset. The Dev Tools apps carry the same
+       rule in app-chrome.css; this page does not link that sheet, so it keeps
+       its own copy against its own palette. */
+    .action-btn.is-confirming {
+      background-color: var(--badge-danger-bg);
+      border-color: var(--accent-danger);
+      color: var(--badge-danger-text);
     }
 
     .action-btn-icon {
@@ -1260,6 +1330,14 @@
         font-size: 14px;
       }
 
+      .hero-meta {
+        gap: 6px;
+      }
+
+      .progress-wrap {
+        margin-top: 14px;
+      }
+
       .navigation-tabs {
         flex-direction: row;
         border-radius: 20px;
@@ -1347,6 +1425,11 @@
         font-size: 21px;
       }
 
+      .hero-chip {
+        font-size: 10px;
+        padding: 4px 9px;
+      }
+
       .hero-title-section p {
         font-size: 13px;
       }
@@ -1372,10 +1455,10 @@
         <div class="header-left">
           <div class="brand-wrap">
             <div class="brand-icon" aria-hidden="true">
-              <i class="fas fa-trophy"></i>
+              <i class="fas fa-trophy" aria-hidden="true"></i>
             </div>
             <div class="brand-text">
-              <div class="brand-title">FIFA 26</div>
+              <div class="brand-title">World Cup 26</div>
               <span class="brand-tag">Bracket Predictor</span>
             </div>
           </div>
@@ -1417,25 +1500,40 @@
       <h1>2026 WORLD CUP BRACKET</h1>
       <p>Predict the Group Stages, advance the best third-place wildcard teams, and simulate the knockout stage to
         crown your world champion.</p>
+      <div class="hero-meta">
+        <span class="hero-chip"><i class="fas fa-user" aria-hidden="true"></i> 48 teams · 12 groups</span>
+        <span class="hero-chip"><i class="fas fa-diagram-project" aria-hidden="true"></i> Round of 32</span>
+        <span class="hero-chip"><i class="fas fa-location-dot" aria-hidden="true"></i> Final · New Jersey · 19 Jul 2026</span>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="40" aria-valuenow="0"
+          aria-label="Tournament decisions made" id="progress-track">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-label" id="progress-label">0 of 40 decisions made</div>
+      </div>
     </section>
 
     <!-- NAVIGATION TABS -->
-    <nav class="navigation-tabs" aria-label="Prediction stages">
-      <button class="tab-btn active" data-tab="group-stage-tab">
-        <i class="fas fa-cubes"></i> <span>Group Stage</span>
+    <nav class="navigation-tabs" role="tablist" aria-label="Prediction stages">
+      <button class="tab-btn active" type="button" data-tab="group-stage-tab" role="tab" id="tab-group-stage"
+        aria-controls="group-stage-tab" aria-selected="true">
+        <i class="fas fa-cubes" aria-hidden="true"></i> <span>Group Stage</span>
       </button>
-      <button class="tab-btn" data-tab="wildcards-tab">
-        <i class="fas fa-ticket"></i> <span>3rd Place Wildcards</span>
+      <button class="tab-btn" type="button" data-tab="wildcards-tab" role="tab" id="tab-wildcards"
+        aria-controls="wildcards-tab" aria-selected="false" tabindex="-1">
+        <i class="fas fa-ticket" aria-hidden="true"></i> <span>3rd Place Wildcards</span>
       </button>
-      <button class="tab-btn" data-tab="knockout-tab">
-        <i class="fas fa-diagram-project"></i> <span>Knockout Bracket</span>
+      <button class="tab-btn" type="button" data-tab="knockout-tab" role="tab" id="tab-knockout"
+        aria-controls="knockout-tab" aria-selected="false" tabindex="-1">
+        <i class="fas fa-diagram-project" aria-hidden="true"></i> <span>Knockout Bracket</span>
       </button>
     </nav>
 
     <!-- SECTION 1: GROUP STAGE PREDICTOR -->
     <main id="main-content">
 
-      <section id="group-stage-tab" class="view-panel active" aria-labelledby="group-stage-title">
+      <section id="group-stage-tab" class="view-panel active" role="tabpanel" tabindex="0" data-tab-id="tab-group-stage" aria-labelledby="group-stage-title">
         <h2 id="group-stage-title" class="sr-only">Group Stage Predictor</h2>
         <div class="groups-grid" id="groups-container">
           <!-- Rendered dynamically via JS -->
@@ -1443,7 +1541,7 @@
       </section>
 
       <!-- SECTION 2: WILDCARDS SELECTOR -->
-      <section id="wildcards-tab" class="view-panel" aria-labelledby="wildcards-title">
+      <section id="wildcards-tab" class="view-panel" role="tabpanel" tabindex="0" data-tab-id="tab-wildcards" aria-labelledby="wildcards-title">
         <div class="wildcard-intro">
           <h2 id="wildcards-title">Third-Place Team Advancement</h2>
           <p>Under the 48-team format, the 12 third-place finishers are ranked. Choose exactly 8 teams from these 12
@@ -1457,20 +1555,26 @@
       </section>
 
       <!-- SECTION 3: KNOCKOUT STAGE BRACKET -->
-      <section id="knockout-tab" class="view-panel" aria-labelledby="knockout-title">
+      <section id="knockout-tab" class="view-panel" role="tabpanel" tabindex="0" data-tab-id="tab-knockout" aria-labelledby="knockout-title">
         <h2 id="knockout-title" class="sr-only">Knockout Stage Progression</h2>
 
         <!-- Mobile Bracket Rounds selector -->
-        <nav class="mobile-bracket-tabs" aria-label="Knockout rounds selection">
-          <button class="mobile-tab-btn active" data-round="r32">Round of 32</button>
-          <button class="mobile-tab-btn" data-round="r16">Round of 16</button>
-          <button class="mobile-tab-btn" data-round="qf">Quarterfinals</button>
-          <button class="mobile-tab-btn" data-round="sf">Semifinals</button>
-          <button class="mobile-tab-btn" data-round="finals">Finals & Podium</button>
+        <nav class="mobile-bracket-tabs" role="tablist" aria-label="Knockout rounds selection">
+          <button class="mobile-tab-btn active" type="button" role="tab" id="mtab-r32" data-round="r32"
+            aria-controls="mobile-bracket-list-container" aria-selected="true">Round of 32</button>
+          <button class="mobile-tab-btn" type="button" role="tab" id="mtab-r16" data-round="r16"
+            aria-controls="mobile-bracket-list-container" aria-selected="false" tabindex="-1">Round of 16</button>
+          <button class="mobile-tab-btn" type="button" role="tab" id="mtab-qf" data-round="qf"
+            aria-controls="mobile-bracket-list-container" aria-selected="false" tabindex="-1">Quarterfinals</button>
+          <button class="mobile-tab-btn" type="button" role="tab" id="mtab-sf" data-round="sf"
+            aria-controls="mobile-bracket-list-container" aria-selected="false" tabindex="-1">Semifinals</button>
+          <button class="mobile-tab-btn" type="button" role="tab" id="mtab-finals" data-round="finals"
+            aria-controls="mobile-bracket-list-container" aria-selected="false" tabindex="-1">Finals &amp; Podium</button>
         </nav>
 
         <!-- Mobile Bracket list container -->
-        <div class="mobile-bracket-list" id="mobile-bracket-list-container">
+        <div class="mobile-bracket-list" id="mobile-bracket-list-container" role="tabpanel"
+          tabindex="0" aria-labelledby="mtab-r32">
           <!-- Rendered dynamically via JS -->
         </div>
 
@@ -1723,6 +1827,20 @@
       "sf-2": { parent: "final", slot: "team2", loserParent: "third-place", loserSlot: "team2" }
     };
 
+    /**
+     * Attribute-safe text. Team names are ours, but they are interpolated into
+     * an aria-label inside a template literal, and a name carrying a quote
+     * would end the attribute rather than appear in it.
+     */
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
     // Helper: Return clean flag URL from CDN or fallback
     function getFlagUrl(code) {
       if (!code) return "";
@@ -1735,9 +1853,9 @@
       const toast = document.createElement("div");
       toast.className = `toast toast-${type}`;
 
-      let icon = '<i class="fas fa-info-circle"></i>';
-      if (type === "success") icon = '<i class="fas fa-circle-check"></i>';
-      if (type === "warning") icon = '<i class="fas fa-circle-exclamation"></i>';
+      let icon = '<i class="fas fa-info-circle" aria-hidden="true"></i>';
+      if (type === "success") icon = '<i class="fas fa-circle-check" aria-hidden="true"></i>';
+      if (type === "warning") icon = '<i class="fas fa-circle-exclamation" aria-hidden="true"></i>';
 
       toast.innerHTML = `${icon} <span>${message}</span>`;
       container.appendChild(toast);
@@ -1796,11 +1914,61 @@
       }
     }
 
+    /**
+     * Every knockout tie, in bracket order.
+     *
+     * Hoisted out of createShareableUrl(), which held the only copy, so the
+     * progress bar and the share encoder count the same 32 matches rather than
+     * each carrying its own list to drift from the other.
+     */
+    const KNOCKOUT_MATCH_IDS = [
+      "r32-1", "r32-2", "r32-3", "r32-4", "r32-5", "r32-6", "r32-7", "r32-8",
+      "r32-9", "r32-10", "r32-11", "r32-12", "r32-13", "r32-14", "r32-15", "r32-16",
+      "r16-1", "r16-2", "r16-3", "r16-4", "r16-5", "r16-6", "r16-7", "r16-8",
+      "qf-1", "qf-2", "qf-3", "qf-4",
+      "sf-1", "sf-2",
+      "final", "third-place"
+    ];
+
+    /** Wildcards the format asks for: eight of the twelve third-placed teams. */
+    const WILDCARD_SLOTS = 8;
+
+    /**
+     * One bar for the whole tournament, the way /ucl has had one.
+     *
+     * The denominator is the eight wildcard places plus the 32 knockout ties.
+     * Group order is deliberately not counted: a group always has an order -
+     * it starts seeded - so there is no undecided state to report, and a
+     * counter that read 12 of 12 from the first paint would be decoration.
+     */
+    function decidedCount() {
+      const wildcards = Math.min(state.wildcards.length, WILDCARD_SLOTS);
+      const ties = KNOCKOUT_MATCH_IDS.filter(id => state.bracketWinner[id]).length;
+      return wildcards + ties;
+    }
+
+    function renderProgress() {
+      const track = document.getElementById("progress-track");
+      const fill = document.getElementById("progress-fill");
+      const label = document.getElementById("progress-label");
+      if (!track || !fill || !label) return;
+
+      const done = decidedCount();
+      const total = WILDCARD_SLOTS + KNOCKOUT_MATCH_IDS.length;
+      fill.style.width = `${(done / total) * 100}%`;
+      track.setAttribute("aria-valuemax", String(total));
+      track.setAttribute("aria-valuenow", String(done));
+      label.textContent = done === total
+        ? "Bracket complete"
+        : `${done} of ${total} decisions made`;
+    }
+
     // VIEW RENDER COORDINATOR
     function renderAllViews() {
       renderGroupStage();
       renderWildcardsView();
       renderKnockoutBracket();
+      renderProgress();
     }
 
     // MODULE 1: GROUP STAGE RENDER & INTERACTION
@@ -1851,8 +2019,8 @@
 
           li.innerHTML = `
             <div class="reorder-controls">
-              <button class="reorder-btn reorder-up" data-dir="up" aria-label="Move team up" title="Move team up"><i class="fas fa-chevron-up"></i></button>
-              <button class="reorder-btn reorder-down" data-dir="down" aria-label="Move team down" title="Move team down"><i class="fas fa-chevron-down"></i></button>
+              <button class="reorder-btn reorder-up" data-dir="up" aria-label="Move ${escapeHtml(team.name)} up" title="Move up"><i class="fas fa-chevron-up" aria-hidden="true"></i></button>
+              <button class="reorder-btn reorder-down" data-dir="down" aria-label="Move ${escapeHtml(team.name)} down" title="Move down"><i class="fas fa-chevron-down" aria-hidden="true"></i></button>
             </div>
             <div class="rank-num">${rank}</div>
             <img class="team-flag" src="${getFlagUrl(team.code)}" alt="" onerror="this.style.display='none'">
@@ -2025,7 +2193,7 @@
             <span class="team-name">${thirdPlaceTeam.name}</span>
           </div>
           <div class="wildcard-checkbox">
-            <i class="fas fa-check"></i>
+            <i class="fas fa-check" aria-hidden="true"></i>
           </div>
         `;
 
@@ -2376,12 +2544,12 @@
       const card = document.createElement("div");
       card.className = "podium-card";
 
-      let html = `<h4 class="podium-title"><i class="fas fa-medal"></i> Final Podium</h4>`;
+      let html = `<h4 class="podium-title"><i class="fas fa-medal" aria-hidden="true"></i> Final Podium</h4>`;
 
       // Gold
       html += `
         <div class="podium-place podium-item gold">
-          <span class="medal medal-gold"><i class="fas fa-crown"></i></span>
+          <span class="medal medal-gold"><i class="fas fa-crown" aria-hidden="true"></i></span>
           <div class="podium-team">
             ${gold ? `<img class="podium-team-flag" src="${getFlagUrl(gold.code)}" alt=""> <span class="podium-team-name">${gold.name}</span>` : '<span class="podium-empty">Winner Undecided</span>'}
           </div>
@@ -2392,7 +2560,7 @@
       // Silver
       html += `
         <div class="podium-place podium-item silver">
-          <span class="medal medal-silver"><i class="fas fa-award"></i></span>
+          <span class="medal medal-silver"><i class="fas fa-award" aria-hidden="true"></i></span>
           <div class="podium-team">
             ${silver ? `<img class="podium-team-flag" src="${getFlagUrl(silver.code)}" alt=""> <span class="podium-team-name">${silver.name}</span>` : '<span class="podium-empty">Runner-up Undecided</span>'}
           </div>
@@ -2403,7 +2571,7 @@
       // Bronze
       html += `
         <div class="podium-place podium-item bronze">
-          <span class="medal medal-bronze"><i class="fas fa-award"></i></span>
+          <span class="medal medal-bronze"><i class="fas fa-award" aria-hidden="true"></i></span>
           <div class="podium-team">
             ${bronze ? `<img class="podium-team-flag" src="${getFlagUrl(bronze.code)}" alt=""> <span class="podium-team-name">${bronze.name}</span>` : '<span class="podium-empty">Undecided</span>'}
           </div>
@@ -2536,16 +2704,8 @@
       // 3. Bracket bits (32 characters, 0 = team1, 1 = team2, x = undecided)
       let bracketBits = "";
       const matches = calculateMatchesData();
-      const matchIds = [
-        "r32-1", "r32-2", "r32-3", "r32-4", "r32-5", "r32-6", "r32-7", "r32-8",
-        "r32-9", "r32-10", "r32-11", "r32-12", "r32-13", "r32-14", "r32-15", "r32-16",
-        "r16-1", "r16-2", "r16-3", "r16-4", "r16-5", "r16-6", "r16-7", "r16-8",
-        "qf-1", "qf-2", "qf-3", "qf-4",
-        "sf-1", "sf-2",
-        "final", "third-place"
-      ];
 
-      matchIds.forEach(mId => {
+      KNOCKOUT_MATCH_IDS.forEach(mId => {
         const winnerName = state.bracketWinner[mId];
         if (!winnerName) {
           bracketBits += "x";
@@ -2598,18 +2758,10 @@
 
         // 3. Rebuild bracket winners (Requires running calculateMatchesData in loop)
         state.bracketWinner = {};
-        const matchIds = [
-          "r32-1", "r32-2", "r32-3", "r32-4", "r32-5", "r32-6", "r32-7", "r32-8",
-          "r32-9", "r32-10", "r32-11", "r32-12", "r32-13", "r32-14", "r32-15", "r32-16",
-          "r16-1", "r16-2", "r16-3", "r16-4", "r16-5", "r16-6", "r16-7", "r16-8",
-          "qf-1", "qf-2", "qf-3", "qf-4",
-          "sf-1", "sf-2",
-          "final", "third-place"
-        ];
 
         // Resolve winners layer by layer
-        for (let i = 0; i < 32; i++) {
-          const mId = matchIds[i];
+        for (let i = 0; i < KNOCKOUT_MATCH_IDS.length; i++) {
+          const mId = KNOCKOUT_MATCH_IDS[i];
           const bitVal = bracketBits[i];
 
           if (bitVal !== "x") {
@@ -2909,32 +3061,112 @@
       });
     }
 
-    function setupTabs() {
-      const tabBtns = document.querySelectorAll(".tab-btn");
-      const panels = document.querySelectorAll(".view-panel");
+    /**
+     * Arrow-key navigation across a tablist, ported from the Dev Tools apps' cron controller.
+     *
+     * The markup now declares role="tablist"/role="tab", which promises this
+     * behaviour to assistive tech; without it the widget announces itself as a
+     * tablist and then only answers Tab and clicks.
+     */
+    function bindTabKeyNav(buttons, activate) {
+      const list = Array.from(buttons);
+      if (list.length === 0) return;
 
-      tabBtns.forEach(btn => {
-        btn.addEventListener("click", () => {
-          tabBtns.forEach(b => b.classList.remove("active"));
-          panels.forEach(p => p.classList.remove("active"));
+      list.forEach((btn, idx) => {
+        btn.addEventListener("keydown", (e) => {
+          let nextIdx = null;
+          if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % list.length;
+          else if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + list.length) % list.length;
+          else if (e.key === "Home") nextIdx = 0;
+          else if (e.key === "End") nextIdx = list.length - 1;
+          if (nextIdx === null) return;
 
-          btn.classList.add("active");
-          const targetTabId = btn.getAttribute("data-tab");
-          document.getElementById(targetTabId).classList.add("active");
+          e.preventDefault();
+          const target = list[nextIdx];
+          target.focus();
+          activate(target);
         });
       });
+    }
+
+    /**
+     * Roving tabindex: only the selected tab is in the Tab order, and the rest
+     * are reached with the arrow keys. Selection and focusability move
+     * together, which is what `aria-selected` is claiming.
+     */
+    function markSelected(buttons, selected) {
+      buttons.forEach(b => {
+        const isSelected = b === selected;
+        b.classList.toggle("active", isSelected);
+        b.setAttribute("aria-selected", String(isSelected));
+        if (isSelected) b.removeAttribute("tabindex");
+        else b.setAttribute("tabindex", "-1");
+      });
+    }
+
+    function setupTabs() {
+      const tabBtns = Array.from(document.querySelectorAll(".tab-btn"));
+      const panels = document.querySelectorAll(".view-panel");
+
+      function activateStage(btn) {
+        markSelected(tabBtns, btn);
+        panels.forEach(p => p.classList.remove("active"));
+        document.getElementById(btn.getAttribute("data-tab")).classList.add("active");
+      }
+
+      tabBtns.forEach(btn => btn.addEventListener("click", () => activateStage(btn)));
+      bindTabKeyNav(tabBtns, activateStage);
 
       // Mobile bracket sub-tabs
-      const mobBtns = document.querySelectorAll(".mobile-tab-btn");
-      mobBtns.forEach(btn => {
-        btn.addEventListener("click", () => {
-          mobBtns.forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
-          activeMobileRound = btn.getAttribute("data-round");
+      const mobBtns = Array.from(document.querySelectorAll(".mobile-tab-btn"));
+      const mobPanel = document.getElementById("mobile-bracket-list-container");
 
-          const matches = calculateMatchesData();
-          renderMobileBracketView(matches);
-        });
+      function activateRound(btn) {
+        markSelected(mobBtns, btn);
+        // One panel serves five tabs, so the label follows the selection
+        // rather than being fixed in the markup.
+        if (mobPanel) mobPanel.setAttribute("aria-labelledby", btn.id);
+        activeMobileRound = btn.getAttribute("data-round");
+        renderMobileBracketView(calculateMatchesData());
+      }
+
+      mobBtns.forEach(btn => btn.addEventListener("click", () => activateRound(btn)));
+      bindTabKeyNav(mobBtns, activateRound);
+    }
+
+    /**
+     * Two-press confirmation for a destructive control, matching the pattern
+     * the Dev Tools apps already use (js/diff/diff-ui.js).
+     *
+     * Reset used to raise window.confirm(), which prefixes the question with
+     * "rjasti.com says" and breaks out of a page that otherwise controls every
+     * pixel. The armed state lives on the button itself, so the confirmation
+     * is where the action is and nothing has to be imported.
+     */
+    function armTwoPress(btn, armedLabel, onConfirm) {
+      let timer = null;
+      let original = null;
+
+      function disarm() {
+        window.clearTimeout(timer);
+        timer = null;
+        btn.classList.remove("is-confirming");
+        if (original !== null) btn.innerHTML = original;
+        original = null;
+      }
+
+      btn.addEventListener("click", () => {
+        if (!btn.classList.contains("is-confirming")) {
+          original = btn.innerHTML;
+          btn.classList.add("is-confirming");
+          btn.innerHTML = '<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> <span class="action-label">' + armedLabel + "</span>";
+          // An armed button left alone is a trap for the next click, so it
+          // stands down on its own.
+          timer = window.setTimeout(disarm, 4000);
+          return;
+        }
+        disarm();
+        onConfirm();
       });
     }
 
@@ -2943,10 +3175,9 @@
       document.getElementById("autofill-btn").addEventListener("click", autoFillTournament);
 
       // 2. Reset
-      document.getElementById("reset-btn").addEventListener("click", () => {
-        if (confirm("Are you sure you want to reset all bracket predictions? This cannot be undone.")) {
-          resetToDefaults(true);
-        }
+      armTwoPress(document.getElementById("reset-btn"), "Confirm reset?", () => {
+        resetToDefaults(true);
+        showToast("Every pick has been cleared.", "success");
       });
 
       // 2. Share
@@ -2981,6 +3212,12 @@
     // TRIGGER INITIAL RUN
     window.addEventListener("DOMContentLoaded", initSystem);
   </script>
+
+  <!-- Shared chrome, the only external script either predictor loads. Same two
+       modules the four Dev Tools apps run, so the shelf is reachable from
+       inside every app and `?` opens the same sheet everywhere. The rest of
+       this page stays inline and self-contained. -->
+  <script type="module" src="js/app-shared/predictor-chrome.js"></script>
 </body>
 
 </html>

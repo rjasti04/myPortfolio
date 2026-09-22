@@ -57,6 +57,7 @@
     <!-- Self-hosted fonts subset -->
     <link rel="stylesheet" href="fonts.css" />
     <link rel="stylesheet" href="cron.css" />
+    <link rel="stylesheet" href="app-shared.css" />
   </head>
 
   <body>
@@ -70,8 +71,8 @@
                 <i class="fas fa-code"></i>
               </div>
               <div class="brand-text">
-                <div class="brand-title">Logic Inspector</div>
-                <span class="brand-tag">Developer Utility</span>
+                <div class="brand-title">Cron &amp; Regex</div>
+                <span class="brand-tag">Visualizer</span>
               </div>
             </div>
           </div>
@@ -136,6 +137,19 @@
           >
             <i class="fas fa-search" aria-hidden="true"></i>
             <span>Regex Matcher</span>
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            data-tab="about"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-about"
+            id="tab-about"
+            tabindex="-1"
+          >
+            <i class="fas fa-circle-info" aria-hidden="true"></i>
+            <span>About</span>
           </button>
         </nav>
       </div>
@@ -310,7 +324,12 @@
                 <span>Next 10 Triggers</span>
               </h2>
               <p class="card-hint">
-                Computed locally in <span id="cron-tz" class="tz-pill">your timezone</span>
+                <label class="tz-field" for="cron-tz">
+                  <span>Timezone</span>
+                  <select id="cron-tz" class="select-input tz-select">
+                    <option value="">Your timezone</option>
+                  </select>
+                </label>
               </p>
             </div>
             <div id="cron-timeline" aria-live="polite"></div>
@@ -484,6 +503,85 @@
             </div>
             <ul id="regex-matches-list" class="matches-list"></ul>
           </div>
+        </div>
+      </section>
+
+      <!-- ABOUT PANEL -->
+      <section
+        id="panel-about"
+        class="panel-container"
+        role="tabpanel"
+        aria-labelledby="tab-about"
+        tabindex="0"
+        hidden
+      >
+        <div class="card prose-card">
+          <h2 class="card-title">What this does, and where it stops</h2>
+          <p>
+            Both inspectors run in this tab. The page declares
+            <code>connect-src 'none'</code>, so it cannot make a network request even if
+            something in it tried to. Nothing you paste — a crontab line from a production
+            box, a pattern you are debugging against real log text — leaves the browser.
+          </p>
+
+          <h3 class="prose-heading">The cron parser</h3>
+          <p>
+            Written from scratch against the POSIX crontab format: five fields, with
+            ranges (<code>1-5</code>), steps (<code>*/15</code>), lists
+            (<code>1,15,30</code>) and the three-letter names for months and weekdays
+            (<code>JAN</code>, <code>MON</code>). The six standard macros —
+            <code>@yearly</code>, <code>@annually</code>, <code>@monthly</code>,
+            <code>@weekly</code>, <code>@daily</code>, <code>@hourly</code> — expand to
+            their canonical five-field forms before anything else looks at them.
+          </p>
+          <p>
+            One rule surprises people and is worth stating: when <em>both</em> day-of-month
+            and day-of-week are set to something other than <code>*</code>, POSIX cron
+            fires when <strong>either</strong> matches, not both. This parser follows
+            that, which is why <code>0 0 13 * 5</code> means "the 13th, and every Friday",
+            not "Friday the 13th".
+          </p>
+
+          <h3 class="prose-heading">Next 10 Triggers</h3>
+          <p>
+            The timeline walks forward a minute at a time from now, skipping whole months,
+            days and hours that cannot match, and stops after five years — which is what
+            bounds an expression like <code>0 0 31 2 *</code> that can never fire at all.
+            A cron expression is <em>wall clock</em>, so the zone picker is not a display
+            setting: changing it re-evaluates the schedule against that clock, including
+            its daylight-saving rules. That is what makes "when does this fire on a server
+            in UTC" answerable.
+          </p>
+
+          <h3 class="prose-heading">The regex matcher</h3>
+          <p>
+            Patterns run through the browser's own <code>RegExp</code>, so the dialect is
+            exactly JavaScript's — not PCRE, not RE2, not Python's <code>re</code>. A
+            pattern that works here may still need adjusting for the language you are
+            pasting it into, and one that hangs the page is a catastrophic-backtracking
+            problem in the pattern rather than in this tool.
+          </p>
+
+          <h3 class="prose-heading">Limits</h3>
+          <ul class="prose-list">
+            <li>
+              Five fields only. A six- or seven-field Quartz expression is named as such
+              rather than rejected with a field count, but it is not evaluated.
+            </li>
+            <li>
+              No <code>@reboot</code>: it has no schedule, so there is nothing to show.
+            </li>
+            <li>
+              None of the non-standard extensions — <code>L</code>, <code>W</code>,
+              <code>#</code>, <code>?</code> — which Quartz and some cloud schedulers
+              accept but a POSIX crontab does not.
+            </li>
+            <li>
+              The expression and the pattern are kept in this browser's storage so the
+              page survives a reload. Nothing else is stored, and a share link carries
+              only what is in the fields.
+            </li>
+          </ul>
         </div>
       </section>
     </main>

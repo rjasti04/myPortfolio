@@ -147,12 +147,34 @@ const SKIP_DIRS = new Set(["tests"]);
    Together 0.4 KiB - and the tokens are the better code regardless, since a
    custom palette now reaches them through the ramp.
 
-   The advice in the two notes above is unchanged and is now two raises old:
+   291 -> 296 for docs/review/apps-uiux.md; 288.1 KiB -> 294.0 KiB used. Five
+   new panels across four apps is where the 5.9 KiB went: About tabs on /cron,
+   /crypto and /json (H1), the JWT decoder and HMAC row on /crypto (E3), the
+   structural Compare tab on /json (F3), /diff's three labelled option groups
+   (G2), plus the per-tile trait chips (A4), /worldcup's hero chips and
+   progress bar (B3), the arcade's launcher summary (C1), /cron's timezone
+   select (D2) and the new app-shared.css carrying the switcher and the
+   shortcuts sheet for all seven apps (H2, H3).
+
+   The JS budget did NOT move for the same pass, though the same work added
+   roughly 48 KiB of JavaScript. Building the six standalone-app entries as one
+   `splitting` group instead of six separate esbuild calls reclaimed ~29 KiB of
+   duplicated shared code - see the note on `appsResult` below. That is what
+   trimming before raising looks like when there is something real to trim.
+
+   Trimmed before raising, as this file asks. The reclaim was real but small:
+   --app-media-scrim and the .app-tile-media::after veil are gone outright
+   (A1 - the tiles now carry screenshots with no baked-in copy, so there is no
+   second headline to hold back), .prose-* moved from diff.css into
+   app-chrome.css instead of being copied into three more stylesheets, and
+   .tz-pill, .opt-remember and .footer-privacy-action went with the controls
+   they styled.
+
+   The advice in the notes above is unchanged and is now three raises old:
    nobody has audited the ACTIVITY and AI PAGE regions, which are still the
    two largest by a wide margin, and that is still the right move for whoever
-   needs room next. 291 leaves ~0.8 KiB, which is not room - it is the margin
-   that keeps a one-line fix from failing the build. */
-const BUDGETS_KIB = { js: 390, css: 291 };
+   needs room next. 296 leaves ~4 KiB, which is a margin and not room. */
+const BUDGETS_KIB = { js: 390, css: 296 };
 
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);
@@ -315,79 +337,54 @@ async function main() {
     if (meta.entryPoint) rewrites.set("js/theme-bootstrap.js", relative(OUT, join(ROOT, outPath)));
   }
 
-  // The arcade at /arcade is a separate page with a separate entry point, and
-  // it is built on its own rather than joining the `splitting` group above. It
-  // shares no module with the SPA, so bundling them together could only produce
-  // a shared chunk that each page half-uses - and it would put game code inside
-  // the portfolio's dependency graph, which is where the service worker derives
-  // its shell list from.
-  const arcade = await esbuild.build({
-    entryPoints: [join(SRC, "js/arcade/shell.js")],
-    bundle: true, minify: true, sourcemap: true, format: "esm", target: ["es2022"],
-    outdir: join(OUT, "assets"), entryNames: "arcade-[hash]", metafile: true, logLevel: "warning",
+  // The six standalone-app entries, built as ONE splitting group.
+  //
+  // They used to be six separate esbuild calls, and the note that justified
+  // that said a shared chunk "could only produce a chunk each page half-uses".
+  // That was true while the apps shared no module. It stopped being true when
+  // js/app-shared/ arrived: app-switcher.js and app-shortcuts.js are now run by
+  // all six pages, and six separate builds meant six copies of them - about
+  // 16 KiB of the same code, inlined once per app. `splitting` emits it once
+  // and each entry imports it, which is what "shared" was supposed to mean.
+  //
+  // They are still kept out of the SPA's group above: they share nothing with
+  // it, and folding them in would put game and workbench code inside the
+  // dependency graph the service worker derives its shell list from.
+  const appsResult = await esbuild.build({
+    entryPoints: {
+      arcade: join(SRC, "js/arcade/shell.js"),
+      cron: join(SRC, "js/cron/cron-main.js"),
+      crypto: join(SRC, "js/crypto/crypto-main.js"),
+      json: join(SRC, "js/json/json-main.js"),
+      diff: join(SRC, "js/diff/diff-main.js"),
+      // /ucl and /worldcup keep everything else inline, so this one entry is
+      // the only script either of them loads.
+      "predictor-chrome": join(SRC, "js/app-shared/predictor-chrome.js"),
+    },
+    bundle: true,
+    splitting: true,
+    format: "esm",
+    minify: true,
+    sourcemap: true,
+    target: ["es2022"],
+    outdir: join(OUT, "assets"),
+    entryNames: "[name]-[hash]",
+    chunkNames: "app-chunk-[hash]",
+    metafile: true,
+    logLevel: "warning",
   });
-  for (const [outPath, meta] of Object.entries(arcade.metafile.outputs)) {
+  for (const [outPath, meta] of Object.entries(appsResult.metafile.outputs)) {
     if (outPath.endsWith(".map")) continue;
-    if (meta.entryPoint) {
-      rewrites.set("js/arcade/shell.js", relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
-    }
-  }
-
-  // The logic inspector at /cron is a separate standalone page with its own entry.
-  const cron = await esbuild.build({
-    entryPoints: [join(SRC, "js/cron/cron-main.js")],
-    bundle: true, minify: true, sourcemap: true, format: "esm", target: ["es2022"],
-    outdir: join(OUT, "assets"), entryNames: "cron-[hash]", metafile: true, logLevel: "warning",
-  });
-  for (const [outPath, meta] of Object.entries(cron.metafile.outputs)) {
-    if (outPath.endsWith(".map")) continue;
-    if (meta.entryPoint) {
-      rewrites.set("js/cron/cron-main.js", relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
-    }
-  }
-
-  // The crypto & encoders workbench at /crypto is a separate standalone page with its own entry.
-  const cryptoApp = await esbuild.build({
-    entryPoints: [join(SRC, "js/crypto/crypto-main.js")],
-    bundle: true, minify: true, sourcemap: true, format: "esm", target: ["es2022"],
-    outdir: join(OUT, "assets"), entryNames: "crypto-[hash]", metafile: true, logLevel: "warning",
-  });
-  for (const [outPath, meta] of Object.entries(cryptoApp.metafile.outputs)) {
-    if (outPath.endsWith(".map")) continue;
-    if (meta.entryPoint) {
-      rewrites.set("js/crypto/crypto-main.js", relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
-    }
-  }
-
-  // The JSON workbench at /json is a separate standalone page with its own entry.
-  const jsonApp = await esbuild.build({
-    entryPoints: [join(SRC, "js/json/json-main.js")],
-    bundle: true, minify: true, sourcemap: true, format: "esm", target: ["es2022"],
-    outdir: join(OUT, "assets"), entryNames: "json-[hash]", metafile: true, logLevel: "warning",
-  });
-  for (const [outPath, meta] of Object.entries(jsonApp.metafile.outputs)) {
-    if (outPath.endsWith(".map")) continue;
-    if (meta.entryPoint) {
-      rewrites.set("js/json/json-main.js", relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
-    }
-  }
-
-  // The code difference checker at /diff is a separate standalone page with its own entry.
-  const diffApp = await esbuild.build({
-    entryPoints: [join(SRC, "js/diff/diff-main.js")],
-    bundle: true, minify: true, sourcemap: true, format: "esm", target: ["es2022"],
-    outdir: join(OUT, "assets"), entryNames: "diff-[hash]", metafile: true, logLevel: "warning",
-  });
-  for (const [outPath, meta] of Object.entries(diffApp.metafile.outputs)) {
-    if (outPath.endsWith(".map")) continue;
-    if (meta.entryPoint) {
-      rewrites.set("js/diff/diff-main.js", relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"));
-    }
+    if (!meta.entryPoint) continue;
+    rewrites.set(
+      relative(SRC, join(ROOT, meta.entryPoint)).replace(/\\/g, "/"),
+      relative(OUT, join(ROOT, outPath)).replace(/\\/g, "/"),
+    );
   }
 
   // --- CSS -----------------------------------------------------------------
   const cssAssets = new Set();
-  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "app-chrome.css", "arcade.css", "cron.css", "crypto.css", "json.css", "diff.css"]) {
+  for (const css of ["styles.css", "auth-modal.css", "fonts.css", "app-chrome.css", "app-shared.css", "arcade.css", "cron.css", "crypto.css", "json.css", "diff.css"]) {
     const result = await esbuild.build({
       entryPoints: [join(SRC, css)],
       bundle: true, minify: true, sourcemap: true,

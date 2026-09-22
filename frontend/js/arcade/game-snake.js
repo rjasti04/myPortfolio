@@ -32,6 +32,7 @@ export const meta = {
   name: "Snake",
   tagline: "Eat, grow, and stay out of your own way.",
   controls: "Arrow keys, WASD, or swipe",
+  rules: "A point per apple, and the tail grows with each one. Hitting a wall or your own tail ends the run.",
 };
 
 export const COLUMNS = 17;

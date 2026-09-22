@@ -21,6 +21,8 @@ export const meta = {
   name: "Stack",
   tagline: "Trim the overhang. Perfect drops give width back.",
   controls: "Space, click, or tap to drop",
+  rules:
+    "A point per block landed, and a perfect drop hands back the width you lost. Missing the stack entirely ends the run.",
 };
 
 const WORLD = { width: 360, height: 560 };

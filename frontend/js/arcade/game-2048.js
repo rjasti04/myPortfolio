@@ -15,6 +15,8 @@ export const meta = {
   name: "2048",
   tagline: "Slide, merge, and chase the tile.",
   controls: "Arrow keys, WASD, or swipe",
+  rules:
+    "Merging two equal tiles scores their sum. The run ends when the board is full and nothing can merge.",
 };
 
 const SIZE = 4;

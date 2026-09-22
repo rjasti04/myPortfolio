@@ -11,6 +11,8 @@
  */
 
 import { initWorkbench, readPreferences } from "./diff-ui.js";
+import { initAppSwitcher } from "../app-shared/app-switcher.js";
+import { initAppShortcuts } from "../app-shared/app-shortcuts.js";
 
 const VALID_TABS = ["compare", "patch", "about"];
 const STORAGE_KEY = "rj-diff:preferences";
@@ -87,8 +89,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* --- workbench ------------------------------------------------------- */
 
+  let workbench;
   try {
-    initWorkbench();
+    workbench = initWorkbench();
   } catch (error) {
     // An error boundary: a thrown module error should leave a message on the
     // page rather than a blank one with a console nobody opens.
@@ -98,6 +101,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     return;
   }
+
+  /* --- shared chrome --------------------------------------------------- */
+
+  initAppSwitcher({ current: "diff" });
+  // `j`/`k` are registered rather than bound here, so they appear in the `?`
+  // sheet with everything else. The sheet is built from this table.
+  initAppShortcuts({
+    focusPrimary: "#input-left",
+    tabs: ".mode-tabs .tab-btn",
+    extra: [
+      {
+        keys: ["j", "\u2193"],
+        label: "Next change",
+        match: (event) => event.key === "j" || event.key === "ArrowDown",
+        run: (event) => {
+          event.preventDefault();
+          workbench.stepChange(1);
+        },
+      },
+      {
+        keys: ["k", "\u2191"],
+        label: "Previous change",
+        match: (event) => event.key === "k" || event.key === "ArrowUp",
+        run: (event) => {
+          event.preventDefault();
+          workbench.stepChange(-1);
+        },
+      },
+    ],
+  });
 
   /* --- tabs ------------------------------------------------------------ */
 

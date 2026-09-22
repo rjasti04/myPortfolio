@@ -631,3 +631,126 @@ test("every club's flag code resolves to its own country, with a text fallback",
   assert.equal(badge.textContent, "ENG");
   assert.equal(rows[3].querySelector("img.team-flag"), null);
 });
+
+/* --- Accessibility and chrome ---------------------------------------------
+ *
+ * Neither predictor had ever had the pass the four Dev Tools apps got: the
+ * stage switcher was three bare <button>s in a <nav>, so the active stage was
+ * a CSS class and nothing else - WCAG 2.2 4.1.2 Name, Role, Value.
+ */
+
+test("the stage switcher is a real tablist", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+
+  const list = doc.querySelector(".navigation-tabs");
+  assert.equal(list.getAttribute("role"), "tablist");
+
+  const tabs = [...doc.querySelectorAll(".navigation-tabs .tab-btn")];
+  assert.equal(tabs.length, 3);
+  for (const tab of tabs) {
+    assert.equal(tab.getAttribute("role"), "tab");
+    assert.ok(tab.getAttribute("aria-controls"), "a tab that controls nothing");
+    assert.ok(doc.getElementById(tab.getAttribute("aria-controls")), "aria-controls points at nothing");
+  }
+
+  const selected = tabs.filter((t) => t.getAttribute("aria-selected") === "true");
+  assert.equal(selected.length, 1, "exactly one stage is current");
+});
+
+test("only the selected tab is in the Tab order", async () => {
+  const { window } = await boot();
+  const tabs = [...window.document.querySelectorAll(".navigation-tabs .tab-btn")];
+
+  const inOrder = tabs.filter((t) => t.getAttribute("tabindex") !== "-1");
+  assert.equal(inOrder.length, 1, "roving tabindex is what makes a tablist one stop");
+  assert.equal(inOrder[0].getAttribute("aria-selected"), "true");
+});
+
+test("clicking a stage moves aria-selected and the Tab stop with it", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const tabs = [...doc.querySelectorAll(".navigation-tabs .tab-btn")];
+
+  tabs[2].dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+  assert.equal(tabs[2].getAttribute("aria-selected"), "true");
+  assert.equal(tabs[0].getAttribute("aria-selected"), "false");
+  assert.equal(tabs[2].getAttribute("tabindex"), null);
+  assert.equal(tabs[0].getAttribute("tabindex"), "-1");
+  assert.ok(doc.getElementById("knockout-tab").classList.contains("active"));
+});
+
+test("the arrow keys move between stages", async () => {
+  const { window } = await boot();
+  const tabs = [...window.document.querySelectorAll(".navigation-tabs .tab-btn")];
+
+  tabs[0].dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  assert.equal(tabs[1].getAttribute("aria-selected"), "true");
+
+  tabs[1].dispatchEvent(new window.KeyboardEvent("keydown", { key: "End", bubbles: true }));
+  assert.equal(tabs[2].getAttribute("aria-selected"), "true");
+
+  tabs[2].dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  assert.equal(tabs[0].getAttribute("aria-selected"), "true", "the set should wrap");
+});
+
+test("the mobile round switcher is a tablist too, with one label per panel", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+
+  assert.equal(doc.querySelector(".mobile-bracket-tabs").getAttribute("role"), "tablist");
+  const rounds = [...doc.querySelectorAll(".mobile-tab-btn")];
+  assert.equal(rounds.filter((r) => r.getAttribute("aria-selected") === "true").length, 1);
+
+  const panel = doc.getElementById("mobile-bracket-list-container");
+  assert.equal(panel.getAttribute("role"), "tabpanel");
+  assert.equal(panel.getAttribute("aria-labelledby"), rounds[0].id);
+
+  rounds[2].dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.equal(panel.getAttribute("aria-labelledby"), rounds[2].id, "one panel, so its label follows the tab");
+});
+
+test("every stage panel is a tabpanel", async () => {
+  const { window } = await boot();
+  for (const panel of window.document.querySelectorAll(".view-panel")) {
+    assert.equal(panel.getAttribute("role"), "tabpanel");
+    assert.ok(panel.getAttribute("aria-labelledby"), "a panel with no accessible name");
+  }
+});
+
+test("no decorative icon is left for a screen reader to read out", () => {
+  const icons = html.match(/<i class="fa[^>]*>/g) ?? [];
+  const exposed = icons.filter((i) => !i.includes("aria-hidden"));
+  assert.deepEqual(exposed, [], "some screen readers announce the private-use codepoint");
+});
+
+test("Reset takes two presses and never raises a browser dialog", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+
+  // jsdom's confirm() returns false, so a window.confirm reset could never be
+  // exercised here at all - which is how it went untested for this long.
+  // Comment lines are stripped first: this file explains why the dialog went.
+  const code = html
+    .split("\n")
+    .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+    .join("\n");
+  assert.doesNotMatch(code, /window\.confirm\(|[^.\w]confirm\(/, "the native dialog is back");
+
+  const reset = doc.getElementById("reset-btn");
+  const firstTeam = doc.querySelector("#league-container .team-name")?.textContent;
+
+  reset.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.ok(reset.classList.contains("is-confirming"), "the first press should arm, not fire");
+  assert.match(reset.textContent, /Confirm/);
+
+  reset.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.equal(reset.classList.contains("is-confirming"), false);
+  assert.equal(doc.querySelector("#league-container .team-name")?.textContent, firstTeam);
+});
+
+test("the page loads the shared chrome, so the shelf is reachable from inside", () => {
+  assert.match(html, /js\/app-shared\/predictor-chrome\.js/);
+  assert.match(html, /href="app-shared\.css"/);
+});

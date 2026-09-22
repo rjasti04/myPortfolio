@@ -49,6 +49,7 @@
     <link rel="stylesheet" href="fonts.css" />
     <link rel="stylesheet" href="app-chrome.css" />
     <link rel="stylesheet" href="diff.css" />
+    <link rel="stylesheet" href="app-shared.css" />
   </head>
 
   <body>
@@ -62,8 +63,8 @@
                 <i class="fas fa-code-compare"></i>
               </div>
               <div class="brand-text">
-                <div class="brand-title">Code Difference</div>
-                <span class="brand-tag">Checker</span>
+                <div class="brand-title">Diff Checker</div>
+                <span class="brand-tag">Code Comparison</span>
               </div>
             </div>
           </div>
@@ -160,6 +161,12 @@
             <div class="card-header-row">
               <h2 class="card-title" id="label-left">Original</h2>
               <span class="pane-meta" id="meta-left">empty</span>
+              <button type="button" class="btn-sm" id="btn-sample">
+                <i class="fas fa-file-lines" aria-hidden="true"></i>Load sample
+              </button>
+              <button type="button" class="btn-sm" id="btn-swap" title="Exchange the two panes">
+                <i class="fas fa-shuffle" aria-hidden="true"></i>Swap
+              </button>
               <button type="button" class="btn-sm" id="btn-file-left">
                 <i class="fas fa-file-lines" aria-hidden="true"></i>Open file
               </button>
@@ -207,34 +214,42 @@
 
         <div class="card options-card">
           <div class="options-row">
-            <div class="seg-group" role="group" aria-label="Diff layout">
-              <button type="button" class="seg-btn active" id="btn-view-split" data-view="split">
-                <i class="fas fa-table-list" aria-hidden="true"></i>Split
-              </button>
-              <button type="button" class="seg-btn" id="btn-view-unified" data-view="unified">
-                <i class="fas fa-layer-group" aria-hidden="true"></i>Unified
-              </button>
-            </div>
+            <fieldset class="opt-group">
+              <legend class="opt-legend">Compare</legend>
+              <label class="opt"><input type="checkbox" id="opt-ignore-whitespace" />Ignore whitespace</label>
+              <label class="opt"><input type="checkbox" id="opt-trim-trailing" />Trim trailing</label>
+              <label class="opt"><input type="checkbox" id="opt-ignore-case" />Ignore case</label>
+              <label class="opt"><input type="checkbox" id="opt-ignore-blank" />Ignore blank lines</label>
+            </fieldset>
 
-            <label class="opt"><input type="checkbox" id="opt-ignore-whitespace" />Ignore whitespace</label>
-            <label class="opt"><input type="checkbox" id="opt-trim-trailing" />Trim trailing</label>
-            <label class="opt"><input type="checkbox" id="opt-ignore-case" />Ignore case</label>
-            <label class="opt"><input type="checkbox" id="opt-ignore-blank" />Ignore blank lines</label>
-            <label class="opt"><input type="checkbox" id="opt-wrap" checked />Wrap long lines</label>
+            <fieldset class="opt-group">
+              <legend class="opt-legend">View</legend>
+              <div class="seg-group" role="group" aria-label="Diff layout">
+                <button type="button" class="seg-btn active" id="btn-view-split" data-view="split">
+                  <i class="fas fa-table-list" aria-hidden="true"></i>Split
+                </button>
+                <button type="button" class="seg-btn" id="btn-view-unified" data-view="unified">
+                  <i class="fas fa-layer-group" aria-hidden="true"></i>Unified
+                </button>
+              </div>
+              <label class="opt"><input type="checkbox" id="opt-wrap" checked />Wrap long lines</label>
+              <label class="opt opt-select"
+                >Context
+                <select id="opt-context">
+                  <option value="0">0</option>
+                  <option value="3" selected>3</option>
+                  <option value="8">8</option>
+                  <option value="-1">All</option>
+                </select>
+              </label>
+            </fieldset>
 
-            <label class="opt opt-select"
-              >Context
-              <select id="opt-context">
-                <option value="0">0</option>
-                <option value="3" selected>3</option>
-                <option value="8">8</option>
-                <option value="-1">All</option>
-              </select>
-            </label>
-
-            <label class="opt opt-remember"
-              ><input type="checkbox" id="opt-remember" />Remember my panes</label
-            >
+            <fieldset class="opt-group opt-group-session">
+              <legend class="opt-legend">Session</legend>
+              <label class="opt"
+                ><input type="checkbox" id="opt-remember" />Remember my panes</label
+              >
+            </fieldset>
           </div>
           <p class="card-hint" id="remember-hint">
             Nothing you paste is stored or sent anywhere. Turn on

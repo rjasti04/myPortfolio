@@ -10,6 +10,8 @@
 
 import { initCronUI } from "./cron-ui.js";
 import { initRegexUI } from "./regex-ui.js";
+import { initAppSwitcher } from "../app-shared/app-switcher.js";
+import { initAppShortcuts } from "../app-shared/app-shortcuts.js";
 
 const STORAGE_KEY = "rj-inspector:state";
 
@@ -48,12 +50,25 @@ function showToast(message) {
   }, 2200);
 }
 
+const VALID_TABS = ["cron", "regex", "about"];
+
+/** Hash -> tab name, defaulting to the cron inspector for anything unknown. */
+function tabFromHash(hash) {
+  const name = (hash || "").replace(/^#/, "").toLowerCase();
+  return VALID_TABS.includes(name) ? name : "cron";
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  // Shared chrome: the shelf reachable from the header, and a `?` sheet
+  // generated from what is actually bound.
+  initAppSwitcher({ current: "cron" });
+  initAppShortcuts({ focusPrimary: "#cron-input", tabs: ".mode-tabs .tab-btn" });
+
   const savedState = loadSavedState() || {};
 
   // Parse URL hash & search params
   const hash = window.location.hash || "#cron";
-  let activeTab = hash.startsWith("#regex") ? "regex" : "cron";
+  let activeTab = tabFromHash(hash);
 
   const params = new URLSearchParams(window.location.search);
   const initialCronExpr = params.get("expr") || savedState.cronExpr || "*/15 9-17 * * 1-5";
@@ -65,6 +80,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const tabButtons = document.querySelectorAll(".tab-btn");
   const panelCron = document.getElementById("panel-cron");
   const panelRegex = document.getElementById("panel-regex");
+  const panels = {
+    cron: panelCron,
+    regex: panelRegex,
+    about: document.getElementById("panel-about"),
+  };
   const shareBtn = document.getElementById("share-link-btn");
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
 
@@ -99,16 +119,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    const activePanel = tabName === "cron" ? panelCron : panelRegex;
-    if (tabName === "cron") {
-      panelCron.hidden = false;
-      panelRegex.hidden = true;
-      history.replaceState(null, "", `#cron${window.location.search}`);
-    } else {
-      panelCron.hidden = true;
-      panelRegex.hidden = false;
-      history.replaceState(null, "", `#regex${window.location.search}`);
+    let activePanel = null;
+    for (const [name, panel] of Object.entries(panels)) {
+      if (!panel) continue;
+      const isTarget = name === tabName;
+      panel.hidden = !isTarget;
+      if (isTarget) activePanel = panel;
     }
+    history.replaceState(null, "", `#${tabName}${window.location.search}`);
 
     if (shouldScroll) {
       scrollToActivePanel(activePanel);
@@ -156,8 +174,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Handle hashchange
   window.addEventListener("hashchange", () => {
-    const newHash = window.location.hash;
-    const nextTab = newHash.startsWith("#regex") ? "regex" : "cron";
+    const nextTab = tabFromHash(window.location.hash);
     if (nextTab !== activeTab) {
       switchTab(nextTab, true);
     }
@@ -208,7 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const url = new URL(window.location.href);
       url.search = ""; // clear old params
 
-      if (activeTab === "cron") {
+      if (activeTab !== "regex") {
         url.hash = "#cron";
         url.searchParams.set("expr", cronController.getExpression());
       } else {

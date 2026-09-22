@@ -8,7 +8,7 @@
   },
   "scripts": {
     "lint": "npm run lint:js && npm run lint:css",
-    "lint:js": "eslint frontend/*.js frontend/js/*.js frontend/js/arcade/*.js frontend/js/cron/*.js frontend/js/crypto/*.js frontend/js/diff/*.js frontend/js/json/*.js frontend/js/terminal/*.js",
+    "lint:js": "eslint frontend/*.js frontend/js/*.js frontend/js/app-shared/*.js frontend/js/arcade/*.js frontend/js/cron/*.js frontend/js/crypto/*.js frontend/js/diff/*.js frontend/js/json/*.js frontend/js/terminal/*.js",
     "lint:css": "stylelint \"frontend/**/*.css\"",
     "format": "prettier --write \"**/*.{html,css,js,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{html,css,js,json,md,yml,yaml}\"",

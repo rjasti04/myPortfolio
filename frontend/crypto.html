@@ -58,6 +58,7 @@
     <link rel="stylesheet" href="fonts.css" />
     <link rel="stylesheet" href="app-chrome.css" />
     <link rel="stylesheet" href="crypto.css" />
+    <link rel="stylesheet" href="app-shared.css" />
   </head>
 
   <body>
@@ -94,11 +95,21 @@
               type="button"
               id="share-link-btn"
               class="action-btn"
-              title="Copy shareable permalink to clipboard"
-              aria-label="Share permalink"
+              title="Copy a link to this tab and its settings"
+              aria-label="Copy a link to this tab and its settings"
             >
               <i class="fas fa-copy" aria-hidden="true"></i>
               <span class="action-label">Share</span>
+            </button>
+            <button
+              type="button"
+              id="privacy-clear-all-btn"
+              class="action-btn text-danger"
+              title="Wipe all inputs, outputs, and browser storage"
+              aria-label="Clear all workbench data and storage"
+            >
+              <i class="fas fa-trash-can" aria-hidden="true"></i>
+              <span class="action-label">Clear</span>
             </button>
             <button
               type="button"
@@ -156,6 +167,20 @@
           <button
             type="button"
             class="tab-btn"
+            data-tab="jwt"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-jwt"
+            aria-label="JWT decoder"
+            id="tab-jwt"
+            tabindex="-1"
+          >
+            <i class="fas fa-key" aria-hidden="true"></i>
+            <span>JWT</span>
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
             data-tab="time"
             role="tab"
             aria-selected="false"
@@ -165,6 +190,20 @@
           >
             <i class="fas fa-sync-alt" aria-hidden="true"></i>
             <span>Time</span>
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            data-tab="about"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-about"
+            aria-label="About this workbench"
+            id="tab-about"
+            tabindex="-1"
+          >
+            <i class="fas fa-circle-info" aria-hidden="true"></i>
+            <span>About</span>
           </button>
         </nav>
       </div>
@@ -450,6 +489,54 @@
                 readonly
                 aria-label="SHA-1 digest"
                 placeholder="SHA-1 digest will appear here..."
+              />
+            </div>
+
+            <!-- HMAC — a keyed digest. The three above answer "what is the
+                 fingerprint of this"; this one answers "was this written by
+                 someone holding the key", which is what a webhook signature
+                 actually asks. -->
+            <div class="hash-card hmac-card">
+              <div class="hash-header">
+                <span class="hash-badge badge-hmac">HMAC</span>
+                <span class="hash-bits">Keyed digest</span>
+                <button
+                  type="button"
+                  class="btn-sm btn-secondary"
+                  data-copy-target="hmac-out"
+                  title="Copy HMAC digest"
+                >
+                  <i class="fas fa-copy" aria-hidden="true"></i> Copy
+                </button>
+              </div>
+              <div class="hmac-config">
+                <label class="hmac-field">
+                  <span class="hmac-label">Key</span>
+                  <input
+                    type="text"
+                    id="hmac-key"
+                    class="text-input"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="Shared secret — never stored, never sent"
+                  />
+                </label>
+                <label class="hmac-field hmac-field-narrow">
+                  <span class="hmac-label">Algorithm</span>
+                  <select id="hmac-alg" class="select-input">
+                    <option value="SHA-256" selected>SHA-256</option>
+                    <option value="SHA-512">SHA-512</option>
+                    <option value="SHA-1">SHA-1</option>
+                  </select>
+                </label>
+              </div>
+              <input
+                type="text"
+                id="hmac-out"
+                class="hash-input"
+                readonly
+                aria-label="HMAC digest"
+                placeholder="Enter a key to sign the message above..."
               />
             </div>
           </div>
@@ -755,22 +842,164 @@
           </div>
         </div>
       </section>
+
+      <!-- 5. JWT PANEL — decode only, and the panel says so. -->
+      <section
+        id="panel-jwt"
+        class="panel-container"
+        role="tabpanel"
+        aria-labelledby="tab-jwt"
+        tabindex="0"
+        hidden
+      >
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">
+              <i class="fas fa-key" aria-hidden="true"></i>JSON Web Token
+            </h2>
+            <p class="card-subtitle">
+              Paste a token to read its header and claims. Decoding happens in this tab;
+              nothing is uploaded.
+            </p>
+          </div>
+
+          <p class="jwt-notice">
+            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+            <span
+              ><strong>This does not verify the signature.</strong> Verification needs the
+              signing key, and a page that checks a key you pasted in beside the token has
+              told you nothing. Treat a decoded payload as a claim, never as proof.</span
+            >
+          </p>
+
+          <div class="io-block">
+            <div class="io-header">
+              <label class="io-label" for="jwt-input">Token</label>
+              <button
+                type="button"
+                id="jwt-clear-btn"
+                class="btn-sm btn-secondary"
+                title="Clear the token"
+              >
+                <i class="fas fa-trash-can" aria-hidden="true"></i> Clear
+              </button>
+            </div>
+            <textarea
+              id="jwt-input"
+              class="text-area jwt-input"
+              rows="4"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature"
+            ></textarea>
+            <p id="jwt-status" class="output-details" role="status" aria-live="polite"></p>
+          </div>
+
+          <div class="jwt-parts">
+            <div class="jwt-part">
+              <h3 class="jwt-part-title">Header</h3>
+              <pre id="jwt-header" class="jwt-json" tabindex="0"></pre>
+            </div>
+            <div class="jwt-part">
+              <h3 class="jwt-part-title">Payload</h3>
+              <pre id="jwt-payload" class="jwt-json" tabindex="0"></pre>
+            </div>
+          </div>
+
+          <div class="jwt-claims-wrap">
+            <h3 class="jwt-part-title">Claims</h3>
+            <table class="jwt-claims">
+              <thead>
+                <tr>
+                  <th scope="col">Claim</th>
+                  <th scope="col">Value</th>
+                  <th scope="col">When</th>
+                </tr>
+              </thead>
+              <tbody id="jwt-claims-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. ABOUT PANEL -->
+      <section
+        id="panel-about"
+        class="panel-container"
+        role="tabpanel"
+        aria-labelledby="tab-about"
+        tabindex="0"
+        hidden
+      >
+        <div class="card prose-card">
+          <h2 class="card-title">What this does, and where it stops</h2>
+          <p>
+            Every transform on this page runs in this tab. The document declares
+            <code>connect-src 'none'</code>, so it cannot make a network request even if
+            something in it tried to — no upload, no fetch, no analytics. That is the
+            point of it: people paste API keys, session tokens and customer records into
+            encoders, and sending any of that to someone else's server is a poor trade.
+          </p>
+
+          <h3 class="prose-heading">Hashing</h3>
+          <p>
+            SHA-256, SHA-512 and SHA-1 come from
+            <code>crypto.subtle.digest</code> — the browser's own implementation, not a
+            bundled copy of one. All three recompute on every keystroke because they are
+            fast enough that debouncing would cost more than it saved.
+          </p>
+          <p>
+            SHA-1 is here because real systems still emit it, and it is labelled
+            collision-broken because it is: do not use it to decide whether two things are
+            the same. <strong>HMAC</strong> answers a different question from the three
+            above — not "what is the fingerprint of this" but "was this written by someone
+            holding the key" — and is what a webhook signature actually asks.
+          </p>
+
+          <h3 class="prose-heading">JWT</h3>
+          <p>
+            The decoder splits on <code>.</code>, Base64URL-decodes the first two
+            segments, and renders the claims with the three NumericDate ones
+            (<code>exp</code>, <code>iat</code>, <code>nbf</code>) resolved to a readable
+            time. It does not verify the signature, and it will not be changed to: see the
+            notice on that tab.
+          </p>
+
+          <h3 class="prose-heading">Generators</h3>
+          <p>
+            UUID v4 and v7 and the password generator all draw from
+            <code>crypto.getRandomValues</code>. UUID v7 is RFC 9562's time-ordered form,
+            so a batch sorts into creation order — the property that makes it a better
+            primary key than v4.
+          </p>
+
+          <h3 class="prose-heading">Limits</h3>
+          <ul class="prose-list">
+            <li>
+              5 MB per file for Base64 encoding. Larger input is refused rather than
+              silently truncated.
+            </li>
+            <li>
+              No encryption or decryption. This is a workbench for transforms that are
+              reversible by anyone, plus digests that are not reversible at all — a page
+              that also held your keys would be a different and much riskier tool.
+            </li>
+            <li>No signature verification, for the reason given on the JWT tab.</li>
+            <li>
+              Hashing is over UTF-8 text. A file's digest is the digest of its decoded
+              text, not of its raw bytes.
+            </li>
+            <li>
+              Only the tab and a few display settings travel in a share link. Nothing you
+              type does — not the plaintext, not an HMAC key, not a token.
+            </li>
+          </ul>
+        </div>
+      </section>
     </main>
 
     <footer class="app-footer">
       <div class="footer-container">
-        <div class="footer-privacy-action">
-          <button
-            type="button"
-            id="privacy-clear-all-btn"
-            class="action-btn text-danger"
-            title="Wipe all inputs, outputs, and browser storage"
-            aria-label="Clear all workbench data and storage"
-          >
-            <i class="fas fa-trash-can" aria-hidden="true"></i>
-            <span>Clear All Workbench Data</span>
-          </button>
-        </div>
         <p>100% Client-Side Evaluation &bull; Native Web Cryptography API &bull; Zero Network Egress</p>
         <p><a href="/" class="footer-link">Rajeev Jasti &mdash; Portfolio</a> &bull; <a href="/#apps" class="footer-link">Apps Shelf</a> &bull; <a href="/cron" class="footer-link">Cron &amp; Regex Visualizer</a> &bull; <a href="/arcade" class="footer-link">Arcade</a></p>
       </div>

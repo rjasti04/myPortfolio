@@ -16,8 +16,10 @@
  */
 
 import { initWorkbench } from "./json-ui.js";
+import { initAppSwitcher } from "../app-shared/app-switcher.js";
+import { initAppShortcuts } from "../app-shared/app-shortcuts.js";
 
-const VALID_TABS = ["format", "query", "tree", "convert"];
+const VALID_TABS = ["format", "query", "tree", "convert", "compare", "about"];
 const STORAGE_KEY = "rj-json:preferences";
 
 /** Shared with the SPA, so a visitor who picked light on the portfolio keeps it. */
@@ -46,6 +48,9 @@ function tabFromHash() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initAppSwitcher({ current: "json" });
+  initAppShortcuts({ focusPrimary: "#source-input", tabs: ".mode-tabs .tab-btn" });
+
   const preferences = readPreferences();
   const root = document.documentElement;
 

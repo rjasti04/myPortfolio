@@ -169,3 +169,143 @@ test("URL state parameter round-trips correctly after random fill", async () => 
   const loadedSerial = loadedDom.window.localStorage.getItem("predictor-state");
   assert.equal(loadedSerial, serial, "serialized state reloads accurately");
 });
+
+/* --- Accessibility, chrome and parity with /ucl ---------------------------
+ *
+ * /worldcup was a design generation behind its sibling: no tab semantics, no
+ * progress indicator anywhere except the wildcard counter on one of three
+ * tabs, no hero context, and reorder buttons labelled "Move team up" twelve
+ * groups over.
+ */
+
+test("the stage switcher is a real tablist with one selected tab", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+
+  assert.equal(doc.querySelector(".navigation-tabs").getAttribute("role"), "tablist");
+
+  const tabs = [...doc.querySelectorAll(".navigation-tabs .tab-btn")];
+  assert.equal(tabs.length, 3);
+  for (const tab of tabs) {
+    assert.equal(tab.getAttribute("role"), "tab");
+    assert.ok(doc.getElementById(tab.getAttribute("aria-controls")));
+  }
+  assert.equal(tabs.filter((t) => t.getAttribute("aria-selected") === "true").length, 1);
+  assert.equal(tabs.filter((t) => t.getAttribute("tabindex") !== "-1").length, 1);
+});
+
+test("clicking and arrowing both move the selection", async () => {
+  const { window } = await boot();
+  const tabs = [...window.document.querySelectorAll(".navigation-tabs .tab-btn")];
+
+  tabs[1].dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.equal(tabs[1].getAttribute("aria-selected"), "true");
+  assert.equal(tabs[0].getAttribute("tabindex"), "-1");
+
+  tabs[1].dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+  assert.equal(tabs[0].getAttribute("aria-selected"), "true");
+
+  tabs[0].dispatchEvent(new window.KeyboardEvent("keydown", { key: "End", bubbles: true }));
+  assert.equal(tabs[2].getAttribute("aria-selected"), "true");
+});
+
+test("the mobile round switcher is a tablist, and its panel follows the tab", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+
+  assert.equal(doc.querySelector(".mobile-bracket-tabs").getAttribute("role"), "tablist");
+  const rounds = [...doc.querySelectorAll(".mobile-tab-btn")];
+  assert.equal(rounds.length, 5);
+
+  const panel = doc.getElementById("mobile-bracket-list-container");
+  assert.equal(panel.getAttribute("role"), "tabpanel");
+
+  rounds[3].dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.equal(rounds[3].getAttribute("aria-selected"), "true");
+  assert.equal(panel.getAttribute("aria-labelledby"), rounds[3].id);
+});
+
+test("no decorative icon is left for a screen reader to read out", () => {
+  const icons = html.match(/<i class="fa[^>]*>/g) ?? [];
+  assert.deepEqual(icons.filter((i) => !i.includes("aria-hidden")), []);
+});
+
+test("the header no longer brands the app with the mark its footer disclaims", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+
+  assert.equal(doc.querySelector(".brand-title").textContent.trim(), "World Cup 26");
+  // The disclaimer stays; it is the brand that was wrong.
+  assert.match(doc.querySelector(".app-footer").textContent, /Not Affiliated With FIFA/);
+});
+
+test("the hero carries the same kind of context /ucl's does", async () => {
+  const { window } = await boot();
+  const chips = [...window.document.querySelectorAll(".hero-chip")].map((c) => c.textContent.trim());
+
+  assert.equal(chips.length, 3);
+  assert.match(chips.join(" | "), /48 teams/);
+  assert.match(chips.join(" | "), /Round of 32/);
+  assert.match(chips.join(" | "), /New Jersey/);
+});
+
+test("the progress bar counts the whole tournament, not one tab's wildcards", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+
+  const track = doc.getElementById("progress-track");
+  assert.equal(track.getAttribute("role"), "progressbar");
+  // Eight wildcard places plus 32 knockout ties.
+  assert.equal(track.getAttribute("aria-valuemax"), "40");
+  assert.equal(track.getAttribute("aria-valuenow"), "8", "the eight default wildcards are decided");
+  assert.match(doc.getElementById("progress-label").textContent, /8 of 40 decisions made/);
+});
+
+test("a filled bracket reads as complete", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+
+  try {
+    doc.getElementById("autofill-btn").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  } catch {
+    // The podium celebration reaches for a canvas jsdom does not implement;
+    // the state it is celebrating has already been computed.
+  }
+
+  assert.equal(doc.getElementById("progress-track").getAttribute("aria-valuenow"), "40");
+  assert.match(doc.getElementById("progress-label").textContent, /Bracket complete/);
+});
+
+test("a reorder button names the club it moves", async () => {
+  const { window } = await boot();
+  const up = window.document.querySelector(".reorder-up");
+
+  assert.ok(up, "no reorder control rendered");
+  const label = up.getAttribute("aria-label");
+  assert.doesNotMatch(label, /^Move team (up|down)$/, "twelve groups of identical labels");
+  assert.match(label, /^Move .+ up$/);
+});
+
+test("Reset takes two presses and never raises a browser dialog", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+
+  const code = html
+    .split("\n")
+    .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+    .join("\n");
+  assert.doesNotMatch(code, /window\.confirm\(|[^.\w]confirm\(/, "the native dialog is back");
+
+  const reset = doc.getElementById("reset-btn");
+  reset.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.ok(reset.classList.contains("is-confirming"), "the first press should arm, not fire");
+
+  reset.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.equal(reset.classList.contains("is-confirming"), false);
+  assert.equal(doc.getElementById("progress-track").getAttribute("aria-valuenow"), "8");
+});
+
+test("the page loads the shared chrome", () => {
+  assert.match(html, /js\/app-shared\/predictor-chrome\.js/);
+  assert.match(html, /href="app-shared\.css"/);
+});

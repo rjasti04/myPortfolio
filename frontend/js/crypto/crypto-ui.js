@@ -19,7 +19,9 @@ import {
   binaryToText,
 } from "./encoders.js";
 
-import { computeAllHashes } from "./hasher.js";
+import { computeAllHashes, computeHmac } from "./hasher.js";
+
+import { decodeJwt } from "./jwt.js";
 
 import {
   generateUuidV4,
@@ -44,6 +46,7 @@ export function initCryptoUI() {
   setupCopyButtons();
   setupEncodersUI();
   setupHasherUI();
+  setupJwtUI();
   setupGeneratorsUI();
   setupTimeUI();
   setupPrivacyClear();
@@ -294,8 +297,36 @@ function setupHasherUI() {
   const sha1El = document.getElementById("hash-sha1");
   const metricsEl = document.getElementById("hasher-metrics");
   const sampleChips = document.querySelectorAll(".hasher-chip");
+  const hmacKeyEl = document.getElementById("hmac-key");
+  const hmacAlgEl = document.getElementById("hmac-alg");
+  const hmacOutEl = document.getElementById("hmac-out");
 
   if (!inputEl) return;
+
+  /**
+   * HMAC over the same message the digests above are reading.
+   *
+   * With no key there is nothing to sign, and an empty key is a real HMAC but
+   * a meaningless one - so the field stays empty and says why, rather than
+   * printing a digest that looks authoritative.
+   */
+  async function updateHmac(isUpper) {
+    if (!hmacOutEl) return;
+    const key = hmacKeyEl?.value ?? "";
+    const text = inputEl.value;
+
+    if (!key || !text) {
+      hmacOutEl.value = "";
+      return;
+    }
+
+    try {
+      const mac = await computeHmac(text, key, hmacAlgEl?.value || "SHA-256");
+      hmacOutEl.value = isUpper ? mac.uppercaseHex : mac.hex;
+    } catch (err) {
+      hmacOutEl.value = `Error: ${err.message}`;
+    }
+  }
 
   let debounceTimer;
 
@@ -307,9 +338,12 @@ function setupHasherUI() {
       if (sha256El) sha256El.value = "";
       if (sha512El) sha512El.value = "";
       if (sha1El) sha1El.value = "";
+      if (hmacOutEl) hmacOutEl.value = "";
       if (metricsEl) metricsEl.textContent = "0 characters | 0 bytes";
       return;
     }
+
+    await updateHmac(isUpper);
 
     try {
       const result = await computeAllHashes(text);
@@ -336,12 +370,99 @@ function setupHasherUI() {
   });
 
   uppercaseToggle?.addEventListener("change", updateHashes);
+  hmacKeyEl?.addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(updateHashes, 50);
+  });
+  hmacAlgEl?.addEventListener("change", updateHashes);
 
   sampleChips.forEach((chip) => {
     chip.addEventListener("click", () => {
       inputEl.value = chip.getAttribute("data-sample") || chip.textContent.trim();
       updateHashes();
     });
+  });
+}
+
+/**
+ * JWT Panel UI
+ *
+ * Everything untrusted here goes in through textContent. A JWT is attacker-
+ * supplied by definition - it is the thing you were handed and do not yet
+ * trust - so a decoder that built markup from its claims would be handing the
+ * page to whoever wrote the token.
+ */
+function setupJwtUI() {
+  const inputEl = document.getElementById("jwt-input");
+  const statusEl = document.getElementById("jwt-status");
+  const headerEl = document.getElementById("jwt-header");
+  const payloadEl = document.getElementById("jwt-payload");
+  const claimsBody = document.getElementById("jwt-claims-body");
+  const clearBtn = document.getElementById("jwt-clear-btn");
+
+  if (!inputEl) return;
+
+  function reset() {
+    if (headerEl) headerEl.textContent = "";
+    if (payloadEl) payloadEl.textContent = "";
+    if (claimsBody) claimsBody.textContent = "";
+  }
+
+  function render() {
+    const result = decodeJwt(inputEl.value);
+
+    if (!result.valid) {
+      reset();
+      if (statusEl) statusEl.textContent = result.error;
+      return;
+    }
+
+    if (headerEl) headerEl.textContent = JSON.stringify(result.header, null, 2);
+    if (payloadEl) payloadEl.textContent = JSON.stringify(result.payload, null, 2);
+
+    if (claimsBody) {
+      claimsBody.textContent = "";
+      for (const claim of result.claims) {
+        const row = document.createElement("tr");
+
+        const keyCell = document.createElement("th");
+        keyCell.scope = "row";
+        keyCell.textContent = claim.label ? `${claim.key} — ${claim.label}` : claim.key;
+
+        const valueCell = document.createElement("td");
+        valueCell.textContent = claim.value;
+
+        const whenCell = document.createElement("td");
+        whenCell.textContent = claim.relative ?? "";
+
+        row.append(keyCell, valueCell, whenCell);
+        claimsBody.append(row);
+      }
+    }
+
+    if (statusEl) {
+      const alg = result.header?.alg ? String(result.header.alg) : "unspecified";
+      const expiry =
+        result.expired === null
+          ? "no expiry claim"
+          : result.expired
+            ? "expired"
+            : "not yet expired";
+      statusEl.textContent = `Decoded. Algorithm ${alg}, ${expiry}. Signature not verified.`;
+    }
+  }
+
+  let debounceTimer;
+  inputEl.addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(render, 80);
+  });
+
+  clearBtn?.addEventListener("click", () => {
+    inputEl.value = "";
+    reset();
+    if (statusEl) statusEl.textContent = "";
+    inputEl.focus();
   });
 }
 
@@ -531,7 +652,7 @@ function setupPrivacyClear() {
   clearBtn.addEventListener("click", () => {
     if (!clearBtn.classList.contains("confirming")) {
       clearBtn.classList.add("confirming");
-      clearBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> <span>Confirm Wipe?</span>';
+      clearBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> <span class="action-label">Confirm?</span>';
       clearTimeout(confirmTimeout);
       confirmTimeout = setTimeout(() => {
         clearBtn.classList.remove("confirming");

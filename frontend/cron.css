@@ -703,15 +703,23 @@ body {
   color: var(--text);
 }
 
-.tz-pill {
+/* The zone is a control now, not a label: a cron expression is wall-clock, so
+   which clock is the question, not a footnote. */
+.tz-field {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.tz-select {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text);
-  background-color: var(--bg-subtle);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.05rem 0.35rem;
+  padding: 0.2rem 0.45rem;
+  max-width: 100%;
+  min-height: 32px;
+  width: auto;
 }
 
 /* 5-Part Cron Interactive Builder */

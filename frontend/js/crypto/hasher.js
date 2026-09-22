@@ -92,3 +92,59 @@ export async function computeAllHashes(text) {
     },
   };
 }
+
+/** Algorithms offered for HMAC. SHA-1 is here because real systems still emit it. */
+export const HMAC_ALGORITHMS = ["SHA-256", "SHA-512", "SHA-1"];
+
+/**
+ * Keyed digest (HMAC) over `text` with `key`, via crypto.subtle.
+ *
+ * The unkeyed digests above answer "what is the fingerprint of this"; HMAC
+ * answers "was this written by someone holding the key", which is the question
+ * webhook signatures and API request signing actually ask. It is the first of
+ * the two things developers most often open a client-side crypto tool for.
+ *
+ * The key is treated as UTF-8 text, which is what every webhook secret this is
+ * likely to be checked against is. It is never stored and never leaves the
+ * page - `/crypto` declares `connect-src 'none'`.
+ *
+ * @param {string} text - message to authenticate
+ * @param {string} key - shared secret, as text
+ * @param {string} algorithm - one of HMAC_ALGORITHMS
+ * @returns {Promise<{algorithm: string, hex: string, uppercaseHex: string, base64: string, durationMs: number}>}
+ */
+export async function computeHmac(text, key, algorithm = "SHA-256") {
+  if (!HMAC_ALGORITHMS.includes(algorithm)) {
+    throw new Error(`Unsupported HMAC algorithm: ${algorithm}`);
+  }
+
+  const c = getCrypto();
+  if (!c || !c.subtle) {
+    throw new Error("Web Cryptography API (crypto.subtle) is not available");
+  }
+
+  const encoder = new TextEncoder();
+  const start = performance.now();
+
+  const cryptoKey = await c.subtle.importKey(
+    "raw",
+    encoder.encode(key || ""),
+    { name: "HMAC", hash: algorithm },
+    false,
+    ["sign"],
+  );
+  const signature = await c.subtle.sign("HMAC", cryptoKey, encoder.encode(text || ""));
+  const durationMs = performance.now() - start;
+
+  const bytes = Array.from(new Uint8Array(signature));
+  const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const base64 = btoa(String.fromCharCode(...bytes));
+
+  return {
+    algorithm,
+    hex,
+    uppercaseHex: hex.toUpperCase(),
+    base64,
+    durationMs: Math.round(durationMs * 100) / 100,
+  };
+}

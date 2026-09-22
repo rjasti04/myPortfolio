@@ -1062,3 +1062,90 @@ body {
     min-height: 44px;
   }
 }
+
+/* ----------------------------------------------------------------------
+   Compare panel — structural JSON comparison.
+   ---------------------------------------------------------------------- */
+.compare-area {
+  height: 220px;
+}
+
+.compare-output {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.compare-rows {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.compare-row {
+  display: grid;
+  grid-template-columns: 5.5rem 1.25rem 1fr;
+  align-items: baseline;
+  padding: 0 0.5rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.compare-gutter {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-align: right;
+  padding-right: 0.5rem;
+  user-select: none;
+}
+
+.compare-marker {
+  font-weight: 700;
+  text-align: center;
+  user-select: none;
+}
+
+.compare-row--hunk {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding-block: 0.15rem;
+}
+
+.compare-row--insert {
+  background: var(--diff-insert-bg, rgba(16, 185, 129, 0.14));
+  color: var(--text);
+}
+
+.compare-row--delete {
+  background: var(--diff-delete-bg, rgba(239, 68, 68, 0.14));
+  color: var(--text);
+}
+
+.compare-row--insert .compare-marker {
+  color: var(--color-success);
+}
+
+.compare-row--delete .compare-marker {
+  color: var(--color-error);
+}
+
+/* ----------------------------------------------------------------------
+   Collapsible source card — the output of the active tab should not start
+   below 400px of input furniture on every phone, on every tab.
+   ---------------------------------------------------------------------- */
+.source-card.is-collapsed .status-strip {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .compare-area {
+    height: 170px;
+  }
+
+  .compare-row {
+    grid-template-columns: 3.5rem 1rem 1fr;
+  }
+}
