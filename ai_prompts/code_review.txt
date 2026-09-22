@@ -89,7 +89,7 @@ Keep this current. It is what stops an audit from re-reporting shipped work.
 | `docs/review/apps-uiux.md` | the `#apps` shelf and all seven standalone apps | 22 | open |
 | `docs/review/security.md` | — | — | **never run** — prompt 2 |
 | `docs/review/performance.md` | — | — | **never run** — prompt 3 |
-| `docs/review/claude-setup.md` | — | — | **never run** — prompt 10 |
+| `docs/review/claude-setup.md` | `.claude/` vs the published Claude Code docs | 13 | open |
 
 Security and performance are the two real gaps. Everything else has shipped at
 least once.
@@ -537,7 +537,7 @@ Table first, then the files you'd write. Don't
 write them yet.
 ```
 
-**10. Claude Code conformance** *(never run — no `docs/review/claude-setup.md` yet)*
+**10. Claude Code conformance**
 ```
 Audit .claude/ against the published Claude
 Code documentation — not against what you
