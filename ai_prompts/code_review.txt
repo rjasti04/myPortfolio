@@ -1,6 +1,106 @@
-All read-only. Primary review orchestration is via /review.
+# Whole-Codebase Audit Prompts
 
-Run each in a fresh session (`/clear` between) so findings don't bleed together.
+All read-only. `/review` and `/security-review` scope themselves to a **diff** —
+they are the per-PR tools. What follows is the whole-repo pass.
+
+Run each in a fresh session (`/clear` between). Topics bleed into each other
+otherwise, and each audit reads a different slice of the repo — mixing them is
+what blows the navigation budget. These are read-only, so a Claude Code web
+session per topic works well: each writes its own `docs/review/*.md` on its own
+branch.
+
+Paste **§A** above whichever prompt you run. Without it an auditor re-reports
+closed findings, proposes a framework, and reads `styles.css` end-to-end.
+
+Each prompt below comes in two forms. The **block** is the canonical cold run —
+the whole repo, assuming you know nothing about what has already been audited.
+The ***Example*** under it is the shape you will type more often: scoped to one
+path, aware of what the last pass closed, and pointed at a question you already
+have. Both assume §A sits above them.
+
+---
+
+## A. Shared preamble — paste above every prompt below
+
+```
+Read-only. No edits, no commits, no PR.
+
+Binding context:
+- `AGENTS.md` "Non-Goals" are standing decisions.
+  Arguing against one is allowed; doing it silently
+  is not.
+- `.claude/REVIEW.md` §1 defines four automatic
+  Criticals: a frontend framework or JSX (ADR-001),
+  a third-party asset origin in the SPA (ADR-016),
+  a client-sent model ID, system prompt or token
+  ceiling (ADR-023), and any endpoint outside the
+  three guard tiers that `docs/SECURITY.md` does not
+  list as anonymous.
+- `POST /chat` and `POST /sessions` are deliberately
+  anonymous. Not a finding.
+- `ucl.html` and `worldcup.html` load Google Fonts,
+  cdnjs and FlagCDN on purpose. Not a finding, and
+  not precedent for the SPA.
+- Read the status header of every `docs/review/*.md`
+  before you start. Do not re-report a closed
+  finding. If you believe one regressed, say so and
+  cite the line as it stands now.
+
+Budget:
+- `.claude/rules/navigation.md` is binding. Never
+  read `frontend/styles.css`, `frontend/index.html`,
+  `js/chat.js`, `js/auth-ui.js` or
+  `package-lock.json` end-to-end. Grep the region or
+  function map, then `sed -n` the range.
+- Same for `docs/**` per
+  `.claude/rules/reference-docs.md`: heading map
+  first, then the one section.
+- Bash searches under `server/` need
+  `--exclude-dir=.venv`.
+
+Traps that produce a false clean bill:
+- An auth-coverage grep on `@router` misses
+  `session_routes.py`, `system_routes.py` and
+  `event_routes.py` — they register through
+  `router.add_api_route(...)`.
+- A fresh clone has no `node_modules` and no backend
+  packages. Install before you judge a failure.
+
+Output: the finding table in `AGENTS.md` §5 —
+Category | Severity | `file:line` | the Why | the Fix.
+Every entry names the input or path that produces the
+wrong result. Mark a guess as a guess. Zero filler,
+no "you could also".
+```
+
+---
+
+## B. State of the audits
+
+Keep this current. It is what stops an audit from re-reporting shipped work.
+
+| Doc | Scope | Findings | Status |
+| :--- | :--- | ---: | :--- |
+| `docs/review/bugs.md` | correctness — all of `server/`, targeted frontend | 14 | all fixed |
+| `docs/review/uiux.md` | SPA UI layer, ranked over 7 traffic tiers | 28 | all fixed |
+| `docs/review/features.md` | grounded proposals, ranked value-to-effort | 6 | all shipped |
+| `docs/review/2fa.md` | the 2FA flow end to end | 10 | 8 fixed; #9 (no recovery path) and #10 (plaintext `totp_secret`) open |
+| `docs/review/anti-slop.md` | design-system consistency, CI weight gates | 5 | all fixed |
+| `docs/review/apps-uiux.md` | the `#apps` shelf and all seven standalone apps | 22 | open |
+| `docs/review/security.md` | — | — | **never run** — prompt 2 |
+| `docs/review/performance.md` | — | — | **never run** — prompt 3 |
+| `docs/review/claude-setup.md` | `.claude/` vs the published Claude Code docs | 13 | open |
+
+Security and performance are the two real gaps. Everything else has shipped at
+least once.
+
+---
+
+## C. The prompts
+
+§A is written for the code audits — prompts 1-7 and 11. Prompts 8, 9 and 10
+audit the configuration itself, so they stand alone and their examples start
+without it.
 
 **1. Correctness**
 ```
@@ -16,46 +116,145 @@ Write docs/review/bugs.md:
 severity P0-P3 | file:line | what breaks
 and on what input | the fix.
 
-No edits. Skip style. Only report things
-with a concrete failure mode. Mark
-guesses as guesses.
+Open with a Scope table: what you read and
+what you did not. Skip style. Only report
+things with a concrete failure mode.
 ```
 
-**2. Security**
+*Example — a scoped re-run once the first pass is closed:*
+```
+Paste §A, then:
+
+Correctness pass over the event pipeline only:
+kafka_stream.py, the ingest buffer, the batch
+flusher, the PG fan-out, and js/analytics.js's
+offline queue.
+
+bugs.md findings 3 and 4 are in kafka_stream.py
+and finding 10 is the same truncation inversion
+on the client side of the wire. Verify all three
+held under the current code before looking for
+new ones, and say which you re-verified.
+
+Append to docs/review/bugs.md under a "Round 2"
+heading rather than rewriting it.
+```
+
+**2. Security** *(never run — no `docs/review/security.md` yet)*
 ```
 Read-only security review of the repo.
+Follow the `security-audit` skill's
+checklist, then go past it.
 
-Cover: authz gaps on non-obvious paths,
-injection (SQL, shell, template), secrets
-in code/config/CI, over-broad IAM and DB
-grants, unsafe deserialization, SSRF,
-validation at trust boundaries, dependency
-CVEs from the lockfiles.
+Cover: authz gaps on non-obvious paths —
+every route in server/controllers/ mapped
+to its guard tier; injection (SQL, shell,
+template, email header); secrets in code,
+config or CI; unsafe deserialization;
+SSRF on the outbound calls (HIBP,
+Bedrock, FormSubmit); validation at trust
+boundaries; refresh-token rotation and
+lockout logic; the trusted-proxy and CORS
+settings; the three pinned CSP hashes;
+dependency CVEs from package-lock.json
+and the hash-pinned requirements files.
 
 Write docs/review/security.md:
 severity | file:line | attack path | fix.
 
-Split "exploitable today" from "hardening."
+Split "exploitable today" from
+"hardening". Reconcile against the ten
+rows in docs/SECURITY.md "Known
+limitations" — say which are still true,
+which are now wrong, and what is missing
+from that table.
 ```
-Pair with `/security-review` on each diff going forward.
+Then pair `/security-review` with every diff that touches auth, tokens, rate
+limits, the CSP or user-controlled output.
 
-**3. Performance**
+*Example — the first run, split so neither half carries the other's context:*
+```
+Paste §A, then:
+
+Session 1 — delegate to security-reviewer:
+every route in server/controllers/ mapped to
+its guard tier, including the three that
+register via router.add_api_route(). Then
+auth_service.py end to end: rotation, lockout,
+the 2fa pre-auth window, password history.
+
+Session 2 — delegate to frontend-reviewer:
+the CSP and its three pinned hashes, every
+innerHTML/insertAdjacentHTML site and whether
+DOMPurify covers it, sw.js egress, what
+localStorage holds.
+
+Session 3 — me: read the Dependabot alerts on
+main (30: 22 high, 7 moderate, 1 low), decide
+per alert whether the vulnerable path is
+reachable from this app, and reconcile the lot
+against the ten docs/SECURITY.md "Known
+limitations" rows.
+
+Consolidate all three into
+docs/review/security.md.
+```
+
+**3. Performance** *(never run — no `docs/review/performance.md` yet)*
 ```
 Read-only performance review.
 
-Cover: N+1 queries, queries with no index
-support, SELECT * on wide tables, missing
-pagination, blocking I/O on async paths,
-per-request work that could be cached or
-batched, unbounded memory growth, I/O in
-hot loops.
+Backend: N+1 queries, queries with no
+index support, SELECT * on wide tables,
+missing pagination, blocking I/O on async
+paths, per-request work that could be
+cached or batched, unbounded memory growth
+(the in-memory rate limiter and the
+ingest buffer especially), I/O in hot
+loops, SSE stream lifetime and the Kafka
+batch flusher / PG fan-out tasks.
 
-Per finding: the code path, why it's slow,
-rough magnitude, the fix.
+Frontend: first paint and the module
+graph, the 2.3 MB of shelf PNGs, service
+worker cache strategy, layout thrash,
+listener and observer leaks, work on
+scroll or resize without rAF, the cost of
+a 13,648-line stylesheet.
+
+Per finding: the code path, why it is
+slow, rough magnitude, the fix.
 Write docs/review/performance.md.
 
-Say which ones you'd need to profile to
-confirm instead of asserting them.
+Say which ones need a profile or an
+EXPLAIN to confirm instead of asserting
+them. Check findings against the CI size
+budget added by anti-slop.md finding 5.
+```
+
+*Example — narrowed to the metric that actually matters here:*
+```
+Paste §A, then:
+
+Performance review of one path only: a
+recruiter opening rjasti.com on a mid-range
+phone over 4G, from request to interactive
+hero.
+
+Measure, don't assert: what the build emits
+into dist/ and the byte cost of each entry,
+what blocks first paint, what the service
+worker serves on a repeat visit, which fonts
+and images are on the critical path, and what
+the eight index.html sections cost before
+anything is scrolled to.
+
+Then the same path with the chat widget
+counted, since it floats on six of eight
+sections.
+
+Write docs/review/performance.md, first-paint
+findings first. Name the commands you measured
+with so the numbers can be re-run.
 ```
 
 **4. UI/UX**
@@ -67,12 +266,40 @@ inconsistent components doing the same job,
 forms with no validation feedback, focus
 order and keyboard traps, contrast, touch
 targets, destructive actions with no
-confirm, flows that leave the user unsure
-whether something worked.
+confirm, flows that leave the visitor
+unsure whether something worked.
+
+Use the `accessibility` skill for the
+WCAG 2.2 AA calls.
 
 Write docs/review/uiux.md with file:line
 and the concrete change. Rank by traffic
-on the affected path.
+on the affected path, not by severity
+alone — tier 1 is every visitor on every
+section.
+```
+
+*Example — a regression check rather than a fresh audit:*
+```
+Paste §A, then:
+
+All 28 uiux.md findings are marked fixed. Pick
+the 10 whose fix was structural rather than
+cosmetic — focus management, the scroll locks,
+the carousel pause, the offline and update
+banners — and verify each still holds in the
+current code. Cite the line that proves it.
+
+Then the gap: uiux.md predates the circuit
+backdrop redesign and the hero glass frame
+(.claude/intents/2026-09-16-*, -09-17-*,
+-09-20-hero-glass-frame.md). Audit what those
+changed — the hero at every breakpoint, the
+backdrop under prefers-reduced-motion, and
+contrast of the type now sitting over it — under
+the same tier ranking.
+
+Report as an amendment to docs/review/uiux.md.
 ```
 
 **5. Features**
@@ -80,21 +307,152 @@ on the affected path.
 Read @README.md and the codebase, then
 propose features.
 
-Context: <who uses this, what they do with
-it, what they complain about, what's
-already on the roadmap>.
+Context — audience in priority order:
+(1) visitors and recruiters, for whom the
+SPA is the product and first paint,
+mobile layout and accessibility outrank
+internal elegance; (2) the code itself as
+a work sample, so "a framework would be
+less code" is not an argument; (3) the
+owner, whose Activity dashboard and AI
+chat are personal tools and demos, not a
+product with external users. Standing
+roadmap: ADR-011 and ADR-012 (both
+Proposed) plus the open rows in
+docs/SECURITY.md "Known limitations".
+No complaint stream exists — infer the
+user problem from code behaviour and say
+that you did.
 
 Per idea: the user problem, why this
 codebase is positioned for it, rough
-implementation shape, effort. Rank by
-value-to-effort.
+implementation shape, effort (S = a
+sitting, M = a weekend, L = more).
+Rank by value-to-effort, not value.
 
 Flag anything already half-built. No
-generic ideas — ground each one in
-something you saw in the code.
+generic "portfolios should have X" — every
+proposal points at code that exists today:
+a half-built surface, a duplicated fact,
+or an unread table.
+```
+Then run the SDLC loop in `sdlc.txt` per accepted idea — `intent-planner` writes
+`.claude/intents/YYYY-MM-DD-<slug>.md`, then the companion spec, then build.
+
+*Example — a narrowed ask when the roadmap is already full:*
+```
+Paste §A, then:
+
+Features, but only the ones that raise recruiter
+conversion: a visitor who lands on the hero and
+leaves without reaching Contact. Effort S or M
+only — nothing that needs a new table or a new
+Bedrock call.
+
+Rank by value-to-effort. For each, name the
+specific code that makes it cheap here, and
+what in the current flow loses that visitor.
 ```
 
-**6. Instruction-file audit**
+**6. Per-surface deep dive** *(what produced `apps-uiux.md`)*
+```
+Read-only UI/UX and feature review of
+<surface>, and nothing else.
+
+State up front which prior review covered
+the neighbouring surfaces and why this one
+was missed.
+
+Before proposing anything, read
+.claude/intents/ for decisions already
+made about this surface. Open with a
+"Standing decisions this review does not
+reopen" table: decision | where it is
+recorded. If a finding does cross one, say
+so explicitly and argue it — do not
+smuggle it in.
+
+Then a Verdict paragraph: what is in good
+shape, and where the gaps concentrate.
+Then findings, grouped per sub-surface.
+
+Write docs/review/<surface>.md.
+```
+
+*Example — the surface with no audit of its own yet:*
+```
+Paste §A, then:
+
+Read-only UI/UX and feature review of the
+Activity dashboard: the #activity section,
+js/activity.js, js/owner-analytics.js and the
+SSE stream behind them. Nothing else.
+
+uiux.md tier 6 reached it through one finding
+only (#19, two panels reporting failure as
+emptiness) and apps-uiux.md did not reach it at
+all — say what that leaves unexamined.
+
+It is an owner tool, not a visitor surface
+(AGENTS.md, audience 3), so judge it as a tool:
+does it answer a question the owner actually
+asks, and does it tell the truth when the
+pipeline is down? Check every other panel for
+the failure-as-emptiness pattern #19 found.
+
+Write docs/review/activity.md.
+```
+
+**7. Design-system consistency** *(what produced `anti-slop.md`)*
+```
+Read-only audit of the design system's
+enforcement, not its taste.
+
+For each visual dimension — colour,
+spacing, type, motion, elevation — answer:
+is there a scale, is it in docs/DESIGN.md,
+and is it actually adopted in
+frontend/styles.css? Give the adoption
+count and the command you measured it
+with.
+
+Then: is any scale duplicated between CSS
+and JS? Is the rationale reachable from
+the docs? Does CI gate weight or size at
+all?
+
+Verify every count twice — a multi-line
+`transition` declaration defeats a
+line-based `grep -c`, and a
+`cubic-bezier()` in the token block is a
+definition, not a duplicate. If a
+measurement was wrong on first pass,
+correct it in the document rather than
+restating it silently.
+
+Write docs/review/anti-slop.md, with a
+summary table: # | finding | severity.
+```
+
+*Example — a re-run against the gate the first pass produced:*
+```
+Paste §A, then:
+
+anti-slop.md finding 5 added a size and
+performance budget to CI. Re-audit the design
+system against what that gate now measures:
+which of the five dimensions it actually
+covers, which drifted since the pass landed,
+and whether docs/DESIGN.md still matches
+styles.css.
+
+Give the adoption count per dimension and the
+command behind each. Amend
+docs/review/anti-slop.md; do not restate the
+closed findings.
+```
+
+**8. Instruction-file audit**
 ```
 Audit .claude/CLAUDE.md, AGENTS.md,
 .claude/skills/, and .claude/agents/
@@ -108,7 +466,27 @@ that should be path-scoped or a hook.
 Report only — don't rewrite.
 ```
 
-**7. Agentic setup**
+*Example — pointed at a specific suspicion:*
+```
+Audit the instruction files against the code,
+with one question first: AGENTS.md is ~4,500
+tokens and loads on every session through
+.claude/CLAUDE.md's import. Which of its rules
+are derivable from the repo, already enforced
+by a hook, or only relevant under one path —
+and so belong in .claude/rules/ with a paths
+key instead?
+
+Then the rest: rules the code contradicts,
+conflicts between AGENTS.md, .claude/REVIEW.md
+and the ten skills, and anything the two rules
+files and docs/ now say twice.
+
+Report only — don't rewrite. Name the token cost
+of each move.
+```
+
+**9. Agentic setup**
 ```
 Audit my agentic setup for this repo:
 .claude/CLAUDE.md, .claude/skills/, .claude/agents/,
@@ -127,17 +505,188 @@ Tell me:
    than their job
 
 Table first, then the files you'd write.
-Don't write them yet.
+Don't write them yet. Respect docs/ECC.md:
+a fourth vendored ECC skill or a foreign
+hook fails check_agent_config.py.
+```
+`context-budget` is the skill for the token half of this.
+
+*Example — asking for the enforcement half only:*
+```
+Audit the enforcement half of my setup:
+.claude/hooks/ and .claude/settings.json.
+
+Five hooks exist — protect-migrations,
+protect-spa-egress, protect-bash-writes,
+verify-csp, verify-docs. For each: what it
+blocks, what it lets through, and whether its
+Bash twin covers the same ground as its
+Write|Edit matcher.
+
+Then the gap: nothing gates a test run or a
+formatter before a push, and nothing guards a
+destructive shell command. Propose the
+PreToolUse hook for each, and say which rule in
+AGENTS.md each one retires.
+
+Also: the deny list protects .env and
+package-lock.json. Name what else in this repo
+would do damage if edited by mistake.
+
+Table first, then the files you'd write. Don't
+write them yet.
 ```
 
-**8. Triage**
+**10. Claude Code conformance**
 ```
-Read docs/review/*.md. Produce one
-prioritized fix list, deduped, P0 first.
+Audit .claude/ against the published Claude
+Code documentation — not against what you
+remember of it. Every finding cites a doc URL
+and quotes the line it rests on. Start from
+https://code.claude.com/docs/llms.txt to find
+the right pages, then actually read them.
+
+Per surface, against its documented schema:
+
+- .claude/agents/*.md — the four subagents'
+  frontmatter against the documented subagent
+  field list. Is every key real, is every
+  value in a documented form, and is
+  `model: sonnet` the right call for a
+  read-only auditor of this repo?
+- .claude/skills/*/SKILL.md — the ten skills
+  against the documented SKILL.md fields.
+  Most carry only name + description: which
+  would do their job better with a documented
+  field they are not using? Check the
+  combined description cap.
+- .claude/settings.json — every key against
+  the settings reference, and every
+  permissions.deny entry against the
+  documented permission rule syntax.
+- .claude/hooks/ — event names, config
+  fields, and above all the contract: which
+  events can block, by what mechanism (exit
+  code vs JSON decision), and whether each
+  script uses the one its own event supports.
+- .claude/rules/*.md — the `paths` frontmatter
+  against the documented glob behaviour, and
+  *when* a path-scoped rule loads relative to
+  the read it exists to govern.
+- .claude/CLAUDE.md and AGENTS.md — the import
+  syntax, and the documented precedence when
+  both are present.
+
+Then the inverse pass: name documented
+capabilities this setup does not use and
+would benefit from. Ground each in a friction
+that exists in this repo, not in novelty.
+
+Version-gate every claim. The docs mark
+behaviour that changed by CLI version — run
+`claude --version` and say where this install
+sits relative to anything you cite.
+
+Constraint: docs/ECC.md refuses a fourth
+vendored ECC skill and any foreign hook, and
+check_agent_config.py enforces it. Project-
+authored skills and hooks are not covered by
+that — say which side each proposal falls on.
+
+Write docs/review/claude-setup.md. Separate
+"wrong per the docs" from "works, but a
+documented feature does it better". Anything
+you cannot find documentation for is
+unverified, not a finding.
+```
+
+*Example — starting from a mismatch already in hand:*
+```
+Audit .claude/ against the hooks, subagents,
+skills, settings and memory pages of
+https://code.claude.com/docs. Cite and quote;
+do not work from memory.
+
+Begin with one I think I have found, and tell
+me whether I have it right: verify-csp.sh and
+verify-docs.sh are wired as PostToolUse and
+both `exit 2` on drift, and AGENTS.md
+describes them as hooks that "block with the
+drifted figures". My reading of the hooks page
+is that PostToolUse fires after the tool has
+already succeeded and cannot block — exit 2
+gives a non-blocking error with stderr shown
+to Claude. If that is right the edit has
+already landed and the wording is wrong; if it
+is not, quote what I missed.
+
+Then the same contract check on the three
+PreToolUse guards, and carry on through the
+agents, skills, settings, rules and CLAUDE.md
+surfaces.
+
+docs/review/claude-setup.md, a doc URL per
+finding.
+```
+
+**11. Triage**
+```
+Read docs/review/*.md, including the
+status header of each. Produce one
+prioritized fix list over everything still
+open, deduped, P0 first.
 
 Per item: the fix, blast radius, whether
-it needs a test. Group into batches that
-ship independently. Don't fix anything.
+it needs a test, and which gate proves it
+(check_docs.py, check_csp_hashes.py,
+pytest, npm test, npm run lint).
+
+Group into batches that ship independently
+and name the batch a single PR should
+carry. Don't fix anything.
 ```
 
-Then `/batch implement docs/review/batch-1.md` to fan the approved batch out across worktrees.
+*Example — producing one shippable batch, not the whole list:*
+```
+Read docs/review/*.md and their status
+headers. Everything still open:
+apps-uiux.md's 22, 2fa.md #9 and #10, plus
+whatever security.md, performance.md and
+claude-setup.md hold.
+
+Give me batch 1 only — the set one PR can carry
+without touching auth or the CSP, ordered so
+each fix is independently revertable. Per item:
+the fix, blast radius, whether it needs a test,
+and which gate proves it.
+
+Then list what you deliberately held back for
+batch 2 and why. Don't fix anything.
+```
+
+---
+
+## D. Fan-out
+
+Three read-only specialists exist and are denied `Write`/`Edit` in their
+frontmatter, so they cannot drift into fixing things:
+
+| Agent | Use for |
+| :--- | :--- |
+| `.claude/agents/backend-reviewer.md` | FastAPI routes, async correctness, ORM patterns, rate limits, Pydantic schemas |
+| `.claude/agents/frontend-reviewer.md` | ES modules, CSP compliance, DOM sanitization, CSS tokens, frontend performance |
+| `.claude/agents/security-reviewer.md` | auth, endpoints, secrets, CSP, egress policy |
+
+Delegate explicitly when a topic spans tiers — "run prompt 3 against `server/`
+via `backend-reviewer` and against `frontend/` via `frontend-reviewer`, then
+consolidate" — rather than letting one context carry both halves.
+
+## E. After the audit
+
+1. Triage with prompt 11 into batches, one PR each.
+2. Per accepted feature, the `sdlc.txt` loop: intent doc, then spec, then build.
+3. Implement on a branch per batch. `/verify` before pushing; the gates are
+   `PYTHONPATH=. pytest`, `npm test`, `npm run lint`, `python3
+   scripts/check_docs.py --fix`, `python3 scripts/check_csp_hashes.py`.
+4. Update the finished review doc's status header with what shipped, what was
+   wrong in the review itself, and what stayed open. Then update §B above.
