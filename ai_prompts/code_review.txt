@@ -89,6 +89,7 @@ Keep this current. It is what stops an audit from re-reporting shipped work.
 | `docs/review/apps-uiux.md` | the `#apps` shelf and all seven standalone apps | 22 | open |
 | `docs/review/security.md` | — | — | **never run** — prompt 2 |
 | `docs/review/performance.md` | — | — | **never run** — prompt 3 |
+| `docs/review/claude-setup.md` | — | — | **never run** — prompt 10 |
 
 Security and performance are the two real gaps. Everything else has shipped at
 least once.
@@ -96,6 +97,10 @@ least once.
 ---
 
 ## C. The prompts
+
+§A is written for the code audits — prompts 1-7 and 11. Prompts 8, 9 and 10
+audit the configuration itself, so they stand alone and their examples start
+without it.
 
 **1. Correctness**
 ```
@@ -532,7 +537,99 @@ Table first, then the files you'd write. Don't
 write them yet.
 ```
 
-**10. Triage**
+**10. Claude Code conformance** *(never run — no `docs/review/claude-setup.md` yet)*
+```
+Audit .claude/ against the published Claude
+Code documentation — not against what you
+remember of it. Every finding cites a doc URL
+and quotes the line it rests on. Start from
+https://code.claude.com/docs/llms.txt to find
+the right pages, then actually read them.
+
+Per surface, against its documented schema:
+
+- .claude/agents/*.md — the four subagents'
+  frontmatter against the documented subagent
+  field list. Is every key real, is every
+  value in a documented form, and is
+  `model: sonnet` the right call for a
+  read-only auditor of this repo?
+- .claude/skills/*/SKILL.md — the ten skills
+  against the documented SKILL.md fields.
+  Most carry only name + description: which
+  would do their job better with a documented
+  field they are not using? Check the
+  combined description cap.
+- .claude/settings.json — every key against
+  the settings reference, and every
+  permissions.deny entry against the
+  documented permission rule syntax.
+- .claude/hooks/ — event names, config
+  fields, and above all the contract: which
+  events can block, by what mechanism (exit
+  code vs JSON decision), and whether each
+  script uses the one its own event supports.
+- .claude/rules/*.md — the `paths` frontmatter
+  against the documented glob behaviour, and
+  *when* a path-scoped rule loads relative to
+  the read it exists to govern.
+- .claude/CLAUDE.md and AGENTS.md — the import
+  syntax, and the documented precedence when
+  both are present.
+
+Then the inverse pass: name documented
+capabilities this setup does not use and
+would benefit from. Ground each in a friction
+that exists in this repo, not in novelty.
+
+Version-gate every claim. The docs mark
+behaviour that changed by CLI version — run
+`claude --version` and say where this install
+sits relative to anything you cite.
+
+Constraint: docs/ECC.md refuses a fourth
+vendored ECC skill and any foreign hook, and
+check_agent_config.py enforces it. Project-
+authored skills and hooks are not covered by
+that — say which side each proposal falls on.
+
+Write docs/review/claude-setup.md. Separate
+"wrong per the docs" from "works, but a
+documented feature does it better". Anything
+you cannot find documentation for is
+unverified, not a finding.
+```
+
+*Example — starting from a mismatch already in hand:*
+```
+Audit .claude/ against the hooks, subagents,
+skills, settings and memory pages of
+https://code.claude.com/docs. Cite and quote;
+do not work from memory.
+
+Begin with one I think I have found, and tell
+me whether I have it right: verify-csp.sh and
+verify-docs.sh are wired as PostToolUse and
+both `exit 2` on drift, and AGENTS.md
+describes them as hooks that "block with the
+drifted figures". My reading of the hooks page
+is that PostToolUse fires after the tool has
+already succeeded and cannot block — exit 2
+gives a non-blocking error with stderr shown
+to Claude. If that is right the edit has
+already landed and the wording is wrong; if it
+is not, quote what I missed.
+
+Then the same contract check on the three
+PreToolUse guards, and carry on through the
+agents, skills, settings, rules and CLAUDE.md
+surfaces.
+
+docs/review/claude-setup.md, a doc URL per
+finding.
+```
+
+**11. Triage**
 ```
 Read docs/review/*.md, including the
 status header of each. Produce one
@@ -554,7 +651,8 @@ carry. Don't fix anything.
 Read docs/review/*.md and their status
 headers. Everything still open:
 apps-uiux.md's 22, 2fa.md #9 and #10, plus
-whatever security.md and performance.md hold.
+whatever security.md, performance.md and
+claude-setup.md hold.
 
 Give me batch 1 only — the set one PR can carry
 without touching auth or the CSP, ordered so
@@ -585,7 +683,7 @@ consolidate" — rather than letting one context carry both halves.
 
 ## E. After the audit
 
-1. Triage with prompt 10 into batches, one PR each.
+1. Triage with prompt 11 into batches, one PR each.
 2. Per accepted feature, the `sdlc.txt` loop: intent doc, then spec, then build.
 3. Implement on a branch per batch. `/verify` before pushing; the gates are
    `PYTHONPATH=. pytest`, `npm test`, `npm run lint`, `python3
