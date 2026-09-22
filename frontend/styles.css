@@ -564,11 +564,14 @@ body.dark-theme {
      accent ramp rather than a color-mix per stop, which is both shorter and
      one less place a custom palette has to be threaded through by hand. */
   --hero-frame-edge: var(--accent-fill);
+  /* Monotonic, for the reason argued on `body`'s copy of this token: a ramp
+     equal at both ends is a specular rim, not the directional one the note
+     there claimed. Brighter at the lit corner than the light theme's, because
+     near-black gives the accent the page's whole contrast range. */
   --hero-frame-rim: linear-gradient(150deg,
       var(--accent-fill) 0%,
-      var(--accent-soft) 40%,
       var(--accent-soft) 60%,
-      var(--accent-fill) 100%);
+      transparent 100%);
   /* Three blooms at increasing spread rather than one: a single large shadow
      at this strength is a halo with a visible outer edge of its own, and
      stacking a tight one inside a wide one is what gives it falloff. The
@@ -732,14 +735,22 @@ body {
      0.58 in both themes, which is the value this wanted anyway, and it is
      already resolved per theme and per custom palette. */
   --hero-frame-edge: var(--accent-mild);
-  /* The rim: lit from the upper left, dimmest across the middle of the ramp.
-     Directional rather than uniform, so the frame reads as catching light
-     rather than as being outlined. */
+  /* The rim: brightest at the upper-left corner, falling away to nothing at
+     the lower right. Monotonic on purpose. This was a four-stop ramp equal at
+     0% and 100%, which is a specular rim - light wrapping both edges - and not
+     the directional one this note used to claim: lighting from the upper left
+     makes the lower right the SHADOW side. It also fought the sheen below,
+     which anchors its highlight at 16% -8%, so one surface carried two
+     lighting cues pointing different ways.
+
+     The frame's outline does not depend on this. That is the real `border` at
+     --hero-frame-edge, unchanged and running the whole way round; the
+     `transparent` stop removes a highlight, not an edge. Gradients interpolate
+     in premultiplied alpha, so the ramp does not grey out toward the corner. */
   --hero-frame-rim: linear-gradient(150deg,
       var(--accent-mild) 0%,
-      var(--accent-soft) 38%,
       var(--accent-soft) 62%,
-      var(--accent-mild) 100%);
+      transparent 100%);
   /* Elevation first, then one tight accent bloom. On this ground the bloom is
      nearly subliminal by design; --elev-4 is what actually lifts the frame. */
   --hero-frame-glow: var(--elev-4), 0 0 34px -14px var(--accent-mild);
@@ -751,8 +762,27 @@ body {
      same paint order, one fewer rule, and the CSS budget is at its ceiling.
      --sheen-wash is already the right thing in both themes - accent-tinted
      on the light ground, white on the dark one - for the reason argued on
-     its own declaration above. */
-  --hero-frame-sheen: radial-gradient(120% 78% at 16% -8%, var(--sheen-wash) 0%, transparent 62%);
+     its own declaration above.
+
+     ── The vertical radius is 128% and not 78% ──
+     "Falls off across the surface" was not what it did. At 78% the radius is
+     437px, measured from an anchor 45px ABOVE the panel's top edge, so on a
+     1170x560 frame the 62% stop lands 226px in: the highlight covered the top
+     third and everything under it sat on flat fill, the icon row at exactly
+     zero. That matters more here than it would on a card, because
+     --backdrop-scrim's aperture is centred on the VIEWPORT while the reading
+     column sits on the frame's right half - the wash under the type works out
+     at 86-87%, not the 92% the --hero-frame-bg note above measures at. The
+     half carrying all the type had the thinnest ground AND no sheen; the half
+     with a photograph on it had both.
+
+     128% puts the stop 400px in, 71% of the way down, so the falloff crosses
+     the panel and still stops short of the icon row. It costs the binding
+     line - `.home-kicker`, the 5.13:1 named above - 5.13 -> 5.10:1 light and
+     11.45 -> 11.27:1 dark, so AA holds with 13% of headroom. Pushing the STOP
+     to 100% as well is the obvious version and costs 5.13 -> 5.01:1, which is
+     most of that headroom for a wash you would struggle to see. Do not. */
+  --hero-frame-sheen: radial-gradient(120% 128% at 16% -8%, var(--sheen-wash) 0%, transparent 62%);
 }
 
 * {
@@ -3370,11 +3400,19 @@ body.dark-theme .home-portrait picture {
    role. The greeting used to wear the same accent-gradient eyebrow the role
    now carries; two identical gradient lines bracketing the name flattened the
    hierarchy and left the role reading as a caption. It is muted ink now, so
-   exactly one line on the page is in accent. */
+   exactly one line on the page is in accent.
+
+   It is also a rung quieter than it was. At 700 it wore the same treatment -
+   uppercase, --tracking-caps, bold - that `.skill-group-label` and the section
+   eyebrows use for real labels, so the eye's first stop in the reading column
+   was a pleasantry dressed as a label. --weight-semibold keeps it legible as a
+   lead-in without it competing for the first read, and retires a `700` literal
+   that predates the weight ramp. The <=380px block further down levels its
+   SIZE against the disciplines line for the same reason. */
 .home-greeting {
-  margin: 0 0 6px;
+  margin: 0 0 var(--space-xs);
   font-size: var(--text-body-xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted);
@@ -3396,7 +3434,29 @@ body.dark-theme .home-portrait picture {
   padding: 0.22em 0.1em;
   font-size: var(--text-hero);
   font-weight: 800;
-  line-height: var(--leading-snug);
+
+  /* --leading-tight, not --leading-snug. The ramp annotates its own rungs in
+     DESIGN TOKENS & THEMES: 1.15 is `>= --text-4xl` and 1.3 is
+     `--text-lg .. --text-3xl`. --text-hero runs 32.4px to 64.8px, so this
+     element is above --text-4xl at EVERY width and was on the wrong rung at
+     all of them - `.contact-title` at --text-fluid-4xl already sits on 1.15,
+     and this is 40% larger than that.
+
+     On a one-line heading the excess is not rhythm, it is box height: 19.4px
+     of it at the desktop size, pushing every row below the name down. This
+     gives 9.7px back on desktop and 4.9px at the 320px floor - slack handed
+     TO the portrait ramp below, never taken from it.
+
+     Nothing clips. The face's own content box is 1.26em (hhea 1038/-222 at
+     1000 upm), so 1.15 is negative half-leading of 0.055em a side; the 0.22em
+     padding above absorbs it, this element and `.hero-char` are both
+     `overflow: visible`, and the roll-up's translateY travel is unaffected.
+
+     Tracking stays --tracking-normal deliberately. -0.02em is the conventional
+     move at 64.8px and it is wrong here: it would pull the name from 372.5px
+     to ~358px and break the ~372px right edge the intro column holds above
+     900px - see the `.home-role` size note in the (width >=901px) block. */
+  line-height: var(--leading-tight);
   letter-spacing: var(--tracking-normal);
   color: var(--text);
   perspective: 1000px;
@@ -3409,11 +3469,35 @@ body.dark-theme .home-portrait picture {
   overflow-wrap: anywhere;
 }
 
+/* ── No glow behind the name on the light theme ──
+   `.hero-char` carries `drop-shadow(0 0 18px var(--accent-soft))` at rest, and
+   --accent-soft is 0.15 alpha citron on this ground against 0.20 on the dark
+   one. Measured at the shadow's densest - beside a stem, ~50% of source alpha
+   through an 18px gaussian - the halo composites to 1.04:1 against --bg here
+   and 1.19:1 against the dark --bg. Five times the effect there, in the
+   direction that reads as emitted light. Here it is a 3.5% luminance drop in a
+   hue the ground does not share: a warm ring in the whitespace, not light.
+
+   Same correction as `body.dark-theme .home-portrait picture` below, with the
+   themes swapped, and the same failure the portrait's radial wash was removed
+   for - "a warm stain sitting behind him rather than as light". Half of
+   visitors land here: the bootstrap in index.html follows prefers-color-scheme.
+
+   `:not(.is-hovered)` is what keeps the pointer feedback - that state's citron
+   glow is the whole of the name's hover affordance. (0,4,1) clears both
+   `.hero-char` and `.hero-char.kinetic-settled`, which each declare the filter.
+   Scoped to `.home-name` rather than to `.hero-char` because the class is
+   shared machinery a second title can opt into. */
+body:not(.dark-theme) .home-name .hero-char:not(.is-hovered) {
+  filter: none;
+}
+
 /* The eyebrow treatment that opened the About hero: uppercase, caps tracking,
-   and the accent-to-secondary gradient played once on entry rather than
-   looping (WCAG 2.2 SC 2.2.2). Held a step up the size ramp from About's
+   and the accent-to-secondary gradient - static now, see the note on
+   `background-position` below. Held a step up the size ramp from About's
    `--text-body-xs` - there it sat above a hero title as a label, here it sits
-   under the name and is the line that says what the work is. */
+   under the name and is the line that says what the work is, which is also why
+   the (width >=901px) block takes it one rung further. */
 .home-role {
   /* The gap to the actions moved to `.home-kicker` below, which now sits
      between them; what is left here is the tight pairing gap to that line. */
@@ -3430,7 +3514,31 @@ body.dark-theme .home-portrait picture {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: gradient-shift var(--motion-reveal) var(--ease-enter) 1 both;
+
+  /* ── The gradient is a rest state, not an entrance ──
+     This played `gradient-shift` once over --motion-reveal. That keyframe's 0%
+     and 100% are both `0% 50%` and the fill was `both`, so the sweep went out
+     to `100% 50%` and came back to where it started: it announced an arrival
+     that had not happened and left nothing behind. Declaring the position
+     outright paints exactly what the animation settled on, and has to sit
+     after the `background` shorthand above, which resets it to `0% 0%`.
+
+     What it removes is a sequencing inversion. The sweep began at first style
+     application, while `.hero-char` is still at opacity 0; the name's roll-up
+     starts 100-400ms later (hero-title.js races document.fonts.ready against a
+     300ms ceiling) and its last character settles at +1200ms. So the
+     subordinate line finished announcing itself 780-1080ms before the headline
+     arrived, under a blank space where the <h1> would be. The view already
+     carries this rule in colour - exactly one line on it is in accent, which
+     is why the greeting is muted ink - and this is the same rule in motion.
+
+     It also collapses the reduced-motion path into the default one: the
+     blanket rule in ACCESSIBILITY clamped this animation to 0.001ms, so a
+     reduced-motion visitor was already seeing precisely this. Do not put an
+     animation back here without moving it past the name's 1300ms, which needs
+     a named delay token this view does not have and --motion-* cannot supply
+     (see the note on --motion-page in DESIGN.md). */
+  background-position: 0% 50%;
 }
 
 /* ── Disciplines ──
@@ -3453,7 +3561,20 @@ body.dark-theme .home-portrait picture {
   justify-content: center;
   text-align: center;
   margin-top: 0;
-  margin-bottom: clamp(12px, 2.5vh, 24px);
+
+  /* The gap INTO the action row, which is the column's destination. This and
+     `.home-socials`'s top margin used to resolve to 22.5px and 26px at
+     1440x900 - the two largest gaps in the column, adjacent and 3.5px apart,
+     so the pills were grouped with nothing and the icon row read as a fourth
+     rank rather than as their satellite. 1.9:1 around the pills is legible as
+     grouping; 22.5 against 26 is not.
+
+     Both endpoints are ramp rungs now (--space-lg, --space-2xl), where the
+     26px this is paired against was on neither the ramp nor the four hero
+     exceptions. Net height against the old pair is +0.06px at 320x568 and
+     -2px at 1920x1080, so the three portrait ramp constants further down do
+     not move - the binding case is the 320x568 one. */
+  margin-bottom: clamp(16px, 3.4vh, 32px);
 
   /* ── The one line that was not in the palette ──
      `.hero-kicker` paints this --secondary-text, a blue that the #about hero
@@ -3582,7 +3703,14 @@ body.dark-theme .home-portrait picture {
   display: flex;
   justify-content: center;
   gap: 14px;
-  margin-top: clamp(16px, 3vh, 26px);
+
+  /* Tucked under the pills rather than floating at the same distance as the
+     row above them - see the note on `.home-kicker`'s bottom margin, which is
+     the other half of this. 16px against this row's own 14px internal gap is
+     what makes it read as their satellite. --space-md to --space-lg; the 26px
+     cap it replaces was on neither the spacing ramp nor its four documented
+     hero exceptions. */
+  margin-top: clamp(12px, 2vh, 16px);
 }
 
 /* Outlined rather than filled: two more solid accent discs directly under an
@@ -3707,12 +3835,23 @@ body.dark-theme .home-portrait picture {
    profiles that leave the site to the right, and past a second one of these,
    the shuffle - which is not a destination at all. Four identical circles gave
    a sighted pointer user nothing to tell those apart - the `aria-label`s
-   always did, which is why the row read as finished. */
+   always did, which is why the row read as finished.
+
+   ── Why --control-border and not --border ──
+   The same argument `.home-social--action` makes just above, applied to the
+   marks beside it. --border composites to 1.31:1 against --bg (1.44:1 dark) -
+   a hairline for the edge between two surfaces, not for a device that has to
+   be SEEN. The row's whole structure rested on two 1px x 24px marks at that
+   ratio, so seven controls read as one undifferentiated run and the comment in
+   index.html explained a grouping the eye could not find. --control-border
+   measures 4.55:1 light / 4.00:1 dark and is still the quietest thing in the
+   row: the accent rings beside it are 5.52:1 / 13.05:1, the shuffle's own ring
+   4.89:1 / 6.12:1. */
 .home-socials-divider {
   align-self: center;
   width: 1px;
   height: 24px;
-  background: var(--border);
+  background: var(--control-border);
 }
 
 /* ── One axis, on the two-column layout only ──
@@ -3761,6 +3900,33 @@ body.dark-theme .home-portrait picture {
     margin-inline-start: -0.1em;
   }
 
+  /* ── The role joins the column's right edge ──
+     Measured at the shipped weights against the vendored face: at this width
+     the left-aligned column's rows run greeting 78.5px, name 372.5px, role
+     314.6px, disciplines 351.8px, pills 356.0px, icon row 371.6px. Five of the
+     six sit in a 352-372px band - the column already has an implicit right
+     edge - and the role was the lone outlier 58px short of it, on the one row
+     a recruiter is actually reading for.
+
+     One rung up the fluid ramp fixes both halves of that. At --text-fluid-xl's
+     1.502rem cap - already reached at 901px, so it is constant across the
+     whole desktop band - "PRINCIPAL DATA ENGINEER" plus --tracking-caps
+     measures 373.1px against the name's 372.5px.
+
+     ── Why this is scoped here rather than on the base rule ──
+     At the fluid floor (1.266rem, in force at 320px) the same string needs
+     314.4px against the 292px the column has there: it would wrap, and the
+     <=430px portrait ramp's C constant of 285 is measured against a ONE-line
+     role. --text-fluid-lg's floor gives 279.5px and fits with room to spare.
+     The desktop block is the only place this is affordable.
+
+     Height: the line box goes 26.3px -> 31.2px. The intro column totals ~331px
+     against a 466px portrait at the 450px cap, so the portrait still sets the
+     frame's height and the "never scrolls" promise does not move. */
+  .home-role {
+    font-size: var(--text-fluid-xl);
+  }
+
   /* ── The glass frame ──
      Above 900px the hero stops being two loose halves on the page and becomes
      one object: the portrait and the whole intro column inside a single
@@ -3787,7 +3953,9 @@ body.dark-theme .home-portrait picture {
         `isolation` the rim would vanish behind the fill exactly there.
      3. It does not animate. The reference for this frame is a still, a
         looping glow on the landing view is a WCAG 2.2 SC 2.2.2 liability,
-        and this page deliberately plays even `.home-role`'s gradient once.
+        and nothing on this view animates on entry now except the name -
+        `.home-role`'s gradient used to play once and is a static rest
+        state today, for the sequencing reason argued on that rule.
 
      The specular sheen is NOT a second pseudo-element: it is the first layer
      of the frame's own `background`, over the fill. Same paint order as a
@@ -3838,9 +4006,10 @@ body.dark-theme .home-portrait picture {
      box - the content-box/border-box `mask-composite: exclude` pair is the
      same trick `.btn::after` uses, and the `-webkit-` line before it is what
      Safari reads. Directional rather than uniform: the ramp in
-     --hero-frame-rim is brightest at the two ends and dimmest across the
-     middle, so the frame reads as catching light from the upper left instead
-     of being drawn round in one colour. */
+     --hero-frame-rim runs from its brightest at the upper-left corner to
+     transparent at the lower right, so the frame reads as catching light from
+     one direction instead of being drawn round in one colour - and agrees with
+     where the sheen puts its highlight. */
   .home-hero::before {
     content: "";
     position: absolute;
@@ -4055,6 +4224,16 @@ body.dark-theme .home-portrait picture {
   .hero-kicker.home-kicker {
     font-size: var(--text-2xs);
     gap: 4px;
+  }
+
+  /* The lead-in must not outrank the line below it. The rule above steps the
+     disciplines chips down to --text-2xs to hold them on one row, which left
+     the greeting a rung LARGER than the line naming the four disciplines - at
+     the one width where the column has nothing to spare. Levelling them
+     restores the order and gives back 2.2px of column height (12.64 -> 11.25px
+     on the inherited --leading-body). */
+  .home-greeting {
+    font-size: var(--text-2xs);
   }
 
 }

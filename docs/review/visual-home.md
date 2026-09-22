@@ -10,6 +10,32 @@ requires every proposal to name one, not as a finding.
 This is a taste review. The question is whether the view is intuitive and
 whether it is beautiful — not whether it is correct.
 
+## Status: implemented
+
+Findings 1–9 and 11 shipped in `frontend/styles.css`, as written — ten of
+eleven, all CSS, no markup, no JS, no new asset or origin. Finding 10 (the
+wand glyph) is the exception and stays open: it has no declaration-level fix,
+and the label version needs markup plus a re-measured collapse band.
+
+Verified after the change: `npm run lint` clean, `npm test` 639/639,
+`check_csp_hashes.py` green (`index.html` untouched), and `npm run build` puts
+CSS at **294.1 KiB of 296** — the +0.09 KiB this document predicted, against
+294.0 before.
+
+One stale comment the change falsified was corrected with it: the glass frame's
+note claimed "this page deliberately plays even `.home-role`'s gradient once,"
+which finding 2 makes untrue.
+
+Two consequences worth recording for whoever edits this region next:
+
+- The portrait ramp's `C` constants (285/300/331) are now **conservative by
+  4.9–7.0px** on mobile — findings 3 and 6 shrink the non-portrait stack, so
+  the view has more slack than the constants assume. That is the safe
+  direction and nothing is broken; re-deriving them is a separate measured
+  exercise, not part of this.
+- `@keyframes gradient-shift` keeps its one remaining caller, `.section-title`,
+  so finding 2 orphaned nothing.
+
 ## Method
 
 Numbers in this document are measured, not estimated.
