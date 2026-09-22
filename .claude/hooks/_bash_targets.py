@@ -55,6 +55,28 @@ PATHLIKE = re.compile(r"[A-Za-z0-9_.@~/-]+")
 # Basenames that are configuration secrets wherever they appear.
 SECRET_PREFIX = "." + "env"
 
+# Utilities that only ever read, and whose first operand is a search program
+# rather than a path. `grep -n 'Read(./.env)' .claude/settings.json` reads the
+# settings file and no secret at all, but the pattern spells one - which made it
+# impossible to grep, audit or document the deny list from the shell.
+#
+# Deliberately excludes sed, awk and perl. Each can write from inside its own
+# program text (`awk '{print > "f"}'`, sed's `w` command), which is why awk and
+# perl are in OPAQUE, so their scripts stay in the mention set.
+SEARCH_ONLY = {"grep", "egrep", "fgrep", "rgrep", "rg"}
+
+# Flags that introduce a pattern as the following argument.
+PATTERN_FLAGS = {"-e", "--regexp"}
+
+# Flags whose argument is a *file* of patterns. It is a real path grep opens, so
+# it stays in the mention set - and it also means there is no positional pattern
+# to skip, exactly like -e.
+FILE_FLAGS = {"-f", "--file"}
+
+
+def _is_operand(arg: str) -> bool:
+    return not arg.startswith("-") and "=" not in arg.split("/")[0]
+
 
 def strip_heredocs(command: str) -> str:
     """Drop heredoc bodies, keeping the command lines around them.
@@ -120,7 +142,63 @@ def _utility(segment: list[str]) -> tuple[str, list[str]]:
 
 
 def _operands(args: list[str]) -> list[str]:
-    return [a for a in args if not a.startswith("-") and "=" not in a.split("/")[0]]
+    return [a for a in args if _is_operand(a)]
+
+
+def _split_search_patterns(tokens: list[str]) -> tuple[set[str], set[str]]:
+    """Return (paths named only inside a search pattern, paths named elsewhere).
+
+    Position decides, not text. `grep .env f && cat .env` names the secret in a
+    pattern *and* as a real operand, and the second one still counts - which is
+    why the two sets are collected separately and the caller subtracts only what
+    appears nowhere but a pattern.
+    """
+    in_pattern: set[str] = set()
+    elsewhere: set[str] = set()
+
+    for segment in segments(tokens):
+        clean = [t for t in segment if t not in REDIRECTS]
+        name, args = _utility(clean)
+
+        pattern_idx: set[int] = set()
+        if name in SEARCH_ONLY:
+            explicit = False
+            for i, arg in enumerate(args):
+                short = arg.startswith("-") and not arg.startswith("--")
+                if arg in PATTERN_FLAGS or arg.startswith("--regexp="):
+                    explicit = True
+                    if arg in PATTERN_FLAGS and i + 1 < len(args):
+                        pattern_idx.add(i + 1)
+                    elif arg.startswith("--regexp="):
+                        pattern_idx.add(i)
+                elif arg in FILE_FLAGS or arg.startswith("--file="):
+                    # -f names a pattern file: a real path, left in the mention
+                    # set, but it still means there is no positional pattern.
+                    explicit = True
+                elif short and ("e" in arg[1:] or "f" in arg[1:]):
+                    # A short-flag cluster such as -ne or -nf takes the pattern
+                    # (or pattern file) as its own argument, so again there is no
+                    # positional one. Treating the cluster as opaque here is the
+                    # conservative side: the pattern stays in the mention set.
+                    explicit = True
+            # Otherwise grep's first operand is the pattern and every operand
+            # after it is a file to read.
+            if not explicit:
+                for i, arg in enumerate(args):
+                    if _is_operand(arg):
+                        pattern_idx.add(i)
+                        break
+
+        # The utility token itself, and any wrapper stepped over to reach it.
+        for tok in clean[: len(clean) - len(args)]:
+            elsewhere |= path_candidates(tok)
+        for i, arg in enumerate(args):
+            if i in pattern_idx:
+                in_pattern |= path_candidates(arg)
+            else:
+                elsewhere |= path_candidates(arg)
+
+    return in_pattern, elsewhere
 
 
 def parse(command: str) -> tuple[set[str], set[str], bool]:
@@ -180,6 +258,13 @@ def parse(command: str) -> tuple[set[str], set[str], bool]:
             opaque = True
         elif name in OPAQUE:
             opaque = True
+
+    # Drop path-shaped text that exists only as a read-only search pattern. The
+    # mention-level check stays otherwise untouched: it is the right conservative
+    # default when a shell command cannot be fully parsed, and argument position
+    # is unambiguous only for the utilities in SEARCH_ONLY.
+    in_pattern, elsewhere = _split_search_patterns(tokens)
+    mentioned -= in_pattern - elsewhere
 
     return {t for t in targets if t}, mentioned | targets, opaque
 

@@ -17,6 +17,7 @@ uninstall, and a hook that did not come from .claude/hooks/ are each an error.
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -170,3 +171,131 @@ def test_hook_outside_project_hooks_directory_is_rejected(checker, tmp_path):
     errors = []
     checker.check_vendored_ecc(errors)
     assert len(errors) == 1 and ".claude/hooks/" in errors[0]
+
+
+# --- settings.json invariants ---------------------------------------------
+#
+# These three came out of docs/review/claude-setup.md. Each replaces a rule that
+# was previously either prose or a coincidence, and each fails loudly rather than
+# letting the configuration drift quietly.
+
+
+def write_settings(tmp_path: Path, payload: dict) -> None:
+    settings = tmp_path / ".claude" / "settings.json"
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    settings.write_text(json.dumps(payload), encoding="utf-8")
+
+
+SECRET = "." + "env"  # spelled out so this file is not itself a tripwire
+
+
+@pytest.mark.parametrize("pattern", [
+    f"Read(**/{SECRET}.*)",
+    f"Edit(**/{SECRET}.*)",
+    f"Read(./{SECRET}.example)",
+    f"Read({SECRET}.*)",
+])
+def test_deny_rule_covering_the_example_file_is_rejected(checker, tmp_path, pattern):
+    """`**/` is not a literal path segment, which fnmatch alone got wrong.
+
+    .env.example is tracked and is the documented variable reference. A glob that
+    swallows it makes the one file an agent is supposed to read unreadable, and
+    Read also governs Edit and Write, so the block is total.
+    """
+    (tmp_path / f"{SECRET}.example").write_text("X=1\n", encoding="utf-8")
+    write_settings(tmp_path, {"permissions": {"deny": [pattern]}})
+
+    errors = []
+    checker.check_settings(errors)
+    assert any(".example" in e for e in errors), errors
+
+
+def test_negation_after_the_rule_carves_the_example_back_out(checker, tmp_path):
+    """A `!` rule is a gitignore negation against the rules listed before it."""
+    (tmp_path / f"{SECRET}.example").write_text("X=1\n", encoding="utf-8")
+    write_settings(tmp_path, {"permissions": {"deny": [
+        f"Read(**/{SECRET})", f"Read(**/{SECRET}.*)", f"Read(!**/{SECRET}.example)",
+        f"Edit(**/{SECRET})", f"Edit(**/{SECRET}.*)", f"Edit(!**/{SECRET}.example)",
+    ]}})
+
+    errors = []
+    checker.check_settings(errors)
+    assert not [e for e in errors if ".example" in e], errors
+
+
+def test_negation_listed_first_carves_nothing_out(checker, tmp_path):
+    """Order matters: a `!` rule only affects the rules above it."""
+    (tmp_path / f"{SECRET}.example").write_text("X=1\n", encoding="utf-8")
+    write_settings(tmp_path, {"permissions": {"deny": [
+        f"Read(!**/{SECRET}.example)", f"Read(**/{SECRET}.*)",
+    ]}})
+
+    errors = []
+    checker.check_settings(errors)
+    assert any(".example" in e for e in errors), errors
+
+
+def test_deprecated_attribution_key_is_rejected(checker, tmp_path):
+    """ECC's installer writes this key back; its return must not be silent."""
+    write_settings(tmp_path, {"includeCoAuthoredBy": False, "permissions": {"deny": []}})
+
+    errors = []
+    checker.check_settings(errors)
+    assert any("includeCoAuthoredBy" in e for e in errors), errors
+
+
+@pytest.mark.parametrize("event", [
+    "Setup", "PostToolUseFailure", "FileChanged", "InstructionsLoaded", "PostCompact",
+])
+def test_documented_hook_events_are_accepted(checker, tmp_path, event):
+    """The allowlist held nine of thirty-three and failed CI on legitimate hooks."""
+    write_settings(tmp_path, {"hooks": {event: [{"hooks": [
+        {"type": "command", "command": '"$CLAUDE_PROJECT_DIR"/.claude/hooks/x.sh'},
+    ]}]}})
+
+    errors = []
+    checker.check_settings(errors)
+    assert not [e for e in errors if "Invalid hook event" in e], errors
+
+
+def test_misspelt_hook_event_is_still_rejected(checker, tmp_path):
+    """The point of a closed allowlist: a typo'd event is never dispatched."""
+    write_settings(tmp_path, {"hooks": {"SessionStrat": [{"hooks": [
+        {"type": "command", "command": '"$CLAUDE_PROJECT_DIR"/.claude/hooks/x.sh'},
+    ]}]}})
+
+    errors = []
+    checker.check_settings(errors)
+    assert any("Invalid hook event" in e for e in errors), errors
+
+
+def test_if_filter_on_a_write_and_edit_group_is_rejected(checker, tmp_path):
+    """`if` names one tool, so on a Write|Edit group it disables half the gate."""
+    write_settings(tmp_path, {"hooks": {"PostToolUse": [{
+        "matcher": "Write|Edit",
+        "hooks": [{
+            "type": "command",
+            "if": "Edit(frontend/index.html)",
+            "command": '"$CLAUDE_PROJECT_DIR"/.claude/hooks/verify-csp.sh',
+        }],
+    }]}})
+
+    errors = []
+    checker.check_settings(errors)
+    assert any("covers both Write and Edit" in e for e in errors), errors
+
+
+def test_if_filter_on_a_single_tool_group_is_allowed(checker, tmp_path):
+    """Narrowing is fine once the group cannot span both write paths."""
+    write_settings(tmp_path, {"hooks": {"PostToolUse": [{
+        "matcher": "Bash",
+        "hooks": [{
+            "type": "command",
+            "if": "Bash(git *)",
+            "command": '"$CLAUDE_PROJECT_DIR"/.claude/hooks/x.sh',
+        }],
+    }]}})
+
+    errors = []
+    checker.check_settings(errors)
+    assert not [e for e in errors if "covers both Write and Edit" in e], errors

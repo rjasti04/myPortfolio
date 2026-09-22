@@ -14,10 +14,30 @@ import re
 import sys
 from pathlib import Path
 
-# Every lifecycle event Claude Code dispatches a hook for.
+# Every lifecycle event Claude Code dispatches a hook for, as the hooks
+# reference documents them (33 rows, in table order).
+#
+# This is a typo catcher, not a policy: `SessionStrat` has to fail loudly,
+# because a hook under a misspelt event is simply never dispatched and nothing
+# else in the repo would notice. That is why it stays a closed allowlist rather
+# than becoming a deny list of events this project has decided against - an
+# inverted check accepts every typo by construction.
+#
+# It held nine of the thirty-three, which rejected legitimate hooks: `Setup`,
+# `PostToolUseFailure`, `FileChanged`, `InstructionsLoaded` and `PostCompact`
+# among them. It is not, and never was, what keeps third-party hooks out -
+# check_vendored_ecc enforces that by authorship, and does so under any event
+# name. When the docs add an event, add it here.
 VALID_HOOK_EVENTS = {
-    "PreToolUse", "PostToolUse", "UserPromptSubmit", "Notification",
-    "Stop", "SubagentStop", "SessionStart", "SessionEnd", "PreCompact",
+    "SessionStart", "Setup", "UserPromptSubmit", "UserPromptExpansion",
+    "PreToolUse", "PermissionRequest", "PermissionDenied", "PostToolUse",
+    "PostToolUseFailure", "PostToolBatch", "Notification", "MessageDisplay",
+    "SubagentStart", "SubagentStop", "TaskCreated", "TaskCompleted",
+    "Stop", "StopFailure", "TeammateIdle", "InstructionsLoaded",
+    "ConfigChange", "CwdChanged", "DirectoryAdded", "FileChanged",
+    "WorktreeCreate", "WorktreeRemove", "PreCompact", "PostCompact",
+    "PreModelSwitch", "PostModelSwitch", "Elicitation", "ElicitationResult",
+    "SessionEnd",
 }
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -172,6 +192,26 @@ def check_agents(errors):
                 errors.append(f"Agent {name} references non-existent skill '{s}'.")
 
 
+def _pattern_covers(pattern, rel):
+    """Does a Read/Edit rule body cover `rel`, under gitignore semantics?
+
+    Not a full gitignore engine - it resolves the shapes this settings file
+    actually uses. fnmatch alone is wrong here: it reads `**/` as a literal
+    path segment, so `Read(**/.env.*)` looked like it missed `.env.example`
+    while Claude Code would have blocked the file. Bare filenames match at any
+    depth, which is why `Read(.env)` and `Read(**/.env)` are equivalent.
+    """
+    pat = pattern.strip()
+    if pat.startswith("./"):
+        pat = pat[2:]
+    if pat.startswith("**/"):
+        pat = pat[3:]  # `**/x` matches at the root as well as any depth
+    candidates = [rel]
+    if "/" not in pat:
+        candidates.append(rel.rsplit("/", 1)[-1])
+    return any(fnmatch.fnmatch(c, pat) for c in candidates)
+
+
 def check_settings(errors):
     settings_file = ROOT / ".claude" / "settings.json"
     if not settings_file.exists():
@@ -191,15 +231,49 @@ def check_settings(errors):
     # check for as long as it existed. Resolve the glob instead.
     example = ROOT / ".env.example"
     perms = data.get("permissions", {}).get("deny", [])
-    for deny_rule in perms:
-        m = re.match(r"^\w+\((.*)\)$", deny_rule.strip())
-        if not m:
-            continue
-        pattern = m.group(1).lstrip("./")
-        if example.exists() and fnmatch.fnmatch(".env.example", pattern):
+    if example.exists():
+        # Read and Edit are the only rule types file permissions are checked
+        # against, and a `!` rule is a gitignore negation carving paths out of
+        # the rules listed before it - so this has to be evaluated in order,
+        # per tool, rather than rule by rule.
+        covered: dict[str, str] = {}
+        for deny_rule in perms:
+            m = re.match(r"^(\w+)\((.*)\)$", deny_rule.strip())
+            if not m:
+                continue
+            tool, body = m.group(1), m.group(2)
+            if tool not in ("Read", "Edit"):
+                continue
+            if body.startswith("!"):
+                if _pattern_covers(body[1:], ".env.example"):
+                    covered.pop(tool, None)
+            elif _pattern_covers(body, ".env.example"):
+                covered[tool] = deny_rule
+        for tool in sorted(covered):
             errors.append(
-                f"permissions.deny rule '{deny_rule}' matches tracked .env.example."
+                f"permissions.deny rule '{covered[tool]}' matches tracked "
+                f".env.example and nothing carves it back out. Add a "
+                f"'{tool}(!**/.env.example)' negation after it."
             )
+
+    # `includeCoAuthoredBy` is deprecated in favour of `attribution`, and `true`
+    # was the default anyway, so the key was deleted rather than translated - the
+    # docs give no mapping between the two, and attribution is still added.
+    #
+    # Its absence used to be load-bearing in the other direction: ECC's
+    # scripts/lib/install/apply.js writes `"includeCoAuthoredBy": false` on any
+    # install into a Claude target *unless an explicit preference is already
+    # present*, and docs/ECC.md recorded the `true` as pre-empting that. An
+    # assertion is a better guard than a placeholder value: if an ECC install (or
+    # anything else) puts the deprecated key back, CI says so instead of the
+    # Co-Authored-By trailer quietly switching off.
+    if "includeCoAuthoredBy" in data:
+        errors.append(
+            "permissions: '.claude/settings.json' sets the deprecated "
+            "'includeCoAuthoredBy' key. Attribution is on by default, so remove "
+            "it; use 'attribution' only to hide or change the trailer. If an ECC "
+            "install wrote it back, see docs/ECC.md 'Why there is no attribution key'."
+        )
 
     hooks = data.get("hooks", {})
     for event_name, hook_list in hooks.items():
@@ -212,7 +286,24 @@ def check_settings(errors):
                 f"(expected one of {', '.join(sorted(VALID_HOOK_EVENTS))})"
             )
         for item in hook_list:
+            matcher = item.get("matcher", "")
+            tools = {t for t in re.split(r"[|,\s]+", matcher) if t}
             for h in item.get("hooks", []):
+                # `if` filters a hook on a permission rule that names one tool,
+                # and it holds exactly one rule - no lists. On a group matching
+                # both Write and Edit that means an `if: "Edit(...)"` silently
+                # stops the hook running for Write, which is how the CSP-hash
+                # and migration-immutability gates would come to be enforced on
+                # one write path and not the other. That asymmetry is the exact
+                # bug .claude/hooks/_bash_targets.py was written to close.
+                if "if" in h and {"Write", "Edit"} <= tools:
+                    errors.append(
+                        f"Hook under {event_name} sets 'if' on a group whose "
+                        f"matcher '{matcher}' covers both Write and Edit. An "
+                        "`if` rule names a single tool, so it would disable the "
+                        "hook for the other one. Split the group by tool first, "
+                        "or keep the script's own path test."
+                    )
                 cmd = h.get("command", "")
                 if ".claude/hooks/" in cmd:
                     # Clean command token to find relative script path

@@ -22,8 +22,9 @@ All three are single self-contained `SKILL.md` files with no external tooling, M
 or `~/.claude/` dependency. They load **on demand**: only their `description` line is
 always in context (~120 tokens total); the ~7,000-token bodies load when invoked.
 
-`.claude/settings.json` also gained `"includeCoAuthoredBy": true`. That is a project
-decision, not an ECC file — see [Why the attribution key](#why-the-attribution-key).
+`.claude/settings.json` briefly carried `"includeCoAuthoredBy": true` for this install.
+The key is deprecated and has been removed — see
+[Why there is no attribution key](#why-there-is-no-attribution-key).
 
 ## What is deliberately not installed
 
@@ -31,7 +32,7 @@ Each of these was evaluated against the repository, not skipped by default.
 
 | Rejected | Reason |
 | :--- | :--- |
-| **All 24 hooks** | Four independent blockers. ECC's `PostToolUseFailure` event is not in `VALID_HOOK_EVENTS` in `scripts/check_agent_config.py`, so merging them fails CI. `pre:edit-write:gateguard-fact-force` blocks the first `Edit`/`Write` to every file; `pre:config-protection` blocks edits to `ruff.toml`, `.eslintrc.json` and `pytest.ini`; `pre:write:doc-file-warning` fires on exactly the `.claude/intents/` and `.claude/specs/` writes this repo's workflow produces. They would also stack a Bash pre-dispatcher and two `.*`-matched PostToolUse dispatchers on top of the six hooks in `.claude/hooks/`, which already run `check_docs.py` and `check_csp_hashes.py` on every write |
+| **All 24 hooks** | Four independent blockers. `check_vendored_ecc` in `scripts/check_agent_config.py` requires every configured hook to run a script from `.claude/hooks/`, so merging them fails CI — that check is by authorship and holds under any event name, including the `PostToolUseFailure` one ECC uses. (It used to be the event name that blocked them, because `VALID_HOOK_EVENTS` listed only nine of the documented thirty-three. Widening that set to all thirty-three left the authorship check as the guard, which is the stronger one.) `pre:edit-write:gateguard-fact-force` blocks the first `Edit`/`Write` to every file; `pre:config-protection` blocks edits to `ruff.toml`, `.eslintrc.json` and `pytest.ini`; `pre:write:doc-file-warning` fires on exactly the `.claude/intents/` and `.claude/specs/` writes this repo's workflow produces. They would also stack a Bash pre-dispatcher and two `.*`-matched PostToolUse dispatchers on top of the seven hooks in `.claude/hooks/`, which already run `check_docs.py` and `check_csp_hashes.py` on every write |
 | **All 122 rule files** | ECC rules carry no `paths:` frontmatter, so they are always-loaded — the opposite of what `.claude/rules/` and the "Navigating This Repo Without Burning Context" contract exist to do (~5,000 tokens per session). `rules/common` also contradicts the repo directly: it documents a `~/.claude/agents/` roster that does not exist here, mandates `gh search` (no `gh` CLI) and Context7/Exa MCP servers (not configured), and states that ECC installs set `includeCoAuthoredBy: false` |
 | **All 68 agents** | `agents/security-reviewer.md` collides by name with a project agent that `check_agent_config.py` pins. Adding language-specific reviewers would also fragment the fan-out that `.claude/skills/review/SKILL.md` defines over the four project agents |
 | **All 94 commands** | `.claude/commands` is a **prohibited path** in `check_agent_config.py` |
@@ -74,13 +75,22 @@ local edit either blocks the next upgrade or is silently replaced.
 installed, and three of which never should be here. The references are inert prose and are
 left as-is rather than patched, because editing the file breaks the upgrade path above.
 
-### Why the attribution key
+### Why there is no attribution key
 
 `scripts/lib/install/apply.js` writes `"includeCoAuthoredBy": false` into
 `.claude/settings.json` on any ECC install into a Claude target — unless an explicit
 preference is already present. This repository's commit history carries the
 `Co-Authored-By` trailer, so `"includeCoAuthoredBy": true` was set **before** the
-installer ran. It is a project-owned key that happens to pre-empt an ECC side effect.
+installer ran, purely to pre-empt that side effect.
+
+That key is deprecated in favour of `attribution`, and `true` was the default — Claude
+Code adds attribution unless you turn it off — so it has been deleted rather than
+translated. The docs give no `includeCoAuthoredBy` → `attribution` mapping, and an
+`attribution` block exists to *change or hide* the trailer, which is not what this repo
+wants. Deleting it gives up the pre-emption, so `check_settings()` in
+`scripts/check_agent_config.py` now **fails CI if the key reappears at all**. An install
+that writes it back is caught loudly, which the old placeholder value never would have
+been: a silent flip from `true` to `false` looks identical in a diff nobody reads.
 
 ## Upgrading
 

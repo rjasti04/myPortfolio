@@ -2,6 +2,12 @@
 name: security-reviewer
 description: Read-only security specialist subagent auditing authentication, API endpoints, secret handling, CSP, DOM sanitization, and egress policies.
 model: sonnet
+# A read-only auditor over server/ or frontend/ with Bash, Grep and Glob had
+# no turn ceiling at all. This is a runaway guard, not a tuning knob: it is set
+# well above the widest scope table in docs/review/, so a normal audit never
+# reaches it, and an agent that loops returns partial output instead of running
+# unbounded. Lower it only against a measured run.
+maxTurns: 40
 tools:
   - Read
   - Grep

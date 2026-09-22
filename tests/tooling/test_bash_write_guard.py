@@ -142,6 +142,64 @@ def test_tracked_migrations_are_immutable(template: str) -> None:
     assert "immutable" in result.stderr
 
 
+# A read-only search whose *pattern* spells a guarded path touches nothing. The
+# guard refused these for as long as it existed, which meant the deny list could
+# not be grepped, audited or documented from the shell -- and the refusal arrived
+# citing credential disclosure, which is not what happened. The exemption is
+# positional and stops at the utilities that cannot write: the pattern operand of
+# grep and friends, and nothing else.
+SEARCH_PATTERN_ALLOWED = [
+    ("grep the deny list", r"""grep -n 'Read(\./\{s})' .claude/settings.json"""),
+    ("double-quoted pattern", r"""grep -n "Read(\./\{s})" .claude/settings.json"""),
+    ("recursive search", r"""grep -rn '\{s}' scripts/"""),
+    ("explicit -e pattern", r"""grep -e '{s}.local' docs/SECURITY.md"""),
+    ("--regexp= form", r"""grep --regexp='\{s}' docs/SECURITY.md"""),
+    ("egrep alternation", r"""egrep '(\{s}|secret)' docs/SECURITY.md"""),
+    ("ripgrep", r"""rg '\{s}\.' docs/"""),
+    # A directory-qualified pattern is the stronger case: `\{s}` on its own is
+    # dropped by normalize() when it cannot be made repo-relative, while
+    # `server/{s}` resolves to a real guarded path and is exempt only because of
+    # the argument position it sits in.
+    ("directory-qualified pattern", r"""grep -rn 'server/{s}' docs/"""),
+]
+
+# The same text in an argument position that really is a path stays refused.
+SEARCH_PATTERN_BLOCKED = [
+    ("pattern is a flag, file is the secret", "grep -n 'JWT' {s}"),
+    ("pattern file is a real path", "grep -f {s} docs/SECURITY.md"),
+    ("--file= is a real path", "grep --file={s} docs/SECURITY.md"),
+    ("short cluster -nf takes a file", "grep -nf {s} docs/SECURITY.md"),
+    ("-e given, so the operand is a file", "grep -e JWT {s}"),
+    ("pattern in one command, read in the next", "grep {s} notes.md && cat {s}"),
+    # awk, sed and perl can write from inside their own program text -- which is
+    # why awk and perl are OPAQUE -- so their scripts are deliberately outside
+    # the exemption even though they look like search patterns.
+    ("awk program can write", "awk '{{print > \"server/{s}\"}}' notes.md"),
+    ("sed w-command can write", "sed 's/a/b/w' server/{s} notes.md"),
+]
+
+
+@pytest.mark.parametrize("label,command", SEARCH_PATTERN_ALLOWED,
+                         ids=[c[0] for c in SEARCH_PATTERN_ALLOWED])
+def test_search_pattern_naming_a_secret_is_allowed(label: str, command: str) -> None:
+    result = run(GUARD, command.format(s=SECRET))
+    assert result.returncode == 0, f"{label}: blocked, stderr={result.stderr.strip()}"
+
+
+@pytest.mark.parametrize("label,command", SEARCH_PATTERN_BLOCKED,
+                         ids=[c[0] for c in SEARCH_PATTERN_BLOCKED])
+def test_secret_in_a_path_position_is_still_blocked(label: str, command: str) -> None:
+    result = run(GUARD, command.format(s=SECRET))
+    assert result.returncode == 2, f"{label}: expected a block, got {result.returncode}"
+    assert result.stderr.strip(), f"{label}: blocked without telling the model why"
+
+
+def test_search_exemption_does_not_reach_write_targets() -> None:
+    """The pattern is exempt; a redirection or a tee in the same command is not."""
+    assert run(GUARD, f"grep -rn '{SECRET}' docs/ > {SECRET}").returncode == 2
+    assert run(GUARD, f"grep -rn 'x' docs/ | tee {SECRET}").returncode == 2
+
+
 def test_heredoc_body_is_not_read_as_operands() -> None:
     """Writing a file that merely mentions a guarded path must not be blocked."""
     body = f"cat > notes.md <<'EOF'\nwe never read {SECRET} from the shell\nEOF"

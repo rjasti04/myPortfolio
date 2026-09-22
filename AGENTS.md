@@ -162,12 +162,15 @@ is not a licence to pad — §4's "Zero Fluff" still governs. For every finding:
     *   **Install the dependencies before you judge a failure.** A fresh clone has
         no `node_modules` and no installed backend packages, and both suites fail
         loudly and misleadingly without them — missing-module errors that read like
-        broken code. Run `npm ci --no-audit --no-fund` first; for the backend, create
-        the virtualenv and install into it
-        (`python3 -m venv server/.venv && server/.venv/bin/pip install -r
-        server/requirements.txt -r server/requirements-dev.txt`). The requirement
-        files are hash-pinned (ADR-021), so installing them over a distro-managed
-        package can fail — the venv is what avoids that.
+        broken code. On Claude Code web sessions the `SessionStart` hook
+        (`.claude/hooks/session-start.sh`) has already done this before your first
+        turn, so treat a missing-module error there as a real failure and read the
+        hook's stderr before re-running anything. Anywhere else, install first: run
+        `npm ci --no-audit --no-fund`, and for the backend create the virtualenv and
+        install into it (`python3 -m venv server/.venv && server/.venv/bin/pip
+        install -r server/requirements.txt -r server/requirements-dev.txt`). The
+        requirement files are hash-pinned (ADR-021), so installing them over a
+        distro-managed package can fail — the venv is what avoids that.
     *   **Resolve the toolchain; do not assume it is missing.** `node`, `npm`,
         `pytest` and `ruff` are all on PATH in CI and in Claude Code web sessions.
         Some local shells differ, so run `command -v node npm pytest ruff` first and,
@@ -178,7 +181,9 @@ is not a licence to pad — §4's "Zero Fluff" still governs. For every finding:
     by hand. Both are wired as `PostToolUse` hooks in `.claude/settings.json` — for
     `Write`/`Edit` and for the `Bash` commands that write the same files — so they run
     automatically after you touch a covered file. The hooks run the *check*, not the
-    repair: they block with the drifted figures and leave the fix to you.
+    repair, and they do not block: `PostToolUse` fires after the write has already
+    landed, so the drifted file is on disk and the hook's job is only to put the
+    drifted figures in front of you. Repairing them is yours.
     *   `python3 scripts/check_docs.py --fix` — line counts, grep yields and token
         estimates in `.claude/rules/navigation.md` and
         `.claude/rules/reference-docs.md`, plus per-module counts in

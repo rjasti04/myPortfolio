@@ -1,9 +1,13 @@
 ---
 paths:
+  # package-lock.json is deliberately absent: a path-scoped rule loads when
+  # Claude reads a matching file, and `Read(./package-lock.json)` is in
+  # permissions.deny, so that entry could never trigger. The deny rule is the
+  # stronger guard and the "never read it" advice survives in the table below,
+  # which the three globs here already reach.
   - frontend/**
   - server/**
   - scripts/**
-  - package-lock.json
 ---
 
 # Navigating This Repo Without Burning Context
