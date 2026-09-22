@@ -89,17 +89,18 @@ Keep this current. It is what stops an audit from re-reporting shipped work.
 | `docs/review/apps-uiux.md` | the `#apps` shelf and all seven standalone apps | 22 | open |
 | `docs/review/security.md` | — | — | **never run** — prompt 2 |
 | `docs/review/performance.md` | — | — | **never run** — prompt 3 |
+| `docs/review/visual-<page>.md` | — | — | **never run** — prompt 12, one doc per page |
 | `docs/review/claude-setup.md` | `.claude/` vs the published Claude Code docs | 13 | open |
 
-Security and performance are the two real gaps. Everything else has shipped at
-least once.
+Security and performance are the two real gaps, and no page has had the
+prompt-12 taste pass yet. Everything else has shipped at least once.
 
 ---
 
 ## C. The prompts
 
-§A is written for the code audits — prompts 1-7 and 11. Prompts 8, 9 and 10
-audit the configuration itself, so they stand alone and their examples start
+§A is written for the code audits — prompts 1-7, 11 and 12. Prompts 8, 9 and
+10 audit the configuration itself, so they stand alone and their examples start
 without it.
 
 **1. Correctness**
@@ -662,6 +663,114 @@ and which gate proves it.
 
 Then list what you deliberately held back for
 batch 2 and why. Don't fix anything.
+```
+
+**12. Visual refinement** *(any page — the taste pass)*
+```
+Read-only visual and interaction review of
+<page>, and nothing else. Prompt 4 hunts
+defects and prompt 7 audits enforcement.
+This one is about taste: is the page
+intuitive, and is it beautiful.
+
+First read `.claude/intents/` and
+`docs/DESIGN.md` §"The four rules". Open
+with a "Standing visual decisions this
+review does not reopen" table: decision |
+where it is recorded. The circuit backdrop
+and the hero glass frame are decisions, not
+defaults.
+
+Then "What already works" — three things
+worth keeping and why, so the findings
+below do not churn them.
+
+Then findings on two axes.
+
+Intuitive: where does the eye land first,
+and is that the thing that matters? Is the
+primary action obvious without a label
+explaining it? Does the page say what it is
+within one screen? Is anything discoverable
+only by hover? Does a state change announce
+itself, or does the visitor have to infer
+it?
+
+Beautiful: hierarchy and contrast of
+weight, vertical rhythm and density,
+optical alignment, elevation and depth,
+motion easing and duration, colour
+restraint, and typographic detail —
+measure, tracking, widows, and numeral
+alignment.
+
+Every proposal must:
+- cite `file:line` and give the
+  declaration, not an adjective;
+- use an existing token, or add one named
+  value to an existing scale and say which
+  (rule 3 — never a new literal);
+- hold in both themes (rule 4), and state
+  the `prefers-reduced-motion` fallback if
+  it animates;
+- name the measured contrast ratio it
+  keeps or changes (rule 2);
+- state its cost: CSS-only, markup, or JS,
+  plus any KiB against the 300/240 KiB
+  build budget.
+
+Automatically out of scope: a framework or
+JSX, a third-party font/icon/image origin,
+a new inline `<script>` in index.html (it
+breaks the pinned CSP hashes), and any
+redesign needing more than the page's own
+markup.
+
+Rank by first-impression weight — what a
+first-time visitor sees before scrolling,
+then the rest of the page, then states only
+some visitors reach. Cosmetic-only findings
+go last and are marked as such.
+
+Write docs/review/visual-<page>.md, with a
+summary table: # | finding | axis | cost.
+```
+
+*`<page>` is any one of the eight SPA sections — `#home`, `#about`,
+`#resume`, `#hobbies`, `#apps`, `#activity`, `#contact`, `#ai` — or any
+standalone page: `arcade.html`, `cron.html`, `crypto.html`, `diff.html`,
+`json.html`, `ucl.html`, `worldcup.html`. One page per run; the axes only
+stay sharp when the context holds a single surface. On `ucl.html` and
+`worldcup.html`, their third-party origins are still not a finding (§A) —
+review what they look like, not what they load.*
+
+*Example — raising the ceiling on a page whose floor already shipped:*
+```
+Paste §A, then:
+
+Read-only visual and interaction review of the
+#resume section — its markup in
+frontend/index.html, its rules in
+frontend/styles.css, and js/experience-groups.js
+and js/resume-pdf.js. Nothing else.
+
+uiux.md covered it at tier 2 and all 28 findings
+shipped, so treat the accessibility and
+state-handling floor as met and do not re-report
+it. I want the ceiling: a recruiter lands here
+after the hero and decides in about eight
+seconds.
+
+Judge it as that reader. Does the eye reach the
+role and the stack before the chrome, and does
+the density read as confident or as a wall? The
+hero glass frame
+(.claude/intents/2026-09-20-hero-glass-frame.md)
+set the vocabulary the rest of the page now has
+to earn — say where resume diverges from it, and
+whether the divergence is deliberate.
+
+Write docs/review/visual-resume.md.
 ```
 
 ---
