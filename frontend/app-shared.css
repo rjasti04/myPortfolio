@@ -1,0 +1,177 @@
+/* Shared App Extras — the header app switcher and the `?` shortcuts sheet.
+ *
+ * Separate from app-chrome.css because only three of the seven apps link that
+ * sheet: /cron carries its own copy of the chrome rules, /arcade has its own
+ * vocabulary entirely, and /ucl and /worldcup are single self-contained files.
+ * All seven do link this one, because all seven run js/app-shared/.
+ *
+ * Every colour here comes from the seven-token chrome contract each app
+ * already publishes — --chrome-bg, --chrome-border, --chrome-text,
+ * --chrome-muted, --chrome-accent, --chrome-action-bg, --chrome-action-hover —
+ * which is the same contract the header and footer run on. That is what lets
+ * one stylesheet sit on seven different palettes, including the arcade's,
+ * without naming a single app-specific token.
+ */
+
+/* App switcher.
+ *
+ * Every app used to be a dead end: cross-links existed only in the footer, and
+ * each footer named a different arbitrary pair. The Back link keeps its place
+ * and its press; the trigger beside it opens the shelf. Anchored to a wrapper
+ * rather than to the header, so the popover follows the control at every
+ * breakpoint without a second position rule. */
+.app-switcher {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.app-switcher-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+
+  /* Anchored to the trigger's RIGHT edge, not its left. `.header-actions` is
+     right-aligned in every app, so a left-anchored 15rem panel runs off the
+     viewport as soon as the controls after the switcher are narrower than it -
+     which on /json they are. Opening leftwards there is always room for. */
+  right: 0;
+  z-index: 60;
+  min-width: 15rem;
+  max-width: calc(100vw - 1.5rem);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 35%);
+}
+
+.app-switcher-menu[hidden] {
+  display: none;
+}
+
+.app-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  min-height: 40px;
+  border-radius: 8px;
+  color: var(--chrome-text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app-switcher-item i {
+  width: 1rem;
+  text-align: center;
+  color: var(--chrome-muted);
+}
+
+.app-switcher-item:hover,
+.app-switcher-item:focus-visible {
+  background: var(--chrome-action-hover);
+}
+
+/* The app you are already in stays listed, marked rather than removed — a menu
+   whose contents change per page has to be re-read on every page. */
+.app-switcher-item[aria-current='page'],
+.app-switcher-item[aria-current='page'] i {
+  color: var(--chrome-accent);
+}
+
+.app-switcher-sep {
+  height: 1px;
+  margin: 0.3rem 0.2rem;
+  background: var(--chrome-border);
+}
+
+/* Shortcuts sheet, opened with `?`.
+ *
+ * /diff bound j/k and nothing said so. The rows are generated from the same
+ * table that does the binding, so what this lists is what is actually bound. */
+.shortcuts-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 55%);
+}
+
+.shortcuts-sheet[hidden] {
+  display: none;
+}
+
+.shortcuts-panel {
+  width: min(28rem, 100%);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 1.25rem;
+  color: var(--chrome-text);
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 12px;
+}
+
+.shortcuts-title {
+  margin: 0 0 0.9rem;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.shortcuts-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 0.5rem 0.9rem;
+  margin: 0 0 1.1rem;
+}
+
+.shortcuts-list dt {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.shortcuts-list dd {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--chrome-muted);
+}
+
+.shortcuts-list kbd {
+  font-family: ui-monospace, sfmono-regular, menlo, consolas, monospace;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+  color: var(--chrome-text);
+  background: var(--chrome-action-hover);
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+}
+
+.shortcuts-close {
+  display: block;
+  margin-left: auto;
+  padding: 0.4rem 0.9rem;
+  min-height: 36px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--chrome-text);
+  background: var(--chrome-action-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.shortcuts-close:hover {
+  background: var(--chrome-action-hover);
+}

@@ -36,6 +36,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="app-shared.css">
 
   <!-- Theme resolution, before first paint. `theme` is the same localStorage
        key the portfolio and the other apps write, so arriving here from
@@ -361,6 +362,15 @@
     .action-btn:hover {
       background-color: var(--chrome-action-hover);
       border-color: var(--chrome-muted);
+    }
+
+    /* Armed state for the two-press Reset. The Dev Tools apps carry the same
+       rule in app-chrome.css; this page does not link that sheet, so it keeps
+       its own copy against its own palette. */
+    .action-btn.is-confirming {
+      background-color: var(--badge-danger-bg);
+      border-color: var(--accent-danger);
+      color: var(--badge-danger-text);
     }
 
     .action-btn-icon {
@@ -1749,7 +1759,7 @@
         <div class="header-left">
           <div class="brand-wrap">
             <div class="brand-icon" aria-hidden="true">
-              <i class="fas fa-futbol"></i>
+              <i class="fas fa-futbol" aria-hidden="true"></i>
             </div>
             <div class="brand-text">
               <div class="brand-title">UCL 26/27</div>
@@ -1794,9 +1804,9 @@
       <p>Rank the 36-club league phase, settle the knockout play-offs, and run the bracket from the round of 16 to the
         final in Madrid.</p>
       <div class="hero-meta">
-        <span class="hero-chip"><i class="fas fa-table-list"></i> 36 clubs · 8 matchdays</span>
-        <span class="hero-chip"><i class="fas fa-shuffle"></i> Swiss league phase</span>
-        <span class="hero-chip"><i class="fas fa-location-dot"></i> Final · Madrid · 5 Jun 2027</span>
+        <span class="hero-chip"><i class="fas fa-table-list" aria-hidden="true"></i> 36 clubs · 8 matchdays</span>
+        <span class="hero-chip"><i class="fas fa-shuffle" aria-hidden="true"></i> Swiss league phase</span>
+        <span class="hero-chip"><i class="fas fa-location-dot" aria-hidden="true"></i> Final · Madrid · 5 Jun 2027</span>
       </div>
       <div class="progress-wrap">
         <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="23" aria-valuenow="0"
@@ -1808,22 +1818,25 @@
     </section>
 
     <!-- STAGE TABS -->
-    <nav class="navigation-tabs" aria-label="Prediction stages">
-      <button class="tab-btn active" data-tab="league-tab">
-        <i class="fas fa-table-list"></i> <span>League Phase</span>
+    <nav class="navigation-tabs" role="tablist" aria-label="Prediction stages">
+      <button class="tab-btn active" type="button" data-tab="league-tab" role="tab" id="tab-league"
+        aria-controls="league-tab" aria-selected="true">
+        <i class="fas fa-table-list" aria-hidden="true"></i> <span>League Phase</span>
       </button>
-      <button class="tab-btn" data-tab="playoff-tab">
-        <i class="fas fa-scale-balanced"></i> <span>Play-offs</span>
+      <button class="tab-btn" type="button" data-tab="playoff-tab" role="tab" id="tab-playoff"
+        aria-controls="playoff-tab" aria-selected="false" tabindex="-1">
+        <i class="fas fa-scale-balanced" aria-hidden="true"></i> <span>Play-offs</span>
       </button>
-      <button class="tab-btn" data-tab="knockout-tab">
-        <i class="fas fa-diagram-project"></i> <span>Knockout Bracket</span>
+      <button class="tab-btn" type="button" data-tab="knockout-tab" role="tab" id="tab-knockout"
+        aria-controls="knockout-tab" aria-selected="false" tabindex="-1">
+        <i class="fas fa-diagram-project" aria-hidden="true"></i> <span>Knockout Bracket</span>
       </button>
     </nav>
 
     <main id="main-content">
 
       <!-- STAGE 1: LEAGUE PHASE STANDINGS -->
-      <section id="league-tab" class="view-panel active" aria-labelledby="league-title">
+      <section id="league-tab" class="view-panel active" role="tabpanel" tabindex="0" data-tab-id="tab-league" aria-labelledby="league-title">
         <h2 id="league-title" class="sr-only">League Phase Standings Predictor</h2>
 
         <div class="league-layout">
@@ -1879,7 +1892,7 @@
       </section>
 
       <!-- STAGE 2: KNOCKOUT PLAY-OFFS -->
-      <section id="playoff-tab" class="view-panel" aria-labelledby="playoff-title">
+      <section id="playoff-tab" class="view-panel" role="tabpanel" tabindex="0" data-tab-id="tab-playoff" aria-labelledby="playoff-title">
         <div class="stage-intro">
           <h2 id="playoff-title">Knockout Phase Play-offs</h2>
           <p>The sixteen clubs that finished 9th to 24th meet over two legs for the last eight places in the round of
@@ -1893,18 +1906,23 @@
       </section>
 
       <!-- STAGE 3: KNOCKOUT BRACKET -->
-      <section id="knockout-tab" class="view-panel" aria-labelledby="knockout-title">
+      <section id="knockout-tab" class="view-panel" role="tabpanel" tabindex="0" data-tab-id="tab-knockout" aria-labelledby="knockout-title">
         <h2 id="knockout-title" class="sr-only">Knockout Bracket Progression</h2>
 
         <!-- Mobile round selector -->
-        <nav class="mobile-bracket-tabs" aria-label="Knockout round selection">
-          <button class="mobile-tab-btn active" data-round="r16">Round of 16</button>
-          <button class="mobile-tab-btn" data-round="qf">Quarter-finals</button>
-          <button class="mobile-tab-btn" data-round="sf">Semi-finals</button>
-          <button class="mobile-tab-btn" data-round="final">Final &amp; Champion</button>
+        <nav class="mobile-bracket-tabs" role="tablist" aria-label="Knockout round selection">
+          <button class="mobile-tab-btn active" type="button" role="tab" id="mtab-r16" data-round="r16"
+            aria-controls="mobile-bracket-list-container" aria-selected="true">Round of 16</button>
+          <button class="mobile-tab-btn" type="button" role="tab" id="mtab-qf" data-round="qf"
+            aria-controls="mobile-bracket-list-container" aria-selected="false" tabindex="-1">Quarter-finals</button>
+          <button class="mobile-tab-btn" type="button" role="tab" id="mtab-sf" data-round="sf"
+            aria-controls="mobile-bracket-list-container" aria-selected="false" tabindex="-1">Semi-finals</button>
+          <button class="mobile-tab-btn" type="button" role="tab" id="mtab-final" data-round="final"
+            aria-controls="mobile-bracket-list-container" aria-selected="false" tabindex="-1">Final &amp; Champion</button>
         </nav>
 
-        <div class="mobile-bracket-list" id="mobile-bracket-list-container">
+        <div class="mobile-bracket-list" id="mobile-bracket-list-container" role="tabpanel"
+          tabindex="0" aria-labelledby="mtab-r16">
           <!-- Rendered dynamically via JS -->
         </div>
 
@@ -2187,9 +2205,9 @@
       const toast = document.createElement("div");
       toast.className = `toast toast-${type}`;
 
-      let icon = '<i class="fas fa-circle-info"></i>';
-      if (type === "success") icon = '<i class="fas fa-circle-check"></i>';
-      if (type === "warning") icon = '<i class="fas fa-circle-exclamation"></i>';
+      let icon = '<i class="fas fa-circle-info" aria-hidden="true"></i>';
+      if (type === "success") icon = '<i class="fas fa-circle-check" aria-hidden="true"></i>';
+      if (type === "warning") icon = '<i class="fas fa-circle-exclamation" aria-hidden="true"></i>';
 
       toast.innerHTML = `${icon} <span>${escapeHtml(message)}</span>`;
       container.appendChild(toast);
@@ -2308,9 +2326,9 @@
         row.innerHTML = `
           <div class="reorder-controls">
             <button class="reorder-btn reorder-up" ${rank === 1 ? "disabled" : ""}
-              aria-label="Move ${escapeHtml(team.name)} up" title="Move up"><i class="fas fa-chevron-up"></i></button>
+              aria-label="Move ${escapeHtml(team.name)} up" title="Move up"><i class="fas fa-chevron-up" aria-hidden="true"></i></button>
             <button class="reorder-btn reorder-down" ${rank === TEAM_COUNT ? "disabled" : ""}
-              aria-label="Move ${escapeHtml(team.name)} down" title="Move down"><i class="fas fa-chevron-down"></i></button>
+              aria-label="Move ${escapeHtml(team.name)} down" title="Move down"><i class="fas fa-chevron-down" aria-hidden="true"></i></button>
           </div>
           <button type="button" class="lp-rank" aria-label="${escapeHtml(team.name)} is ${ordinal(rank)}. Move it to another position"
             title="Move to a position">${rank}</button>
@@ -3249,29 +3267,78 @@
       });
     }
 
+    /**
+     * Arrow-key navigation across a tablist, ported from the Dev Tools apps' cron controller.
+     *
+     * The markup now declares role="tablist"/role="tab", which promises this
+     * behaviour to assistive tech; without it the widget announces itself as a
+     * tablist and then only answers Tab and clicks.
+     */
+    function bindTabKeyNav(buttons, activate) {
+      const list = Array.from(buttons);
+      if (list.length === 0) return;
+
+      list.forEach((btn, idx) => {
+        btn.addEventListener("keydown", (e) => {
+          let nextIdx = null;
+          if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % list.length;
+          else if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + list.length) % list.length;
+          else if (e.key === "Home") nextIdx = 0;
+          else if (e.key === "End") nextIdx = list.length - 1;
+          if (nextIdx === null) return;
+
+          e.preventDefault();
+          const target = list[nextIdx];
+          target.focus();
+          activate(target);
+        });
+      });
+    }
+
+    /**
+     * Roving tabindex: only the selected tab is in the Tab order, and the rest
+     * are reached with the arrow keys. Selection and focusability move
+     * together, which is what `aria-selected` is claiming.
+     */
+    function markSelected(buttons, selected) {
+      buttons.forEach(b => {
+        const isSelected = b === selected;
+        b.classList.toggle("active", isSelected);
+        b.setAttribute("aria-selected", String(isSelected));
+        if (isSelected) b.removeAttribute("tabindex");
+        else b.setAttribute("tabindex", "-1");
+      });
+    }
+
     function setupTabs() {
-      const tabBtns = document.querySelectorAll(".tab-btn");
+      const tabBtns = Array.from(document.querySelectorAll(".tab-btn"));
       const panels = document.querySelectorAll(".view-panel");
 
-      tabBtns.forEach(btn => {
-        btn.addEventListener("click", () => {
-          tabBtns.forEach(b => b.classList.remove("active"));
-          panels.forEach(p => p.classList.remove("active"));
-          btn.classList.add("active");
-          document.getElementById(btn.getAttribute("data-tab")).classList.add("active");
-          // The bracket panel had no dimensions while it was hidden.
-          if (btn.getAttribute("data-tab") === "knockout-tab") drawBracketConnectors();
-        });
-      });
+      function activateStage(btn) {
+        markSelected(tabBtns, btn);
+        panels.forEach(p => p.classList.remove("active"));
+        document.getElementById(btn.getAttribute("data-tab")).classList.add("active");
+        // The bracket panel had no dimensions while it was hidden.
+        if (btn.getAttribute("data-tab") === "knockout-tab") drawBracketConnectors();
+      }
 
-      document.querySelectorAll(".mobile-tab-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          document.querySelectorAll(".mobile-tab-btn").forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
-          activeMobileRound = btn.getAttribute("data-round");
-          renderMobileBracketView(calculateMatchesData());
-        });
-      });
+      tabBtns.forEach(btn => btn.addEventListener("click", () => activateStage(btn)));
+      bindTabKeyNav(tabBtns, activateStage);
+
+      const mobBtns = Array.from(document.querySelectorAll(".mobile-tab-btn"));
+      const mobPanel = document.getElementById("mobile-bracket-list-container");
+
+      function activateRound(btn) {
+        markSelected(mobBtns, btn);
+        // One panel serves four tabs, so the label follows the selection
+        // rather than being fixed in the markup.
+        if (mobPanel) mobPanel.setAttribute("aria-labelledby", btn.id);
+        activeMobileRound = btn.getAttribute("data-round");
+        renderMobileBracketView(calculateMatchesData());
+      }
+
+      mobBtns.forEach(btn => btn.addEventListener("click", () => activateRound(btn)));
+      bindTabKeyNav(mobBtns, activateRound);
     }
 
     function copyToClipboard(text) {
@@ -3298,11 +3365,46 @@
       }
     }
 
-    function setupUtilityButtons() {
-      document.getElementById("reset-btn").addEventListener("click", () => {
-        if (window.confirm("Reset the whole bracket? Every pick you have made will be cleared.")) {
-          resetToDefaults(true);
+    /**
+     * Two-press confirmation for a destructive control, matching the pattern
+     * the Dev Tools apps already use (js/diff/diff-ui.js).
+     *
+     * Reset used to raise window.confirm(), which prefixes the question with
+     * "rjasti.com says" and breaks out of a page that otherwise controls every
+     * pixel. The armed state lives on the button itself, so the confirmation
+     * is where the action is and nothing has to be imported.
+     */
+    function armTwoPress(btn, armedLabel, onConfirm) {
+      let timer = null;
+      let original = null;
+
+      function disarm() {
+        window.clearTimeout(timer);
+        timer = null;
+        btn.classList.remove("is-confirming");
+        if (original !== null) btn.innerHTML = original;
+        original = null;
+      }
+
+      btn.addEventListener("click", () => {
+        if (!btn.classList.contains("is-confirming")) {
+          original = btn.innerHTML;
+          btn.classList.add("is-confirming");
+          btn.innerHTML = '<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> <span class="action-label">' + armedLabel + "</span>";
+          // An armed button left alone is a trap for the next click, so it
+          // stands down on its own.
+          timer = window.setTimeout(disarm, 4000);
+          return;
         }
+        disarm();
+        onConfirm();
+      });
+    }
+
+    function setupUtilityButtons() {
+      armTwoPress(document.getElementById("reset-btn"), "Confirm reset?", () => {
+        resetToDefaults(true);
+        showToast("Every pick has been cleared.", "success");
       });
 
       document.getElementById("autofill-btn").addEventListener("click", autoFillBracket);
@@ -3336,6 +3438,12 @@
 
     window.addEventListener("DOMContentLoaded", initSystem);
   </script>
+
+  <!-- Shared chrome, the only external script either predictor loads. Same two
+       modules the four Dev Tools apps run, so the shelf is reachable from
+       inside every app and `?` opens the same sheet everywhere. The rest of
+       this page stays inline and self-contained. -->
+  <script type="module" src="js/app-shared/predictor-chrome.js"></script>
 </body>
 
 </html>

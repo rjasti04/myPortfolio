@@ -50,7 +50,7 @@ DIV_PROSE = 4.0
 ROUND_TO = 500
 
 # Where JAVASCRIPT.md's `### `name.js`` headings resolve to on disk.
-JS_ROOTS = ["frontend/js/", "frontend/js/terminal/", "frontend/js/arcade/", "frontend/js/cron/", "frontend/js/crypto/", "frontend/js/diff/", "frontend/js/json/", "frontend/"]
+JS_ROOTS = ["frontend/js/", "frontend/js/app-shared/", "frontend/js/terminal/", "frontend/js/arcade/", "frontend/js/cron/", "frontend/js/crypto/", "frontend/js/diff/", "frontend/js/json/", "frontend/"]
 TEST_ROOTS = ["frontend/tests/", "scripts/tests/"]
 
 # Modules JAVASCRIPT.md deliberately does not cover as ES modules of the SPA.

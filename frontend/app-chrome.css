@@ -241,6 +241,46 @@
   display: none;
 }
 
+/* About panels.
+ *
+ * Four apps now ship an About tab. These rules moved here from diff.css when
+ * the second one arrived - they name only tokens all four already define
+ * (--primary, --text, --border, --bg-subtle, --font-mono, --radius-sm), which
+ * is the same contract the header and footer above run on. */
+.prose-card {
+  gap: 0.85rem;
+  max-width: 74ch;
+}
+
+.prose-card p {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.prose-heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  color: var(--primary);
+}
+
+.prose-list {
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.prose-card code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.05rem 0.3rem;
+}
+
 /* Footer */
 .app-footer {
   margin-top: auto;

@@ -1016,10 +1016,6 @@ body {
   gap: 0.5rem;
 }
 
-.footer-privacy-action {
-  margin-bottom: 0.75rem;
-}
-
 /* Responsive Breakpoints */
 @media (max-width: 960px) {
   :root,
@@ -1335,3 +1331,133 @@ body {
     min-height: 44px;
   }
 }
+
+/* ----------------------------------------------------------------------
+   HMAC row — a fourth card in the hashes stack, set apart by the key and
+   algorithm controls it carries. The three above take no configuration.
+   ---------------------------------------------------------------------- */
+.badge-hmac {
+  background: var(--accent-encoder-soft);
+  color: var(--accent-encoder);
+  border: 1px solid var(--accent-encoder);
+}
+
+.hmac-config {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.hmac-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.hmac-field-narrow {
+  flex: 0 1 10rem;
+}
+
+/* One micro-label treatment, shared by the HMAC fields, the JWT part headings
+   and the claims table header rather than written three times. */
+.hmac-label,
+.jwt-part-title,
+.jwt-claims thead th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ----------------------------------------------------------------------
+   JWT panel
+   ---------------------------------------------------------------------- */
+.jwt-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-md);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: var(--text);
+}
+
+.jwt-notice i {
+  color: var(--color-warning);
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.jwt-input {
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+.jwt-parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem;
+}
+
+.jwt-part {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.jwt-json {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  overflow: auto;
+  max-height: 16rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.jwt-claims-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.jwt-claims {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+}
+
+.jwt-claims th,
+.jwt-claims td {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.jwt-claims tbody th {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.jwt-claims tbody td:last-child {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+

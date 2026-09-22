@@ -9,8 +9,11 @@
  */
 
 import { initCryptoUI, copyWithFeedback } from "./crypto-ui.js";
+import { buildShareUrl, applyShareState } from "./share-state.js";
+import { initAppSwitcher } from "../app-shared/app-switcher.js";
+import { initAppShortcuts } from "../app-shared/app-shortcuts.js";
 
-const VALID_TABS = ["encoders", "hasher", "generators", "time"];
+const VALID_TABS = ["encoders", "hasher", "generators", "jwt", "time", "about"];
 const STORAGE_KEY = "rj-crypto:preferences";
 
 function getStoredPreferences() {
@@ -32,6 +35,9 @@ function savePreferences(prefs) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initAppSwitcher({ current: "crypto" });
+  initAppShortcuts({ focusPrimary: "#encoder-input", tabs: ".mode-tabs .tab-btn" });
+
   // 1. Theme Management
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
   const htmlEl = document.documentElement;
@@ -85,7 +91,9 @@ document.addEventListener("DOMContentLoaded", () => {
     encoders: document.getElementById("panel-encoders"),
     hasher: document.getElementById("panel-hasher"),
     generators: document.getElementById("panel-generators"),
+    jwt: document.getElementById("panel-jwt"),
     time: document.getElementById("panel-time"),
+    about: document.getElementById("panel-about"),
   };
 
   function getActiveTabFromHash() {
@@ -187,9 +195,15 @@ document.addEventListener("DOMContentLoaded", () => {
   switchTab(initialTab);
 
   // 3. Share Link Button
+  //
+  // The settings a link carries are restored before initCryptoUI() runs, so
+  // the workbench renders once, already in the shared shape, rather than
+  // rendering defaults and then visibly correcting itself.
+  applyShareState(document, window.location.href);
+
   const shareBtn = document.getElementById("share-link-btn");
   shareBtn?.addEventListener("click", () => {
-    copyWithFeedback(window.location.href, shareBtn);
+    copyWithFeedback(buildShareUrl(document, window.location.href), shareBtn);
   });
 
   // 4. Initialize UI Logic

@@ -19,6 +19,7 @@ export const meta = {
   name: "Flapper",
   tagline: "One button. Mind the gap.",
   controls: "Space, click, or tap to flap",
+  rules: "A point per gap cleared. Touching a pipe, the ground or the ceiling ends the run.",
 };
 
 /**

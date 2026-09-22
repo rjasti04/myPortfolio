@@ -134,6 +134,38 @@ function parseField(fieldStr, fieldIndex) {
 }
 
 /**
+ * The six macros defined by the standard crontab, and their canonical
+ * five-field forms.
+ *
+ * These are what a real crontab and a Kubernetes CronJob manifest are full of,
+ * so an inspector that rejected them was refusing the expressions people
+ * actually have in front of them. `@reboot` is deliberately absent: it has no
+ * schedule to expand to, and pretending otherwise would be worse than saying
+ * it is not a schedule.
+ */
+export const CRON_MACROS = {
+  "@yearly": "0 0 1 1 *",
+  "@annually": "0 0 1 1 *",
+  "@monthly": "0 0 1 * *",
+  "@weekly": "0 0 * * 0",
+  "@daily": "0 0 * * *",
+  "@midnight": "0 0 * * *",
+  "@hourly": "0 * * * *",
+};
+
+/**
+ * Expand a macro to its five-field form. Anything else is returned unchanged,
+ * so this is safe to run over every expression before parsing.
+ */
+export function expandMacro(cronExpr) {
+  if (typeof cronExpr !== "string") return cronExpr;
+  const token = cronExpr.trim().toLowerCase();
+  return Object.prototype.hasOwnProperty.call(CRON_MACROS, token)
+    ? CRON_MACROS[token]
+    : cronExpr;
+}
+
+/**
  * Validates and parses a 5-part cron expression string.
  * Returns { valid: true, fields, rawParts } or { valid: false, error: string }.
  */
@@ -142,8 +174,29 @@ export function parseCron(cronExpr) {
     return { valid: false, error: "Cron expression must be a string." };
   }
 
-  const parts = cronExpr.trim().split(/\s+/);
+  const raw = cronExpr.trim();
+
+  if (raw.startsWith("@") && !Object.prototype.hasOwnProperty.call(CRON_MACROS, raw.toLowerCase())) {
+    const known = Object.keys(CRON_MACROS).join(", ");
+    return {
+      valid: false,
+      error:
+        raw.toLowerCase() === "@reboot"
+          ? "@reboot fires once at startup — it has no schedule to show."
+          : `Unknown macro ${raw}. The standard ones are ${known}.`,
+    };
+  }
+
+  const parts = expandMacro(raw).split(/\s+/);
   if (parts.length !== 5) {
+    // A 6-field expression is nearly always Quartz, whose extra leading field
+    // is seconds. Naming that is worth more than a field count.
+    if (parts.length === 6 || parts.length === 7) {
+      return {
+        valid: false,
+        error: `Found ${parts.length} fields. This looks like a Quartz expression — drop the leading seconds field to get the standard 5.`,
+      };
+    }
     return {
       valid: false,
       error: `Expected exactly 5 fields (minute, hour, day, month, weekday), but found ${parts.length}.`,
@@ -402,7 +455,78 @@ function getRelativeTimeStr(targetDate, baseDate) {
  * @param {Date} fromDate - baseline date to evaluate from
  * @returns {Array<{ date: Date, iso: string, localDate: string, localTime: string, relative: string }>}
  */
-export function getNextRuns(cronExpr, count = 10, fromDate = new Date()) {
+/**
+ * Timezone plumbing for the trigger timeline.
+ *
+ * A cron expression is wall-clock: `0 9 * * *` means nine in the morning
+ * *where the scheduler runs*, which is very often not where the visitor is.
+ * The rail used to compute in the browser's own zone and say so in a static
+ * pill, which answered a question nobody asks. Answering the real one - "when
+ * does this fire on a server in UTC" - means interpreting the fields in the
+ * chosen zone, not re-labelling a local result.
+ *
+ * The trick throughout is a "wall-clock instant": a timestamp whose *UTC*
+ * fields hold the chosen zone's local fields. Stepping through candidates in
+ * that space lets the existing minute-walk run unchanged with UTC getters, and
+ * only the matches are converted back to real instants.
+ */
+const zoneFormatters = new Map();
+
+function formatterFor(timeZone) {
+  let dtf = zoneFormatters.get(timeZone);
+  if (!dtf) {
+    dtf = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    zoneFormatters.set(timeZone, dtf);
+  }
+  return dtf;
+}
+
+/** The zone's wall clock at `instantMs`, encoded as a UTC timestamp. */
+function wallClockAt(instantMs, timeZone) {
+  const parts = formatterFor(timeZone).formatToParts(new Date(instantMs));
+  const get = (type) => Number(parts.find((p) => p.type === type)?.value);
+  return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
+}
+
+/** How far the zone runs ahead of UTC at `instantMs`, in ms. */
+function zoneOffsetMs(instantMs, timeZone) {
+  return wallClockAt(instantMs, timeZone) - instantMs;
+}
+
+/**
+ * Wall-clock instant -> real instant.
+ *
+ * Two passes, because the offset that converts the wall clock is the offset
+ * *at the answer*, not at the guess - and those differ across a DST boundary.
+ * The second pass lands on the right side of one; a wall time that a spring
+ * forward skipped entirely has no instant, and resolves to the moment the
+ * clock jumped, which is when such a job actually runs.
+ */
+function wallToInstant(wallMs, timeZone) {
+  const guess = wallMs - zoneOffsetMs(wallMs, timeZone);
+  return wallMs - zoneOffsetMs(guess, timeZone);
+}
+
+/** The browser's (or runtime's) own zone, used when the caller names none. */
+export function resolveLocalTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
+export function getNextRuns(cronExpr, count = 10, fromDate = new Date(), timeZone) {
+  const zone = timeZone || resolveLocalTimeZone();
   const parsed = parseCron(cronExpr);
   if (!parsed.valid) {
     return [];
@@ -419,28 +543,30 @@ export function getNextRuns(cronExpr, count = 10, fromDate = new Date()) {
   const dowIsWild = rawParts.dayOfWeek === "*";
 
   const runs = [];
-  const curr = new Date(fromDate.getTime());
+  // `curr` holds the zone's wall clock in its UTC fields, so every getter
+  // below is a UTC getter and every step is a step of the zone's clock.
+  const curr = new Date(wallClockAt(fromDate.getTime(), zone));
 
   // Step 1 minute into the future and reset seconds/ms
-  curr.setSeconds(0, 0);
-  curr.setMinutes(curr.getMinutes() + 1);
+  curr.setUTCSeconds(0, 0);
+  curr.setUTCMinutes(curr.getUTCMinutes() + 1);
 
   // Safety bound: search up to 5 years (avoid infinite loops on impossible dates like Feb 31)
   const maxSearchMinutes = 5 * 365 * 24 * 60;
   let iterations = 0;
 
   while (runs.length < count && iterations < maxSearchMinutes) {
-    const month = curr.getMonth() + 1; // 1-12
+    const month = curr.getUTCMonth() + 1; // 1-12
     if (!monthSet.has(month)) {
       // Jump to the first day of next month at 00:00
-      curr.setMonth(curr.getMonth() + 1, 1);
-      curr.setHours(0, 0, 0, 0);
+      curr.setUTCMonth(curr.getUTCMonth() + 1, 1);
+      curr.setUTCHours(0, 0, 0, 0);
       iterations += 60;
       continue;
     }
 
-    const dom = curr.getDate(); // 1-31
-    const dow = curr.getDay(); // 0-6
+    const dom = curr.getUTCDate(); // 1-31
+    const dow = curr.getUTCDay(); // 0-6
 
     // In POSIX cron:
     // If both DOM and DOW are non-wildcards, match if EITHER matches (logical OR)
@@ -459,42 +585,47 @@ export function getNextRuns(cronExpr, count = 10, fromDate = new Date()) {
 
     if (!dayMatch) {
       // Jump to next day at 00:00
-      curr.setDate(curr.getDate() + 1);
-      curr.setHours(0, 0, 0, 0);
+      curr.setUTCDate(curr.getUTCDate() + 1);
+      curr.setUTCHours(0, 0, 0, 0);
       iterations += 60;
       continue;
     }
 
-    const hour = curr.getHours(); // 0-23
+    const hour = curr.getUTCHours(); // 0-23
     if (!hourSet.has(hour)) {
       // Jump to next hour at :00
-      curr.setHours(curr.getHours() + 1, 0, 0, 0);
+      curr.setUTCHours(curr.getUTCHours() + 1, 0, 0, 0);
       iterations += 30;
       continue;
     }
 
-    const minute = curr.getMinutes(); // 0-59
+    const minute = curr.getUTCMinutes(); // 0-59
     if (minuteSet.has(minute)) {
-      const runDate = new Date(curr.getTime());
+      const runDate = new Date(wallToInstant(curr.getTime(), zone));
+      const dateOpts = {
+        timeZone: zone,
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      };
+      const timeOpts = {
+        timeZone: zone,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      };
       runs.push({
         date: runDate,
+        timeZone: zone,
         iso: runDate.toISOString(),
-        localDate: runDate.toLocaleDateString(undefined, {
-          weekday: "short",
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        }),
-        localTime: runDate.toLocaleTimeString(undefined, {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
+        localDate: runDate.toLocaleDateString(undefined, dateOpts),
+        localTime: runDate.toLocaleTimeString(undefined, timeOpts),
         relative: getRelativeTimeStr(runDate, fromDate),
       });
     }
 
-    curr.setMinutes(curr.getMinutes() + 1);
+    curr.setUTCMinutes(curr.getUTCMinutes() + 1);
     iterations += 1;
   }
 

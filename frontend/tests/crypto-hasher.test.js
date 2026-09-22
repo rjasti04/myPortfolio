@@ -7,7 +7,12 @@ if (!globalThis.crypto || !globalThis.crypto.subtle) {
   globalThis.crypto = webcrypto;
 }
 
-import { computeHash, computeAllHashes } from "../js/crypto/hasher.js";
+import {
+  computeHash,
+  computeAllHashes,
+  computeHmac,
+  HMAC_ALGORITHMS,
+} from "../js/crypto/hasher.js";
 
 test("computeHash: calculates accurate SHA-256, SHA-512, and SHA-1 vectors", async () => {
   const text = "hello world";
@@ -60,4 +65,60 @@ test("computeAllHashes: concurrent execution produces all outputs", async () => 
   assert.ok(res["SHA-1"].hex.length === 40);
   assert.equal(res.metrics.charCount, 11);
   assert.equal(res.metrics.byteLength, 11);
+});
+
+/* --- HMAC ------------------------------------------------------------------
+ *
+ * The three digests above answer "what is the fingerprint of this"; HMAC
+ * answers "was this written by someone holding the key", which is the question
+ * a webhook signature actually asks. Checked against published vectors rather
+ * than against itself, because a keyed digest that is self-consistently wrong
+ * looks exactly like one that is right.
+ */
+
+test("computeHmac matches RFC 4231 test case 2 for SHA-256 and SHA-512", async () => {
+  const key = "Jefe";
+  const data = "what do ya want for nothing?";
+
+  const sha256 = await computeHmac(data, key, "SHA-256");
+  assert.equal(
+    sha256.hex,
+    "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843",
+  );
+
+  const sha512 = await computeHmac(data, key, "SHA-512");
+  assert.equal(
+    sha512.hex,
+    "164b7a7bfcf819e2e395fbe73b56e0a387bd64222e831fd610270cd7ea250554" +
+      "9758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b636e070a38bce737",
+  );
+});
+
+test("computeHmac matches RFC 2202 test case 2 for SHA-1", async () => {
+  const mac = await computeHmac("what do ya want for nothing?", "Jefe", "SHA-1");
+  assert.equal(mac.hex, "effcdf6ae5eb2fa2d27416d5f184df9c259a7c79");
+});
+
+test("a different key gives a different digest over the same message", async () => {
+  const a = await computeHmac("payload", "key-one");
+  const b = await computeHmac("payload", "key-two");
+  assert.notEqual(a.hex, b.hex);
+});
+
+test("HMAC is reported in hex, uppercase hex and base64, all of one value", async () => {
+  const mac = await computeHmac("what do ya want for nothing?", "Jefe", "SHA-256");
+  assert.equal(mac.uppercaseHex, mac.hex.toUpperCase());
+  assert.equal(Buffer.from(mac.base64, "base64").toString("hex"), mac.hex);
+});
+
+test("an unsupported HMAC algorithm is refused rather than silently downgraded", async () => {
+  await assert.rejects(() => computeHmac("x", "k", "MD5"), /Unsupported HMAC algorithm/);
+});
+
+test("every offered HMAC algorithm actually works", async () => {
+  for (const algorithm of HMAC_ALGORITHMS) {
+    const mac = await computeHmac("message", "key", algorithm);
+    assert.match(mac.hex, /^[0-9a-f]+$/);
+    assert.equal(mac.algorithm, algorithm);
+  }
 });

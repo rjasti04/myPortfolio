@@ -377,16 +377,11 @@
      preview stops carrying any detail. It is a layout constant, not a spacing
      rung, which is why it is named here rather than rounded onto --space-*.
 
-     --app-media-scrim is the veil the preview sits under at rest. The seven
-     PNGs are dark marketing cards that each bake in their own eyebrow, title
-     and blurb at a larger size and higher contrast than the tile's own - so
-     unveiled they beat the tile's <h3>, and the visitor reads two different
-     names for the same app. It is colour, so it carries a dark-theme
-     counterpart: on the dark ground the preview and the tile body are nearly
-     the same value, and the scrim is what re-separates them once the media's
-     border-bottom is gone.  */
+     --app-media-scrim is gone with the veil it drove: the tiles now show
+     screenshots of the apps rather than marketing cards, so there is no
+     baked-in headline left to hold back. See the note on .app-tile-media in
+     #region APPS.  */
   --app-tile-min: 320px;
-  --app-media-scrim: hsl(220, 39%, 11%, 0.28);
 
   /* ---- Measure ------------------------------------------------------------
      One reading width for long-form copy. The Experience section stacked two:
@@ -496,7 +491,6 @@ body.dark-theme {
   --surface-soft: hsl(210, 30%, 12%, 0.68);
   --card-bg: var(--surface);
   --skill-bg: hsl(210, 20%, 14%, 0.72);
-  --app-media-scrim: hsl(220, 39%, 4%, 0.44);
   --wash-raise: hsl(0, 0%, 100%, 0.06);
   --wash-sink: hsl(0, 0%, 0%, 0.28);
   --select-bg: #0f1419;
@@ -8138,33 +8132,17 @@ a.app-tile:active {
   }
 }
 
-/* The previews are dark marketing cards that each carry their OWN eyebrow,
-   title and blurb, rendered larger and with more contrast than the tile's.
-   Left unveiled they win, and the tile reads as two competing headlines - see
-   the note in index.html above this section. Holding them back one step is the
-   most this stylesheet can do about that; the real fix is re-rendering the
-   PNGs without baked-in copy. The veil lifts on hover, which gives the pointer
-   somewhere useful to go now that the image no longer scales. */
-.app-tile-media::after {
-  content: '';
-  position: absolute;
-  inset: 0;
+/* The scrim that used to live here is gone. It existed because each preview
+   was a marketing card carrying its OWN eyebrow, title and blurb, larger and
+   higher-contrast than the tile's - so unveiled it beat the tile's <h3> and
+   the visitor read two names for the same app. Its own comment named the real
+   fix, and this is it: scripts/generate_app_tiles.py now screenshots each
+   app's actual UI, so there is no second headline left to hold back. The
+   marketing cards survive as `*-preview.png`, which is still the right thing
+   for og:image - a social card has no page around it to say the name.
 
-  /* Three layers share this box and the order is load-bearing: the scrim sits
-     above the image (1), the loading sweep above the scrim (2), and the error
-     cover above both (3). Anything else and the veil meant for a photograph
-     ends up tinting the empty placeholder grey - which is what a shelf looks
-     like when its images are still in flight, and exactly the state this pass
-     set out to stop looking broken. */
-  z-index: 1;
-  background: var(--app-media-scrim);
-  transition: opacity var(--motion-medium) var(--ease-standard);
-}
-
-a.app-tile:hover .app-tile-media::after,
-a.app-tile:focus-visible .app-tile-media::after {
-  opacity: 0;
-}
+   Two layers still share this box and the order is still load-bearing: the
+   loading sweep sits above the image (2) and the error cover above both (3). */
 
 /* `position: relative` with NO z-index, deliberately: at `z-index: 0` the
    image would open a stacking context and trap the error cover below the
@@ -8235,6 +8213,36 @@ a.app-tile:focus-visible .app-tile-media::after {
   font-size: var(--text-sm);
   line-height: var(--leading-body);
   color: var(--muted);
+}
+
+/* What the app costs to try, in the place the decision is actually made.
+   The shelf lede promises "runs entirely in your browser" once, in prose, at
+   the top - and a visitor choosing between seven tiles got no per-tile signal
+   of sign-in, storage or where the data goes. The apps themselves make a point
+   of this in every footer.
+
+   Not a control: these are labels on a link, so they take .app-filter-chip's
+   metrics without its min-height (44px is a touch target, and nothing here is
+   touchable) and without its cursor. They are markup rather than rendered from
+   a data- attribute so they survive with scripting off, which is the same
+   no-JS state the grid itself already degrades to. */
+.app-tile-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.app-tile-trait {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2xs) var(--space-sm);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  line-height: 1.5;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
 }
 
 /* The primary action, and now the only filled element in the tile - it was

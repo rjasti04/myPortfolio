@@ -23,6 +23,7 @@ import { renderTree } from "./json-tree.js";
 import { toYaml, fromYaml } from "./json-yaml.js";
 import { toCsv, fromCsv } from "./json-csv.js";
 import { toTypeScript } from "./json-typescript.js";
+import { compareDocuments, compareRows } from "./json-compare.js";
 
 /** Paste and file-drop ceiling. Past this the tab stops being usable. */
 const MAX_INPUT_BYTES = 5 * 1024 * 1024;
@@ -211,6 +212,7 @@ export function initWorkbench(config = {}) {
     } else {
       setStatus(sourceStatus, "error", `Line ${result.error.line}, column ${result.error.column} — ${result.error.message}`);
     }
+    syncCollapseAvailability();
     refresh();
   }
 
@@ -234,6 +236,45 @@ export function initWorkbench(config = {}) {
 
   const sampleBtn = $("btn-sample");
   if (sampleBtn) sampleBtn.addEventListener("click", () => setDocument(SAMPLE));
+
+  /* --- source collapse -------------------------------------------------
+   *
+   * The source card sits above the panels by design - all five tabs read it -
+   * but it is a textarea plus a dropzone plus a status strip, so on a phone
+   * the output of whichever tab you are using started below roughly 400px of
+   * input furniture, every time, on every tab. Once a document parses, the
+   * card can fold down to its status strip, which already carries the summary
+   * a collapsed card needs.
+   *
+   * The control appears only when there is something to collapse: offering to
+   * hide an empty textarea would be offering to hide the thing you came to
+   * type in.
+   */
+  const sourceCard = $("source-card");
+  const sourceBody = $("source-body");
+  const sourceCollapseBtn = $("btn-source-collapse");
+  let sourceCollapsed = false;
+
+  function setSourceCollapsed(collapsed) {
+    if (!sourceBody || !sourceCollapseBtn) return;
+    sourceCollapsed = collapsed;
+    sourceBody.hidden = collapsed;
+    sourceCard?.classList.toggle("is-collapsed", collapsed);
+    sourceCollapseBtn.setAttribute("aria-expanded", String(!collapsed));
+    const icon = sourceCollapseBtn.querySelector("i");
+    if (icon) icon.className = collapsed ? "fas fa-chevron-down" : "fas fa-chevron-up";
+    const label = sourceCollapseBtn.querySelector(".collapse-label");
+    if (label) label.textContent = collapsed ? "Show source" : "Collapse";
+  }
+
+  function syncCollapseAvailability() {
+    if (!sourceCollapseBtn) return;
+    const hasDocument = state.raw.trim() !== "";
+    sourceCollapseBtn.hidden = !hasDocument;
+    if (!hasDocument && sourceCollapsed) setSourceCollapsed(false);
+  }
+
+  sourceCollapseBtn?.addEventListener("click", () => setSourceCollapsed(!sourceCollapsed));
 
   /* --- file drop ------------------------------------------------------- */
 
@@ -660,18 +701,125 @@ export function initWorkbench(config = {}) {
     return { yaml: "document.yaml", csv: "document.csv", typescript: "types.ts" }[format] ?? "document.txt";
   });
 
+  /* --- compare ---------------------------------------------------------- */
+
+  const compareInput = $("compare-input");
+  const compareStatus = $("compare-status");
+  const compareOutput = $("compare-output");
+  const compareIgnoreOrder = $("compare-ignore-key-order");
+  const compareSwap = $("btn-compare-swap");
+
+  function renderComparePanel() {
+    if (!compareOutput) return;
+    compareOutput.textContent = "";
+
+    const other = compareInput ? compareInput.value : "";
+    if (state.raw.trim() === "" || other.trim() === "") {
+      setStatus(
+        compareStatus,
+        "idle",
+        state.raw.trim() === ""
+          ? "Waiting for a source document."
+          : "Paste a second document to compare it with the source."
+      );
+      return;
+    }
+
+    const comparison = compareDocuments(state.raw, other, {
+      indent: currentIndent() || 2,
+      ignoreKeyOrder: compareIgnoreOrder ? compareIgnoreOrder.checked : true,
+    });
+
+    if (!comparison.ok) {
+      const side = comparison.leftError ? "source" : "second";
+      const err = comparison.leftError ?? comparison.rightError;
+      setStatus(compareStatus, "error", `The ${side} document is not valid JSON — line ${err.line}, column ${err.column}.`);
+      return;
+    }
+
+    if (comparison.identical) {
+      const ordered = compareIgnoreOrder && compareIgnoreOrder.checked;
+      setStatus(
+        compareStatus,
+        "ok",
+        ordered
+          ? "Identical. The two documents describe the same data, whatever order their keys are in."
+          : "Identical."
+      );
+      return;
+    }
+
+    const { additions, deletions, modifications } = comparison.stats;
+    setStatus(
+      compareStatus,
+      "warn",
+      `${modifications} changed, ${additions} added, ${deletions} removed.`
+    );
+
+    const list = document.createElement("div");
+    list.className = "compare-rows";
+
+    for (const row of compareRows(comparison.result)) {
+      const line = document.createElement("div");
+      line.className = `compare-row compare-row--${row.type}`;
+
+      const gutter = document.createElement("span");
+      gutter.className = "compare-gutter";
+      gutter.textContent =
+        row.type === "hunk" ? "" : `${row.left ?? ""}\u2002${row.right ?? ""}`.trim();
+
+      const marker = document.createElement("span");
+      marker.className = "compare-marker";
+      marker.setAttribute("aria-hidden", "true");
+      marker.textContent = { insert: "+", delete: "-", equal: " ", hunk: "@" }[row.type] ?? " ";
+
+      const text = document.createElement("span");
+      text.className = "compare-text";
+      // The documents are attacker-supplied by definition, so every line lands
+      // as text and never as markup.
+      text.textContent = row.text;
+
+      line.append(gutter, marker, text);
+      list.appendChild(line);
+    }
+
+    compareOutput.appendChild(list);
+  }
+
+  if (compareInput) {
+    compareInput.addEventListener("input", () => {
+      window.clearTimeout(compareInput.dataset.timer);
+      compareInput.dataset.timer = String(window.setTimeout(renderComparePanel, DEBOUNCE_MS));
+    });
+  }
+  compareIgnoreOrder?.addEventListener("change", renderComparePanel);
+  compareSwap?.addEventListener("click", () => {
+    if (!compareInput || !sourceInput) return;
+    const held = compareInput.value;
+    compareInput.value = sourceInput.value;
+    setDocument(held);
+    renderComparePanel();
+  });
+
   /* --- tabs, refresh, clear -------------------------------------------- */
 
   function refresh() {
     if (activeTab === "format") renderFormatPanel();
     else if (activeTab === "query") renderQueryPanel();
     else if (activeTab === "tree") renderTreePanel();
+    else if (activeTab === "compare") renderComparePanel();
+    else if (activeTab === "about") return; // static prose; nothing to redraw
     else renderConvertPanel();
   }
 
   function setActiveTab(tab) {
+    const changed = tab !== activeTab;
     activeTab = tab;
     if (typeof config.onTabChange === "function") config.onTabChange(tab);
+    // Auto-collapse on a tab change, once there is a document worth collapsing.
+    if (changed && sourceCollapseBtn && !sourceCollapseBtn.hidden && tab !== "format") {
+      setSourceCollapsed(true);
+    }
     refresh();
   }
 
@@ -679,6 +827,8 @@ export function initWorkbench(config = {}) {
     if (sourceInput) sourceInput.value = "";
     if (queryInput) queryInput.value = "";
     if (convertSource) convertSource.value = "";
+    if (compareInput) compareInput.value = "";
+    setSourceCollapsed(false);
     if (repairLog) repairLog.textContent = "";
     selectedPath = [];
     formatText = "";

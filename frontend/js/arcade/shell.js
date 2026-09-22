@@ -28,7 +28,9 @@
 import { suspendLoops } from "./engine.js";
 import { setInputBlocked } from "./input.js";
 import { createAudio } from "./audio.js";
-import { readBest, writeBest } from "./storage.js";
+import { readBest, writeBest, readAllBests, clearAllBests } from "./storage.js";
+import { initAppSwitcher } from "../app-shared/app-switcher.js";
+import { initAppShortcuts } from "../app-shared/app-shortcuts.js";
 import * as game2048 from "./game-2048.js";
 import * as tetris from "./game-tetris.js";
 import * as flapper from "./game-flapper.js";
@@ -71,6 +73,10 @@ const overlayScore = document.querySelector("#overlay-score");
 const overlayNote = document.querySelector("#overlay-note");
 const pausePanel = document.querySelector("#pause-panel");
 const pauseControls = document.querySelector("#pause-controls");
+const pauseRules = document.querySelector("#pause-rules");
+const launcherSummary = document.querySelector("#launcher-summary");
+const launcherSummaryText = document.querySelector("#launcher-summary-text");
+const clearScoresButton = document.querySelector("#clear-scores");
 const pauseButton = document.querySelector("#pause-toggle");
 const pauseLabel = pauseButton.querySelector('[data-role="label"]');
 const muteButton = document.querySelector("#mute");
@@ -127,6 +133,40 @@ for (const game of GAMES) {
     <span class="launch-best" data-role="best"></span>`;
   card.addEventListener("click", () => openGame(game));
   grid.append(card);
+}
+
+/**
+ * The one line the launcher was missing: how much of the arcade you have
+ * actually played, and which run was the best of them.
+ *
+ * The data was already in storage under one prefix and already being read to
+ * paint six separate bubbles; nothing tied them together, so there was no
+ * "4 of 6 played" anywhere and no way to drop a score you would rather forget.
+ *
+ * The strip stays hidden until something has been played - an empty arcade
+ * does not need a summary of itself.
+ */
+function refreshSummary() {
+  if (!launcherSummary || !launcherSummaryText) return;
+
+  const bests = readAllBests();
+  // Only games still on the shelf count towards "of 6".
+  const played = GAMES.filter((game) => bests[game.meta.id] > 0);
+
+  if (played.length === 0) {
+    launcherSummary.hidden = true;
+    launcherSummaryText.textContent = "";
+    return;
+  }
+
+  const top = played.reduce((best, game) =>
+    bests[game.meta.id] > bests[best.meta.id] ? game : best,
+  );
+
+  launcherSummary.hidden = false;
+  launcherSummaryText.textContent =
+    `${played.length} of ${GAMES.length} played · best run: ` +
+    `${top.meta.name} ${bests[top.meta.id].toLocaleString()}`;
 }
 
 /**
@@ -227,6 +267,13 @@ function enter(game) {
   stageTitle.textContent = game.meta.name;
   stageControls.textContent = game.meta.controls;
   pauseControls.textContent = game.meta.controls;
+  // The pause panel is already described as the how-to sheet; `rules` is what
+  // makes that true. Without it the only way to learn what scores was to start
+  // playing and then stop.
+  if (pauseRules) {
+    pauseRules.textContent = game.meta.rules ?? "";
+    pauseRules.hidden = !game.meta.rules;
+  }
   document.title = `${game.meta.name} · ${BASE_TITLE}`;
   // The stylesheet keys the stage's accent off this, so the chrome takes the
   // colour the game's card already wears.
@@ -274,6 +321,7 @@ function leave() {
   document.title = BASE_TITLE;
   current = null;
   refreshBests();
+  refreshSummary();
   // Return focus to the card that was launched, not to the top of the page.
   grid.querySelector(`[data-game="${left?.meta.id}"]`)?.focus();
 }
@@ -406,6 +454,57 @@ window.addEventListener("blur", pause);
 syncMuteButton();
 syncPauseButton();
 refreshBests();
+refreshSummary();
 // A fragment that names a game is honoured on load, so `/arcade#snake` is a
 // link to that game rather than to the launcher.
 route();
+
+/**
+ * Clear my scores.
+ *
+ * Two presses, like every other destructive control across the apps - a
+ * single click that silently erased six personal bests would be the wrong
+ * trade for a button that sits next to them. The sound preference shares the
+ * namespace and is deliberately left alone.
+ */
+if (clearScoresButton) {
+  let clearTimer = null;
+  const restingLabel = clearScoresButton.textContent;
+
+  clearScoresButton.addEventListener("click", () => {
+    if (!clearScoresButton.classList.contains("is-confirming")) {
+      clearScoresButton.classList.add("is-confirming");
+      clearScoresButton.textContent = "Confirm — clear all six?";
+      clearTimer = window.setTimeout(() => {
+        clearScoresButton.classList.remove("is-confirming");
+        clearScoresButton.textContent = restingLabel;
+      }, 4000);
+      return;
+    }
+
+    window.clearTimeout(clearTimer);
+    clearScoresButton.classList.remove("is-confirming");
+    clearScoresButton.textContent = restingLabel;
+
+    const removed = clearAllBests();
+    refreshBests();
+    refreshSummary();
+    announce(
+      removed === 0
+        ? "There were no scores to clear."
+        : `Cleared ${removed} saved score${removed === 1 ? "" : "s"}.`,
+    );
+  });
+}
+
+/* Shared chrome: the shelf, reachable from the header of every app.
+
+   The shortcuts sheet is launcher-only. While a game is on screen Escape
+   belongs to the shell - it pauses, resumes or leaves - and the two keys the
+   arcade owns are listed in the sheet as documentation rather than bound a
+   second time. `suppress` is what keeps that honest. */
+initAppSwitcher({ current: "arcade" });
+initAppShortcuts({
+  suppress: () => !stage.hidden,
+  extra: [{ keys: ["Esc"], label: "Pause, resume, or leave a game" }],
+});

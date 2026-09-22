@@ -58,3 +58,53 @@ export function writeMuted(muted) {
     // Preference is session-only. Not worth surfacing.
   }
 }
+
+/**
+ * Every game that has a stored best, as `{ [gameId]: score }`.
+ *
+ * Reads the namespace rather than a list of known ids, so a game that is
+ * renamed or removed leaves its key here to be cleared rather than stranded.
+ */
+export function readAllBests() {
+  const out = {};
+  try {
+    const prefix = `${PREFIX}best:`;
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      const value = Number.parseInt(window.localStorage.getItem(key) ?? "", 10);
+      if (Number.isFinite(value) && value > 0) out[key.slice(prefix.length)] = value;
+    }
+  } catch {
+    // Storage blocked: no saved scores, which is the same answer as none set.
+  }
+  return out;
+}
+
+/**
+ * Forget every stored best.
+ *
+ * A prefix sweep, not a list of ids, for the same reason as above. The sound
+ * preference lives under the same namespace and is deliberately left alone:
+ * "clear my scores" is not "reset the arcade".
+ *
+ * Returns the number of scores removed, so the caller can say what it did.
+ */
+export function clearAllBests() {
+  let removed = 0;
+  try {
+    const prefix = `${PREFIX}best:`;
+    const doomed = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key && key.startsWith(prefix)) doomed.push(key);
+    }
+    for (const key of doomed) {
+      window.localStorage.removeItem(key);
+      removed += 1;
+    }
+  } catch {
+    // Nothing was readable, so nothing was stored to remove.
+  }
+  return removed;
+}

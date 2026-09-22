@@ -19,7 +19,11 @@
   }
 
   function getValidHashTarget(hash, getElementById, fallback = "about") {
-    const target = (hash || "").replace(/^#/, "").trim();
+    // Only the first segment names a section. Anything after a slash is state
+    // for a module inside it - "#apps/dev-tools" is the apps section with the
+    // Dev Tools filter applied - and no section id contains a slash, so this
+    // cannot swallow a real target.
+    const target = (hash || "").replace(/^#/, "").split("/")[0].trim();
 
     if (target && getElementById(target)) {
       return target;

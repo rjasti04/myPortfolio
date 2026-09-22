@@ -94,7 +94,7 @@ dropdown in the header (`setupNavUI`).
 Loaded as its own esbuild entry so the account UI is available without waiting
 for `main.js`.
 
-### `app-logic.js` (42 lines)
+### `app-logic.js` (46 lines)
 
 A **classic script**, not a module. Assigns `window.AppLogic` and also exports
 via `module.exports` so the Node test runner can `require` it.
@@ -672,7 +672,7 @@ only for the length of a live pull — left bound on `document` it would make
 every touch scroll on the site wait for JS. It cancels only while a pull that
 started at `scrollTop === 0` is still heading down.
 
-### `apps-filter.js` (94 lines)
+### `apps-filter.js` (140 lines)
 
 `initAppsFilter()` — a category filter over the Apps shelf. The seven tiles
 already displayed a category eyebrow (Football, Games, Dev Tools, Security);
@@ -920,6 +920,60 @@ colours read from CSS custom properties so it matches the active accent.
 
 ---
 
+## Shared app chrome (`js/app-shared/`)
+
+Two modules every standalone app runs, and the one entry point that carries
+them into the two football predictors. They live outside the per-app folders
+because they are genuinely shared - `docs/review/apps-uiux.md` H2 and H3 found
+seven apps that were dead ends and one app (`/diff`) whose keyboard shortcuts
+nothing documented, and the fix for both is one implementation rather than
+seven.
+
+They are drawn with `frontend/app-shared.css`, which names only the
+seven-token chrome contract (`--chrome-bg`, `--chrome-border`, `--chrome-text`,
+`--chrome-muted`, `--chrome-accent`, `--chrome-action-bg`,
+`--chrome-action-hover`) that all seven apps already publish. That is what lets
+one stylesheet sit on seven different palettes, the arcade's included, without
+naming a single app-specific token. `app-chrome.css` could not carry them:
+only three of the seven apps link it.
+
+The build treats the six standalone-app entries as one esbuild `splitting`
+group, so `app-switcher.js` and `app-shortcuts.js` are emitted once and shared
+rather than inlined into each app's bundle.
+
+### `app-switcher.js` (126 lines)
+
+Turns each app's Back control into a popover listing all seven apps plus
+Portfolio home and the shelf, with the current one marked `aria-current="page"`
+rather than removed - a menu whose contents change per page has to be re-read
+on every page. Back keeps its place and its press, so nothing that was one
+press away becomes two. `Esc` closes and returns focus to the trigger;
+clicking outside dismisses. The `APPS` array is the single list of what the
+shelf holds, and `app-shared.test.js` asserts it against `index.html` so the
+two cannot drift.
+
+### `app-shortcuts.js` (214 lines)
+
+Binds `?` (the sheet), `/` (focus the primary input) and `1`-`9` (switch tab),
+and builds the sheet **from the same table that does the binding** - a
+hand-written sheet is a second source of truth that starts lying the first time
+a shortcut is renamed. Per-app extras register through the same table, which is
+how `/diff`'s `j`/`k` appear in its sheet and nowhere else. An entry with no
+`run` is documentation only, for a key the app itself owns. `suppress` hands
+the keyboard back entirely: `/arcade` passes one for the time a game is on
+screen, because `Escape` belongs to the shell then. The "not while you are
+typing" guard (text fields, `contenteditable`, any modifier) lives here once
+rather than in each app.
+
+### `predictor-chrome.js` (25 lines)
+
+`/ucl` and `/worldcup` keep everything else inline, so they have no module
+entry of their own to hang the two above on. This is it, and the only external
+script either page loads. Which app it is comes from the URL rather than a
+per-page parameter, so both pages load byte-identical script.
+
+---
+
 ## Arcade (`/arcade`)
 
 Its own page, its own entry point, its own esbuild pass. Nothing here is
@@ -944,7 +998,7 @@ leaving the tab.
 The rules of each game are pure exported functions, tested directly in
 `arcade.test.js` without a canvas. Everything else in a game module is drawing.
 
-### `shell.js` (411 lines)
+### `shell.js` (510 lines)
 
 The page's entry point. Builds the launcher from each game module's own `meta`,
 so adding a game is an import and one array entry. Owns the game lifecycle, the
@@ -1008,7 +1062,7 @@ while it is still moving and, on a mouse, before any button is pressed.
 each game instead is the check one game forgets, and the symptom is a piece
 that hard drops behind a pause panel.
 
-### `storage.js` (60 lines)
+### `storage.js` (110 lines)
 
 Best scores and the sound preference, every access wrapped. `localStorage` does
 not merely read empty in a private window — the accessor itself throws — and an
@@ -1022,14 +1076,14 @@ gesture and stays suspended — present, accepting `start()`, silent. Perfect
 Stack drops walk up a pentatonic scale, which is what turns a streak into an
 audible chord progression.
 
-### `game-2048.js` (335 lines)
+### `game-2048.js` (337 lines)
 
 `collapse` and `move` are the rules: a merged tile cannot merge again within
 the same move, and a move that changes nothing must not spawn. `move` also
 returns each tile's journey, which is what lets the renderer animate a slide
 rather than teleport tiles.
 
-### `game-tetris.js` (616 lines)
+### `game-tetris.js` (618 lines)
 
 Ten by twenty, seven-bag randomiser, SRS rotation with wall kicks. The kick
 tables are stored in the standard's own coordinates, where `+y` is up, and
@@ -1039,7 +1093,7 @@ refuses to turn against a wall, which reads as an unresponsive game rather than
 a rule. Seven-bag rather than uniform random because uniform produces droughts
 long enough that players reasonably believe the game is cheating.
 
-### `game-flapper.js` (282 lines)
+### `game-flapper.js` (283 lines)
 
 A flappy-style game with its own name and its own canvas-drawn art. Simulated
 in a fixed 400x600 space and scaled to the canvas, so it is not harder on a
@@ -1047,7 +1101,7 @@ tall phone than a short laptop window. The ceiling clamps rather than kills —
 every column reaches down from it, so hugging the roof is still paid for at the
 next gap.
 
-### `game-snake.js` (383 lines)
+### `game-snake.js` (384 lines)
 
 The hazard is the trail the player left, which is the one shape the other four
 do not have. `step` is where the game lives: the tail vacates its cell on the
@@ -1064,7 +1118,7 @@ bleed their sky to the canvas corners so a tall phone does not letterbox them;
 here the edge of the board *is* the hazard, and a field carried on past the
 last row would be painting open ground over a wall that kills.
 
-### `game-stack.js` (318 lines)
+### `game-stack.js` (320 lines)
 
 Flat 2D side view: blocks slide, a drop trims the overhang, and the trimmed
 width is what the next block inherits. `place()` holds that geometry. A drop
@@ -1072,7 +1126,7 @@ within a few units of flush snaps perfect, because without the tolerance
 "perfect" is unreachable on a touchscreen and the width reward that keeps long
 runs alive would be dead code.
 
-### `game-breaker.js` (531 lines)
+### `game-breaker.js` (533 lines)
 
 The only one of the six the player *aims*: `paddleBounce` takes the outgoing
 angle from where on the paddle the ball struck, not from the angle it arrived
@@ -1102,15 +1156,15 @@ resolved in as many slices as that takes.
 
 A standalone visual developer utility for back-end engineers and technical visitors. Like the Arcade, it lives on its own page (`frontend/cron.html`) with its own entry point (`js/cron/cron-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
 
-### `cron-main.js` (281 lines)
+### `cron-main.js` (298 lines)
 
 The application controller. Binds the tab switcher between Cron and Regex views, synchronizes state to the URL hash and query string (`#cron?expr=...` and `#regex?pattern=...&flags=...`), handles clipboard sharing with visual toast feedback, and persists user inputs in `localStorage`.
 
-### `cron-parser.js` (502 lines)
+### `cron-parser.js` (633 lines)
 
 Pure mathematical parser and validator for standard 5-part POSIX cron schedules (`minute hour day-of-month month day-of-week`). Evaluates step expressions, lists, ranges, and month/weekday names. Provides natural language translation (`translateCron`) and calculates the next sequential trigger timestamps (`getNextRuns`) with leap year and calendar edge awareness.
 
-### `cron-ui.js` (431 lines)
+### `cron-ui.js` (486 lines)
 
 DOM controller for the Cron Visualizer view. Renders quick-select preset chips, an interactive 5-part picker with synchronized dropdowns, real-time error banner, human translation card, and next-10 scheduled triggers timeline with relative countdown badges.
 
@@ -1128,11 +1182,11 @@ DOM controller for the Regex Visualizer view. Binds pattern input and flag toggl
 
 A standalone client-side cryptographic and data transformation workbench for software engineers and technical visitors. Like the Logic Inspector and Arcade, it lives on its own page (`frontend/crypto.html`) with its own entry point (`js/crypto/crypto-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
 
-### `crypto-main.js` (197 lines)
+### `crypto-main.js` (211 lines)
 
 The application controller. Manages tab switching across `#encoders`, `#hasher`, `#generators`, and `#time`, synchronizes state with the URL hash, handles dark/light theme toggling, provides shareable link copying, and initializes workbench UI handlers.
 
-### `crypto-ui.js` (571 lines)
+### `crypto-ui.js` (692 lines)
 
 DOM controller for the Crypto & Encoders workbench. Manages live text encoding/decoding, file drag-and-drop for Base64 Data URIs (enforcing the 5 MB limit), real-time cryptographic hash updates, generator controls with customizable character sets, live ticking clock, and the "Clear All" privacy wipe action.
 
@@ -1140,9 +1194,31 @@ DOM controller for the Crypto & Encoders workbench. Manages live text encoding/d
 
 Bidirectional transformation utilities for UTF-8 Base64, URL encoding, byte-level Hexadecimal, HTML entity escaping/restoration, and 8-bit Binary representation. Includes FileReader integration for local file conversion to Base64 Data URIs.
 
-### `hasher.js` (94 lines)
+### `hasher.js` (150 lines)
 
 Cryptographic hash computation module leveraging native `window.crypto.subtle.digest`. Supports real-time asynchronous computation of SHA-256, SHA-512, and SHA-1 with character and UTF-8 byte metric calculations.
+
+### `jwt.js` (122 lines)
+
+JSON Web Token decoder. Splits on `.`, Base64URL-decodes the header and
+payload, annotates the registered claims and renders `exp`, `iat` and `nbf` -
+NumericDate values, so seconds rather than milliseconds - through
+`time-workbench.js`'s relative formatter. Decode only, and deliberately so: the
+panel states that it does not verify the signature, because verification needs
+the signing key and a page that checks a key pasted in beside the token has
+told you nothing. Never throws - a malformed token returns
+`{ valid: false, error }`, because pasting something truncated is the normal
+way to arrive here.
+
+### `share-state.js` (85 lines)
+
+The Share button's URL. Encodes the workbench's *shape* - which tab, which
+encoder format, which generator and how much of it - into `searchParams`, the
+way `/cron` does, and restores it on load. What deliberately does not travel is
+anything typed: plaintext waiting to be hashed, an HMAC key, a token, a
+generated secret. The allowlist is closed-set controls only (`<select>` and a
+range), and a value the page does not actually offer is dropped rather than
+assigned, since a `<select>` accepts an unknown value by going blank.
 
 ### `generators.js` (256 lines)
 
@@ -1162,13 +1238,27 @@ The structural difference from `/crypto` is that its tabs are **not** independen
 
 Two invariants hold across the whole directory. **No `eval` or `new Function`**: query filters are tokenised, parsed into an AST and walked by a `switch`, because the page ships `script-src 'self'` with no `'unsafe-eval'` and almost every JSONPath library implements filters with an evaluator. **No `innerHTML`**: every document-derived string reaches the DOM through `textContent`, so no sanitiser is needed — no HTML string is ever built.
 
-### `json-main.js` (203 lines)
+### `json-main.js` (208 lines)
 
 The application controller. Resolves the theme from the shared `theme` key before the panels render, manages the four deep-linkable tabs (`#format`, `#query`, `#tree`, `#convert`) with arrow-key roving tabindex and `hashchange` sync, persists preferences, and wraps startup in an error boundary. Document text is persisted **only** while the "Remember my document" switch is on, and that switch defaults to off.
 
-### `json-ui.js` (700 lines)
+### `json-ui.js` (850 lines)
 
 DOM controller for the workbench. Owns the source pane, the debounced parse, drag-and-drop with the 5 MB cap, the repair log, copy-and-download on every output, and the four panel renderers. Holds no parsing logic of its own. Its `writeJson()` colouriser appends `<span>` elements it creates itself, so JSON containing markup is coloured without ever becoming nodes.
+
+### `json-compare.js` (136 lines)
+
+Structural JSON comparison, which closes the limitation `/diff`'s own About tab
+states about itself: "two JSON documents that differ just in key order are
+reported as different." Canonicalises both sides - keys sorted at every depth,
+one fixed indent, array order untouched because in JSON it means something -
+and runs `js/diff/diff-engine.js` over the two rendered strings.
+
+That import across app folders is the one structural decision this workbench
+takes deliberately: `diffLines` is a pure function over two strings with no DOM
+and no diff-page state, so the alternative was a second copy of Myers in this
+folder. `compareRows` flattens the hunks for painting and caps the row count
+**per line**, not per change - a single `replace` can carry hundreds of lines.
 
 ### `json-parser.js` (578 lines)
 
@@ -1222,14 +1312,14 @@ that the visitor has asked to see rendered, which is the exact shape of a
 stored-XSS bug, so every segment is a `createElement` plus `textContent` and no
 sanitiser is needed — no HTML string is ever built.
 
-### `diff-main.js` (145 lines)
+### `diff-main.js` (178 lines)
 
 The application controller. Resolves the theme from the shared `theme` key,
 manages the three deep-linkable tabs (`#compare`, `#patch`, `#about`) with
 arrow-key roving tabindex and `hashchange` sync, and wraps startup in an error
 boundary.
 
-### `diff-ui.js` (547 lines)
+### `diff-ui.js` (602 lines)
 
 DOM controller. Owns both panes, the debounced recompute, drag-and-drop with the
 5 MB cap, the normalisation toggles, the split/unified switch, change navigation

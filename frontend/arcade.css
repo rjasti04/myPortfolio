@@ -366,6 +366,51 @@ a {
 
 /* ---- Launcher --------------------------------------------------------- */
 
+/* The rollup across all six, above the grid. One line and one control: the
+   per-game bubbles already say what each score is, so this only has to say
+   how far through the shelf you are and which run was the best of them. */
+.launcher-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 0 0 22px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.launcher-summary-text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn--quiet {
+  margin-left: auto;
+  font-size: 12px;
+  padding: 8px 14px;
+  min-height: 36px;
+  color: var(--muted);
+  background: transparent;
+  box-shadow: none;
+}
+
+.btn--quiet:hover {
+  color: var(--ink);
+  background: var(--accent);
+  box-shadow: none;
+}
+
+/* Armed: the second press is the one that erases six personal bests. */
+.btn--quiet.is-confirming {
+  color: var(--ink);
+  background: var(--pink);
+}
+
+
 /* Three across on a desktop, so the six cards sit as two full rows rather than
    as two rows and a lone card at the bottom. */
 .launcher-grid {
@@ -834,6 +879,13 @@ a {
   margin: 0 0 16px;
   font-size: 13px;
   color: var(--muted);
+}
+
+/* The rules sentence sits above the controls, which makes the pause panel the
+   how-to sheet it is already described as: what scores, and what ends the run. */
+.overlay-note--rules {
+  margin-bottom: 10px;
+  color: var(--text);
 }
 
 .overlay-actions {

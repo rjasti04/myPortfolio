@@ -250,3 +250,152 @@ test("sections with a lede feed it to the Ctrl+K index", () => {
     );
   }
 });
+
+/* --- The shelf's images, filter and per-tile signals -----------------------
+ *
+ * The shelf shipped seven 1200x630 PNGs into a grid track that floors at 320px
+ * and rarely exceeds ~420px - and each of those PNGs was a marketing card
+ * whose baked-in eyebrow, title and blurb repeated the tile text underneath
+ * it. Both of those are what these assert against.
+ */
+
+test("every tile serves WebP through <picture>, not a bare PNG", () => {
+  const dom = mount();
+  const tiles = [...dom.window.document.querySelectorAll(".app-grid .app-tile")];
+  assert.ok(tiles.length >= 7);
+
+  for (const tile of tiles) {
+    const media = tile.querySelector(".app-tile-media");
+    const picture = media.querySelector("picture");
+    assert.ok(picture, `${tile.getAttribute("href")} still serves a bare <img>`);
+
+    const source = picture.querySelector('source[type="image/webp"]');
+    assert.ok(source, `${tile.getAttribute("href")} offers no WebP`);
+    assert.match(source.getAttribute("srcset"), /-tile-640\.webp 640w/);
+    assert.match(source.getAttribute("srcset"), /-tile-1280\.webp 1280w/);
+    assert.ok(source.getAttribute("sizes"), "srcset without sizes cannot choose");
+
+    const img = picture.querySelector("img");
+    assert.match(img.getAttribute("src"), /-tile-640\.webp$/, "the fallback is still the full-size card");
+    assert.equal(img.getAttribute("alt"), "", "the tile's own title is the label");
+    assert.equal(img.getAttribute("loading"), "lazy");
+    assert.ok(img.getAttribute("width") && img.getAttribute("height"), "an unsized image reflows the grid");
+  }
+});
+
+test("every tile image the markup names actually ships, and is small", () => {
+  const dom = mount();
+  const sources = [...dom.window.document.querySelectorAll(".app-tile-media source")]
+    .flatMap((s) => s.getAttribute("srcset").split(",").map((part) => part.trim().split(/\s+/)[0]));
+
+  assert.equal(sources.length, 14, "seven apps, two widths each");
+  let total = 0;
+  for (const file of sources) {
+    const full = path.join(__dirname, "..", file);
+    assert.ok(fs.existsSync(full), `${file} is referenced but not shipped`);
+    total += fs.statSync(full).size;
+  }
+  // The seven PNGs they replaced were ~1.93 MB between them.
+  assert.ok(total < 600 * 1024, `the shelf ships ${Math.round(total / 1024)} KB of thumbnails`);
+});
+
+test("the OG cards stay PNG - a social card is a different job", () => {
+  const index = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  assert.match(index, /og:image" content="https:\/\/rjasti\.com\/social-preview\.png"/);
+  for (const app of ["ucl", "worldcup", "arcade", "cron", "crypto", "json", "diff"]) {
+    assert.ok(
+      fs.existsSync(path.join(__dirname, `../${app}-preview.png`)),
+      `${app}'s OG card was deleted with its tile`,
+    );
+  }
+});
+
+test("the scrim that held the baked-in copy back is gone with it", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+  assert.doesNotMatch(css, /--app-media-scrim:/, "the token outlived the veil it drove");
+  assert.doesNotMatch(css, /\.app-tile-media::after\s*\{/, "the veil is still painted");
+});
+
+test("the filter is addressable, and a chip press says so in the URL", async () => {
+  const dom = mount();
+  const { initAppsFilter } = await import(`../js/apps-filter.js?tile=${Math.random()}`);
+  initAppsFilter();
+
+  const devTools = dom.window.document.querySelector('[data-app-filter="dev-tools"]');
+  click(dom, devTools);
+  assert.equal(dom.window.location.hash, "#apps/dev-tools");
+
+  // Pressing it again clears the filter, and the URL goes back with it.
+  click(dom, devTools);
+  assert.equal(dom.window.location.hash, "#apps");
+});
+
+test("landing on #apps/dev-tools opens the shelf filtered", async () => {
+  const dom = new JSDOM(INDEX, { url: "https://rjasti.com/#apps/dev-tools" });
+  global.window = dom.window;
+  global.document = dom.window.document;
+
+  const { initAppsFilter } = await import(`../js/apps-filter.js?deep=${Math.random()}`);
+  initAppsFilter();
+
+  const d = dom.window.document;
+  assert.equal(d.querySelector('[data-app-filter="dev-tools"]').getAttribute("aria-pressed"), "true");
+  const shown = [...d.querySelectorAll(".app-grid .app-tile")].filter((t) => !t.hidden);
+  assert.ok(shown.length > 0 && shown.length < 7);
+  assert.ok(shown.every((t) => t.dataset.appCategory === "dev-tools"));
+});
+
+test("an unknown slug falls back to All rather than an empty grid", async () => {
+  const dom = new JSDOM(INDEX, { url: "https://rjasti.com/#apps/retired-category" });
+  global.window = dom.window;
+  global.document = dom.window.document;
+
+  const { initAppsFilter } = await import(`../js/apps-filter.js?bad=${Math.random()}`);
+  initAppsFilter();
+
+  const shown = [...dom.window.document.querySelectorAll(".app-grid .app-tile")].filter((t) => !t.hidden);
+  assert.equal(shown.length, 7, "a stale bookmark emptied the shelf");
+});
+
+test("the router resolves a section from the first segment only", async () => {
+  const { getValidHashTarget } = await import(`../js/app-logic.js?seg=${Math.random()}`)
+    .then(() => globalThis.AppLogic);
+  const exists = (id) => (["apps", "home", "about"].includes(id) ? {} : null);
+
+  assert.equal(getValidHashTarget("#apps/dev-tools", exists, "home"), "apps");
+  assert.equal(getValidHashTarget("#apps", exists, "home"), "apps");
+  assert.equal(getValidHashTarget("#nope/dev-tools", exists, "home"), "home");
+});
+
+test("every tile says what it costs to try, in the place the choice is made", () => {
+  const dom = mount();
+  for (const tile of dom.window.document.querySelectorAll(".app-grid .app-tile")) {
+    const traits = [...tile.querySelectorAll(".app-tile-trait")].map((t) => t.textContent.trim());
+    assert.ok(traits.length >= 2 && traits.length <= 3, `${tile.getAttribute("href")} has ${traits.length} traits`);
+    assert.ok(traits.includes("No sign-in"), "every one of these runs without an account");
+    assert.equal(new Set(traits).size, traits.length, "a tile repeats itself");
+
+    // The row sits above the Launch pill, which is what it is qualifying.
+    const body = tile.querySelector(".app-tile-body");
+    const kids = [...body.children];
+    assert.ok(
+      kids.indexOf(tile.querySelector(".app-tile-traits")) < kids.indexOf(tile.querySelector(".app-tile-cta")),
+    );
+  }
+});
+
+test("a tile that says nothing is stored is one that stores nothing by default", () => {
+  const dom = mount();
+  for (const tile of dom.window.document.querySelectorAll(".app-grid .app-tile")) {
+    const traits = [...tile.querySelectorAll(".app-tile-trait")].map((t) => t.textContent.trim());
+    if (!traits.includes("Nothing stored")) continue;
+
+    const page = `${tile.getAttribute("href").replace(/^\//, "")}.html`;
+    const markup = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
+    assert.match(
+      markup,
+      /Remember my (document|panes)/,
+      `${page} claims nothing is stored but has no opt-in to be the exception`,
+    );
+  }
+});

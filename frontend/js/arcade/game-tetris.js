@@ -23,6 +23,8 @@ export const meta = {
     "Seven-bag randomiser, wall kicks, and gravity that keeps its promises.",
   controls:
     "Arrows or swipe to move · Up or tap to rotate · Space or swipe down to drop",
+  rules:
+    "Lines score, and clearing several at once scores far more than clearing them one by one. The run ends when a new piece has nowhere to spawn.",
 };
 
 export const COLUMNS = 10;

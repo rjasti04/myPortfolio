@@ -58,6 +58,7 @@
          serve itself. -->
     <link rel="stylesheet" href="fonts.css" />
     <link rel="stylesheet" href="arcade.css" />
+    <link rel="stylesheet" href="app-shared.css" />
   </head>
 
   <body>
@@ -117,6 +118,16 @@
           and no server behind them. Every game is a link:
           <code>/arcade#snake</code> opens straight into that one.
         </p>
+        <!-- The rollup across all six. refreshBests() already reads every
+             per-game best to paint the card bubbles; this is the one line that
+             ties them together, plus a way out of a score you are not proud
+             of. Hidden until something has been played. -->
+        <div id="launcher-summary" class="launcher-summary" hidden>
+          <p class="launcher-summary-text" id="launcher-summary-text"></p>
+          <button type="button" class="btn btn--quiet" id="clear-scores">
+            Clear my scores
+          </button>
+        </div>
         <!-- Cards are generated from each game module's own `meta`, so the list
              here is empty on purpose. -->
         <div id="launcher-grid" class="launcher-grid"></div>
@@ -207,6 +218,7 @@
             hidden
           >
             <h3 id="pause-heading">Paused</h3>
+            <p id="pause-rules" class="overlay-note overlay-note--rules"></p>
             <p id="pause-controls" class="overlay-note"></p>
             <div class="overlay-actions">
               <button
