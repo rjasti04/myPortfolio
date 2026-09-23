@@ -8624,7 +8624,10 @@ section {
   transform: none;
 }
 
-.js-enabled section {
+/* `main >` scopes this to the eight views. Unscoped it hid every <section> in
+   the document - including the cards js/owner-analytics.js builds, so the
+   owner panel painted its heading and window picker and nothing under them. */
+.js-enabled main > section {
   display: none;
   opacity: 0;
   transform: translateY(16px) scale(0.985);
@@ -9524,7 +9527,8 @@ nav a:hover .nav-shortcut {
    with the words.
 
    Three tiers, and the tier is the whole vocabulary:
-     1  .act-refresh - filled accent. Exactly one on the page.
+     1  .act-refresh - the accent. Outline at rest, filled while any surface
+        here reports a failure; never more than one fill on the page.
      2  .act-fam, .act-path, .act-owner-window-btn - toggles. The pressed
         state changes colour, fill, border AND weight together, because
         hover used to set border-color: currentcolor and so did pressed.
@@ -9552,7 +9556,9 @@ nav a:hover .nav-shortcut {
   border-radius: var(--radius-full);
   cursor: pointer;
   transition:
+    color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
     opacity var(--motion-fast) var(--ease-standard);
 }
 
@@ -9563,6 +9569,28 @@ nav a:hover .nav-shortcut {
 .act-refresh:disabled {
   cursor: progress;
   opacity: 0.65;
+}
+
+/* At rest Refresh wears the outline. The stream keeps this page current, so
+   while nothing has failed the page's one fill would be advertising a
+   fallback - and on a phone it was the largest filled area on the screen. It
+   fills again the moment any surface here reports an error, which is exactly
+   when that surface's copy says "use Refresh": the stream giving up, the log
+   failing, or the paths failing (both set data-state="error"). Keyed to
+   failure rather than to "connected" on purpose - keyed to connected, every
+   load would open on a fill that fades out a moment later.
+
+   The outline's hover is a wash, not --accent-hover, so hovering the resting
+   control never fills it. --control-accent-border is the theme-split edge:
+   5.76:1 on the light card, 10.28:1 on the dark. */
+#activity:not(:has(#act-live[data-status="error"], [data-state="error"])) .act-refresh {
+  color: var(--accent-text);
+  background: transparent;
+  border-color: var(--control-accent-border);
+}
+
+#activity:not(:has(#act-live[data-status="error"], [data-state="error"])) .act-refresh:hover:not(:disabled) {
+  background: var(--accent-soft);
 }
 
 /* Tier 3. */
@@ -9709,10 +9737,24 @@ nav a:hover .nav-shortcut {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, var(--accent-fill), transparent);
+  /* The theme-split edge, not --accent-fill: the fill is 1.55:1 on the light
+     pill, which left the pulse invisible on light. 5.28:1 here; on dark this
+     resolves to the fill, unchanged. */
+  background: linear-gradient(90deg, transparent, var(--control-accent-border), transparent);
   transform: translateX(-100%);
   animation: act-chain-flow var(--act-flow-cycle) var(--ease-standard) infinite;
   animation-play-state: paused;
+}
+
+/* The packet is as long as its link, so at 12px it is a flicker rather than
+   a movement. From 1280px, where main stops growing, the bar has ~140px it
+   never uses, and the wires spend it: 32px links carry the pulse 64px per hop
+   instead of 24. Not below 1280 - at 1180 the one-line bar has 45px of slack,
+   and the extra 60px would push Refresh onto a row of its own. */
+@media (width >= 1280px) {
+  .act-chain-link {
+    width: var(--space-2xl);
+  }
 }
 
 /* Each hop starts about the time the one before it clears its segment, so
@@ -9787,6 +9829,9 @@ nav a:hover .nav-shortcut {
   }
 }
 
+/* 18px on top where the paths card has 16, deliberately. The figures below sit
+   at line-height 1, so this lands the ink of "22" 1.5px from the ink of
+   "Where you went" beside it; at 16px they would be 3.5px apart. */
 .act-visit {
   display: flex;
   flex-direction: column;
@@ -9854,9 +9899,13 @@ nav a:hover .nav-shortcut {
   display: flex;
   align-items: flex-end;
   gap: var(--space-3xs);
+  /* No max-height. The cards in zone 2 stretch to one height, and a capped
+     plot left the rest to the key's auto margin: the legend sat 35px under
+     its axis, more with every path row. Uncapped, the plot takes the slack
+     and the key sits 8px under the axis at every height. The funnel's
+     8-row limit bounds it at ~222px. */
   flex: 1;
   min-height: 92px;
-  max-height: 150px;
   padding-bottom: var(--space-3xs);
   border-bottom: 1px solid var(--border);
 }
@@ -9886,9 +9935,12 @@ nav a:hover .nav-shortcut {
   cursor: default;
 }
 
+/* The wash alone is what hover paints (1.08:1 on light), so the rule is what
+   says "selected". --accent-fill made it 1.69:1 there; the theme-split edge
+   is 5.76:1, and the fill itself on dark. */
 .act-tl-bar[aria-pressed="true"] {
   background: var(--accent-soft);
-  box-shadow: inset 0 -2px 0 var(--accent-fill);
+  box-shadow: inset 0 -2px 0 var(--control-accent-border);
 }
 
 .act-tl-seg {
@@ -9935,50 +9987,32 @@ nav a:hover .nav-shortcut {
   background: var(--fam-nav);
 }
 
-/* One rule set colours every family surface: strip segment, legend swatch,
-   filter chip, stream dot and path bar. */
-[data-fam="nav"] .act-tl-seg,
+/* One rule set colours both family swatches: the strip segment and the
+   legend's key. The chips, stream dots and path bars carry their own rules.
+   The segment carries data-fam itself - it used to be matched as a
+   descendant of a data-fam ancestor, which it never has. */
+.act-tl-seg[data-fam="nav"],
 .act-key li[data-fam="nav"] i {
   background: var(--fam-nav);
 }
 
-[data-fam="tap"] .act-tl-seg,
+.act-tl-seg[data-fam="tap"],
 .act-key li[data-fam="tap"] i {
   background: var(--fam-tap);
 }
 
-[data-fam="pref"] .act-tl-seg,
+.act-tl-seg[data-fam="pref"],
 .act-key li[data-fam="pref"] i {
   background: var(--fam-pref);
 }
 
-[data-fam="reach"] .act-tl-seg,
+.act-tl-seg[data-fam="reach"],
 .act-key li[data-fam="reach"] i {
   background: var(--fam-reach);
 }
 
-[data-fam="sys"] .act-tl-seg,
+.act-tl-seg[data-fam="sys"],
 .act-key li[data-fam="sys"] i {
-  background: var(--fam-sys);
-}
-
-.act-tl-seg[data-fam="nav"] {
-  background: var(--fam-nav);
-}
-
-.act-tl-seg[data-fam="tap"] {
-  background: var(--fam-tap);
-}
-
-.act-tl-seg[data-fam="pref"] {
-  background: var(--fam-pref);
-}
-
-.act-tl-seg[data-fam="reach"] {
-  background: var(--fam-reach);
-}
-
-.act-tl-seg[data-fam="sys"] {
   background: var(--fam-sys);
 }
 
@@ -9989,7 +10023,7 @@ nav a:hover .nav-shortcut {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  padding: var(--space-lg) 18px;
+  padding: var(--space-lg);
 }
 
 .act-paths-list {
@@ -10012,6 +10046,11 @@ nav a:hover .nav-shortcut {
   border-radius: var(--radius-sm);
   cursor: pointer;
   overflow: hidden;
+  /* Same 120ms as the family chips beside it: the two tier-2 toggles in
+     this zone used to move differently, one fading and one snapping. */
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
 }
 
 .act-path-fill {
@@ -10025,6 +10064,7 @@ nav a:hover .nav-shortcut {
 .act-path-name {
   position: relative;
   z-index: 1;
+  transition: color var(--motion-fast) var(--ease-standard);
   flex: 1;
   min-width: 0;
   font-family: ui-monospace, sfmono-regular, consolas, "Liberation Mono", menlo, monospace;
@@ -10083,9 +10123,19 @@ nav a:hover .nav-shortcut {
    reads as a pending measurement rather than as "nothing happened". */
 .act-stats[aria-busy="true"] .act-stat-value {
   color: transparent;
-  background: var(--wash-sink);
   border-radius: var(--radius-2xs);
-  animation: skeleton-loading 1.4s var(--ease-standard) infinite;
+}
+
+/* One placeholder face for the figures and the log rows. The figures used to
+   run skeleton-loading over a flat colour - it animates background-position,
+   so nothing moved - while the rows used the shared .skeleton gradient on
+   --skill-bg, 1.03:1 on the light card. This is the apps shelf's sweep
+   (.app-tile-media::before) on the two surface washes: 1.08:1 at rest with a
+   visible pass, in both themes. Reduced motion leaves it static. */
+.act-stats[aria-busy="true"] .act-stat-value,
+.act-ev-skeleton .skeleton-text {
+  background: linear-gradient(100deg, transparent 20%, var(--wash-raise) 50%, transparent 80%) 0 0 / 300% 100% var(--wash-sink);
+  animation: app-media-loading var(--motion-shimmer) var(--ease-standard) infinite;
 }
 
 .act-stats[data-stale="true"] .act-stat-value {
@@ -10099,8 +10149,13 @@ nav a:hover .nav-shortcut {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  /* 14px sides where every other card has 16: at 1024px the search field and
+     the six chips have 2px of slack in here, and 16px wraps the chips onto a
+     second row. The filter card is the one 2px outlier, on purpose. */
   padding: var(--space-md) 14px;
-  margin-bottom: var(--space-md);
+  /* 8px to the log against 16px between zones, so the filters read as the
+     log's toolbar rather than as a fourth band. */
+  margin-bottom: var(--space-sm);
 }
 
 .act-search {
@@ -10177,23 +10232,28 @@ nav a:hover .nav-shortcut {
   color: var(--muted);
 }
 
-.act-fam[data-family="nav"] {
+/* The family hue is the glyph's, not the label's. Five labels in five hues
+   made this the most saturated line of text on the page, under a strip and a
+   legend already speaking in those hues; a hued mark on a --muted label is
+   the legend's own treatment. It also survives pressing, which recolours the
+   label and used to take the hue with it. */
+.act-fam[data-family="nav"] i {
   color: var(--fam-nav);
 }
 
-.act-fam[data-family="tap"] {
+.act-fam[data-family="tap"] i {
   color: var(--fam-tap);
 }
 
-.act-fam[data-family="pref"] {
+.act-fam[data-family="pref"] i {
   color: var(--fam-pref);
 }
 
-.act-fam[data-family="reach"] {
+.act-fam[data-family="reach"] i {
   color: var(--fam-reach);
 }
 
-.act-fam[data-family="sys"] {
+.act-fam[data-family="sys"] i {
   color: var(--fam-sys);
 }
 
@@ -10203,7 +10263,7 @@ nav a:hover .nav-shortcut {
 
 /* Pressed changes four things at once - fill, border, text colour and weight -
    so it cannot be confused with hover, which changes two. The family hue stays
-   on the chip's own text via the [data-family] rules above; the accent carries
+   on the chip's icon via the [data-family] rules above; the accent carries
    "this one is on". */
 .act-fam[aria-pressed="true"],
 .act-path[aria-pressed="true"],
@@ -10228,7 +10288,7 @@ nav a:hover .nav-shortcut {
   gap: 10px;
   flex-wrap: wrap;
   padding: var(--space-sm) 14px;
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-sm);
   font-size: var(--text-sm);
   color: var(--text);
   background: var(--accent-soft);
@@ -10266,7 +10326,7 @@ nav a:hover .nav-shortcut {
 }
 
 .act-group {
-  padding: var(--space-lg) 18px var(--space-xs);
+  padding: var(--space-lg) var(--space-lg) var(--space-xs);
   font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-caps);
@@ -10279,7 +10339,7 @@ nav a:hover .nav-shortcut {
   grid-template-columns: 62px 20px minmax(0, 1fr);
   gap: var(--space-md);
   align-items: start;
-  padding: var(--space-sm) 18px;
+  padding: var(--space-sm) var(--space-lg);
   transition: background-color var(--motion-fast) var(--ease-standard);
 }
 
@@ -10369,7 +10429,10 @@ nav a:hover .nav-shortcut {
   padding: var(--space-3xs) var(--space-xs);
   font-family: ui-monospace, sfmono-regular, consolas, "Liberation Mono", menlo, monospace;
   font-size: 0.9em;
-  color: var(--muted);
+  /* Full ink: the path or command is what the row is about. Mono, the sunken
+     face and the hairline already set it apart; muted ink on top of those
+     made the object the quietest thing in its own sentence. */
+  color: var(--text);
   background: var(--wash-sink);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
@@ -10387,6 +10450,7 @@ nav a:hover .nav-shortcut {
 .act-ev-ago {
   font-size: var(--text-xs);
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -10460,7 +10524,7 @@ nav a:hover .nav-shortcut {
 
 .act-copy-json:hover {
   color: var(--text);
-  border-color: var(--accent-fill);
+  border-color: var(--border);
 }
 
 .act-copy-json[data-copy-state="copied"] {
@@ -10508,8 +10572,17 @@ nav a:hover .nav-shortcut {
   max-width: 320px;
 }
 
+/* Block, or the width never applies: this span sits inline in the time
+   column, and the placeholder did not render at all. */
 .act-ev-skeleton .act-ev-time .skeleton-text {
+  display: block;
   width: 46px;
+}
+
+/* A placeholder claims no family. The rows inherited .act-ev-dot's Navigation
+   default, so six orange dots were the loudest marks in a loading log. */
+.act-ev-skeleton .act-ev-dot {
+  background: var(--border);
 }
 
 .act-empty {
@@ -10551,9 +10624,19 @@ nav a:hover .nav-shortcut {
   align-items: center;
   gap: var(--space-md);
   flex-wrap: wrap;
-  padding: var(--space-md) 18px var(--space-3xs);
+  padding: var(--space-md) var(--space-lg) var(--space-3xs);
   margin-top: var(--space-xs);
   border-top: 1px solid var(--border);
+}
+
+/* Nothing to report and nothing to load - the error and empty states - so no
+   rule under an empty row. It collapses rather than hides: the status is a
+   live region, and one that reappears already holding its text is not
+   reliably announced. It can only be empty while Show more is hidden too. */
+.act-stream-foot:has(> .act-stream-status:empty) {
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .act-stream-status {
@@ -10666,7 +10749,7 @@ nav a:hover .nav-shortcut {
   }
 
   .act-visit {
-    padding: var(--space-lg) 14px;
+    padding: var(--space-lg) var(--space-md);
   }
 
   .act-stats {
@@ -10680,8 +10763,16 @@ nav a:hover .nav-shortcut {
     font-size: var(--text-xl);
   }
 
+  /* Two columns rather than a wrap. The four items need 355px in a 332px row
+     at 390px, so the wrap left "Contact" alone on a second line, under the
+     chat launcher. 2x2 is 178px wide and the same 52px tall from 320px up. */
+  .act-key {
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+  }
+
   .act-paths {
-    padding: 14px;
+    padding: var(--space-md);
   }
 
   .act-filters {
@@ -10706,6 +10797,18 @@ nav a:hover .nav-shortcut {
   }
 }
 
+/* Between the phone layout and the one-line bar, the three items used to wrap
+   wherever they ran out of room - Refresh alone on a row at 1024px, the
+   identity alone at 901px. Here the controls share row 1 and the chain takes
+   row 2, centred, the way the phone layout already carries it. */
+@media (641px <= width <= 1024px) {
+  .act-chain {
+    order: 1;
+    flex-basis: 100%;
+    justify-content: safe center;
+  }
+}
+
 /* ── Owner analytics ──
    Reads across every session, unlike everything else in this section, so it is
    set apart by a rule and its own heading rather than blending into the
@@ -10715,11 +10818,13 @@ nav a:hover .nav-shortcut {
   margin-top: clamp(24px, 4vw, 44px);
   padding-top: clamp(20px, 3vw, 32px);
   border-top: 1px solid var(--border);
+  /* On the base, not on [data-busy]: there it faded out on a window change
+     and snapped back when the figures landed. */
+  transition: opacity var(--motion-fast) var(--ease-standard);
 }
 
 .act-owner[data-busy="true"] {
   opacity: 0.55;
-  transition: opacity var(--motion-fast) ease;
 }
 
 .act-owner-head {
@@ -10767,16 +10872,26 @@ nav a:hover .nav-shortcut {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
+/* Flat, which is how the panel stays set apart from the visitor's elevated
+   cards - but on a face. Without one the circuit drawing ran behind every
+   figure, which is what the opaque-surfaces pass removed everywhere else. */
 .act-owner-card {
   padding: var(--space-lg);
+  background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+}
+
+/* "Where visitors go" reuses the visitor's .act-paths, which brings its own
+   card padding; inside a card that doubled the inset to 35px against 17. */
+.act-owner-card .act-paths {
+  padding: 0;
 }
 
 .act-owner-card-title {
   margin: 0 0 var(--space-md);
   font-size: var(--text-sm);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -10796,6 +10911,7 @@ nav a:hover .nav-shortcut {
 .act-owner-stat-value {
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
 }
 
 .act-owner-stat-label {

@@ -1,6 +1,6 @@
 // Cover for the per-view page semantics the section router owes.
 //
-// The router renders one section at a time - `.js-enabled section` is
+// The router renders one section at a time - `.js-enabled main > section` is
 // `display: none` and only `.active` is shown - so each of the eight views is
 // a page in every sense. Three things never treated it as one: the title, the
 // canonical URL and og:url were frozen at the home values, and only #home
