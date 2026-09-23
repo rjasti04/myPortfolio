@@ -101,8 +101,9 @@ export async function initAuthUI() {
     // restore used by the image and project dialogs; this routes the auth modal
     // through the same code instead of toggling a class.
     //
-    // `hidden` drives the CSS (visibility/opacity); `active` is what modal.js
-    // keys its own state on. Both are needed, and `hidden` has to come off
+    // `hidden` takes the dialog out of rendering (display: none); `active` is
+    // what modal.js keys its own state on, and what plays the entrance
+    // keyframes in auth-modal.css. Both are needed, and `hidden` has to come off
     // before openModal runs or there is nothing focusable to move focus to.
     const TAB_TITLE_IDS = {
         login: 'auth-modal-title',
@@ -392,18 +393,8 @@ export async function initAuthUI() {
         function toggleCheckItem(el, isValid) {
             if (!el) return;
             const icon = el.querySelector('i');
-            if (isValid) {
-                el.className = 'checklist-item valid';
-                if (icon) icon.className = 'fas fa-check-circle';
-            } else {
-                if (val.length > 0) {
-                    el.className = 'checklist-item invalid';
-                    if (icon) icon.className = 'fas fa-times-circle';
-                } else {
-                    el.className = 'checklist-item';
-                    if (icon) icon.className = 'far fa-circle';
-                }
-            }
+            el.className = isValid ? 'checklist-item valid' : 'checklist-item';
+            if (icon) icon.className = isValid ? 'fas fa-check-circle' : 'far fa-circle';
         }
 
         toggleCheckItem(reqLength, hasLength);
@@ -423,9 +414,7 @@ export async function initAuthUI() {
         if (pwStrengthBar && pwStrengthText) {
             pwStrengthBar.className = 'password-strength-meter';
             if (val.length === 0) {
-                pwStrengthBar.style.width = '0%';
-                pwStrengthText.textContent = 'Strength: Weak';
-                pwStrengthText.style.color = 'var(--text-muted)';
+                pwStrengthText.textContent = '';
             } else {
                 if (score <= 2) {
                     pwStrengthBar.classList.add('weak');
@@ -1037,7 +1026,6 @@ export async function initAuthUI() {
         if (changePwStrengthBar && changePwStrengthText) {
             changePwStrengthBar.className = 'password-strength-meter';
             if (val.length === 0) {
-                changePwStrengthBar.style.width = '0%';
                 changePwStrengthText.textContent = 'Strength: Weak';
                 changePwStrengthText.style.color = 'var(--text-muted)';
             } else {
@@ -1202,7 +1190,6 @@ export async function initAuthUI() {
         if (resetPwStrengthBar && resetPwStrengthText) {
             resetPwStrengthBar.className = 'password-strength-meter';
             if (val.length === 0) {
-                resetPwStrengthBar.style.width = '0%';
                 resetPwStrengthText.textContent = 'Strength: Weak';
                 resetPwStrengthText.style.color = 'var(--text-muted)';
             } else {

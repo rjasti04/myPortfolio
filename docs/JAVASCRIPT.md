@@ -80,7 +80,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,601 lines)
+### `auth-ui.js` (1,588 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength

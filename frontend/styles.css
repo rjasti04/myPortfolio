@@ -1501,7 +1501,9 @@ body.dark-theme .header-dropdown-container {
 .ai-close-btn:focus-visible,
 .btn-clear:focus-visible,
 .close-overlay-btn:focus-visible,
-.code-copy-btn:focus-visible {
+.code-copy-btn:focus-visible,
+.auth-tab:focus-visible,
+.auth-modal-close:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
   transition: outline-offset var(--motion-base) var(--ease-press);
