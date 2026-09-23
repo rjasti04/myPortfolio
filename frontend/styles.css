@@ -9534,7 +9534,8 @@ nav a:focus-visible .nav-shortcut {
 /* One line, and it never wraps: Refresh keeps the identity's row at every
    width. The chain is the one item that gives - it is already a scroll
    container, so a few px short costs a scroll, not a row. Below 1280px it
-   takes a row of its own instead; see "Narrow viewports". */
+   takes a row of its own when the row cannot hold all three; see "Narrow
+   viewports". */
 .act-bar {
   display: flex;
   align-items: center;
@@ -9838,7 +9839,8 @@ nav a:focus-visible .nav-shortcut {
    never uses, and the wires spend it: 32px links carry the pulse 64px per hop
    instead of 24. With the longest status label that still leaves ~20px, and
    the bar is built to spend a shortfall on the chain's scroll, never on
-   Refresh's row. Below 1280 the chain has a row of its own. */
+   Refresh's row. Below 1280 the links stay short, so the chain can share
+   the row for longer before it needs one of its own. */
 @media (width >= 1280px) {
   .act-chain-link {
     width: var(--space-2xl);
@@ -10784,20 +10786,27 @@ nav a:focus-visible .nav-shortcut {
    The same list, reflowed. There is no second card layout and no drawer to
    keep in sync with it. */
 
-/* Two rows: the identity and Refresh on the first, the chain alone on the
-   second. The three items used to wrap wherever they ran out of room -
-   Refresh alone on a row at 700px and again at 1100px, under the chain on
-   every phone - because the live label alone runs from 45px ("Live") to
-   159px ("Not live · use Refresh") and main's padding steps up near 1150px,
-   so no single breakpoint under 1280px held in every state. Moving the chain
-   is what keeps Refresh put: the identity's zero basis means its own width
-   can never push Refresh off row 1, it takes whatever Refresh leaves. */
+/* Two rows when one will not do: the identity and Refresh on the first, the
+   chain alone on the second. The three items used to wrap wherever they ran
+   out of room - Refresh alone on a row at 700px and again at 1100px, under
+   the chain on every phone - because the live label alone runs from 45px
+   ("Live") to 159px ("Not live · use Refresh") and main's padding steps up
+   near 1150px, so no single breakpoint under 1280px held in every state.
+   Moving the chain is what keeps Refresh put: the identity's zero basis
+   means its own width can never push Refresh off row 1, it takes whatever
+   Refresh leaves.
+
+   Since no breakpoint can say when the chain fits, watchSessionBarFit() in
+   activity.js measures it and sets data-chain-inline, and the bar keeps its
+   one line. Without that attribute - before the script runs, or where
+   ResizeObserver is missing - the chain takes its own row, the layout that
+   holds at every width. */
 @media (width < 1280px) {
-  .act-bar {
+  .act-bar:not([data-chain-inline]) {
     flex-wrap: wrap;
   }
 
-  .act-bar-identity {
+  .act-bar:not([data-chain-inline]) .act-bar-identity {
     flex: 1 1 0;
     min-width: 0;
   }
@@ -10810,7 +10819,7 @@ nav a:focus-visible .nav-shortcut {
      and falls back to start the moment it does not, so nothing is ever
      stranded. Browsers too old to parse it drop the declaration and keep
      flex-start. */
-  .act-chain {
+  .act-bar:not([data-chain-inline]) .act-chain {
     order: 1;
     flex-basis: 100%;
     justify-content: safe center;

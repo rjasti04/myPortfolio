@@ -1150,6 +1150,84 @@ function leaveActivitySection() {
   }
 }
 
+// ── Session bar layout ──
+
+/* Extra room the chain needs before it rejoins the identity's row, as against
+   none to stay there. The live label re-renders every tick and moves a few px
+   each time ("9m ago" -> "10m ago", "Live" <-> "Connecting…"), so without the
+   margin a bar sitting on the threshold would swap between one row and two on
+   the clock. */
+const CHAIN_REJOIN_SLACK_PX = 16;
+
+/* Width of a row of items from the first one's left edge to the last one's
+   right edge. offset* rather than getBoundingClientRect(), so a section
+   transition's transform cannot skew it. Neither layout stretches the items
+   themselves - the identity's grow and the chain's full-row basis both leave
+   their children at natural width - so this reads the same in one row or
+   two, which is what keeps the decision from feeding back on itself. */
+function spanOf(row) {
+  const first = row.firstElementChild;
+  const last = row.lastElementChild;
+  return last.offsetLeft + last.offsetWidth - first.offsetLeft;
+}
+
+/**
+ * Puts the pipeline chain on the session bar's own row whenever that row has
+ * room for all three items at their natural widths, and gives it a row of its
+ * own only when it does not.
+ *
+ * No breakpoint can make that call: the status label alone runs from "Live"
+ * to "Not live · use Refresh", which moved the width where everything fits
+ * from about 1030 to 1145px. So below 1280px the CSS stacks the bar unless
+ * `data-chain-inline` says it fits, and this sets it from measurements.
+ *
+ * The observer is disconnected across the toggle and re-armed on the next
+ * frame. Moving the chain changes the bar's own height, and an observer that
+ * sees its target resize inside its own callback trips "ResizeObserver loop
+ * completed", which the global handler in main.js would report as an error.
+ */
+function watchSessionBarFit() {
+  const bar = document.querySelector(".act-bar");
+  const identity = bar?.querySelector(".act-bar-identity");
+  const chain = bar?.querySelector(".act-chain");
+  const refresh = document.getElementById("activity-refresh-btn");
+  const pill = document.getElementById("activity-session-pill");
+  if (!bar || !identity || !chain || !refresh || !pill || typeof ResizeObserver === "undefined") return;
+
+  // The bar for its width; the rest because their text changes under it.
+  const targets = [bar, identity.firstElementChild, pill, chain.lastElementChild, refresh];
+
+  const observer = new ResizeObserver(() => {
+    // Hidden with its section, or still holding the pill's one-character
+    // placeholder: measuring either would place the chain for content the
+    // row is not going to hold.
+    if (!bar.clientWidth || pill.disabled) return;
+
+    const barStyle = getComputedStyle(bar);
+    const chainStyle = getComputedStyle(chain);
+    const gap = parseFloat(barStyle.columnGap) || 0;
+    const room = bar.clientWidth - parseFloat(barStyle.paddingLeft) - parseFloat(barStyle.paddingRight);
+    // The chain's items, plus its padding and its border (offset less client).
+    const chainWidth =
+      spanOf(chain) +
+      parseFloat(chainStyle.paddingLeft) +
+      parseFloat(chainStyle.paddingRight) +
+      chain.offsetWidth -
+      chain.clientWidth;
+    const needed = spanOf(identity) + gap + chainWidth + gap + refresh.offsetWidth;
+
+    const inline = bar.hasAttribute("data-chain-inline");
+    const fits = needed <= room - (inline ? 0 : CHAIN_REJOIN_SLACK_PX);
+    if (fits === inline) return;
+
+    observer.disconnect();
+    bar.toggleAttribute("data-chain-inline", fits);
+    requestAnimationFrame(() => targets.forEach((target) => observer.observe(target)));
+  });
+
+  targets.forEach((target) => observer.observe(target));
+}
+
 // ── Init ──
 
 const copyResetTimers = new WeakMap();
@@ -1328,6 +1406,8 @@ export function initActivity() {
     loadActivitySummary();
     loadActivityFunnel();
   });
+
+  watchSessionBarFit();
 
   const section = document.getElementById("activity");
   if (!section) return;
