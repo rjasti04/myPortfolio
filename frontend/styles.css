@@ -9531,17 +9531,21 @@ nav a:focus-visible .nav-shortcut {
 
 /* ── Zone 1: session bar ─────────────────────────────────────────────── */
 
+/* One line, and it never wraps: Refresh keeps the identity's row at every
+   width. The chain is the one item that gives - it is already a scroll
+   container, so a few px short costs a scroll, not a row. Below 1280px it
+   takes a row of its own instead; see "Narrow viewports". */
 .act-bar {
   display: flex;
   align-items: center;
   gap: 14px;
-  flex-wrap: wrap;
   padding: var(--space-md) var(--space-lg);
   margin-bottom: var(--space-lg);
 }
 
 .act-bar-identity {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 14px;
 }
@@ -9624,8 +9628,9 @@ nav a:focus-visible .nav-shortcut {
 .act-refresh {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   gap: var(--space-sm);
-  /* Trails the bar, ahead of the chain's wrap. */
+  /* Trails the bar, whichever row the chain is on. */
   margin-left: auto;
   min-height: var(--min-touch-target);
   padding: var(--space-sm) var(--space-lg);
@@ -9831,8 +9836,9 @@ nav a:focus-visible .nav-shortcut {
 /* The packet is as long as its link, so at 12px it is a flicker rather than
    a movement. From 1280px, where main stops growing, the bar has ~140px it
    never uses, and the wires spend it: 32px links carry the pulse 64px per hop
-   instead of 24. Not below 1280 - at 1180 the one-line bar has 45px of slack,
-   and the extra 60px would push Refresh onto a row of its own. */
+   instead of 24. With the longest status label that still leaves ~20px, and
+   the bar is built to spend a shortfall on the chain's scroll, never on
+   Refresh's row. Below 1280 the chain has a row of its own. */
 @media (width >= 1280px) {
   .act-chain-link {
     width: var(--space-2xl);
@@ -10777,6 +10783,100 @@ nav a:focus-visible .nav-shortcut {
 /* ── Narrow viewports ─────────────────────────────────────────────────
    The same list, reflowed. There is no second card layout and no drawer to
    keep in sync with it. */
+
+/* Two rows: the identity and Refresh on the first, the chain alone on the
+   second. The three items used to wrap wherever they ran out of room -
+   Refresh alone on a row at 700px and again at 1100px, under the chain on
+   every phone - because the live label alone runs from 45px ("Live") to
+   159px ("Not live · use Refresh") and main's padding steps up near 1150px,
+   so no single breakpoint under 1280px held in every state. Moving the chain
+   is what keeps Refresh put: the identity's zero basis means its own width
+   can never push Refresh off row 1, it takes whatever Refresh leaves. */
+@media (width < 1280px) {
+  .act-bar {
+    flex-wrap: wrap;
+  }
+
+  .act-bar-identity {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  /* Centre the chain on the row it has to itself. "safe" is load-bearing,
+     not decoration: this is a scroll container, and on a 320-390px phone
+     the four stages plus the latency read overflow it by 40-110px. Plain
+     "center" would centre that overflow too, pushing "Browser" past the left
+     edge with no way to scroll back to it. "safe" centres while the row fits
+     and falls back to start the moment it does not, so nothing is ever
+     stranded. Browsers too old to parse it drop the declaration and keep
+     flex-start. */
+  .act-chain {
+    order: 1;
+    flex-basis: 100%;
+    justify-content: safe center;
+  }
+}
+
+/* Icon-only below 768px, where the label's ~65px would come out of the
+   session value. The label is clipped rather than removed (the .sr-only
+   recipe), so "Refresh" stays the button's accessible name and the name the
+   error copy points at; the title carries it for pointer users. */
+@media (width <=767px) {
+  .act-refresh {
+    justify-content: center;
+    width: var(--min-touch-target);
+    padding: 0;
+  }
+
+  .act-refresh-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* When the row is still short, the UUID gives first, ellipsized - the full
+     value stays in the DOM and is what gets copied on click. The pill grows
+     from a zero basis into whatever the status label leaves, up to its
+     max-content, and never below its min-width: the pill with the value
+     spent ("Session" and the copy glyph, 102px at --text-xs). The min-width
+     sits a few px under that, inside the pill's own padding, so a spent value
+     is gone rather than a clipped sliver of its ellipsis. Once the row
+     is too short even for that, flexbox freezes the pill at its min-width
+     before anything else shrinks, so only then does the status label
+     ellipsize - "Not live · use Refresh" on a 320px phone, with Refresh
+     itself right beside it. Shrink weights cannot give that order: the label
+     always takes some share, and text-overflow fires on a fraction of a
+     pixel. */
+  .act-bar-identity > .act-live {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  #act-live-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .act-session {
+    flex: 1 1 0;
+    min-width: 7.5em;
+    max-width: max-content;
+  }
+
+  .act-session-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 @media (width <=640px) {
   .act-bar {
     gap: var(--space-md);
@@ -10784,50 +10884,16 @@ nav a:focus-visible .nav-shortcut {
   }
 
   .act-bar-identity {
-    display: flex;
-    width: 100%;
     gap: var(--space-sm);
-    flex-wrap: nowrap;
-    align-items: center;
-  }
-
-  .act-bar-identity > .act-live {
-    flex-shrink: 0;
-    white-space: nowrap;
   }
 
   .act-session {
-    min-width: 0;
-    flex-shrink: 1;
     border-radius: var(--radius-md);
   }
 
-  /* Truncate the UUID after the last '-' so the pill fits one line.
-     The full value stays in the DOM and is what gets copied on click. */
+  /* Cap the UUID at 14ch even where the row has room for more. */
   .act-session-value {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     max-width: 14ch;
-  }
-
-  .act-refresh {
-    flex: 1;
-    justify-content: center;
-    margin-left: 0;
-  }
-
-  /* Centre the chain in the full-width pill it becomes here. "safe" is
-     load-bearing, not decoration: this is a scroll container, and on a
-     320-390px phone the four stages plus the latency read overflow it by
-     40-110px. Plain "center" would centre that overflow too, pushing
-     "Browser" past the left edge with no way to scroll back to it. "safe"
-     centres while the row fits and falls back to start the moment it does
-     not, so nothing is ever stranded. Browsers too old to parse it drop the
-     declaration and keep today's flex-start. */
-  .act-chain {
-    width: 100%;
-    justify-content: safe center;
   }
 
   .act-visit {
@@ -10876,18 +10942,6 @@ nav a:focus-visible .nav-shortcut {
   .act-stream-foot {
     padding-left: var(--space-md);
     padding-right: var(--space-md);
-  }
-}
-
-/* Between the phone layout and the one-line bar, the three items used to wrap
-   wherever they ran out of room - Refresh alone on a row at 1024px, the
-   identity alone at 901px. Here the controls share row 1 and the chain takes
-   row 2, centred, the way the phone layout already carries it. */
-@media (641px <= width <= 1024px) {
-  .act-chain {
-    order: 1;
-    flex-basis: 100%;
-    justify-content: safe center;
   }
 }
 
