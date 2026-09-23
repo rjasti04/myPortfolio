@@ -9970,6 +9970,10 @@ nav a:focus-visible .nav-shortcut {
   gap: var(--space-sm);
   flex: 1;
   min-height: 0;
+  /* Only for the key's @container rule below. The strip's width comes from
+     the card it stretches across, never from its content, so inline-size
+     containment changes nothing else here. */
+  container-type: inline-size;
 }
 
 .act-timeline-head {
@@ -10059,6 +10063,24 @@ nav a:focus-visible .nav-shortcut {
   margin: auto 0 0;
   padding: var(--space-2xs) 0 0;
   list-style: none;
+}
+
+/* Two columns only once the row cannot take all four. On one line they need
+   354.6px (79.6 + 80.2 + 82.1 + 64.7 plus three 16px gaps); below that a plain
+   wrap strands "Contact" on a line of its own, so the key goes 2x2 instead -
+   178px, which holds from 320px up. This was the 640px viewport query, which
+   kept the 2x2 on phones with 230px to spare; measured against the strip
+   instead, one line returns from a 414px viewport. 360px leaves ~5px for font
+   rendering. The labels are rem but the gaps px, so the threshold takes
+   whichever is larger: 22.5rem tracks a bigger default font size, and the px
+   floor holds under a smaller one, where rem alone widowed "Contact" on
+   369-377px viewports at a 14px root. Without container queries the key keeps
+   the plain wrap. */
+@container (width < 22.5rem) or (width < 360px) {
+  .act-key {
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+  }
 }
 
 .act-key li {
@@ -10918,14 +10940,6 @@ nav a:focus-visible .nav-shortcut {
 
   .act-stat-value {
     font-size: var(--text-xl);
-  }
-
-  /* Two columns rather than a wrap. The four items need 355px in a 332px row
-     at 390px, so the wrap left "Contact" alone on a second line, under the
-     chat launcher. 2x2 is 178px wide and the same 52px tall from 320px up. */
-  .act-key {
-    display: grid;
-    grid-template-columns: repeat(2, max-content);
   }
 
   .act-paths {

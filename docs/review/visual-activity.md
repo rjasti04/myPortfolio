@@ -47,6 +47,13 @@ strip's System-as-Navigation fold (the first bullet of the last section). With
 it, the note in finding 5 applies: five legend items want
 `repeat(3, max-content)`.
 
+**Revised 2026-09-23 (finding 5).** The 640px viewport query held the 2×2 on
+phones with up to 230px to spare. The 2×2 now comes from a container query on
+`.act-timeline`: the key stays on one line wherever its row fits the 354.6px it
+needs (from a 414px viewport) and goes 2×2 below that, never 3 + 1. A fifth
+item means re-measuring that threshold as well as the `repeat(3, max-content)`
+above.
+
 ## Method
 
 Numbers in this document are measured, not estimated.
