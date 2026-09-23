@@ -1462,7 +1462,6 @@ async function setupNavUI() {
                 authContainer.innerHTML = `
                     <div class="nav-user-profile" id="nav-user-btn" aria-haspopup="true" aria-expanded="false">
                         <div class="nav-user-icon">${initial}</div>
-                        <i class="fas fa-chevron-down" style="font-size: 0.7rem; margin-left: 2px;"></i>
                     </div>
                     <div class="nav-user-dropdown" id="nav-user-dropdown">
                         <button class="nav-dropdown-item" id="nav-2fa-btn">

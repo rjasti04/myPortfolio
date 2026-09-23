@@ -828,6 +828,19 @@ export function initThemeCustomizer() {
   };
 
   /**
+   * Paint a chip's swatch from the triple it applies. The `::before` bar in
+   * styles.css reads these; CSSOM writes are allowed under `style-src 'self'`,
+   * where a `style` attribute would not be.
+   */
+  function paintChip(chip, colors) {
+    if (!colors) return;
+    chip.style.setProperty('--chip-a', colors.primary);
+    chip.style.setProperty('--chip-b', colors.secondary);
+    chip.style.setProperty('--chip-c', colors.accent);
+  }
+  themeChips?.querySelectorAll('[data-preset]').forEach((chip) => paintChip(chip, themePresets[chip.dataset.preset]));
+
+  /**
    * Load one triple into the three controls and paint it. All three writes go
    * in with `preview: false` and only the last previews, so the palette is
    * derived and applied once rather than three times on the way to the colours
@@ -935,6 +948,7 @@ export function initThemeCustomizer() {
       apply.dataset.themeId = entry.id;
       apply.title = `Apply ${entry.name}`;
       apply.setAttribute('aria-pressed', 'false');
+      paintChip(apply, entry.raw);
 
       // The name is a span rather than a bare text node so it can truncate:
       // `text-overflow` needs a block-level box and the button itself is a
