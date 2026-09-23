@@ -303,7 +303,7 @@ Internals worth knowing:
 | Destructive actions | Deleting one conversation and clearing all history both go through `confirmAction` from `confirm-dialog.js`. Delete used to ask nothing while Clear All called the browser's blocking `confirm()` |
 | Accessibility | `announceToScreenReader` for streamed replies. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
 
-### `activity.js` (1,344 lines, lazy)
+### `activity.js` (1,424 lines, lazy)
 
 `initActivity()`, `loadActivity()`, `loadActivitySummary()`,
 `loadActivityFunnel()`.
@@ -340,8 +340,11 @@ Also owns: the live SSE connection (`EventSource` with `withCredentials: true`
 so the `HttpOnly` session cookie is sent even when the API is on another port),
 frame normalisation between the compact and verbose shapes, the pipeline DAG
 painted from `pipeline`/`hello` frames, a rolling 200-sample latency reservoir
-fed by `onTelemetry`, focus restoration across re-renders, and paginated
-grouped rows (`PAGE_SIZE = 20`).
+fed by `onTelemetry`, focus restoration across re-renders, paginated
+grouped rows (`PAGE_SIZE = 20`), and the session bar's one layout decision:
+`watchSessionBarFit()` measures, with a `ResizeObserver`, whether the pipeline
+chain fits between the session pill and Refresh, and sets `data-chain-inline`
+so the chain drops to its own row below 1280px only when it does not.
 
 ### `activity-charts.js` (204 lines)
 
