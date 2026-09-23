@@ -91,6 +91,17 @@ function setSessionId(id, token) {
   } catch (e) {}
 }
 
+/**
+ * Ties a request to this visit's session, for calls made outside apiFetch().
+ * The chat goes through authenticatedFetch() for its bearer token, so it never
+ * picked up the session and no chat turn was ever attributed to one. Empty
+ * until a session exists; the server ignores the id without its token.
+ */
+export function sessionHeaders() {
+  if (!sessionId || !sessionToken) return {};
+  return { "X-Session-ID": sessionId, "X-Session-Token": sessionToken };
+}
+
 /** Client-clock start of this visit, or null if no session has begun. */
 export function getSessionStartedAt() {
   return sessionStartedAt;

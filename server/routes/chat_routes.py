@@ -9,6 +9,7 @@ from starlette.background import BackgroundTask
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from server.auth.dependencies import get_current_user, get_optional_current_user
+from server.auth.session_token import verified_session_id
 from server.db.database import get_db
 from server.models.user import User
 from server.schemas.chat import ChatStreamRequest
@@ -87,14 +88,10 @@ async def chat_stream_endpoint(
             # for other people's conversation ids.
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-    session_id_raw = request.headers.get("X-Session-ID") or request.cookies.get("session_id")
-
-    session_uuid = None
-    if session_id_raw:
-        try:
-            session_uuid = uuid.UUID(session_id_raw)
-        except ValueError:
-            pass
+    # Nothing in the frontend ever sent this header, and nothing set the
+    # `session_id` cookie read alongside it, so no production turn was ever
+    # attributed to a session and the telemetry row below was never written.
+    session_uuid = verified_session_id(request)
 
     slot = await acquire_bedrock_slot("AI streaming service is busy. Try again shortly.")
 
@@ -108,6 +105,7 @@ async def chat_stream_endpoint(
             async for chunk in bedrock_service.stream_chat_response(
                 messages=messages_payload,
                 model_id=requested_model,
+                session_id=str(session_uuid) if session_uuid else None,
             ):
                 if chunk["type"] == "delta":
                     text_delta = chunk["text"]
@@ -197,7 +195,7 @@ async def chat_stream_endpoint(
     )
 
 @router.post("/summarize", summary="Summarize Conversation History")
-async def chat_summarize_endpoint(request_data: ChatStreamRequest):
+async def chat_summarize_endpoint(request_data: ChatStreamRequest, request: Request):
     """Summarize long conversation history to fit within token limits."""
     messages_payload = ensure_alternating_roles([msg.model_dump() for msg in request_data.messages])
 
@@ -207,6 +205,7 @@ async def chat_summarize_endpoint(request_data: ChatStreamRequest):
     if not messages_payload:
         raise HTTPException(status_code=400, detail="There is nothing to summarize.")
 
+    session_uuid = verified_session_id(request)
     slot = await acquire_bedrock_slot("AI summarization service is busy. Try again shortly.")
     try:
         summary_text = ""
@@ -214,6 +213,7 @@ async def chat_summarize_endpoint(request_data: ChatStreamRequest):
         async for chunk in bedrock_service.stream_chat_response(
             messages=messages_payload,
             system_prompt="Summarize the key points of the preceding conversation concisely in 2-3 sentences.",
+            session_id=str(session_uuid) if session_uuid else None,
         ):
             if chunk.get("type") == "delta":
                 summary_text += chunk.get("text", "")

@@ -1,4 +1,4 @@
-import { API_BASE, ensureSession, isApiConfigured } from "./analytics.js";
+import { API_BASE, ensureSession, isApiConfigured, sessionHeaders } from "./analytics.js";
 import { prefersReducedMotion } from "./config.js";
 import { copyText, escapeHTML, estimateTokens } from "./utils.js";
 import { authenticatedFetch, getAuthToken } from "./auth.js";
@@ -1859,7 +1859,7 @@ export function initChat() {
         try {
           const sumRes = await authenticatedFetch(`${API_BASE}/chat/summarize`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
             body: JSON.stringify({ messages: summaryPayload })
           });
           if (sumRes.ok) {
@@ -1903,7 +1903,7 @@ export function initChat() {
       currentAbortController = new AbortController();
       const response = await authenticatedFetch(apiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
         body: JSON.stringify({ messages, stream: true, conversation_id: session.conversationId }),
         signal: currentAbortController.signal
       });

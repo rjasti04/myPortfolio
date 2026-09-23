@@ -27,6 +27,7 @@ from server.config.settings import JWT_SECRET
 _PREFIX = "analytics-session:"
 
 SESSION_TOKEN_HEADER = "X-Session-Token"
+SESSION_ID_HEADER = "X-Session-ID"
 SESSION_TOKEN_QUERY = "session_token"
 # Set at session creation and sent automatically on same-origin requests,
 # including EventSource, which cannot set headers. This is what let the token
@@ -79,6 +80,27 @@ def assert_session_access(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="A valid session token is required for this session.",
         )
+
+
+def verified_session_id(request: Request) -> Optional[UUID]:
+    """The session named by `X-Session-ID`, or None unless the caller holds its token.
+
+    For endpoints where a session is optional context rather than the resource
+    being accessed: the chat stream attributes telemetry to one but serves
+    visitors without one. It used to trust the header as sent, which let any
+    caller write events into another visitor's trail - the hole
+    `require_session_access` closes on the activity endpoints. A missing or
+    wrong token here degrades to "no session" rather than a 403, because the
+    chat itself is anonymous by design.
+    """
+    raw = request.headers.get(SESSION_ID_HEADER)
+    if not raw:
+        return None
+    try:
+        session_id = UUID(raw)
+    except ValueError:
+        return None
+    return session_id if token_matches(session_id, _extract(request, None)) else None
 
 
 async def require_session_access(

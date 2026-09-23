@@ -104,7 +104,7 @@ All limiting is skipped when `TESTING=true`. Additional ceilings:
 | `X-Request-ID` | response | UUID assigned by the outermost middleware; appears in every structured log line for that request |
 | `Server-Timing: app;dur=<ms>` | response | Handler wall time only, excluding the middleware above it. Explicitly CORS-exposed |
 | `X-Session-Token` | request | Analytics session capability token |
-| `X-Session-ID` | request | Optional on `/chat/stream`; attributes LLM telemetry to an activity session (also read from a `session_id` cookie) |
+| `X-Session-ID` | request | Optional on `/chat/stream` and `/chat/summarize`; honoured only with that session's token (`X-Session-Token` or the cookie). Attributes LLM telemetry to the session and tags the Bedrock invocation log |
 | `Last-Event-ID` | request | Sent automatically by `EventSource` on reconnect; drives SSE replay |
 
 CORS: `settings.origins` (from `CORS_ORIGINS`, plus a localhost dev list when
@@ -632,7 +632,7 @@ schema violation, **429** over the chat rate budget or all concurrency slots
 busy.
 
 **Side effects**
-- If `X-Session-ID` (or a `session_id` cookie) names a valid session, an
+- If `X-Session-ID` names a session and the caller holds its token, an
   `ai_llm_telemetry` activity event records the metrics.
 - If the caller is signed in and produced text, the transcript is zlib-compressed
   and upserted into `ai_conversations`.
@@ -640,7 +640,9 @@ busy.
 **Model routing** — models whose id starts with `anthropic.`, `us.anthropic.` or
 `eu.anthropic.` use `invoke_model_with_response_stream` (the API that supports
 ephemeral prompt caching for the system prompt); everything else uses
-`converse_stream`. `max_tokens` 2048, `temperature` 0.7.
+`converse_stream`. `max_tokens` 2048, `temperature` 0.7. A verified session id
+goes to Bedrock as `requestMetadata: {"session_id": …}`, which only labels the
+call in the account's model invocation logs.
 
 ### `POST /chat/summarize` → 200
 
