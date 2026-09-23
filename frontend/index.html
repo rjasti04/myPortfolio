@@ -1666,8 +1666,10 @@
               <b id="act-latency">&mdash;</b> ms</span>
           </div>
 
-          <button type="button" class="act-refresh" id="activity-refresh-btn">
-            <i class="fas fa-sync-alt" aria-hidden="true"></i><span>Refresh</span>
+          <!-- The label is clipped, not removed, where the button goes icon-only
+               (see the ACTIVITY region), so "Refresh" stays its accessible name. -->
+          <button type="button" class="act-refresh" id="activity-refresh-btn" title="Refresh">
+            <i class="fas fa-sync-alt" aria-hidden="true"></i><span class="act-refresh-label">Refresh</span>
           </button>
         </div>
 
