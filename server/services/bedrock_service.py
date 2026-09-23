@@ -160,12 +160,20 @@ class BedrockService:
         messages: List[Dict[str, Any]],
         system_prompt: Optional[str] = None,
         model_id: Optional[str] = None,
+        session_id: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Stream chat completions from Amazon Bedrock using converse_stream or raw invoke model stream.
         Yields dictionaries containing either delta content or final metrics metadata.
+
+        `session_id` tags the call in Bedrock's model invocation logs so they can
+        be filtered by visitor session. It is a log label only: Bedrock keeps
+        nothing between calls, so the full history is still sent every turn.
+        Pass a validated UUID - the value must match Bedrock's metadata pattern,
+        and one that does not fails the whole request.
         """
         target_model = model_id or self.default_model_id
+        request_metadata = {"session_id": session_id} if session_id else None
         active_system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
         sanitized_messages = ensure_alternating_roles(messages)
 
@@ -201,12 +209,19 @@ class BedrockService:
                     "system": system_payload,
                     "messages": sanitized_messages,
                 }
+                # InvokeModel carries the metadata as a JSON header rather than
+                # the map Converse takes.
+                invoke_metadata = (
+                    {"requestMetadata": json.dumps(request_metadata)} if request_metadata else {}
+                )
+
                 def _open_invoke_stream():
                     response = self.client.invoke_model_with_response_stream(
                         modelId=target_model,
                         contentType="application/json",
                         accept="application/json",
                         body=json.dumps(payload),
+                        **invoke_metadata,
                     )
                     return response.get("body")
 
@@ -252,6 +267,7 @@ class BedrockService:
                     converse_messages.append({"role": role, "content": content_blocks})
 
                 system_blocks = [{"text": active_system_prompt}] if active_system_prompt else []
+                converse_metadata = {"requestMetadata": request_metadata} if request_metadata else {}
 
                 def _open_converse_stream():
                     response = self.client.converse_stream(
@@ -259,6 +275,7 @@ class BedrockService:
                         messages=converse_messages,
                         system=system_blocks,
                         inferenceConfig={"maxTokens": 2048, "temperature": 0.7},
+                        **converse_metadata,
                     )
                     return response.get("stream")
 

@@ -310,7 +310,7 @@ one-time-token purposes (`password_reset`, `magic_link`, `2fa_pre_auth`).
 | `verify_magic_link` | Redeems, then still routes through 2FA if enabled |
 | `get_user_sessions` / `revoke_all_other_sessions` / `revoke_specific_session` | Session management for the account UI |
 
-### `bedrock_service.py` (300 lines)
+### `bedrock_service.py` (322 lines)
 
 `BedrockService` wraps the runtime client; `bedrock_service` is the module-level
 singleton. The client property returns the shared configured
@@ -331,12 +331,15 @@ the consumer, and a `threading.Event` tells the reader to stop when the client
 hangs up. `BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS` bounds how long that thread
 outlives an abandoned request.
 
-`stream_chat_response(messages, system_prompt=None, model_id=None)` yields
+`stream_chat_response(messages, system_prompt=None, model_id=None, session_id=None)` yields
 `{"type": "delta", "text": …}`, then one `{"type": "metrics", "metrics": {…}}`,
 or `{"type": "error", "error": …}`. Model routing is by id prefix: `anthropic.`,
 `us.anthropic.` and `eu.anthropic.` use `invoke_model_with_response_stream`
 (the API supporting ephemeral prompt caching on the system prompt); everything
-else uses `converse_stream`.
+else uses `converse_stream`. A `session_id` is sent on either path as
+`requestMetadata` (a map for Converse, a JSON header for InvokeModel), which
+tags the call in Bedrock's model invocation logs - a log label only, since
+Bedrock keeps nothing between calls.
 
 `DEFAULT_SYSTEM_PROMPT` holds the portfolio persona and the biographical facts
 the assistant answers from. **It is the only system prompt a caller can reach.**
@@ -441,7 +444,7 @@ unauthenticated caller; the cause is logged instead.
 `get_optional_current_user` — same, but returns `None` instead of raising. This
 is what makes `/chat/stream` work for both anonymous and signed-in callers.
 
-### `session_token.py` (100 lines)
+### `session_token.py` (122 lines)
 
 Capability tokens for anonymous analytics sessions.
 `sign_session(session_id)` = `hmac_sha256(JWT_SECRET, "analytics-session:{id}")`
@@ -452,6 +455,9 @@ a plain `==` leaks the shared prefix length through timing.
 `_extract` reads header → cookie → query parameter, in that order.
 `assert_session_access` raises 403 with a body identical whether or not the
 session exists. `require_session_access` is the FastAPI dependency form.
+`verified_session_id(request)` is the optional form, for the chat routes: the
+`X-Session-ID` header's UUID when the caller also holds its token, otherwise
+`None` rather than a 403, because the chat is anonymous by design.
 
 ---
 

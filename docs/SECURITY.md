@@ -406,6 +406,7 @@ Structured JSON via structlog, with `request_id` on every line.
 | Client error reports carry `pathname + hash`, never the query string | `error-handler.reportClientError` — the query string can carry a reset or magic-link token, and this payload is persisted |
 | Client error reports capped and deduplicated | 10 per page load, deduplicated by `name:message` |
 | API responses never cached by the service worker | `sw.js` skips `/api/` |
+| Bedrock invocation logs get the analytics session id only — never its token, a user id or an IP | `bedrock_service.stream_chat_response` (`requestMetadata`) |
 | Analytics click tracking records shape, not content | tag name, whether an id exists, link origin — not text or href |
 
 The `robots.txt` disallows `/api/`.

@@ -134,7 +134,7 @@ into JS. **Does not** hold `API_BASE`.
 | `mobileDevice` | `(pointer: coarse) and (max-width: 768px)` — phones only; iPads are 768px+ in portrait and laptops always have a fine pointer |
 | `motionMs(name, fallbackMs)` | A `--motion-*` token as milliseconds, e.g. `motionMs("base", 180)`. Reads the computed value off the root element and caches per token; returns the fallback when the property is absent or unparseable, which is the case under jsdom and before the stylesheet applies. Exists so JS animating alongside CSS reads the scale rather than restating it — see ADR-025 |
 
-### `analytics.js` (599 lines)
+### `analytics.js` (610 lines)
 
 API base resolution, session lifecycle, the event queue, and request telemetry.
 
@@ -144,6 +144,7 @@ API base resolution, session lifecycle, the event queue, and request telemetry.
 | `isApiConfigured()` | Whether a base URL is set at all |
 | `apiFetch(url, options)` | `fetch` with `mode: "cors"` and the `X-Session-Token` header attached centrally, so no call site can forget it |
 | `ensureSession()` | Start a session if needed; resolves `true` even when tracking is blocked, so chat still works |
+| `sessionHeaders()` | `X-Session-ID` + `X-Session-Token` for calls that bypass `apiFetch` — the chat's `authenticatedFetch` requests. `{}` until a session exists |
 | `trackEvent(type, data)` | Queue an event; flush at the size threshold |
 | `initAnalytics()` | Attach global listeners, restore or start a session |
 | `onTelemetry(observer)` | Subscribe to per-request timing samples; returns an unsubscribe function |

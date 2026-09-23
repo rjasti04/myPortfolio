@@ -244,11 +244,11 @@
     ],
     "siteFacts": [
       "This portfolio is a hand-written static single-page app with no frontend framework — no React, Vue, Svelte, jQuery, Three.js or CSS preprocessor. It is vanilla ES modules and hand-authored CSS, with a static schematic backdrop painted entirely in CSS.",
-      "Frontend: vanilla JavaScript ES modules, hand-written CSS, 2D-canvas backgrounds, a service worker and Web App Manifest (installable PWA), DOMPurify and marked vendored from npm, and self-hosted subset fonts. No asset is loaded from a third-party origin.",
+      "Frontend: vanilla JavaScript ES modules, hand-written CSS, a service worker and Web App Manifest (installable PWA), DOMPurify and marked vendored from npm, and self-hosted subset fonts. No asset is loaded from a third-party origin.",
       "Frontend features: hash-routed sections, an interactive command prompt with a Ctrl+K palette, a live session-activity dashboard fed by server-sent events, this AI chat, a theme customizer, and a full account UI (register, login, TOTP 2FA, magic links, password reset, session management).",
       "Backend: FastAPI with Pydantic v2, SQLAlchemy 2 (async) over asyncpg, Alembic migrations, PostgreSQL, structlog, and an optional Kafka ingest pipeline that falls back to a simulator when no broker is configured.",
       "Auth: JWT (HS256) with refresh-token rotation, passlib + bcrypt, pyotp TOTP two-factor, magic links, and Have I Been Pwned range-API password screening.",
-      "AI: this chat streams from Amazon Bedrock over server-sent events, with prompt caching on the system prompt and per-turn token and latency telemetry.",
+      "AI: this chat streams from Amazon Bedrock over server-sent events, with per-turn token and latency telemetry.",
       "Build and deploy: esbuild produces a bundled, minified, content-hashed dist/; GitHub Actions runs lint, tests and migration drift checks, then rsyncs to EC2 (Apache for the static tier, systemd + Uvicorn for the API) with automatic rollback.",
       "Side projects on the same domain: a Champions League bracket predictor at /ucl, a retired World Cup predictor at /worldcup, and an arcade at /arcade with 2048, Tetris, Flapper, Stack, Snake and Breaker — all written from scratch in vanilla JavaScript with no game engine."
     ]

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+import uuid
 
 import pytest
 
@@ -362,3 +363,112 @@ async def test_a_normal_conversation_still_fits_within_the_caps():
 
     request = ChatStreamRequest(messages=turns)
     assert len(request.messages) == 20
+
+
+# --- Session id on the Bedrock call -------------------------------------------
+# The chat never sent X-Session-ID, so no turn was attributed to a session. It
+# now goes to Bedrock as requestMetadata, and only with the session's token: the
+# header alone used to be trusted, which let any caller write telemetry into
+# another visitor's trail.
+
+_GEMMA_EVENTS = [
+    {"contentBlockDelta": {"delta": {"text": "Hi."}}},
+    {"metadata": {"usage": {"inputTokens": 12, "outputTokens": 3}}},
+]
+
+
+async def _new_session(async_client):
+    response = await async_client.post(
+        "/api/sessions",
+        json={"user_agent": "pytest-agent", "device_type": "desktop"},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    return body["session_id"], {
+        "X-Session-ID": body["session_id"],
+        "X-Session-Token": body["session_token"],
+    }
+
+
+@pytest.mark.asyncio
+async def test_verified_session_id_reaches_bedrock_as_request_metadata(async_client):
+    session_id, headers = await _new_session(async_client)
+
+    with patch("server.services.bedrock_service.bedrock_service.client.converse_stream") as mock_converse:
+        mock_converse.return_value = {"stream": list(_GEMMA_EVENTS)}
+        response = await async_client.post(
+            "/api/chat/stream",
+            json={"model_id": "google.gemma-3-4b-it", "messages": [{"role": "user", "content": "Hi"}]},
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    assert mock_converse.call_args.kwargs["requestMetadata"] == {"session_id": session_id}
+
+    # The same verified id is what finally lets the telemetry row be written.
+    events = await async_client.get(
+        f"/api/sessions/{session_id}/events",
+        params={"event_type": "ai_llm_telemetry", "limit": 5},
+        headers=headers,
+    )
+    assert events.status_code == 200
+    assert len(events.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_session_id_without_its_token_is_not_sent_to_bedrock(async_client):
+    forged = {"X-Session-ID": str(uuid.uuid4()), "X-Session-Token": "0" * 64}
+
+    for headers in (forged, {}):
+        with patch("server.services.bedrock_service.bedrock_service.client.converse_stream") as mock_converse:
+            mock_converse.return_value = {"stream": list(_GEMMA_EVENTS)}
+            response = await async_client.post(
+                "/api/chat/stream",
+                json={"model_id": "google.gemma-3-4b-it", "messages": [{"role": "user", "content": "Hi"}]},
+                headers=headers,
+            )
+
+        # Still served - the chat is anonymous - just not attributed.
+        assert response.status_code == 200
+        assert "requestMetadata" not in mock_converse.call_args.kwargs
+
+
+@pytest.mark.asyncio
+async def test_invoke_path_sends_session_id_as_a_json_header(async_client):
+    """InvokeModel takes the metadata as a JSON string, not the Converse map."""
+    session_id, headers = await _new_session(async_client)
+    events = [
+        {"chunk": {"bytes": json.dumps({"type": "content_block_delta", "delta": {"text": "Hi."}}).encode("utf-8")}},
+    ]
+
+    with patch(
+        "server.services.bedrock_service.bedrock_service.client.invoke_model_with_response_stream"
+    ) as mock_invoke:
+        mock_invoke.return_value = {"body": events}
+        response = await async_client.post(
+            "/api/chat/stream",
+            json={
+                "model_id": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+                "messages": [{"role": "user", "content": "Hi"}],
+            },
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    assert json.loads(mock_invoke.call_args.kwargs["requestMetadata"]) == {"session_id": session_id}
+
+
+@pytest.mark.asyncio
+async def test_summarize_sends_the_verified_session_id(async_client):
+    session_id, headers = await _new_session(async_client)
+
+    with patch("server.services.bedrock_service.bedrock_service.client.converse_stream") as mock_converse:
+        mock_converse.return_value = {"stream": list(_GEMMA_EVENTS)}
+        response = await async_client.post(
+            "/api/chat/summarize",
+            json={"messages": [{"role": "user", "content": "Hi"}, {"role": "assistant", "content": "Hello"}]},
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    assert mock_converse.call_args.kwargs["requestMetadata"] == {"session_id": session_id}
