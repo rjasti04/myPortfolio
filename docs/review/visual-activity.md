@@ -14,12 +14,38 @@ rendering states for it (finding 13 and the first bullet of the last section);
 they are reported because a taste review of a panel that never paints would be
 empty, not because this document hunts them.
 
-## Status: proposed
+## Status: implemented
 
-Nothing in this document has been applied. Every proposal was applied to a
-scratch copy of `styles.css`, rendered, measured and linted before being
-written down — so each one is known to land as described — but the repository
-is untouched apart from this file.
+All sixteen findings shipped in `frontend/styles.css` as written, including
+finding 1's optional colour/edge transition. It is all CSS: no markup, no JS,
+no new asset or origin, and `index.html` is untouched. The one other file is a
+comment in `frontend/tests/route-semantics.test.js` that quoted the router
+selector finding 13 rescoped. The reasoning behind each change is recorded in a
+comment beside it, so the next edit does not undo one by accident. That covers
+the visit card's 18px top (*What already works* 1) and the filter card's 14px
+sides (finding 9).
+
+Verified after the change: `npm run lint` clean, `npm test` 639/639,
+`check_csp_hashes.py` green, and `npm run build` puts CSS at **302,197 B = 295.1
+of 296 KiB**. That is exactly the +1,063 B this document predicted, and it
+leaves 907 B of headroom. The shipped stylesheet was then re-rendered without
+any overlay and probed state by state:
+
+- Refresh is an outline at rest and fills on the `/events` 503.
+- The wires are 32px at 1440px, and the legend sits 9px under the axis.
+- A pressed Navigation chip keeps its orange glyph.
+- The error footer collapses to 0px.
+- The bar is 118px at 1024px, and the filter row stays on one line there.
+- The phone legend is a 2×2.
+- All six owner cards paint on `--card-bg`, with a 17px inset, while `#activity`
+  stays the only visible view.
+- The loading rows show a 46px time bar and a neutral dot, and both placeholders
+  run `app-media-loading`.
+
+Still open, because it needs JS and markup rather than a declaration: the
+strip's System-as-Navigation fold (the first bullet of the last section). With
+it, the note in finding 5 applies: five legend items want
+`repeat(3, max-content)`.
 
 ## Method
 
