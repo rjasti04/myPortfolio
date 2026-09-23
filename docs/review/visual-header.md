@@ -19,11 +19,51 @@ while rendering it (findings 1, 2 and 8); they are reported because each is the
 most visible thing about the bar in the state where it happens, not because
 this document hunts them.
 
-## Status: open
+## Status: implemented
 
-Nothing here has been implemented. Every proposal was applied to a scratch copy
-of `frontend/` and rendered, and the "after" figures below come from that
-render, not from reasoning about the diff.
+All sixteen findings shipped as written, with one deviation: finding 14's
+chevron is deleted from the avatar template (`js/auth-ui.js`) rather than
+hidden with CSS — the variant that finding named as cleaner. The changes are in
+`styles.css`, `auth-modal.css`, `js/theme.js`, `js/theme-customizer.js` and one
+line of `js/auth-ui.js`. `index.html` changed only in the theme button's HTML
+comment; no inline script was touched. The reasoning behind each change is
+recorded in a comment beside it, so the next edit does not undo one by accident.
+
+Verified after the change: `npm run lint` clean, `npm test` 639/639,
+`check_csp_hashes.py` green, and `npm run build` puts **CSS at 302,392 B = 295.3
+of 296 KiB (+195 B, 712 B left)** and **JS at 391,340 B = 382.2 of 390 KiB
+(+233 B)**. Both come in under this document's +243 / +347 because deleting the
+chevron from the template removes the JS for it and needs no CSS rule. The
+shipped tree was then re-rendered without any overlay and probed state by state:
+
+- Swept from 1151 to 1240px, no link passes the nav's box, and the nearest
+  approach to the action row is 36.8px. The nav is centred to within 0.1px from
+  1151 to 1920.
+- Hovering a link moves nothing (0.0px), and Tab reveals the focused link's
+  number.
+- The nav has no fill, border, blur or shadow. The scrolled bar is white at 0.92
+  on `--elev-3`, and the darkest face under its labels measures luma 235.3,
+  which puts the active label at 4.60:1.
+- The wordmark keeps its colour on hover in both themes.
+- Theme, on a light OS: light/display → dark/moon → light/sun → light/display.
+  On a dark OS: dark/display → light/sun → dark/moon → dark/display.
+- On a phone, the hamburger is a centred 54.4px capsule from 1150 down to 376px
+  and a 44px disc at ≤375; 320px stays at −19.0px.
+- The phone menu's heading sits flush with its tiles at 390 and 1024, with the
+  rule full width, and its icons are `--accent-text`.
+- With the customizer open, the login and theme icons both dim to 0.35, and the
+  panel hangs 12px under the bar at rest and when scrolled.
+- The preset chips show their swatches in Plus Jakarta Sans. The hex codes are
+  in `ui-monospace`, and "Save" / "Randomize" are in sentence case.
+- Signed in, the avatar is 44×44 with no chevron, and the hamburger is back at
+  0.0px on a phone. The user menu hangs 12px under the bar in Plus Jakarta Sans,
+  with every row at 38px (none wraps).
+
+Still open: the four items under "Not declaration-level", none of which a
+declaration can close.
+
+The "after" figures in the findings below come from a scratch-copy render made
+before the change; the shipped tree reproduces every one of them.
 
 ## Method
 

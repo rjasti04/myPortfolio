@@ -690,7 +690,9 @@
           </button>
         </div>
 
-        <!-- Cycles light -> dark -> system. No aria-pressed: three states are
+        <!-- Cycles system -> the theme the OS is not showing -> the one it is
+             -> system, so the first press always repaints (js/theme.js,
+             nextThemeMode). No aria-pressed: three states are
              not a pressed/unpressed control, and js/theme.js rewrites the
              label and icon on every press to name the mode now in effect.
              The attributes here are only what ships before that runs. -->

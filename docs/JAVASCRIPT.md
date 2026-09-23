@@ -80,7 +80,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,602 lines)
+### `auth-ui.js` (1,601 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -776,7 +776,7 @@ See [The flip card](FRONTEND.md#the-flip-card) for the markup and CSS contract.
 `initTilt()` — pointer-tracked 3D tilt on `.tilt-card`, `requestAnimationFrame`
 batched, and a complete no-op without hover support or with reduced motion.
 
-### `theme.js` (184 lines)
+### `theme.js` (202 lines)
 
 `initTheme()`, `applyTheme(isDark)`, `toggleTheme()`. `toggleTheme` is exported
 so callers (the command prompt) need not synthesise a click on `#theme-toggle`.
@@ -790,7 +790,15 @@ Calls `syncThemeColorMeta()` from `theme-customizer.js` after
 `reapplyCustomTheme`, which covers the plain light/dark flip on the shipped
 colours — the palette paths sync the tag themselves.
 
-### `theme-customizer.js` (1,169 lines)
+The header button advances through `nextThemeMode()`, which reads the OS: from
+"system" it goes to the theme the OS is *not* showing, then to the one it is,
+then back to "system". The one press that cannot repaint the page therefore
+comes last; a fixed light → dark → system order made it the first press for
+every visitor on a light OS. The glyph names the mode in effect (sun, moon,
+display), and the OS `change` listener re-syncs the label because the next
+mode depends on it.
+
+### `theme-customizer.js` (1,183 lines)
 
 `initThemeCustomizer()`, `reapplyCustomTheme(isDark)`, `randomPalette(hex)`,
 `syncThemeColorMeta(isDark)`.
@@ -798,6 +806,10 @@ Derives a full palette from one hex accent (`hexToHsl`, `generateVariants`),
 checks contrast (`getLuminance`, `getContrast`) before applying, writes CSS
 custom properties onto `document.body`, and persists to
 `localStorage.rj_theme_palette`. `clearCustomPalette()` restores the defaults.
+Every theme chip, built-in or saved, carries a swatch: `paintChip()` writes the
+triple it applies as `--chip-a/b/c`, which the `.preset-btn::before` bar in
+`styles.css` reads. Those are CSSOM writes, which `style-src 'self'` allows
+where a `style` attribute would not be.
 
 `initHomeThemeShuffle()` wires the wand in the landing view's `.home-socials`
 row. It calls `applyRandomTheme()`, which rolls, derives and paints **without

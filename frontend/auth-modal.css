@@ -211,14 +211,19 @@
     background-color var(--motion-base) var(--ease-standard);
 }
 
+/* A member of the action row: the same 44px circle as its neighbours, with
+   the initial disc inside it as the one fill. It was a 72.8 x 35.6px
+   lozenge with a chevron - the only non-circle in the row, the only resting
+   fill, under the 44px floor the header pins its controls to, and wide
+   enough to push the phone hamburger 12.8px off centre. */
 .nav-user-profile {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
   cursor: pointer;
-  padding: 0.3rem 0.8rem;
-  border-radius: 20px;
-  background-color: var(--accent-soft, rgb(225 38 77 / 10%));
+  width: var(--header-action-size, var(--min-touch-target));
+  height: var(--header-action-size, var(--min-touch-target));
+  border-radius: 50%;
   border: 1px solid transparent;
   color: var(--text);
   transition: border-color var(--motion-base) var(--ease-standard), background-color var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard);
@@ -244,7 +249,10 @@
 
 .nav-user-dropdown {
   position: absolute;
-  top: calc(100% + 10px);
+  /* Hung from the bar, not the avatar - the same anchor as
+     .header-dropdown-menu in styles.css. `100% + 10px` of the avatar put the
+     menu's top 8.2px inside the 72px bar. */
+  top: calc(50% + var(--header-height) / 2 + var(--space-md));
   right: 0;
   background-color: var(--bg, rgb(255 255 255 / 80%));
   backdrop-filter: blur(12px);
@@ -281,7 +289,12 @@
   border: none;
   color: var(--text);
   cursor: pointer;
+  /* A <button> takes the UA's font without this: the whole menu was Arial.
+     nowrap because Plus Jakarta Sans is wider - "Change Password" wrapped
+     inside the 200px min-width - so the menu grows to its longest item. */
+  font-family: inherit;
   font-size: 14px;
+  white-space: nowrap;
   transition: background-color 0.2s, color 0.2s;
 }
 

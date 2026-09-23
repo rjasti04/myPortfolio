@@ -48,30 +48,46 @@ function modeIsDark(mode) {
    `scripts/vendor_fonts.py` subsets to the icons the source actually uses and
    the fonts are committed rather than rebuilt by `npm run build`, so an icon
    from outside it renders as a blank box in production. These three are in it;
-   fa-circle-half-stroke, the obvious pick for "system", is not. */
+   fa-circle-half-stroke, the obvious pick for "system", is not.
+
+   Each glyph names the mode IN EFFECT, as the display glyph always did. The
+   sun and moon used to name where the next press went - two grammars in one
+   button - and the sun was wrong even in its own: from "dark" the next press
+   goes to "system", which on a dark OS stays dark. */
 const MODE_ICON = {
-  light: "fas fa-moon",
-  dark: "fas fa-sun",
+  light: "fas fa-sun",
+  dark: "fas fa-moon",
   system: "fas fa-display",
 };
 
-const MODE_LABEL = {
-  light: "Theme: light. Switch to dark.",
-  dark: "Theme: dark. Follow system.",
-  system: "Theme: following system. Switch to light.",
-};
+const MODE_NAME = { light: "light", dark: "dark", system: "following system" };
+
+/**
+ * The mode the next press moves to. From "system" it goes to the theme the OS
+ * is NOT showing, so the first press always changes the page; the one press
+ * that cannot - back to "system", which resolves to what is already on
+ * screen - comes last. A fixed light -> dark -> system order made the FIRST
+ * press the dead one for every visitor on a light OS.
+ */
+function nextThemeMode(mode) {
+  const os = prefersDarkScheme.matches ? "dark" : "light";
+  const other = os === "dark" ? "light" : "dark";
+  return mode === "system" ? other : mode === other ? os : "system";
+}
 
 /** Point the button's icon and accessible name at the mode now in effect. */
 function syncThemeButton(mode) {
+  const next = nextThemeMode(mode);
+  const label = `Theme: ${MODE_NAME[mode]}. ${next === "system" ? "Follow system." : `Switch to ${next}.`}`;
   if (themeIcon) themeIcon.className = MODE_ICON[mode];
   if (themeBtn) {
-    themeBtn.setAttribute("aria-label", MODE_LABEL[mode]);
-    themeBtn.setAttribute("title", MODE_LABEL[mode]);
+    themeBtn.setAttribute("aria-label", label);
+    themeBtn.setAttribute("title", label);
   }
 }
 
 /**
- * Advance light -> dark -> system -> light and apply the result.
+ * Advance to `nextThemeMode()` and apply the result.
  *
  * Separate from `toggleTheme` on purpose: that one is a straight binary flip
  * and the command prompt's `theme` command returns its boolean, so widening
@@ -80,7 +96,7 @@ function syncThemeButton(mode) {
  * @returns {string} the mode now in effect.
  */
 export function cycleTheme() {
-  const next = THEME_MODES[(THEME_MODES.indexOf(readThemeMode()) + 1) % THEME_MODES.length];
+  const next = nextThemeMode(readThemeMode());
   trackEvent("theme_change", { theme: next });
   writeThemeMode(next);
   applyTheme(modeIsDark(next));
@@ -180,5 +196,7 @@ export function initTheme() {
     if (readStoredTheme() === null) {
       applyTheme(event.matches);
     }
+    // The next mode depends on the OS now, so the label moves with it.
+    syncThemeButton(readThemeMode());
   });
 }
