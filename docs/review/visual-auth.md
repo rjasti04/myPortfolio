@@ -29,10 +29,45 @@ and on top of Register's hit box, and pressing Register moves the tab row
 114px out from under the pointer. Every one of those has a declaration-level
 fix, and all sixteen together cost **CSS +140 B, JS −227 B**.
 
-## Status: open
+## Status: implemented
 
-Nothing here has shipped. Every proposal was applied to a scratch copy of
-`frontend/` to take the "after" figures; none of it is in the tree.
+All sixteen findings shipped as written, with two deviations, both in
+`auth-modal.css`:
+
+- **Finding 7's empty-error rule is scoped to `.auth-form`.** The sessions
+  panel's error line sits outside a form, so it has no gap for the negative
+  margin to cancel. Unscoped, it would have pulled that panel's button up 16px.
+- **Finding 3 gained one rule.** Moving the × 16px inward put it on top of the
+  heading on six tab-less views at phone widths ("Two-Factor Authentication" at
+  390px; "Delete Account", "Change Password" and three more at 320px). With the
+  tab row hidden, the panel heading now reserves the same
+  `calc(var(--min-touch-target) + var(--space-sm))` the tab row does. Swept at
+  1440, 390 and 320 across all nine tab-less views, no heading line touches the
+  × box.
+
+The comment above `TAB_TITLE_IDS` in `js/auth-ui.js` now says what `hidden` and
+`active` actually do. `index.html` changed only in visible text; no inline
+script was touched.
+
+Verified after the change: `npm run lint` clean, `npm test` 639/639,
+`check_csp_hashes.py` green, `check_docs.py` green, and `npm run build` puts
+**CSS at 302,649 B = 295.6 of 296 KiB (+257 B, 455 B left)** and **JS at
+391,113 B = 381.9 of 390 KiB (−227 B)**. CSS comes in 117 B over this
+document's +140 because of the two deviations above. The shipped tree was then
+re-rendered, and the "after" figures below reproduce: the tab row moves 0.0px on
+the switch at every viewport from 1920×1080 to 320×568; the light card samples
+`rgb(242 242 242)`, with the selected tab at 5.17:1 and the inactive tab,
+subtitle and links at 7.93:1; the tab labels are in Plus Jakarta Sans, with the
+× centre 0.5px from theirs; fields are 16px apart, with the button 24px under
+the links; the entrance keyframes run from opacity 0 and an 8px offset; the
+meter fills to 354px when all four rules are met; and after one keystroke the
+checklist rows are `--muted`, not red.
+
+Still open: the items under "Not declaration-level", none of which a
+declaration can close.
+
+The "after" figures in the findings below come from a scratch-copy render made
+before the change; the shipped tree reproduces every one of them.
 
 ---
 
@@ -739,9 +774,11 @@ marks it as the special one.
   visitor has — is copy the owner has to decide; this review does not invent
   claims on the owner's behalf.
 - **The tab-less views.** With finding 3, the × on forgot password, magic link
-  and the 2FA views sits 9.5px below the heading's centre line (13px above it
-  today). One `:has(.auth-modal-tabs.hidden)` rule could align it there too;
-  those views are outside this review's scope.
+  and the 2FA views sits 9.5px below the heading's centre line (it sat 13px
+  above it before). The collision is fixed (see Status), but not the
+  alignment: the × comes before the tab row in the markup, so no sibling
+  selector reaches it, and aligning it needs a `:has(.auth-modal-tabs.hidden)`
+  rule. Those views are outside this review's scope.
 - **Closing is instant.** `closeModal` → `onClose` adds `hidden`, which is
   `display: none` at once. Animating the exit needs a delayed `hidden` — the
   dual-state pattern `.claude/intents/2026-09-18-ui-ux-visual-design-review.md`

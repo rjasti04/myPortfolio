@@ -1,49 +1,47 @@
 .auth-modal-overlay {
+  /* Half the tallest panel (Register). Every panel hangs from the line that
+     centres Register, so switching tabs grows the card downward and the tab
+     row stays under the pointer that pressed it. */
+  --auth-hang: 20rem;
+
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   background-color: rgb(0 0 0 / 65%);
-  backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(var(--blur-lg));
   z-index: 10000;
   display: flex;
   justify-content: center;
-  align-items: center;
-  opacity: 1;
-  visibility: visible;
-  transition: opacity var(--motion-medium) var(--ease-standard), visibility var(--motion-medium) var(--ease-standard);
+  align-items: flex-start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: max(var(--space-lg), 50dvh - var(--auth-hang)) var(--space-lg) var(--space-lg);
 }
 
-.auth-modal-overlay.hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
+/* `.hidden` is display:none (styles.css), so a transition from it never
+   runs. Keyframes do run when an element starts rendering. */
+.auth-modal-overlay.active {
+  animation: backdrop-fade-in var(--motion-medium) var(--ease-standard);
+}
+
+.auth-modal-overlay.active .auth-modal-content {
+  animation: slide-fade-in var(--motion-medium) var(--ease-enter);
 }
 
 .auth-modal-content {
-  background: var(--surface-soft, rgb(30 30 46 / 85%));
-  backdrop-filter: blur(20px) saturate(180%);
-  border-radius: var(--radius-lg, 16px);
-  width: 90%;
-  max-width: 420px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  width: min(420px, 100%);
   padding: 2rem;
   position: relative;
-  box-shadow: 0 24px 64px rgb(0 0 0 / 35%), inset 0 1px 1px 0 rgb(255 255 255 / 15%);
-  transform: translateY(0);
-  transition: transform var(--motion-medium) var(--ease-overshoot), box-shadow var(--motion-medium) var(--ease-standard);
-  border: 1px solid var(--border, rgb(255 255 255 / 15%));
+  box-shadow: var(--elev-3);
+  border: 1px solid var(--border);
   color: var(--text);
-}
-
-.auth-modal-overlay.hidden .auth-modal-content {
-  transform: translateY(24px) scale(0.96);
 }
 
 .auth-modal-close {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  top: var(--space-2xl);
+  right: var(--space-2xl);
   background: transparent;
   border: none;
   color: var(--text);
@@ -63,12 +61,13 @@
 }
 
 .auth-modal-close:hover {
-  background-color: var(--accent-soft, rgb(255 255 255 / 10%));
-  color: var(--accent-fill);
+  background-color: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .auth-modal-tabs {
   display: flex;
+  margin-right: calc(var(--min-touch-target) + var(--space-sm));
   margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--border);
   padding-bottom: 0;
@@ -80,6 +79,7 @@
   border: none;
   padding: 0.75rem 0;
   color: var(--muted);
+  font-family: inherit;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -92,7 +92,8 @@
 }
 
 .auth-tab.active {
-  color: var(--accent-fill);
+  color: var(--accent-text);
+  font-weight: 700;
 }
 
 .auth-tab.active::after {
@@ -102,7 +103,7 @@
   left: 0;
   width: 100%;
   height: 2px;
-  background-color: var(--accent-fill);
+  background-color: var(--accent-text);
 }
 
 .auth-tab-content {
@@ -128,22 +129,31 @@
 
 .auth-modal-content h3 {
   margin-top: 0;
-  margin-bottom: 0.5rem;
-  font-size: 1.5rem;
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   color: var(--text);
+}
+
+/* With no tab row, the heading shares the close button's line - keep it clear
+   of the button the same way the tab row is. */
+.auth-modal-tabs.hidden ~ .auth-tab-content h3 {
+  margin-right: calc(var(--min-touch-target) + var(--space-sm));
 }
 
 .auth-modal-subtitle {
   margin-top: 0;
   margin-bottom: 1.5rem;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
+  text-wrap: pretty;
 }
 
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--space-lg);
 }
 
 .auth-submit-btn {
@@ -161,6 +171,14 @@
   min-height: 1.2rem;
   margin-top: -0.5rem;
   display: block;
+}
+
+/* Empty, it gives the form's gap back rather than holding a blank line between
+   the last field and the button. Still rendered, so role="alert" stays live.
+   Scoped to .auth-form: the sessions panel's error line has no gap to cancel. */
+.auth-form .auth-error:empty {
+  min-height: 0;
+  margin-top: calc(-1 * var(--space-lg));
 }
 
 /* Offered under the login error when the address is registered but not yet
@@ -306,10 +324,12 @@
 
 /* --- Auth Modal Enhancement Styles --- */
 
-/* Floating Label Support for Auth Form Inputs */
+/* Floating Label Support for Auth Form Inputs. The form's gap is the only
+   spacing between fields: the contact form's .form-group margin (styles.css)
+   used to stack on top of it and set them 40px apart. */
 .auth-form .floating-label-group {
   position: relative;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0;
 }
 
 .auth-form .floating-label-group .input-wrapper {
@@ -335,19 +355,14 @@
   transition: border-color var(--motion-base, 180ms) var(--ease-standard), box-shadow var(--motion-base, 180ms) var(--ease-standard);
 }
 
+/* One 2px ring in --accent-text (border + 1px shadow), which clears WCAG
+   1.4.11's 3:1 in both themes on its own. A text input matches :focus-visible
+   on every focus, mouse included, so the 3px outline that used to sit on top
+   of this was not keyboard-only - every open drew three rings. */
 .auth-form .floating-label-group input:focus {
   outline: none;
-  border-color: var(--accent-fill);
-  box-shadow: 0 0 0 2px var(--accent-soft);
-}
-
-/* The box-shadow above is --accent-soft at 15% alpha, which composites to
-   1.12:1 against the field in light theme - not a focus indicator by WCAG
-   1.4.11's 3:1 bar. This rule needs to match the specificity above to win, and
-   applies only for keyboard focus so the softer treatment still covers clicks. */
-.auth-form .floating-label-group input:focus-visible {
-  outline: 3px solid var(--focus-ring);
-  outline-offset: 2px;
+  border-color: var(--accent-text);
+  box-shadow: 0 0 0 1px var(--accent-text);
 }
 
 .auth-form .floating-label-group .form-label {
@@ -394,7 +409,7 @@
 }
 
 .forgot-password-link:hover {
-  color: var(--accent-fill);
+  color: var(--accent-text);
 }
 
 /* Back to Login Button styling */
@@ -407,6 +422,7 @@
   background: transparent;
   border: none;
   color: var(--muted);
+  font-family: inherit;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -419,7 +435,7 @@
 }
 
 .back-to-login-btn:hover {
-  color: var(--accent-fill);
+  color: var(--accent-text);
 }
 
 /* Password Strength Meter */
@@ -491,6 +507,19 @@
   transition: transform var(--motion-base, 180ms) var(--ease-press);
 }
 
+/* fonts.css maps .far onto the solid face, so fa-circle painted a filled
+   disc - a bullet, or a tick already given. Drawn as the empty ring the
+   markup asks for, in the 14px box the tick replaces it in. */
+.checklist-item .fa-circle::before {
+  content: none;
+}
+
+.checklist-item .fa-circle {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px;
+}
+
 .checklist-item.valid {
   color: var(--color-success);
 }
@@ -548,8 +577,14 @@
 }
 
 .password-toggle-btn:hover {
-  color: var(--accent-fill);
+  color: var(--accent-text);
   transform: translateY(-50%) scale(1.1);
+}
+
+/* No verdict on an address still being typed; the shared :invalid cross
+   returns when the field is left. */
+.auth-form .input-wrapper input:focus {
+  background-image: none;
 }
 
 .password-toggle-btn:focus-visible {
@@ -582,10 +617,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.magic-link-trigger {
-  color: var(--color-accent);
 }
 
 /* --- 2FA setup ---------------------------------------------------------- */
