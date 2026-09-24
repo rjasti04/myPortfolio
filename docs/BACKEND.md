@@ -100,7 +100,7 @@ over SSH, without the service's environment.
 - `required_env(name)` — raises `RuntimeError` if unset or blank.
 - `env_int(name, default)` — raises on non-integer or non-positive values.
 
-### `settings.py` (97 lines)
+### `settings.py` (132 lines)
 
 Validated configuration. `_required_secret` additionally rejects the legacy
 placeholder key that shipped in this repository (any token signed with it must
@@ -111,17 +111,16 @@ Exports: `DATABASE_URL`, `AWS_REGION`, `DEFAULT_MODEL_ID`, `JWT_SECRET`,
 `origins`, `MAX_BODY_BYTES`, `CHAT_MAX_CONCURRENCY`, `CHAT_STREAM_QUEUE_SIZE`,
 `BEDROCK_TIMEOUT_SECONDS`, `BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS`,
 `CHAT_FREE_MESSAGE_LIMIT`, `CHAT_RATE_LIMIT_PER_MINUTE`,
-`MAX_STREAMS_PER_SESSION`, `ALLOWED_MODEL_IDS`, `TRUSTED_PROXY_NETWORKS`.
+`MAX_STREAMS_PER_SESSION`, `TRUSTED_PROXY_NETWORKS`.
 
-`ALLOWED_MODEL_IDS` always contains `DEFAULT_MODEL_ID`, `google.gemma-3-4b-it`
-and `anthropic.claude-3-5-sonnet-20241022-v2:0`, plus anything in
-`ALLOWED_MODEL_IDS`. `origins` always contains the two production domains.
+`origins` always contains the two production domains. There is no model
+allowlist: every chat turn runs on `DEFAULT_MODEL_ID` (ADR-023).
 
-### `bedrock.py` (73 lines)
+### `bedrock.py` (68 lines)
 
-Two boto3 clients built once with a shared `Config` (10s connect timeout,
-`BEDROCK_TIMEOUT_SECONDS` read timeout, 2 standard-mode retries):
-`bedrock_runtime` (inference) and `bedrock_mgmt` (`list_foundation_models`).
+One boto3 client, `bedrock_runtime`, built once with a `Config` (10s connect
+timeout, `BEDROCK_TIMEOUT_SECONDS` read timeout, 2 standard-mode retries). It is
+inference only: nothing in the API calls the Bedrock control plane.
 
 `bedrock_semaphore` is an `asyncio.Semaphore(CHAT_MAX_CONCURRENCY)`.
 
@@ -191,7 +190,8 @@ it, and here the bound cannot be edited away.
 
 `ChatMessage.role` is `Literal["user", "assistant"]` (it was a bare `str`, so
 any value round-tripped into the Bedrock payload). `ChatStreamRequest` no longer
-accepts `system_prompt` — see [`API.md`](API.md#chat-endpoints).
+accepts `system_prompt`, and a supplied `model_id` is ignored (`extra="ignore"`)
+— see [`API.md`](API.md#chat-endpoints).
 
 ### `event.py`
 
@@ -231,7 +231,7 @@ Routers only — no logic, no dependencies beyond wiring.
 | `chat_routes.py` | `/chat` | `Chat & AI` | Streaming, summarize, 3 history routes |
 | `session_routes.py` | `/sessions` | `Sessions` | 4, via `add_api_route` |
 | `event_routes.py` | — | `Events` | 6, via `add_api_route` |
-| `system_routes.py` | — | `System` | `/health`, `/system/pipeline`, `/models` |
+| `system_routes.py` | — | `System` | `/health`, `/system/pipeline` |
 
 **Route ordering matters twice.** `POST /auth/sessions/revoke-others` is
 declared before `DELETE /auth/sessions/{session_id}` so the literal segment is
@@ -277,11 +277,10 @@ Broadcasts always go through `spawn_background`, never a bare
 `asyncio.create_task` — asyncio holds only a weak reference to a running task,
 so a task whose result is discarded can be collected mid-await.
 
-### `system_controller.py` (66 lines)
+### `system_controller.py` (42 lines)
 
-`health_check` (logs and returns 503 on a database failure), `pipeline_status`
-(delegates to `kafka_stream.pipeline_snapshot`), `list_models` (runs the
-blocking boto3 call through `asyncio.to_thread`).
+`health_check` (logs and returns 503 on a database failure) and
+`pipeline_status` (delegates to `kafka_stream.pipeline_snapshot`).
 
 ---
 

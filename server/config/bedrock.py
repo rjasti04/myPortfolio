@@ -14,14 +14,9 @@ bedrock_config = Config(
     retries={"max_attempts": 2, "mode": "standard"},
 )
 
-# Boto3 Bedrock clients
+# Boto3 Bedrock client. Inference only: nothing here calls the control plane.
 bedrock_runtime = boto3.client(
     "bedrock-runtime",
-    region_name=AWS_REGION,
-    config=bedrock_config,
-)
-bedrock_mgmt = boto3.client(
-    "bedrock",
     region_name=AWS_REGION,
     config=bedrock_config,
 )

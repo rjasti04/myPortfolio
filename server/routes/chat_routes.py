@@ -25,7 +25,6 @@ from server.services.chat_history_service import (
 from server.models.event import UserActivityEvent
 from server.utils.role_utils import ensure_alternating_roles
 from server.config.settings import (
-    ALLOWED_MODEL_IDS,
     CHAT_FREE_MESSAGE_LIMIT,
     DEFAULT_MODEL_ID,
 )
@@ -33,6 +32,13 @@ from server.config.bedrock import acquire_bedrock_slot
 
 router = APIRouter(prefix="/chat", tags=["Chat & AI"])
 logger = logging.getLogger("server.chat_routes")
+
+# What an anonymous visitor sees when Bedrock fails mid-stream. The raw
+# exception text used to be forwarded verbatim, and botocore's AccessDenied and
+# Validation messages carry the AWS account id, the assumed-role ARN and model
+# ARNs. The real message is logged against the request id instead, which the
+# frame carries so a report can be matched to its log line.
+STREAM_ERROR_MESSAGE = "The assistant is unavailable right now."
 
 
 def enforce_free_message_limit(messages, current_user: Optional[User]) -> None:
@@ -71,10 +77,6 @@ async def chat_stream_endpoint(
     Server-Sent Events (SSE) chat streaming endpoint.
     Leverages Bedrock prompt caching for system prompts and logs telemetry to PostgreSQL.
     """
-    requested_model = request_data.model_id or DEFAULT_MODEL_ID
-    if ALLOWED_MODEL_IDS and requested_model not in ALLOWED_MODEL_IDS:
-        raise HTTPException(status_code=400, detail=f"Unsupported model: {requested_model}")
-
     enforce_free_message_limit(request_data.messages, current_user)
 
     messages_payload = ensure_alternating_roles([msg.model_dump() for msg in request_data.messages])
@@ -118,7 +120,7 @@ async def chat_stream_endpoint(
             # uncapped - see the note on ChatStreamRequest.
             async for chunk in bedrock_service.stream_chat_response(
                 messages=messages_payload,
-                model_id=requested_model,
+                model_id=DEFAULT_MODEL_ID,
                 session_id=str(session_uuid) if session_uuid else None,
             ):
                 if chunk["type"] == "delta":
@@ -133,8 +135,13 @@ async def chat_stream_endpoint(
                     await asyncio.sleep(0)
 
                 elif chunk["type"] == "error":
-                    logger.error(f"Bedrock streaming error for model {requested_model}: {chunk['error']}")
-                    yield f"data: {json.dumps({'error': chunk['error']})}\n\n"
+                    request_id = request.scope.get("request_id", "unknown")
+                    logger.error(
+                        f"Bedrock streaming error for model {DEFAULT_MODEL_ID} "
+                        f"(request_id={request_id}): {chunk['error']}"
+                    )
+                    frame = {"error": STREAM_ERROR_MESSAGE, "request_id": request_id}
+                    yield f"data: {json.dumps(frame)}\n\n"
                     await asyncio.sleep(0)
 
             # Log observability telemetry event to PostgreSQL if session_id exists
@@ -185,7 +192,7 @@ async def chat_stream_endpoint(
                         db=db,
                         user_id=current_user.id,
                         conversation_id=conversation_uuid,
-                        model_id=requested_model,
+                        model_id=DEFAULT_MODEL_ID,
                         messages=transcript,
                     )
                 except (ValueError, TypeError) as exc:

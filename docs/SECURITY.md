@@ -277,6 +277,13 @@ into a free general-purpose LLM and allowed up to `MAX_BODY_BYTES` of input
 tokens per request — `CHAT_FREE_MESSAGE_LIMIT` counts *messages*, so one short
 message carrying a megabyte of system prompt passed every check.
 
+`model_id` is ignored for the same reason. The allowlist always carried a
+Sonnet-class id whatever the environment said, so an anonymous caller could
+upgrade every request to several times the default's price. Every turn runs on
+`DEFAULT_MODEL_ID`, and there is no allowlist left to configure. A Bedrock
+failure reaches the client as fixed text plus a request id; the raw message,
+which carries the account id and role ARN, is only logged.
+
 ---
 
 ## Input validation

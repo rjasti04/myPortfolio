@@ -347,6 +347,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/schemas/chat.py:52` (`model_id` field); `server/routes/chat_routes.py:50-52`; `server/config/settings.py:124-125` |
 | **The "Why"** | `AGENTS.md` lists "client-chosen models" as a non-goal (ADR-023 row), yet `ChatStreamRequest` still accepts `model_id` from **unauthenticated** callers. `settings.py` also hard-adds `anthropic.claude-3-5-sonnet-20241022-v2:0` (and `google.gemma-3-4b-it`) to the allowlist whatever the environment says. The SPA never sends the field (`chat.js` only reads `model_id` back from metrics), so its only user is someone calling the API directly. Whatever `DEFAULT_MODEL_ID` is, a caller can upgrade every request to a Sonnet-class model at $3/$15 per million tokens. At the schema ceilings (24,000 characters in, 2,048 tokens out) that is about $0.05 a request. One IP is within the 12/min budget and can hold all four concurrency slots, which puts the saturated worst case around $400–500/day. If that model is no longer enabled on the account, the request fails instead, and S2 applies. |
 | **The Fix** | Remove `model_id` from `ChatStreamRequest`. Pydantic's default `extra="ignore"` then drops it silently; set `extra="forbid"` if a 422 is preferred. Always stream with `DEFAULT_MODEL_ID`. Delete the two hard-coded `ALLOWED_MODEL_IDS.add(...)` lines (and the allowlist if nothing else needs it). Update `docs/API.md:594,629` and `docs/CONFIGURATION.md:121,129`. Add a backend test asserting a supplied `model_id` has no effect. See also CS2. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `model_id` is gone from `ChatStreamRequest`, and `extra="ignore"` is now explicit, so a supplied value is dropped rather than refused. Both chat routes and the transcript save use `DEFAULT_MODEL_ID`. `ALLOWED_MODEL_IDS` and its two hard-coded additions are deleted from `settings.py`, because nothing is left to allowlist. `test_a_supplied_model_id_is_ignored` sends a Sonnet id with a gemma default and asserts Bedrock is called with the gemma id through Converse; a sibling test covers `/chat/summarize`. The tests that needed the Anthropic invoke path now set the default instead of naming a model. |
 
 ### S2 — Raw Bedrock exception text is streamed to anonymous clients
 
@@ -357,6 +359,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/services/bedrock_service.py:316-318` → `server/routes/chat_routes.py:121-123` |
 | **The "Why"** | `yield {"type": "error", "error": str(e)}` is forwarded verbatim in the SSE frame. botocore `AccessDeniedException`/`ValidationException` messages include the AWS account id, the assumed-role ARN and model ARNs, all handed to any anonymous visitor who can trigger an error (for example with S1's model switch). |
 | **The Fix** | Log `str(e)` server-side with the request id. Send a fixed `{"error": "The assistant is unavailable right now.", "request_id": …}`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | The route logs the raw error with the request id and streams `{"error": "The assistant is unavailable right now.", "request_id": …}`. The id matches the response's `X-Request-ID`. `bedrock_service` is unchanged, because it is the internal contract, and `/chat/summarize` already mapped an error to a generic 502. `test_a_bedrock_error_does_not_reach_the_client` feeds an AccessDenied message carrying an account id and role ARN and asserts neither reaches the body. |
 
 ### S3 — Lockout undercounts concurrent guesses, and IPv6 gets one rate bucket per address
 
@@ -478,6 +482,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/routes/system_routes.py:19-24`; `server/controllers/system_controller.py:46-66` |
 | **The "Why"** | Nothing in the frontend calls it. Any visitor can drive `ListFoundationModels` at the 1,000/min general budget, throttling the account's control-plane quota, and read the account's model inventory. |
 | **The Fix** | Remove it, or put it behind `require_owner`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Removed: the route, `list_models`, and the `bedrock_mgmt` client, so the API no longer calls the Bedrock control plane at all. `GET /models` and `GET /api/models` return 404. Removing `bedrock:ListFoundationModels` from the instance role is an owner action outside the repo. |
 
 ### S14 — Reset, verify and magic-link tokens travel in the query string
 

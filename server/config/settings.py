@@ -114,16 +114,6 @@ OWNER_EMAIL = (os.getenv("OWNER_EMAIL") or "").strip().lower()
 # dashboard open in a second tab.
 MAX_STREAMS_PER_SESSION = _env_int("MAX_STREAMS_PER_SESSION", 2)
 
-_raw_allowed_models = os.getenv("ALLOWED_MODEL_IDS", "")
-ALLOWED_MODEL_IDS = {
-    model.strip()
-    for model in _raw_allowed_models.split(",")
-    if model.strip()
-}
-ALLOWED_MODEL_IDS.add(DEFAULT_MODEL_ID)
-ALLOWED_MODEL_IDS.add("google.gemma-3-4b-it")
-ALLOWED_MODEL_IDS.add("anthropic.claude-3-5-sonnet-20241022-v2:0")
-
 # Whose X-Forwarded-For is believed. This defaulted to empty, which meant
 # `client_ip_from_request` fell back to the direct peer - and the documented
 # production topology is Apache proxying `/api` to Uvicorn on the same host, so

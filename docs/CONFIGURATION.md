@@ -118,7 +118,6 @@ hardcoded constant respectively.
 
 | Variable | Default | Purpose |
 | :--- | ---: | :--- |
-| `ALLOWED_MODEL_IDS` | *(empty)* | Extra allowlisted Bedrock model ids, comma-separated |
 | `CHAT_MAX_CONCURRENCY` | `4` | Concurrent Bedrock streams across the process; over it → **429** |
 | `CHAT_FREE_MESSAGE_LIMIT` | `6` | User-role messages an unauthenticated caller may send before **401** |
 | `CHAT_RATE_LIMIT_PER_MINUTE` | `12` | Per-IP requests/min against `/chat`, `/chat/`, `/chat/stream`, `/chat/summarize` |
@@ -126,8 +125,9 @@ hardcoded constant respectively.
 | `BEDROCK_TIMEOUT_SECONDS` | `30` | Bedrock read timeout (connect timeout is a fixed 10 s) |
 | `BEDROCK_QUEUE_PUT_TIMEOUT_SECONDS` | `10` | How long the reader thread waits for queue room before concluding the client is gone |
 
-The effective allowlist is always `ALLOWED_MODEL_IDS` ∪ `{DEFAULT_MODEL_ID,
-google.gemma-3-4b-it, anthropic.claude-3-5-sonnet-20241022-v2:0}`.
+There is no model allowlist. Every chat turn runs on `DEFAULT_MODEL_ID`, and a
+`model_id` in the request body is ignored (ADR-023). An `ALLOWED_MODEL_IDS` left
+in an old `.env` is read by nothing.
 
 `CHAT_RATE_LIMIT_PER_MINUTE` paired with the size ceilings in
 `server/schemas/chat.py` (60 messages, 8,000 chars each, 24,000 total) is what
@@ -279,7 +279,6 @@ Required permissions:
 
 | Action | Used by |
 | :--- | :--- |
-| `bedrock:ListFoundationModels` | `GET /models` |
 | `bedrock:InvokeModelWithResponseStream` | Anthropic models on `/chat/stream` |
 | `bedrock:InvokeModel` / Converse stream | Non-Anthropic models on `/chat/stream` |
 

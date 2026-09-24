@@ -486,3 +486,14 @@ async def test_closing_a_stream_frees_the_slot():
     # Reusable, otherwise a visitor who reloads a few times locks themselves out.
     again = await kafka_stream.register_stream(session_id)
     kafka_stream.unregister_stream(session_id, again)
+
+
+@pytest.mark.asyncio
+async def test_the_model_inventory_route_is_gone(async_client):
+    """`GET /models` was anonymous, called by nothing in the frontend, and drove
+    Bedrock's `ListFoundationModels` at the general budget - spending the
+    account's control-plane quota and publishing its model inventory to anyone.
+    """
+    for path in ("/models", "/api/models"):
+        assert (await async_client.get(path)).status_code == 404, f"{path} still routes"
+    assert not hasattr(bedrock_config, "bedrock_mgmt")

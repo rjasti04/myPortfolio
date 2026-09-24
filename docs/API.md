@@ -165,17 +165,9 @@ modelled figures from broker-reported ones.
 
 ---
 
-### `GET /models`
-
-Bedrock foundation models available in `AWS_REGION`.
-
-**200**
-```json
-{ "models": [ { "modelId": "...", "modelName": "...", "provider": "...",
-                "inputModalities": ["TEXT"], "outputModalities": ["TEXT"] } ] }
-```
-
-**500** — `{"detail": "Unable to list models"}` if the Bedrock control-plane call fails.
+`GET /models` has been removed. It was anonymous, nothing called it, and it
+drove Bedrock's `ListFoundationModels` at the general budget, which spent the
+account's control-plane quota and published its model inventory. It now 404s.
 
 ---
 
@@ -625,7 +617,6 @@ persistence.
 ```json
 { "messages": [ { "role": "user", "content": "…" } ],
   "conversation_id": "optional-uuid-string",
-  "model_id": "optional-allowlisted-model",
   "stream": true }
 ```
 
@@ -643,6 +634,12 @@ unauthenticated and unbounded, which both replaced the portfolio persona and
 billed arbitrary input tokens. The server owns the persona
 (`bedrock_service.DEFAULT_SYSTEM_PROMPT`).
 
+`model_id` is **ignored** for the same reason (ADR-023). Any allowlisted model
+could once be named, and the allowlist always carried a Sonnet-class id, so an
+anonymous caller could upgrade every request. Every turn now runs on
+`DEFAULT_MODEL_ID`. The field is dropped rather than refused, so an old client
+that still sends it gets an answer, not a 422.
+
 Roles are normalised before dispatch (`ensure_alternating_roles`): empty
 messages dropped, consecutive same-role turns merged with a blank line, and a
 synthetic `[conversation context]` user turn prepended if the conversation
@@ -657,11 +654,19 @@ data: {"text": " there"}
 data: {"type":"metrics","metrics":{"model_id":"…","input_tokens":812,"output_tokens":140,
        "cache_read_tokens":768,"cache_creation_tokens":0,"cache_hit":true,"latency_ms":1834.2}}
 ```
-An in-band `data: {"error": "…"}` frame carries a Bedrock failure; the HTTP
-status is still 200 because the stream has already begun.
+An in-band error frame carries a Bedrock failure; the HTTP status is still 200
+because the stream has already begun. The text is fixed:
 
-**Errors** — **400** unsupported model (not in `ALLOWED_MODEL_IDS`), **401**
-anonymous free-message limit reached (`WWW-Authenticate: Bearer`), **422**
+```
+data: {"error": "The assistant is unavailable right now.", "request_id": "<uuid>"}
+```
+
+The raw exception is logged against `request_id`, which matches the response's
+`X-Request-ID`. It used to be forwarded verbatim, and botocore's messages carry
+the AWS account id and role ARN.
+
+**Errors** — **400** a blank conversation or a malformed `conversation_id`,
+**401** anonymous free-message limit reached (`WWW-Authenticate: Bearer`), **422**
 schema violation, **429** over the chat rate budget or all concurrency slots
 busy.
 
@@ -816,14 +821,14 @@ Validation errors carry the standard array form:
 
 | Status | Typical cause |
 | :--- | :--- |
-| 400 | Bad request state — already-registered email, locked account, spent token, wrong current password on a re-authenticated route, empty or oversized bulk list, unsupported model |
+| 400 | Bad request state — already-registered email, locked account, spent token, wrong current password on a re-authenticated route, empty or oversized bulk list |
 | 401 | Missing/invalid/expired bearer token, wrong credentials, anonymous free-message limit |
 | 403 | Missing or wrong analytics session token (identical body whether or not the session exists) |
 | 404 | Unknown session, user, or conversation |
 | 413 | Body above `MAX_BODY_BYTES` |
 | 422 | Pydantic validation failure, unknown `event_type` on the single-event route, a bulk insert refused by a constraint |
 | 429 | Rate budget exceeded, Bedrock slots saturated, or too many SSE streams for the session |
-| 500 | Unhandled server error (e.g. Bedrock control-plane failure on `/models`) |
+| 500 | Unhandled server error |
 | 503 | Database unreachable — `/health`, and `POST /events/bulk` so the client re-queues the batch |
 
 ---
@@ -845,5 +850,5 @@ endpoint in the left column exists on the backend.
 | `POST /contact` | `form.js` — tried first; FormSubmit is reached only when this is unreachable or answers 502 |
 | `GET /admin/analytics/*` | `owner-analytics.js` — lazily imported by `activity.js`; a 401/403 leaves the section as a visitor sees it |
 | `POST /events` (single) | — server/API consumers only |
-| `GET /models` · `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |
+| `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |
 | `GET/DELETE /chat/history*` | `chat.js` — `syncServerHistory()` lists on load and on `auth-changed`, `hydrateSession()` fetches one transcript when its rail row is opened, `deleteRemoteConversation()` removes one server copy and `deleteAllRemoteConversations()` empties the account behind **Delete all** |
