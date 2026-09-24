@@ -54,8 +54,21 @@ fi
 
 # PYTHONPATH must include the repo root for `pytest` to import `server` at all
 # (AGENTS.md 6). Exporting it here removes the per-command prefix.
+#
+# server/.venv/bin goes first on PATH because a bare `pytest` otherwise resolves
+# to a user-site copy in ~/.local/bin that lacks the backend packages, and fails
+# with exactly the missing-module error AGENTS.md 6 says to treat as real.
+#
+# npm's node-options puts `npm test` on the dot reporter: dots, plus full detail
+# for any failure, instead of a TAP line per test with the summary buried at the
+# end of a very long tool result. It reaches npm scripts only, so an explicit
+# `node --test --test-reporter=...` still works (NODE_OPTIONS would make that
+# throw); it also replaces NODE_OPTIONS for those scripts, hence carrying the
+# existing value along. CI and a human's terminal never source this file.
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
     printf 'export PYTHONPATH="%s${PYTHONPATH:+:$PYTHONPATH}"\n' "$PROJECT_DIR" >> "$CLAUDE_ENV_FILE"
+    printf 'export PATH="%s/server/.venv/bin:$PATH"\n' "$PROJECT_DIR" >> "$CLAUDE_ENV_FILE"
+    printf 'export npm_config_node_options="--test-reporter=dot${NODE_OPTIONS:+ $NODE_OPTIONS}"\n' >> "$CLAUDE_ENV_FILE"
 fi
 
 exit 0
