@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Only exit 2 blocks a PreToolUse call. Any other failure - jq missing (127),
+# input jq cannot parse (5), a `set -u` slip (1) - let the edit through
+# unchecked, so every failure path is turned into a refusal here. An EXIT trap
+# rather than ERR, because ERR does not fire on a `set -u` expansion error.
+trap 'rc=$?; if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then echo "Error: ${0##*/} failed (exit $rc); refusing the edit rather than passing it unchecked." >&2; exit 2; fi' EXIT
+command -v jq >/dev/null 2>&1 || { echo "Error: ${0##*/} needs jq to read the edit; install jq, or every edit is refused." >&2; exit 2; }
+
 # Read input JSON from stdin
 INPUT_JSON=$(cat)
 
@@ -60,15 +67,26 @@ if [ ! -f "$POLICY" ]; then
 fi
 ALLOWED=$(jq -r '.allowed_origins[]' "$POLICY" | tr '\n' ' ')
 
-URLS=$(echo "$CONTENT" | grep -oE 'https?://[a-zA-Z0-9.-]+(:[0-9]+)?' | sort -u || true)
+# An origin reference: any scheme followed by //host, or a scheme-less //host
+# that begins a token. `https?://` alone let `<script src="//cdn…">`,
+# `import x from '//cdn…'` and `new WebSocket('wss://…')` through. The host must
+# look like a host, so `// a comment` and `a//b` are not origins. POSIX ERE only
+# (no -P, no \w, no lookaround), so BSD grep reads it the same way. Kept
+# identical to ORIGIN_REF in protect-bash-writes.py: tests/tooling/
+# test_edit_hooks.py runs one case table through both guards.
+REF='(^|[^A-Za-z0-9_/:.])//(([A-Za-z0-9-]+\.)+[A-Za-z]{2,}|([0-9]{1,3}\.){3}[0-9]{1,3})|[A-Za-z][A-Za-z0-9+.-]*://[A-Za-z0-9.-]+'
 
-for url in $URLS; do
-    domain=$(echo "$url" | sed -E 's|^https?://||' | cut -d/ -f1 | cut -d: -f1)
+# printf, not echo: content starting with -n or -e is text, not an option. The
+# sed drops the character a scheme-less match carries in front of its //.
+REFS=$(printf '%s\n' "$CONTENT" | grep -oE "$REF" | sed -E 's#^[^A-Za-z]*//#//#' | sort -u || true)
+
+for ref in $REFS; do
+    domain=${ref#*//}
     case " $ALLOWED " in
         *" $domain "*)
             ;;
         *)
-            echo "Error: Unapproved external asset/origin detected in $REL_PATH: $url" >&2
+            echo "Error: Unapproved external asset/origin detected in $REL_PATH: $ref" >&2
             echo "Egress protection blocked this modification per ADR-016." >&2
             echo "If this origin is legitimate, add it to .claude/hooks/spa-egress.json." >&2
             exit 2

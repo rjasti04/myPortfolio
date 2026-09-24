@@ -850,6 +850,8 @@ hooks:
 | **Location** | `.claude/hooks/protect-migrations.sh`, `.claude/hooks/protect-spa-egress.sh` (`set -euo pipefail` + `jq`) |
 | **The "Why"** | Per the hooks docs, only exit 2 blocks. Any other non-zero exit is a "non-blocking error" and the tool call **proceeds**. A missing `jq` (exit 127), malformed input or an unexpected `jq` error therefore waves through the edit these hooks exist to stop. `jq` is present in this container, so this is defence in depth. |
 | **The Fix** | `trap 'echo "guard error; refusing" >&2; exit 2' ERR` at the top of both guards, plus a `command -v jq >/dev/null \|\| { echo "jq required" >&2; exit 2; }` check. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Both guards open with an `EXIT` trap that turns any exit other than 0 or 2 into a refusal, followed by the `jq` check with its own message. `protect-bash-writes.py` does the same for an exception escaping `main()`, which used to exit 1. It still passes a payload that is not JSON, as `test_guard_ignores_malformed_payload` pins. **Differs from the suggested fix:** an `ERR` trap does not fire on a `set -u` expansion error, which still exited 1 and passed, so the trap is on `EXIT`. `test_edit_hooks.py` runs each guard with no `jq` on `PATH` (was 127) and on input `jq` cannot parse (was 5). Both now exit 2, and an unguarded path still exits 0. |
 
 ### CS4 — Egress guard misses protocol-relative URLs
 
@@ -860,6 +862,8 @@ hooks:
 | **Location** | `.claude/hooks/protect-spa-egress.sh` (`grep -oE 'https?://…'`); the same regex family in `protect-bash-writes.py` |
 | **The "Why"** | `<script src="//cdn.example.com/x.js">` contains no `http`, so it passes the ADR-016 guard. The CSP would still block it at runtime, but the guard is meant to catch it at edit time. |
 | **The Fix** | Match `(https?:)?//[host]` in `src=`/`href=`/`url(` contexts. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Both guards treat an origin as any scheme followed by `//host`, or a scheme-less `//host` that begins a token. The host has to look like one: a dotted name with an alphabetic TLD, or an IPv4 literal. **Differs from the suggested fix:** matching only in `src=`/`href=`/`url(` contexts still missed `import x from '//cdn…'` and `fetch('//…')`, and `wss://` passed both guards as well. Across the 104 SPA-guarded files the new rule flags exactly the hosts the old one did. One case table in `test_edit_hooks.py` runs through the ERE (`Write`/`Edit`) and the Python regex (Bash), so the two cannot drift apart. |
 
 ### CS5 — README.md drift is checked by CI but not by the hooks
 
@@ -890,6 +894,36 @@ hooks:
 | **Location** | `.antigravity/antigravity-ide/brain/1c01715d-7fc3-4e95-ac02-e30a6ec898bf/task.md` |
 | **The "Why"** | This is a half-finished task list from another agent's session. It refers to `server/routers/auth.py`, which doesn't exist. Any tool that indexes the folder picks up instructions that are obsolete. |
 | **The Fix** | `git rm` it and ignore `.antigravity/antigravity-ide/`. |
+
+### Found during remediation (not scored)
+
+Re-verifying this section turned up more defects of the same kind, in the same
+files. They are recorded here rather than added to the scored totals above,
+which describe the tree as it was reviewed.
+
+#### CS8 — A newline hides the rest of a command from every Bash-path guard
+
+| Attribute | Detail |
+| :--- | :--- |
+| **Category** | Architecture |
+| **Severity** | P2 |
+| **Location** | `.claude/hooks/_bash_targets.py:108-117` (`tokenize`) |
+| **The "Why"** | `shlex` with `whitespace_split` lexes a newline as whitespace, so `SPLITTERS`' `"\n"` never occurred and every later line merged into the first line's segment. `cd <repo>`, a newline, then `sed -i … <tracked migration>` exited 0, where the same `sed -i` on one line exits 2. The ADR-016 egress check and the template guard failed the same way, and `verify-bash-edits.py` found no target, so the CSP and docs gates never ran. The other forms failed differently. A line continuation's escaped newline became a `"\n"` token that cut `sed -i` off from its operands. `shlex` read a `#` comment through the end of its line, newline included. And glued operators such as `);` and `)&&` split nothing. |
+| **The Fix** | Lex `\n` as an operator. Remove continuations first, turn `shlex`'s comments off, decompose glued punctuation, split on `(` and `)`, and step over `if`, `while`, `until` and `{`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | As the fix. `check_venv_search` also reads the heredoc-stripped command now, because a body line reading `find .` would otherwise look like a search. `test_bash_write_guard.py` pins these cases, all of which passed unchecked before: seven segmentation forms against a tracked migration, the egress and template writes on a second line, and the `verify-bash-edits.py` gate for a second-line write. |
+
+#### CS9 — Shells, `eval`, substitution, `find -delete` and `xargs` hide a write
+
+| Attribute | Detail |
+| :--- | :--- |
+| **Category** | Architecture |
+| **Severity** | P3 |
+| **Location** | `.claude/hooks/_bash_targets.py:42` (`OPAQUE`), `parse()` |
+| **The "Why"** | `bash -c`, `sh -c`, `eval`, `x=$(rm …)`, `echo $(sed -i …)`, backticks, `find <path> -delete` and `… \| xargs rm` each rewrote or deleted a tracked migration with the guard exiting 0. The shells and `eval` were not opaque, and a substitution sits inside another command's words. `find`'s actions were never read, and `xargs` takes its operands from stdin. |
+| **The Fix** | Treat each of them as opaque, so the guards fall back to the paths the command mentions. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `OPAQUE` gains `bash`, `sh`, `zsh`, `dash`, `ksh`, `eval`, `source` and `.`. The command is also opaque when it contains a `$(`, a backtick, a `<(` or a `>(` anywhere, a `find` action, or an `xargs` in front of the utility. `check_spa_egress` now checks opaque writers as well, so a `python3 -c` appending to an SPA file is checked for origins. Heredoc bodies are still stripped before mentions are collected, so the `git commit -m "$(cat <<'EOF' …)"` idiom passes even when the message names a migration. Eight cases in `test_bash_write_guard.py` pin the bypasses. |
 
 ---
 

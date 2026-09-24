@@ -20,8 +20,21 @@ import re
 import shlex
 from pathlib import Path
 
-# Operators that end one simple command and begin the next.
-SPLITTERS = {";", "&&", "||", "|", "|&", "&", "\n"}
+# Operators that end one simple command and begin the next. `(` and `)` are
+# here because a subshell's first word is a command: without them `(sed -i …)`
+# read as a command named `(`, and the `sed -i` inside was never seen.
+SPLITTERS = {";", ";;", ";&", ";;&", "&&", "||", "|", "|&", "&", "\n", "(", ")"}
+
+# What the lexer splits on. `\n` is in it so that a line break ends a command
+# the way `;` does. shlex's default lexes a newline as whitespace, which merged
+# every later line into the first line's segment: `cd x`, a newline, then
+# `sed -i … <migration>` passed every guard, although the same `sed -i` on one
+# line was refused.
+PUNCTUATION = "();<>|&\n"
+
+# The operators a run of punctuation can hold, longest first. shlex returns a
+# glued run such as `);` or `)&&` as one token, which split nothing.
+OPERATOR = re.compile(r"\n|;;&|;;|;&|;|&&|\|\||\|&|\||&>>|&>|>>|>\||>&|<>|<<<|<<|<&|>|<|&|\(|\)")
 
 # Redirections that truncate or append to their operand.
 REDIRECTS = {">", ">>", ">|", "&>", "&>>"}
@@ -32,14 +45,28 @@ DEST_LAST = {"cp", "mv", "install", "rsync"}
 # Utilities that write every operand they are given.
 DEST_ALL = {"rm", "unlink", "shred", "truncate"}
 
-# Wrappers to step over before reading the real utility name.
+# Wrappers and shell keywords to step over before reading the real utility name.
+# `if`, `while` and `{` were missing, so `if sed -i …; then` read as a command
+# named `if`.
 PREFIXES = {"sudo", "env", "nohup", "time", "command", "exec", "xargs", "then",
-            "do", "else", "!"}
+            "do", "else", "!", "if", "elif", "while", "until", "{"}
 
 # Writers whose targets cannot be read off the command line. Their presence
 # makes the whole command opaque, and the guards fall back to "was a protected
-# path mentioned at all".
-OPAQUE = {"python", "python3", "node", "ruby", "awk", "gawk", "patch"}
+# path mentioned at all". The shells and `eval` run their argument as a whole
+# new command, which is as unreadable as a Python one-liner: `bash -c "sed -i …"`
+# rewrote a tracked migration with every guard passing it.
+OPAQUE = {"python", "python3", "node", "ruby", "awk", "gawk", "patch",
+          "bash", "sh", "zsh", "dash", "ksh", "eval", "source", "."}
+
+# Command and process substitution run a command inside another one's words,
+# where no segment ever sees it. Matched on the raw command, heredoc bodies
+# included, because an unquoted heredoc delimiter expands `$(…)` in its body.
+SUBSTITUTION = re.compile(r"\$\(|`|<\(|>\(")
+
+# `find` actions that delete, write a file, or run a command per match.
+FIND_ACTIONS = {"-delete", "-exec", "-execdir", "-ok", "-okdir",
+                "-fprint", "-fprint0", "-fprintf", "-fls"}
 
 # `git` subcommands that overwrite tracked files in the working tree.
 OPAQUE_GIT = {"apply", "checkout", "restore", "clean", "stash", "reset"}
@@ -106,15 +133,40 @@ def path_candidates(command: str) -> set[str]:
 
 
 def tokenize(command: str) -> list[str]:
-    """Split a command into words and shell operators, or [] if unparseable."""
+    """Split a command into words and shell operators.
+
+    Three things differ from shlex's defaults, and each one hid a write:
+
+    - A line break is an operator (see PUNCTUATION).
+    - A backslash-newline is a line continuation and is removed first, as the
+      shell does. Left in, the escaped newline became a `"\\n"` token, which cut
+      `sed -i \\` off from the operands on its next line.
+    - shlex's `#` comments are off. shlex reads a comment to the end of its
+      line, newline included, so `echo x # note` merged the next line into its
+      segment. With comments off, a comment's words are ordinary arguments,
+      and a comment line is a segment whose utility starts with `#`, which no
+      rule names.
+    """
+    command = command.replace("\\\n", "")
     try:
-        lex = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lex = shlex.shlex(command, posix=True, punctuation_chars=PUNCTUATION)
+        lex.whitespace = " \t\r"
         lex.whitespace_split = True
-        return list(lex)
+        lex.commenters = ""
+        raw = list(lex)
     except ValueError:
         # Unbalanced quotes, an unterminated heredoc. Fall back to raw words so
-        # the guards still see the paths rather than silently allowing.
-        return re.findall(r"\S+", command)
+        # the guards still see the paths rather than silently allowing, and
+        # keep the line breaks so the segments are still right.
+        raw = [tok for line in command.split("\n")
+               for tok in (*re.findall(r"\S+", line), "\n")]
+    out: list[str] = []
+    for tok in raw:
+        if tok and all(c in PUNCTUATION for c in tok):
+            out.extend(OPERATOR.findall(tok))
+        else:
+            out.append(tok)
+    return out
 
 
 def segments(tokens: list[str]) -> list[list[str]]:
@@ -138,7 +190,8 @@ def _utility(segment: list[str]) -> tuple[str, list[str]]:
         break
     if i >= len(segment):
         return "", []
-    return Path(segment[i]).name, segment[i + 1:]
+    # `Path(".").name` is "", which read as "no utility" and dropped `. x.sh`.
+    return Path(segment[i]).name or segment[i], segment[i + 1:]
 
 
 def _operands(args: list[str]) -> list[str]:
@@ -207,10 +260,10 @@ def parse(command: str) -> tuple[set[str], set[str], bool]:
     `opaque` is True when the command contains a writer whose targets cannot be
     determined from the command line.
     """
+    opaque = bool(SUBSTITUTION.search(command))
     command = strip_heredocs(command)
     tokens = tokenize(command)
     targets: set[str] = set()
-    opaque = False
     mentioned = path_candidates(command)
 
     # Safety net for what the tokenizer can miss: `>file` with no space, `2>>f`,
@@ -238,6 +291,13 @@ def parse(command: str) -> tuple[set[str], set[str], bool]:
         if not name:
             continue
         operands = _operands(args)
+
+        # `xargs` runs its utility on words read from stdin, so its operands
+        # are not on the command line at all: `… | xargs rm` named nothing.
+        if "xargs" in clean[: len(clean) - len(args) - 1]:
+            opaque = True
+        if name == "find" and FIND_ACTIONS.intersection(args):
+            opaque = True
 
         if name in ("sed", "perl") and any(
             a == "--in-place" or (a.startswith("-i") and not a.startswith("--"))
