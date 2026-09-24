@@ -411,8 +411,11 @@ excluded — precaching them would undo the lazy loading `main.js` arranges. The
 are cached on first use by the runtime strategy.
 
 `main.js` registers the worker on `load`, calls `registration.update()` every
-60 s, and renders an update banner when a new worker reaches `installed` while
-one is already controlling the page.
+30 minutes and on returning to the foreground, and renders an update banner
+when a new worker reaches `installed` while one is already controlling the page
+- or is already `waiting` when the page loads, which no `updatefound` would
+ever announce. A lazy chunk that fails to import (the previous build's chunks
+are deleted on deploy and are not precached) shows the same banner.
 
 ---
 

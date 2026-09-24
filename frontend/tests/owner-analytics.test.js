@@ -146,6 +146,41 @@ describe('Owner analytics panel', () => {
     assert.equal(calls.filter((u) => u.includes('days=90')).length, 4);
   });
 
+  it('paints only the latest window when an earlier one answers last (C14)', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
+    // Each window reports a different reach, so the painted figure says which
+    // answer won. The 90-day query is held until after the 7-day one lands.
+    let releaseSlow;
+    const slow = new Promise((resolve) => { releaseSlow = resolve; });
+    respond = async (url) => {
+      const days = Number(new URL(url).searchParams.get('days'));
+      if (days === 90) await slow;
+      const key = Object.keys(FIXTURES).find((k) => url.includes(`/analytics/${k}`));
+      if (!key) return status(404);
+      const body = key === 'overview' ? { ...FIXTURES.overview, window_days: days, sessions: 1000 + days } : FIXTURES[key];
+      return ok(body);
+    };
+    await initOwnerAnalytics();
+    const click = (d) => document.querySelector(`.act-owner-window-btn[data-days="${d}"]`)
+      .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    const tick = () => new Promise((resolve) => setTimeout(resolve, 10));
+
+    click(90);
+    await tick();
+    click(7);
+    await tick();
+    releaseSlow();
+    await tick();
+
+    const root = document.getElementById('act-owner');
+    assert.match(root.textContent, /1,?007/, 'the 7-day figures are painted');
+    assert.doesNotMatch(root.textContent, /1,?090/, 'the stale 90-day answer is discarded');
+    assert.equal(
+      document.querySelector('.act-owner-window-btn[aria-pressed="true"]').dataset.days, '7'
+    );
+    assert.equal(root.dataset.busy, 'false');
+  });
+
   it('takes the panel down on sign-out', async () => {
     dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
     respond = serveAll();

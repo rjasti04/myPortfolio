@@ -47,6 +47,33 @@ import { initThemeCustomizer, initHomeThemeShuffle } from "./theme-customizer.js
 import { initHomePortrait } from "./home-portrait.js";
 import { PullToRefresh } from "./swipe-handler.js";
 
+/* Fired when a lazily imported chunk cannot be fetched. Answered below with
+   the update banner; activity.js fires it too, for the owner panel's chunk. */
+const STALE_BUILD_EVENT = "rj:stale-build";
+
+/**
+ * Imports a lazily loaded chunk and runs its initialiser.
+ *
+ * A deploy deletes the previous build's hashed chunks (`rsync --delete`), and
+ * these are not precached, so a tab still running the old build 404s on the
+ * import. That used to surface only as a console.warn: the chat or the
+ * dashboard simply never appeared. A failed import is now reported as a stale
+ * build, which the update banner answers with a reload. An initialiser that
+ * throws is a bug rather than a stale build, so it is only passed on.
+ */
+export function loadLazyModule(importer, init) {
+  return importer()
+    .catch((error) => {
+      // Offline is not a new version, and a reload will not help it.
+      if (navigator.onLine !== false) window.dispatchEvent(new Event(STALE_BUILD_EVENT));
+      throw error;
+    })
+    .then((module) => {
+      init(module);
+      return module;
+    });
+}
+
 // Lazy-load chat module on first interaction
 let chatLoaded = false;
 let chatModulePromise = null;
@@ -54,10 +81,7 @@ let chatModulePromise = null;
 function loadChatModule() {
   if (chatLoaded) return chatModulePromise;
   chatLoaded = true;
-  chatModulePromise = import("./chat.js").then(module => {
-    module.initChat();
-    return module;
-  }).catch(err => {
+  chatModulePromise = loadLazyModule(() => import("./chat.js"), (module) => module.initChat()).catch(err => {
     chatLoaded = false;
     chatModulePromise = null;
     console.warn('Chat module failed to load:', err);
@@ -73,10 +97,7 @@ let activityModulePromise = null;
 function loadActivityModule() {
   if (activityLoaded) return activityModulePromise;
   activityLoaded = true;
-  activityModulePromise = import("./activity.js").then(module => {
-    module.initActivity();
-    return module;
-  }).catch(err => {
+  activityModulePromise = loadLazyModule(() => import("./activity.js"), (module) => module.initActivity()).catch(err => {
     activityLoaded = false;
     activityModulePromise = null;
     console.warn('Activity module failed to load:', err);
@@ -223,55 +244,73 @@ document.addEventListener("DOMContentLoaded", () => {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("/sw.js")
-        .then(registration => {
-          // Check for updates on a long timer, and whenever the tab comes
-          // back to the foreground.
-          //
-          // This used to be a flat 60s interval that ran regardless of
-          // visibility and was never cleared, so a tab left open for an hour
-          // made 60 requests re-fetching and re-validating /sw.js - most of
-          // them while hidden, none of them of any use to a visitor who is
-          // not looking. On a phone that is pure battery and data.
-          //
-          // A foreground check is what actually matters: a returning visitor
-          // gets the new version immediately, and the slow timer is only
-          // there for a tab that stays open and focused for a long stretch.
-          const UPDATE_INTERVAL_MS = 30 * 60 * 1000;
-          let lastUpdateCheck = Date.now();
-          const checkForUpdate = () => {
-            lastUpdateCheck = Date.now();
-            registration.update();
-          };
-
-          setInterval(() => {
-            if (document.hidden) return;
-            checkForUpdate();
-          }, UPDATE_INTERVAL_MS);
-
-          document.addEventListener("visibilitychange", () => {
-            if (document.hidden) return;
-            // Debounced by the same interval, so flicking between tabs does
-            // not turn into a request per switch.
-            if (Date.now() - lastUpdateCheck < UPDATE_INTERVAL_MS) return;
-            checkForUpdate();
-          });
-
-          // Listen for updates
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New service worker available
-                showUpdateNotification(registration);
-              }
-            });
-          });
-        })
+        .then(watchServiceWorkerUpdates)
         .catch(console.error);
     });
   }
 });
+
+// The page's registration once it resolves, so a stale-build report can offer
+// the waiting worker rather than a plain reload.
+let swRegistration = null;
+window.addEventListener(STALE_BUILD_EVENT, () => showUpdateNotification(swRegistration));
+
+/** Offers each new service worker as it installs - and one already waiting. */
+export function watchServiceWorkerUpdates(registration) {
+  swRegistration = registration;
+
+  // Check for updates on a long timer, and whenever the tab comes
+  // back to the foreground.
+  //
+  // This used to be a flat 60s interval that ran regardless of
+  // visibility and was never cleared, so a tab left open for an hour
+  // made 60 requests re-fetching and re-validating /sw.js - most of
+  // them while hidden, none of them of any use to a visitor who is
+  // not looking. On a phone that is pure battery and data.
+  //
+  // A foreground check is what actually matters: a returning visitor
+  // gets the new version immediately, and the slow timer is only
+  // there for a tab that stays open and focused for a long stretch.
+  const UPDATE_INTERVAL_MS = 30 * 60 * 1000;
+  let lastUpdateCheck = Date.now();
+  const checkForUpdate = () => {
+    lastUpdateCheck = Date.now();
+    registration.update();
+  };
+
+  setInterval(() => {
+    if (document.hidden) return;
+    checkForUpdate();
+  }, UPDATE_INTERVAL_MS);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    // Debounced by the same interval, so flicking between tabs does
+    // not turn into a request per switch.
+    if (Date.now() - lastUpdateCheck < UPDATE_INTERVAL_MS) return;
+    checkForUpdate();
+  });
+
+  // Listen for updates
+  registration.addEventListener('updatefound', () => {
+    const newWorker = registration.installing;
+
+    newWorker.addEventListener('statechange', () => {
+      if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+        // New service worker available
+        showUpdateNotification(registration);
+      }
+    });
+  });
+
+  // `updatefound` fires only for an install during this page's life.
+  // A worker that finished installing before the page loaded - the
+  // usual case for a visitor returning after a deploy - was already
+  // waiting, never fired it, and was never offered.
+  if (registration.waiting && navigator.serviceWorker.controller) {
+    showUpdateNotification(registration);
+  }
+}
 
 // One banner for the life of the page. `registration.update()` runs every
 // minute, so every further `updatefound` used to append ANOTHER banner - each

@@ -94,6 +94,8 @@ export async function initOwnerAnalytics() {
   }
 
   let days = DEFAULT_WINDOW;
+  // Bumped by every window change; see the picker's click handler.
+  let loadSeq = 0;
 
   async function load() {
     const results = await Promise.all(
@@ -155,8 +157,15 @@ export async function initOwnerAnalytics() {
         picker.querySelectorAll("button").forEach((other) => {
           other.setAttribute("aria-pressed", String(Number(other.dataset.days) === days));
         });
+        // Only the latest click may paint. A 90-day query is slower than a
+        // 7-day one, so pressing 90d then 7d let the 90-day figures land last
+        // and sit under a pressed 7d button - and cleared the busy state while
+        // the answer that mattered was still loading.
+        const seq = ++loadSeq;
         setBusy(true);
-        paint(await load());
+        const results = await load();
+        if (seq !== loadSeq) return;
+        paint(results);
         setBusy(false);
       });
       picker.appendChild(button);

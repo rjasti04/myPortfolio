@@ -227,6 +227,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/analytics.js:471-489`; queue cap `:38` |
 | **The "Why"** | `eventQueue.length = 0; saveEventQueue()` runs straight after firing the `keepalive` fetch, without waiting for the result. On `visibilitychange` while offline, the persisted queue the offline design exists to keep is wiped. A backlog near the 200-event cap can also exceed the 64 KiB `keepalive` body limit, which rejects the request outright. |
 | **The Fix** | For `hidden`, remove events only once the send resolves OK. Chunk `keepalive` bodies under about 60 KiB. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | A hide flush keeps its events queued, and persisted, until the send succeeds; other flushes skip them while it is in flight. An unload removes what it sends at once and leaves the rest persisted. Both send only the oldest events that fit a 60 KiB budget, less whatever a hide flush still has in flight. **Differs from the suggested fix:** chunking does not help, because Fetch's 64 KiB applies to the sum of in-flight keepalive bodies; a second chunk is refused like the first. |
 
 ### C11 — Chat history edge cases
 
@@ -261,6 +263,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/activity.js:1120-1151`; `:1047-1053`; `:1403-1408` |
 | **The "Why"** | (1) `enterActivitySection` awaits `ensureSession`/`loadActivity`. If the visitor leaves during that wait, `leaveActivitySection` finds nothing to stop, and entry then opens the EventSource and a 15-second refetch timer on a hidden section. (2) When `/stream` returns an HTTP error, the browser closes the EventSource for good after **one** `error` event. The count (1) never passes `STREAM_GIVE_UP_AFTER` (3), so the pill says "Connecting…" forever. (3) The error state tells the visitor to "use Refresh", but Refresh never restarts the stream. |
 | **The Fix** | Keep an entry generation counter and bail out after each `await` if it changed. When `readyState === EventSource.CLOSED`, go straight to "error". Have Refresh call `startActivityStream()`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | (1) An entry generation, bumped on enter and leave, stops an entry that was awaited across a leave from opening the stream and its timers. (2) A source the browser has `CLOSED` reports "error" at once and is released. (3) Refresh reopens a stream that is not open and leaves a healthy one alone. Covered by `activity-lifecycle.test.js` with a fake `EventSource`. |
 
 ### C14 — Out-of-order paints and a listener leak
 
@@ -271,8 +275,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/owner-analytics.js:154-160`; `frontend/js/auth-ui.js:1490` |
 | **The "Why"** | The owner dashboard's 7d/30d buttons `paint(await load())` with no sequencing, so a slower earlier response paints last under the wrong pressed button. `setupNavUI` runs on every `auth-changed` event and adds another `document` click listener each time, holding a detached dropdown. |
 | **The Fix** | A request counter (ignore stale results), or `AbortController` per load. Register the outside-click listener once, or with an `AbortSignal` that is aborted on the next `setupNavUI`. |
-| **Status** | ◐ **(b) resolved; (a) open** |
-| **What changed** | (b): the header's outside-click listener is registered with an `AbortSignal`, and each render aborts the previous one. (a), the owner dashboard's out-of-order paints, is scheduled with the other client-lifecycle fixes. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | (a): the owner panel's window picker numbers each load, and only the latest click paints or clears the busy state. (b): the header's outside-click listener is registered with an `AbortSignal`, and each render aborts the previous one. |
 
 ### C15 — Service worker: stale tabs and the update prompt
 
@@ -283,6 +287,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/main.js:260-268`; `frontend/sw.js:85-92`; `.github/workflows/deploy.yml:436-438` (`rsync --delete`) |
 | **The "Why"** | Deploys delete the previous build's hashed chunks, and the lazily loaded chat, activity and owner-analytics chunks are not precached. A tab still on the old build 404s on those imports, and the only trace is a `console.warn`. The update banner appears only on an `updatefound` during the current page's life. A worker already `waiting` when the page loads is never offered. |
 | **The Fix** | After `register()`, check `registration.waiting` and show the banner. On a dynamic-import failure, show "A new version is available — reload". |
+| **Status** | ✅ **Resolved** |
+| **What changed** | A worker already `waiting` when the page loads is offered. The lazy loaders go through `loadLazyModule`, which reports a failed import (not a throwing initialiser, and not while offline) as `rj:stale-build`. `main.js` answers with the update banner, and `activity.js` fires the same event for the owner panel's chunk. The registration wiring and the loader are exported so `sw-update.test.js` can drive them. |
 
 ### C16 — Syntax highlighter garbles `$&`, `` $` ``, `$'` and `$$`
 
@@ -293,6 +299,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/syntax-highlighter.js:62-64` |
 | **The "Why"** | `escaped.replace(key, html)` passes the replacement as a string, so `$` patterns inside a highlighted token are interpreted. JS `'$&'` renders as a placeholder fragment. Only the display is affected; Copy is correct. |
 | **The Fix** | `escaped.replace(key, () => html)`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Placeholders are restored with a replacement function. `syntax-highlighter.test.js` round-trips all four `$` patterns and a template literal's `$${…}`. |
 
 ### C17 — `/chat/summarize` skips the anonymous free-message cap
 

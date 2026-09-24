@@ -44,7 +44,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (333 lines)
+### `main.js` (372 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -68,13 +68,23 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   relevant nav target, by the section gaining `.active` (via `MutationObserver`),
   or by the matching location hash. Each delegated document listener is bound to
   an `AbortController` and removed once its module resolves — otherwise the
-  listener runs on every click in the viewport forever.
+  listener runs on every click in the viewport forever. Both go through the
+  exported `loadLazyModule(importer, init)`: a deploy deletes the previous
+  build's hashed chunks and these are not precached, so a tab on the old build
+  404s on the import. That used to be only a `console.warn`. A rejected
+  **import** (not a throwing `init`, and not while `navigator.onLine` is false)
+  fires `rj:stale-build`, which shows the update banner; `activity.js` fires the
+  same event for the owner panel's chunk.
 - Background layer selection: **gone.** `main.js` no longer mounts an animated
   background on any device, so there is no capability gate, no viewport gate and
   no route listener for it, and the two canvas modules that painted it have been
   deleted.
-- Service-worker registration, an update check every 60 s, and the update
-  banner whose button posts `SKIP_WAITING` and reloads on `controllerchange`.
+- Service-worker registration, an update check every 30 min and on returning
+  to the foreground (`watchServiceWorkerUpdates`, exported), and the update
+  banner whose button posts `SKIP_WAITING` and reloads on `controllerchange` -
+  or plainly reloads when no worker is waiting. A worker **already waiting**
+  when the page loads is offered too: `updatefound` fires only for an install
+  during the page's life, so the usual case after a deploy was never offered.
   One banner node for the life of the page, with a dismiss control and its
   listener bound to the element: every `updatefound` used to append another
   banner carrying the same `id`, so `getElementById` found the first and the
@@ -134,7 +144,7 @@ into JS. **Does not** hold `API_BASE`.
 | `mobileDevice` | `(pointer: coarse) and (max-width: 768px)` — phones only; iPads are 768px+ in portrait and laptops always have a fine pointer |
 | `motionMs(name, fallbackMs)` | A `--motion-*` token as milliseconds, e.g. `motionMs("base", 180)`. Reads the computed value off the root element and caches per token; returns the fallback when the property is absent or unparseable, which is the case under jsdom and before the stylesheet applies. Exists so JS animating alongside CSS reads the scale rather than restating it — see ADR-025 |
 
-### `analytics.js` (610 lines)
+### `analytics.js` (689 lines)
 
 API base resolution, session lifecycle, the event queue, and request telemetry.
 
@@ -157,7 +167,16 @@ containing `www.` → `https://www.rjasti.com/api`; otherwise
 `https://rjasti.com/api`.
 
 **Queue** — max 200 events, flushed at 10 queued, on a 2 s timer, on
-`visibilitychange` → hidden, and on `pagehide` (with `keepalive`). Persisted to
+`visibilitychange` → hidden, and on `pagehide` (with `keepalive`). The two
+`keepalive` flushes send only the oldest events that fit
+`KEEPALIVE_BUDGET_BYTES` (60 KiB, less whatever a hide flush still has in
+flight): Fetch caps the **sum** of in-flight keepalive bodies at 64 KiB, and a
+backlog near the cap used to go out as one body the browser refused. A hide
+flush leaves its events queued - and persisted - until the answer arrives,
+marked so no other flush sends them meanwhile; they used to be wiped as soon as
+the request was fired, which lost the persisted queue to a tab hidden offline.
+An unload removes what it sends at once, since the page may never see the
+answer, and leaves the rest for the next page load. Persisted to
 `localStorage` under `rj_event_queue:<session_id>`. Namespacing matters: the
 session id lives in `sessionStorage` (per tab) while the queue lives in
 `localStorage` (shared), and each queued event carries a baked-in `session_id` —
@@ -318,7 +337,7 @@ Internals worth knowing:
 | Destructive actions | Deleting one conversation and clearing all history both go through `confirmAction` from `confirm-dialog.js`. Delete used to ask nothing while Clear All called the browser's blocking `confirm()` |
 | Accessibility | `announceToScreenReader` for streamed replies. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
 
-### `activity.js` (1,424 lines, lazy)
+### `activity.js` (1,461 lines, lazy)
 
 `initActivity()`, `loadActivity()`, `loadActivitySummary()`,
 `loadActivityFunnel()`.
@@ -352,7 +371,11 @@ report rendered as Navigation, filed under the one label that hides it and
 reachable only from the filter chip with nothing to do with it.
 
 Also owns: the live SSE connection (`EventSource` with `withCredentials: true`
-so the `HttpOnly` session cookie is sent even when the API is on another port),
+so the `HttpOnly` session cookie is sent even when the API is on another port;
+an HTTP error answer closes it for good after one `error`, so a `CLOSED` source
+reports "error" at once and is released, and Refresh reopens a stream that is
+not open), an entry generation that stops an entry awaited across a leave from
+opening the stream and timers on a hidden section,
 frame normalisation between the compact and verbose shapes, the pipeline DAG
 painted from `pipeline`/`hello` frames, a rolling 200-sample latency reservoir
 fed by `onTelemetry`, focus restoration across re-renders, paginated
@@ -421,11 +444,13 @@ user agent too. On close the iframe element is dropped rather than pointed at
 the closed dialog. The `src` comes from the trigger's `href`, because the build
 content-hashes the PDF. Covered by `frontend/tests/resume-pdf.test.js`.
 
-### `analytics`-adjacent: `syntax-highlighter.js` (67 lines)
+### `analytics`-adjacent: `syntax-highlighter.js` (71 lines)
 
 `highlightCode(code, lang)` — regex highlighting for Python, JavaScript, SQL,
 JSON, HTML and Bash/Shell, escaping first. Small enough to ship instead of a
-highlighting library.
+highlighting library. Masked tokens are restored with a replacement
+**function**: a string replacement is scanned for `$&`, `` $` ``, `$'` and
+`$$`, so a JS literal like `'$&'` rendered as the placeholder it replaced.
 
 ---
 
@@ -519,7 +544,7 @@ invalid inside `role="listbox"`, so the kind is a badge *inside* each option
 Find-in-page is not a substitute: the router keeps one section in the DOM at a
 time, so the browser never has the other seven to search.
 
-### `owner-analytics.js` (310 lines, lazy)
+### `owner-analytics.js` (319 lines, lazy)
 
 `initOwnerAnalytics()` — the aggregate panel at the foot of the Activity
 section. Everything above it is the visitor's own session, which is what the
@@ -528,6 +553,9 @@ only after `/admin/analytics/*` confirms the caller is the owner. A 401 or 403
 hides the panel and clears it, so the page never ships an empty shell of it to
 a visitor — and signing out takes it down, or the next person at that browser
 would see the previous owner's figures.
+
+The window picker paints only the latest click's answer (`loadSeq`): a slower
+90-day query used to land after a 7-day one and sit under the pressed 7d button.
 
 `activity.js` imports it dynamically and does **not** await it: a slow or
 failing request for this must not hold up the dashboard the section actually

@@ -58,9 +58,13 @@ export function highlightCode(code, lang = "") {
   // Mask Numbers
   escaped = escaped.replace(numbers, (match) => mask(match, "number"));
 
-  // Restore placeholders in reverse order
+  // Restore placeholders in reverse order. The replacement is a function, not
+  // the string itself: a string replacement is scanned for `$&`, `` $` ``,
+  // `$'` and `$$`, so a highlighted JS literal like '$&' rendered as the
+  // placeholder it was replacing. A function's return value is used verbatim.
   for (let i = placeholders.length - 1; i >= 0; i--) {
-    escaped = escaped.replace(placeholders[i].key, placeholders[i].html);
+    const { key, html } = placeholders[i];
+    escaped = escaped.replace(key, () => html);
   }
 
   return `<code class="highlighted-code lang-${normalizedLang}">${escaped}</code>`;

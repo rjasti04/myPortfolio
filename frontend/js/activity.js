@@ -118,6 +118,12 @@ let durationTimer = null;
 let prefersReducedMotion = false;
 let activityStreamSource = null;
 let streamErrorCount = 0;
+/* Bumped on every entry to and exit from the section. Entry awaits the
+   session and the first load; a visitor who leaves during either used to come
+   back to nothing, while the entry carried on and opened an EventSource and a
+   15-second refetch timer on a section nobody was looking at -
+   leaveActivitySection() had already run and found nothing to stop. */
+let activityEntryGeneration = 0;
 let latencySamples = [];
 let lastApiLatencyMs = null;
 let lastServerMs = null;
@@ -1008,10 +1014,11 @@ function startActivityStream() {
   //
   // The token used to travel in the query string here, which put it in the
   // access log and in browser history.
-  activityStreamSource = new EventSource(
+  const source = new EventSource(
     withSessionToken(`${API_BASE}/sessions/${sessionId}/stream`),
     { withCredentials: true },
   );
+  activityStreamSource = source;
   activityStreamSource.onopen = () => {
     streamErrorCount = 0;
     setLiveStatus("connected");
@@ -1045,6 +1052,15 @@ function startActivityStream() {
     }),
   );
   activityStreamSource.onerror = () => {
+    // An HTTP error answer (a 403, a 5xx) is not retried: the browser closes
+    // the source for good after this one event. Counting towards
+    // STREAM_GIVE_UP_AFTER could then never get there, and the pill said
+    // "Connecting…" forever. Released, so Refresh can open a fresh one.
+    if (source.readyState === EventSource.CLOSED) {
+      if (activityStreamSource === source) activityStreamSource = null;
+      setLiveStatus("error");
+      return;
+    }
     // EventSource retries on its own, so the first few failures really are
     // "connecting". Past that it is not coming back on this page load, and
     // saying so beats a spinner that never resolves.
@@ -1110,6 +1126,8 @@ function handleIncomingStreamEvent(event) {
 // ── Lifecycle ──
 
 async function enterActivitySection() {
+  const entry = ++activityEntryGeneration;
+  const stillHere = () => entry === activityEntryGeneration;
   clearFilters();
   visibleCount = PAGE_SIZE;
   expandedRows.clear();
@@ -1119,9 +1137,11 @@ async function enterActivitySection() {
   // retries, because nothing re-runs when the id finally lands.
   if (isApiConfigured() && !currentSessionId()) {
     await ensureSession();
+    if (!stillHere()) return;
   }
 
   await loadActivity();
+  if (!stillHere()) return;
   loadActivitySummary();
   loadActivityFunnel();
   startActivityStream();
@@ -1140,6 +1160,7 @@ async function enterActivitySection() {
 }
 
 function leaveActivitySection() {
+  activityEntryGeneration += 1;
   stopActivityStream();
   stopDurationClock();
   pipelineHealth = null;
@@ -1258,6 +1279,14 @@ export function initActivity() {
      without building anything when the caller is not the owner. */
   function refreshOwnerPanel() {
     import("./owner-analytics.js")
+      .catch((error) => {
+        // The chunk itself would not load - after a deploy, a tab on the old
+        // build asks for a hashed file that no longer exists. main.js answers
+        // this with the update banner (see loadLazyModule there); it cannot be
+        // imported from here, so it is told with an event.
+        if (navigator.onLine !== false) window.dispatchEvent(new Event("rj:stale-build"));
+        throw error;
+      })
       .then((module) => module.initOwnerAnalytics())
       .catch(() => {
         // Nothing to report: a visitor never sees this panel, and the section
@@ -1405,6 +1434,14 @@ export function initActivity() {
     loadActivity();
     loadActivitySummary();
     loadActivityFunnel();
+    // The error state tells the reader to "use Refresh", and Refresh used to
+    // reload the lists and leave the dead stream dead. A healthy one is left
+    // alone rather than dropped and reopened.
+    const streamOpen = activityStreamSource && activityStreamSource.readyState === EventSource.OPEN;
+    if (!streamOpen && document.getElementById("activity")?.classList.contains("active")) {
+      stopActivityStream();
+      startActivityStream();
+    }
   });
 
   watchSessionBarFit();
