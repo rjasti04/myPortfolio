@@ -15,12 +15,12 @@
 
 # --- Web framework and ASGI server ---
 fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
+uvicorn[standard]>=0.53.0
 
 # --- Database ---
 asyncpg>=0.29.0
-sqlalchemy>=2.0.0
-alembic>=1.13.0
+sqlalchemy>=2.0.54
+alembic>=1.20.0
 
 # --- Configuration loading ---
 # Imported directly by server/alembic/env.py and scripts/clear_2fa.py to read
@@ -34,7 +34,7 @@ python-multipart>=0.0.6
 email-validator>=2.1.0
 
 # --- AWS Bedrock ---
-boto3>=1.34.0
+boto3>=1.43.98
 botocore>=1.34.0
 
 # --- Auth ---
@@ -42,7 +42,7 @@ botocore>=1.34.0
 # 4; the prehash scheme in server/auth/security.py is custom anyway, so passlib
 # only ever wrapped hashpw/checkpw.
 bcrypt>=4.2.0
-pyjwt>=2.8.0
+pyjwt>=2.14.0
 pyotp>=2.9.0
 qrcode>=7.4.2
 pillow>=10.0.0
@@ -52,7 +52,7 @@ aiokafka>=0.10.0
 
 # --- Outbound HTTP and email ---
 httpx>=0.25.0
-aiosmtplib>=3.0.0
+aiosmtplib>=5.1.3
 
 # --- Logging ---
 structlog>=23.2.0
