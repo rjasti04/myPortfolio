@@ -96,6 +96,21 @@ export function initChat() {
   const usageLatencyEl = document.getElementById('ai-usage-latency');
   const aiModelEl = document.getElementById('ai-topbar-model');
   const aiQuotaEl = document.getElementById('ai-quota');
+  const chatStatusEl = document.getElementById('chat-status');
+
+  // The widget header said "Online", in green, whatever was true - with no
+  // API configured for this host, and with the device offline.
+  function syncChatStatus() {
+    if (!chatStatusEl) return;
+    let state = 'online';
+    if (!isApiConfigured()) state = 'unavailable';
+    else if (navigator.onLine === false) state = 'offline';
+    chatStatusEl.dataset.state = state;
+    chatStatusEl.textContent = { online: 'Online', offline: 'Offline', unavailable: 'Unavailable' }[state];
+  }
+  syncChatStatus();
+  window.addEventListener('online', syncChatStatus);
+  window.addEventListener('offline', syncChatStatus);
 
   // Voice input support for mobile & desktop.
   //
@@ -1251,7 +1266,7 @@ export function initChat() {
   if (aiContentArea && aiJumpBtn) {
     aiContentArea.addEventListener('scroll', syncJumpBtn, { passive: true });
     aiJumpBtn.addEventListener('click', () => {
-      aiContentArea.scrollTo({ top: aiContentArea.scrollHeight, behavior: 'smooth' });
+      aiContentArea.scrollTo({ top: aiContentArea.scrollHeight, behavior: prefersReducedMotion.matches ? 'auto' : 'smooth' });
       aiJumpBtn.hidden = true;
       aiPageInput?.focus();
     });
@@ -1264,7 +1279,7 @@ export function initChat() {
     if (isNearBottom) {
       target.scrollTo({
         top: target.scrollHeight,
-        behavior: 'smooth'
+        behavior: prefersReducedMotion.matches ? 'auto' : 'smooth'
       });
     }
     // A turn appended while the reader is scrolled up changes scrollHeight
@@ -1322,13 +1337,16 @@ export function initChat() {
     const container = document.createElement('div');
     container.className = 'msg-actions';
 
+    // Visible text, not an icon with a title: a tooltip never reaches touch,
+    // keyboard or screen-reader users, who are exactly the ones who could not
+    // tell the answer had been cut off. No token count either - the ceiling
+    // belongs to the server (ADR-023), and the number here had already
+    // drifted from it.
     if (isTruncated) {
-      const warnIcon = document.createElement('i');
-      warnIcon.className = 'fas fa-exclamation-triangle warning-icon';
-      warnIcon.title = 'Response truncated due to length limit (2000 tokens).';
-      warnIcon.style.marginRight = '4px';
-      warnIcon.style.cursor = 'help';
-      container.appendChild(warnIcon);
+      const note = document.createElement('span');
+      note.className = 'msg-truncated';
+      note.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Cut off at the length limit';
+      container.appendChild(note);
     }
 
     if (isBot) {
@@ -1716,25 +1734,33 @@ export function initChat() {
     // focus to <body> - a screen reader loses its place mid-turn. A readonly
     // field keeps focus and stays announced; both submit handlers already
     // guard on isGenerating, so Enter cannot re-send.
-    if (aiPageInput) {
-      aiPageInput.readOnly = busy;
-      aiPageInput.setAttribute('aria-busy', String(busy));
+    if (aiPageInput) aiPageInput.readOnly = busy;
+    if (chatInput) chatInput.readOnly = busy;
+
+    // aria-busy belongs on the live region being rewritten, not on the field:
+    // the reply bubble is re-rendered every MARKDOWN_PARSE_THROTTLE_MS inside
+    // an aria-live list, and without it a screen reader could read the same
+    // fragments over and over. The single "Response received" announcement
+    // at the end is what tells the visitor the turn finished.
+    for (const list of [aiPageMessages, messagesContainer]) {
+      if (!list) continue;
+      if (busy) list.setAttribute('aria-busy', 'true');
+      else list.removeAttribute('aria-busy');
     }
-    if (aiPageForm) aiPageForm.setAttribute('aria-busy', String(busy));
-    if (aiPageSendBtn) {
-      aiPageSendBtn.disabled = false;
-      aiPageSendBtn.innerHTML = busy ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
-      aiPageSendBtn.title = busy ? 'Stop generation' : 'Send message';
-    }
-    if (chatInput) {
-      chatInput.readOnly = busy;
-      chatInput.setAttribute('aria-busy', String(busy));
-    }
-    if (chatForm) chatForm.setAttribute('aria-busy', String(busy));
-    if (chatSendBtn) {
-      chatSendBtn.disabled = false;
-      chatSendBtn.innerHTML = busy ? '<i class="fas fa-square"></i>' : '<i class="fas fa-arrow-up"></i>';
-      chatSendBtn.title = busy ? 'Stop generation' : 'Send message';
+
+    // The label as well as the title: a static aria-label="Send message" in
+    // the markup outranks the title, so the Stop button was still announced
+    // as "Send message" for the whole stream.
+    const sendLabel = busy ? 'Stop generating' : 'Send message';
+    const sendIcon = busy
+      ? '<i class="fas fa-square" aria-hidden="true"></i>'
+      : '<i class="fas fa-arrow-up" aria-hidden="true"></i>';
+    for (const btn of [aiPageSendBtn, chatSendBtn]) {
+      if (!btn) continue;
+      btn.disabled = false;
+      btn.innerHTML = sendIcon;
+      btn.title = sendLabel;
+      btn.setAttribute('aria-label', sendLabel);
     }
     if (newChatBtn) newChatBtn.disabled = busy;
   }
@@ -2485,28 +2511,17 @@ export function initChat() {
   });
 }
 
-// Screen reader announcements
+/* Screen reader announcements, through the page's one permanent live region.
+   A region created already holding its text - what this used to do - is
+   ignored by several screen readers, which only announce a change to a
+   region they already knew about. Cleared first so the same message twice in
+   a row is still announced; navigation.js writes route labels to the same
+   node, and both are polite. */
 function announceToScreenReader(message) {
-  const announcement = document.createElement('div');
-  announcement.setAttribute('role', 'status');
-  announcement.setAttribute('aria-live', 'polite');
-  announcement.className = 'sr-only';
-  announcement.textContent = message;
-  announcement.style.cssText = `
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  `;
-
-  document.body.appendChild(announcement);
-
-  setTimeout(() => {
-    announcement.remove();
-  }, 1000);
+  const announcer = document.getElementById('route-announcer');
+  if (!announcer) return;
+  announcer.textContent = '';
+  requestAnimationFrame(() => {
+    announcer.textContent = message;
+  });
 }

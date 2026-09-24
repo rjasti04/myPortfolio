@@ -319,7 +319,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (2,512 lines, lazy)
+### `chat.js` (2,527 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -355,10 +355,10 @@ Internals worth knowing:
 | Auth | A `401` while signed out dispatches `request-login-modal` rather than showing a raw error |
 | Voice | Separate `SpeechRecognition` instances per input — a shared singleton had both mic buttons overwriting each other's `onresult` and routing transcripts to the wrong field. Buttons are hidden entirely when unsupported. Both composers are wired by one `setupVoiceInput()`: the mic opens a `.voice-bar` over the composer (cancel, an animated waveform sized to the row, stop, send), and every run ends in `onend` with an intent — `insert` writes the transcript to the field, `send` writes it and calls `requestSubmit()`, `cancel` (the X, Escape, or a recognition error) discards it |
 | Waiting state | `createTypingIndicator()` renders an *indeterminate* indicator. It used to march "Initializing context -> Fetching profile data -> Querying Bedrock LLM" on a fixed 700 ms timer with nothing behind it, so a slow turn showed three completed steps while nothing had arrived and a fast turn showed steps for work that never happened. Waiting and streaming are the only two states this code can observe |
-| Busy composer | `setInputState()` sets `readOnly` plus `aria-busy`, not `disabled`. The visitor is almost always focused in the composer when they press Enter, and disabling the focused element drops focus to `<body>`; both submit handlers already guard on `isGenerating`, so Enter cannot re-send. The refocus after a turn is gated on `#ai` still being the active section |
+| Busy composer | `setInputState()` sets `readOnly`, not `disabled`, and puts `aria-busy` on the two message lists - the live regions the reply is being re-rendered into - rather than on the field. Both send buttons swap their `aria-label` along with their `title` ("Stop generating" / "Send message"), because the markup's static label outranks a title. The visitor is almost always focused in the composer when they press Enter, and disabling the focused element drops focus to `<body>`; both submit handlers already guard on `isGenerating`, so Enter cannot re-send. The refocus after a turn is gated on `#ai` still being the active section |
 | Modality | The widget sets `aria-modal` while open and traps Tab with `handleFocusTrap` from `modal.js`. `body.chat-open` paints a scrim that takes pointer events, so it was already modal for a mouse while Tab walked out of it into a page the visitor could no longer click. It focuses the composer directly on open — it used to wait on a `transitionend` that never fires, because the global `.hidden` utility is `display: none !important` and an element leaving `display: none` runs no transition |
 | Destructive actions | Deleting one conversation and clearing all history both go through `confirmAction` from `confirm-dialog.js`. Delete used to ask nothing while Clear All called the browser's blocking `confirm()` |
-| Accessibility | `announceToScreenReader` for streamed replies. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
+| Accessibility | `announceToScreenReader` writes to the page's permanent `#route-announcer` (clearing it first, then setting the text on the next frame), and a finished reply is announced once as "Response received". A reply cut off at the server's ceiling says so in visible text ("Cut off at the length limit"), not in a tooltip. The widget header's status reads Online, Offline or Unavailable from `navigator.onLine` and `isApiConfigured()`, updated on `online`/`offline`. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
 
 ### `activity.js` (1,461 lines, lazy)
 
@@ -545,7 +545,7 @@ completion on an empty prompt. Claiming Tab in both directions made
 `#terminal-input` a keyboard trap (WCAG 2.1.2): focus could enter the About
 prompt and never leave it without a mouse.
 
-### `palette.js` (271 lines)
+### `palette.js` (277 lines)
 
 `initPalette({registry, run, panel, navigate})` — the `Ctrl+K` overlay. A second
 renderer over the same registry, which is the payoff for modelling commands as
@@ -994,10 +994,11 @@ under the CSS deadline.
 integrator that gives `animations.js` framework-quality motion without a
 framework.
 
-### `confetti.js` (144 lines)
+### `confetti.js` (150 lines)
 
 `triggerConfetti(options)` and `confettiPresets`. Canvas-based, self-removing,
-colours read from CSS custom properties so it matches the active accent.
+colours read from CSS custom properties so it matches the active accent. Returns
+without drawing when `prefersReducedMotion` (`config.js`) matches.
 
 ---
 

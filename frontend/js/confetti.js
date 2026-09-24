@@ -2,8 +2,14 @@
  * Confetti celebration effect
  * Lightweight canvas-based confetti animation
  */
+import { prefersReducedMotion } from './config.js';
 
 export function triggerConfetti(options = {}) {
+  // A 150-particle, full-viewport animation is exactly what a reduced-motion
+  // preference asks not to see. The success toast and the form status still
+  // report the send.
+  if (prefersReducedMotion.matches) return;
+
   const {
     duration = 3000,
     particleCount = 150,

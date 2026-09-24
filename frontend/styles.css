@@ -4702,7 +4702,7 @@ body:not(.dark-theme) .home-name .hero-char:not(.is-hovered) {
   color: var(--muted);
 }
 
-#resume .item h3 {
+#resume .item h2 {
   margin: var(--space-sm) 0 0;
   color: var(--text);
   font-size: var(--text-fluid-xl);
@@ -5007,7 +5007,7 @@ body:not(.dark-theme) .home-name .hero-char:not(.is-hovered) {
     min-width: 0;
   }
 
-  #resume .item h3 {
+  #resume .item h2 {
     font-size: var(--text-xl);
   }
 
@@ -8953,8 +8953,14 @@ section:focus {
 
 .chat-status {
   font-size: var(--text-2xs);
-  color: var(--color-success);
+  color: var(--muted);
   font-weight: var(--weight-semibold);
+}
+
+/* Green only when it is true: the label used to read "Online" in green with
+   no API configured and with the device offline. chat.js sets data-state. */
+.chat-status[data-state='online'] {
+  color: var(--color-success);
 }
 
 .chat-header-actions {
@@ -9225,7 +9231,13 @@ body.dark-theme .chat-message.bot .msg-action-btn:focus-visible {
   background: hsl(0, 0%, 0%, 0.22);
 }
 
-.warning-icon {
+/* The truncation note on a reply that hit the server's length ceiling. */
+.msg-truncated {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 4px;
+  font-size: var(--text-2xs);
   color: var(--color-warning);
 }
 

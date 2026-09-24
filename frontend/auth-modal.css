@@ -422,6 +422,15 @@
   text-decoration: none;
   transition: color var(--motion-base, 180ms) var(--ease-standard);
   font-weight: 500;
+  /* Buttons, not <a href="#">: they act, they do not navigate. The reset keeps
+     them looking like the links they were. */
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  cursor: pointer;
 }
 
 .forgot-password-link:hover {

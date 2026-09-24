@@ -512,7 +512,7 @@ export async function initAuthUI() {
         const originalText = btn.innerHTML;
 
         try {
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Loading...';
             btn.disabled = true;
             loginError.textContent = '';
             document.getElementById('login-resend-verification')?.remove();
@@ -619,7 +619,7 @@ export async function initAuthUI() {
             const magicSuccess = document.getElementById('magic-link-success');
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Sending...';
                 btn.disabled = true;
                 if (magicError) magicError.textContent = '';
                 if (magicSuccess) { magicSuccess.textContent = ''; magicSuccess.style.display = 'none'; }
@@ -651,7 +651,7 @@ export async function initAuthUI() {
             const verifyError = document.getElementById('2fa-verify-error');
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Verifying...';
                 btn.disabled = true;
                 if (verifyError) verifyError.textContent = '';
 
@@ -696,7 +696,7 @@ export async function initAuthUI() {
             const enableSuccess = document.getElementById('2fa-enable-success');
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enabling...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Enabling...';
                 btn.disabled = true;
                 if (enableError) enableError.textContent = '';
                 if (enableSuccess) { enableSuccess.textContent = ''; enableSuccess.style.display = 'none'; }
@@ -757,7 +757,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Disabling...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Disabling...';
                 btn.disabled = true;
                 if (twoFactorDisableError) twoFactorDisableError.textContent = '';
                 if (twoFactorDisableSuccess) {
@@ -913,14 +913,14 @@ export async function initAuthUI() {
             if (!ok) return;
             try {
                 revokeOthersBtn.disabled = true;
-                revokeOthersBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging out...';
+                revokeOthersBtn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Logging out...';
                 await revokeOtherSessions();
                 await loadActiveSessionsUI();
             } catch (e) {
                 if (errEl) errEl.textContent = e.message || 'Failed to revoke other sessions.';
             } finally {
                 revokeOthersBtn.disabled = false;
-                revokeOthersBtn.innerHTML = 'Log Out All Other Devices <i class="fas fa-right-from-bracket"></i>';
+                revokeOthersBtn.innerHTML = 'Log Out All Other Devices <i class="fas fa-right-from-bracket" aria-hidden="true"></i>';
             }
         });
     }
@@ -936,7 +936,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Loading...';
                 btn.disabled = true;
                 registerError.textContent = '';
                 if (registerSuccess) {
@@ -990,7 +990,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Sending...';
                 btn.disabled = true;
                 forgotError.textContent = '';
                 forgotSuccess.textContent = '';
@@ -1126,7 +1126,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Updating...';
                 btn.disabled = true;
                 if (changePwError) changePwError.textContent = '';
                 if (changePwSuccess) {
@@ -1289,7 +1289,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Resetting...';
                 btn.disabled = true;
                 if (resetPwError) resetPwError.textContent = '';
                 if (resetPwSuccess) {
@@ -1359,7 +1359,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Deleting...';
                 btn.disabled = true;
                 if (deleteAccountError) deleteAccountError.textContent = '';
                 if (deleteAccountSuccess) {
@@ -1660,7 +1660,7 @@ async function setupNavUI() {
     // Logged out state
     authContainer.innerHTML = `
         <button class="header-icon-btn nav-auth-btn" id="nav-login-btn" title="Log In" aria-label="Log In">
-            <i class="fas fa-right-to-bracket"></i>
+            <i class="fas fa-right-to-bracket" aria-hidden="true"></i>
         </button>
     `;
 

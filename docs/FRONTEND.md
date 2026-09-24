@@ -976,8 +976,13 @@ touched).
   item. Every control meets the 44px touch floor (`--min-touch-target`),
   including the password visibility toggle inside the auth fields.
 - `aria-current="page"` on the active nav link; `role="status"` on toasts;
-  `role="alert"` on the update banner; screen-reader announcements for streamed
-  chat replies.
+  `role="alert"` on the update banner; chat announcements through the
+  permanent `#route-announcer`, with `aria-busy` on the message list while a
+  reply streams.
+- Every view goes h1 → h2 → h3 without skipping a level, and every decorative
+  Font Awesome glyph carries `aria-hidden="true"` - `route-semantics.test.js`
+  holds both. The Experience section's levels are set in
+  `scripts/generate_resume.py`, which writes that markup.
 - The activity timeline is built from real focusable elements rather than a
   canvas, precisely so each bar is a labelled filter control reachable by
   keyboard and assistive tech.

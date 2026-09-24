@@ -63,6 +63,19 @@ describe('Command palette content search', () => {
     );
   }
 
+  // Codebase review U11: the empty state removed every option but left
+  // aria-activedescendant naming one of them.
+  it('points at no option once nothing matches', () => {
+    const doc = dom.window.document;
+    openWith('help');
+    const field = doc.querySelector('.cmd-palette-input');
+    assert.ok(field.getAttribute('aria-activedescendant'), 'precondition: an option is active');
+    openWith('zzzz-no-such-thing');
+    assert.equal(doc.querySelectorAll('.cmd-palette-item').length, 0);
+    assert.equal(field.hasAttribute('aria-activedescendant'), false);
+    close();
+  });
+
   it('ships a generated index with resume content in it', () => {
     assert.ok(CONTENT_INDEX.length > 0);
     const redshift = CONTENT_INDEX.filter((e) => JSON.stringify(e).includes('Redshift'));

@@ -165,7 +165,9 @@ def build_experience(data: dict) -> str:
             f'{pad}  <span class="item-date">{esc(job["dateRange"])}</span>',
             f'{pad}  <span class="item-badge">{esc(job["location"])}</span>',
             f"{pad}</div>",
-            f'{pad}<h3>{esc(job["company"])}</h3>',
+            # h2 under the view's h1 "Experience", and the groups below at h3:
+            # the section used to jump h1 -> h3 -> h4 (codebase review U11).
+            f'{pad}<h2>{esc(job["company"])}</h2>',
             f'{pad}<div class="experience-roles">',
         ]
         for role in job["roles"]:
@@ -186,7 +188,7 @@ def build_experience(data: dict) -> str:
         # it still expands with JS off, which is the state the rest of this
         # section already degrades to.
         #
-        # The anchor id moves from the <h4> to the <details>: the Ctrl+K
+        # The anchor id moves from the <h3> to the <details>: the Ctrl+K
         # palette resolves these by getElementById and focuses them, and it
         # opens an element that turns out to be a closed <details>. Keeping the
         # id on the heading would have focused something inside a closed
@@ -197,7 +199,7 @@ def build_experience(data: dict) -> str:
             lines += [
                 f'{pad}<details class="exp-group" id="{anchor}"{is_open}>',
                 f'{pad}  <summary class="exp-group-summary">',
-                f'{pad}    <h4 class="item-bullets-group">{esc(group["heading"])}</h4>',
+                f'{pad}    <h3 class="item-bullets-group">{esc(group["heading"])}</h3>',
                 f'{pad}    <span class="exp-group-count">{len(group["bullets"])}</span>',
                 f"{pad}  </summary>",
                 f'{pad}  <ul class="item-bullets">',

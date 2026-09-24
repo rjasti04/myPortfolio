@@ -150,7 +150,7 @@ test("the brand names now stand alone below 960px, where the tag is hidden", () 
 test("the cron brand matches the tile that launches it", () => {
   // The markup carries the entity; textContent below has already decoded it.
   const tile = read("index.html")
-    .match(/<h3 class="app-tile-title">(Cron[^<]*)<\/h3>/)[1]
+    .match(/<h2 class="app-tile-title">(Cron[^<]*)<\/h2>/)[1]
     .replace(/&amp;/g, "&");
   const d = doc("cron.html");
   const brand = `${d.querySelector(".brand-title").textContent.trim()} ${d.querySelector(".brand-tag").textContent.trim()}`;

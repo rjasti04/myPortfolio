@@ -120,6 +120,9 @@ export function initPalette({ registry, run, panel, navigate }) {
       empty.className = "cmd-palette-empty";
       empty.textContent = "No matching command or content";
       listEl.appendChild(empty);
+      // The option it pointed at was just removed; an id reference to nothing
+      // leaves a screen reader announcing a stale or empty option.
+      field.removeAttribute("aria-activedescendant");
       return;
     }
 
@@ -188,8 +191,11 @@ export function initPalette({ registry, run, panel, navigate }) {
           // Guarded the same way the result list guards its own call: focus has
           // already moved, so a missing scrollIntoView costs smoothness, not
           // the navigation.
+          // Read at call time rather than through config.js, whose import-time
+          // matchMedia call would tie this module to a window at load.
           if (typeof target.scrollIntoView === "function") {
-            target.scrollIntoView({ block: "start", behavior: "smooth" });
+            const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+            target.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
           }
         }
       }
