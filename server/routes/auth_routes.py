@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.db.database import get_db
 from server.schemas.auth import (
-    UserCreate, UserLogin, Token, UserResponse, RefreshTokenRequest, LogoutRequest, ChangePasswordRequest,
+    UserCreate, UserLogin, Token, UserResponse, RegisterResponse, RefreshTokenRequest, LogoutRequest, ChangePasswordRequest,
     ForgotPasswordRequest, ResetPasswordRequest, DeleteAccountRequest,
     Setup2FAResponse, Enable2FARequest, Disable2FARequest, Verify2FARequest,
     MagicLinkRequest, MagicLinkVerifyRequest, UserSessionResponse, TokenResponseOr2FA,
@@ -20,7 +20,9 @@ from server.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+# 202, not 201: the answer is the same whether or not an account was created,
+# so it cannot promise one. What happened goes to the address's inbox.
+@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_202_ACCEPTED)
 async def register(
     user: UserCreate,
     background_tasks: BackgroundTasks,

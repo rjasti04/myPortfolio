@@ -18,6 +18,7 @@ import { JSDOM } from "jsdom";
 let dom;
 let auth;
 let calls;
+let sentBodies;
 
 test.before(async () => {
   dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://rjasti.com/" });
@@ -36,29 +37,23 @@ test.after(() => {
 
 test.beforeEach(() => {
   calls = [];
+  sentBodies = [];
   localStorage.clear();
 });
 
-/** The server as it actually behaves: 201 on register, 403 on login until the
+/** The server as it actually behaves: 202 on register - the same answer for
+    an address that already has an account - and 403 on login until the
     address is confirmed. */
 function installServerStub() {
   global.fetch = async (url, options = {}) => {
     const path = String(url).replace(/^.*\/api/, "");
     calls.push(path);
     if (path === "/auth/register") {
+      sentBodies.push(JSON.parse(options.body));
       return {
         ok: true,
-        status: 201,
-        json: async () => ({
-          id: "11111111-1111-4111-8111-111111111111",
-          // The server normalises: `register_user` lowercases the address.
-          // The client only trims, so this is what actually comes back.
-          email: JSON.parse(options.body).email.toLowerCase(),
-          created_at: "2026-01-01T00:00:00Z",
-          is_active: true,
-          is_totp_enabled: false,
-          email_verified_at: null,
-        }),
+        status: 202,
+        json: async () => ({ message: "Check your inbox to finish setting up your account." }),
       };
     }
     if (path === "/auth/login") {
@@ -84,7 +79,8 @@ test("registering does not attempt a login that cannot succeed", async () => {
     ["/auth/register"],
     "the auto-login was guaranteed to 403 and burned a strict-budget request"
   );
-  assert.equal(created.email, "new@example.com", "the created user is returned to the caller");
+  assert.equal(sentBodies[0].email, "New@Example.com", "the client trims; the server normalises");
+  assert.match(created.message, /check your inbox/i, "the server's message is returned to the caller");
 });
 
 test("a successful registration does not report a failure", async () => {
@@ -94,7 +90,7 @@ test("a successful registration does not report a failure", async () => {
   // into the register form's error slot and treated as a failed registration.
   await assert.doesNotReject(
     () => auth.registerUser("someone@example.com", "Str0ngPassw0rd!"),
-    "a 201 from /auth/register is a success, whatever /auth/login would say"
+    "a 202 from /auth/register is a success, whatever /auth/login would say"
   );
 });
 
@@ -110,11 +106,11 @@ test("registering signs nobody in - the address is unconfirmed", async () => {
 test("a real registration failure still throws with the server's reason", async () => {
   global.fetch = async (url) => {
     calls.push(String(url).replace(/^.*\/api/, ""));
-    return { ok: false, status: 400, json: async () => ({ detail: "Email already registered" }) };
+    return { ok: false, status: 429, json: async () => ({ detail: "Too many requests" }) };
   };
 
   await assert.rejects(
-    () => auth.registerUser("taken@example.com", "Str0ngPassw0rd!"),
-    /Email already registered/
+    () => auth.registerUser("someone@example.com", "Str0ngPassw0rd!"),
+    /Too many requests/
   );
 });

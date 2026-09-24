@@ -11,8 +11,8 @@ the only way back in.
 
 This is that write, with the two parts a hand-typed UPDATE forgets: the lockout
 counters that repeated wrong codes will have set - clear the secret but leave
-`locked_until` and the owner is still shut out - and the sessions still live on
-whatever device is being replaced.
+`totp_locked_until` and the owner is still shut out - and the sessions still
+live on whatever device is being replaced.
 
     python scripts/clear_2fa.py --email you@example.com
 
@@ -108,8 +108,9 @@ async def clear_second_factor(
 ) -> Outcome:
     """Take the second factor off `user`, and by default end its sessions.
 
-    The four assignments mirror `disable_2fa` (`services/auth_service.py`)
-    exactly, lockout clear included. That is the point: this leaves the row in
+    The assignments mirror `disable_2fa` (`services/auth_service.py`), lockout
+    clear included - both tallies here, since an owner locked out of a second
+    factor has usually been trying their password too. That is the point: this leaves the row in
     the state the supported path would have left it in, so nothing downstream
     can tell an emergency unlock from an ordinary one.
     """
@@ -118,9 +119,12 @@ async def clear_second_factor(
 
     user.is_totp_enabled = False
     user.totp_secret = None
-    # Wrong codes feed `register_failed_attempt`, so an account reaching this
-    # script has usually tripped the lockout as well. Clearing the factor
-    # without clearing these two would swap one closed door for another.
+    user.totp_last_step = None
+    # Wrong codes feed the code tally, so an account reaching this script has
+    # usually tripped it. Clearing the factor without clearing the tallies
+    # would swap one closed door for another.
+    user.totp_failed_attempts = 0
+    user.totp_locked_until = None
     user.failed_login_attempts = 0
     user.locked_until = None
     session.add(user)
@@ -160,8 +164,10 @@ def _print_summary(user: User, live_sessions: int) -> None:
         ("email", user.email),
         ("2FA enabled", "yes" if user.is_totp_enabled else "no"),
         ("TOTP secret", "set" if user.totp_secret else "none"),
-        ("failed attempts", str(user.failed_login_attempts)),
-        ("locked until", str(user.locked_until) if user.locked_until else "not locked"),
+        ("failed passwords", str(user.failed_login_attempts)),
+        ("password locked until", str(user.locked_until) if user.locked_until else "not locked"),
+        ("failed codes", str(user.totp_failed_attempts)),
+        ("codes locked until", str(user.totp_locked_until) if user.totp_locked_until else "not locked"),
         ("soft-deleted", str(user.deleted_at) if user.deleted_at else "no"),
         ("live sessions", str(live_sessions)),
     ]

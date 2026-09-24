@@ -1,7 +1,7 @@
 import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Union, Optional
-from passlib.context import CryptContext
+import bcrypt
 import jwt
 from fastapi import HTTPException, status
 
@@ -11,10 +11,25 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# passlib's default, so hashes made before bcrypt was called directly and
+# hashes made after cost the same to check.
+BCRYPT_ROUNDS = 12
+# bcrypt reads at most 72 bytes. Before 4.0 it dropped the rest silently; from
+# 5.0 it raises instead.
+BCRYPT_MAX_BYTES = 72
+
 
 def _get_sha256_hex(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+
+def _checkpw(secret: bytes, hashed_password: str) -> bool:
+    """bcrypt.checkpw that answers False, rather than raising, for a malformed
+    stored hash - a bad row must fail the check, not the request."""
+    try:
+        return bcrypt.checkpw(secret, hashed_password.encode("utf-8"))
+    except (ValueError, TypeError):
+        return False
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """True if the password matches, under either the current or legacy scheme."""
@@ -30,41 +45,41 @@ def verify_password_scheme(plain_password: str, hashed_password: str) -> tuple[b
     The second element flags a legacy match so the caller can upgrade the stored
     hash: without it the fallback is permanent and no row ever migrates.
     """
-    try:
-        if pwd_context.verify(_get_sha256_hex(plain_password), hashed_password):
-            return True, False
-    except Exception:
-        pass
-    try:
-        if pwd_context.verify(plain_password, hashed_password):
-            return True, True
-    except Exception:
-        return False, False
+    # The digest is 64 ASCII characters, inside bcrypt's 72-byte limit.
+    if _checkpw(_get_sha256_hex(plain_password).encode("ascii"), hashed_password):
+        return True, False
+    # Legacy rows were hashed by bcrypt < 4, which truncated at 72 bytes without
+    # a word, so a longer password was stored as its first 72. bcrypt 5 raises
+    # on the same input; truncating here keeps those rows verifiable.
+    if _checkpw(plain_password.encode("utf-8")[:BCRYPT_MAX_BYTES], hashed_password):
+        return True, True
     return False, False
 
 
 _dummy_hash: Optional[str] = None
 
 
-def spend_verification_time() -> None:
-    """Burns roughly one bcrypt verification.
+def spend_verification_time(rounds: int = 1) -> None:
+    """Burns `rounds` bcrypt verifications.
 
     A login for an address with no account used to return before doing any
     hashing, so response time alone told an attacker which addresses exist.
-    Called on that path so both outcomes cost the same.
+    A *wrong* password for a real account costs two - the prehash check fails,
+    then the legacy raw-password check runs - so every refusal that skips the
+    real check (unknown, purged, locked) calls this with `rounds=2`. One round
+    still left the unknown address measurably faster than a real one.
     """
     global _dummy_hash
     if _dummy_hash is None:
         # Built on first use rather than at import, so the cost lands on a
         # request rather than on every process start and test collection.
         _dummy_hash = get_password_hash("timing-equalisation-placeholder")
-    try:
-        pwd_context.verify(_get_sha256_hex("not-the-placeholder"), _dummy_hash)
-    except Exception:
-        pass
+    for _ in range(rounds):
+        _checkpw(_get_sha256_hex("not-the-placeholder").encode("ascii"), _dummy_hash)
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(_get_sha256_hex(password))
+    digest = _get_sha256_hex(password).encode("ascii")
+    return bcrypt.hashpw(digest, bcrypt.gensalt(rounds=BCRYPT_ROUNDS)).decode("ascii")
 
 def create_access_token(
     subject: Union[str, int],

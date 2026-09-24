@@ -90,7 +90,15 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,607 lines)
+### `auth-ui.js` (1,636 lines)
+
+`export const REGISTER_SENT_MESSAGE` — the register panel's success copy, the
+same for a new address and one that already has an account.
+
+`export function takeAuthLinkTokens()` — a mailed link's token, once: from
+`window.__rjAuthLink`, which the inline pre-boot script fills from the URL
+fragment before any module runs, or from the query string for a link mailed
+before tokens moved to the fragment.
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -98,7 +106,8 @@ meter and requirement checklist, confirm-password matching, visibility toggles,
 2FA enrolment with the QR code and the manage panel that turns it back off,
 active-session list with per-session and
 "log out everywhere else" revocation, change password, delete account, magic-link
-and reset-token handling from query parameters, and the injected profile
+and reset, verification and magic-link handling (from `takeAuthLinkTokens()`),
+and the injected profile
 dropdown in the header (`setupNavUI`).
 
 Loaded as its own esbuild entry so the account UI is available without waiting
@@ -196,7 +205,7 @@ stale session and starting a fresh one.
 count, reason, ok, at}` to `onTelemetry` subscribers. `serverMs` is parsed from
 the `Server-Timing: app;dur=…` header; `networkMs` is the remainder.
 
-### `auth.js` (517 lines)
+### `auth.js` (538 lines)
 
 Token storage and every authenticated call.
 
@@ -204,8 +213,9 @@ Token storage and every authenticated call.
 | :--- | :--- |
 | `AUTH_TOKEN_KEY`, `REFRESH_TOKEN_KEY` | `rj_access_token`, `rj_refresh_token` |
 | `getAuthToken()`, `setTokens(a, r)`, `clearTokens()` | `localStorage` accessors |
+| `getTokenSubject()` | The `sub` (account id) in the stored access token, or `null` - decoded, not verified. It only labels which chat rows in this browser belong to which account; the server still authorises every read |
 | `getErrorMessage(errorData, fallback)` | Normalises FastAPI's string / array `detail` shapes |
-| `loginUser`, `registerUser`, `logoutUser` | Credential flows. `registerUser` returns the created `UserResponse` and signs **nobody** in — the address has to be confirmed first. `logoutUser` sends the refresh token in the body and no bearer, so an expired access token no longer stops the server-side revocation; it ends this device's session only |
+| `loginUser`, `registerUser`, `logoutUser` | Credential flows. `registerUser` returns the server's message and signs **nobody** in — the address has to be confirmed first, and the answer is the same whether or not it already had an account. `logoutUser` sends the refresh token in the body and no bearer, so an expired access token no longer stops the server-side revocation; it ends this device's session only |
 | `setup2FA`, `enable2FA(pw, code)`, `disable2FA(pw, code)`, `verify2FA` | TOTP enrolment, teardown and challenge. Enable and disable both re-authenticate with the password |
 | `requestMagicLink`, `verifyMagicLink` | Passwordless sign-in |
 | `requestPasswordReset`, `resetPassword`, `changePassword` | Password flows |
@@ -243,10 +253,13 @@ address" into the register form's **error** slot: no success toast, the dialog
 still open, and `"Email already registered"` if the visitor tried again. It also
 spent a second request on `/auth/login`, which shares the strict 5-per-minute
 auth budget with `/auth/register`, on a call certain to fail. `registerUser` now
-returns the created user, and the register panel paints `#register-success` with
-a "check your inbox" message plus the same resend affordance the login panel
-offers. Pinned by `frontend/tests/auth-register.test.js` and, server-side, by
-`test_a_fresh_registration_cannot_log_in_until_it_is_confirmed`.
+returns the server's message, and the register panel paints `#register-success`
+with `REGISTER_SENT_MESSAGE` plus the same resend affordance the login panel
+offers. That copy does not say "Account created": `/auth/register` answers the
+same 202 whether or not the address already had an account (it mails that
+address a reminder instead), so the page cannot tell and must not claim. Pinned
+by `frontend/tests/auth-register.test.js`, `auth-2fa.test.js` and, server-side,
+by `test_a_fresh_registration_cannot_log_in_until_it_is_confirmed`.
 
 **Only a refused credential ends the session.** `refreshAccessTokenOnce()`
 returns `{token, rejected}` rather than a bare token, and `clearTokens()` runs
@@ -297,7 +310,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (2,441 lines, lazy)
+### `chat.js` (2,512 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -310,7 +323,7 @@ Internals worth knowing:
 
 | Area | Behaviour |
 | :--- | :--- |
-| Rendering | `renderBotHTML` = `DOMPurify.sanitize(marked.parse(text))`, degrading to escaped text with `<br>` if either global is missing |
+| Rendering | `renderBotHTML` (exported for its test) = `DOMPurify.sanitize(marked.parse(text), { FORBID_TAGS: ['img', 'image'] })`, and a marked renderer turns a markdown image into a link - a reply must not make the page fetch an arbitrary URL. Degrades to escaped text with `<br>` if either global is missing |
 | Message actions | `createMessageActions()` serves both surfaces, but the `#ai` page passes it only bot turns: a question there sits a scroll away from an always-visible composer, so Edit and Copy earned nothing beside it. The widget's bubbles still carry both on the visitor's own turns |
 | Code blocks | A custom `marked` renderer injects a copy button carrying the source as a URI-encoded `data-code` attribute; a delegated document listener handles the copy |
 | Highlighting | `syntax-highlighter.js`, not a library |
@@ -327,6 +340,7 @@ Internals worth knowing:
 | Persistence and the cap | `saveSessions()` serialises through a replacer that drops `hydrating` and `loadError` - per-view state; a persisted `hydrating: true` was a spinner no request would clear - and `loadSessions()` strips both from rows an older build saved. Over `MAX_SESSIONS`, unhydrated server stubs are evicted first, oldest first and never the active one, because the next sync lists them straight back while a local conversation may exist nowhere else |
 | Conversation identity | Each session carries a local `id` (the `localStorage` key, still `Date.now().toString()`) **and** a `conversationId` v4 UUID sent as `conversation_id` on every turn. Without it `save_or_update_conversation` took its create branch each turn and wrote a fresh `ai_conversations` row holding the whole transcript so far - ten turns, ten rows. Two fields rather than one because stored sessions predate UUID ids, and reusing `id` would mean migrating the active-session pointer with them. `backfillConversationIds()` gives old rows one on load |
 | Server history | For a signed-in visitor `syncServerHistory()` lists `GET /chat/history` on load and on `auth-changed`, merging server-only conversations into the rail as **stubs** (`remote: true`, `messages: []`). The listing carries summaries only, so `hydrateSession()` fetches `GET /chat/history/{id}` when a stub is opened, a 404 drops it (deleted from another device), and `deleteSession()` also issues `DELETE /chat/history/{id}` or the next sync brings it back. On a merge the local copy wins on title and transcript - it is the fuller one - and only `updatedAt` is reconciled. Anonymous visitors keep the pure-`localStorage` path; `POST /chat` stays deliberately anonymous |
+| One account's rows | A row is tagged `ownerId` (the token's `sub`) when `syncServerHistory()` lists it or matches it, and when a turn is sent signed in. `dropForeignSessions()` runs at load and first thing on `auth-changed`: signed out, it drops every tagged row and every untagged stub (a server row from before tagging); signed in, it drops rows tagged with another account. `rj_chat_sessions` used to keep every transcript fetched from an account, so the next person on the browser saw them, and another account inherited their conversation ids. Anonymous rows carry no owner and stay. A sign-out in another tab fires no `auth-changed` here, which is why an opened stub still says "Sign in to load this conversation." |
 | Clearing all history | **Delete all** was browser-only: it emptied `sessions` and `rj_chat_sessions` and left every `ai_conversations` row alone, so the next `syncServerHistory()` re-listed the whole account and the history reappeared. `deleteAllRemoteConversations()` now issues one `DELETE /chat/history` after the local clear. One request, not a loop over the rail: the listing is capped at 100 and `saveSessions()` truncates at `MAX_SESSIONS`, so anything older than the newest 50 is not in `sessions` to delete. A failed request paints a `renderTranscriptNotice()` alert rather than reporting a history that will come back as cleared, and a signed-out visitor calls nothing |
 | Transcript states | A conversation arriving from the server and one that failed to arrive are both distinct from an empty one. `renderTranscriptNotice()` paints a `role="status"` spinner or a `role="alert"` error with a retry into **both** surfaces, so neither reports a failure as emptiness - the defect `activity.js` was audited for in `docs/review/uiux.md` finding 19 |
 | Auth | A `401` while signed out dispatches `request-login-modal` rather than showing a raw error |

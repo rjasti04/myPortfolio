@@ -347,6 +347,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/schemas/chat.py:52` (`model_id` field); `server/routes/chat_routes.py:50-52`; `server/config/settings.py:124-125` |
 | **The "Why"** | `AGENTS.md` lists "client-chosen models" as a non-goal (ADR-023 row), yet `ChatStreamRequest` still accepts `model_id` from **unauthenticated** callers. `settings.py` also hard-adds `anthropic.claude-3-5-sonnet-20241022-v2:0` (and `google.gemma-3-4b-it`) to the allowlist whatever the environment says. The SPA never sends the field (`chat.js` only reads `model_id` back from metrics), so its only user is someone calling the API directly. Whatever `DEFAULT_MODEL_ID` is, a caller can upgrade every request to a Sonnet-class model at $3/$15 per million tokens. At the schema ceilings (24,000 characters in, 2,048 tokens out) that is about $0.05 a request. One IP is within the 12/min budget and can hold all four concurrency slots, which puts the saturated worst case around $400–500/day. If that model is no longer enabled on the account, the request fails instead, and S2 applies. |
 | **The Fix** | Remove `model_id` from `ChatStreamRequest`. Pydantic's default `extra="ignore"` then drops it silently; set `extra="forbid"` if a 422 is preferred. Always stream with `DEFAULT_MODEL_ID`. Delete the two hard-coded `ALLOWED_MODEL_IDS.add(...)` lines (and the allowlist if nothing else needs it). Update `docs/API.md:594,629` and `docs/CONFIGURATION.md:121,129`. Add a backend test asserting a supplied `model_id` has no effect. See also CS2. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `model_id` is gone from `ChatStreamRequest`, and `extra="ignore"` is now explicit, so a supplied value is dropped rather than refused. Both chat routes and the transcript save use `DEFAULT_MODEL_ID`. `ALLOWED_MODEL_IDS` and its two hard-coded additions are deleted from `settings.py`, because nothing is left to allowlist. `test_a_supplied_model_id_is_ignored` sends a Sonnet id with a gemma default and asserts Bedrock is called with the gemma id through Converse; a sibling test covers `/chat/summarize`. The tests that needed the Anthropic invoke path now set the default instead of naming a model. |
 
 ### S2 — Raw Bedrock exception text is streamed to anonymous clients
 
@@ -357,6 +359,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/services/bedrock_service.py:316-318` → `server/routes/chat_routes.py:121-123` |
 | **The "Why"** | `yield {"type": "error", "error": str(e)}` is forwarded verbatim in the SSE frame. botocore `AccessDeniedException`/`ValidationException` messages include the AWS account id, the assumed-role ARN and model ARNs, all handed to any anonymous visitor who can trigger an error (for example with S1's model switch). |
 | **The Fix** | Log `str(e)` server-side with the request id. Send a fixed `{"error": "The assistant is unavailable right now.", "request_id": …}`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | The route logs the raw error with the request id and streams `{"error": "The assistant is unavailable right now.", "request_id": …}`. The id matches the response's `X-Request-ID`. `bedrock_service` is unchanged, because it is the internal contract, and `/chat/summarize` already mapped an error to a generic 502. `test_a_bedrock_error_does_not_reach_the_client` feeds an AccessDenied message carrying an account id and role ARN and asserts neither reaches the body. |
 
 ### S3 — Lockout undercounts concurrent guesses, and IPv6 gets one rate bucket per address
 
@@ -367,6 +371,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/services/auth_service.py:115-121` (`register_failed_attempt`), user row read at `:242-243`; `server/middlewares/rate_limit.py:124`; `server/utils/ip_utils.py:31-43` |
 | **The "Why"** | `failed_login_attempts = (n or 0) + 1` is a read-modify-write on an ORM object loaded at the start of the request. Parallel wrong-password requests all read the same `n` and all write `n + 1`, so N concurrent guesses count as about one. The five-strike lockout therefore bounds sequential guessing only. The rate limiter keys on the full client address, so a single IPv6 /64 gives an attacker 2⁶⁴ separate 5/min budgets. Together these remove both online brute-force bounds for anyone who parallelises. |
 | **The Fix** | Make the increment atomic and decide on the returned value; key IPv6 limiter buckets on the /64. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Each attempt is **reserved before the credential is checked**: `reserve_attempt` numbers it with an atomic `UPDATE … RETURNING`, commits, and refuses without checking once the number passes the threshold. **Differs from the suggested fix:** an atomic increment on its own still let every parallel request pass the lock check and be checked; reserving first is what bounds them. A lapsed lock is reset keyed on the value the request saw, so a burst at the moment of expiry cannot all get attempt number one. The rate limiter keys every budget on `_rate_bucket`: the /64 for IPv6, the IPv4 inside a mapped address. `test_parallel_guesses_are_not_all_checked` fires ten wrong guesses at once and passes on both SQLite and PostgreSQL 16; at most five reach the password check. |
 
 ```python
 row = (await db.execute(
@@ -388,6 +394,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:85-112` (`enforce_lockout`), `:268` (login), `:1015` (2FA verify) |
 | **The "Why"** | Five wrong passwords from one IP, which is exactly the per-minute auth budget, lock any address for 15 minutes, and repeating it keeps the owner out indefinitely. A 2FA-enabled owner can't get around it with a magic link, because `verify_2fa_login` enforces the same lock. "Account is temporarily locked" is also an oracle: addresses without an account never lock. `docs/SECURITY.md` "Known limitations" doesn't list either effect. |
 | **The Fix** | Return the generic 401 while locked. Replace the hard lock with per-(account, source) counting plus an exponential delay, or exempt a mailed link (magic link / reset) from the lock. At minimum, record the DoS in "Known limitations". |
+| **Status** | ✅ **Resolved** |
+| **What changed** | The tally is split into a **password** tally (`failed_login_attempts`, `locked_until`) and a **code** tally (`totp_failed_attempts`, `totp_locked_until`, migration `l5a6b7c8d9e0`). `/auth/login` answers a locked account with the same 401 and body as a wrong password, at the same bcrypt cost. `verify_2fa_login` checks only the code tally, so a password lock no longer closes magic link → 2FA. **Differs from the suggested fix:** a mailed-link exemption is only safe once the tallies are separate, because a shared one cannot say which kind of guessing locked it. The split also closes a gap the report missed: a password reset cleared the shared tally, so an inbox holder could reset between rounds of five code guesses. The reset now clears the password tally only. The residual (anyone can keep password sign-in locked) is recorded in `SECURITY.md` "Known limitations". |
 
 ### S5 — Account-enumeration defences are documented but don't work
 
@@ -398,6 +406,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:203-212` (register); `server/auth/security.py:33-43` (legacy fallback), `:49-64` (`spend_verification_time`); `server/main.py:99` (`Server-Timing` exposed); `docs/SECURITY.md:186-192` |
 | **The "Why"** | `/auth/register` answers "Email already registered", a direct oracle that the enumeration table in `SECURITY.md` doesn't mention. On login, a wrong password for a real account runs **two** bcrypt checks (prehash, then the legacy raw-password fallback), but an unknown address burns **one**. `ServerTimingMiddleware` then publishes the handler time to the millisecond, readable cross-origin. The documented "response time is not an oracle" claim doesn't hold. |
 | **The Fix** | Registration returns the same 201/202 either way and mails "you already have an account" to an existing address. Burn two verifications on the unknown path, or retire the legacy branch once rehashing has migrated the rows. Omit `Server-Timing` on `/auth/*`. Update the `SECURITY.md` table. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `/auth/register` answers **202** with one `RegisterResponse` body for every address. An existing one costs the same bcrypt hash and is mailed `send_existing_account_email`, with no token, instead of a link. Every login refusal (unknown, wrong password, locked, purged) now costs two verifications, `spend_verification_time(rounds=2)`, which is what a wrong password costs. The legacy branch stays, because a hash alone cannot say which scheme made it. `Server-Timing` is left off `/auth/*`. The register panel's copy no longer says "Account created". The `SECURITY.md` enumeration table lists register and the timing defence. |
 
 ### S6 — The `.env.example` JWT placeholder passes the startup check
 
@@ -408,6 +418,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `.env.example:25` (`JWT_SECRET=replace-me-with-openssl-rand-hex-32`); comment `:19-24`; `server/config/settings.py:10,22,27` |
 | **The "Why"** | The guard rejects only the legacy string and anything under 32 characters. The placeholder is 35 characters, so a `.env` copied as-is starts cleanly. Anyone who reads this public file can then mint HS256 tokens for any user id, owner analytics included. The comment tells the operator the opposite. |
 | **The Fix** | Leave the example value empty so `required_env` fails. Also reject values containing `replace-me`/`change`, and values with low character diversity. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `.env.example` ships `JWT_SECRET=` empty, so a copied `.env` fails with "JWT_SECRET must be set". `_required_secret` also rejects `replace-me`, `change-me` and `changeme`, and fewer than 10 distinct characters (`JWT_SECRET_MIN_DISTINCT`). The report's broader "contains change" was narrowed, because a real passphrase may say it. The CI and test secrets all pass. **Owner action:** confirm the production `JWT_SECRET` is not the old placeholder before this deploys; if it is, the API refuses to start and the deploy rolls back. |
 
 ### S7 — The deploy key sits on disk while npm install scripts run
 
@@ -418,6 +430,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `.github/workflows/deploy.yml:323-327` (writes `~/.ssh/id_rsa`), then `:399-402` (`npm ci`, `npm run build`); `:437,462-463` (`sudo rsync`, `sudo systemctl`) |
 | **The "Why"** | `npm ci` runs dependency install scripts (esbuild's and Font Awesome's `postinstall`), and the build then executes esbuild, both **after** a root-equivalent SSH key is on disk. One compromised devDependency in a weekly Dependabot group means root on the production host. |
 | **The Fix** | Build `dist/` in a job with no secrets and pass it on with `actions/upload-artifact`. Write the key only in the deploy job, which then runs no package code. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `frontend-check`, which holds no secrets, uploads the `dist/` it built and tested (a push to `main` only, kept one day). The deploy job downloads it *before* writing the key, and no longer sets up Node or runs `npm ci` or the build, so it runs no package code at all. The report's separate build job was folded into the existing gate, which already builds the same commit. The step budget comment is recomputed (33 + 11 of 50). |
 
 ### S8 — Deleted accounts are never actually deleted
 
@@ -428,6 +442,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:802-835` (soft delete), `:196-200` (purge only on re-registration); `docs/DATABASE.md:325` |
 | **The "Why"** | The UI tells the user their account is "scheduled for deletion", but nothing ever runs that schedule. The email, password hash, TOTP secret and every saved conversation are kept indefinitely, unless someone else happens to register the same address after 30 days. |
 | **The Fix** | A scheduled purge (a systemd timer or a lifespan task) that deletes `users WHERE deleted_at < now() - interval '30 days'`. The `ondelete="CASCADE"` FKs already take the rest. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `purge_deleted_accounts` deletes every account soft-deleted more than `ACCOUNT_REACTIVATION_WINDOW` (30 days) ago, and the existing `ON DELETE CASCADE` foreign keys take its tokens, password history, conversations and session rows. `run_account_purger` is a lifespan task, like the ingest workers: it runs at start (so on every deploy) and every 24 hours, and logs a failed run instead of ending. The window is compared in Python, the same tz precedent as token expiry. Registration, login and the purge now read one constant. The test passes on SQLite, with `PRAGMA foreign_keys` on, and on PostgreSQL 16. |
 
 ### S9 — Signed-in chat transcripts survive sign-out
 
@@ -438,6 +454,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `frontend/js/auth.js:15-18` (`clearTokens` removes two keys); `frontend/js/chat.js:2281-2290` (`auth-changed` handler returns early when signed out) |
 | **The "Why"** | `rj_chat_sessions` keeps every transcript fetched from the account. After sign-out, the next person on that browser sees them in the sidebar, and a different account signing in inherits the previous user's `conversationId`s. |
 | **The Fix** | On sign-out, drop every session with a `conversationId` (server-backed) and re-render. Keep anonymous local conversations. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Rows are tagged with the owning account's id (`ownerId`, the token's `sub` through a new `getTokenSubject()`) when the server lists them and when a turn is sent signed in. `dropForeignSessions()` runs at load and on `auth-changed`: signed out, it drops tagged rows and untagged stubs; signed in, it drops another account's rows. Anonymous conversations stay. **Differs from the suggested fix:** "drop every session with a `conversationId`" would have dropped anonymous conversations too, because `backfillConversationIds()` gives every row one. The §1 C5 notice stays for a sign-out in another tab, which fires no `auth-changed` here. |
 
 ### S10 — Single-use tokens are consumed non-atomically
 
@@ -448,6 +466,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:165-183` (`consume_one_time_token`); compare `:388-398` |
 | **The "Why"** | It SELECTs the row, checks `used_at` in Python, then writes. Two concurrent redemptions of one magic link both pass and both mint sessions. The refresh path already fixed the same race with a conditional UPDATE. (For 2FA pre-auth, an incidental autoflush lock happens to serialise the lockout counter, but that is luck, not design.) |
 | **The Fix** | `UPDATE one_time_tokens SET used_at=now() WHERE jti=:jti AND purpose=:p AND used_at IS NULL AND expires_at > now()`, and check `rowcount == 1`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `consume_one_time_token` claims with one conditional `UPDATE … WHERE jti = :jti AND purpose = :purpose AND used_at IS NULL` and checks `rowcount`. **Differs from the suggested fix:** expiry is checked in Python after the claim, not in the `WHERE`, mirroring `refresh_user_token`, because stored timestamps compare differently under SQLite and PostgreSQL. A wrong-purpose claim is refused and leaves the token unspent. |
 
 ### S11 — TOTP codes can be replayed within their 30-second step
 
@@ -458,6 +478,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:903-904`, `:950-951`, `:1017-1018` |
 | **The "Why"** | No last-used timestep is stored, so a code observed by a phishing proxy or over a shoulder is valid again until its step ends (RFC 6238 §5.2). |
 | **The Fix** | Store `totp_last_step` and reject a step ≤ it. This needs a column and a migration, so it fits with the open `2fa.md` findings 9/10. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | New `users.totp_last_step` (migration `l5a6b7c8d9e0`). `consume_totp` verifies the code, then claims its step with `UPDATE … WHERE totp_last_step IS NULL OR totp_last_step < :step`; a replay is refused as a wrong code and counts on the code tally. It is used at 2FA verify, enable and disable. The code that enables 2FA cannot sign in within its step. The tests own the TOTP clock (`_totp_time`), so each `_totp_now()` gets a fresh step. |
 
 ### S12 — Change-password and delete-account are password oracles outside the lockout
 
@@ -468,6 +490,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:499-505`, `:814-820`; `server/middlewares/rate_limit.py:17-42` |
 | **The "Why"** | Both verify the current password without `enforce_lockout`/`register_failed_attempt`, and neither path is on the strict auth budget. With a stolen access token (30 min), that is about 1,000 guesses a minute. 2FA enable/disable already do this correctly. |
 | **The Fix** | Apply the same lockout sequence and add `/auth/change-password`, `/auth/delete-account` and `/auth/account` to `AUTH_RATE_LIMITED_PATHS`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Change-password and delete-account go through `check_current_password`, the same reserve / record / clear sequence 2FA enable and disable now use, on the password tally. `/auth/change-password`, `/auth/delete-account` and `/auth/account` are on the strict auth budget. C2's 400 on a wrong current password was already in place. |
 
 ### S13 — `/models` is anonymous and calls the AWS control plane
 
@@ -478,6 +502,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/routes/system_routes.py:19-24`; `server/controllers/system_controller.py:46-66` |
 | **The "Why"** | Nothing in the frontend calls it. Any visitor can drive `ListFoundationModels` at the 1,000/min general budget, throttling the account's control-plane quota, and read the account's model inventory. |
 | **The Fix** | Remove it, or put it behind `require_owner`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Removed: the route, `list_models`, and the `bedrock_mgmt` client, so the API no longer calls the Bedrock control plane at all. `GET /models` and `GET /api/models` return 404. Removing `bedrock:ListFoundationModels` from the instance role is an owner action outside the repo. |
 
 ### S14 — Reset, verify and magic-link tokens travel in the query string
 
@@ -488,6 +514,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/notification_service.py:232,271,305`; `frontend/sw.js:177-188` |
 | **The "Why"** | The GET that loads `/?magic_token=…` is written to Apache's access log. The service worker then caches every navigation under its **full URL** with no expiry, so the token is persisted in Cache Storage. Every `?s=` share link also adds another full HTML copy to that cache. |
 | **The Fix** | Put tokens in the fragment (`/#magic_token=…`), which never reaches the server. Strip it **before analytics starts**, because `analytics.js:364` records `pathname + hash` as `page_path`; today's query tokens are safe from that. Have the service worker cache navigations under `url.pathname` only. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | The three mail helpers link to `/#reset_token=…`, `/#verify_token=…` and `/#magic_token=…`; a fragment never reaches the server, its access log or a fetch. The inline pre-boot script, which runs before any module, hands the token to `auth-ui.js` as `window.__rjAuthLink` and strips it from the address bar, so `analytics.js`'s `pathname + hash` page_path and the error reporter never see it. Its CSP hash is re-pinned. **Differs from the suggested fix:** the report did not account for the hash router; stripping in that first-running inline script is what makes the fragment safe. `takeAuthLinkTokens()` keeps the query string as a fallback for links mailed before the change (verify links live 24 h). `sw.js` caches navigations under `origin + pathname`, so neither an old query token nor a `?s=` share link becomes a cache key. |
 
 ### S15 — AI chat can make the SPA load arbitrary third-party images
 
@@ -498,6 +526,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `frontend/js/chat.js:17-28` (`DOMPurify.sanitize(marked.parse(text))`, default config); `frontend/index.html:7` (`img-src 'self' data: https:`) |
 | **The "Why"** | Markdown images in a model reply survive sanitisation, and the CSP allows any HTTPS origin. Model output, or text a visitor pastes in, becomes a tracking pixel or a markdown-image exfiltration channel. That goes against the spirit of ADR-016, even though script execution stays blocked. |
 | **The Fix** | `DOMPurify.sanitize(html, { FORBID_TAGS: ['img'] })`, or a `marked` image renderer that emits a link. Narrow `img-src` to `'self' data:`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `renderBotHTML` sanitises with `FORBID_TAGS: ['img', 'image']`, and a marked `image` renderer emits a link to the URL instead, so the visitor sees where it points and nothing is fetched. `img-src` is narrowed to `'self' data:`; checked first that no SPA image comes from another origin or `blob:` (the blob URLs in the diff and JSON apps are downloads, on pages with their own CSP). `chat-render.test.js` loads the real vendored DOMPurify and marked. |
 
 ### S16 — Security headers and CSP have drifted
 
@@ -508,6 +538,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `frontend/.htaccess:102-107`; `frontend/index.html:7` |
 | **The "Why"** | `X-XSS-Protection "1; mode=block"` is deprecated; the current guidance is `0`. `Header set` without `always` leaves Apache's own 4xx/5xx pages unprotected. There is no `Permissions-Policy`. The production `connect-src` still lists `http://localhost:8000`, `http://127.0.0.1:8000` and `staging-api`. HSTS is already a known limitation. |
 | **The Fix** | Use `Header always set`; set `X-XSS-Protection "0"`; add `Permissions-Policy: camera=(), geolocation=(), microphone=(self)` (voice input needs the mic). Have `build.mjs` strip the dev origins from the shipped CSP and re-pin the hashes. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Every `.htaccess` security header is `Header always set`; `X-XSS-Protection` is `0`; `Permissions-Policy: camera=(), geolocation=(), microphone=(self)` is added (only the chat's voice input uses a device). `build.mjs` strips the two loopback origins from `dist/index.html`'s `connect-src`; the source keeps them for local development, and `staging-api` stays because `getApiBaseUrl()` still routes a staging host there. **Differs from the suggested fix:** no hash re-pin was needed for that, because a CSP hash covers an inline script's body, not the meta tag. A build test asserts every inline script in the shipped page is still pinned. |
 
 ### S17 — GitHub workflows lack basic hardening
 
@@ -518,6 +550,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | All three `.github/workflows/*.yml` (no `permissions:`); `deploy.yml:25,56,318` (tag-pinned actions); `:326-330` (secrets interpolated into `run:`); `:138-140` and `weekly-audit.yml:34` (audit never fails); `deploy.yml:58,320` (Node 18, end of life) |
 | **The "Why"** | The token gets the repository default scope. Actions float on mutable tags. A secret containing `$(`, a backtick or a quote would be evaluated by the shell. Vulnerabilities never block a merge: `npm audit` currently reports 8 high, all in transitive dev tooling. There is no pip-audit or CodeQL, and the CI runtime is past end of life. |
 | **The Fix** | Add `permissions: contents: read` at the top level. Pin actions to SHAs (Dependabot keeps them current). Pass secrets through `env:`. Make `npm audit --omit=dev` blocking and add `pip-audit -r server/requirements.txt`. Move to Node 20 or 22 in the workflows and in `package.json` `engines`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | All three workflows run with `permissions: contents: read`. Every `uses:` is pinned to a commit SHA with its release in a comment (the latest release within the major each already used), and the existing Dependabot `github-actions` entry keeps them current. The SSH secrets reach the shell through `env:`. **Differs from the suggested fix:** `npm audit --omit=dev` audited nothing, because every package was a devDependency. `dompurify`, `marked` and Font Awesome, whose bytes ship, move to `dependencies`; a new build test holds the vendored copies byte-identical to `node_modules`; and the blocking shipped audit warns rather than fails when the advisory endpoint is unreachable. `pip-audit` is added to the dev lock and blocks in `backend-check` and the weekly audit. Node moves to 22, not 20, which reached end of life on 2026-04-30. Both audits are clean at introduction. |
 
 ### S18 — Repo hygiene: `.gitignore` gaps and an unmaintained password library
 
@@ -528,6 +562,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `.gitignore:13-14`; `server/requirements.in:35-36` (`passlib[bcrypt]`, `bcrypt<4.0.0` → `bcrypt==3.2.2`) |
 | **The "Why"** | Only `.env` and `.env.local` are ignored, so `.env.production`, `*.pem` or `id_rsa` would be committed. The deploy's rsync already excludes `.env*`, which suggests those variants exist. `passlib` has had no release since 2020 and forces bcrypt below 4. There is no known advisory; it is a maintenance trap. |
 | **The Fix** | `.env*` + `!.env.example`, `*.pem`, `*.key`. The prehash scheme is already custom, so calling `bcrypt` directly is a small change and lifts the cap. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `.gitignore` covers `.env*` except `.env.example`, `*.pem`, `*.key` and SSH keys; a test runs `git check-ignore` over eight cases. passlib is gone: `security.py` calls `bcrypt` 5.0.0 directly (12 rounds, passlib's default). The legacy branch truncates to 72 bytes, because bcrypt < 4 did that silently and bcrypt 5 raises instead. Fixtures made by passlib 1.7.4 over bcrypt 3.2.2 before the swap, including a legacy hash of an 81-byte password, still verify. Only passlib, bcrypt and the two packages old bcrypt needed (`cffi`, `pycparser`) moved in the locks. The pytest ignore for passlib's `crypt` warning went with it. |
 
 ---
 

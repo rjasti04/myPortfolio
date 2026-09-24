@@ -131,32 +131,55 @@ complexity rule; `auth-ui.js` shows a strength meter and checklist as guidance.
 
 ## Account lockout
 
-`LOCKOUT_THRESHOLD` (5) failed attempts → `locked_until` set `LOCKOUT_DURATION`
-(15 minutes) ahead. The counter is shared between failed **passwords** and
-failed **TOTP codes**.
+Two tallies, each `LOCKOUT_THRESHOLD` (5) attempts before it locks for
+`LOCKOUT_DURATION` (15 minutes):
 
-That sharing is deliberate and was a real bug: the second factor was originally
-outside the lockout entirely, so a six-digit secret could be walked through at
-will. Equally deliberate is that `authenticate_user` does **not** clear the
-counters when 2FA is pending — clearing them there reset the tally on every
-attempt, so an attacker just logged in again between code guesses. Only
-`verify_2fa_login` clears them, once the code checks out.
+| Tally | Columns | Counts a wrong… | Cleared by |
+| :--- | :--- | :--- | :--- |
+| **Password** | `failed_login_attempts`, `locked_until` | password at login, and on every route that re-checks one: change-password, delete-account, 2FA enable, 2FA disable | any correct password; a password reset; a completed 2FA sign-in |
+| **Code** | `totp_failed_attempts`, `totp_locked_until` | TOTP code at `/2fa/verify`, 2FA enable and 2FA disable, including a replayed code | a correct, unreplayed code |
 
-**An expired lock returns a full set of attempts.** `enforce_lockout` clears the
-tally when it finds a lock that has run out, which is the half that used to be
-missing: `failed_login_attempts` only ever reset on a *successful* sign-in, so
-someone who had been locked out came back fifteen minutes later still carrying
-five. One more mistyped password took it to six, tripped the threshold again,
-and locked them out for another fifteen minutes — and nothing short of getting
-the password right first time could break that cycle, which is the opposite of
-what a *temporary* lock is for.
+**Reserve before verify.** `reserve_attempt` numbers the attempt with an atomic
+`UPDATE … RETURNING` and commits it *before* the credential is checked, and
+refuses without checking once the number passes the threshold. The count used
+to be taken after a wrong answer, as a read-modify-write on the row the request
+loaded first: parallel guesses all read the same count, so N of them recorded
+about one, and all N had passed the lock check before any was recorded, so
+every one was checked. Guarded by `test_parallel_guesses_are_not_all_checked`.
+
+**Why two tallies.** One tally used to hold both, which was itself the fix for a
+real bug: the second factor was once outside the lockout entirely, so a
+six-digit secret could be walked through at will. Separate tallies keep that
+fix and close two holes the sharing opened:
+
+- `verify_2fa_login` could not tell a lock from password guesses from one from
+  code guesses, so five wrong passwords from anywhere locked the owner out of
+  the magic-link route too. It now checks only the code tally: a pre-auth token
+  already proves the password or the inbox.
+- A password reset cleared the shared tally, so anyone holding the inbox could
+  reset, sign in, try five codes and reset again. The reset clears the password
+  tally only.
+
+A correct password clears the password tally even when a code is still owed.
+The old rule kept the tally until the code checked out, because clearing it let
+an attacker who knew the password reset the code count by logging in again.
+The code count is separate now, and a correct password does not touch it.
+
+**An expired lock returns a full set of attempts.** A lapsed `until` resets its
+tally, which is the half that used to be missing: the count only ever reset on a
+*successful* sign-in, so someone who had been locked out came back fifteen
+minutes later still carrying five, and one more mistyped password locked them
+out again. The reset is keyed on the `until` the request saw, so when several
+arrive together only one resets and the rest count on from it.
+
+**A lock is invisible at login.** `/auth/login` answers a locked account with
+the same 401 and body as a wrong password or an unknown address (see below).
+The routes behind a bearer or pre-auth token still say "locked", because their
+caller has already proven the account exists.
 
 The cost is bounded and deliberate: a guessing attacker gets 5 attempts per
-15-minute window rather than 5 and then 1 per window — 20 an hour, under a
-budget that is itself capped at 5 requests a minute by the auth rate limit.
-That is the standard shape of a temporary lockout. `enforce_lockout` and
-`register_failed_attempt` are shared by the password and TOTP paths so the two
-cannot drift.
+15-minute window per tally, however many requests run in parallel, under an
+auth rate budget of 5 requests a minute per client.
 
 ---
 
@@ -174,11 +197,16 @@ TOTP via `pyotp`, enrolled with a QR code returned as a base64 data URI.
   password, so without it a stolen token could bind an attacker's authenticator
   to an account that had no second factor — locking the owner out rather than
   merely reading their data.
-- Both run the same order — **lockout → password → state → code → mutate →
-  revoke → notify**. A wrong password or a wrong code counts toward the shared
-  lockout tally; a *state* error ("2FA is not enabled") does not, because it
-  refuses every caller equally and counting it would let a prober lock arbitrary
-  accounts.
+- Both run the same order — **password (on the password tally) → state → code
+  (on the code tally) → mutate → revoke → notify**. A wrong password or a wrong
+  code counts toward its tally; a *state* error ("2FA is not enabled") does not,
+  because it refuses every caller equally and counting it would let a prober
+  lock arbitrary accounts.
+- A code is **single-use within its 30-second step** (RFC 6238 §5.2).
+  `consume_totp` claims the step with a conditional `UPDATE` on
+  `users.totp_last_step`, so a code seen over a shoulder or relayed by a
+  phishing proxy cannot be used again, and two requests presenting the same
+  code cannot both win. A replay counts as a wrong code.
 - Turning the second factor on or off revokes every **other** session
   (`revoke_all_other_sessions`, so the caller keeps the session they are working
   in) and emails the account owner, matching what a password change already did.
@@ -201,15 +229,19 @@ TOTP via `pyotp`, enrolled with a QR code returned as a base64 data URI.
 
 | Surface | Defence |
 | :--- | :--- |
-| `/auth/login` | Identical 401 for a wrong password and an unknown address, **and** `spend_verification_time()` burns one bcrypt verification on the unknown-address path so response time is not an oracle |
+| `/auth/login` | One 401 and one body (`LOGIN_FAILED_DETAIL`) for an unknown address, a wrong password, a soft-deleted account past its window **and a locked account**, and **two** bcrypt verifications on every one of those paths - which is what a wrong password costs (the prehash check, then the legacy one). The locked and purged paths used to burn none and the unknown path one, so response time told them apart |
+| `/auth/register` | One 202 and one body whether or not the address has an account, at the cost of one bcrypt hash either way. An existing address is mailed a "you already have an account" note instead of a link. "Email already registered" was a direct oracle |
 | `/auth/forgot-password` | One generic 200 for every outcome: unknown address, inactive user, success |
 | `/auth/magic-link/request` | Same generic 200 contract |
 | Email delivery failures | Logged, never surfaced — "your mail server is down" through that channel would also leak which addresses are real |
+| `Server-Timing` | Left off `/auth/*`. It is exposed cross-origin, and a millisecond-accurate handler time with the network jitter taken out is exactly what a timing attack wants |
 | Session-scoped endpoints | 403 with an identical body whether or not the session exists |
 | `/chat/history/{id}` | Ownership is part of the `WHERE` clause, so another user's conversation is indistinguishable from a missing one |
 
 Guarded by `test_forgot_password_does_not_reveal_whether_an_account_exists`,
-`test_magic_link_does_not_reveal_whether_an_account_exists` and
+`test_magic_link_does_not_reveal_whether_an_account_exists`,
+`test_registration_answers_the_same_whether_or_not_the_address_has_an_account`,
+`test_every_login_refusal_costs_the_same_two_verifications` and
 `test_an_unknown_session_is_indistinguishable_from_a_forbidden_one`.
 
 ---
@@ -258,9 +290,9 @@ Rotating `JWT_SECRET` invalidates every live session token as well as every JWT.
 
 | Control | Value | Guards |
 | :--- | :--- | :--- |
-| Auth rate budget | 5/min per IP | Credential stuffing on login, register, reset, 2FA verify, magic link |
+| Auth rate budget | 5/min per client | Credential stuffing on login, register, reset, 2FA verify, magic link, and the re-authentication routes (change-password, delete-account, 2FA enable/disable) |
 | Chat rate budget | `CHAT_RATE_LIMIT_PER_MINUTE` (12/min) | The only endpoint that spends money per call and takes no authentication |
-| General budget | 60/min per IP | Everything else |
+| General budget | `RATE_LIMIT_PER_MINUTE` (1000/min) per client | Everything else |
 | Free-message cap | `CHAT_FREE_MESSAGE_LIMIT` (6) | Unlimited anonymous inference. The browser enforced this first; the server now does too, because calling the API directly bypassed it entirely |
 | Bedrock concurrency | `CHAT_MAX_CONCURRENCY` (4) | Unbounded parallel inference. `/chat/summarize` takes a slot too — it once took none and could drive concurrency straight past the cap |
 | SSE stream cap | `MAX_STREAMS_PER_SESSION` (2) | Worker-slot exhaustion. A session token costs one unauthenticated POST |
@@ -271,11 +303,22 @@ Rotating `JWT_SECRET` invalidates every live session token as well as every JWT.
 the strict budgets cannot be sidestepped by adding four characters to the URL.
 Guarded by `test_auth_routes_are_strict_limited_under_both_mount_prefixes`.
 
+"Per client" means per IPv4 address, or per **/64** for IPv6 (`_rate_bucket`).
+Keyed on the full address, one ordinary IPv6 allocation handed an attacker 2^64
+separate 5/min auth budgets. An IPv4-mapped address counts as its IPv4.
+
 `system_prompt` is not accepted from callers. It was once passed straight to
 Bedrock, unauthenticated and unbounded, which both turned the site's AWS account
 into a free general-purpose LLM and allowed up to `MAX_BODY_BYTES` of input
 tokens per request — `CHAT_FREE_MESSAGE_LIMIT` counts *messages*, so one short
 message carrying a megabyte of system prompt passed every check.
+
+`model_id` is ignored for the same reason. The allowlist always carried a
+Sonnet-class id whatever the environment said, so an anonymous caller could
+upgrade every request to several times the default's price. Every turn runs on
+`DEFAULT_MODEL_ID`, and there is no allowlist left to configure. A Bedrock
+failure reaches the client as fixed text plus a request id; the raw message,
+which carries the account id and role ARN, is only logged.
 
 ---
 
@@ -315,9 +358,13 @@ message carrying a megabyte of system prompt passed every check.
 - **Terminal output is structural.** Every builder in `js/terminal/output.js`
   writes through `textContent`, so a command handler cannot inject markup even
   if it forgets to sanitise.
-- **Markdown is sanitised.** `renderBotHTML()` is
-  `DOMPurify.sanitize(marked.parse(text))`, degrading to escaped plain text with
-  `<br>` if either global is missing.
+- **Markdown is sanitised, and carries no images.** `renderBotHTML()` is
+  `DOMPurify.sanitize(marked.parse(text), { FORBID_TAGS: ['img', 'image'] })`,
+  and a marked renderer turns a markdown image into a link, degrading to escaped
+  plain text with `<br>` if either global is missing. DOMPurify's default kept
+  `<img>`, so a reply could make the page fetch any URL it named - a tracking
+  pixel, or conversation text carried out in the URL. `img-src 'self' data:`
+  backs it.
 - **Code copy buttons** carry their payload URI-encoded in a `data-code`
   attribute and decode it in JavaScript, so no code content is ever interpolated
   as markup.
@@ -332,7 +379,9 @@ Two policies apply.
 [`FRONTEND.md`](FRONTEND.md#content-security-policy) for the full text.
 Highlights: `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`,
 `form-action https://formsubmit.co`, `script-src 'self'` plus three `sha256-`
-pinned inline scripts, `font-src 'self'`.
+pinned inline scripts, `font-src 'self'`, `img-src 'self' data:`. The shipped
+copy (`dist/index.html`) drops the two loopback `connect-src` origins that local
+development needs.
 
 **Server-level** (`.htaccess`) — `Content-Security-Policy: frame-ancestors
 'self'`, which a `<meta>` CSP cannot express.
@@ -352,9 +401,12 @@ From `frontend/.htaccess`:
 | :--- | :--- |
 | `X-Content-Type-Options` | `nosniff` |
 | `X-Frame-Options` | `SAMEORIGIN` |
-| `X-XSS-Protection` | `1; mode=block` |
+| `X-XSS-Protection` | `0` - the auditor it enabled is gone, and `mode=block` could itself be abused |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` |
 | `Content-Security-Policy` | `frame-ancestors 'self'` |
+| `Permissions-Policy` | `camera=(), geolocation=(), microphone=(self)` - the chat's voice input keeps the mic |
+
+Every one is `Header always set`, so Apache's own error pages carry them too.
 
 From the API: `X-Request-ID` and `Server-Timing` on every response, both
 explicitly CORS-exposed. CORS allows credentials, so the origin list is the
@@ -371,11 +423,20 @@ still works while production always gets it.
 ## Secrets handling
 
 - **No secret has a fallback.** `JWT_SECRET` is required, must be ≥ 32
-  characters, and is rejected if it equals the placeholder that shipped in this
-  repository — which is public in the git history, so any token signed with it
-  must be treated as forgeable.
-- **`.env` is gitignored** and the deploy's rsync **excludes `.env*`**, so a
-  deploy can never overwrite host configuration or publish a local file.
+  characters with at least 10 distinct, and is rejected if it equals the
+  placeholder that shipped in this repository — which is public in the git
+  history, so any token signed with it must be treated as forgeable — or
+  contains `replace-me` / `change-me` / `changeme`. `.env.example` leaves it
+  empty: its old placeholder was 35 characters, passed every check, and would
+  have let anyone reading the repository mint a token for any user.
+- **`.env*` (bar `.env.example`), `*.pem`, `*.key` and SSH keys are gitignored**,
+  and the deploy's rsync **excludes `.env*`**, so a deploy can never overwrite
+  host configuration or publish a local file.
+- **The deploy key never shares a job with package code.** `frontend-check`
+  builds `dist/` with no secrets in reach and hands it over as an artifact; the
+  deploy job writes the key and runs no `npm` at all. Secrets reach the shell
+  through `env:`, never `${{ }}` inside `run:`, where a quote or `$(` in a value
+  would be evaluated.
 - **AWS credentials** come from the instance profile in production; none are in
   the repository.
 - **Reset and magic-link tokens are never logged in full** — only a 12-character
@@ -395,10 +456,21 @@ still works while production always gets it.
   deploy, so an unpinned or substituted artifact is a hard failure rather than a
   silent upgrade. `test_dependency_locks.py` asserts every direct dependency is
   pinned and every pin carries a hash.
-- **`npm ci`** in CI and the deploy, from the committed `package-lock.json`.
-- **`npm run audit`** runs in CI at `--audit-level=high`, non-blocking
-  (`continue-on-error`) because the current findings are transitive dev-tooling
-  advisories via stylelint and jsdom — visible rather than silently unrun.
+- **`npm ci`** in CI, from the committed `package-lock.json`. The deploy job
+  installs nothing.
+- **Shipped npm packages are audited, blocking.** `dompurify`, `marked` and Font
+  Awesome are `dependencies` because their bytes reach visitors, so
+  `npm audit --omit=dev --audit-level=high` covers exactly them; a test holds
+  the vendored copies byte-identical to `node_modules`, so that audit is of what
+  ships. An unreachable advisory endpoint is a warning, not a failure.
+- **`npm run audit`** (everything) runs in CI at `--audit-level=high`,
+  non-blocking (`continue-on-error`) because the current findings are transitive
+  dev-tooling advisories via stylelint and jsdom — visible rather than silently
+  unrun.
+- **`pip-audit`** checks the production lock, blocking, in `backend-check` and
+  the weekly audit.
+- **Actions are pinned to commit SHAs**, with the release in a comment and
+  Dependabot moving them, and every workflow's token is `contents: read`.
 - **Vendored libraries** are copied verbatim from pinned npm packages, not
   fetched from a CDN. With them local, `script-src` is `'self'` alone and there
   is no third-party origin that could be compromised or blocked.
@@ -417,11 +489,14 @@ Structured JSON via structlog, with `request_id` on every line.
 | :--- | :--- |
 | IP addresses truncated in log lines | `session_controller.create_session` |
 | Tokens logged only as a 12-char digest | `notification_service._token_fingerprint` |
-| Client error reports carry `pathname + hash`, never the query string | `error-handler.reportClientError` — the query string can carry a reset or magic-link token, and this payload is persisted |
+| Client error reports carry `pathname + hash`, never the query string | `error-handler.reportClientError` — this payload is persisted. Mailed tokens now travel in the fragment, and the inline pre-boot script strips them before any module runs, so the hash is clean by the time this or analytics' `page_path` reads it |
+| Mailed tokens stay out of server logs and caches | Reset, verification and sign-in links carry the token in the fragment (`/#magic_token=…`), which never reaches Apache's access log; the service worker caches navigations by path, so a query-string token from an older link is not persisted either |
 | Client error reports capped and deduplicated | 10 per page load, deduplicated by `name:message` |
 | API responses never cached by the service worker | `sw.js` skips `/api/` |
 | Bedrock invocation logs get the analytics session id only — never its token, a user id or an IP | `bedrock_service.stream_chat_response` (`requestMetadata`) |
 | Analytics click tracking records shape, not content | tag name, whether an id exists, link origin — not text or href |
+| A deleted account is deleted | `auth_service.run_account_purger` — 30 days after deletion the row and everything cascading from it goes. "Scheduled for deletion" used to delete nothing |
+| An account's chat history leaves the browser at sign-out | `chat.js` `dropForeignSessions()` — rows are tagged with the owning account; anonymous conversations stay |
 
 The `robots.txt` disallows `/api/`.
 
@@ -454,6 +529,7 @@ growing table, and an unbounded range is the query that eventually times out.
 | No CSRF tokens | Mitigated: the API is JSON + bearer token, and the one cookie is `SameSite=Strict` | Revisit if cookie-authenticated state-changing routes are added |
 | No HSTS header | A first plain-HTTP request is possible | Add `Strict-Transport-Security` to `.htaccess` |
 | No account-level audit log | Security events are in application logs only | Add a table if accounts grow beyond personal use |
+| Anyone can keep *password* sign-in locked | Five wrong passwords a quarter-hour, from anywhere, keep the password tally locked | Accepted: the lock is invisible at login, and the emailed sign-in link - with the code tally for a 2FA account - still gets the owner in |
 | No 2FA recovery codes | A lost authenticator is unrecoverable *by the user*: disable needs a live code, password reset does not clear `is_totp_enabled`, and the magic-link path re-challenges. An operator with database access can clear the factor with `scripts/clear_2fa.py` (`docs/OPERATIONS.md`, "Clear a lost second factor") — which is a remedy, not a fix: it needs the host | Hashed single-use backup codes issued at enrolment, accepted at `/2fa/verify` and `/2fa/disable` — needs a migration (`docs/review/2fa.md`, finding 9) |
 | `totp_secret` stored in plaintext | A database read discloses every enrolled account's second factor | Encrypt at rest under a new required secret, with a migration to re-wrap existing rows (`docs/review/2fa.md`, finding 10) |
 | HIBP fails open | An HIBP outage lets a breached password through | Deliberate; failing closed would block all password changes |
@@ -477,6 +553,8 @@ Before merging anything that touches these areas:
 - [ ] **Rendering user-controlled text?** Build DOM nodes, or `escapeHTML()`
       first.
 - [ ] **Touched `index.html`?** Run `npm run check:csp`.
+- [ ] **Emailing a link?** Put the token in the fragment, not the query string,
+      and add its key to the pre-boot script's list in `index.html`.
 - [ ] **New third-party origin?** It needs a CSP `connect-src`/`script-src`
       entry — and a reason it cannot be vendored.
 - [ ] **New secret?** Required with no fallback, documented in

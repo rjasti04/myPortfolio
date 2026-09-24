@@ -53,6 +53,20 @@ def offline_side_effects(monkeypatch):
     monkeypatch.setattr(auth_service, "check_password_breached", _not_breached)
     monkeypatch.setattr(auth_service, "send_security_notification_email", _noop)
     monkeypatch.setattr(auth_service, "send_magic_link_email", _noop)
+    monkeypatch.setattr(auth_service, "send_existing_account_email", _noop)
+
+
+# The clock `consume_totp` checks codes against, owned by the test. A code is
+# single-use within its 30-second step, so a test that enables 2FA and then
+# signs in needs two steps - which real time would make it wait for.
+_TOTP_CLOCK = [0.0]
+
+
+@pytest.fixture(autouse=True)
+def totp_clock(monkeypatch):
+    _TOTP_CLOCK[0] = float((int(time.time()) // 30) * 30 + 1)
+    monkeypatch.setattr(auth_service, "_totp_time", lambda: _TOTP_CLOCK[0])
+    return _TOTP_CLOCK
 
 
 async def _register(async_client, password="Str0ngPassw0rd!"):
@@ -78,20 +92,20 @@ async def _auth_header(async_client, email, password):
 
 
 def _totp_now(secret):
-    """A code with enough of its 30-second step left to survive the round trip.
+    """The code for the *next* 30-second step, with the server's clock moved there.
 
-    `TOTP.now()` returns the code for the step containing *this instant*. Taken
-    near a boundary it can expire between generation and the server's
-    `verify()`, which runs with pyotp's default `valid_window=0` and so accepts
-    only the current step. That made every TOTP test intermittently red under
-    load - a real race, not a flaky assertion. Waiting out the tail of a nearly
-    spent window costs at most two seconds and removes the boundary entirely.
+    Every call is a fresh step, because the server refuses a code for a step it
+    has already accepted (RFC 6238 §5.2). The clock is the test's, so there is
+    no boundary race either: `TOTP.now()` taken near the end of a real step
+    used to expire before the server's `verify()` ran.
     """
-    totp = pyotp.TOTP(secret)
-    remaining = totp.interval - (time.time() % totp.interval)
-    if remaining < 2:
-        time.sleep(remaining + 0.1)
-    return totp.now()
+    _TOTP_CLOCK[0] += 30
+    return _totp_current(secret)
+
+
+def _totp_current(secret):
+    """The code for the step the server's clock is in now, without moving it."""
+    return pyotp.TOTP(secret).at(int(_TOTP_CLOCK[0]))
 
 
 async def _auth_header_2fa(async_client, email, password, secret):
@@ -112,6 +126,30 @@ async def _auth_header_2fa(async_client, email, password, secret):
     )
     assert verified.status_code == 200, verified.text
     return {"Authorization": f"Bearer {verified.json()['access_token']}"}
+
+
+def _assert_login_refused(response):
+    """A locked account answers exactly as a wrong password or an unknown
+    address does. "Account is temporarily locked" confirmed that an address
+    had an account, because only real accounts can lock."""
+    assert response.status_code == 401, response.text
+    assert response.json()["detail"] == auth_service.LOGIN_FAILED_DETAIL
+
+
+async def _second_factor_refused_while_locked(async_client, email, password, secret):
+    """The code tally is locked: a correct password still yields a challenge -
+    the password tally is separate - and a *correct* code is refused."""
+    challenge = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert challenge.status_code == 200, challenge.text
+    assert challenge.json()["requires_2fa"] is True
+    refused = await async_client.post(
+        "/api/auth/2fa/verify",
+        json={"pre_auth_token": challenge.json()["pre_auth_token"], "code": _totp_now(secret)},
+    )
+    assert refused.status_code == 400
+    assert "locked" in refused.text.lower()
 
 
 # --- wiring ----------------------------------------------------------------
@@ -136,12 +174,59 @@ def test_every_auth_service_call_in_the_router_resolves():
 
 
 @pytest.mark.asyncio
-async def test_register_returns_the_created_user(async_client):
+async def test_registration_answers_the_same_whether_or_not_the_address_has_an_account(
+    async_client, monkeypatch
+):
+    """"Email already registered" told anyone which addresses have accounts - an
+    oracle the enumeration table in docs/SECURITY.md never listed. Both answers
+    are now the same 202 and the same body; the difference goes to the inbox."""
+    reminded: list[str] = []
+
+    async def _capture(email: str) -> None:
+        reminded.append(email)
+
+    monkeypatch.setattr(auth_service, "send_existing_account_email", _capture)
+
     email, _ = await _register(async_client)
-    response = await async_client.post(
-        "/api/auth/register", json={"email": email, "password": "Str0ngPassw0rd!"}
+    SENT_VERIFICATION_TOKENS.pop(email, None)
+
+    existing = await async_client.post(
+        "/api/auth/register", json={"email": email, "password": "An0therPassw0rd!"}
     )
-    assert response.status_code == 400, "a duplicate registration must not create a second user"
+    fresh = await async_client.post(
+        "/api/auth/register", json={"email": _email(), "password": "Str0ngPassw0rd!"}
+    )
+
+    assert existing.status_code == fresh.status_code == 202
+    assert existing.content == fresh.content
+    assert reminded == [email], "the existing address is told, by mail"
+    assert email not in SENT_VERIFICATION_TOKENS, "and is not sent a second verification link"
+
+    # And it created nothing: the original password still signs in.
+    login = await async_client.post(
+        "/api/auth/login", json={"email": email, "password": "Str0ngPassw0rd!"}
+    )
+    assert login.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_registration_costs_one_hash_whether_or_not_the_address_has_an_account(async_client):
+    """Same body is not enough if the response time differs: the new-address
+    path hashes the password, so the existing-address path has to as well."""
+    email, _ = await _register(async_client)
+
+    with patch.object(auth_service, "get_password_hash", wraps=auth_service.get_password_hash) as spy:
+        await async_client.post(
+            "/api/auth/register", json={"email": email, "password": "Str0ngPassw0rd!"}
+        )
+        existing_hashes = spy.call_count
+        spy.reset_mock()
+        await async_client.post(
+            "/api/auth/register", json={"email": _email(), "password": "Str0ngPassw0rd!"}
+        )
+        fresh_hashes = spy.call_count
+
+    assert existing_hashes == fresh_hashes == 1
 
 
 @pytest.mark.asyncio
@@ -161,7 +246,7 @@ async def test_a_fresh_registration_cannot_log_in_until_it_is_confirmed(async_cl
     created = await async_client.post(
         "/api/auth/register", json={"email": email, "password": password}
     )
-    assert created.status_code == 201, created.text
+    assert created.status_code == 202, created.text
 
     refused = await async_client.post(
         "/api/auth/login", json={"email": email, "password": password}
@@ -847,7 +932,7 @@ async def test_repeated_bad_2fa_codes_lock_the_account(async_client):
     """Failed second-factor attempts were not counted at all, leaving the
     six-digit code the only thing between an attacker and the account."""
     email, password = await _register(async_client)
-    await _enable_2fa(async_client, email, password)
+    secret = await _enable_2fa(async_client, email, password)
 
     for _ in range(5):
         challenge = await async_client.post(
@@ -860,11 +945,7 @@ async def test_repeated_bad_2fa_codes_lock_the_account(async_client):
         )
         assert attempt.status_code == 400
 
-    locked = await async_client.post(
-        "/api/auth/login", json={"email": email, "password": password}
-    )
-    assert locked.status_code == 400
-    assert "locked" in locked.text.lower()
+    await _second_factor_refused_while_locked(async_client, email, password, secret)
 
 
 # --- turning the second factor off ------------------------------------------
@@ -973,11 +1054,16 @@ async def test_repeated_bad_disable_codes_lock_the_account(async_client):
         )
         assert attempt.status_code == 400
 
-    locked = await async_client.post(
-        "/api/auth/login", json={"email": email, "password": password}
+    # The live code is refused on the route that was being guessed at...
+    blocked = await async_client.post(
+        "/api/auth/2fa/disable",
+        headers=headers,
+        json={"current_password": password, "code": _totp_now(secret)},
     )
-    assert locked.status_code == 400
-    assert "locked" in locked.text.lower()
+    assert blocked.status_code == 400
+    assert "locked" in blocked.text.lower()
+    # ...and at sign-in, because it is one tally for every code check.
+    await _second_factor_refused_while_locked(async_client, email, password, secret)
 
 
 @pytest.mark.asyncio
@@ -1079,10 +1165,10 @@ async def test_the_unlock_script_reopens_an_account_whose_authenticator_is_gone(
     genuinely reachable again, not merely edited.
     """
     email, password = await _register(async_client)
-    await _enable_2fa(async_client, email, password)
+    secret = await _enable_2fa(async_client, email, password)
 
     # What the owner actually does first: try codes that cannot work. Each one
-    # feeds the shared tally, so the account arrives at the script locked as
+    # feeds the code tally, so the account arrives at the script locked as
     # well as enrolled - which is why clearing the secret alone is not enough.
     for _ in range(auth_service.LOCKOUT_THRESHOLD):
         challenge = await async_client.post(
@@ -1093,11 +1179,7 @@ async def test_the_unlock_script_reopens_an_account_whose_authenticator_is_gone(
             json={"pre_auth_token": challenge.json()["pre_auth_token"], "code": "000000"},
         )
 
-    locked = await async_client.post(
-        "/api/auth/login", json={"email": email, "password": password}
-    )
-    assert locked.status_code == 400
-    assert "locked" in locked.text.lower()
+    await _second_factor_refused_while_locked(async_client, email, password, secret)
 
     outcome = await _run_clear_2fa(email)
     assert outcome.changed is True
@@ -1272,7 +1354,7 @@ async def test_an_unverified_account_cannot_log_in(async_client):
         await async_client.post(
             "/api/auth/register", json={"email": email, "password": password}
         )
-    ).status_code == 201
+    ).status_code == 202
 
     refused = await async_client.post(
         "/api/auth/login", json={"email": email, "password": password}
@@ -1302,7 +1384,7 @@ async def test_a_wrong_password_never_reveals_the_verification_state(async_clien
         await async_client.post(
             "/api/auth/register", json={"email": email, "password": "Str0ngPassw0rd!"}
         )
-    ).status_code == 201
+    ).status_code == 202
 
     unverified = await async_client.post(
         "/api/auth/login", json={"email": email, "password": "WrongPassw0rd!"}
@@ -1415,7 +1497,7 @@ async def _unverified(async_client, password="Str0ngPassw0rd!"):
     created = await async_client.post(
         "/api/auth/register", json={"email": email, "password": password}
     )
-    assert created.status_code == 201
+    assert created.status_code == 202
     refused = await async_client.post(
         "/api/auth/login", json={"email": email, "password": password}
     )
@@ -1560,8 +1642,7 @@ async def test_an_expired_lockout_restores_a_full_set_of_attempts(async_client):
     locked = await async_client.post(
         "/api/auth/login", json={"email": email, "password": password}
     )
-    assert locked.status_code == 400
-    assert "locked" in locked.text.lower()
+    _assert_login_refused(locked)
 
     await _expire_the_lock(email)
 
@@ -1587,8 +1668,7 @@ async def test_an_expired_lockout_still_locks_again_after_a_full_run(async_clien
     relocked = await async_client.post(
         "/api/auth/login", json={"email": email, "password": password}
     )
-    assert relocked.status_code == 400
-    assert "locked" in relocked.text.lower()
+    _assert_login_refused(relocked)
 
 
 @pytest.mark.asyncio
@@ -1599,4 +1679,389 @@ async def test_a_live_lockout_is_still_enforced(async_client):
     refused = await async_client.post(
         "/api/auth/login", json={"email": email, "password": password}
     )
-    assert refused.status_code == 400, "the correct password must not open a live lock"
+    _assert_login_refused(refused)  # the correct password must not open a live lock
+
+
+# --- guessing bounds (docs/review/codebase_review_20260924.md §2) ------------
+
+
+async def _user_row(email: str):
+    """The `users` row as stored, through the same override `_expire_the_lock` uses."""
+    from sqlalchemy import select
+
+    from server.db.database import get_db
+    from server.main import app
+    from server.models.user import User
+
+    sessions = app.dependency_overrides[get_db]()
+    session = await sessions.__anext__()
+    try:
+        return (await session.execute(select(User).where(User.email == email))).scalar_one()
+    finally:
+        await sessions.aclose()
+
+
+@pytest.mark.asyncio
+async def test_parallel_guesses_are_not_all_checked(async_client):
+    """The count was taken after a wrong answer, as a read-modify-write on the
+    row the request loaded first. Parallel guesses all read the same count, and
+    all passed the lock check before any was recorded, so every one of them was
+    checked. Each attempt is now numbered before the password is looked at."""
+    import asyncio
+
+    email, _ = await _register(async_client)
+
+    with patch.object(
+        auth_service, "verify_password_scheme", wraps=auth_service.verify_password_scheme
+    ) as checked:
+        responses = await asyncio.gather(*(
+            async_client.post("/api/auth/login", json={"email": email, "password": f"guess-{n}"})
+            for n in range(10)
+        ))
+
+    assert all(r.status_code == 401 for r in responses)
+    assert checked.call_count <= auth_service.LOCKOUT_THRESHOLD, (
+        f"{checked.call_count} of 10 parallel guesses reached the password check"
+    )
+    row = await _user_row(email)
+    assert row.locked_until is not None, "the burst must leave the account locked"
+
+
+@pytest.mark.asyncio
+async def test_every_login_refusal_costs_the_same_two_verifications(async_client):
+    """A wrong password costs two bcrypt checks - the prehash one, then the
+    legacy raw-password one. The unknown-address path burned one and the
+    locked and purged paths none, so response time told the paths apart even
+    where the body did not."""
+    from server.auth import security
+    from server.models.user import User
+
+    wrong_email, _ = await _register(async_client)
+    locked_email, locked_password = await _register(async_client)
+    await _fail_login(async_client, locked_email, auth_service.LOCKOUT_THRESHOLD)
+    purged_email, purged_password = await _register(async_client)
+
+    from server.db.database import get_db
+    from server.main import app
+
+    sessions = app.dependency_overrides[get_db]()
+    session = await sessions.__anext__()
+    try:
+        await session.execute(
+            update(User)
+            .where(User.email == purged_email)
+            .values(deleted_at=datetime.now(timezone.utc) - timedelta(days=31), is_active=False)
+        )
+        await session.commit()
+    finally:
+        await sessions.aclose()
+
+    cases = {
+        "unknown": (_email(), "Str0ngPassw0rd!"),
+        "wrong password": (wrong_email, "not-the-password"),
+        "locked": (locked_email, locked_password),
+        "purged": (purged_email, purged_password),
+    }
+    for label, (email, password) in cases.items():
+        with patch.object(security, "_checkpw", wraps=security._checkpw) as spy:
+            response = await async_client.post(
+                "/api/auth/login", json={"email": email, "password": password}
+            )
+        _assert_login_refused(response)
+        assert spy.call_count == 2, f"{label}: {spy.call_count} verifications"
+
+
+@pytest.mark.asyncio
+async def test_a_password_lock_does_not_block_the_emailed_link_to_2fa(async_client):
+    """Five wrong passwords from anywhere used to lock the owner out of every
+    route, the magic link included, because `verify_2fa_login` checked the one
+    shared tally. A pre-auth token already proves the password or the inbox, so
+    only the code tally applies there - and the owner has a way in."""
+    email, password = await _register(async_client)
+    secret = await _enable_2fa(async_client, email, password)
+
+    await _fail_login(async_client, email, auth_service.LOCKOUT_THRESHOLD)
+    _assert_login_refused(
+        await async_client.post("/api/auth/login", json={"email": email, "password": password})
+    )
+
+    token = await _capture_link(
+        async_client, "send_magic_link_email", "/api/auth/magic-link/request", email
+    )
+    challenge = await async_client.post("/api/auth/magic-link/verify", json={"token": token})
+    assert challenge.status_code == 200, challenge.text
+    assert challenge.json()["requires_2fa"] is True
+
+    signed_in = await async_client.post(
+        "/api/auth/2fa/verify",
+        json={"pre_auth_token": challenge.json()["pre_auth_token"], "code": _totp_now(secret)},
+    )
+    assert signed_in.status_code == 200, signed_in.text
+    assert signed_in.json()["access_token"]
+
+
+@pytest.mark.asyncio
+async def test_a_password_reset_does_not_clear_the_code_tally(async_client):
+    """A reset cleared the one shared tally, so anyone holding the inbox could
+    reset, sign in, try five codes and reset again: the second factor was
+    bounded by the rate limiter, not the lock. The reset clears the password
+    tally only."""
+    email, password = await _register(async_client)
+    secret = await _enable_2fa(async_client, email, password)
+
+    for _ in range(auth_service.LOCKOUT_THRESHOLD):
+        challenge = await async_client.post(
+            "/api/auth/login", json={"email": email, "password": password}
+        )
+        await async_client.post(
+            "/api/auth/2fa/verify",
+            json={"pre_auth_token": challenge.json()["pre_auth_token"], "code": "000000"},
+        )
+
+    token = await _capture_link(
+        async_client, "send_password_reset_email", "/api/auth/forgot-password", email
+    )
+    new_password = "R3setPassw0rd!"
+    reset = await async_client.post(
+        "/api/auth/reset-password", json={"token": token, "new_password": new_password}
+    )
+    assert reset.status_code == 200, reset.text
+
+    await _second_factor_refused_while_locked(async_client, email, new_password, secret)
+
+
+@pytest.mark.asyncio
+async def test_a_totp_code_cannot_be_replayed_within_its_step(async_client):
+    """A code is valid for its whole 30-second step. One seen over a shoulder or
+    relayed by a phishing proxy used to work again until the step ran out."""
+    email, password = await _register(async_client)
+    secret = await _enable_2fa(async_client, email, password)
+
+    async def _verify(code):
+        challenge = await async_client.post(
+            "/api/auth/login", json={"email": email, "password": password}
+        )
+        return await async_client.post(
+            "/api/auth/2fa/verify",
+            json={"pre_auth_token": challenge.json()["pre_auth_token"], "code": code},
+        )
+
+    # The code that enabled 2FA is spent: it cannot sign in within its step.
+    assert (await _verify(_totp_current(secret))).status_code == 400
+
+    first = await _verify(_totp_now(secret))
+    assert first.status_code == 200, first.text
+
+    replay = await _verify(_totp_current(secret))
+    assert replay.status_code == 400
+    assert replay.json()["detail"] == "Invalid 2FA code"
+    # The sign-in between the two replays cleared the tally, so this is the
+    # replay just made: it counts exactly as a wrong code does.
+    assert (await _user_row(email)).totp_failed_attempts == 1
+
+    assert (await _verify(_totp_now(secret))).status_code == 200, "the next step's code works"
+
+
+@pytest.mark.asyncio
+async def test_a_one_time_token_is_claimed_once(async_client):
+    """It was read, checked in Python, then written - two concurrent
+    redemptions of one magic link could both pass and both mint a session."""
+    from server.db.database import get_db
+    from server.main import app
+
+    email, _ = await _register(async_client)
+    user_id = (await _user_row(email)).id
+
+    sessions = app.dependency_overrides[get_db]()
+    session = await sessions.__anext__()
+    try:
+        jti = auth_service.issue_one_time_token(
+            session, user_id, auth_service.PURPOSE_MAGIC_LINK, timedelta(minutes=10)
+        )
+        other = auth_service.issue_one_time_token(
+            session, user_id, auth_service.PURPOSE_MAGIC_LINK, timedelta(minutes=10)
+        )
+        expired = auth_service.issue_one_time_token(
+            session, user_id, auth_service.PURPOSE_MAGIC_LINK, timedelta(minutes=-1)
+        )
+        await session.commit()
+
+        assert await auth_service.consume_one_time_token(session, jti, auth_service.PURPOSE_MAGIC_LINK)
+        assert not await auth_service.consume_one_time_token(
+            session, jti, auth_service.PURPOSE_MAGIC_LINK
+        ), "the second claim of the same jti must fail, even before a commit"
+
+        # A token for another flow is refused *and left unspent*.
+        assert not await auth_service.consume_one_time_token(
+            session, other, auth_service.PURPOSE_PASSWORD_RESET
+        )
+        assert await auth_service.consume_one_time_token(session, other, auth_service.PURPOSE_MAGIC_LINK)
+
+        assert not await auth_service.consume_one_time_token(
+            session, expired, auth_service.PURPOSE_MAGIC_LINK
+        )
+    finally:
+        await sessions.aclose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("route", ["change-password", "delete-account"])
+async def test_re_authentication_is_held_to_the_password_lock(async_client, route):
+    """Both checked the current password with no tally at all, so a stolen
+    access token bought unlimited guesses at it."""
+    email, password = await _register(async_client)
+    headers = await _auth_header(async_client, email, password)
+
+    def _body(current):
+        if route == "change-password":
+            return {"current_password": current, "new_password": "Br4ndNewPassw0rd!"}
+        return {"current_password": current, "confirmation_phrase": "DELETE"}
+
+    for _ in range(auth_service.LOCKOUT_THRESHOLD):
+        wrong = await async_client.post(f"/api/auth/{route}", headers=headers, json=_body("nope-Wr0ng!"))
+        assert wrong.status_code == 400
+        assert wrong.json()["detail"] == "Incorrect current password"
+
+    locked = await async_client.post(f"/api/auth/{route}", headers=headers, json=_body(password))
+    assert locked.status_code == 400
+    assert locked.json()["detail"] == auth_service.PASSWORD_LOCKED_DETAIL
+
+    row = await _user_row(email)
+    assert row.deleted_at is None, "the locked request must not have deleted the account"
+    await _expire_the_lock(email)
+    await _login(async_client, email, password)  # and the password is unchanged
+
+
+# --- deleted accounts are purged ---------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_deleted_accounts_are_purged_after_the_reactivation_window(async_client):
+    """The UI said "scheduled for deletion" and nothing ran the schedule: the
+    email, the password hash, the TOTP secret and every saved conversation were
+    kept for good. The purge removes the row, and the foreign keys take the
+    rest with it."""
+    from sqlalchemy import func, select, text
+
+    from server.db.database import get_db
+    from server.main import app
+    from server.models.ai_conversation import AIConversation
+    from server.models.token import RefreshToken
+    from server.models.user import User
+    from server.services.chat_history_service import save_or_update_conversation
+
+    expired_email, expired_password = await _register(async_client)
+    await _login(async_client, expired_email, expired_password)  # leaves a refresh token
+    recent_email, _ = await _register(async_client)
+    active_email, _ = await _register(async_client)
+
+    now = datetime.now(timezone.utc)
+    sessions = app.dependency_overrides[get_db]()
+    session = await sessions.__anext__()
+    sqlite = session.bind.dialect.name == "sqlite"
+    try:
+        expired_id = (await _user_row(expired_email)).id
+        await save_or_update_conversation(
+            session, expired_id, None, "dummy-model-id",
+            [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "hello"}],
+        )
+        for email, age in ((expired_email, 31), (recent_email, 29)):
+            await session.execute(
+                update(User)
+                .where(User.email == email)
+                .values(deleted_at=now - timedelta(days=age), is_active=False)
+            )
+        await session.commit()
+
+        # SQLite enforces ON DELETE CASCADE only with this set, and only
+        # outside a transaction; PostgreSQL always enforces it.
+        if sqlite:
+            await session.execute(text("PRAGMA foreign_keys=ON"))
+        try:
+            purged = await auth_service.purge_deleted_accounts(session, now)
+        finally:
+            if sqlite:
+                await session.commit()
+                await session.execute(text("PRAGMA foreign_keys=OFF"))
+
+        # At least this one: the suite shares a database, and other tests
+        # leave accounts soft-deleted past the window too.
+        assert purged >= 1
+
+        async def _count(model, column, value):
+            return (await session.execute(
+                select(func.count()).select_from(model).where(column == value)
+            )).scalar_one()
+
+        assert await _count(User, User.email, expired_email) == 0
+        assert await _count(RefreshToken, RefreshToken.user_id, expired_id) == 0
+        assert await _count(AIConversation, AIConversation.user_id, expired_id) == 0
+        assert await _count(User, User.email, recent_email) == 1, "still inside its window"
+        assert await _count(User, User.email, active_email) == 1
+    finally:
+        await sessions.aclose()
+
+
+# --- passlib -> bcrypt --------------------------------------------------------
+
+# Made by passlib 1.7.4 over bcrypt 3.2.2, the pair this code used before it
+# called bcrypt directly. Every stored hash was made that way, so these are the
+# rows the swap must keep verifying.
+PASSLIB_CURRENT_SCHEME = "$2b$12$XHE3TFUQ4M.uSUgX8TLooOzyR7UqlC6XheRvXEPdtrPy6zrSTvfvK"  # sha256 hex of "Str0ngPassw0rd!"
+PASSLIB_LEGACY_SCHEME = "$2b$12$Zp.OH3V0nUXQFUmWEpg.Su089VxyfsHgRVjKSNbYe6eWaN6/eAUJS"  # raw 81-byte password
+LEGACY_PASSWORD = "L" * 70 + "egacy-tail!"
+
+
+def test_hashes_made_by_passlib_still_verify():
+    from server.auth.security import verify_password_scheme
+
+    assert verify_password_scheme("Str0ngPassw0rd!", PASSLIB_CURRENT_SCHEME) == (True, False)
+    assert verify_password_scheme("wrong", PASSLIB_CURRENT_SCHEME) == (False, False)
+
+
+def test_a_legacy_hash_of_a_long_password_still_verifies_and_asks_for_a_rehash():
+    """bcrypt < 4 cut every input at 72 bytes without a word, so an 81-byte
+    password was stored as its first 72. bcrypt 5 raises on the same input
+    instead - the legacy check truncates, exactly as the old library did."""
+    from server.auth.security import verify_password_scheme
+
+    assert len(LEGACY_PASSWORD.encode()) == 81
+    assert verify_password_scheme(LEGACY_PASSWORD, PASSLIB_LEGACY_SCHEME) == (True, True)
+    assert verify_password_scheme("L" * 70 + "different!", PASSLIB_LEGACY_SCHEME) == (False, False)
+
+
+def test_a_malformed_stored_hash_fails_the_check_rather_than_the_request():
+    from server.auth.security import verify_password_scheme
+
+    assert verify_password_scheme("anything", "not-a-bcrypt-hash") == (False, False)
+
+
+# --- mailed tokens stay out of the query string -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_mailed_links_carry_their_token_in_the_fragment(monkeypatch):
+    """In the query string, opening `/?magic_token=…` wrote the token to Apache's
+    access log, and the service worker cached the page under its full URL. A
+    fragment never leaves the browser."""
+    from server.services import notification_service
+
+    bodies = []
+
+    async def _capture(subject, recipient, plain, html, log_event):
+        bodies.append(plain + html)
+        return True
+
+    monkeypatch.setattr(notification_service, "_send", _capture)
+    await notification_service.send_password_reset_email("a@example.com", "RESET.TOKEN")
+    await notification_service.send_email_verification_email("a@example.com", "VERIFY.TOKEN")
+    await notification_service.send_magic_link_email("a@example.com", "MAGIC.TOKEN")
+
+    for body, kind, token in zip(
+        bodies,
+        ("reset_token", "verify_token", "magic_token"),
+        ("RESET.TOKEN", "VERIFY.TOKEN", "MAGIC.TOKEN"),
+        strict=True,
+    ):
+        assert f"https://rjasti.com/#{kind}={token}" in body
+        assert f"?{kind}=" not in body

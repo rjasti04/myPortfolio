@@ -71,13 +71,14 @@ for the PR — doubling cost for no extra signal.)
    ┌─────┴──────────────────┬──────────────────────┐
    ▼                        ▼                      ▼
 frontend-check         backend-check          migration-check
-lint · test · build    ruff · pytest          single head · upgrade
-CSP hashes · audit     (py3.10 + py3.12)      alembic check · downgrade
+lint · test · build    pip-audit · ruff       single head · upgrade
+CSP hashes · audits    pytest (3.10 + 3.12)   alembic check · downgrade
+dist/ artifact
    └────────────────────────┴──────────────────────┘
                             │  all three green, push to main only
                             ▼
                          deploy
-   snapshot → build → verify sources → rsync server/ → rsync dist/
+   download dist/ → snapshot → verify sources → rsync server/ → rsync dist/
    → pip install --require-hashes → alembic upgrade head
    → restart units → health probe → smoke test
                             │
@@ -87,7 +88,8 @@ CSP hashes · audit     (py3.10 + py3.12)      alembic check · downgrade
 ```
 
 The three gates run concurrently with `cancel-in-progress: true` (safe — nothing
-they do is stateful). The deploy job uses `cancel-in-progress: false` so
+they do is stateful). Every workflow runs with `permissions: contents: read`, and
+every action is pinned to a commit SHA, with Dependabot keeping the pins current. The deploy job uses `cancel-in-progress: false` so
 concurrent merges **queue** rather than cancel: interrupting a half-finished
 migration or file sync is worse than waiting.
 
@@ -95,7 +97,7 @@ migration or file sync is worse than waiting.
 
 ## Quality gates
 
-### `frontend-check` (20 min, Node 18)
+### `frontend-check` (20 min, Node 22)
 
 1. `npm ci`
 2. `npm run lint` — ESLint + Stylelint
@@ -106,6 +108,11 @@ migration or file sync is worse than waiting.
    repository; `--fix` applies the corrections locally
 7. `npm run audit` — `continue-on-error`, so transitive dev advisories are
    visible without blocking a portfolio deploy
+8. `npm audit --omit=dev --audit-level=high` — **blocking**, over the three
+   packages whose bytes ship (`dompurify`, `marked`, Font Awesome, now
+   `dependencies`). An unreachable advisory endpoint is a warning, not a failure
+9. On a push to `main` only, `dist/` is uploaded as the `dist` artifact (kept a
+   day) for the deploy job
 
 ### `backend-check` (15 min, Python 3.10 **and** 3.12)
 
@@ -117,8 +124,10 @@ covers the range — this job is what proves it.
 1. `pip install --require-hashes -r server/requirements-dev.txt` (a superset of
    the runtime lock resolved in one pass, so CI can never test against a
    different version of a shared package than production installs)
-2. `ruff check server tests`
-3. `pytest --cov=server --cov-report=term-missing --cov-fail-under=55`
+2. `pip-audit -r server/requirements.txt --require-hashes --disable-pip` —
+   **blocking**, on the 3.10 leg only (both legs install the same lock)
+3. `ruff check server tests`
+4. `pytest --cov=server --cov-report=term-missing --cov-fail-under=55`
 
 Environment: `TESTING=true`, `DATABASE_URL=sqlite+aiosqlite:///:memory:`,
 `AWS_REGION=us-east-1`, `DEFAULT_MODEL_ID=google.gemma-3-4b-it`, and a
@@ -146,9 +155,9 @@ Runs only on a push to `main` with all three gates green.
 | Step | What it does | Why it exists |
 | :--- | :--- | :--- |
 | Checkout `github.sha` | Pins to the commit that triggered the run | Checking out the branch would deploy whatever `main` points at when the job starts, not what the gates passed |
-| Configure SSH | Writes the key; uses `EC2_HOST_KEY` if set, else `ssh-keyscan` with a warning | Pinned host key means the deploy refuses to talk to anything else |
+| Download `dist/` | The `dist` artifact `frontend-check` built and tested from the same commit | This job used to run `npm ci` and `npm run build` itself, *after* writing a root-equivalent SSH key to disk - one compromised package's install script would have been root on the host. It now runs no package code at all |
+| Configure SSH | Writes the key from `env:` (never `${{ }}` inside `run:`); uses `EC2_HOST_KEY` if set, else `ssh-keyscan` with a warning | Pinned host key means the deploy refuses to talk to anything else |
 | **Snapshot** | `rsync` of `server/` and the web root into `deploy-backups/<UTC stamp>/`, records `alembic current`, repoints `current`, prunes to 10 | Everything after this is recoverable. A single `.prev` pair reached exactly one release back — two bad deploys and the last good one was gone |
-| Build frontend | `npm ci && npm run build` | The deploy ships `dist/`, so it must exist before the emptiness check |
 | Verify sources | Refuses if `server/` or `dist/` has fewer than 5 files, or `dist/index.html` / `dist/assets` is missing | `rsync --delete` mirrors the source: an empty source doesn't fail, it **deletes the destination** — and one of them is Apache's document root |
 | rsync `server/` | Excludes `.venv`, `venv`, `__pycache__`, `.env*`, `.git` | `.env*` exclusion is why a deploy can never clobber host configuration |
 | rsync `dist/` → web root | `--rsync-path="sudo rsync"` | Ships the built output, not the source tree |
@@ -365,10 +374,12 @@ python scripts/clear_2fa.py --email someone@example.com
 ```
 
 It prints the account's 2FA and lockout state, asks you to type the address back
-to confirm, then clears `totp_secret` and `is_totp_enabled` — and with them
-`failed_login_attempts` and `locked_until`, which the wrong codes that led here
-will normally have set. The same four fields `disable_2fa` clears, so the row
-ends up in the state the supported path would have left it in.
+to confirm, then clears `totp_secret`, `is_totp_enabled` and `totp_last_step` —
+and with them both lockout tallies: `totp_failed_attempts` / `totp_locked_until`,
+which the wrong codes that led here will normally have set, and
+`failed_login_attempts` / `locked_until`, since an owner in this position has
+usually been trying their password too. That is the state `disable_2fa` leaves
+behind, so nothing downstream can tell an emergency unlock from an ordinary one.
 
 | Flag | Effect |
 | :--- | :--- |

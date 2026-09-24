@@ -10,8 +10,17 @@ server/.venv/
 
 # Local environment secret variables
 # AGENTS.md §6 instructs developers to create a root .env containing credentials (e.g. JWT_SECRET).
-.env
-.env.local
+# Every variant, not only `.env` and `.env.local` - the deploy's rsync already
+# excludes `.env*`, which says other variants exist. The example is the one
+# tracked file with the prefix.
+.env*
+!.env.example
+
+# Key material. The deploy writes an SSH key to disk; nothing like it belongs here.
+*.pem
+*.key
+id_rsa*
+id_ed25519*
 
 # Test/tooling caches
 .pytest_cache/

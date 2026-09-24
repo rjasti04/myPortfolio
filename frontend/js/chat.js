@@ -1,7 +1,7 @@
 import { API_BASE, ensureSession, isApiConfigured, sessionHeaders } from "./analytics.js";
 import { prefersReducedMotion } from "./config.js";
 import { copyText, escapeHTML, estimateTokens } from "./utils.js";
-import { authenticatedFetch, getAuthToken } from "./auth.js";
+import { authenticatedFetch, getAuthToken, getTokenSubject } from "./auth.js";
 import { highlightCode } from "./syntax-highlighter.js";
 import { handleFocusTrap } from "./modal.js";
 import { confirmAction } from "./confirm-dialog.js";
@@ -14,7 +14,17 @@ const TOKEN_LIMIT = 2000;
 const SUMMARIZE_TOKEN_THRESHOLD = 6000;
 const MARKDOWN_PARSE_THROTTLE_MS = 100;
 
-function renderBotHTML(text) {
+/* Images are the one thing a reply cannot contain. A markdown image - or a raw
+   <img> that marked passes through - made the page fetch whatever URL the
+   model named, or text a visitor pasted in did: a tracking pixel, or a channel
+   that carries conversation text out in the URL. Script execution was never at
+   risk, but it was a third-party request the SPA does not otherwise make
+   (ADR-016). The marked renderer below turns an image into a link, this strips
+   any that arrive as HTML, and the CSP's `img-src 'self' data:` backs both. */
+const RENDER_SANITIZE_CONFIG = { FORBID_TAGS: ["img", "image"] };
+
+/* Exported for the render test; nothing else imports it. */
+export function renderBotHTML(text) {
   if (typeof marked === "undefined") {
     return escapeHTML(text).replace(/\n/g, "<br>");
   }
@@ -24,7 +34,7 @@ function renderBotHTML(text) {
     return escapeHTML(text).replace(/\n/g, "<br>");
   }
 
-  return DOMPurify.sanitize(marked.parse(text));
+  return DOMPurify.sanitize(marked.parse(text), RENDER_SANITIZE_CONFIG);
 }
 
 if (typeof marked !== 'undefined') {
@@ -35,6 +45,11 @@ if (typeof marked !== 'undefined') {
     const escapedText = encodeURIComponent(text);
     const highlightedContent = highlightCode(text, lang);
     return `<pre><button type="button" class="code-copy-btn" data-code="${escapedText}" title="Copy code"><i class="fas fa-copy"></i> <span>Copy</span></button>${highlightedContent}</pre>`;
+  };
+  renderer.image = function (token) {
+    const href = typeof token === 'object' ? token.href : arguments[0];
+    const label = typeof token === 'object' ? token.text : arguments[2];
+    return `<a href="${escapeHTML(href || '')}" target="_blank" rel="noopener noreferrer nofollow">${escapeHTML(label || href || 'image')}</a>`;
   };
   marked.use({ renderer });
 
@@ -1015,6 +1030,7 @@ export function initChat() {
       const byConversationId = new Map(
         sessions.filter(sess => sess.conversationId).map(sess => [sess.conversationId, sess])
       );
+      const owner = getTokenSubject();
 
       conversations.forEach(remote => {
         const local = byConversationId.get(remote.id);
@@ -1023,6 +1039,8 @@ export function initChat() {
           // and any title the visitor typed. Only the clock is reconciled, so
           // a conversation continued on another device sorts correctly here.
           local.updatedAt = Math.max(local.updatedAt ?? 0, remoteTime(remote.updated_at));
+          // Also how a row saved before `ownerId` existed learns its account.
+          if (owner) local.ownerId = owner;
           return;
         }
         sessions.push({
@@ -1033,6 +1051,7 @@ export function initChat() {
           createdAt: remoteTime(remote.created_at),
           updatedAt: remoteTime(remote.updated_at),
           remote: true,
+          ownerId: owner,
           messageCount: remote.message_count ?? 0
         });
       });
@@ -1996,6 +2015,11 @@ export function initChat() {
     let widgetMsgEl = null;
     let aiMsgEl = null;
 
+    // A turn sent while signed in is saved to that account, so the
+    // conversation is the account's now - and leaves this browser with it.
+    const owner = isSignedIn() ? getTokenSubject() : null;
+    if (owner) session.ownerId = owner;
+
     try {
       const response = await authenticatedFetch(apiUrl, {
         method: 'POST',
@@ -2383,8 +2407,51 @@ export function initChat() {
     }
   });
 
+  /* Conversations that belong to an account other than the one signed in now -
+     or to any account, when nobody is. `rj_chat_sessions` kept every
+     transcript fetched from an account, so after sign-out the next person on
+     this browser saw them in the rail, and a different account signing in
+     inherited the previous one's conversation ids.
+
+     Rows are tagged with `ownerId` when the server lists them and when a turn
+     is sent signed in. `conversationId` cannot tell them apart - every row has
+     one - and `remote` is cleared once a stub is opened. An untagged stub is a
+     server row from before tagging, which only an account can own. Anonymous
+     conversations carry no owner and are kept.
+
+     A sign-out in another tab fires no `auth-changed` here; the next load
+     catches it, and until then a stub opened signed out says "Sign in to load
+     this conversation." rather than fetching. Returns true when rows went. */
+  function dropForeignSessions() {
+    const signedOut = !getAuthToken();
+    const owner = getTokenSubject();
+    // A token whose subject cannot be read says nothing about whose rows
+    // these are, so it drops nothing.
+    if (!signedOut && !owner) return false;
+    const foreign = session => (signedOut
+      ? Boolean(session.ownerId) || (Boolean(session.remote) && !session.ownerId)
+      : Boolean(session.ownerId) && session.ownerId !== owner);
+    if (!sessions.some(foreign)) return false;
+
+    const activeGoes = foreign(getActiveSession());
+    if (activeGoes && isGenerating) abortGeneration();
+    sessions = sessions.filter(session => !foreign(session));
+    if (sessions.length === 0) {
+      createNewSession();
+      return true;
+    }
+    if (activeGoes) {
+      const newest = sessions.reduce((a, b) => (sessionTime(b) > sessionTime(a) ? b : a));
+      setActiveSession(newest.id);
+    }
+    saveSessions();
+    if (activeGoes) restoreActiveSession();
+    return true;
+  }
+
   // Init UI
   loadSessions();
+  dropForeignSessions();
   renderSidebar();
   // Nothing painted the stored conversation on load: loadSessions() only
   // reaches restoreActiveSession() through createNewSession(), which it calls
@@ -2410,8 +2477,12 @@ export function initChat() {
 
   refreshServerHistory();
   // auth-ui.js fires this on login, logout, magic-link verification and 2FA
-  // completion, which is exactly when the set of readable conversations moves.
-  window.addEventListener('auth-changed', refreshServerHistory);
+  // completion, which is exactly when the set of readable conversations moves:
+  // the previous account's rows go first, then the current one's are listed.
+  window.addEventListener('auth-changed', () => {
+    dropForeignSessions();
+    refreshServerHistory();
+  });
 }
 
 // Screen reader announcements

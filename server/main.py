@@ -21,6 +21,7 @@ from server.middlewares.rate_limit import RateLimitMiddleware
 from server.middlewares.request_id import RequestIDMiddleware
 from server.middlewares.server_timing import ServerTimingMiddleware
 from server.services import kafka_stream
+from server.services.auth_service import run_account_purger
 from server.utils.logging_config import setup_logging
 
 # Every module logs through structlog, but nothing ever called this, so the
@@ -52,6 +53,9 @@ async def lifespan(app: FastAPI):
         background.append(asyncio.create_task(kafka_stream.run_kafka_consumer(), name="kafka-consumer"))
         background.append(asyncio.create_task(kafka_stream.periodic_flusher(), name="batch-flusher"))
         background.append(asyncio.create_task(kafka_stream.run_pg_fanout(), name="pg-fanout"))
+        # Soft-deleted accounts past their reactivation window. Nothing ran this
+        # before, so "scheduled for deletion" deleted nothing.
+        background.append(asyncio.create_task(run_account_purger(), name="account-purger"))
         logger.info("Pipeline workers started: %s", [t.get_name() for t in background])
 
     try:

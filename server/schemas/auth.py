@@ -91,6 +91,16 @@ class TokenResponseOr2FA(BaseModel):
     refresh_token: Optional[str] = None
     token_type: str = "bearer"
 
+class RegisterResponse(BaseModel):
+    """The same body for a new address and for one that already has an account.
+
+    Registration used to return the created `UserResponse`, and "Email already
+    registered" otherwise - which told anyone which addresses have accounts.
+    """
+
+    message: str
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

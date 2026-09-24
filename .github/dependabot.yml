@@ -1,6 +1,6 @@
 # Dependabot keeps the three dependency surfaces of this repo current: the npm
-# devDependencies at the root, the Python requirements the API server installs,
-# and the actions the deploy workflow pins by major tag.
+# packages at the root, the Python requirements the API server installs, and the
+# actions the workflows pin by commit SHA (each with its release in a comment).
 #
 # Note that npm updates do NOT reach `frontend/vendor/`. Those files are copied
 # out of node_modules by hand (see frontend/vendor/README.md); after merging a
@@ -16,8 +16,10 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     groups:
-      # Everything here is a build/lint/test tool, so a single PR per week is
-      # easier to review than a stream of one-line bumps.
+      # Build, lint and test tools, plus the three packages whose bytes ship
+      # (dompurify, marked, Font Awesome). One PR per week is easier to review
+      # than a stream of one-line bumps; the shipped three still need the
+      # vendor re-copy above, which build.test.js now enforces.
       dev-tooling:
         patterns:
           - "*"

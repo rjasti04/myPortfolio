@@ -41,7 +41,7 @@ when the API is unreachable, so the portfolio itself never depends on it.
 | Frontend | HTML5, vanilla CSS (no preprocessor/framework), ES modules, 2D-canvas backgrounds, service worker, Web App Manifest, DOMPurify, marked |
 | Build | esbuild (bundling, minification, content hashing) via `scripts/build.mjs` |
 | Backend | FastAPI, Pydantic v2, SQLAlchemy 2 (async) + asyncpg, Alembic, boto3/Amazon Bedrock, structlog, aiokafka, aiosmtplib, httpx |
-| Auth | PyJWT (HS256), passlib + bcrypt, pyotp (TOTP), qrcode, Have I Been Pwned range API |
+| Auth | PyJWT (HS256), bcrypt, pyotp (TOTP), qrcode, Have I Been Pwned range API |
 | Database | PostgreSQL (SQLite + aiosqlite in the test harness) |
 | Tooling | Node.js test runner + jsdom, ESLint, Stylelint, Prettier, pytest, pytest-asyncio, pytest-cov, ruff |
 | CI/CD | GitHub Actions → rsync/SSH to EC2 (Apache for static, systemd + Uvicorn for the API) |
@@ -145,7 +145,7 @@ No Three.js, React, Vue, Tailwind, or CSS preprocessor is used anywhere.
 
 | Requirement | Notes |
 | :--- | :--- |
-| Node.js ≥ 18 | Declared in `package.json` `engines`; CI uses 18 |
+| Node.js ≥ 22 | Declared in `package.json` `engines`; CI uses 22 |
 | npm | `npm ci` is used by CI and the deploy |
 | Python 3.10+ | CI runs the backend suite on 3.10 **and** 3.12 |
 | PostgreSQL | Required for the API; CI's migration job uses `postgres:16` |

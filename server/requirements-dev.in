@@ -18,3 +18,8 @@ aiosqlite>=0.19.0
 # Python got nothing, and ruff flags the undefined-attribute class of bug that
 # put five broken auth routes into production.
 ruff>=0.6.0
+
+# Dependency advisories. CI runs it against server/requirements.txt - the lock
+# the production host installs - as a blocking step; nothing did before, so a
+# vulnerable pin could ship with every check green.
+pip-audit>=2.7.0

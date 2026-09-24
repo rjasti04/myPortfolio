@@ -143,14 +143,27 @@ object-src 'none';
 form-action https://formsubmit.co;
 script-src 'self' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI='
                   'sha256-6XuTA/BFxDvJqIm0o2k13VOhDx9nZ5JDPwYSgDaaFdQ='
-                  'sha256-TeGe8t4CWnpLfAepac4vc5uWDriFurKq3PdPmtrkFqY=';
+                  'sha256-wRyuMR28oLoEfEgbzTK+XzcmdHY0f0biqTJB9VT6yuA=';
 style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline';
 font-src 'self';
-img-src 'self' data: https:;
+img-src 'self' data:;
 connect-src 'self' https://rjasti.com https://staging-api.rjasti.com
             http://localhost:8000 http://127.0.0.1:8000
             https://formsubmit.co;
 ```
+
+That is the **source** page. `build.mjs` removes the two loopback origins from
+`dist/index.html`, the page production serves: they exist for serving
+`frontend/` on a developer's machine, and a shipped page has no business talking
+to one. Only the meta tag changes, so no script hash moves.
+`https://staging-api.rjasti.com` stays, because `getApiBaseUrl()` still sends a
+staging host there. `scripts/tests/build.test.js` checks the shipped policy.
+
+`img-src` is `'self' data:`. It allowed any HTTPS origin, so an image in a chat
+reply - markdown the model wrote, or text a visitor pasted - made the page
+fetch whatever URL it named. Nothing in the SPA loads a cross-origin image; the
+`https://rjasti.com/…` image URLs in the markup are Open Graph and JSON-LD
+metadata, which the page never fetches.
 
 `style-src-attr 'unsafe-inline'` is required because several modules set inline
 `style` properties (the update banner, the confetti canvas).
@@ -172,7 +185,12 @@ connect-src 'self' https://rjasti.com https://staging-api.rjasti.com
 3. **The pre-boot section router** — sits above `<main>` and moves the `active`
    class from `#home` to the section the fragment names, so a refresh on
    `#resume` paints the resume rather than the landing portrait.
-   See [`index.html`](#indexhtml) above.
+   See [`index.html`](#indexhtml) above. It runs first of anything, so it also
+   takes a mailed link's token out of the fragment (`#magic_token=…`,
+   `#reset_token=…`, `#verify_token=…`), hands it to `auth-ui.js` as
+   `window.__rjAuthLink`, and strips it from the address bar - before
+   `analytics.js` or the error reporter, which both record the hash, can see
+   it.
 
 **Editing any of them — even reindenting — invalidates its hash, and the browser
 then refuses to run it silently.** For the theme bootstrap the only symptom is
@@ -398,7 +416,7 @@ warns when only the legacy one is present.
 | Install | `cache.add` **per URL** via `Promise.allSettled`, not `cache.addAll`: one missing file must not stop the worker installing and leave the visitor with no offline shell |
 | Activation | Deletes other `rj-portfolio-*` caches, evicts entries older than 7 days (`sw-cached-time` header), then `clients.claim()` |
 | `skipWaiting` | **Not** called on install. Only the update banner's button posts `{type:'SKIP_WAITING'}`, so the asset set is never swapped under a running page |
-| Documents | Network-first, cache as fallback. `index.html` names hashed assets, so a stale copy points at a build that no longer exists |
+| Documents | Network-first, cache as fallback. `index.html` names hashed assets, so a stale copy points at a build that no longer exists. Cached under `origin + pathname`, never the full URL: a `?s=` share link used to add a whole copy of the page each time, and a link mailed with its token in the query wrote the token into Cache Storage |
 | Other same-origin GETs | Stale-while-revalidate — safe precisely because filenames are content-hashed, so a cached asset can never be the wrong version of itself |
 | `/api/*` | Never cached |
 | Cross-origin | `ALLOWED_ORIGINS` is **empty**; nothing third-party is fetched any more, and the empty set stops a stray request being cached silently |
@@ -900,10 +918,14 @@ Inspector, X Card Validator).
   `/api` and every real asset fall straight through.
 - **Compression** — gzip (`mod_deflate`) and Brotli (`mod_brotli`) for text types.
 - **Expiry** — images and fonts one year; CSS/JS one hour; HTML zero.
-- **Security headers** — `X-Content-Type-Options: nosniff`,
-  `X-Frame-Options: SAMEORIGIN`, `X-XSS-Protection`,
+- **Security headers** — all `Header always set`, so Apache's own 4xx/5xx
+  pages carry them too: `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: SAMEORIGIN`, `X-XSS-Protection: 0` (the auditor it enabled
+  is gone, and current guidance is to disable it),
   `Referrer-Policy: strict-origin-when-cross-origin`,
-  `Content-Security-Policy: frame-ancestors 'self'`.
+  `Content-Security-Policy: frame-ancestors 'self'`, and
+  `Permissions-Policy: camera=(), geolocation=(), microphone=(self)` - the
+  microphone is kept for the chat's voice input.
 - **Cache-Control** — fingerprintable media `immutable` for a year; plain
   `.css`/`.js` revalidating hourly; **content-hashed** `-XXXXXXXX.css|js`
   `immutable` for a year (declared after the general rule so it wins);

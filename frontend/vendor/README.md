@@ -8,6 +8,10 @@ third-party origin in the page. Every external origin in the critical path is an
 independent point of failure — a corporate proxy, an ad blocker or a regional
 block is enough — and with them gone the CSP's `script-src` is `'self'` alone.
 
+`scripts/tests/build.test.js` fails if either copy drifts from its `node_modules`
+original, because CI's blocking `npm audit --omit=dev` audits `node_modules`:
+without the check it could pass on versions that do not ship.
+
 To update: bump the version in `package.json`, `npm install`, then re-copy:
 
     cp node_modules/dompurify/dist/purify.min.js frontend/vendor/purify.min.js

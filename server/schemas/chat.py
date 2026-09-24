@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing import List, Literal, Optional
 
 # Ceilings for one inference request. Every one of these is a cost control, not
@@ -43,13 +43,17 @@ class ChatMessage(BaseModel):
         return stripped
 
 class ChatStreamRequest(BaseModel):
+    # Unknown fields are dropped, not rejected. Pydantic's default, stated so
+    # that a later `extra="forbid"` is a decision rather than an accident: the
+    # SPA never sends anything else, and refusing a stray field buys nothing.
+    model_config = ConfigDict(extra="ignore")
+
     messages: List[ChatMessage] = Field(
         ..., min_length=1, max_length=MAX_MESSAGES, description="Conversation history list"
     )
     conversation_id: Optional[str] = Field(
         None, max_length=36, description="Optional UUID string of the conversation session"
     )
-    model_id: Optional[str] = Field(None, max_length=256, description="Target Bedrock model ID")
     stream: Optional[bool] = Field(default=True, description="Enable streaming mode")
 
     # `system_prompt` used to be accepted here and passed straight through to
@@ -60,6 +64,12 @@ class ChatStreamRequest(BaseModel):
     # short message carrying a megabyte of system prompt passed every check.
     # The server owns the persona now; bedrock_service.DEFAULT_SYSTEM_PROMPT is
     # the only one a caller can reach.
+    #
+    # `model_id` went for the same reason (ADR-023). Anonymous callers could
+    # name any allowlisted model, and the allowlist always carried a
+    # Sonnet-class id whatever the environment said, so one request could be
+    # upgraded to several times the default's price. A supplied `model_id` is
+    # now ignored, and every turn runs on DEFAULT_MODEL_ID.
 
     @model_validator(mode="after")
     def limit_total_content(self) -> "ChatStreamRequest":

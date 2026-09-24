@@ -5,6 +5,34 @@ import { closeModal, openModal } from './modal.js';
 import { confirmAction } from './confirm-dialog.js';
 import { showToast } from './utils.js';
 
+/* What a registration says, whether or not the address already had an
+   account. The server gives both the same answer on purpose, so the page
+   cannot tell them apart either - and must not claim an account was made. */
+export const REGISTER_SENT_MESSAGE =
+    'Check your inbox. A new address gets a confirmation link; one that '
+    + 'already has an account gets a sign-in reminder instead.';
+
+/* A mailed link's token, once. Links carry it in the URL fragment, which the
+   inline pre-boot script in index.html lifts into `window.__rjAuthLink` before
+   any module runs - so it never reaches the server's access log, the service
+   worker's cache, or analytics' page_path, which records the hash. The query
+   string is the fallback for links mailed before that change: a verification
+   link lives 24 hours. Returns `{ reset_token?, verify_token?, magic_token? }`. */
+export function takeAuthLinkTokens() {
+    const tokens = {};
+    const handed = window.__rjAuthLink;
+    delete window.__rjAuthLink;
+    if (handed && typeof handed.token === 'string' && handed.token) {
+        tokens[handed.kind] = handed.token;
+    }
+    const urlParams = new URLSearchParams(window.location.search);
+    for (const kind of ['reset_token', 'verify_token', 'magic_token']) {
+        const fromQuery = urlParams.get(kind);
+        if (!tokens[kind] && fromQuery) tokens[kind] = fromQuery;
+    }
+    return tokens;
+}
+
 /* --- Submit readiness ---------------------------------------------------
    Four forms used to set `submitBtn.disabled` from a live validity check. A
    disabled button is not focusable and announces nothing, so a keyboard or
@@ -919,28 +947,29 @@ export async function initAuthUI() {
 
                 await registerUser(email, password);
 
-                /* Created, but not signed in: the address has to be confirmed
-                   before `authenticate_user` will issue a token. This used to
-                   toast "You are signed in", close the dialog and announce
+                /* Not signed in: the address has to be confirmed before
+                   `authenticate_user` will issue a token. This used to toast
+                   "You are signed in", close the dialog and announce
                    `auth-changed` - none of which was true - and in practice
                    never ran at all, because registerUser's auto-login threw the
-                   403 straight into the catch below. The visitor was told
-                   registration had failed when it had not. */
+                   403 straight into the catch below.
+
+                   Nor can it say "Account created": the server answers the same
+                   for an address that already has an account, and mails that
+                   address a reminder instead of a link. The copy covers both. */
                 registerForm.reset();
                 if (typeof updatePasswordValidation === 'function') {
                     updatePasswordValidation();
                 }
                 if (registerSuccess) {
-                    registerSuccess.textContent =
-                        'Account created. Check your inbox for a confirmation link, '
-                        + 'then sign in.';
+                    registerSuccess.textContent = REGISTER_SENT_MESSAGE;
                     registerSuccess.style.display = 'block';
                     // The link can be slow, spam-filed, or simply missed, and a
-                    // second registration attempt only answers "Email already
-                    // registered". Offer the resend where the visitor is.
+                    // second registration attempt sends no second link. Offer
+                    // the resend where the visitor is.
                     offerVerificationResend(email, registerSuccess, 'register-resend-verification');
                 } else {
-                    showToast('Account created. Check your inbox to confirm your address.', 'success');
+                    showToast(REGISTER_SENT_MESSAGE, 'success');
                 }
 
             } catch (err) {
@@ -1362,9 +1391,9 @@ export async function initAuthUI() {
         });
     }
 
-    // Check URL query parameters for reset_token or magic_token
-    const urlParams = new URLSearchParams(window.location.search);
-    const resetTokenParam = urlParams.get('reset_token');
+    // A reset, verification or sign-in link this page was opened from.
+    const linkTokens = takeAuthLinkTokens();
+    const resetTokenParam = linkTokens.reset_token;
     if (resetTokenParam) {
         if (resetTokenInput) resetTokenInput.value = resetTokenParam;
         if (modal) openAuthModal('reset-password');
@@ -1372,7 +1401,7 @@ export async function initAuthUI() {
         window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
     }
 
-    const verifyTokenParam = urlParams.get('verify_token');
+    const verifyTokenParam = linkTokens.verify_token;
     if (verifyTokenParam) {
         (async () => {
             try {
@@ -1393,7 +1422,7 @@ export async function initAuthUI() {
         })();
     }
 
-    const magicTokenParam = urlParams.get('magic_token');
+    const magicTokenParam = linkTokens.magic_token;
     if (magicTokenParam) {
         (async () => {
             try {

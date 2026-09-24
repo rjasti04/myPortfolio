@@ -40,6 +40,6 @@ async def register_verified_account(
     response = await async_client.post(
         "/api/auth/register", json={"email": email, "password": password}
     )
-    assert response.status_code == 201, response.text
+    assert response.status_code == 202, response.text
     await verify_registered_email(async_client, email)
     return email, password

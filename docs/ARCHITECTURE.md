@@ -45,6 +45,7 @@ Two independently deployable tiers, plus three external dependencies.
        │    kafka-consumer          │
        │    batch-flusher           │
        │    pg-fanout               │
+       │    account-purger          │
        └──┬──────────┬──────────┬───┘
           │          │          │
           ▼          ▼          ▼
@@ -100,8 +101,9 @@ Started in the FastAPI `lifespan` context unless `TESTING=true`:
 | `kafka-consumer` | `kafka_stream.run_kafka_consumer` | Consume the activity topic; falls back to the mock generator when no broker is configured |
 | `batch-flusher` | `kafka_stream.periodic_flusher` | Drain the write buffer on a timer and prune expired SSE replay rings |
 | `pg-fanout` | `kafka_stream.run_pg_fanout` | Hold a `LISTEN` connection for cross-instance SSE relay (no-op unless `ENABLE_PG_FANOUT=true`) |
+| `account-purger` | `auth_service.run_account_purger` | Delete accounts soft-deleted more than 30 days ago, at start and every 24 hours |
 
-On shutdown all three are cancelled, the remaining buffer is flushed, in-flight
+On shutdown all four are cancelled, the remaining buffer is flushed, in-flight
 fire-and-forget tasks are awaited, and the SQLAlchemy engine is disposed.
 
 ---

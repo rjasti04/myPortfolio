@@ -16,10 +16,3 @@ router.add_api_route(
     methods=["GET"],
     summary="Per-stage health of the activity ingest pipeline",
 )
-
-router.add_api_route(
-    "/models",
-    system_controller.list_models,
-    methods=["GET"],
-    summary="List available Bedrock foundation models",
-)

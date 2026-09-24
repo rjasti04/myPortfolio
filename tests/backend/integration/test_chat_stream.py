@@ -8,6 +8,15 @@ import pytest
 from tests.backend.helpers import register_verified_account
 from unittest.mock import patch
 
+SONNET = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+GEMMA = "google.gemma-3-4b-it"
+
+
+def default_model(model_id):
+    """Every turn runs on DEFAULT_MODEL_ID - the request can no longer name a
+    model - so a test that needs a particular Bedrock path sets the default."""
+    return patch("server.routes.chat_routes.DEFAULT_MODEL_ID", model_id)
+
 @pytest.mark.asyncio
 async def test_chat_stream_endpoint_success(async_client):
     """Test /api/chat/stream SSE endpoint returns text chunks and metrics payload."""
@@ -47,15 +56,16 @@ async def test_chat_stream_endpoint_success(async_client):
 
     mock_bedrock_response = {"body": mock_events}
 
-    with patch("server.services.bedrock_service.bedrock_service.client.invoke_model_with_response_stream") as mock_invoke:
+    # The model is named explicitly. The service used to pick the raw-invoke
+    # path when it detected a MagicMock on the client, so this test passed only
+    # because it was mocked - the branch was chosen by the test double rather
+    # than by the model id. The model now decides.
+    with default_model(SONNET), patch(
+        "server.services.bedrock_service.bedrock_service.client.invoke_model_with_response_stream"
+    ) as mock_invoke:
         mock_invoke.return_value = mock_bedrock_response
 
         payload = {
-            # Named explicitly. The service used to pick the raw-invoke path
-            # when it detected a MagicMock on the client, so this test passed
-            # only because it was mocked - the branch was chosen by the test
-            # double rather than by the model id. The model now decides.
-            "model_id": "anthropic.claude-3-5-sonnet-20241022-v2:0",
             "messages": [
                 {"role": "user", "content": "Hello, tell me about Rajeev Jasti."}
             ]
@@ -85,11 +95,12 @@ async def test_chat_stream_gemma_model_converse_stream(async_client):
     ]
     mock_bedrock_response = {"stream": mock_events}
 
-    with patch("server.services.bedrock_service.bedrock_service.client.converse_stream") as mock_converse:
+    with default_model(GEMMA), patch(
+        "server.services.bedrock_service.bedrock_service.client.converse_stream"
+    ) as mock_converse:
         mock_converse.return_value = mock_bedrock_response
 
         payload = {
-            "model_id": "google.gemma-3-4b-it",
             "messages": [
                 {"role": "user", "content": "Hello Gemma!"}
             ]
@@ -145,19 +156,70 @@ async def test_chat_stream_consecutive_user_messages(async_client):
 
 
 @pytest.mark.asyncio
-async def test_chat_stream_invalid_model(async_client):
-    """Test /api/chat/stream rejects unsupported model IDs with HTTP 400."""
-    payload = {
-        "model_id": "unsupported.fake-model-id",
-        "messages": [{"role": "user", "content": "Hi"}]
-    }
-    with patch("server.routes.chat_routes.ALLOWED_MODEL_IDS", {"google.gemma-3-4b-it"}):
+async def test_a_supplied_model_id_is_ignored(async_client):
+    """ADR-023: the server owns the model. An anonymous caller could name any
+    allowlisted model - a Sonnet-class id was always on the list - and upgrade
+    every request to several times the default's price. The field is now
+    dropped, so the turn runs on DEFAULT_MODEL_ID whatever the body says."""
+    with default_model(GEMMA), patch(
+        "server.services.bedrock_service.bedrock_service.client.converse_stream"
+    ) as mock_converse, patch(
+        "server.services.bedrock_service.bedrock_service.client.invoke_model_with_response_stream"
+    ) as mock_invoke:
+        mock_converse.return_value = {"stream": list(_GEMMA_EVENTS)}
         response = await async_client.post(
             "/api/chat/stream",
-            json=payload
+            json={"model_id": SONNET, "messages": [{"role": "user", "content": "Hi"}]},
         )
-        assert response.status_code == 400
-        assert "Unsupported model" in response.text
+
+    assert response.status_code == 200
+    assert mock_converse.call_args.kwargs["modelId"] == GEMMA
+    mock_invoke.assert_not_called()
+    assert f'"model_id": "{GEMMA}"' in response.text
+
+
+@pytest.mark.asyncio
+async def test_a_supplied_model_id_is_ignored_by_summarize(async_client):
+    with default_model(GEMMA), patch(
+        "server.services.bedrock_service.bedrock_service.client.converse_stream"
+    ) as mock_converse, patch(
+        "server.services.bedrock_service.bedrock_service.client.invoke_model_with_response_stream"
+    ) as mock_invoke:
+        mock_converse.return_value = {"stream": list(_GEMMA_EVENTS)}
+        response = await async_client.post(
+            "/api/chat/summarize",
+            json={"model_id": SONNET, "messages": [{"role": "user", "content": "Hi"}]},
+        )
+
+    assert response.status_code == 200
+    mock_invoke.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_a_bedrock_error_does_not_reach_the_client(async_client):
+    """botocore's AccessDenied and Validation messages carry the account id and
+    role ARN. They used to be forwarded verbatim to any anonymous visitor who
+    could provoke one; the frame now carries fixed text and the request id."""
+    leak = (
+        "An error occurred (AccessDeniedException) when calling the ConverseStream "
+        "operation: User: arn:aws:sts::123456789012:assumed-role/rjwebapp-api/i-0abc "
+        "is not authorized to perform: bedrock:InvokeModelWithResponseStream"
+    )
+    with default_model(GEMMA), patch(
+        "server.services.bedrock_service.bedrock_service.client.converse_stream",
+        side_effect=RuntimeError(leak),
+    ):
+        response = await async_client.post(
+            "/api/chat/stream",
+            json={"messages": [{"role": "user", "content": "Hi"}]},
+        )
+
+    assert response.status_code == 200
+    assert "arn:" not in response.text
+    assert "123456789012" not in response.text
+    frame = json.loads(response.text.split("data: ", 1)[1].split("\n\n", 1)[0])
+    assert frame["error"] == "The assistant is unavailable right now."
+    assert frame["request_id"] == response.headers["x-request-id"]
 
 
 class _BlockingEventStream:
@@ -489,16 +551,13 @@ async def test_invoke_path_sends_session_id_as_a_json_header(async_client):
         {"chunk": {"bytes": json.dumps({"type": "content_block_delta", "delta": {"text": "Hi."}}).encode("utf-8")}},
     ]
 
-    with patch(
+    with default_model(SONNET), patch(
         "server.services.bedrock_service.bedrock_service.client.invoke_model_with_response_stream"
     ) as mock_invoke:
         mock_invoke.return_value = {"body": events}
         response = await async_client.post(
             "/api/chat/stream",
-            json={
-                "model_id": "anthropic.claude-3-5-sonnet-20241022-v2:0",
-                "messages": [{"role": "user", "content": "Hi"}],
-            },
+            json={"messages": [{"role": "user", "content": "Hi"}]},
             headers=headers,
         )
 

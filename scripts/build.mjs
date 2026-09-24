@@ -487,6 +487,18 @@ async function main() {
         '<link rel="preload" href="$1" as="style" />'
       );
       if (text === before) throw new Error("index.html: no asset references were rewritten");
+
+      // The loopback API origins are for serving frontend/ locally
+      // (docs/FRONTEND.md, "Local development"). dist/ is what production
+      // serves, and a page there has no business talking to a developer's
+      // machine. Only the meta tag changes: a CSP hash covers an inline
+      // script's body, so no pin moves. staging-api stays - getApiBaseUrl()
+      // still routes a staging host there.
+      const withoutLoopback = text.replace(/\s+http:\/\/localhost:8000\s+http:\/\/127\.0\.0\.1:8000/, "");
+      if (withoutLoopback === text) {
+        throw new Error("index.html: the loopback connect-src origins were not found to strip");
+      }
+      text = withoutLoopback;
     }
     if (rel.endsWith(".html")) text = stripHtmlComments(text);
     await writeFile(join(OUT, rel), text);

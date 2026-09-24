@@ -194,3 +194,34 @@ test("home comes back if the fragment names a nav link with no section", async (
   await page.domContentLoaded();
   assert.deepEqual(page.state(), { active: ["home"], boot: [], nav: ["home"], aria: ["home"] });
 });
+
+/* S14 (docs/review/codebase_review_20260924.md): mailed links carry their token
+   in the fragment so it never reaches the server. The same script lifts it out
+   before any module runs, because analytics records `pathname + hash` as the
+   page_path and the error reporter records it too. */
+async function bootWithHash(hash) {
+  const dom = new JSDOM(`<!doctype html><html><body><nav></nav></body></html>`, {
+    url: `https://rjasti.com/${hash}`,
+    runScripts: "outside-only",
+  });
+  await settle();
+  dom.window.eval(ROUTER_SOURCE);
+  return dom.window;
+}
+
+for (const kind of ["reset_token", "verify_token", "magic_token"]) {
+  test(`lifts a mailed ${kind} out of the fragment before any module can read it`, async () => {
+    const token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.c2lnbmF0dXJl-_x";
+    const win = await bootWithHash(`?s=keep#${kind}=${token}`);
+
+    assert.deepEqual({ ...win.__rjAuthLink }, { kind, token });
+    assert.equal(win.location.hash, "", "the token must be gone from the address bar");
+    assert.equal(win.location.search, "?s=keep", "the rest of the URL is left alone");
+  });
+}
+
+test("leaves an ordinary fragment to the router", async () => {
+  const win = await bootWithHash("#resume");
+  assert.equal(win.__rjAuthLink, undefined);
+  assert.equal(win.location.hash, "#resume");
+});

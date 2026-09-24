@@ -17,6 +17,7 @@ from server.middlewares.rate_limit import (
     CHAT_RATE_LIMITED_PATHS,
     RateLimitMiddleware,
     _normalise_path,
+    _rate_bucket,
 )
 from server.middlewares.request_id import RequestIDMiddleware
 from server.middlewares.server_timing import ServerTimingMiddleware
@@ -124,6 +125,55 @@ def test_auth_routes_are_strict_limited_under_both_mount_prefixes(path):
     so the brute-force guard came off by adding four characters to the URL."""
     assert _normalise_path(path) in AUTH_RATE_LIMITED_PATHS
     assert _normalise_path(f"/api{path}") in AUTH_RATE_LIMITED_PATHS
+
+
+@pytest.mark.parametrize(
+    "path", ["/auth/change-password", "/auth/delete-account", "/auth/account"]
+)
+def test_re_authentication_routes_are_strict_limited_under_both_mount_prefixes(path):
+    """Each checks the current password. On the general budget, a stolen
+    access token could guess at about a thousand a minute."""
+    assert _normalise_path(path) in AUTH_RATE_LIMITED_PATHS
+    assert _normalise_path(f"/api{path}") in AUTH_RATE_LIMITED_PATHS
+
+
+@pytest.mark.parametrize(
+    "address, bucket",
+    [
+        ("2001:db8::1", "2001:db8::/64"),
+        ("2001:db8::ffff:1", "2001:db8::/64"),
+        ("2001:db8:0:1::1", "2001:db8:0:1::/64"),
+        ("::ffff:192.0.2.1", "192.0.2.1"),
+        ("192.0.2.1", "192.0.2.1"),
+        ("unknown", "unknown"),
+    ],
+)
+def test_rate_buckets_key_ipv6_on_the_64(address, bucket):
+    """One ordinary IPv6 allocation is a /64. Keyed on the full address, it
+    handed an attacker 2^64 separate 5/min auth budgets."""
+    assert _rate_bucket(address) == bucket
+
+
+@pytest.mark.asyncio
+async def test_addresses_in_one_ipv6_64_share_the_auth_budget():
+    limiter = RateLimitMiddleware(app=_downstream, max_requests=1000)
+
+    for suffix in range(1, 6):
+        assert await _send(limiter, f"2001:db8::{suffix}", "/auth/login") == 200
+    assert await _send(limiter, "2001:db8::99", "/auth/login") == 429, (
+        "a fresh address in the same /64 must not get a fresh budget"
+    )
+    assert await _send(limiter, "2001:db8:0:1::1", "/auth/login") == 200
+
+
+@pytest.mark.asyncio
+async def test_server_timing_is_left_off_the_auth_routes(async_client):
+    """The header is exposed cross-origin. On login and registration a
+    millisecond-accurate handler time is what an enumeration attack measures."""
+    for path in ("/auth/login", "/api/auth/login"):
+        response = await async_client.post(path, json={"email": "a@example.com", "password": "x"})
+        assert "server-timing" not in response.headers, path
+    assert "server-timing" in (await async_client.get("/api/health")).headers
 
 
 def test_code_driven_login_surfaces_are_strict_limited():
@@ -297,8 +347,43 @@ def test_required_secret_rejects_an_unset_key(monkeypatch):
 
 
 def test_required_secret_accepts_a_generated_key(monkeypatch):
-    monkeypatch.setenv("PROBE_SECRET", "a" * settings.JWT_SECRET_MIN_LENGTH)
-    assert settings._required_secret("PROBE_SECRET") == "a" * settings.JWT_SECRET_MIN_LENGTH
+    import secrets
+
+    key = secrets.token_hex(32)
+    monkeypatch.setenv("PROBE_SECRET", key)
+    assert settings._required_secret("PROBE_SECRET") == key
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "replace-me-with-openssl-rand-hex-32",  # what .env.example used to ship
+        "CHANGE-ME-before-deploying-this-to-production",
+        "changeme" * 5,
+    ],
+)
+def test_required_secret_rejects_a_placeholder_shape(monkeypatch, value):
+    """`.env.example`'s placeholder was 35 characters and passed the length
+    check, so a `.env` copied as-is started with a key anyone could read."""
+    monkeypatch.setenv("PROBE_SECRET", value)
+    with pytest.raises(RuntimeError, match="placeholder"):
+        settings._required_secret("PROBE_SECRET")
+
+
+@pytest.mark.parametrize("value", ["a" * 64, "ab" * 32, "qwertyui" * 5])
+def test_required_secret_rejects_a_key_that_is_not_random(monkeypatch, value):
+    monkeypatch.setenv("PROBE_SECRET", value)
+    with pytest.raises(RuntimeError, match="distinct"):
+        settings._required_secret("PROBE_SECRET")
+
+
+def test_the_example_env_leaves_the_signing_key_empty():
+    """So a copied `.env` refuses to start rather than starting with a public key."""
+    from pathlib import Path
+
+    example = Path(__file__).resolve().parents[3] / ".env.example"
+    lines = [line for line in example.read_text().splitlines() if line.startswith("JWT_SECRET=")]
+    assert lines == ["JWT_SECRET="]
 
 
 def test_security_module_has_no_default_signing_key():
@@ -486,3 +571,44 @@ async def test_closing_a_stream_frees_the_slot():
     # Reusable, otherwise a visitor who reloads a few times locks themselves out.
     again = await kafka_stream.register_stream(session_id)
     kafka_stream.unregister_stream(session_id, again)
+
+
+@pytest.mark.asyncio
+async def test_the_model_inventory_route_is_gone(async_client):
+    """`GET /models` was anonymous, called by nothing in the frontend, and drove
+    Bedrock's `ListFoundationModels` at the general budget - spending the
+    account's control-plane quota and publishing its model inventory to anyone.
+    """
+    for path in ("/models", "/api/models"):
+        assert (await async_client.get(path)).status_code == 404, f"{path} still routes"
+    assert not hasattr(bedrock_config, "bedrock_mgmt")
+
+
+# --- repository hygiene ---------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "path, ignored",
+    [
+        (".env", True),
+        (".env.production", True),
+        (".env.staging.local", True),
+        ("id_rsa", True),
+        ("id_ed25519.pub", True),
+        ("deploy.pem", True),
+        ("server/tls.key", True),
+        (".env.example", False),
+    ],
+)
+def test_secrets_cannot_be_committed_by_accident(path, ignored):
+    """Only `.env` and `.env.local` were ignored, so `.env.production` or an SSH
+    key dropped in the tree would have been committed. The deploy's rsync
+    already excluded `.env*`, which says those variants exist."""
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    result = subprocess.run(
+        ["git", "check-ignore", "--quiet", "--no-index", path], cwd=root, check=False
+    )
+    assert (result.returncode == 0) is ignored, f"{path}: expected ignored={ignored}"

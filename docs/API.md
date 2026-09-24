@@ -165,17 +165,9 @@ modelled figures from broker-reported ones.
 
 ---
 
-### `GET /models`
-
-Bedrock foundation models available in `AWS_REGION`.
-
-**200**
-```json
-{ "models": [ { "modelId": "...", "modelName": "...", "provider": "...",
-                "inputModalities": ["TEXT"], "outputModalities": ["TEXT"] } ] }
-```
-
-**500** — `{"detail": "Unable to list models"}` if the Bedrock control-plane call fails.
+`GET /models` has been removed. It was anonymous, nothing called it, and it
+drove Bedrock's `ListFoundationModels` at the general budget, which spent the
+account's control-plane quota and published its model inventory. It now 404s.
 
 ---
 
@@ -206,19 +198,27 @@ access token.
 | POST | `/auth/sessions/revoke-others` | 🔒 | End every session except the named one |
 | DELETE | `/auth/sessions/{session_id}` | 🔒 | End one named session |
 
-### `POST /auth/register` → 201
+### `POST /auth/register` → 202 `RegisterResponse`
 
 ```json
 { "email": "you@example.com", "password": "at least 8 chars", "username": "optional, 3-50" }
 ```
-Returns a `UserResponse` (`id`, `email`, `username`, `created_at`, `is_active`,
-`is_totp_enabled`). Email is normalised to lowercase. **400** — `"Email already
-registered"`. An account soft-deleted more than 30 days ago is purged and the
-address freed.
+```json
+{ "message": "Check your inbox to finish setting up your account." }
+```
+
+The **same 202 and the same body whether or not the address already has an
+account**, at the cost of one bcrypt hash either way. A new address is mailed a
+verification link; one that already has an account (or was soft-deleted within
+30 days) is mailed a "you already have an account" note instead, with no token.
+It used to answer **400** `"Email already registered"` and return the created
+`UserResponse`, which told anyone which addresses have accounts. Email is
+normalised to lowercase. An account soft-deleted more than 30 days ago is purged
+and the address freed.
 
 Registering does **not** sign the caller in, and returns no tokens. The account
 is created with `email_verified_at` NULL, and `POST /auth/login` answers **403**
-until the mailed link is redeemed — so a client must not chase a 201 here with a
+until the mailed link is redeemed — so a client must not chase a 202 here with a
 login. `auth.js` did, and painted the resulting 403 as a registration failure.
 
 > Registration does **not** run the Have I Been Pwned check. That check applies
@@ -248,14 +248,22 @@ With 2FA:
 { "requires_2fa": true, "pre_auth_token": "…" }
 ```
 
-- **401** `"Incorrect email or password"` — wrong credentials *or* unknown
-  address. The unknown-address path deliberately spends one bcrypt verification
-  so response time is not an account-existence oracle.
-- **400** — account locked (5 failed attempts → 15-minute lock), or inactive.
+- **401** `"Incorrect email or password. After 5 failed attempts, password
+  sign-in pauses for 15 minutes; a sign-in link from your email still works."`
+  — for a wrong password, an unknown address, an account soft-deleted past its
+  window, **and a locked account** (5 wrong passwords → 15-minute lock). All of
+  them spend two bcrypt verifications, so neither the body nor the response
+  time says which. A locked account used to answer 400 "Account is temporarily
+  locked", which only real accounts can say.
+- **400** — inactive user, after a correct password.
+- Every attempt is counted on the password tally *before* the password is
+  checked, so parallel guesses cannot all be checked
+  ([`SECURITY.md`](SECURITY.md#account-lockout)).
 - A legacy password hash (bcrypt over the raw password) is transparently
   upgraded to the current scheme on a successful login.
-- Lockout counters are **not** cleared when 2FA is pending — only
-  `/auth/2fa/verify` clears them, so failed second factors accumulate.
+- A correct password clears the password tally even when 2FA is pending. The
+  **code** tally is separate, and only a correct code at `/auth/2fa/verify`
+  clears it, so failed second factors still accumulate.
 
 ### `POST /auth/refresh` → 200 `Token`
 
@@ -299,9 +307,11 @@ would starve the `/2fa/enable` call moments later.
 without the password an access token alone could bind an attacker's
 authenticator to an account that had none, locking the owner out rather than
 merely reading their data. **400** on a wrong password, on a wrong code, or when
-no setup was initiated; either wrong credential increments the lockout
-counter, 5 → 15-minute lock. On success every *other* session is revoked and the
-account owner is emailed. On the strict 5/min auth budget.
+no setup was initiated. A wrong password counts on the password tally and a
+wrong code on the code tally, each 5 → 15-minute lock, and a locked tally
+answers 400 with "locked" in the detail. The code that enables 2FA is spent: it
+cannot sign in within its 30-second step. On success every *other* session is
+revoked and the account owner is emailed. On the strict 5/min auth budget.
 
 ### `POST /auth/2fa/disable` → 200
 
@@ -318,8 +328,13 @@ since it refuses every caller equally.
 `{"pre_auth_token": "…", "code": "123456"}`. The pre-auth `jti` is burned on
 use — **before** the code is checked, so a failed attempt spends the token and
 the client must start the sign-in over rather than retry on the same challenge.
-Failed codes increment the lockout counter; 5 → 15-minute lock.
-**400** — `"This sign-in attempt has expired. Please log in again."` on replay.
+Failed codes count on the **code** tally only; 5 → 15-minute lock, answered
+with **400** `"Two-factor verification is temporarily locked…"`. A password
+lock does not apply here, so the emailed sign-in link still reaches a 2FA
+account while someone is guessing at its password. A code is single-use within
+its step: a replay is **400** `"Invalid 2FA code"` and counts as a wrong code.
+**400** — `"This sign-in attempt has expired. Please log in again."` on replay
+of the pre-auth token.
 
 ### `POST /auth/verify-email` → 200
 
@@ -367,7 +382,11 @@ to log in, which reads as the new password not having taken.
 
 `{"current_password": "…", "new_password": "…"}`. Same pipeline as above, with
 the current password verified first instead of a token. **400**
-`"Incorrect current password"` when it does not match.
+`"Incorrect current password"` when it does not match. The check counts on the
+password tally exactly as login does - five misses lock it and a locked tally
+answers **400** "Account is temporarily locked…" - and the route is on the
+strict 5/min auth budget. Neither was true before, so a stolen access token
+could guess at the password about a thousand times a minute.
 
 A wrong current password is a **400** on all four routes that re-check one
 (this, delete-account and 2FA enable/disable), never a 401. `authenticatedFetch`
@@ -380,8 +399,10 @@ treats it as a refused credential and signs the visitor out.
 
 `{"current_password": "…", "confirmation_phrase": "DELETE"}` (case-insensitive,
 trimmed). Soft delete: `deleted_at` set, `is_active` cleared, all tokens
-revoked. Signing in within 30 days automatically reactivates the account.
-**400** on a wrong current password or confirmation phrase.
+revoked. Signing in within 30 days automatically reactivates the account; after
+that the account and everything attached to it is purged by a daily job.
+**400** on a wrong current password or confirmation phrase. The password check
+is held to the password tally and the strict auth budget, as change-password is.
 
 ### `GET /auth/sessions` → 200 `[UserSessionResponse]`
 
@@ -625,7 +646,6 @@ persistence.
 ```json
 { "messages": [ { "role": "user", "content": "…" } ],
   "conversation_id": "optional-uuid-string",
-  "model_id": "optional-allowlisted-model",
   "stream": true }
 ```
 
@@ -643,6 +663,12 @@ unauthenticated and unbounded, which both replaced the portfolio persona and
 billed arbitrary input tokens. The server owns the persona
 (`bedrock_service.DEFAULT_SYSTEM_PROMPT`).
 
+`model_id` is **ignored** for the same reason (ADR-023). Any allowlisted model
+could once be named, and the allowlist always carried a Sonnet-class id, so an
+anonymous caller could upgrade every request. Every turn now runs on
+`DEFAULT_MODEL_ID`. The field is dropped rather than refused, so an old client
+that still sends it gets an answer, not a 422.
+
 Roles are normalised before dispatch (`ensure_alternating_roles`): empty
 messages dropped, consecutive same-role turns merged with a blank line, and a
 synthetic `[conversation context]` user turn prepended if the conversation
@@ -657,11 +683,19 @@ data: {"text": " there"}
 data: {"type":"metrics","metrics":{"model_id":"…","input_tokens":812,"output_tokens":140,
        "cache_read_tokens":768,"cache_creation_tokens":0,"cache_hit":true,"latency_ms":1834.2}}
 ```
-An in-band `data: {"error": "…"}` frame carries a Bedrock failure; the HTTP
-status is still 200 because the stream has already begun.
+An in-band error frame carries a Bedrock failure; the HTTP status is still 200
+because the stream has already begun. The text is fixed:
 
-**Errors** — **400** unsupported model (not in `ALLOWED_MODEL_IDS`), **401**
-anonymous free-message limit reached (`WWW-Authenticate: Bearer`), **422**
+```
+data: {"error": "The assistant is unavailable right now.", "request_id": "<uuid>"}
+```
+
+The raw exception is logged against `request_id`, which matches the response's
+`X-Request-ID`. It used to be forwarded verbatim, and botocore's messages carry
+the AWS account id and role ARN.
+
+**Errors** — **400** a blank conversation or a malformed `conversation_id`,
+**401** anonymous free-message limit reached (`WWW-Authenticate: Bearer`), **422**
 schema violation, **429** over the chat rate budget or all concurrency slots
 busy.
 
@@ -816,14 +850,14 @@ Validation errors carry the standard array form:
 
 | Status | Typical cause |
 | :--- | :--- |
-| 400 | Bad request state — already-registered email, locked account, spent token, wrong current password on a re-authenticated route, empty or oversized bulk list, unsupported model |
+| 400 | Bad request state — a locked tally on a re-authenticated or 2FA route, spent token, wrong current password on a re-authenticated route, empty or oversized bulk list |
 | 401 | Missing/invalid/expired bearer token, wrong credentials, anonymous free-message limit |
 | 403 | Missing or wrong analytics session token (identical body whether or not the session exists) |
 | 404 | Unknown session, user, or conversation |
 | 413 | Body above `MAX_BODY_BYTES` |
 | 422 | Pydantic validation failure, unknown `event_type` on the single-event route, a bulk insert refused by a constraint |
 | 429 | Rate budget exceeded, Bedrock slots saturated, or too many SSE streams for the session |
-| 500 | Unhandled server error (e.g. Bedrock control-plane failure on `/models`) |
+| 500 | Unhandled server error |
 | 503 | Database unreachable — `/health`, and `POST /events/bulk` so the client re-queues the batch |
 
 ---
@@ -845,5 +879,5 @@ endpoint in the left column exists on the backend.
 | `POST /contact` | `form.js` — tried first; FormSubmit is reached only when this is unreachable or answers 502 |
 | `GET /admin/analytics/*` | `owner-analytics.js` — lazily imported by `activity.js`; a 401/403 leaves the section as a visitor sees it |
 | `POST /events` (single) | — server/API consumers only |
-| `GET /models` · `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |
+| `GET /system/pipeline` | — the dashboard reads pipeline health from the SSE `pipeline` channel instead |
 | `GET/DELETE /chat/history*` | `chat.js` — `syncServerHistory()` lists on load and on `auth-changed`, `hydrateSession()` fetches one transcript when its rail row is opened, `deleteRemoteConversation()` removes one server copy and `deleteAllRemoteConversations()` empties the account behind **Delete all** |

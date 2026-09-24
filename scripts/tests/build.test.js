@@ -319,3 +319,67 @@ describe("build: size budget", () => {
     }
   });
 });
+
+/* The shipped copies of DOMPurify and marked are copied out of node_modules by
+   hand (frontend/vendor/README.md), and nothing checked they were still the
+   same bytes. CI's blocking `npm audit --omit=dev` audits node_modules, so
+   without this it would be auditing versions that do not ship. */
+describe("vendored libraries", () => {
+  for (const [shipped, source] of [
+    ["frontend/vendor/purify.min.js", "node_modules/dompurify/dist/purify.min.js"],
+    ["frontend/vendor/marked.min.js", "node_modules/marked/marked.min.js"],
+  ]) {
+    it(`${shipped} is byte-identical to ${source}`, () => {
+      assert.ok(
+        readFileSync(join(ROOT, shipped)).equals(readFileSync(join(ROOT, source))),
+        `${shipped} has drifted from ${source}: re-copy it (frontend/vendor/README.md)`
+      );
+    });
+  }
+});
+
+/* S15 and S16 (docs/review/codebase_review_20260924.md). The shipped page's CSP
+   named `http://localhost:8000` and `http://127.0.0.1:8000` - origins for
+   serving frontend/ on a developer's machine - and let images load from any
+   HTTPS origin. The build strips the first from dist/ only, and the source
+   narrows the second. */
+describe("build: shipped Content-Security-Policy", () => {
+  const cspOf = (file) =>
+    readFileSync(file, "utf8").match(/http-equiv="Content-Security-Policy"\s+content="([^"]*)"/)[1];
+  const directive = (csp, name) =>
+    csp.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name} `)) || "";
+
+  let shipped;
+  let source;
+  before(() => {
+    build();
+    shipped = cspOf(join(DIST, "index.html"));
+    source = cspOf(join(ROOT, "frontend", "index.html"));
+  });
+
+  it("drops the loopback API origins from the page that ships", () => {
+    const connect = directive(shipped, "connect-src");
+    assert.doesNotMatch(connect, /localhost|127\.0\.0\.1/);
+    assert.match(connect, /'self'/);
+    assert.match(connect, /https:\/\/formsubmit\.co/, "the contact form's fallback still needs it");
+  });
+
+  it("keeps them in the source, which is what local development serves", () => {
+    assert.match(directive(source, "connect-src"), /http:\/\/localhost:8000 http:\/\/127\.0\.0\.1:8000/);
+  });
+
+  it("allows images from this origin and data: URIs only", () => {
+    assert.equal(directive(shipped, "img-src"), "img-src 'self' data:");
+  });
+
+  it("still pins every inline script the shipped page carries", async () => {
+    const { createHash } = await import("node:crypto");
+    const html = readFileSync(join(DIST, "index.html"), "utf8");
+    const bodies = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    assert.ok(bodies.length > 0);
+    for (const body of bodies) {
+      const pin = `'sha256-${createHash("sha256").update(body).digest("base64")}'`;
+      assert.ok(directive(shipped, "script-src").includes(pin), `unpinned inline script: ${body.slice(0, 40)}`);
+    }
+  });
+});

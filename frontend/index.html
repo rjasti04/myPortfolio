@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-6XuTA/BFxDvJqIm0o2k13VOhDx9nZ5JDPwYSgDaaFdQ=' 'sha256-+NERGaHQXVj8CZ/cMYiOXbVGpgNh+r3jmdEQdFYv2QI='; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://rjasti.com https://staging-api.rjasti.com http://localhost:8000 http://127.0.0.1:8000 https://formsubmit.co;" />
+    content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action https://formsubmit.co; script-src 'self' 'sha256-sI5s9yaTHalORCqpF/t6hv9DuC1mU/DRnTqMXP3RXsI=' 'sha256-6XuTA/BFxDvJqIm0o2k13VOhDx9nZ5JDPwYSgDaaFdQ=' 'sha256-wRyuMR28oLoEfEgbzTK+XzcmdHY0f0biqTJB9VT6yuA='; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://rjasti.com https://staging-api.rjasti.com http://localhost:8000 http://127.0.0.1:8000 https://formsubmit.co;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="Rajeev Jasti" />
@@ -302,12 +302,29 @@
        be a direct child of <main>, so a matching id elsewhere in the page
        cannot be mistaken for one.
 
+       It also takes a mailed link's token out of the fragment before anything
+       else can read it (S14 in docs/review/codebase_review_20260924.md).
+
        Inline, so it costs no request and cannot land late - which means its
        sha256 is pinned in the CSP above. Editing even the indentation here
        invalidates that hash and the browser drops the script silently;
        `python scripts/check_csp_hashes.py` prints the value to paste back. -->
   <script>
     (function () {
+      // A mailed reset, verification or sign-in link carries its token in the
+      // fragment, which never reaches the server, its access log or the
+      // service worker. It is lifted out here, before any module runs - they
+      // are all deferred - so analytics' page_path and the error reporter,
+      // which both record the hash, never see it. auth-ui.js reads it from
+      // window.__rjAuthLink. JWTs are base64url and dots, so nothing needs
+      // decoding.
+      var link = /^#(reset_token|verify_token|magic_token)=([A-Za-z0-9._-]+)/.exec(window.location.hash || "");
+      if (link) {
+        window.__rjAuthLink = { kind: link[1], token: link[2] };
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+        return;
+      }
+
       // A fragment may carry state after the section: "#apps/dev-tools" is the
       // apps section with a filter applied. No section id contains a slash, so
       // the first segment is always the route and the rest belongs to whatever

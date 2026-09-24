@@ -1,3 +1,4 @@
+import ipaddress
 import os
 import time
 import random
@@ -39,6 +40,12 @@ AUTH_RATE_LIMITED_PATHS = frozenset({
     # later.
     "/auth/2fa/enable",
     "/auth/2fa/disable",
+    # Re-authentication. Each checks the current password, so a stolen access
+    # token on the general budget could guess at about a thousand a minute.
+    # `/auth/account` carries only DELETE, so matching the path alone is exact.
+    "/auth/change-password",
+    "/auth/delete-account",
+    "/auth/account",
 })
 
 # Bedrock inference. These sat on the general 60/min budget, which is far too
@@ -60,6 +67,26 @@ CONTACT_RATE_LIMITED_PATHS = frozenset({
     "/contact/",
 })
 CONTACT_WINDOW_SECONDS = 3600
+
+
+def _rate_bucket(client_ip: str) -> str:
+    """The key a client's budgets are counted under.
+
+    An IPv6 address is keyed on its /64. Keying on the full address gave anyone
+    holding one ordinary IPv6 allocation 2^64 separate budgets - a fresh 5/min
+    auth allowance per address, which removed the online brute-force bound for
+    anyone who bothered to rotate. An IPv4-mapped address counts as the IPv4 it
+    carries, and anything unparseable (`"unknown"`) is used as it is.
+    """
+    try:
+        address = ipaddress.ip_address(client_ip)
+    except ValueError:
+        return client_ip
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.ipv4_mapped is not None:
+            return str(address.ipv4_mapped)
+        return str(ipaddress.IPv6Network(f"{address}/64", strict=False))
+    return client_ip
 
 
 def _normalise_path(path: str) -> str:
@@ -121,7 +148,7 @@ class RateLimitMiddleware:
         is_auth_route = normalised_path in AUTH_RATE_LIMITED_PATHS
         is_chat_route = normalised_path in CHAT_RATE_LIMITED_PATHS
         is_contact_route = normalised_path in CONTACT_RATE_LIMITED_PATHS
-        client_ip = client_ip_from_request(request, TRUSTED_PROXY_NETWORKS)
+        client_ip = _rate_bucket(client_ip_from_request(request, TRUSTED_PROXY_NETWORKS))
 
         now = time.time()
 

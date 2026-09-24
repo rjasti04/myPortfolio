@@ -195,7 +195,9 @@ Auto-detect the API base from `window.location.hostname`.
 
 ### Consequences
 Adding an API origin means touching two places: `getApiBaseUrl()` and the
-`connect-src` directive of the CSP in `index.html`.
+`connect-src` directive of the CSP in `index.html`. The loopback origins are the
+exception on the way out: they stay in the source CSP, which local development
+serves, and `build.mjs` strips them from the page that ships.
 
 ---
 

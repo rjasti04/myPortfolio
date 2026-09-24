@@ -7,6 +7,25 @@ export function getAuthToken() {
   return localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
+/* The account id (`sub`) in the stored access token, or null. Read without
+   verifying the signature, which only the server can do: it labels which
+   conversations in this browser belong to which account, so they can be
+   dropped at sign-out. It authorises nothing - the server still checks every
+   read against the bearer. */
+export function getTokenSubject() {
+  try {
+    const token = getAuthToken();
+    const payload = token ? token.split('.')[1] : '';
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const sub = JSON.parse(atob(padded))?.sub;
+    return typeof sub === 'string' && sub ? sub : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export function setTokens(access, refresh) {
   if (access) localStorage.setItem(AUTH_TOKEN_KEY, access);
   if (refresh) localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
@@ -228,8 +247,10 @@ export async function registerUser(email, password) {
        5-per-minute auth budget with /auth/register, on a call guaranteed to
        fail.
 
-       The created user is returned instead; the caller tells the visitor to
-       go and confirm. */
+       The server's message is returned instead, and the caller tells the
+       visitor to check their inbox. It is the same answer whether or not the
+       address already had an account - "Email already registered" told anyone
+       which addresses do - so the caller must not promise a new one. */
     return await response.json();
   } catch (err) {
     console.error('Registration error:', err);
