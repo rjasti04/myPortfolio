@@ -260,7 +260,10 @@ async def test_change_password_rejects_a_wrong_current_password(async_client):
         headers=headers,
         json={"current_password": "wrong-password", "new_password": "An0therPassw0rd!"},
     )
-    assert response.status_code == 401
+    # 400, not 401: a 401 is what authenticatedFetch() answers by rotating the
+    # refresh token and re-sending the same wrong password.
+    assert response.status_code == 400
+    assert "www-authenticate" not in response.headers
 
 
 @pytest.mark.asyncio
@@ -427,6 +430,23 @@ async def test_delete_account_requires_the_confirmation_phrase(async_client):
     assert response.status_code == 200, response.text
 
 
+@pytest.mark.asyncio
+async def test_delete_account_rejects_a_wrong_current_password(async_client):
+    email, password = await _register(async_client)
+    headers = await _auth_header(async_client, email, password)
+
+    wrong = await async_client.post(
+        "/api/auth/delete-account",
+        headers=headers,
+        json={"current_password": "NotThePassword1!", "confirmation_phrase": "DELETE"},
+    )
+    assert wrong.status_code == 400, wrong.text
+    assert "www-authenticate" not in wrong.headers
+
+    # Still there.
+    await _login(async_client, email, password)
+
+
 # --- refresh rotation -------------------------------------------------------
 
 
@@ -514,6 +534,126 @@ async def test_logout_revokes_the_refresh_token(async_client):
 @pytest.mark.asyncio
 async def test_logout_requires_authentication(async_client):
     assert (await async_client.post("/api/auth/logout")).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_logout_by_refresh_token_needs_no_bearer_and_ends_only_that_device(async_client):
+    """The client sends the refresh token it holds and no bearer. Logging out
+    used to revoke every refresh token the user had, so signing out of a phone
+    signed out the laptop too."""
+    email, password = await _register(async_client)
+    other = await _login(async_client, email, password)
+    this = await _login(async_client, email, password)
+
+    response = await async_client.post(
+        "/api/auth/logout", json={"refresh_token": this["refresh_token"]}
+    )
+    assert response.status_code == 200, response.text
+
+    ended = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": this["refresh_token"]}
+    )
+    assert ended.status_code == 401, "the logged-out device must not refresh"
+
+    survived = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": other["refresh_token"]}
+    )
+    assert survived.status_code == 200, "another device must stay signed in"
+
+
+@pytest.mark.asyncio
+async def test_logout_still_ends_the_session_once_the_access_token_has_expired(async_client):
+    """The usual state after a long read. `get_current_user` used to refuse the
+    expired bearer, nothing was revoked, and the 30-day refresh token outlived
+    a UI that said "Signed out."."""
+    from server.auth.security import create_access_token, verify_token
+
+    email, password = await _register(async_client)
+    tokens = await _login(async_client, email, password)
+    claims = verify_token(tokens["refresh_token"], "refresh")
+    expired = create_access_token(
+        subject=claims["sub"], expires_delta=timedelta(minutes=-1), session_jti=claims["jti"]
+    )
+
+    response = await async_client.post(
+        "/api/auth/logout",
+        headers={"Authorization": f"Bearer {expired}"},
+        json={"refresh_token": tokens["refresh_token"]},
+    )
+    assert response.status_code == 200, response.text
+
+    replay = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert replay.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_an_expired_refresh_token_can_still_be_logged_out(async_client):
+    """Expiry is not enforced on the way out: revoking a dead token is harmless,
+    and refusing it would make signing out an error. The signature still is."""
+    import jwt
+
+    from server.auth.security import ALGORITHM, JWT_SECRET, verify_token
+
+    email, password = await _register(async_client)
+    tokens = await _login(async_client, email, password)
+    claims = verify_token(tokens["refresh_token"], "refresh")
+    expired_copy = jwt.encode(
+        {
+            "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
+            "sub": claims["sub"],
+            "type": "refresh",
+            "jti": claims["jti"],
+        },
+        JWT_SECRET,
+        algorithm=ALGORITHM,
+    )
+
+    response = await async_client.post("/api/auth/logout", json={"refresh_token": expired_copy})
+    assert response.status_code == 200, response.text
+
+    replay = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert replay.status_code == 401, "the session the expired copy named must be ended"
+
+
+@pytest.mark.asyncio
+async def test_bearer_only_logout_ends_only_the_calling_session(async_client):
+    """A tab still on the pre-body auth.js sends only its bearer. The `sid`
+    claim names its session, so it no longer takes every other device down."""
+    email, password = await _register(async_client)
+    other = await _login(async_client, email, password)
+    this = await _login(async_client, email, password)
+
+    response = await async_client.post(
+        "/api/auth/logout", headers={"Authorization": f"Bearer {this['access_token']}"}
+    )
+    assert response.status_code == 200, response.text
+
+    assert (await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": this["refresh_token"]}
+    )).status_code == 401
+    assert (await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": other["refresh_token"]}
+    )).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_logout_refuses_a_refresh_token_it_cannot_verify(async_client):
+    email, password = await _register(async_client)
+    tokens = await _login(async_client, email, password)
+    head, payload, _signature = tokens["refresh_token"].split(".")
+
+    for bogus in ("not-a-jwt", f"{head}.{payload}.forged", tokens["access_token"]):
+        response = await async_client.post("/api/auth/logout", json={"refresh_token": bogus})
+        assert response.status_code == 401, f"{bogus[:20]}... was accepted"
+
+    survived = await async_client.post(
+        "/api/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert survived.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -773,7 +913,7 @@ async def test_disable_2fa_needs_both_the_password_and_a_live_code(async_client)
         headers=headers,
         json={"current_password": "NotThePassword1!", "code": _totp_now(secret)},
     )
-    assert wrong_pw.status_code == 401
+    assert wrong_pw.status_code == 400
 
     wrong_code = await async_client.post(
         "/api/auth/2fa/disable",
@@ -859,7 +999,7 @@ async def test_enabling_2fa_requires_the_current_password(async_client):
         headers=headers,
         json={"current_password": "NotThePassword1!", "code": _totp_now(secret)},
     )
-    assert wrong.status_code == 401
+    assert wrong.status_code == 400
 
     ok = await async_client.post(
         "/api/auth/2fa/enable",

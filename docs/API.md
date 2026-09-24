@@ -190,7 +190,7 @@ access token.
 | POST | `/auth/login` | — | Password sign-in; may return a 2FA challenge |
 | POST | `/auth/refresh` | refresh token in body | Rotate the token pair |
 | GET | `/auth/me` | 🔒 | Current user |
-| POST | `/auth/logout` | 🔒 | Revoke all refresh tokens and end sessions |
+| POST | `/auth/logout` | refresh token in body (🔒 fallback) | End this device's session |
 | POST | `/auth/2fa/setup` | 🔒 | Generate a TOTP secret + QR code |
 | POST | `/auth/2fa/enable` | 🔒 | Confirm a code and enable TOTP (password **and** code required) |
 | POST | `/auth/2fa/disable` | 🔒 | Disable TOTP (password **and** code required) |
@@ -262,7 +262,26 @@ With 2FA:
 `{"refresh_token": "…"}`. Rotates: the presented `jti` is revoked and a new pair
 issued. **401** if revoked, expired, unknown, or the user is inactive. Because
 rotation is destructive, clients must serialise concurrent refreshes —
-`js/auth.js` does this with a single-flight guard.
+`js/auth.js` does this with a single-flight guard inside a tab and a Web Lock
+(`rj-auth-refresh`) across tabs, which share the stored pair. A tab that finds
+the pair already rotated when it gets the lock retries with the new access
+token rather than spending the refresh token again.
+
+### `POST /auth/logout` → 200
+
+`{"refresh_token": "…"}`, optional. Ends **this device's** session: the one
+`refresh_tokens` row the token names, scoped to its own `sub`. The refresh token
+is the credential here, as on `/auth/refresh`, so an expired access token does
+not stop a sign-out — requiring one did, and left the 30-day refresh token live
+behind a UI that said "Signed out." Its signature and `type` are checked; its
+expiry is not, since revoking a dead token is harmless.
+
+With no body, a valid bearer is used instead: its `sid` claim names the session,
+and a token minted before that claim ends every session, as this route always
+used to. **401** when neither names a session (no body and no valid bearer, or a
+body whose token fails verification). The 200 body is the same whether or not a
+row matched. Other devices, and pending reset and magic links, are left alone;
+"sign out everywhere" is `/auth/sessions/revoke-others` followed by this.
 
 ### `POST /auth/2fa/setup` → 200 `Setup2FAResponse`
 
@@ -279,8 +298,8 @@ would starve the `/2fa/enable` call moments later.
 `/2fa/setup` and turns the second factor on. **Both** credentials are required:
 without the password an access token alone could bind an attacker's
 authenticator to an account that had none, locking the owner out rather than
-merely reading their data. **401** on a wrong password, **400** on a wrong code
-or when no setup was initiated; either wrong credential increments the lockout
+merely reading their data. **400** on a wrong password, on a wrong code, or when
+no setup was initiated; either wrong credential increments the lockout
 counter, 5 → 15-minute lock. On success every *other* session is revoked and the
 account owner is emailed. On the strict 5/min auth budget.
 
@@ -347,13 +366,22 @@ to log in, which reads as the new password not having taken.
 ### `POST /auth/change-password` → 200
 
 `{"current_password": "…", "new_password": "…"}`. Same pipeline as above, with
-the current password verified first instead of a token.
+the current password verified first instead of a token. **400**
+`"Incorrect current password"` when it does not match.
+
+A wrong current password is a **400** on all four routes that re-check one
+(this, delete-account and 2FA enable/disable), never a 401. `authenticatedFetch`
+reads every 401 as an expired bearer, rotates the refresh token and re-sends the
+same body, so a 401 here spent a rotation per typo and, on the 2FA routes,
+counted each typo twice toward the lockout. 403 would be worse: the client
+treats it as a refused credential and signs the visitor out.
 
 ### `DELETE /auth/account` · `POST /auth/delete-account` → 200
 
 `{"current_password": "…", "confirmation_phrase": "DELETE"}` (case-insensitive,
 trimmed). Soft delete: `deleted_at` set, `is_active` cleared, all tokens
 revoked. Signing in within 30 days automatically reactivates the account.
+**400** on a wrong current password or confirmation phrase.
 
 ### `GET /auth/sessions` → 200 `[UserSessionResponse]`
 
@@ -779,7 +807,7 @@ Validation errors carry the standard array form:
 
 | Status | Typical cause |
 | :--- | :--- |
-| 400 | Bad request state — already-registered email, locked account, spent token, empty or oversized bulk list, unsupported model |
+| 400 | Bad request state — already-registered email, locked account, spent token, wrong current password on a re-authenticated route, empty or oversized bulk list, unsupported model |
 | 401 | Missing/invalid/expired bearer token, wrong credentials, anonymous free-message limit |
 | 403 | Missing or wrong analytics session token (identical body whether or not the session exists) |
 | 404 | Unknown session, user, or conversation |

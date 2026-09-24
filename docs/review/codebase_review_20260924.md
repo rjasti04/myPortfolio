@@ -120,6 +120,8 @@ as P0–P3. Line numbers refer to the tree at commit `f33d629`.
 | **Location** | `frontend/js/auth.js:346-405` (`refreshAccessTokenOnce`), `:430-433` (clear on rejection) |
 | **The "Why"** | `refreshInFlight` is a module variable, so it de-duplicates refreshes only within one tab. Two tabs whose access tokens expired together (a laptop waking up, say) both read the same refresh token from shared `localStorage` and both POST it. The server's atomic claim (`auth_service.py:388-398`) lets exactly one win. The loser gets 401, sets `rejected`, and calls `clearTokens()`, which deletes the pair the winner has just stored, so **both** tabs are signed out. The comment at `:339-345` describes this exact failure as fixed. It is fixed only for one tab. No `storage` listener, `navigator.locks` or `BroadcastChannel` exists anywhere in `frontend/js`. |
 | **The Fix** | Before clearing, re-read the stored refresh token. If it is no longer the one this tab sent, another tab rotated it: adopt the new pair and retry. Better still, run the refresh under a Web Lock and re-read storage once the lock is held. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `refreshAccessTokenOnce` runs under a Web Lock (`navigator.locks`, `rj-auth-refresh`), and each request remembers the refresh token that was stored when it was sent. A tab that finds the pair already rotated once it holds the lock retries with the new access token instead of spending the token again. Where there is no lock manager, a 401 from `/auth/refresh` re-reads storage before it counts as a rejection. **Differs from the suggested fix:** the re-read alone leaves the race open when the loser's 401 arrives before the winner has written its new pair, so the lock is the fix and the re-read is the fallback. `auth-refresh.test.js` runs two module instances over one storage. |
 
 ```js
 // inside refreshAccessTokenOnce, after a 401/403 from /auth/refresh
@@ -137,6 +139,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | Server: `server/services/auth_service.py:501-503` (change-password), `:816-818` (delete), `:898` (2FA enable), `:945` (2FA disable). Client: `frontend/js/auth.js:76,89,283,303` call these through `authenticatedFetch`, whose `:416` treats any 401 as an expired access token |
 | **The "Why"** | An "Incorrect current password" answer is indistinguishable from "your bearer token expired". The client rotates the refresh token and re-POSTs the same wrong password. On 2FA enable/disable each attempt calls `register_failed_attempt`, so **one typo counts twice** and the account locks (15 min) on the third typo instead of the fifth. Every typo on the other two routes also burns a refresh-token rotation. |
 | **The Fix** | Fix it on the server. A wrong *re-authentication* password is a validation failure of the request body, not of the bearer credential, so answer **400**. Not 403: `isCredentialRejection` (`auth.js:358-360`) treats 403 as "sign out". Update the four `HTTPException`s and their tests, and keep 401 for the bearer token only. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | All four routes answer **400** `"Incorrect current password"`, with no `WWW-Authenticate` header. The client needed no change: its four wrappers were already status-agnostic, and 400 is not in `isCredentialRejection`. `docs/API.md` documents the rule once, under change-password. |
 
 ### C3 — Logout either signs out every device or revokes nothing
 
@@ -147,6 +151,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/auth.js:321-334`; `server/services/auth_service.py:479-489`; `server/auth/security.py:92-93` |
 | **The "Why"** | The client logs out with a plain `fetch` carrying the current access token and ignores the status. After 30 minutes of reading, the token has expired: `get_current_user` answers 401, `logout_user` never runs, and the **30-day refresh token stays valid server-side** while the UI says "Signed out." (With no token at all the header is `Bearer null`.) When the call does succeed, it revokes **every** refresh token the user holds. The docstring says this is because "the access token carries no refresh `jti`". That stopped being true when the `sid` claim shipped, and `revoke_all_other_sessions` already uses it. Signing out of a phone signs out the laptop. |
 | **The Fix** | `POST /auth/logout` takes the refresh token in the body (the client has it) and revokes that one row, authenticating by the refresh token itself so an expired access token doesn't matter. Keep "sign out everywhere" as the existing `/auth/sessions/revoke-others` plus the caller's own logout. Correct the docstring. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `POST /auth/logout` takes an optional `{"refresh_token"}` and revokes that one row, scoped to the token's own `sub`. The signature and `type` are verified and expiry is deliberately not. With no body, a valid bearer's `sid` names the session, and a pre-`sid` token still ends all of them. `logoutUser()` sends the body and no bearer. The docstring is corrected, and `docs/SECURITY.md` records the deliberate exception to the `get_current_user` rule. |
 
 ### C4 — Nav header clears tokens after a transient refresh failure
 
@@ -157,6 +163,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/auth-ui.js:1444` (`authenticatedFetch('/auth/me')`), `:1541-1545` |
 | **The "Why"** | If the access token has expired and `/auth/refresh` answers 429, 5xx or fails offline, `authenticatedFetch` deliberately keeps the tokens (`auth.js:390-395,427-433`). It then hands back the **original 401**. `setupNavUI` reads that 401 as `isCredentialRejection` and calls `clearTokens()`, undoing the design in `auth.js:348-360`. The refresh route shares the general per-IP budget, which the comment at `:1546-1552` itself says the Activity page can exhaust. |
 | **The Fix** | Have `authenticatedFetch` report whether the credential was actually rejected (return `{ response, rejected }`, or tag the response). `setupNavUI` clears only on `rejected === true`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `authenticatedFetch` keeps its return shape and records a 401 whose refresh failed transiently. `setupNavUI` clears tokens only on the new `isRejectedResponse(res)`. Covered through the real header in `auth-nav-session.test.js`. |
 
 ### C5 — Opened server conversations stick on "Loading…" after reload
 
@@ -257,6 +265,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/owner-analytics.js:154-160`; `frontend/js/auth-ui.js:1490` |
 | **The "Why"** | The owner dashboard's 7d/30d buttons `paint(await load())` with no sequencing, so a slower earlier response paints last under the wrong pressed button. `setupNavUI` runs on every `auth-changed` event and adds another `document` click listener each time, holding a detached dropdown. |
 | **The Fix** | A request counter (ignore stale results), or `AbortController` per load. Register the outside-click listener once, or with an `AbortSignal` that is aborted on the next `setupNavUI`. |
+| **Status** | ◐ **(b) resolved; (a) open** |
+| **What changed** | (b): the header's outside-click listener is registered with an `AbortSignal`, and each render aborts the previous one. (a), the owner dashboard's out-of-order paints, is scheduled with the other client-lifecycle fixes. |
 
 ### C15 — Service worker: stale tabs and the update prompt
 

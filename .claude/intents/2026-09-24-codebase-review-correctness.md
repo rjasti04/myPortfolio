@@ -93,9 +93,11 @@ change. No source file is edited until the spec is approved.
     - U1: the account menu cannot be reached by keyboard
     - U3: the Stop button's accessible name
   - No cross-tab sync layer (`BroadcastChannel`, `storage` listener) for C1.
-    Re-reading storage before clearing is enough. The server does no
-    refresh-family revocation on reuse (checked at `auth_service.py:394-398`),
-    so the losing tab can safely adopt the winner's token pair.
+    The server does no refresh-family revocation on reuse (checked at
+    `auth_service.py:394-398`), so the losing tab can safely adopt the winner's
+    token pair. *Revised in Phase A:* re-reading storage turned out not to be
+    enough on its own (see the spec's C1 row), so the refresh also takes a Web
+    Lock. That is a mutex around one request, not a sync layer.
   - No change to token lifetimes, the rotation scheme, lockout thresholds or
     rate budgets.
   - No dead-letter queue for C9. Rows that fail are counted, as they are now.

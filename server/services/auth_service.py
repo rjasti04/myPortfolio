@@ -32,6 +32,7 @@ from server.auth.security import (
     create_pre_auth_token,
     create_email_verification_token,
     create_magic_link_token,
+    decode_refresh_token_for_revocation,
     verify_token,
     REFRESH_TOKEN_EXPIRE_DAYS
 )
@@ -463,9 +464,10 @@ async def revoke_user_tokens(db: AsyncSession, user_id: uuid.UUID) -> None:
         .where(RefreshToken.is_revoked == False)
         .values(is_revoked=True)
     )
-    # Pending reset and magic links are credentials too, so a password change or
-    # a logout must void them. They used to live in refresh_tokens and got swept
-    # up by accident; now it is deliberate and scoped.
+    # Pending reset and magic links are credentials too, so a password change,
+    # a reset or an account deletion must void them. They used to live in
+    # refresh_tokens and got swept up by accident; now it is deliberate and
+    # scoped. An ordinary logout ends one device's session and leaves them be.
     await db.execute(
         update(OneTimeToken)
         .where(OneTimeToken.user_id == user_id)
@@ -476,17 +478,72 @@ async def revoke_user_tokens(db: AsyncSession, user_id: uuid.UUID) -> None:
     logger.info("all_refresh_tokens_revoked", user_id=str(user_id))
 
 
-async def logout_user(db: AsyncSession, user: User) -> dict:
-    """Revokes every refresh token held by the user.
+async def logout_user(
+    db: AsyncSession,
+    refresh_token: Optional[str],
+    user: Optional[User],
+    session_jti: Optional[str],
+) -> dict:
+    """Ends the caller's own session: this device, not every device.
 
-    The access token carries no refresh `jti`, and the frontend sends only its
-    bearer header, so the caller's individual token cannot be singled out -
-    revoking the set is the only option that actually ends the session, and is
-    the safer default regardless.
+    This used to revoke every refresh token the user held, on the grounds that
+    the access token carried no refresh `jti`. It has carried one as `sid`
+    since that claim shipped. It also authenticated with `get_current_user`, so
+    once the 30-minute access token had expired - the usual state after a long
+    read - the call was refused, nothing was revoked, and the 30-day refresh
+    token stayed live while the UI said "Signed out."
+
+    The session is resolved from the first of these that names one:
+
+    1. The refresh token in the body. It is the credential being ended, and
+       possession of it is the same proof `POST /auth/refresh` accepts, so an
+       expired access token no longer matters.
+    2. The `sid` claim of a valid bearer - a client still on the pre-body
+       auth.js.
+    3. A valid bearer minted before `sid` existed cannot name its session, so
+       it ends all of them, which is what this route always did.
+
+    The answer does not say whether a row matched, so it is not an oracle for
+    which tokens are live. "Sign out everywhere" is
+    `/auth/sessions/revoke-others` followed by this.
     """
-    await revoke_user_tokens(db, user.id)
-    logger.info("user_logged_out", user_id=str(user.id))
-    return {"message": "Logged out successfully."}
+    target: Optional[tuple[uuid.UUID, str]] = None
+    payload = decode_refresh_token_for_revocation(refresh_token) if refresh_token else None
+    if payload:
+        try:
+            target = (uuid.UUID(payload["sub"]), payload["jti"])
+        except ValueError:
+            target = None
+    if target is None and user is not None and session_jti:
+        target = (user.id, session_jti)
+
+    if target is not None:
+        user_id, jti = target
+        # user_id as well as jti: a token can only ever end its own subject's
+        # session, whatever jti it carries.
+        result = await db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.token_jti == jti)
+            .where(RefreshToken.user_id == user_id)
+            .where(RefreshToken.is_revoked == False)  # noqa: E712 - SQL, not Python truthiness
+            .values(is_revoked=True)
+        )
+        await db.commit()
+        logger.info(
+            "user_logged_out", user_id=str(user_id), jti=jti, revoked=result.rowcount or 0
+        )
+        return {"message": "Logged out successfully."}
+
+    if user is not None:
+        await revoke_user_tokens(db, user.id)
+        logger.info("user_logged_out_all_sessions", user_id=str(user.id))
+        return {"message": "Logged out successfully."}
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def change_user_password(
@@ -496,12 +553,18 @@ async def change_user_password(
     background_tasks: Optional[BackgroundTasks] = None
 ) -> dict:
     # Step 1: Verify Current Password
+    #
+    # 400, not 401, here and on the three other routes that re-check a password
+    # (delete-account, 2FA enable/disable). A wrong password in the body is a
+    # bad request, not a bad bearer token, and authenticatedFetch() answers
+    # every 401 by rotating the refresh token and re-sending the same body - so
+    # one typo spent a rotation and, on the 2FA routes, counted twice toward
+    # the lockout. 403 would be worse: the client reads it as a refused
+    # credential and signs the visitor out.
     if not verify_password(data.current_password, user.hashed_password):
         logger.warning("password_change_failed_invalid_current", user_id=str(user.id))
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect current password",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password"
         )
 
     # Step 2: Check Password Breach Status (Have I Been Pwned API)
@@ -814,9 +877,7 @@ async def delete_user_account(
     if not verify_password(data.current_password, user.hashed_password):
         logger.warning("account_deletion_failed_invalid_password", user_id=str(user.id))
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect current password",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password"
         )
 
     now = datetime.now(timezone.utc)
@@ -895,7 +956,7 @@ async def enable_2fa(
         register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa_enable")
         await db.commit()
         logger.warning("2fa_enable_invalid_password", user_id=str(user.id))
-        raise HTTPException(status_code=401, detail="Incorrect current password")
+        raise HTTPException(status_code=400, detail="Incorrect current password")
 
     if not user.totp_secret:
         raise HTTPException(status_code=400, detail="2FA setup not initiated")
@@ -942,7 +1003,7 @@ async def disable_2fa(
         register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa_disable")
         await db.commit()
         logger.warning("2fa_disable_invalid_password", user_id=str(user.id))
-        raise HTTPException(status_code=401, detail="Incorrect current password")
+        raise HTTPException(status_code=400, detail="Incorrect current password")
 
     if not user.totp_secret or not user.is_totp_enabled:
         raise HTTPException(status_code=400, detail="2FA is not enabled")

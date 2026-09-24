@@ -4,14 +4,18 @@ from fastapi import APIRouter, Depends, Request, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.db.database import get_db
 from server.schemas.auth import (
-    UserCreate, UserLogin, Token, UserResponse, RefreshTokenRequest, ChangePasswordRequest,
+    UserCreate, UserLogin, Token, UserResponse, RefreshTokenRequest, LogoutRequest, ChangePasswordRequest,
     ForgotPasswordRequest, ResetPasswordRequest, DeleteAccountRequest,
     Setup2FAResponse, Enable2FARequest, Disable2FARequest, Verify2FARequest,
     MagicLinkRequest, MagicLinkVerifyRequest, UserSessionResponse, TokenResponseOr2FA,
     VerifyEmailRequest, ResendVerificationRequest
 )
 from server.services import auth_service
-from server.auth.dependencies import get_current_session_jti, get_current_user
+from server.auth.dependencies import (
+    get_current_session_jti,
+    get_current_user,
+    get_optional_current_user,
+)
 from server.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -102,15 +106,21 @@ async def verify_magic_link(
 
 @router.post("/logout")
 async def logout(
-    current_user: User = Depends(get_current_user),
+    data: Optional[LogoutRequest] = None,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    session_jti: Optional[str] = Depends(get_current_session_jti),
     db: AsyncSession = Depends(get_db)
 ):
-    """Revoke the caller's refresh tokens.
+    """End the caller's own session.
 
-    The deployed frontend has always called this and discarded the failure, so
-    a "logged out" refresh token stayed valid for its full 30-day lifetime.
+    Authenticated by the refresh token in the body, not by `get_current_user`:
+    that is the credential being ended, and requiring a live access token meant
+    a visitor whose token had expired could not sign out at all. The bearer is
+    still honoured when no body is sent. See `auth_service.logout_user`.
     """
-    return await auth_service.logout_user(db, current_user)
+    return await auth_service.logout_user(
+        db, data.refresh_token if data else None, current_user, session_jti
+    )
 
 @router.post("/change-password")
 async def change_password(

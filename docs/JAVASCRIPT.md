@@ -80,7 +80,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,588 lines)
+### `auth-ui.js` (1,607 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -177,7 +177,7 @@ stale session and starting a fresh one.
 count, reason, ok, at}` to `onTelemetry` subscribers. `serverMs` is parsed from
 the `Server-Timing: app;dur=…` header; `networkMs` is the remainder.
 
-### `auth.js` (437 lines)
+### `auth.js` (517 lines)
 
 Token storage and every authenticated call.
 
@@ -186,7 +186,7 @@ Token storage and every authenticated call.
 | `AUTH_TOKEN_KEY`, `REFRESH_TOKEN_KEY` | `rj_access_token`, `rj_refresh_token` |
 | `getAuthToken()`, `setTokens(a, r)`, `clearTokens()` | `localStorage` accessors |
 | `getErrorMessage(errorData, fallback)` | Normalises FastAPI's string / array `detail` shapes |
-| `loginUser`, `registerUser`, `logoutUser` | Credential flows. `registerUser` returns the created `UserResponse` and signs **nobody** in — the address has to be confirmed first |
+| `loginUser`, `registerUser`, `logoutUser` | Credential flows. `registerUser` returns the created `UserResponse` and signs **nobody** in — the address has to be confirmed first. `logoutUser` sends the refresh token in the body and no bearer, so an expired access token no longer stops the server-side revocation; it ends this device's session only |
 | `setup2FA`, `enable2FA(pw, code)`, `disable2FA(pw, code)`, `verify2FA` | TOTP enrolment, teardown and challenge. Enable and disable both re-authenticate with the password |
 | `requestMagicLink`, `verifyMagicLink` | Passwordless sign-in |
 | `requestPasswordReset`, `resetPassword`, `changePassword` | Password flows |
@@ -194,6 +194,7 @@ Token storage and every authenticated call.
 | `fetchActiveSessions`, `revokeOtherSessions`, `revokeSpecificSession` | Session management |
 | `authenticatedFetch(url, options)` | Bearer-attached fetch with a single-flight 401 refresh and retry |
 | `isCredentialRejection(status)` | `401`/`403` only — separates a refused credential from an unanswered request |
+| `isRejectedResponse(response)` | For responses from `authenticatedFetch`: a `401`/`403` that is **not** one whose refresh failed transiently. Use it rather than the status alone, or a rate-limited refresh signs the visitor out anyway |
 
 `authenticatedFetch` is the important one. The server **rotates** refresh
 tokens, so concurrent 401s each sending the same refresh token would have the
@@ -201,7 +202,18 @@ first win and the rest told the token was revoked — signing the user out
 mid-session, with the last loser also overwriting the winner's new pair. A
 module-level `refreshInFlight` promise makes every concurrent 401 share one
 refresh, and it is cleared before awaiting callers resume so a later 401 starts
-a fresh attempt. Guarded by `frontend/tests/auth-refresh.test.js`.
+a fresh attempt.
+
+That promise is per tab, and tabs share `localStorage`. Two tabs whose tokens
+expired together both spent the same refresh token, and the loser's
+`clearTokens()` deleted the pair the winner had just stored, signing out both.
+The refresh now runs under a Web Lock (`navigator.locks`, `rj-auth-refresh`).
+Each request remembers the refresh token that was stored when it was sent, and
+if storage holds a different one by the time the lock is granted, the pair has
+already been rotated and its access token is used without another refresh.
+Where there is no lock manager, a 401 from `/auth/refresh` re-reads storage
+before it is treated as a rejection, which covers the common ordering of that
+race but not all of it. Guarded by `frontend/tests/auth-refresh.test.js`.
 
 **Registration does not log anyone in.** `registerUser` used to call
 `loginUser` straight after a 201 — correct when registration handed back a

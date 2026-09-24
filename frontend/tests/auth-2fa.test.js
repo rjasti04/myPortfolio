@@ -30,8 +30,10 @@ const CODE = '123456';
 const QR_DATA_URI = 'data:image/png;base64,iVBORw0KGgo=';
 const SECRET = 'JBSWY3DPEHPK3PXP';
 
+// AbortController too: setupNavUI scopes its document listener with a signal,
+// and jsdom's addEventListener rejects an AbortSignal from Node's realm.
 const WINDOW_KEYS = ['HTMLElement', 'Element', 'Event', 'CustomEvent', 'Node',
-                     'getComputedStyle', 'MutationObserver', 'DOMParser'];
+                     'getComputedStyle', 'MutationObserver', 'DOMParser', 'AbortController'];
 
 function installDom(html, url) {
   const dom = new JSDOM(html, { url });
