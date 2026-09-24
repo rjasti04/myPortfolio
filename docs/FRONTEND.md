@@ -615,7 +615,11 @@ the saved value, else `prefers-color-scheme` - and their toggles update
 `<meta name="theme-color">` the way `cron-main.js`, `crypto-main.js`,
 `json-main.js` and `diff-main.js` do.
 Neither page is under the SPA's CSP, so those inline scripts need no hash;
-`scripts/check_csp_hashes.py` only covers `index.html`.
+`scripts/check_csp_hashes.py` only covers `index.html`. The four Dev Tools
+pages *are* under a CSP (`script-src 'self'`), so they resolve the theme before
+first paint with a file instead, `js/app-shared/theme-prepaint.js`, loaded
+blocking ahead of their stylesheets - without it they painted dark and then
+switched to a saved light theme at `DOMContentLoaded`.
 
 ---
 
@@ -947,6 +951,7 @@ file from an unchanged one.
 | Code splitting | Keeps `chat.js` and `activity.js` as lazily-loaded chunks rather than folding them into the entry |
 | `app-logic.js` | Built separately as an **IIFE** (it is a classic script). Its `module.exports` block, present for the Node test runner, is silenced via `logOverride` |
 | `theme-bootstrap.js` | Built separately as an IIFE — it runs before first paint as a plain script |
+| `app-shared/theme-prepaint.js` | Built separately as an IIFE for the same reason, and loaded by the four Dev Tools pages only |
 | `js/arcade/shell.js` | Built separately as an ESM entry for `/arcade`. Kept out of the `splitting` group on purpose: it shares no module with the SPA, and the service worker's shell list is derived from the SPA's graph |
 | CSS | `styles.css`, `auth-modal.css`, `fonts.css`, `arcade.css`, `cron.css`, `crypto.css`, `json.css` bundled and minified, font and image assets emitted as hashed file assets with `url()` references rewritten |
 | Static | Copied by extension allowlist; `tests/` skipped; `fonts/` and CSS assets skipped (the hashed copies come from the CSS build); vendor scripts, `.htaccess`, `worldcup.html`, `ucl.html` and `arcade.html` copied explicitly. Every other `.html` in `frontend/` (including `cron.html`, `crypto.html` and `json.html`) is discovered by the rewrite pass, so a new standalone page needs no registration here. Images and PDFs ship content-hashed and the pages point at the hashed name; `rjasti_resume.pdf`, `favicon.ico` and every root `*-preview.png` **also** ship un-hashed at their source path (`isStableAlias`), because bookmarks, crawlers and `sitemap.xml` hold those URLs and nothing can rewrite them. Shipped only hashed, all of them 404'd. `.htaccess` serves the aliases `max-age=3600, must-revalidate` |

@@ -247,6 +247,17 @@ body {
   font-family: var(--font-mono);
 }
 
+/* Why a file did not load. Inline and polite, where alert() used to be. */
+.pane-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.pane-note:empty {
+  display: none;
+}
+
 .code-area {
   width: 100%;
   font-family: var(--font-mono);

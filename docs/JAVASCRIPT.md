@@ -1037,7 +1037,7 @@ clicking outside dismisses. The `APPS` array is the single list of what the
 shelf holds, and `app-shared.test.js` asserts it against `index.html` so the
 two cannot drift.
 
-### `app-shortcuts.js` (230 lines)
+### `app-shortcuts.js` (233 lines)
 
 Binds `?` (the sheet), `/` (focus the primary input) and `1`-`9` (switch tab),
 and builds the sheet **from the same table that does the binding** - a
@@ -1058,6 +1058,20 @@ than `modal.js`'s, because that module belongs to the SPA's build group.
 entry of their own to hang the two above on. This is it, and the only external
 script either page loads. Which app it is comes from the URL rather than a
 per-page parameter, so both pages load byte-identical script.
+
+### `theme-prepaint.js` (29 lines)
+
+A **classic script**, not a module, loaded blocking in the `<head>` of `/cron`,
+`/crypto`, `/json` and `/diff` ahead of their stylesheets. It sets
+`data-theme` on `<html>` from the shared `theme` key - `"light"` or `"dark"`,
+anything else falls to `prefers-color-scheme` - with the storage read guarded.
+Those pages hard-code `data-theme="dark"` as the no-JS default and used to apply
+a saved light theme at `DOMContentLoaded`, a visible dark flash. It is a file
+rather than an inline script because the four pages' CSP is
+`script-src 'self'`; `scripts/build.mjs` builds it as its own IIFE entry, the
+same way as `theme-bootstrap.js`. Each app's module still runs its own theme
+code afterwards, which syncs the toggle's icon and label and the
+`theme-color` meta.
 
 ---
 
@@ -1243,7 +1257,7 @@ resolved in as many slices as that takes.
 
 A standalone visual developer utility for back-end engineers and technical visitors. Like the Arcade, it lives on its own page (`frontend/cron.html`) with its own entry point (`js/cron/cron-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
 
-### `cron-main.js` (298 lines)
+### `cron-main.js` (333 lines)
 
 The application controller. Binds the tab switcher between Cron and Regex views, synchronizes state to the URL hash and query string (`#cron?expr=...` and `#regex?pattern=...&flags=...`), handles clipboard sharing with visual toast feedback, and persists user inputs in `localStorage`.
 
@@ -1251,7 +1265,7 @@ The application controller. Binds the tab switcher between Cron and Regex views,
 
 Pure mathematical parser and validator for standard 5-part POSIX cron schedules (`minute hour day-of-month month day-of-week`). Evaluates step expressions, lists, ranges, and month/weekday names. Provides natural language translation (`translateCron`) and calculates the next sequential trigger timestamps (`getNextRuns`) with leap year and calendar edge awareness.
 
-### `cron-ui.js` (486 lines)
+### `cron-ui.js` (497 lines)
 
 DOM controller for the Cron Visualizer view. Renders quick-select preset chips, an interactive 5-part picker with synchronized dropdowns, real-time error banner, human translation card, and next-10 scheduled triggers timeline with relative countdown badges.
 
@@ -1259,7 +1273,7 @@ DOM controller for the Cron Visualizer view. Renders quick-select preset chips, 
 
 Browser RegExp tokenizer and safe execution engine. Breaks regular expressions into semantic tokens (character classes, quantifiers, capturing groups, anchors, alternations, escapes, literals) for syntax highlighting. Evaluates matches with boundary indices and extracts numbered and named capture groups with zero-length match guards to prevent infinite loops and ReDoS.
 
-### `regex-ui.js` (407 lines)
+### `regex-ui.js` (418 lines)
 
 DOM controller for the Regex Visualizer view. Binds pattern input and flag toggles (`gimsuy`), renders a color-coded syntax token breakdown bar, manages mirrored backdrop match highlighting in the sample textarea, and displays match summary cards and capture group tables.
 
@@ -1269,11 +1283,11 @@ DOM controller for the Regex Visualizer view. Binds pattern input and flag toggl
 
 A standalone client-side cryptographic and data transformation workbench for software engineers and technical visitors. Like the Logic Inspector and Arcade, it lives on its own page (`frontend/crypto.html`) with its own entry point (`js/crypto/crypto-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
 
-### `crypto-main.js` (211 lines)
+### `crypto-main.js` (226 lines)
 
 The application controller. Manages tab switching across `#encoders`, `#hasher`, `#generators`, and `#time`, synchronizes state with the URL hash, handles dark/light theme toggling, provides shareable link copying, and initializes workbench UI handlers.
 
-### `crypto-ui.js` (726 lines)
+### `crypto-ui.js` (744 lines)
 
 DOM controller for the Crypto & Encoders workbench. Manages live text encoding/decoding, file drag-and-drop for Base64 Data URIs (enforcing the 5 MB limit), real-time cryptographic hash updates, generator controls with customizable character sets, live ticking clock, and the "Clear All" privacy wipe action. Results are announced through one polite `#crypto-status` region, on transitions only: an output entering or changing its error, a converted file, an explicit Generate - never each keystroke's live output.
 
@@ -1325,7 +1339,7 @@ The structural difference from `/crypto` is that its tabs are **not** independen
 
 Two invariants hold across the whole directory. **No `eval` or `new Function`**: query filters are tokenised, parsed into an AST and walked by a `switch`, because the page ships `script-src 'self'` with no `'unsafe-eval'` and almost every JSONPath library implements filters with an evaluator. **No `innerHTML`**: every document-derived string reaches the DOM through `textContent`, so no sanitiser is needed — no HTML string is ever built.
 
-### `json-main.js` (208 lines)
+### `json-main.js` (216 lines)
 
 The application controller. Resolves the theme from the shared `theme` key before the panels render, manages the four deep-linkable tabs (`#format`, `#query`, `#tree`, `#convert`) with arrow-key roving tabindex and `hashchange` sync, persists preferences, and wraps startup in an error boundary. Document text is persisted **only** while the "Remember my document" switch is on, and that switch defaults to off.
 
@@ -1406,7 +1420,7 @@ manages the three deep-linkable tabs (`#compare`, `#patch`, `#about`) with
 arrow-key roving tabindex and `hashchange` sync, and wraps startup in an error
 boundary.
 
-### `diff-ui.js` (606 lines)
+### `diff-ui.js` (638 lines)
 
 DOM controller. Owns both panes, the debounced recompute, drag-and-drop with the
 5 MB cap, the normalisation toggles, the split/unified switch, change navigation

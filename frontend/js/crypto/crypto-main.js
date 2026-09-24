@@ -16,6 +16,13 @@ import { initAppShortcuts } from "../app-shared/app-shortcuts.js";
 const VALID_TABS = ["encoders", "hasher", "generators", "jwt", "time", "about"];
 const STORAGE_KEY = "rj-crypto:preferences";
 
+/* A reduced-motion preference is read when the scroll happens, because
+   JS-initiated smooth scrolling ignores the stylesheet's
+   `scroll-behavior: auto` and would animate regardless. */
+function scrollBehavior() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+}
+
 function getStoredPreferences() {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
@@ -67,7 +74,15 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  const savedTheme = localStorage.getItem("theme") || getSystemTheme();
+  // Guarded: with storage blocked this read threw before the tabs were
+  // wired, and the whole page was dead. Same guard as json-main.js.
+  let storedTheme = null;
+  try {
+    storedTheme = localStorage.getItem("theme");
+  } catch {
+    storedTheme = null;
+  }
+  const savedTheme = storedTheme === "light" || storedTheme === "dark" ? storedTheme : getSystemTheme();
   htmlEl.setAttribute("data-theme", savedTheme);
   updateThemeIcon(savedTheme);
   syncThemeColorMeta(savedTheme);
@@ -109,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const targetY = Math.max(0, panelTop - headerOffset);
     window.scrollTo({
       top: targetY,
-      behavior: "smooth",
+      behavior: scrollBehavior(),
     });
   }
 
@@ -125,7 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // stayed individually Tab-reachable. Same line as json-main.js.
       btn.tabIndex = isTarget ? 0 : -1;
       if (isTarget && typeof btn.scrollIntoView === "function") {
-        btn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        btn.scrollIntoView({ behavior: scrollBehavior(), inline: "center", block: "nearest" });
       }
     });
 

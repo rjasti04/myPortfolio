@@ -1251,6 +1251,9 @@ mark.match-alt-1 {
   box-shadow: var(--shadow-lg);
   font-size: 0.9rem;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   opacity: 0;
   transform: translateY(12px);
   transition: all 0.2s ease;
@@ -1258,9 +1261,32 @@ mark.match-alt-1 {
   z-index: 1000;
 }
 
+/* Takes the pointer only while shown, so hovering holds it and the close
+   button can be pressed. */
 .toast.show {
   opacity: 1;
   transform: translateY(0);
+  pointer-events: auto;
+}
+
+.toast-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -0.25rem -0.5rem -0.25rem 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.toast-close:hover,
+.toast-close:focus-visible {
+  color: var(--text);
 }
 
 /* Footer */

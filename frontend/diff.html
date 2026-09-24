@@ -46,6 +46,9 @@
     <link rel="icon" href="/favicon.ico" />
 
     <!-- Self-hosted fonts subset -->
+    <!-- Resolves the saved theme before first paint; see the file for why it
+         is a file. -->
+    <script src="js/app-shared/theme-prepaint.js"></script>
     <link rel="stylesheet" href="fonts.css" />
     <link rel="stylesheet" href="app-chrome.css" />
     <link rel="stylesheet" href="diff.css" />
@@ -185,6 +188,7 @@
               placeholder="Paste the original here, or drop a file."
             ></textarea>
             <input type="file" id="file-left" class="sr-only" aria-hidden="true" tabindex="-1" />
+            <p class="pane-note" id="note-left" role="status"></p>
           </div>
 
           <div class="card pane-card">
@@ -209,6 +213,7 @@
               placeholder="Paste the changed version here, or drop a file."
             ></textarea>
             <input type="file" id="file-right" class="sr-only" aria-hidden="true" tabindex="-1" />
+            <p class="pane-note" id="note-right" role="status"></p>
           </div>
         </div>
 

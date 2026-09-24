@@ -219,8 +219,7 @@
   border-color: var(--color-error);
 }
 
-.action-btn.is-confirming,
-.action-btn.confirming {
+.action-btn.is-confirming {
   background-color: var(--error-bg);
   color: var(--color-error);
   border-color: var(--color-error);

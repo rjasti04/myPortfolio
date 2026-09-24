@@ -26,7 +26,10 @@ function baseShortcuts({ focusPrimary, tabs }) {
       label: "Focus the main input",
       run: (event) => {
         const target = document.querySelector(focusPrimary);
-        if (!target) return false;
+        // Only when the input can actually take focus: on another tab it sits
+        // in a hidden panel, and claiming the key there swallowed the "/"
+        // and moved focus nowhere.
+        if (!target || target.disabled || target.closest("[hidden]")) return false;
         // preventDefault, or the "/" lands in the field it just focused -
         // which is how Firefox's quick-find used to eat this shortcut.
         event.preventDefault();

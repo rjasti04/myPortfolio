@@ -3,7 +3,8 @@
 **Related Intent**: `.claude/intents/2026-09-24-codebase-review-uiux.md`
 **Source report**: `docs/review/codebase_review_20260924.md` §4 (U1–U12)
 **Target Audience**: Visitor / Recruiter first, then Work Sample and Owner
-**Status**: planned, phases A–E. Nothing is implemented yet.
+**Status**: implemented, phases A–E. Deviations from the plan are listed in
+**Revised during implementation** at the end of §6.
 **Tree**: line numbers are at `8e44ed9`: the report's `f33d629` plus the §1
 and §2 implementations. Those moved lines in `index.html`, `auth-ui.js` and
 `chat.js` only. For those three files, use the numbers here, not the
@@ -738,3 +739,22 @@ says so.
 - **ESLint** on a classic `var`-style file under `js/app-shared/`: the config
   (`.eslintrc.json`) has no `no-var` rule and `theme-bootstrap.js` already
   passes. Expected to pass. Confirmed only by Phase E's lint run.
+
+### Revised during implementation
+
+| # | Plan | What shipped, and why |
+| :--- | :--- | :--- |
+| U1 | Tab out closes the menu on any `focusout` leaving it | Only when `relatedTarget` is a known element outside it. Safari does not focus a button on click, so pressing an item blurs with no `relatedTarget`; closing then could hide the item before its click landed. Outside clicks already have their own listener |
+| U1 | Test that focus is on the button when the item's event fires | The auth UI's own listener opens the dialog before a test listener runs, so the test closes the dialog and asserts focus comes back to the button - the outcome that matters |
+| U2 | Snapshot and restore in `renderAllViews()` | A `keepFocus()` wrapper around each render tail: picks, reorders and wildcard toggles re-render through their own calls, not through `renderAllViews()`. Keys are compared as data, not spliced into a selector, because `/ucl` keys on club names |
+| U3 / U10 | Test all three chat status states | "Unavailable" is unreachable from a test: `API_BASE` always falls back to production. Online and Offline are tested |
+| U7 | Insets of `-2px`/`-1px` to the gap midline, `-8px` outer on `/ucl` | `::after` insets count from the padding box, inside the 1px border, so each needed a pixel more: `-3px` on `/worldcup`, `-2px` on `/ucl`. `/ucl`'s outer inset is `-10px`, because Chromium's sub-pixel snapping left the planned target at 23.25px |
+| U8 | `terminal/palette.js` imports `prefersReducedMotion` from `config.js` | It reads `matchMedia` at call time: `config.js` calls `matchMedia` at import, and `palette-search.test.js` imports `palette.js` before any `window` exists |
+| U10 | One close glyph everywhere | `fa-times` in the Dev Tools apps, whose Font Awesome subset has no `fa-xmark`; `fa-xmark` in the predictors, which load the full set |
+| U10 | Spec did not list it | `/cron`'s toast had `pointer-events: none`, so hover could never hold it and a close button could not be pressed. It takes the pointer while shown |
+| U11 | Labels "begin with" their visible text, in every test | The SPA test checks "begins with". The apps test checks "contains": the Back links read "Back to Portfolio", which holds both visible variants ("Portfolio", "Back") and satisfies WCAG 2.5.3 |
+| U11 | Button reset on the auth links | Also `text-align: inherit`: the parity check caught a `<button>`'s UA `center` replacing the inherited `right` |
+| U6 (5) | Announce errors and Generate | Also a converted file |
+| Size | Not planned | Both budgets were full going in (CSS 296.0/296, JS 387.0/390). They rise by the measured cost of Phases A and E, recorded in `build.mjs`: CSS 296 → 298, JS 390 → 392. Section total: CSS +1.5 KiB, JS +4.2 KiB |
+| Tests | The existing harnesses | Booting the Dev Tools entry modules in jsdom needed `history` and `location` as globals, a fresh module instance per boot (a query string on the import), and `setInterval` stubbed while `/crypto` initialises - its clock would otherwise hold the process open |
+

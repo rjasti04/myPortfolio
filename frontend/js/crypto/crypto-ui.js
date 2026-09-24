@@ -90,24 +90,34 @@ export function initCryptoUI() {
  */
 export async function copyWithFeedback(text, btn) {
   if (!text) return;
+  // execCommand reports failure by returning false rather than throwing,
+  // and "Copied!" used to show whichever it did. /json already said
+  // "Copy failed"; now these do too.
+  let copied = true;
   try {
     await navigator.clipboard.writeText(text);
   } catch {
-    // Fallback for older environments
     const ta = document.createElement("textarea");
     ta.value = text;
     ta.style.position = "fixed";
     ta.style.opacity = "0";
     document.body.appendChild(ta);
     ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
+    try {
+      copied = document.execCommand("copy");
+    } catch {
+      copied = false;
+    } finally {
+      document.body.removeChild(ta);
+    }
   }
 
   if (btn) {
     const originalHtml = btn.innerHTML;
-    btn.classList.add("copied");
-    btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> Copied!';
+    btn.classList.toggle("copied", copied);
+    btn.innerHTML = copied
+      ? '<i class="fas fa-check" aria-hidden="true"></i> Copied!'
+      : '<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Copy failed';
     setTimeout(() => {
       btn.classList.remove("copied");
       btn.innerHTML = originalHtml;
@@ -682,21 +692,29 @@ function setupPrivacyClear() {
 
   let confirmTimeout = null;
   const originalHtml = clearBtn.innerHTML;
+  const originalLabel = clearBtn.getAttribute("aria-label");
 
+  // `.is-confirming` and 4s, as in every other app: this one used
+  // `.confirming` and stood down after 3.
   clearBtn.addEventListener("click", () => {
-    if (!clearBtn.classList.contains("confirming")) {
-      clearBtn.classList.add("confirming");
+    if (!clearBtn.classList.contains("is-confirming")) {
+      clearBtn.classList.add("is-confirming");
       clearBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> <span class="action-label">Confirm?</span>';
+      // The fixed aria-label outranked the armed text, so a screen reader
+      // never heard that the button was armed.
+      clearBtn.setAttribute("aria-label", "Confirm clear: press again to confirm");
       clearTimeout(confirmTimeout);
       confirmTimeout = setTimeout(() => {
-        clearBtn.classList.remove("confirming");
+        clearBtn.classList.remove("is-confirming");
         clearBtn.innerHTML = originalHtml;
-      }, 3000);
+        clearBtn.setAttribute("aria-label", originalLabel);
+      }, 4000);
       return;
     }
 
     clearTimeout(confirmTimeout);
-    clearBtn.classList.remove("confirming");
+    clearBtn.classList.remove("is-confirming");
+    clearBtn.setAttribute("aria-label", originalLabel);
 
     // Clear all inputs and textareas
     document.querySelectorAll("input[type=text], input[type=number], textarea").forEach((el) => {

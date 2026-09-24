@@ -247,6 +247,25 @@ describe("build: caching contract", () => {
     });
   });
 
+  // Codebase review U12: the four Dev Tools pages painted dark, then switched
+  // to a saved light theme at DOMContentLoaded. The pre-paint script has to
+  // ship hashed, and run before the first stylesheet.
+  describe("Dev Tools theme pre-paint", () => {
+    it("each Dev Tools page loads a hashed pre-paint script ahead of its CSS", () => {
+      for (const page of ["cron.html", "crypto.html", "json.html", "diff.html"]) {
+        const text = readFileSync(join(DIST, page), "utf8");
+        const script = text.match(/<script src="(assets\/theme-prepaint-[A-Za-z0-9_-]{8}\.js)"><\/script>/);
+        assert.ok(script, `${page} does not load the hashed pre-paint script`);
+        assert.ok(existsSync(join(DIST, script[1])), `${page} names ${script[1]}, which did not ship`);
+        const head = text.slice(0, text.indexOf("</head>"));
+        assert.ok(
+          head.indexOf(script[0]) !== -1 && head.indexOf(script[0]) < head.indexOf('rel="stylesheet"'),
+          `${page}: the pre-paint script must run before the first stylesheet`,
+        );
+      }
+    });
+  });
+
   describe("CACHE_NAME versioning", () => {
     it("is stable when nothing changes", () => {
       build();

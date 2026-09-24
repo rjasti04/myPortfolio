@@ -6,9 +6,9 @@ findings **U1–U12** (1 × P1, 8 × P2, 3 × P3). The report's line numbers ref
 §2 work. That work moved lines in `index.html`, `auth-ui.js` and `chat.js`; no
 other file §4 cites has changed. The spec cites line numbers at `8e44ed9`.
 **Companion spec**: `.claude/specs/2026-09-24-codebase-review-uiux.md`
-**Status**: planned. Nothing is implemented yet. Implementation starts once
-this and the spec are approved, in the five phases the spec sets out (A–E),
-one commit per phase.
+**Status**: implemented, in the five phases the spec sets out (A–E), one
+commit per phase. All 12 findings are resolved. Where implementation departed
+from the plan, the spec's **Revised during implementation** table says so.
 
 ## 1. Problem & Persona Context
 

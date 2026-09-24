@@ -326,20 +326,40 @@ export function initWorkbench() {
     for (const row of rows) row.classList.remove("is-current");
     const row = rows[next];
     row.classList.add("is-current");
-    row.scrollIntoView({ block: "center", behavior: "smooth" });
+    // Read at call time: JS smooth scrolling ignores the stylesheet's
+    // reduced-motion rule.
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    row.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
   }
 
   // --- File input -----------------------------------------------------------
 
+  // The pane's own status line. The size refusal used to be an alert() - a
+  // browser dialog in a page that controls every other pixel - and a file
+  // that failed to read rejected with nothing shown at all.
+  function noteFor(area) {
+    return document.getElementById(area.id === "input-right" ? "note-right" : "note-left");
+  }
+
   async function loadFile(file, target) {
+    const note = noteFor(target);
     if (file.size > MAX_FILE_BYTES) {
       target.value = "";
-      window.alert(
-        `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 5 MB, so it has not been loaded.`
-      );
+      if (note) {
+        note.textContent =
+          `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 5 MB, so it has not been loaded.`;
+      }
       return;
     }
-    target.value = await file.text();
+    let text;
+    try {
+      text = await file.text();
+    } catch {
+      if (note) note.textContent = "Couldn't read that file.";
+      return;
+    }
+    if (note) note.textContent = "";
+    target.value = text;
     target.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
@@ -382,7 +402,11 @@ export function initWorkbench() {
       area.focus();
     });
 
-    area.addEventListener("input", onChange);
+    area.addEventListener("input", () => {
+      const note = noteFor(area);
+      if (note && note.textContent) note.textContent = "";
+      onChange();
+    });
   }
 
   // --- Clipboard ------------------------------------------------------------
@@ -545,17 +569,25 @@ export function initWorkbench() {
     if (!clearAllBtn.classList.contains("is-confirming")) {
       clearAllBtn.classList.add("is-confirming");
       const originalText = clearAllBtn.innerHTML;
+      const originalLabel = clearAllBtn.getAttribute("aria-label");
       clearAllBtn.dataset.originalText = originalText;
       clearAllBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Confirm Clear?';
+      // The fixed aria-label outranked the armed text, so a screen reader
+      // never heard that the button was armed.
+      clearAllBtn.setAttribute("aria-label", "Confirm clear: press again to confirm");
       clearTimeout(clearTimer);
+      // 4s, as in every other app - this one stood down after 3.
       clearTimer = setTimeout(() => {
         clearAllBtn.classList.remove("is-confirming");
         clearAllBtn.innerHTML = originalText;
-      }, 3000);
+        clearAllBtn.setAttribute("aria-label", originalLabel);
+      }, 4000);
+      clearAllBtn.dataset.originalLabel = originalLabel;
       return;
     }
     clearTimeout(clearTimer);
     clearAllBtn.classList.remove("is-confirming");
+    if (clearAllBtn.dataset.originalLabel) clearAllBtn.setAttribute("aria-label", clearAllBtn.dataset.originalLabel);
     if (clearAllBtn.dataset.originalText) {
       clearAllBtn.innerHTML = clearAllBtn.dataset.originalText;
     }

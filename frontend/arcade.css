@@ -239,7 +239,11 @@ a {
 
 /* ---- Buttons ---------------------------------------------------------- */
 
-.btn {
+/* The Apps trigger app-switcher.js mounts beside Back is an `.action-btn`,
+   which only app-chrome.css styles - and arcade has its own vocabulary, so
+   the trigger joins .btn here rather than rendering as a bare UA button. */
+.btn,
+.app-switcher-trigger {
   display: inline-flex;
   gap: 8px;
   align-items: center;
@@ -267,14 +271,16 @@ a {
     box-shadow 0.16s ease;
 }
 
-.btn:hover {
+.btn:hover,
+.app-switcher-trigger:hover {
   color: var(--ink);
   background: var(--accent);
   transform: translateY(-2px);
   box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
 }
 
-.btn:active {
+.btn:active,
+.app-switcher-trigger:active {
   transform: translateY(1px);
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
 }
@@ -1004,7 +1010,8 @@ body.is-playing #stage {
 
 /* Mobile L - icon-only actions, the same tier the rest of the shelf uses. */
 @media (max-width: 640px) {
-  .back-label {
+  .back-label,
+  .app-switcher-trigger .action-label {
     display: none;
   }
 }
