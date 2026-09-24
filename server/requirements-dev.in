@@ -17,7 +17,7 @@ aiosqlite>=0.19.0
 # Linting. The backend had none: the frontend got ESLint and Stylelint while
 # Python got nothing, and ruff flags the undefined-attribute class of bug that
 # put five broken auth routes into production.
-ruff>=0.6.0
+ruff>=0.16.8
 
 # Dependency advisories. CI runs it against server/requirements.txt - the lock
 # the production host installs - as a blocking step; nothing did before, so a
