@@ -189,7 +189,30 @@ const SKIP_DIRS = new Set(["tests"]);
    nobody has audited the ACTIVITY and AI PAGE regions, which are still the
    two largest by a wide margin, and that is still the right move for whoever
    needs room next. 296 leaves ~4 KiB, which is a margin and not room. */
-const BUDGETS_KIB = { js: 390, css: 296 };
+/* Raised for docs/review/codebase_review_20260924.md section 4 (UI/UX), the
+   accessibility pass. Both ceilings were already full going in: CSS measured
+   296.0 of 296 (100%) and JS 387.0 of 390 on the tree that pass started from,
+   so there was nothing to spend and nothing obvious to trim that belongs to
+   this work - the reclaim every note above points at is still an audit of the
+   ACTIVITY and AI PAGE regions, which is its own job.
+
+   Each raise below is the measured cost of one phase, no more:
+   - Phase A (U1, U7): CSS +0.4 KiB - the account control's button reset and
+     focus rings, and the 44px password toggle with the padding its field
+     needs. JS +0.9 KiB - the account menu's keyboard handling.
+     CSS 296 -> 297, JS 390 -> 391.
+   - Phases B-D fitted inside that: the chat's status states and truncation
+     note, the promoted headings' resets, the Dev Tools focus rings, /crypto's
+     status region, the shortcuts sheet's Tab trap (CSS 297.0, JS 388.9).
+     The predictors keep their CSS and script inline, so Phase C cost nothing
+     here.
+   - Phase E (U5, U6, U8, U10, U12): CSS +0.5 KiB - the arcade's Apps trigger,
+     /cron's toast close button and /diff's pane note. JS +2.3 KiB - the
+     honest copy fallbacks, /cron's dismissable toast, /diff's file notes,
+     three armed confirm labels, and the new theme-prepaint entry.
+     CSS 297 -> 298, JS 391 -> 392.
+   Section 4 in all: CSS 296.0 -> 297.5 KiB, JS 387.0 -> 391.2 KiB. */
+const BUDGETS_KIB = { js: 392, css: 298 };
 
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);
@@ -350,6 +373,17 @@ async function main() {
   });
   for (const [outPath, meta] of Object.entries(bootstrap.metafile.outputs)) {
     if (meta.entryPoint) rewrites.set("js/theme-bootstrap.js", relative(OUT, join(ROOT, outPath)));
+  }
+
+  // The Dev Tools apps' equivalent, for the same reason: it runs before first
+  // paint as a plain script, and their CSP allows no inline one.
+  const prepaint = await esbuild.build({
+    entryPoints: [join(SRC, "js/app-shared/theme-prepaint.js")],
+    bundle: true, minify: true, format: "iife",
+    outdir: join(OUT, "assets"), entryNames: "[name]-[hash]", metafile: true, logLevel: "warning",
+  });
+  for (const [outPath, meta] of Object.entries(prepaint.metafile.outputs)) {
+    if (meta.entryPoint) rewrites.set("js/app-shared/theme-prepaint.js", relative(OUT, join(ROOT, outPath)));
   }
 
   // The six standalone-app entries, built as ONE splitting group.

@@ -114,3 +114,20 @@ test("a real registration failure still throws with the server's reason", async 
     /Too many requests/
   );
 });
+
+// Codebase review U7: the show/hide-password toggle inside the register and
+// login fields was 20x20px - under WCAG 2.5.8's 24px, with no spacing
+// exception because it sits inside the field. It now takes the app's touch
+// floor, and the fields that hold one make room for it.
+test("the password toggle is a full touch target, and its field makes room", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const css = await readFile(new URL("../auth-modal.css", import.meta.url), "utf8");
+  const rule = css.match(/\n\.password-toggle-btn\s*\{([^}]*)\}/);
+  assert.ok(rule, ".password-toggle-btn rule not found");
+  assert.match(rule[1], /\bwidth:\s*var\(--min-touch-target\)/);
+  assert.match(rule[1], /\bheight:\s*var\(--min-touch-target\)/);
+  assert.match(
+    css,
+    /\.input-wrapper:has\(> \.password-toggle-btn\) input\s*\{[^}]*padding-right:\s*calc\(var\(--min-touch-target\)/,
+  );
+});

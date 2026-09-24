@@ -673,14 +673,27 @@
         border-color: var(--text-muted);
       }
 
+      /* Each arrow's hit area stops at the middle of the 4px gap between the
+         pair. Both used to reach 10px past their own box, so the bottom of
+         "move up" was painted over by "move down" and a tap there moved the
+         team the wrong way. The insets count from the padding box, inside the
+         1px border, hence 3px to reach 2px into the gap. */
       .reorder-btn::after {
         content: '';
         position: absolute;
-        top: -10px;
-        bottom: -10px;
         left: -8px;
         right: -8px;
         z-index: 10;
+      }
+
+      .reorder-up::after {
+        top: -10px;
+        bottom: -3px;
+      }
+
+      .reorder-down::after {
+        top: -3px;
+        bottom: -10px;
       }
 
       .drag-handle {
@@ -1144,6 +1157,74 @@
       max-width: 320px;
     }
 
+    .toast-text {
+      flex: 1;
+    }
+
+    /* The SPA's toast behaviour (js/utils.js): a way to dismiss it, and a
+       timer that holds while it has the pointer or focus (WCAG 2.2.1). */
+    .toast-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      margin: -6px -10px -6px 0;
+      padding: 0;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .toast-close:hover,
+    .toast-close:focus-visible {
+      color: var(--text);
+      background-color: var(--border);
+    }
+
+    /* Shown while this browser holds a backup of the visitor's own bracket,
+       taken when a shared link replaced it. */
+    .shared-banner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      margin-top: 16px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      border-radius: var(--radius-md);
+      background-color: var(--surface);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .shared-banner[hidden] {
+      display: none;
+    }
+
+    .shared-banner-text {
+      flex: 1 1 12rem;
+      margin: 0;
+    }
+
+    .shared-banner-btn {
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background-color: var(--chrome-action-bg);
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .shared-banner-btn:hover {
+      background-color: var(--chrome-action-hover);
+    }
+
     .toast-success {
       border-left-color: var(--accent-success);
     }
@@ -1235,6 +1316,20 @@
     }
 
     /* MOBILE RESPONSIVE STYLES */
+    /* Mirrors ucl.html. Durations shrink rather than animations being removed:
+       the toast is taken out of the DOM on animationend, which `animation:
+       none` would never fire. */
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+
     @media (max-width: 1200px) {
       .bracket-layout {
         display: none;
@@ -1471,7 +1566,7 @@
                 class="back-label-short">Back</span></span>
           </a>
           <button id="autofill-btn" class="action-btn"
-            aria-label="Randomly fill undecided stages and matches across the tournament"
+            aria-label="Random fill: every undecided stage and match"
             title="Random fill remaining matches">
             <i class="fas fa-dice" aria-hidden="true"></i> <span class="action-label">Random Fill</span>
           </button>
@@ -1511,6 +1606,11 @@
           <div class="progress-fill" id="progress-fill"></div>
         </div>
         <div class="progress-label" id="progress-label">0 of 40 decisions made</div>
+      </div>
+      <div class="shared-banner" id="shared-banner" hidden>
+        <p class="shared-banner-text" id="shared-banner-text" role="status"></p>
+        <button type="button" class="shared-banner-btn" id="shared-restore-btn">Restore my bracket</button>
+        <button type="button" class="shared-banner-btn" id="shared-keep-btn">Keep this one</button>
       </div>
     </section>
 
@@ -1857,15 +1957,62 @@
       if (type === "success") icon = '<i class="fas fa-circle-check" aria-hidden="true"></i>';
       if (type === "warning") icon = '<i class="fas fa-circle-exclamation" aria-hidden="true"></i>';
 
-      toast.innerHTML = `${icon} <span>${message}</span>`;
+      toast.setAttribute("role", type === "warning" ? "alert" : "status");
+      toast.innerHTML = `${icon} <span class="toast-text"></span>` +
+        '<button type="button" class="toast-close" aria-label="Dismiss notification">' +
+        '<i class="fas fa-xmark" aria-hidden="true"></i></button>';
+      toast.querySelector(".toast-text").textContent = message;
       container.appendChild(toast);
 
-      setTimeout(() => {
+      // 3.2s, held while the toast has the pointer or focus, with a close
+      // button - the SPA's toast (js/utils.js). This one vanished after 3s
+      // with no way to keep it or dismiss it.
+      let timer = null;
+      let gone = false;
+      const dismiss = () => {
+        if (gone) return;
+        gone = true;
+        window.clearTimeout(timer);
         toast.classList.add("fade-out");
-        toast.addEventListener("animationend", () => {
-          toast.remove();
-        });
-      }, 3000);
+        toast.addEventListener("animationend", () => toast.remove(), { once: true });
+        // Floor: a toast that never animates - a backgrounded tab - still goes.
+        window.setTimeout(() => toast.remove(), 600);
+      };
+      const arm = () => { timer = window.setTimeout(dismiss, 3200); };
+      const hold = () => window.clearTimeout(timer);
+      toast.querySelector(".toast-close").addEventListener("click", dismiss);
+      toast.addEventListener("mouseenter", hold);
+      toast.addEventListener("mouseleave", arm);
+      toast.addEventListener("focusin", hold);
+      toast.addEventListener("focusout", arm);
+      arm();
+    }
+
+    /*
+     * Focus that survives a re-render. Every pick rebuilds its view with
+     * innerHTML = "", which destroyed the focused element and dropped keyboard
+     * users back to <body> - so ordering 48 teams or picking 32 ties meant
+     * tabbing in from the top after every keypress (WCAG 2.4.3). Focusable
+     * nodes carry a data-focus-key built from the team or group, not the
+     * position, so focus follows a team to its new rank.
+     */
+    function keepFocus(render) {
+      const active = document.activeElement;
+      const key = active && active.closest ? active.closest("[data-focus-key]")?.dataset.focusKey : null;
+      render();
+      if (key) restoreFocus(key);
+    }
+
+    function restoreFocus(key) {
+      // Compared as data, not spliced into a selector: /ucl keys on club
+      // names, and a name is not a safe CSS string.
+      const nodes = Array.from(document.querySelectorAll("[data-focus-key]"))
+        .filter((node) => node.dataset.focusKey === key);
+      // The desktop and mobile brackets can both render a key; the visible one wins.
+      const target = nodes.find((node) => node.getClientRects().length) || nodes[0];
+      if (!target) return;
+      target.focus({ preventScroll: true });
+      if (typeof target.scrollIntoView === "function") target.scrollIntoView({ block: "nearest" });
     }
 
     // INITIALIZATION & RESET ROUTINES
@@ -1874,14 +2021,11 @@
       //    first paint; this only catches the icon and the browser bar up.
       applyTheme(currentTheme());
 
-      // 2. Load State from LocalStorage or Defaults
-      const loaded = loadStateFromLocalStorage();
-      if (!loaded) {
-        // First check URL query parameter
-        const urlLoaded = loadStateFromUrl();
-        if (!urlLoaded) {
-          resetToDefaults(false);
-        }
+      // 2. A shared link wins over whatever this browser had saved, as on
+      //    /ucl. It used to be read only when nothing was saved, so a
+      //    returning visitor who opened a friend's bracket saw their own.
+      if (!loadStateFromUrl() && !loadStateFromLocalStorage()) {
+        resetToDefaults(false);
       }
 
       // 3. Setup UI Interaction Listeners
@@ -1889,9 +2033,11 @@
       setupTabs();
       setupUtilityButtons();
       setupDragDropListeners();
+      setupSharedBanner();
 
       // 4. Trigger Layout Renders
       renderAllViews();
+      renderSharedBanner();
     }
 
     function resetToDefaults(showFeedback = true) {
@@ -1905,6 +2051,8 @@
       state.bracketWinner = {};
 
       saveStateToLocalStorage();
+      removeStored(OWN_STATE_KEY);
+      renderSharedBanner();
 
       if (showFeedback) {
         // Clean URL params if any
@@ -2004,6 +2152,7 @@
           li.setAttribute("draggable", "true");
           li.setAttribute("data-index", index);
           li.setAttribute("tabindex", "0");
+          li.dataset.focusKey = `row:${team.code}`;
           li.setAttribute("aria-label", `${team.name} in Group ${groupLetter}, ranked position ${rank}`);
 
           // Status determination
@@ -2019,8 +2168,8 @@
 
           li.innerHTML = `
             <div class="reorder-controls">
-              <button class="reorder-btn reorder-up" data-dir="up" aria-label="Move ${escapeHtml(team.name)} up" title="Move up"><i class="fas fa-chevron-up" aria-hidden="true"></i></button>
-              <button class="reorder-btn reorder-down" data-dir="down" aria-label="Move ${escapeHtml(team.name)} down" title="Move down"><i class="fas fa-chevron-down" aria-hidden="true"></i></button>
+              <button class="reorder-btn reorder-up" data-dir="up" data-focus-key="up:${team.code}" aria-label="Move ${escapeHtml(team.name)} up" title="Move up"><i class="fas fa-chevron-up" aria-hidden="true"></i></button>
+              <button class="reorder-btn reorder-down" data-dir="down" data-focus-key="down:${team.code}" aria-label="Move ${escapeHtml(team.name)} down" title="Move down"><i class="fas fa-chevron-down" aria-hidden="true"></i></button>
             </div>
             <div class="rank-num">${rank}</div>
             <img class="team-flag" src="${getFlagUrl(team.code)}" alt="" onerror="this.style.display='none'">
@@ -2071,9 +2220,11 @@
 
       // Save state and re-render
       saveStateToLocalStorage();
-      renderGroupStage();
-      renderWildcardsView();
-      renderKnockoutBracket();
+      keepFocus(() => {
+        renderGroupStage();
+        renderWildcardsView();
+        renderKnockoutBracket();
+      });
     }
 
     // Setup HTML5 Drag and Drop listeners
@@ -2184,7 +2335,13 @@
         card.className = `wildcard-card ${isSelected ? "selected" : ""}`;
         card.setAttribute("data-group", groupLetter);
         card.setAttribute("tabindex", "0");
-        card.setAttribute("aria-label", `Advance third place team ${thirdPlaceTeam.name} from Group ${groupLetter}. Currently ${isSelected ? "selected" : "not selected"}.`);
+        // A checkbox, so the state is announced as state rather than being
+        // spelled out inside the label - a div with only an aria-label is
+        // often not announced at all.
+        card.setAttribute("role", "checkbox");
+        card.setAttribute("aria-checked", String(isSelected));
+        card.dataset.focusKey = `wild:${groupLetter}`;
+        card.setAttribute("aria-label", `Advance ${thirdPlaceTeam.name}, third in Group ${groupLetter}`);
 
         card.innerHTML = `
           <div class="wildcard-info">
@@ -2231,8 +2388,10 @@
       validateKnockoutTree();
 
       saveStateToLocalStorage();
-      renderWildcardsView();
-      renderKnockoutBracket();
+      keepFocus(() => {
+        renderWildcardsView();
+        renderKnockoutBracket();
+      });
     }
 
     // MODULE 3: KNOCKOUT BRACKET STAGE & CALCULATION ENGINE
@@ -2399,7 +2558,7 @@
       }
 
       saveStateToLocalStorage();
-      renderKnockoutBracket();
+      keepFocus(renderKnockoutBracket);
     }
 
     // RENDERING THE BRACKET VIEWS
@@ -2450,7 +2609,12 @@
         const isWinner = state.bracketWinner[matchId] === team.name;
         row.className = `match-team ${isWinner ? "winner" : ""}`;
         row.setAttribute("tabindex", "0");
-        row.setAttribute("aria-label", `Match ${label}: Select ${team.name} to advance`);
+        // The pick was shown by a CSS class alone (WCAG 4.1.2); the same
+        // role and state /ucl's rows carry.
+        row.setAttribute("role", "button");
+        row.setAttribute("aria-pressed", String(isWinner));
+        row.dataset.focusKey = `pick:${matchId}:${team.code}`;
+        row.setAttribute("aria-label", `Match ${label}: pick ${team.name} to go through`);
 
         row.innerHTML = `
           <img class="match-team-flag" src="${getFlagUrl(team.code)}" alt="" onerror="this.style.display='none'">
@@ -2667,18 +2831,47 @@
 
     // MODULE 4: SESSION OPERATIONS (LOCALSTORAGE, SHARING, EXPORTS)
 
+    // Storage can be blocked or full, and every read and write here used to
+    // throw: the page rendered nothing and every pick failed. Guarded the way
+    // ucl.html is - the bracket simply is not saved.
+    const STATE_KEY = "predictor-state";
+    // The visitor's own bracket, kept once when a shared link replaces it.
+    const OWN_STATE_KEY = "predictor-state:own";
+
+    function readStored(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function writeStored(key, value) {
+      try {
+        localStorage.setItem(key, value);
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    function removeStored(key) {
+      try {
+        localStorage.removeItem(key);
+      } catch (err) {
+        /* Nothing was stored, then. */
+      }
+    }
+
     // Save to LocalStorage
     function saveStateToLocalStorage() {
-      localStorage.setItem("predictor-state", serializeState());
+      return writeStored(STATE_KEY, serializeState());
     }
 
     // Load from LocalStorage
     function loadStateFromLocalStorage() {
-      const saved = localStorage.getItem("predictor-state");
-      if (saved) {
-        return deserializeState(saved);
-      }
-      return false;
+      const saved = readStored(STATE_KEY);
+      return saved ? deserializeState(saved) : false;
     }
 
     // CUSTOM SERIALIZATION COMPRESSION (Compact URL safe format)
@@ -2784,17 +2977,57 @@
     }
 
     // Load from URL parameter ?s=
+    /*
+     * A shared link replaces the bracket on screen and in storage. The
+     * visitor's own bracket is backed up first - once: a second link opened
+     * before they chose would otherwise back up the first friend's bracket
+     * over theirs - and the banner offers it back.
+     */
     function loadStateFromUrl() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const serialStr = urlParams.get("s");
-      if (serialStr) {
-        const success = deserializeState(serialStr);
-        if (success) {
-          saveStateToLocalStorage();
-          return true;
-        }
+      const serial = new URLSearchParams(window.location.search).get("s");
+      if (!serial) return false;
+      const saved = readStored(STATE_KEY);
+      if (!deserializeState(serial)) return false;
+      if (saved && saved !== serial && readStored(OWN_STATE_KEY) === null) {
+        writeStored(OWN_STATE_KEY, saved);
       }
-      return false;
+      // Once it is saved the link has done its job. Left in the address bar,
+      // a reload would apply it again over any change made since. Kept when
+      // storage is blocked, because then it is the only copy.
+      if (saveStateToLocalStorage()) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      return true;
+    }
+
+    function renderSharedBanner() {
+      const banner = document.getElementById("shared-banner");
+      if (!banner) return;
+      const show = readStored(OWN_STATE_KEY) !== null;
+      banner.hidden = !show;
+      // Written after the region is visible, so it is announced as a change.
+      document.getElementById("shared-banner-text").textContent = show
+        ? "You're viewing a shared bracket. Your own is saved."
+        : "";
+    }
+
+    function setupSharedBanner() {
+      document.getElementById("shared-restore-btn")?.addEventListener("click", () => {
+        const own = readStored(OWN_STATE_KEY);
+        if (own && deserializeState(own)) {
+          saveStateToLocalStorage();
+          showToast("Your saved bracket is back.", "success");
+        }
+        removeStored(OWN_STATE_KEY);
+        renderAllViews();
+        renderSharedBanner();
+        document.getElementById("share-btn")?.focus();
+      });
+      document.getElementById("shared-keep-btn")?.addEventListener("click", () => {
+        removeStored(OWN_STATE_KEY);
+        renderSharedBanner();
+        document.getElementById("share-btn")?.focus();
+      });
     }
 
     // TEXT & JSON EXPORT GENERATOR
@@ -2874,6 +3107,9 @@
     function triggerGoldPodiumCelebration() {
       const canvas = document.getElementById("celebration-canvas");
       if (!canvas) return;
+      // As on /ucl: the champion is still announced, without the particles.
+      if (typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       canvas.style.display = "block";
@@ -3146,18 +3382,25 @@
     function armTwoPress(btn, armedLabel, onConfirm) {
       let timer = null;
       let original = null;
+      let originalLabel = null;
 
       function disarm() {
         window.clearTimeout(timer);
         timer = null;
         btn.classList.remove("is-confirming");
         if (original !== null) btn.innerHTML = original;
+        if (originalLabel !== null) btn.setAttribute("aria-label", originalLabel);
         original = null;
+        originalLabel = null;
       }
 
       btn.addEventListener("click", () => {
         if (!btn.classList.contains("is-confirming")) {
           original = btn.innerHTML;
+          // The fixed aria-label outranked the armed text, so the "Confirm?"
+          // state was never announced.
+          originalLabel = btn.getAttribute("aria-label");
+          btn.setAttribute("aria-label", `${armedLabel.replace(/\?$/, "")}: press again to confirm`);
           btn.classList.add("is-confirming");
           btn.innerHTML = '<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> <span class="action-label">' + armedLabel + "</span>";
           // An armed button left alone is a trap for the next click, so it
@@ -3194,18 +3437,27 @@
         }
       });
 
+      // execCommand reports failure by returning false, not by throwing, so
+      // this used to say "copied" when nothing was. On failure the link goes
+      // in the address bar, where it can be copied by hand.
       function fallbackCopy(text) {
         const input = document.createElement("input");
         input.value = text;
         document.body.appendChild(input);
         input.select();
+        let copied = false;
         try {
-          document.execCommand("copy");
-          showToast("Shareable link copied to clipboard!", "success");
+          copied = document.execCommand("copy");
         } catch (err) {
-          alert("Link to share: " + text);
+          copied = false;
         }
         document.body.removeChild(input);
+        if (copied) {
+          showToast("Shareable link copied to clipboard!", "success");
+        } else {
+          window.history.replaceState({}, document.title, text);
+          showToast("Couldn't copy. The link is in the address bar now.", "warning");
+        }
       }
     }
 

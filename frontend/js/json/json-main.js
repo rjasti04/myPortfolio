@@ -176,17 +176,25 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!clearButton.classList.contains("is-confirming")) {
         clearButton.classList.add("is-confirming");
         const originalText = clearButton.innerHTML;
+        const originalLabel = clearButton.getAttribute("aria-label");
         clearButton.dataset.originalText = originalText;
+        clearButton.dataset.originalLabel = originalLabel;
         clearButton.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Confirm Clear?';
+        // The fixed aria-label outranked the armed text, so a screen reader
+        // never heard that the button was armed.
+        clearButton.setAttribute("aria-label", "Confirm clear: press again to confirm");
         clearTimeout(confirmTimer);
+        // 4s, as in every other app - this one stood down after 3.
         confirmTimer = setTimeout(() => {
           clearButton.classList.remove("is-confirming");
           clearButton.innerHTML = originalText;
-        }, 3000);
+          clearButton.setAttribute("aria-label", originalLabel);
+        }, 4000);
         return;
       }
       clearTimeout(confirmTimer);
       clearButton.classList.remove("is-confirming");
+      if (clearButton.dataset.originalLabel) clearButton.setAttribute("aria-label", clearButton.dataset.originalLabel);
       if (clearButton.dataset.originalText) {
         clearButton.innerHTML = clearButton.dataset.originalText;
       }

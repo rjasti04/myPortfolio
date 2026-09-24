@@ -132,7 +132,7 @@ export async function initOwnerAnalytics() {
     root.replaceChildren();
 
     const header = el("div", "act-owner-head");
-    const heading = el("h3", "act-owner-title", "Across every session");
+    const heading = el("h2", "act-owner-title", "Across every session");
     heading.id = "act-owner-title";
     header.appendChild(heading);
 
@@ -190,7 +190,7 @@ export async function initOwnerAnalytics() {
    *  nobody took - the defect uiux.md finding 19 was written against. */
   function failure(title) {
     const card = el("section", "act-owner-card act-owner-card--error");
-    card.appendChild(el("h4", "act-owner-card-title", title));
+    card.appendChild(el("h3", "act-owner-card-title", title));
     const message = el("p", "act-owner-empty", "Could not load this panel.");
     message.setAttribute("role", "alert");
     card.appendChild(message);
@@ -199,7 +199,7 @@ export async function initOwnerAnalytics() {
 
   function card(title, ...children) {
     const node = el("section", "act-owner-card");
-    node.appendChild(el("h4", "act-owner-card-title", title));
+    node.appendChild(el("h3", "act-owner-card-title", title));
     children.forEach((child) => child && node.appendChild(child));
     return node;
   }

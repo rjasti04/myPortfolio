@@ -3,7 +3,7 @@ import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
 import { closeModal, openModal } from './modal.js';
 import { confirmAction } from './confirm-dialog.js';
-import { showToast } from './utils.js';
+import { escapeHTML, showToast } from './utils.js';
 
 /* What a registration says, whether or not the address already had an
    account. The server gives both the same answer on purpose, so the page
@@ -512,7 +512,7 @@ export async function initAuthUI() {
         const originalText = btn.innerHTML;
 
         try {
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Loading...';
             btn.disabled = true;
             loginError.textContent = '';
             document.getElementById('login-resend-verification')?.remove();
@@ -619,7 +619,7 @@ export async function initAuthUI() {
             const magicSuccess = document.getElementById('magic-link-success');
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Sending...';
                 btn.disabled = true;
                 if (magicError) magicError.textContent = '';
                 if (magicSuccess) { magicSuccess.textContent = ''; magicSuccess.style.display = 'none'; }
@@ -651,7 +651,7 @@ export async function initAuthUI() {
             const verifyError = document.getElementById('2fa-verify-error');
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Verifying...';
                 btn.disabled = true;
                 if (verifyError) verifyError.textContent = '';
 
@@ -696,7 +696,7 @@ export async function initAuthUI() {
             const enableSuccess = document.getElementById('2fa-enable-success');
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enabling...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Enabling...';
                 btn.disabled = true;
                 if (enableError) enableError.textContent = '';
                 if (enableSuccess) { enableSuccess.textContent = ''; enableSuccess.style.display = 'none'; }
@@ -757,7 +757,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Disabling...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Disabling...';
                 btn.disabled = true;
                 if (twoFactorDisableError) twoFactorDisableError.textContent = '';
                 if (twoFactorDisableSuccess) {
@@ -913,14 +913,14 @@ export async function initAuthUI() {
             if (!ok) return;
             try {
                 revokeOthersBtn.disabled = true;
-                revokeOthersBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging out...';
+                revokeOthersBtn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Logging out...';
                 await revokeOtherSessions();
                 await loadActiveSessionsUI();
             } catch (e) {
                 if (errEl) errEl.textContent = e.message || 'Failed to revoke other sessions.';
             } finally {
                 revokeOthersBtn.disabled = false;
-                revokeOthersBtn.innerHTML = 'Log Out All Other Devices <i class="fas fa-right-from-bracket"></i>';
+                revokeOthersBtn.innerHTML = 'Log Out All Other Devices <i class="fas fa-right-from-bracket" aria-hidden="true"></i>';
             }
         });
     }
@@ -936,7 +936,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Loading...';
                 btn.disabled = true;
                 registerError.textContent = '';
                 if (registerSuccess) {
@@ -990,7 +990,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Sending...';
                 btn.disabled = true;
                 forgotError.textContent = '';
                 forgotSuccess.textContent = '';
@@ -1126,7 +1126,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Updating...';
                 btn.disabled = true;
                 if (changePwError) changePwError.textContent = '';
                 if (changePwSuccess) {
@@ -1289,7 +1289,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Resetting...';
                 btn.disabled = true;
                 if (resetPwError) resetPwError.textContent = '';
                 if (resetPwSuccess) {
@@ -1359,7 +1359,7 @@ export async function initAuthUI() {
             const originalText = btn.innerHTML;
 
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Deleting...';
                 btn.disabled = true;
                 if (deleteAccountError) deleteAccountError.textContent = '';
                 if (deleteAccountSuccess) {
@@ -1485,25 +1485,32 @@ async function setupNavUI() {
                 const user = await res.json();
                 const initial = (user.username || user.email).charAt(0).toUpperCase();
 
+                /* A disclosure button: it opens a panel of ordinary buttons,
+                   so Tab walks through them and arrow keys are a shortcut on
+                   top. It used to be a <div aria-haspopup> with no role, no
+                   tab stop and a one-letter name - Logout, 2FA and the rest
+                   were unreachable from a keyboard (WCAG 2.1.1), and the
+                   dialog-close focus fallback above called .focus() on a node
+                   that cannot take it. */
                 authContainer.innerHTML = `
-                    <div class="nav-user-profile" id="nav-user-btn" aria-haspopup="true" aria-expanded="false">
-                        <div class="nav-user-icon">${initial}</div>
-                    </div>
+                    <button type="button" class="nav-user-profile" id="nav-user-btn" aria-expanded="false" aria-controls="nav-user-dropdown">
+                        <span class="nav-user-icon" aria-hidden="true">${escapeHTML(initial)}</span>
+                    </button>
                     <div class="nav-user-dropdown" id="nav-user-dropdown">
-                        <button class="nav-dropdown-item" id="nav-2fa-btn">
-                            <i class="fas fa-shield-halved"></i> ${user.is_totp_enabled ? 'Manage 2FA' : 'Setup 2FA'}
+                        <button type="button" class="nav-dropdown-item" id="nav-2fa-btn">
+                            <i class="fas fa-shield-halved" aria-hidden="true"></i> ${user.is_totp_enabled ? 'Manage 2FA' : 'Setup 2FA'}
                         </button>
-                        <button class="nav-dropdown-item" id="nav-sessions-btn">
-                            <i class="fas fa-laptop"></i> Active Devices
+                        <button type="button" class="nav-dropdown-item" id="nav-sessions-btn">
+                            <i class="fas fa-laptop" aria-hidden="true"></i> Active Devices
                         </button>
-                        <button class="nav-dropdown-item" id="nav-change-pw-btn">
-                            <i class="fas fa-key"></i> Change Password
+                        <button type="button" class="nav-dropdown-item" id="nav-change-pw-btn">
+                            <i class="fas fa-key" aria-hidden="true"></i> Change Password
                         </button>
-                        <button class="nav-dropdown-item nav-dropdown-item--danger" id="nav-delete-account-btn" style="color: var(--color-error, #f38ba8);">
-                            <i class="fas fa-trash-can" style="color: var(--color-error, #f38ba8);"></i> Delete Account
+                        <button type="button" class="nav-dropdown-item nav-dropdown-item--danger" id="nav-delete-account-btn" style="color: var(--color-error, #f38ba8);">
+                            <i class="fas fa-trash-can" aria-hidden="true" style="color: var(--color-error, #f38ba8);"></i> Delete Account
                         </button>
-                        <button class="nav-dropdown-item" id="nav-logout-btn">
-                            <i class="fas fa-right-from-bracket"></i> Logout
+                        <button type="button" class="nav-dropdown-item" id="nav-logout-btn">
+                            <i class="fas fa-right-from-bracket" aria-hidden="true"></i> Logout
                         </button>
                     </div>
                 `;
@@ -1515,15 +1522,67 @@ async function setupNavUI() {
                 const changePwBtn = document.getElementById('nav-change-pw-btn');
                 const deleteAccountBtn = document.getElementById('nav-delete-account-btn');
                 const logoutBtn = document.getElementById('nav-logout-btn');
+                const menuItems = () => Array.from(dropdown.querySelectorAll('.nav-dropdown-item'));
+
+                // The username is the visitor's own input, so it reaches the
+                // DOM through setAttribute and never through the template.
+                const accountLabel = `Account menu for ${user.username || user.email}`;
+                profileBtn.setAttribute('aria-label', accountLabel);
+                profileBtn.title = accountLabel;
+
+                const closeMenu = ({ restoreFocus = false } = {}) => {
+                    dropdown.classList.remove('show');
+                    profileBtn.setAttribute('aria-expanded', 'false');
+                    if (restoreFocus) profileBtn.focus();
+                };
+
+                const openMenu = () => {
+                    closeAllDropdowns();
+                    dropdown.classList.add('show');
+                    profileBtn.setAttribute('aria-expanded', 'true');
+                    // Next frame: the panel transitions in from
+                    // visibility:hidden and cannot take focus until that has
+                    // applied - the same reason as the header dropdowns in
+                    // navigation.js.
+                    requestAnimationFrame(() => menuItems()[0]?.focus());
+                };
 
                 profileBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const isExpanded = dropdown.classList.contains('show');
-                    closeAllDropdowns();
-                    if (!isExpanded) {
-                        dropdown.classList.add('show');
-                        profileBtn.setAttribute('aria-expanded', 'true');
+                    if (dropdown.classList.contains('show')) closeMenu();
+                    else openMenu();
+                });
+
+                dropdown.addEventListener('keydown', (e) => {
+                    const items = menuItems();
+                    const index = items.indexOf(document.activeElement);
+                    let next = null;
+                    if (e.key === 'ArrowDown') next = items[(index + 1) % items.length];
+                    else if (e.key === 'ArrowUp') next = items[(index - 1 + items.length) % items.length];
+                    else if (e.key === 'Home') next = items[0];
+                    else if (e.key === 'End') next = items[items.length - 1];
+                    else if (e.key === 'Escape') {
+                        // navigation.js closes every header panel on Escape
+                        // too, but has no toggle to hand focus back to for
+                        // this one, so it would land on <body>.
+                        closeMenu({ restoreFocus: true });
+                        return;
                     }
+                    if (!next) return;
+                    e.preventDefault();
+                    next.focus();
+                });
+
+                // Tabbing out closes it without taking focus back, so Tab
+                // carries on to the next control. Only when focus demonstrably
+                // went somewhere else: Safari does not focus a button on click,
+                // so pressing an item there blurs with no relatedTarget, and
+                // closing on that would hide the item under the pointer before
+                // its click landed. Outside clicks have their own listener.
+                dropdown.addEventListener('focusout', (e) => {
+                    const to = e.relatedTarget;
+                    if (!to || dropdown.contains(to) || to === profileBtn) return;
+                    if (dropdown.classList.contains('show')) closeMenu();
                 });
 
                 // Aborted again here, not only on entry: two auth-changed events
@@ -1533,52 +1592,43 @@ async function setupNavUI() {
                 navUserMenuListeners = new AbortController();
                 document.addEventListener('click', (e) => {
                     if (dropdown && !dropdown.contains(e.target) && !profileBtn.contains(e.target)) {
-                        dropdown.classList.remove('show');
-                        profileBtn.setAttribute('aria-expanded', 'false');
+                        closeMenu();
                     }
                 }, { signal: navUserMenuListeners.signal });
 
-                if (btn2FA) {
-                    // Routes on state. The label used to read "2FA Enabled"
-                    // while the handler still asked to enrol, so an enrolled
-                    // user got the enrolment panel and the server's refusal to
-                    // reissue a live secret - an empty QR frame, an empty
-                    // "Secret Key:" and an error naming a Disable control that
-                    // did not exist.
-                    btn2FA.addEventListener('click', () => {
-                        dropdown.classList.remove('show');
-                        window.dispatchEvent(new Event(
-                            user.is_totp_enabled ? 'request-2fa-manage-modal' : 'request-2fa-setup-modal'
-                        ));
-                    });
-                }
+                /* Each item closes the menu and puts focus back on the button
+                   BEFORE it asks for its dialog: openModal records the active
+                   element as the place to return to, and the item itself is
+                   visibility:hidden by the time that dialog closes. Closing
+                   also resets aria-expanded, which the bare class removal
+                   these used to do left at "true". */
+                const menuAction = (eventName) => () => {
+                    closeMenu({ restoreFocus: true });
+                    window.dispatchEvent(new Event(eventName));
+                };
 
-                if (sessionsBtn) {
-                    sessionsBtn.addEventListener('click', () => {
-                        dropdown.classList.remove('show');
-                        window.dispatchEvent(new Event('request-sessions-modal'));
-                    });
-                }
-
-                if (changePwBtn) {
-                    changePwBtn.addEventListener('click', () => {
-                        dropdown.classList.remove('show');
-                        window.dispatchEvent(new Event('request-change-password-modal'));
-                    });
-                }
-
-                if (deleteAccountBtn) {
-                    deleteAccountBtn.addEventListener('click', () => {
-                        dropdown.classList.remove('show');
-                        window.dispatchEvent(new Event('request-delete-account-modal'));
-                    });
-                }
+                // Routes on state. The label used to read "2FA Enabled" while
+                // the handler still asked to enrol, so an enrolled user got the
+                // enrolment panel and the server's refusal to reissue a live
+                // secret - an empty QR frame, an empty "Secret Key:" and an
+                // error naming a Disable control that did not exist.
+                btn2FA?.addEventListener('click', menuAction(
+                    user.is_totp_enabled ? 'request-2fa-manage-modal' : 'request-2fa-setup-modal'
+                ));
+                sessionsBtn?.addEventListener('click', menuAction('request-sessions-modal'));
+                changePwBtn?.addEventListener('click', menuAction('request-change-password-modal'));
+                deleteAccountBtn?.addEventListener('click', menuAction('request-delete-account-modal'));
 
                 logoutBtn.addEventListener('click', async () => {
                     await logoutUser();
                     // Same reason as the sign-in toast: the nav icon swapping
                     // back is not feedback anyone hears, or reliably notices.
                     showToast('Signed out.', 'success');
+                    // The re-render replaced the button that held focus.
+                    requestAnimationFrame(() => {
+                        if (document.activeElement && document.activeElement !== document.body) return;
+                        document.getElementById('nav-login-btn')?.focus();
+                    });
                 });
 
                 return; // Successfully setup logged-in state
@@ -1610,7 +1660,7 @@ async function setupNavUI() {
     // Logged out state
     authContainer.innerHTML = `
         <button class="header-icon-btn nav-auth-btn" id="nav-login-btn" title="Log In" aria-label="Log In">
-            <i class="fas fa-right-to-bracket"></i>
+            <i class="fas fa-right-to-bracket" aria-hidden="true"></i>
         </button>
     `;
 

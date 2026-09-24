@@ -103,6 +103,9 @@
 }
 
 .brand-title {
+  /* The app's <h1> since the review's U11 - it had none - so the UA's
+     heading margin is zeroed; size and weight were already explicit. */
+  margin: 0;
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.2;
@@ -216,8 +219,7 @@
   border-color: var(--color-error);
 }
 
-.action-btn.is-confirming,
-.action-btn.confirming {
+.action-btn.is-confirming {
   background-color: var(--error-bg);
   color: var(--color-error);
   border-color: var(--color-error);

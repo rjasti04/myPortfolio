@@ -42,6 +42,37 @@ import {
  * @param {object} [options]
  * @returns {object} Public controls
  */
+/*
+ * One polite status region for the tool's results. Encoder output lands in a
+ * read-only field that nothing announced, so an error there was silent for a
+ * screen-reader user. Only transitions are announced - entering an error, a
+ * changed error, an explicit Generate - never each keystroke's live output.
+ * Cleared first, so the same message twice is still read.
+ */
+function announce(message) {
+  const region = document.getElementById("crypto-status");
+  if (!region) return;
+  region.textContent = "";
+  window.setTimeout(() => {
+    region.textContent = message;
+  }, 50);
+}
+
+/** Error state on an output field, announced only when it changes. */
+function setOutputError(outputEl, message) {
+  outputEl.value = `Error: ${message}`;
+  outputEl.classList.add("has-error");
+  if (outputEl.dataset.announcedError !== message) {
+    outputEl.dataset.announcedError = message;
+    announce(`Error: ${message}`);
+  }
+}
+
+function clearOutputError(outputEl) {
+  outputEl.classList.remove("has-error");
+  delete outputEl.dataset.announcedError;
+}
+
 export function initCryptoUI() {
   setupCopyButtons();
   setupEncodersUI();
@@ -59,24 +90,34 @@ export function initCryptoUI() {
  */
 export async function copyWithFeedback(text, btn) {
   if (!text) return;
+  // execCommand reports failure by returning false rather than throwing,
+  // and "Copied!" used to show whichever it did. /json already said
+  // "Copy failed"; now these do too.
+  let copied = true;
   try {
     await navigator.clipboard.writeText(text);
   } catch {
-    // Fallback for older environments
     const ta = document.createElement("textarea");
     ta.value = text;
     ta.style.position = "fixed";
     ta.style.opacity = "0";
     document.body.appendChild(ta);
     ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
+    try {
+      copied = document.execCommand("copy");
+    } catch {
+      copied = false;
+    } finally {
+      document.body.removeChild(ta);
+    }
   }
 
   if (btn) {
     const originalHtml = btn.innerHTML;
-    btn.classList.add("copied");
-    btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> Copied!';
+    btn.classList.toggle("copied", copied);
+    btn.innerHTML = copied
+      ? '<i class="fas fa-check" aria-hidden="true"></i> Copied!'
+      : '<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Copy failed';
     setTimeout(() => {
       btn.classList.remove("copied");
       btn.innerHTML = originalHtml;
@@ -156,10 +197,9 @@ function setupEncodersUI() {
         result = isEncode ? textToBinary(text) : binaryToText(text);
       }
       outputEl.value = result;
-      outputEl.classList.remove("has-error");
+      clearOutputError(outputEl);
     } catch (err) {
-      outputEl.value = `Error: ${err.message}`;
-      outputEl.classList.add("has-error");
+      setOutputError(outputEl, err.message);
     }
     updateEncoderStats();
   }
@@ -224,7 +264,7 @@ function setupEncodersUI() {
   clearBtn?.addEventListener("click", () => {
     inputEl.value = "";
     outputEl.value = "";
-    outputEl.classList.remove("has-error");
+    clearOutputError(outputEl);
     if (fileInfo) fileInfo.textContent = "";
     updateEncoderStats();
     inputEl.focus();
@@ -274,12 +314,12 @@ function setupEncodersUI() {
         formatSelect.value = "base64";
         syncFormatControls();
         outputEl.value = dataUri;
-        outputEl.classList.remove("has-error");
+        clearOutputError(outputEl);
         if (fileInfo) fileInfo.textContent = `Converted "${file.name}" to Base64 Data URI.`;
+        announce(`Converted ${file.name} to a Base64 data URI.`);
         updateEncoderStats();
       } catch (err) {
-        outputEl.value = `Error: ${err.message}`;
-        outputEl.classList.add("has-error");
+        setOutputError(outputEl, err.message);
         if (fileInfo) fileInfo.textContent = err.message;
       }
     }
@@ -536,7 +576,11 @@ function setupGeneratorsUI() {
     if (detailsEl) detailsEl.textContent = extraDetails;
   }
 
-  generateBtn.addEventListener("click", runGeneration);
+  generateBtn.addEventListener("click", () => {
+    runGeneration();
+    const count = batchSelect ? parseInt(batchSelect.value, 10) : 1;
+    announce(count === 1 ? "Generated a new value." : `Generated ${count} new values.`);
+  });
 
   // Run generation initially
   runGeneration();
@@ -648,21 +692,29 @@ function setupPrivacyClear() {
 
   let confirmTimeout = null;
   const originalHtml = clearBtn.innerHTML;
+  const originalLabel = clearBtn.getAttribute("aria-label");
 
+  // `.is-confirming` and 4s, as in every other app: this one used
+  // `.confirming` and stood down after 3.
   clearBtn.addEventListener("click", () => {
-    if (!clearBtn.classList.contains("confirming")) {
-      clearBtn.classList.add("confirming");
+    if (!clearBtn.classList.contains("is-confirming")) {
+      clearBtn.classList.add("is-confirming");
       clearBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> <span class="action-label">Confirm?</span>';
+      // The fixed aria-label outranked the armed text, so a screen reader
+      // never heard that the button was armed.
+      clearBtn.setAttribute("aria-label", "Confirm clear: press again to confirm");
       clearTimeout(confirmTimeout);
       confirmTimeout = setTimeout(() => {
-        clearBtn.classList.remove("confirming");
+        clearBtn.classList.remove("is-confirming");
         clearBtn.innerHTML = originalHtml;
-      }, 3000);
+        clearBtn.setAttribute("aria-label", originalLabel);
+      }, 4000);
       return;
     }
 
     clearTimeout(confirmTimeout);
-    clearBtn.classList.remove("confirming");
+    clearBtn.classList.remove("is-confirming");
+    clearBtn.setAttribute("aria-label", originalLabel);
 
     // Clear all inputs and textareas
     document.querySelectorAll("input[type=text], input[type=number], textarea").forEach((el) => {

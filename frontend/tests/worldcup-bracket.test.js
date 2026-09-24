@@ -5,11 +5,12 @@ import { JSDOM } from "jsdom";
 
 const html = readFileSync("frontend/worldcup.html", "utf8");
 
-function boot(search = "") {
+function boot(search = "", { beforeParse } = {}) {
   const dom = new JSDOM(html, {
     runScripts: "dangerously",
     url: "https://rjasti.com/worldcup" + search,
     pretendToBeVisual: true,
+    beforeParse,
   });
 
   return new Promise((resolve) => {
@@ -43,10 +44,9 @@ test("header contains autofill-btn with dice icon and accessible attributes", as
   const doc = window.document;
   const btn = doc.getElementById("autofill-btn");
   assert.ok(btn, "autofill button exists");
-  assert.equal(
-    btn.getAttribute("aria-label"),
-    "Randomly fill undecided stages and matches across the tournament",
-  );
+  // Begins with its visible text, "Random Fill", so a voice-control user can
+  // say what they see (WCAG 2.5.3).
+  assert.equal(btn.getAttribute("aria-label"), "Random fill: every undecided stage and match");
   assert.ok(btn.querySelector("i.fa-dice"), "has dice icon");
 });
 
@@ -308,4 +308,165 @@ test("Reset takes two presses and never raises a browser dialog", async () => {
 test("the page loads the shared chrome", () => {
   assert.match(html, /js\/app-shared\/predictor-chrome\.js/);
   assert.match(html, /href="app-shared\.css"/);
+});
+
+/* --- Codebase review section 4 ---------------------------------------------- */
+
+const key = (window, el, name) =>
+  el.dispatchEvent(new window.KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }));
+
+// U2: every pick rebuilt its view with innerHTML = "" and dropped focus on
+// <body>, so a keyboard user tabbed in from the top after every keypress.
+test("picking a tie keeps focus on the picked team, and says it is picked", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const row = doc.querySelector('#d-r32-1 .match-team[role="button"]');
+  assert.ok(row, "a round-of-32 row is rendered");
+  assert.equal(row.getAttribute("aria-pressed"), "false");
+  const focusKey = row.dataset.focusKey;
+
+  row.focus();
+  key(window, row, "Enter");
+
+  assert.equal(doc.activeElement.dataset.focusKey, focusKey, "focus stayed on the team");
+  assert.notEqual(doc.activeElement, row, "on the re-rendered node, not the detached one");
+  assert.equal(doc.activeElement.getAttribute("aria-pressed"), "true");
+});
+
+test("moving a team with the arrow keys keeps focus on that team", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const second = doc.querySelector('#groups-container .card[data-group="A"] li[data-index="1"]');
+  const focusKey = second.dataset.focusKey;
+
+  second.focus();
+  key(window, second, "ArrowUp");
+
+  assert.equal(doc.activeElement.dataset.focusKey, focusKey);
+  assert.equal(doc.activeElement.getAttribute("data-index"), "0", "the team is now first, and focus went with it");
+});
+
+test("a wildcard card is a checkbox, and toggling it keeps focus", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const card = doc.querySelector('#wildcards-container .wildcard-card[data-group="A"]');
+  assert.equal(card.getAttribute("role"), "checkbox");
+  assert.equal(card.getAttribute("aria-checked"), "true", "A is one of the default eight");
+
+  card.focus();
+  key(window, card, " ");
+
+  assert.equal(doc.activeElement.dataset.focusKey, "wild:A");
+  assert.equal(doc.activeElement.getAttribute("aria-checked"), "false");
+});
+
+// U5: with storage blocked every read and write threw, so the page rendered
+// nothing and every pick failed.
+test("the bracket works with browser storage blocked", async () => {
+  const { window } = await boot("", {
+    beforeParse(win) {
+      Object.defineProperty(win, "localStorage", {
+        get() { throw new win.DOMException("The operation is insecure.", "SecurityError"); },
+      });
+    },
+  });
+  const doc = window.document;
+  assert.equal(doc.querySelectorAll("#groups-container .card").length, 12);
+  const row = doc.querySelector('#d-r32-1 .match-team[role="button"]');
+  assert.doesNotThrow(() => row.dispatchEvent(new window.MouseEvent("click", { bubbles: true })));
+  assert.equal(doc.querySelector('#d-r32-1 .match-team[aria-pressed="true"]') !== null, true);
+});
+
+// U9: the saved bracket used to win, so a returning visitor who opened a
+// friend's link saw their own bracket. The link wins now, and the visitor's
+// own bracket is kept rather than overwritten.
+test("a shared link wins, and the visitor's own bracket can be restored", async () => {
+  const mine = await boot();
+  mine.window.document.getElementById("autofill-btn")
+    .dispatchEvent(new mine.window.MouseEvent("click", { bubbles: true }));
+  const own = mine.window.localStorage.getItem("predictor-state");
+  const theirs = (await boot()).window.localStorage.getItem("predictor-state");
+  assert.notEqual(own, theirs, "precondition: two different brackets");
+
+  const { window } = await boot(`?s=${theirs}`, {
+    beforeParse(win) { win.localStorage.setItem("predictor-state", own); },
+  });
+  const doc = window.document;
+  assert.equal(window.localStorage.getItem("predictor-state"), theirs, "the link's bracket is shown");
+  assert.equal(window.localStorage.getItem("predictor-state:own"), own, "the visitor's is backed up");
+  assert.equal(window.location.search, "", "a reload will not re-apply the link over later edits");
+  assert.equal(doc.getElementById("shared-banner").hidden, false);
+  assert.match(doc.getElementById("shared-banner-text").textContent, /shared bracket/);
+
+  doc.getElementById("shared-restore-btn").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.equal(window.localStorage.getItem("predictor-state"), own);
+  assert.equal(window.localStorage.getItem("predictor-state:own"), null);
+  assert.equal(doc.getElementById("shared-banner").hidden, true);
+});
+
+test("a second shared link does not overwrite the backup of the visitor's bracket", async () => {
+  const { window } = await boot("?s=" + (await boot()).window.localStorage.getItem("predictor-state"), {
+    beforeParse(win) {
+      win.localStorage.setItem("predictor-state", "first-friends-bracket");
+      win.localStorage.setItem("predictor-state:own", "my-bracket");
+    },
+  });
+  assert.equal(window.localStorage.getItem("predictor-state:own"), "my-bracket");
+});
+
+// U10: execCommand reports failure by returning false, and "copied" was shown
+// regardless; alert() was the only other path.
+test("a failed copy says so and leaves the link in the address bar", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  doc.execCommand = () => false;
+
+  doc.getElementById("share-btn").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+  const toast = doc.querySelector("#toast-container .toast");
+  assert.ok(toast.classList.contains("toast-warning"));
+  assert.match(toast.textContent, /Couldn't copy/);
+  assert.match(window.location.search, /^\?s=/);
+});
+
+test("a toast can be dismissed", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  doc.execCommand = () => true;
+  doc.getElementById("share-btn").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+  const toast = doc.querySelector("#toast-container .toast");
+  const close = toast.querySelector('button[aria-label="Dismiss notification"]');
+  assert.ok(close, "the toast carries a close button");
+  close.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  assert.equal(toast.isConnected, false);
+});
+
+// U6: the armed "Confirm?" state changed the text under a fixed aria-label,
+// so a screen reader never heard it.
+test("an armed Reset announces that it is armed", async () => {
+  const { window } = await boot();
+  const reset = window.document.getElementById("reset-btn");
+  const label = reset.getAttribute("aria-label");
+
+  reset.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.match(reset.getAttribute("aria-label"), /: press again to confirm$/);
+
+  reset.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.equal(reset.getAttribute("aria-label"), label);
+});
+
+// U8: /ucl had a reduced-motion block and /worldcup did not.
+test("reduced motion is honoured", () => {
+  assert.match(html, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(html, /function triggerGoldPodiumCelebration\(\)[\s\S]{0,400}prefers-reduced-motion: reduce/);
+});
+
+// U7: both arrows' hit areas reached 10px past their box, so "move down"
+// was painted over the bottom of "move up". They now stop at the gap's
+// midline; the geometry itself is checked in a browser, not here.
+test("each reorder arrow has its own hit area", () => {
+  assert.match(html, /\.reorder-up::after\s*\{[^}]*bottom:\s*-3px/);
+  assert.match(html, /\.reorder-down::after\s*\{[^}]*top:\s*-3px/);
 });

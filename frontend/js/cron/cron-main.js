@@ -15,6 +15,13 @@ import { initAppShortcuts } from "../app-shared/app-shortcuts.js";
 
 const STORAGE_KEY = "rj-inspector:state";
 
+/* A reduced-motion preference is read when the scroll happens, because
+   JS-initiated smooth scrolling ignores the stylesheet's
+   `scroll-behavior: auto` and would animate regardless. */
+function scrollBehavior() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+}
+
 function loadSavedState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -32,6 +39,11 @@ function saveState(state) {
   }
 }
 
+/* 3.2s, held while the toast has the pointer or focus, with a close button -
+   the SPA's toast (js/utils.js). This one vanished after 2.2s with no way to
+   keep it or dismiss it, and ignored the pointer entirely. */
+const TOAST_MS = 3200;
+
 function showToast(message) {
   let toast = document.getElementById("toast-notification");
   if (!toast) {
@@ -40,14 +52,30 @@ function showToast(message) {
     toast.className = "toast";
     toast.setAttribute("role", "status");
     toast.setAttribute("aria-live", "polite");
+    toast.innerHTML =
+      '<span class="toast-text"></span>' +
+      '<button type="button" class="toast-close" aria-label="Dismiss notification">' +
+      '<i class="fas fa-times" aria-hidden="true"></i></button>';
+    const hide = () => toast.classList.remove("show");
+    const hold = () => clearTimeout(toast._timer);
+    const arm = () => {
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(hide, TOAST_MS);
+    };
+    toast.querySelector(".toast-close").addEventListener("click", () => {
+      hold();
+      hide();
+    });
+    toast.addEventListener("mouseenter", hold);
+    toast.addEventListener("mouseleave", arm);
+    toast.addEventListener("focusin", hold);
+    toast.addEventListener("focusout", arm);
+    toast._arm = arm;
     document.body.appendChild(toast);
   }
-  toast.textContent = message;
+  toast.querySelector(".toast-text").textContent = message;
   toast.classList.add("show");
-  clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => {
-    toast.classList.remove("show");
-  }, 2200);
+  toast._arm();
 }
 
 const VALID_TABS = ["cron", "regex", "about"];
@@ -99,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const targetY = Math.max(0, panelTop - headerOffset);
     window.scrollTo({
       top: targetY,
-      behavior: "smooth",
+      behavior: scrollBehavior(),
     });
   }
 
@@ -115,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // stayed individually Tab-reachable. Same line as json-main.js.
       btn.tabIndex = isTarget ? 0 : -1;
       if (isTarget && typeof btn.scrollIntoView === "function") {
-        btn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        btn.scrollIntoView({ behavior: scrollBehavior(), inline: "center", block: "nearest" });
       }
     });
 
@@ -284,8 +312,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  const storedTheme = localStorage.getItem("theme") || getSystemTheme();
-  applyTheme(storedTheme);
+  // Guarded: with storage blocked this read threw, and the theme toggle was
+  // never wired. Same guard as json-main.js.
+  let storedTheme = null;
+  try {
+    storedTheme = localStorage.getItem("theme");
+  } catch {
+    storedTheme = null;
+  }
+  applyTheme(storedTheme === "light" || storedTheme === "dark" ? storedTheme : getSystemTheme());
 
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener("click", () => {

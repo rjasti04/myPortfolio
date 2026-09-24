@@ -140,3 +140,57 @@ test("the document ships the home title and a bare-origin canonical", () => {
     "https://rjasti.com/"
   );
 });
+
+// Codebase review U11: five views jumped from their <h1> straight to <h3>, so
+// a screen reader's heading list implied a missing level in each. The
+// Experience markup comes from scripts/generate_resume.py, which is where its
+// levels are set.
+test("no view skips a heading level", () => {
+  const dom = new JSDOM(INDEX);
+  const { document } = dom.window;
+  for (const id of SECTION_IDS) {
+    let previous = 0;
+    for (const heading of document.getElementById(id).querySelectorAll("h1, h2, h3, h4, h5, h6")) {
+      const level = Number(heading.tagName[1]);
+      assert.ok(
+        level <= previous + 1,
+        `#${id}: <${heading.tagName.toLowerCase()}> "${heading.textContent.trim()}" follows an h${previous}`
+      );
+      previous = level;
+    }
+  }
+});
+
+test("every Font Awesome icon in the page is hidden from assistive technology", () => {
+  const dom = new JSDOM(INDEX);
+  const exposed = [...dom.window.document.querySelectorAll('i[class*="fa-"]')].filter(
+    (icon) => icon.getAttribute("aria-hidden") !== "true"
+  );
+  assert.equal(
+    exposed.length,
+    0,
+    `decorative glyphs a screen reader would read out: ${exposed.slice(0, 5).map((i) => i.className).join(", ")}`
+  );
+});
+
+test("nothing that acts is dressed as a link to nowhere", () => {
+  const dom = new JSDOM(INDEX);
+  const dead = dom.window.document.querySelectorAll('a[href="#"]');
+  assert.equal(dead.length, 0, `use a <button> for: ${[...dead].map((a) => a.id || a.textContent.trim()).join(", ")}`);
+});
+
+// WCAG 2.5.3: a voice-control user says what they see. A control whose
+// accessible name does not begin with its visible label cannot be activated
+// by speaking that label.
+test("a labelled control's name begins with its visible text", () => {
+  const dom = new JSDOM(INDEX);
+  for (const label of dom.window.document.querySelectorAll(".home-social-label, .action-label")) {
+    const control = label.closest("[aria-label]");
+    if (!control) continue;
+    const visible = label.textContent.trim().toLowerCase();
+    assert.ok(
+      control.getAttribute("aria-label").toLowerCase().startsWith(visible),
+      `"${control.getAttribute("aria-label")}" does not begin with its visible label "${label.textContent.trim()}"`
+    );
+  }
+});

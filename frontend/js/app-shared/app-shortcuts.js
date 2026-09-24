@@ -26,7 +26,10 @@ function baseShortcuts({ focusPrimary, tabs }) {
       label: "Focus the main input",
       run: (event) => {
         const target = document.querySelector(focusPrimary);
-        if (!target) return false;
+        // Only when the input can actually take focus: on another tab it sits
+        // in a hidden panel, and claiming the key there swallowed the "/"
+        // and moved focus nowhere.
+        if (!target || target.disabled || target.closest("[hidden]")) return false;
         // preventDefault, or the "/" lands in the field it just focused -
         // which is how Firefox's quick-find used to eat this shortcut.
         event.preventDefault();
@@ -123,6 +126,22 @@ export function initAppShortcuts({
     // the one key that has to work while you are typing.
     if (event.key === "Escape" && !sheet.root.hidden) {
       close();
+      return;
+    }
+
+    // aria-modal="true" promises the page behind is out of reach, but Tab
+    // kept walking into it. A local trap rather than modal.js's: that module
+    // belongs to the SPA's build group, and the sheet holds one control.
+    if (event.key === "Tab" && !sheet.root.hidden) {
+      const focusable = [...sheet.root.querySelectorAll('button, a[href], [tabindex]:not([tabindex="-1"])')];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = doc.activeElement;
+      if (!sheet.root.contains(active) || (event.shiftKey && active === first) || (!event.shiftKey && active === last)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      }
       return;
     }
 

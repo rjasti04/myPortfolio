@@ -530,14 +530,14 @@
            grouped on the right. See the HEADER & NAVIGATION region. -->
       <button type="button" class="hamburger-btn" id="hamburger-toggle" aria-label="Toggle menu"
         aria-controls="nav-menu" aria-expanded="false">
-        <i class="fas fa-bars"></i>
+        <i class="fas fa-bars" aria-hidden="true"></i>
       </button>
 
       <div class="header-actions">
         <div class="header-dropdown js-only" id="theme-customizer-dropdown">
           <button type="button" class="header-icon-btn" id="palette-toggle" title="Customize theme"
             aria-label="Customize theme" aria-controls="theme-customizer-menu" aria-expanded="false">
-            <i class="fas fa-palette"></i>
+            <i class="fas fa-palette" aria-hidden="true"></i>
           </button>
           <div class="header-dropdown-menu" id="theme-customizer-menu" aria-hidden="true">
             <div class="header-dropdown-container customizer-content">
@@ -703,7 +703,7 @@
         <div class="nav-auth-container" id="nav-auth-container">
           <button type="button" class="header-icon-btn nav-auth-btn" id="nav-login-btn" title="Log In"
             aria-label="Log In">
-            <i class="fas fa-right-to-bracket"></i>
+            <i class="fas fa-right-to-bracket" aria-hidden="true"></i>
           </button>
         </div>
 
@@ -874,7 +874,7 @@
                 <i class="fas fa-envelope" aria-hidden="true"></i>
               </a>
               <a href="#ai" data-target="ai" class="home-social home-social--labeled nav-cta"
-                title="Ask my AI assistant" aria-label="Ask my AI assistant">
+                title="Ask my AI assistant" aria-label="Ask AI assistant">
                 <i class="fas fa-robot" aria-hidden="true"></i>
                 <span class="home-social-label">Ask AI</span>
               </a>
@@ -1018,7 +1018,7 @@
             <div class="skills-grid">
               <!-- Cloud & Serverless -->
               <div class="skill-group glass-light reveal">
-                <h3 class="skill-group-label"><i class="fas fa-cloud"></i> Cloud &amp; Serverless</h3>
+                <h3 class="skill-group-label"><i class="fas fa-cloud" aria-hidden="true"></i> Cloud &amp; Serverless</h3>
                 <div class="skill-tags">
                   <span class="skill-tag">Amazon Redshift</span>
                   <span class="skill-tag">Amazon Bedrock</span>
@@ -1042,7 +1042,7 @@
 
               <!-- Backend -->
               <div class="skill-group glass-light reveal">
-                <h3 class="skill-group-label"><i class="fas fa-server"></i> Backend</h3>
+                <h3 class="skill-group-label"><i class="fas fa-server" aria-hidden="true"></i> Backend</h3>
                 <div class="skill-tags">
                   <span class="skill-tag">FastAPI</span>
                   <span class="skill-tag">boto3</span>
@@ -1055,7 +1055,7 @@
 
               <!-- Data Engineering & BI -->
               <div class="skill-group glass-light reveal">
-                <h3 class="skill-group-label"><i class="fas fa-network-wired"></i> Data Engineering &amp; BI</h3>
+                <h3 class="skill-group-label"><i class="fas fa-network-wired" aria-hidden="true"></i> Data Engineering &amp; BI</h3>
                 <div class="skill-tags">
                   <span class="skill-tag">Matillion</span>
                   <span class="skill-tag">PySpark</span>
@@ -1067,7 +1067,7 @@
 
               <!-- Databases & Middleware -->
               <div class="skill-group glass-light reveal">
-                <h3 class="skill-group-label"><i class="fas fa-database"></i> Databases &amp; Middleware</h3>
+                <h3 class="skill-group-label"><i class="fas fa-database" aria-hidden="true"></i> Databases &amp; Middleware</h3>
                 <div class="skill-tags">
                   <span class="skill-tag">PostgreSQL</span>
                   <span class="skill-tag">SQL Server</span>
@@ -1085,7 +1085,7 @@
 
               <!-- Languages & Scripting -->
               <div class="skill-group glass-light reveal">
-                <h3 class="skill-group-label"><i class="fas fa-code"></i> Languages &amp; Scripting</h3>
+                <h3 class="skill-group-label"><i class="fas fa-code" aria-hidden="true"></i> Languages &amp; Scripting</h3>
                 <div class="skill-tags">
                   <span class="skill-tag">Python</span>
                   <span class="skill-tag">T-SQL</span>
@@ -1097,7 +1097,7 @@
 
               <!-- DevOps, Testing & Tooling -->
               <div class="skill-group glass-light reveal">
-                <h3 class="skill-group-label"><i class="fas fa-screwdriver-wrench"></i> DevOps, Testing &amp; Tooling
+                <h3 class="skill-group-label"><i class="fas fa-screwdriver-wrench" aria-hidden="true"></i> DevOps, Testing &amp; Tooling
                 </h3>
                 <div class="skill-tags">
                   <span class="skill-tag">Git</span>
@@ -1146,7 +1146,7 @@
             <span class="item-date">Feb 2018 &mdash; Present</span>
             <span class="item-badge">Salt Lake City, UT &bull; Remote</span>
           </div>
-          <h3>Nicholas and Company</h3>
+          <h2>Nicholas and Company</h2>
           <div class="experience-roles">
             <div class="role-entry">
               <span class="role-title">Principal Data Engineer</span>
@@ -1159,7 +1159,7 @@
           </div>
           <details class="exp-group" id="exp-data-engineering-modeling-olap" open>
             <summary class="exp-group-summary">
-              <h4 class="item-bullets-group">Data Engineering &amp; Modeling (OLAP)</h4>
+              <h3 class="item-bullets-group">Data Engineering &amp; Modeling (OLAP)</h3>
               <span class="exp-group-count">3</span>
             </summary>
             <ul class="item-bullets">
@@ -1176,7 +1176,7 @@
           </details>
           <details class="exp-group" id="exp-backend-middleware">
             <summary class="exp-group-summary">
-              <h4 class="item-bullets-group">Backend &amp; Middleware</h4>
+              <h3 class="item-bullets-group">Backend &amp; Middleware</h3>
               <span class="exp-group-count">5</span>
             </summary>
             <ul class="item-bullets">
@@ -1195,7 +1195,7 @@
           </details>
           <details class="exp-group" id="exp-database-systems-oltp">
             <summary class="exp-group-summary">
-              <h4 class="item-bullets-group">Database Systems (OLTP)</h4>
+              <h3 class="item-bullets-group">Database Systems (OLTP)</h3>
               <span class="exp-group-count">5</span>
             </summary>
             <ul class="item-bullets">
@@ -1215,7 +1215,7 @@
           </details>
           <details class="exp-group" id="exp-database-administration-reliability-oltp-olap">
             <summary class="exp-group-summary">
-              <h4 class="item-bullets-group">Database Administration &amp; Reliability (OLTP &amp; OLAP)</h4>
+              <h3 class="item-bullets-group">Database Administration &amp; Reliability (OLTP &amp; OLAP)</h3>
               <span class="exp-group-count">4</span>
             </summary>
             <ul class="item-bullets">
@@ -1233,7 +1233,7 @@
           </details>
           <details class="exp-group" id="exp-cloud-architecture-modernization">
             <summary class="exp-group-summary">
-              <h4 class="item-bullets-group">Cloud Architecture &amp; Modernization</h4>
+              <h3 class="item-bullets-group">Cloud Architecture &amp; Modernization</h3>
               <span class="exp-group-count">3</span>
             </summary>
             <ul class="item-bullets">
@@ -1250,7 +1250,7 @@
           </details>
           <details class="exp-group" id="exp-devops-infrastructure">
             <summary class="exp-group-summary">
-              <h4 class="item-bullets-group">DevOps &amp; Infrastructure</h4>
+              <h3 class="item-bullets-group">DevOps &amp; Infrastructure</h3>
               <span class="exp-group-count">4</span>
             </summary>
             <ul class="item-bullets">
@@ -1267,7 +1267,7 @@
           </details>
           <details class="exp-group" id="exp-generative-ai-web-applications">
             <summary class="exp-group-summary">
-              <h4 class="item-bullets-group">Generative AI &amp; Web Applications</h4>
+              <h3 class="item-bullets-group">Generative AI &amp; Web Applications</h3>
               <span class="exp-group-count">3</span>
             </summary>
             <ul class="item-bullets">
@@ -1374,8 +1374,8 @@
         <p class="section-lede">What I do when I am away from the keyboard.</p>
         <div class="hobbies-grid">
           <article class="hobby-card tilt-card reveal hobby-card--wide">
-            <span class="hobby-glyph" aria-hidden="true"><i class="fas fa-table-tennis-paddle-ball"></i></span>
-            <h3 class="hobby-title">Soccer &amp; Tennis</h3>
+            <span class="hobby-glyph" aria-hidden="true"><i class="fas fa-table-tennis-paddle-ball" aria-hidden="true"></i></span>
+            <h2 class="hobby-title">Soccer &amp; Tennis</h2>
             <p class="hobby-text">Avid soccer fan who follows matches closely on weekends, and an active tennis
               player who loves hitting the court for rallies and competitive sets.</p>
             <ul class="hobby-facts">
@@ -1386,8 +1386,8 @@
             <i class="fas fa-table-tennis-paddle-ball hobby-watermark" aria-hidden="true"></i>
           </article>
           <article class="hobby-card tilt-card reveal">
-            <span class="hobby-glyph" aria-hidden="true"><i class="fas fa-hot-tub"></i></span>
-            <h3 class="hobby-title">The Daily Detox</h3>
+            <span class="hobby-glyph" aria-hidden="true"><i class="fas fa-hot-tub" aria-hidden="true"></i></span>
+            <h2 class="hobby-title">The Daily Detox</h2>
             <p class="hobby-text">Nothing beats a 20-minute sauna session after a long day of engineering. It is my
               reset button for recovery and deep thinking.</p>
             <ul class="hobby-facts">
@@ -1398,8 +1398,8 @@
             <i class="fas fa-hot-tub hobby-watermark" aria-hidden="true"></i>
           </article>
           <article class="hobby-card tilt-card reveal">
-            <span class="hobby-glyph" aria-hidden="true"><i class="fas fa-dumbbell"></i></span>
-            <h3 class="hobby-title">Strength &amp; Conditioning</h3>
+            <span class="hobby-glyph" aria-hidden="true"><i class="fas fa-dumbbell" aria-hidden="true"></i></span>
+            <h2 class="hobby-title">Strength &amp; Conditioning</h2>
             <p class="hobby-text">Lifting heavy and staying mobile. Consistency in the gym translates directly to
               discipline and focus at the keyboard.</p>
             <ul class="hobby-facts">
@@ -1410,8 +1410,8 @@
             <i class="fas fa-dumbbell hobby-watermark" aria-hidden="true"></i>
           </article>
           <article class="hobby-card tilt-card reveal hobby-card--wide">
-            <span class="hobby-glyph" aria-hidden="true"><i class="fas fa-utensils"></i></span>
-            <h3 class="hobby-title">Culinary Explorer</h3>
+            <span class="hobby-glyph" aria-hidden="true"><i class="fas fa-utensils" aria-hidden="true"></i></span>
+            <h2 class="hobby-title">Culinary Explorer</h2>
             <p class="hobby-text">Always on the hunt for the best local eats, from hidden street food gems to
               trying my hand at cooking new cuisines at home.</p>
             <ul class="hobby-facts">
@@ -1469,7 +1469,7 @@
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-futbol" aria-hidden="true"></i>Football</span>
-              <h3 class="app-tile-title">Champions League Predictor</h3>
+              <h2 class="app-tile-title">Champions League Predictor</h2>
               <p class="app-tile-text">Rank the 36-club league phase, settle the knockout play-offs, then run the
                 bracket through to the final in Madrid. Picks save in your browser and travel as a share link.</p>
               <span class="app-tile-traits">
@@ -1494,7 +1494,7 @@
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-futbol" aria-hidden="true"></i>Football</span>
-              <h3 class="app-tile-title">World Cup Predictor</h3>
+              <h2 class="app-tile-title">World Cup Predictor</h2>
               <p class="app-tile-text">Predict the group stages, advance the best third-place wildcards, and simulate
                 the
                 knockout stage all the way to crowning the champion.</p>
@@ -1520,7 +1520,7 @@
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-cubes" aria-hidden="true"></i>Games</span>
-              <h3 class="app-tile-title">Arcade</h3>
+              <h2 class="app-tile-title">Arcade</h2>
               <p class="app-tile-text">2048, Tetris, Flapper, Stack, Snake and Breaker, written from scratch in
                 vanilla JavaScript &mdash; no framework, no game engine, no third-party code. Keyboard or touch, and
                 your best score for each stays in your browser.</p>
@@ -1546,7 +1546,7 @@
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-code" aria-hidden="true"></i>Dev Tools</span>
-              <h3 class="app-tile-title">Cron &amp; Regex Visualizer</h3>
+              <h2 class="app-tile-title">Cron &amp; Regex Visualizer</h2>
               <p class="app-tile-text">Translate 5-part cron schedules into plain English, inspect the next 10 triggers
                 on a live timeline, and match regex patterns in real time with syntax color-coding and capture group
                 breakdowns.</p>
@@ -1572,7 +1572,7 @@
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-shield-halved" aria-hidden="true"></i>Security</span>
-              <h3 class="app-tile-title">Crypto &amp; Encoders</h3>
+              <h2 class="app-tile-title">Crypto &amp; Encoders</h2>
               <p class="app-tile-text">Real-time SHA-256/512/1 hashing, bidirectional Base64, Hex, URL, and Binary
                 transformations, RFC 9562 UUID v7 generator, and live Unix timestamp inspection.</p>
               <span class="app-tile-traits">
@@ -1597,7 +1597,7 @@
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-diagram-project" aria-hidden="true"></i>Dev Tools</span>
-              <h3 class="app-tile-title">JSON Workbench</h3>
+              <h2 class="app-tile-title">JSON Workbench</h2>
               <p class="app-tile-text">Format, validate and repair malformed JSON with line-accurate errors, query it
                 live with JSONPath or dot-notation filters, explore it as a collapsible tree, and convert between JSON,
                 YAML, CSV and TypeScript interfaces.</p>
@@ -1623,7 +1623,7 @@
             </span>
             <span class="app-tile-body">
               <span class="app-tile-eyebrow"><i class="fas fa-code-compare" aria-hidden="true"></i>Dev Tools</span>
-              <h3 class="app-tile-title">Code Difference Checker</h3>
+              <h2 class="app-tile-title">Code Difference Checker</h2>
               <p class="app-tile-text">Compare two files with Myers diff and character-level highlighting, switch
                 between split and unified views, paste a <code>git diff</code> and read it back as a side-by-side, and
                 copy the result out as a standard unified patch.</p>
@@ -1712,7 +1712,7 @@
 
             <div class="act-timeline">
               <div class="act-timeline-head">
-                <h3 class="act-card-title">Your visit, minute by minute</h3>
+                <h2 class="act-card-title">Your visit, minute by minute</h2>
                 <span class="act-timeline-hint">Select a bar to filter</span>
               </div>
               <div class="act-timeline-plot" id="act-timeline" role="group"
@@ -1730,7 +1730,7 @@
           </div>
 
           <div class="act-card act-paths">
-            <h3 class="act-card-title">Where you went</h3>
+            <h2 class="act-card-title">Where you went</h2>
             <div class="act-paths-list" id="activity-funnel"></div>
           </div>
         </div>
@@ -1768,7 +1768,7 @@
 
         <noscript>
           <div class="noscript-message noscript-message--accent">
-            <i class="fas fa-exclamation-circle noscript-message__icon"></i>
+            <i class="fas fa-exclamation-circle noscript-message__icon" aria-hidden="true"></i>
             <p>JavaScript is required to view your session activity.</p>
           </div>
         </noscript>
@@ -1856,7 +1856,7 @@
 
             <div class="contact-form-container">
               <div class="contact-form-header">
-                <h3 class="contact-form-title">Send a message</h3>
+                <h2 class="contact-form-title">Send a message</h2>
                 <p class="contact-form-note">Three fields, about a minute.</p>
               </div>
               <form class="contact-form premium-form" id="contact-form"
@@ -1982,7 +1982,7 @@
               <!-- Empty state. Greeting, starters and composer read as one
                    centred stack; see the auto-margin note in styles.css. -->
               <div class="ai-empty-view">
-                <span class="ai-hero-icon" aria-hidden="true"><i class="fas fa-robot"></i></span>
+                <span class="ai-hero-icon" aria-hidden="true"><i class="fas fa-robot" aria-hidden="true"></i></span>
                 <h2 class="ai-heading" id="ai-page-heading">Ask me anything</h2>
                 <p class="ai-subtitle" id="ai-page-subtitle">
                   I can walk you through Rajeev's work &mdash; or take on whatever else you are curious about.
@@ -2069,7 +2069,7 @@
 
         <noscript>
           <div class="noscript-message noscript-message--card">
-            <i class="fas fa-robot noscript-message__icon--large"></i>
+            <i class="fas fa-robot noscript-message__icon--large" aria-hidden="true"></i>
             <h3 class="noscript-message__title">AI Chat requires JavaScript</h3>
             <p class="noscript-message__copy">Please enable JavaScript to chat with the AI assistant.</p>
           </div>
@@ -2084,19 +2084,19 @@
         aria-hidden="true">
         <div class="chat-header">
           <div class="chat-title-group">
-            <div class="chat-avatar"><i class="fas fa-robot"></i></div>
+            <div class="chat-avatar"><i class="fas fa-robot" aria-hidden="true"></i></div>
             <div class="chat-title">
               <span class="chat-name">Rajeev's Assistant</span>
-              <span class="chat-status">Online</span>
+              <span class="chat-status" id="chat-status" data-state="online">Online</span>
             </div>
           </div>
           <div class="chat-header-actions">
             <button type="button" class="chat-header-btn" id="widget-new-chat-btn" title="New Chat"
               aria-label="New chat">
-              <i class="fas fa-plus"></i>
+              <i class="fas fa-plus" aria-hidden="true"></i>
             </button>
             <button type="button" class="chat-close-btn" id="chat-close-btn" aria-label="Close chat">
-              <i class="fas fa-times"></i>
+              <i class="fas fa-times" aria-hidden="true"></i>
             </button>
           </div>
         </div>
@@ -2108,10 +2108,10 @@
           <input type="text" id="chat-input" class="chat-input" placeholder="Type your message..." autocomplete="off"
             aria-label="Type your message to the AI assistant" required />
           <button type="button" class="chat-mic-btn" id="chat-mic-btn" aria-label="Speech to text" title="Voice input">
-            <i class="fas fa-microphone"></i>
+            <i class="fas fa-microphone" aria-hidden="true"></i>
           </button>
           <button type="submit" class="chat-send-btn" aria-label="Send message">
-            <i class="fas fa-arrow-up"></i>
+            <i class="fas fa-arrow-up" aria-hidden="true"></i>
           </button>
           <!-- Voice capture bar. Replaces the composer's controls while speech
                recognition is live: cancel discards the transcript, stop commits it to
@@ -2135,7 +2135,7 @@
         </form>
       </div>
       <button type="button" class="chat-toggle-btn" id="chat-toggle-btn" aria-label="Open chat" aria-expanded="false">
-        <i class="fas fa-robot"></i>
+        <i class="fas fa-robot" aria-hidden="true"></i>
       </button>
     </div>
 
@@ -2146,7 +2146,7 @@
     aria-labelledby="auth-modal-title">
     <div class="auth-modal-content">
       <button class="auth-modal-close" id="auth-modal-close" aria-label="Close modal">
-        <i class="fas fa-times"></i>
+        <i class="fas fa-times" aria-hidden="true"></i>
       </button>
 
       <div class="auth-modal-tabs" role="tablist" aria-label="Sign in or create an account">
@@ -2164,7 +2164,7 @@
             <div class="input-wrapper">
               <input type="email" id="login-email" name="email" placeholder=" " required />
               <label class="form-label" for="login-email">Email</label>
-              <i class="fas fa-envelope input-icon"></i>
+              <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
             </div>
           </div>
           <div class="form-group floating-label-group">
@@ -2173,18 +2173,18 @@
               <label class="form-label" for="login-password">Password</label>
               <button type="button" class="password-toggle-btn" aria-label="Show password"
                 data-toggle-target="login-password">
-                <i class="fas fa-eye"></i>
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
             <div class="forgot-password-link-wrapper">
-              <a href="#" class="forgot-password-link" id="forgot-password-trigger">Forgot password?</a>
-              <a href="#" class="forgot-password-link magic-link-trigger" id="magic-link-trigger">Magic link <i
-                  class="fas fa-wand-magic-sparkles"></i></a>
+              <button type="button" class="forgot-password-link" id="forgot-password-trigger">Forgot password?</button>
+              <button type="button" class="forgot-password-link magic-link-trigger" id="magic-link-trigger">Magic link <i
+                  class="fas fa-wand-magic-sparkles" aria-hidden="true"></i></button>
             </div>
           </div>
           <div class="auth-error" role="alert" id="login-error"></div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
-            Log in <i class="fas fa-right-to-bracket"></i>
+            Log in <i class="fas fa-right-to-bracket" aria-hidden="true"></i>
           </button>
         </form>
       </div>
@@ -2198,7 +2198,7 @@
             <div class="input-wrapper">
               <input type="email" id="register-email" name="email" placeholder=" " required />
               <label class="form-label" for="register-email">Email</label>
-              <i class="fas fa-envelope input-icon"></i>
+              <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
             </div>
           </div>
           <div class="form-group floating-label-group">
@@ -2207,7 +2207,7 @@
               <label class="form-label" for="register-password">Password</label>
               <button type="button" class="password-toggle-btn" aria-label="Show password"
                 data-toggle-target="register-password">
-                <i class="fas fa-eye"></i>
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
             <div class="password-strength-meter-container">
@@ -2216,16 +2216,16 @@
             <div class="password-strength-text" id="pw-strength-text">Strength: Weak</div>
             <ul class="password-checklist" id="pw-checklist">
               <li class="checklist-item" id="req-length">
-                <i class="far fa-circle"></i> Min 8 characters
+                <i class="far fa-circle" aria-hidden="true"></i> Min 8 characters
               </li>
               <li class="checklist-item" id="req-upper">
-                <i class="far fa-circle"></i> At least 1 uppercase letter
+                <i class="far fa-circle" aria-hidden="true"></i> At least 1 uppercase letter
               </li>
               <li class="checklist-item" id="req-number">
-                <i class="far fa-circle"></i> At least 1 number
+                <i class="far fa-circle" aria-hidden="true"></i> At least 1 number
               </li>
               <li class="checklist-item" id="req-special">
-                <i class="far fa-circle"></i> At least 1 special character
+                <i class="far fa-circle" aria-hidden="true"></i> At least 1 special character
               </li>
             </ul>
           </div>
@@ -2235,7 +2235,7 @@
               <label class="form-label" for="register-confirm-password">Confirm password</label>
               <button type="button" class="password-toggle-btn" aria-label="Show password"
                 data-toggle-target="register-confirm-password">
-                <i class="fas fa-eye"></i>
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
             <div class="confirm-password-match-text" id="confirm-match-text"></div>
@@ -2243,7 +2243,7 @@
           <div class="auth-error" role="alert" id="register-error"></div>
           <div class="auth-success" role="status" id="register-success"></div>
           <button type="submit" class="btn btn-accent auth-submit-btn" id="register-submit-btn" aria-disabled="true">
-            Create account <i class="fas fa-user-plus"></i>
+            Create account <i class="fas fa-user-plus" aria-hidden="true"></i>
           </button>
         </form>
       </div>
@@ -2257,18 +2257,18 @@
             <div class="input-wrapper">
               <input type="email" id="forgot-email" name="email" placeholder=" " required />
               <label class="form-label" for="forgot-email">Email</label>
-              <i class="fas fa-envelope input-icon"></i>
+              <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
             </div>
           </div>
           <div class="auth-error" role="alert" id="forgot-error"></div>
           <div class="auth-success" role="status" id="forgot-success">
           </div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
-            Send Reset Link <i class="fas fa-paper-plane"></i>
+            Send Reset Link <i class="fas fa-paper-plane" aria-hidden="true"></i>
           </button>
           <div class="back-to-login-wrapper">
             <button type="button" class="back-to-login-btn" id="back-to-login-trigger">
-              <i class="fas fa-arrow-left"></i> Back to Login
+              <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Login
             </button>
           </div>
         </form>
@@ -2286,7 +2286,7 @@
               <label class="form-label" for="reset-new-password">New Password</label>
               <button type="button" class="password-toggle-btn" aria-label="Show password"
                 data-toggle-target="reset-new-password">
-                <i class="fas fa-eye"></i>
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
             <div class="password-strength-meter-container">
@@ -2295,16 +2295,16 @@
             <div class="password-strength-text" id="reset-pw-strength-text">Strength: Weak</div>
             <ul class="password-checklist" id="reset-pw-checklist">
               <li class="checklist-item" id="reset-req-length">
-                <i class="far fa-circle"></i> Min 8 characters
+                <i class="far fa-circle" aria-hidden="true"></i> Min 8 characters
               </li>
               <li class="checklist-item" id="reset-req-upper">
-                <i class="far fa-circle"></i> At least 1 uppercase letter
+                <i class="far fa-circle" aria-hidden="true"></i> At least 1 uppercase letter
               </li>
               <li class="checklist-item" id="reset-req-number">
-                <i class="far fa-circle"></i> At least 1 number
+                <i class="far fa-circle" aria-hidden="true"></i> At least 1 number
               </li>
               <li class="checklist-item" id="reset-req-special">
-                <i class="far fa-circle"></i> At least 1 special character
+                <i class="far fa-circle" aria-hidden="true"></i> At least 1 special character
               </li>
             </ul>
           </div>
@@ -2314,7 +2314,7 @@
               <label class="form-label" for="reset-confirm-password">Confirm New Password</label>
               <button type="button" class="password-toggle-btn" aria-label="Show password"
                 data-toggle-target="reset-confirm-password">
-                <i class="fas fa-eye"></i>
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
             <div class="confirm-password-match-text" id="reset-confirm-match-text"></div>
@@ -2323,7 +2323,7 @@
           <div class="auth-success" role="status" id="reset-pw-success">
           </div>
           <button type="submit" class="btn btn-accent auth-submit-btn" id="reset-pw-submit-btn" aria-disabled="true">
-            Set New Password <i class="fas fa-check"></i>
+            Set New Password <i class="fas fa-check" aria-hidden="true"></i>
           </button>
         </form>
       </div>
@@ -2339,7 +2339,7 @@
               <label class="form-label" for="change-current-password">Current Password</label>
               <button type="button" class="password-toggle-btn" aria-label="Show password"
                 data-toggle-target="change-current-password">
-                <i class="fas fa-eye"></i>
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
           </div>
@@ -2349,7 +2349,7 @@
               <label class="form-label" for="change-new-password">New Password</label>
               <button type="button" class="password-toggle-btn" aria-label="Show password"
                 data-toggle-target="change-new-password">
-                <i class="fas fa-eye"></i>
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
             <div class="password-strength-meter-container">
@@ -2358,16 +2358,16 @@
             <div class="password-strength-text" id="change-pw-strength-text">Strength: Weak</div>
             <ul class="password-checklist" id="change-pw-checklist">
               <li class="checklist-item" id="change-req-length">
-                <i class="far fa-circle"></i> Min 8 characters
+                <i class="far fa-circle" aria-hidden="true"></i> Min 8 characters
               </li>
               <li class="checklist-item" id="change-req-upper">
-                <i class="far fa-circle"></i> At least 1 uppercase letter
+                <i class="far fa-circle" aria-hidden="true"></i> At least 1 uppercase letter
               </li>
               <li class="checklist-item" id="change-req-number">
-                <i class="far fa-circle"></i> At least 1 number
+                <i class="far fa-circle" aria-hidden="true"></i> At least 1 number
               </li>
               <li class="checklist-item" id="change-req-special">
-                <i class="far fa-circle"></i> At least 1 special character
+                <i class="far fa-circle" aria-hidden="true"></i> At least 1 special character
               </li>
             </ul>
           </div>
@@ -2377,7 +2377,7 @@
               <label class="form-label" for="change-confirm-password">Confirm New Password</label>
               <button type="button" class="password-toggle-btn" aria-label="Show password"
                 data-toggle-target="change-confirm-password">
-                <i class="fas fa-eye"></i>
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
             <div class="confirm-password-match-text" id="change-confirm-match-text"></div>
@@ -2386,7 +2386,7 @@
           <div class="auth-success" role="status" id="change-pw-success">
           </div>
           <button type="submit" class="btn btn-accent auth-submit-btn" id="change-pw-submit-btn" aria-disabled="true">
-            Update Password <i class="fas fa-key"></i>
+            Update Password <i class="fas fa-key" aria-hidden="true"></i>
           </button>
         </form>
       </div>
@@ -2400,18 +2400,18 @@
             <div class="input-wrapper">
               <input type="email" id="magic-link-email" name="email" placeholder=" " required />
               <label class="form-label" for="magic-link-email">Email</label>
-              <i class="fas fa-envelope input-icon"></i>
+              <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
             </div>
           </div>
           <div class="auth-error" role="alert" id="magic-link-error"></div>
           <div class="auth-success" role="status" id="magic-link-success">
           </div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
-            Send Magic Link <i class="fas fa-wand-magic-sparkles"></i>
+            Send Magic Link <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>
           </button>
           <div class="back-to-login-wrapper">
             <button type="button" class="back-to-login-btn" id="magic-back-to-login-trigger">
-              <i class="fas fa-arrow-left"></i> Back to Login
+              <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Login
             </button>
           </div>
         </form>
@@ -2428,16 +2428,16 @@
               <input type="text" id="2fa-verify-code" name="code" placeholder=" " required maxlength="6"
                 pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" />
               <label class="form-label" for="2fa-verify-code">6-Digit Code</label>
-              <i class="fas fa-shield-halved input-icon"></i>
+              <i class="fas fa-shield-halved input-icon" aria-hidden="true"></i>
             </div>
           </div>
           <div class="auth-error" role="alert" id="2fa-verify-error"></div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
-            Verify & Log In <i class="fas fa-check"></i>
+            Verify & Log In <i class="fas fa-check" aria-hidden="true"></i>
           </button>
           <div class="back-to-login-wrapper">
             <button type="button" class="back-to-login-btn" id="2fa-back-to-login-trigger">
-              <i class="fas fa-arrow-left"></i> Back to Login
+              <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Login
             </button>
           </div>
         </form>
@@ -2465,7 +2465,7 @@
               <label class="form-label" for="2fa-enable-password">Current Password</label>
               <button type="button" class="password-toggle-btn" aria-label="Show password"
                 data-toggle-target="2fa-enable-password">
-                <i class="fas fa-eye"></i>
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
           </div>
@@ -2474,13 +2474,13 @@
               <input type="text" id="2fa-enable-code" name="code" placeholder=" " required maxlength="6"
                 pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" />
               <label class="form-label" for="2fa-enable-code">Enter 6-Digit Code</label>
-              <i class="fas fa-key input-icon"></i>
+              <i class="fas fa-key input-icon" aria-hidden="true"></i>
             </div>
           </div>
           <div class="auth-error" role="alert" id="2fa-enable-error"></div>
           <div class="auth-success" role="status" id="2fa-enable-success"></div>
           <button type="submit" class="btn btn-accent auth-submit-btn">
-            Enable 2FA <i class="fas fa-shield-halved"></i>
+            Enable 2FA <i class="fas fa-shield-halved" aria-hidden="true"></i>
           </button>
         </form>
       </div>
@@ -2490,7 +2490,7 @@
         <h3 id="auth-title-2fa-manage">Two-Factor Authentication</h3>
         <p class="auth-modal-subtitle">Two-factor authentication is active on this account.</p>
         <div class="twofa-status" role="status">
-          <i class="fas fa-shield-halved twofa-status-icon"></i>
+          <i class="fas fa-shield-halved twofa-status-icon" aria-hidden="true"></i>
           <span>Protected by an authenticator app</span>
         </div>
         <div class="auth-warning-box">
@@ -2507,7 +2507,7 @@
               <label class="form-label" for="2fa-disable-password">Current Password</label>
               <button type="button" class="password-toggle-btn" aria-label="Show password"
                 data-toggle-target="2fa-disable-password">
-                <i class="fas fa-eye"></i>
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
           </div>
@@ -2516,14 +2516,14 @@
               <input type="text" id="2fa-disable-code" name="code" placeholder=" " required maxlength="6"
                 pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" />
               <label class="form-label" for="2fa-disable-code">6-Digit Code</label>
-              <i class="fas fa-key input-icon"></i>
+              <i class="fas fa-key input-icon" aria-hidden="true"></i>
             </div>
           </div>
           <div class="auth-error" role="alert" id="2fa-disable-error"></div>
           <div class="auth-success" role="status" id="2fa-disable-success"></div>
           <button type="submit" class="btn auth-submit-btn auth-btn-danger" id="2fa-disable-submit-btn"
             aria-disabled="true">
-            Disable 2FA <i class="fas fa-shield-halved"></i>
+            Disable 2FA <i class="fas fa-shield-halved" aria-hidden="true"></i>
           </button>
         </form>
       </div>
@@ -2537,12 +2537,12 @@
         </div>
         <div class="auth-error" role="alert" id="sessions-error"></div>
         <button type="button" class="btn auth-submit-btn" id="revoke-others-btn" class="auth-btn-warning">
-          Log Out All Other Devices <i class="fas fa-right-from-bracket"></i>
+          Log Out All Other Devices <i class="fas fa-right-from-bracket" aria-hidden="true"></i>
         </button>
       </div>
 
       <div class="auth-tab-content" id="auth-tab-delete-account">
-        <h3 id="auth-title-delete-account" class="auth-heading-danger"><i class="fas fa-triangle-exclamation"></i>
+        <h3 id="auth-title-delete-account" class="auth-heading-danger"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
           Delete Account</h3>
         <div class="auth-warning-box">
           <p><strong>Warning:</strong> Deleting your account will immediately
@@ -2556,7 +2556,7 @@
               <label class="form-label" for="delete-current-password">Current Password</label>
               <button type="button" class="password-toggle-btn" aria-label="Show password"
                 data-toggle-target="delete-current-password">
-                <i class="fas fa-eye"></i>
+                <i class="fas fa-eye" aria-hidden="true"></i>
               </button>
             </div>
           </div>
@@ -2565,7 +2565,7 @@
               <input type="text" id="delete-confirm-phrase" name="confirm_phrase" placeholder=" " required
                 autocomplete="off" />
               <label class="form-label" for="delete-confirm-phrase">Type DELETE to confirm</label>
-              <i class="fas fa-trash-can input-icon"></i>
+              <i class="fas fa-trash-can input-icon" aria-hidden="true"></i>
             </div>
           </div>
           <div class="auth-error" role="alert" id="delete-account-error"></div>
@@ -2573,7 +2573,7 @@
           </div>
           <button type="submit" class="btn auth-submit-btn" id="delete-account-submit-btn" class="auth-btn-danger"
             aria-disabled="true">
-            Delete Account <i class="fas fa-trash-can"></i>
+            Delete Account <i class="fas fa-trash-can" aria-hidden="true"></i>
           </button>
         </form>
       </div>
@@ -2584,7 +2584,7 @@
   <div class="keyboard-overlay" id="keyboard-overlay" aria-hidden="true">
     <div class="keyboard-overlay-content">
       <button class="close-overlay-btn" id="close-overlay-btn" aria-label="Close shortcuts">
-        <i class="fas fa-times"></i>
+        <i class="fas fa-times" aria-hidden="true"></i>
       </button>
       <h3>Keyboard Shortcuts</h3>
       <ul class="shortcut-list">

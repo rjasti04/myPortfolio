@@ -17,6 +17,8 @@ import { JSDOM } from 'jsdom';
    composer so a turn can be driven the way a visitor drives it. */
 
 const BODY = `
+  <p id="route-announcer" role="status" aria-live="polite" aria-atomic="true"></p>
+  <span class="chat-status" id="chat-status" data-state="online">Online</span>
   <div id="chat-widget"><div id="chat-messages"></div></div>
   <div id="ai-sidebar-history"></div>
   <div id="ai-page-container">
@@ -241,5 +243,79 @@ describe('Chat Stop and busy state', () => {
     assert.doesNotMatch(transcript().textContent, /did not return a response/);
     assert.equal(transcript().querySelector('.retry-btn'), null);
     assert.equal(transcript().querySelector('.chat-message.bot.streaming'), null, 'no orphaned placeholder');
+  });
+
+  /* Codebase review U3 and U10: what a screen reader, and anyone reading the
+     widget header, is told about a turn. */
+  describe('what the chat announces (U3, U10)', () => {
+    const sendBtn = () => document.getElementById('ai-page-send-btn');
+    const list = () => document.getElementById('ai-page-messages');
+
+    it('names Stop while streaming and marks the list busy, not the field', async () => {
+      handlers['/chat/stream'] = async (_url, options) => pendingUntilAborted(options);
+      initChat();
+      await settle();
+
+      submit('hello');
+      await settle();
+      assert.equal(sendBtn().getAttribute('aria-label'), 'Stop generating',
+        'the static "Send message" label used to outrank the Stop title');
+      assert.equal(list().getAttribute('aria-busy'), 'true');
+      assert.equal(input().hasAttribute('aria-busy'), false);
+
+      pressStop();
+      await settle();
+      assert.equal(sendBtn().getAttribute('aria-label'), 'Send message');
+      assert.equal(list().hasAttribute('aria-busy'), false);
+    });
+
+    it('says a cut-off reply was cut off, in text, and announces the reply once', async () => {
+      handlers['/chat/stream'] = async () => ({
+        ok: true, status: 200,
+        body: sseBody([
+          'data: {"type":"delta","text":"Partial answer"}',
+          'data: {"type":"delta","text":"\\n[__TRUNCATED__]"}',
+          'data: [DONE]',
+        ]),
+      });
+      initChat();
+      await settle();
+
+      const bodyNodes = document.body.children.length;
+      submit('a long question');
+      await settle();
+
+      const note = transcript().querySelector('.msg-truncated');
+      assert.ok(note, 'the truncation note is rendered');
+      assert.match(note.textContent, /Cut off at the length limit/);
+      assert.doesNotMatch(note.textContent, /2000/, 'the ceiling is the server\'s number, not the client\'s');
+      assert.equal(document.getElementById('route-announcer').textContent, 'Response received');
+      assert.equal(document.body.children.length, bodyNodes, 'no throwaway live region is appended');
+    });
+
+    it('reports offline and back online in the widget header', async () => {
+      const realNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+      let online = true;
+      Object.defineProperty(globalThis, 'navigator', {
+        value: { get onLine() { return online; } }, configurable: true,
+      });
+      try {
+        initChat();
+        const status = document.getElementById('chat-status');
+        assert.equal(status.textContent, 'Online');
+
+        online = false;
+        dom.window.dispatchEvent(new dom.window.Event('offline'));
+        assert.equal(status.textContent, 'Offline');
+        assert.equal(status.dataset.state, 'offline');
+
+        online = true;
+        dom.window.dispatchEvent(new dom.window.Event('online'));
+        assert.equal(status.dataset.state, 'online');
+      } finally {
+        if (realNavigator) Object.defineProperty(globalThis, 'navigator', realNavigator);
+        else delete globalThis.navigator;
+      }
+    });
   });
 });

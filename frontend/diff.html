@@ -46,6 +46,9 @@
     <link rel="icon" href="/favicon.ico" />
 
     <!-- Self-hosted fonts subset -->
+    <!-- Resolves the saved theme before first paint; see the file for why it
+         is a file. -->
+    <script src="js/app-shared/theme-prepaint.js"></script>
     <link rel="stylesheet" href="fonts.css" />
     <link rel="stylesheet" href="app-chrome.css" />
     <link rel="stylesheet" href="diff.css" />
@@ -63,7 +66,7 @@
                 <i class="fas fa-code-compare"></i>
               </div>
               <div class="brand-text">
-                <div class="brand-title">Diff Checker</div>
+                <h1 class="brand-title">Diff Checker</h1>
                 <span class="brand-tag">Code Comparison</span>
               </div>
             </div>
@@ -185,6 +188,7 @@
               placeholder="Paste the original here, or drop a file."
             ></textarea>
             <input type="file" id="file-left" class="sr-only" aria-hidden="true" tabindex="-1" />
+            <p class="pane-note" id="note-left" role="status"></p>
           </div>
 
           <div class="card pane-card">
@@ -209,6 +213,7 @@
               placeholder="Paste the changed version here, or drop a file."
             ></textarea>
             <input type="file" id="file-right" class="sr-only" aria-hidden="true" tabindex="-1" />
+            <p class="pane-note" id="note-right" role="status"></p>
           </div>
         </div>
 
@@ -225,10 +230,10 @@
             <fieldset class="opt-group">
               <legend class="opt-legend">View</legend>
               <div class="seg-group" role="group" aria-label="Diff layout">
-                <button type="button" class="seg-btn active" id="btn-view-split" data-view="split">
+                <button type="button" class="seg-btn active" id="btn-view-split" data-view="split" aria-pressed="true">
                   <i class="fas fa-table-list" aria-hidden="true"></i>Split
                 </button>
-                <button type="button" class="seg-btn" id="btn-view-unified" data-view="unified">
+                <button type="button" class="seg-btn" id="btn-view-unified" data-view="unified" aria-pressed="false">
                   <i class="fas fa-layer-group" aria-hidden="true"></i>Unified
                 </button>
               </div>

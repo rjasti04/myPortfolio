@@ -517,8 +517,8 @@ missing, so a failed update is visible but not dangerous.
 | `app-chrome.css` | The shared header and footer rules for `/crypto`, `/json` and `/diff` — see [App chrome](#app-chrome) |
 | `sitemap.xml` | Eight URL entries — `/`, `/ucl`, `/arcade`, `/worldcup`, `/cron`, `/crypto`, `/json` and `/diff`, each with its Open Graph card as an image annotation |
 | `arcade.html`, `arcade.css` | Standalone games page served at `/arcade` — 2048, Tetris, Flapper, Stack, Snake and Breaker, with the game code in `js/arcade/` and built as its own esbuild entry point. Unlike the two predictors it holds the SPA's line on third-party origins: it links the site's own `fonts.css` for Plus Jakarta Sans and, for the wordmark alone, Sniglet subset to the 26 letters it can set, and draws its icons as inline SVG, so it loads nothing the site does not already serve itself, and its own CSP is `script-src 'self'` with no inline script to hash. Two layouts, switched by `is-playing` on `<body>` from `shell.js`: the launcher scrolls normally, and a running game collapses the page to one viewport with a single play bar so the board takes the rest of the screen. Which game is on screen is the URL fragment, so `/arcade#snake` is a link straight into one and the browser's back button leaves a game rather than the site. Linked from the **Apps** section of the SPA as a tile in `.app-grid`; the game rules are covered by `frontend/tests/arcade.test.js` |
-| `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup`, with its own canonical and Open Graph tags — see [Apache configuration](#apache-configuration). Its header and footer follow the shared [App chrome](#app-chrome) pattern, and its theme is `data-theme` on `<html>` under the shared `theme` key |
-| `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the **Apps** section of the SPA as a tile in `.app-grid` — `#ucl-link` in the header is a second, hidden entry point kept only as a fallback; covered by `frontend/tests/ucl-bracket.test.js`. Its header and footer follow the shared [App chrome](#app-chrome) pattern, and its theme is `data-theme` on `<html>` under the shared `theme` key |
+| `worldcup.html` | Standalone 2026 World Cup bracket predictor — a separate page with its own inline script and its own Google Fonts links. Not part of the SPA, in `.prettierignore`, copied verbatim by the build. The tournament is over, so `#worldcup-link` in the header is `display: none`. Served at `/worldcup`, with its own canonical and Open Graph tags — see [Apache configuration](#apache-configuration). Its header and footer follow the shared [App chrome](#app-chrome) pattern, and its theme is `data-theme` on `<html>` under the shared `theme` key The share-link, focus, storage and toast behaviour is described under `ucl.html` below and is identical here |
+| `ucl.html` | Standalone 2026/27 Champions League bracket predictor, built on the same pattern: one file, inline `<style>` and `<script>`, its own Google Fonts and Font Awesome links, flags from FlagCDN. Predicts the 36-club league phase table, the knockout play-offs and the bracket through to the final. State lives in `localStorage` under `ucl-predictor-state` and round-trips through a `?s=` share code. The bracket's connector lines are drawn into an SVG overlay from the cards' measured positions, redrawn on resize and when the panel becomes visible — a hidden panel measures zero. Served at `/ucl` — the `.html` never appears in a URL, so the share links `createShareableUrl()` builds from `location.pathname` read as `https://rjasti.com/ucl?s=…`; see [Apache configuration](#apache-configuration). Linked from the **Apps** section of the SPA as a tile in `.app-grid` — `#ucl-link` in the header is a second, hidden entry point kept only as a fallback; covered by `frontend/tests/ucl-bracket.test.js`. Its header and footer follow the shared [App chrome](#app-chrome) pattern, and its theme is `data-theme` on `<html>` under the shared `theme` key Both predictors treat a `?s=` share link the same way: the link wins over a saved bracket, the visitor's own bracket is first backed up once under `<key>:own`, the `?s=` is dropped from the address bar once the link's state is saved, and a banner offers **Restore my bracket** or **Keep this one**. Keyboard focus survives every pick's re-render (`data-focus-key`), storage failures are caught, and toasts carry a close button and hold on hover or focus, as the SPA's do |
 
 Every generator source lives **outside** `frontend/`, in `assets/` -
 `master-icon.png`, the headshot masters, `brush-stroke-master.jpg` and
@@ -615,7 +615,11 @@ the saved value, else `prefers-color-scheme` - and their toggles update
 `<meta name="theme-color">` the way `cron-main.js`, `crypto-main.js`,
 `json-main.js` and `diff-main.js` do.
 Neither page is under the SPA's CSP, so those inline scripts need no hash;
-`scripts/check_csp_hashes.py` only covers `index.html`.
+`scripts/check_csp_hashes.py` only covers `index.html`. The four Dev Tools
+pages *are* under a CSP (`script-src 'self'`), so they resolve the theme before
+first paint with a file instead, `js/app-shared/theme-prepaint.js`, loaded
+blocking ahead of their stylesheets - without it they painted dark and then
+switched to a saved light theme at `DOMContentLoaded`.
 
 ---
 
@@ -947,6 +951,7 @@ file from an unchanged one.
 | Code splitting | Keeps `chat.js` and `activity.js` as lazily-loaded chunks rather than folding them into the entry |
 | `app-logic.js` | Built separately as an **IIFE** (it is a classic script). Its `module.exports` block, present for the Node test runner, is silenced via `logOverride` |
 | `theme-bootstrap.js` | Built separately as an IIFE — it runs before first paint as a plain script |
+| `app-shared/theme-prepaint.js` | Built separately as an IIFE for the same reason, and loaded by the four Dev Tools pages only |
 | `js/arcade/shell.js` | Built separately as an ESM entry for `/arcade`. Kept out of the `splitting` group on purpose: it shares no module with the SPA, and the service worker's shell list is derived from the SPA's graph |
 | CSS | `styles.css`, `auth-modal.css`, `fonts.css`, `arcade.css`, `cron.css`, `crypto.css`, `json.css` bundled and minified, font and image assets emitted as hashed file assets with `url()` references rewritten |
 | Static | Copied by extension allowlist; `tests/` skipped; `fonts/` and CSS assets skipped (the hashed copies come from the CSS build); vendor scripts, `.htaccess`, `worldcup.html`, `ucl.html` and `arcade.html` copied explicitly. Every other `.html` in `frontend/` (including `cron.html`, `crypto.html` and `json.html`) is discovered by the rewrite pass, so a new standalone page needs no registration here. Images and PDFs ship content-hashed and the pages point at the hashed name; `rjasti_resume.pdf`, `favicon.ico` and every root `*-preview.png` **also** ship un-hashed at their source path (`isStableAlias`), because bookmarks, crawlers and `sitemap.xml` hold those URLs and nothing can rewrite them. Shipped only hashed, all of them 404'd. `.htaccess` serves the aliases `max-age=3600, must-revalidate` |
@@ -971,15 +976,29 @@ touched).
 - `<noscript>` banner when JavaScript is unavailable.
 - Focus trapping and focus restoration for every dialog (`js/modal.js`), with a
   reference-counted body scroll lock so nested opens behave.
+- The signed-in account menu is a disclosure button: keyboard-operable, with
+  focus moved in on open and back to the button on Escape or on choosing an
+  item. Every control meets the 44px touch floor (`--min-touch-target`),
+  including the password visibility toggle inside the auth fields.
 - `aria-current="page"` on the active nav link; `role="status"` on toasts;
-  `role="alert"` on the update banner; screen-reader announcements for streamed
-  chat replies.
+  `role="alert"` on the update banner; chat announcements through the
+  permanent `#route-announcer`, with `aria-busy` on the message list while a
+  reply streams.
+- Every view goes h1 → h2 → h3 without skipping a level, and every decorative
+  Font Awesome glyph carries `aria-hidden="true"` - `route-semantics.test.js`
+  holds both. The Experience section's levels are set in
+  `scripts/generate_resume.py`, which writes that markup.
 - The activity timeline is built from real focusable elements rather than a
   canvas, precisely so each bar is a labelled filter control reachable by
   keyboard and assistive tech.
 - `prefers-reduced-motion` is honoured by every animated surface, and toggling it
   mid-session tears down the running layer.
 - The command palette is a labelled `role="dialog"` with `aria-modal`.
+- The standalone apps: every Dev Tools Tab stop draws a `:focus-visible` ring
+  (`outline: 2px solid var(--primary)`), hidden file inputs are
+  `aria-hidden` and out of the Tab order, the Apps switcher is a disclosure of
+  links rather than an ARIA menu, the `?` sheet traps Tab, and each app has
+  one `<h1>` (its brand) and one `<main>` - `app-shared.test.js` holds all of it.
 
 ---
 

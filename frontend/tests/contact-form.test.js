@@ -6,6 +6,9 @@ let dom;
 let window;
 let document;
 let initContactForm;
+// Read by the matchMedia stub below; config.js captures the list at import,
+// so the flag is what a test flips, not the stub.
+let reduceMotion = false;
 
 function createContactMarkup() {
   return `
@@ -67,8 +70,10 @@ test.before(async () => {
   window = dom.window;
   document = window.document;
 
-  window.matchMedia = () => ({
-    matches: false,
+  window.matchMedia = (query = "") => ({
+    get matches() {
+      return query.includes("prefers-reduced-motion") ? reduceMotion : false;
+    },
     addEventListener() {},
     removeEventListener() {},
   });
@@ -392,4 +397,26 @@ test("a timed-out first-party POST is not retried against FormSubmit", async () 
   // submit.
   assert.equal(seen.length, 1, "a timeout must not send the message a second time");
   assert.match(document.getElementById("contact-status").textContent, /may still have arrived/i);
+});
+
+// Codebase review U8: a 150-particle, full-viewport confetti canvas played for
+// three seconds after every send, whatever the visitor's motion preference.
+test("a successful send throws no confetti when reduced motion is preferred", async () => {
+  const form = resetContactDom();
+  fillValidContactForm();
+  recordFetches(() => ok());
+  const canvases = () => document.querySelectorAll("canvas").length;
+  const before = canvases();
+
+  reduceMotion = true;
+  try {
+    initContactForm();
+    form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+    await flushPromises();
+  } finally {
+    reduceMotion = false;
+  }
+
+  assert.equal(document.getElementById("contact-status").dataset.state, "success");
+  assert.equal(canvases(), before, "no confetti canvas was added");
 });

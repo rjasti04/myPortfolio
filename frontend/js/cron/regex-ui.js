@@ -366,6 +366,10 @@ export function initRegexUI({ container, onStateChange, initialPattern = "", ini
   if (copyBtn) {
     copyBtn.addEventListener("click", async () => {
       const fullRegex = `/${pattern}/${flags}`;
+      // execCommand reports failure by returning false rather than throwing,
+      // and "Copied!" used to show whichever it did. /json already said
+      // "Copy failed"; now these do too.
+      let copied = true;
       try {
         await navigator.clipboard.writeText(fullRegex);
       } catch {
@@ -375,12 +379,19 @@ export function initRegexUI({ container, onStateChange, initialPattern = "", ini
         ta.style.opacity = "0";
         document.body.appendChild(ta);
         ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
+        try {
+          copied = document.execCommand("copy");
+        } catch {
+          copied = false;
+        } finally {
+          document.body.removeChild(ta);
+        }
       }
       const orig = copyBtn.innerHTML;
-      copyBtn.classList.add("copied");
-      copyBtn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> <span>Copied!</span>';
+      copyBtn.classList.toggle("copied", copied);
+      copyBtn.innerHTML = copied
+        ? '<i class="fas fa-check" aria-hidden="true"></i> <span>Copied!</span>'
+        : '<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> <span>Copy failed</span>';
       setTimeout(() => {
         copyBtn.classList.remove("copied");
         copyBtn.innerHTML = orig;

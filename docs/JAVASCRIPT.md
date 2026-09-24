@@ -90,7 +90,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,636 lines)
+### `auth-ui.js` (1,686 lines)
 
 `export const REGISTER_SENT_MESSAGE` — the register panel's success copy, the
 same for a new address and one that already has an account.
@@ -107,8 +107,17 @@ meter and requirement checklist, confirm-password matching, visibility toggles,
 active-session list with per-session and
 "log out everywhere else" revocation, change password, delete account, magic-link
 and reset, verification and magic-link handling (from `takeAuthLinkTokens()`),
-and the injected profile
-dropdown in the header (`setupNavUI`).
+and the injected account menu in the header (`setupNavUI`).
+
+The account menu is a disclosure: a `<button id="nav-user-btn">` with
+`aria-expanded` and `aria-controls`, opening a panel of ordinary buttons.
+Opening moves focus to the first item; Tab walks the items, and ArrowUp,
+ArrowDown, Home and End are shortcuts on top. Escape closes the panel and
+returns focus to the button, and Tab out of it closes it without moving focus.
+Choosing an item closes the panel and focuses the button *before* the item's
+`request-*-modal` event fires, so the dialog returns focus there on close. The
+button's `aria-label` carries the username and is set with `setAttribute`,
+never through the `innerHTML` template.
 
 Loaded as its own esbuild entry so the account UI is available without waiting
 for `main.js`.
@@ -310,7 +319,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (2,512 lines, lazy)
+### `chat.js` (2,527 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -346,10 +355,10 @@ Internals worth knowing:
 | Auth | A `401` while signed out dispatches `request-login-modal` rather than showing a raw error |
 | Voice | Separate `SpeechRecognition` instances per input — a shared singleton had both mic buttons overwriting each other's `onresult` and routing transcripts to the wrong field. Buttons are hidden entirely when unsupported. Both composers are wired by one `setupVoiceInput()`: the mic opens a `.voice-bar` over the composer (cancel, an animated waveform sized to the row, stop, send), and every run ends in `onend` with an intent — `insert` writes the transcript to the field, `send` writes it and calls `requestSubmit()`, `cancel` (the X, Escape, or a recognition error) discards it |
 | Waiting state | `createTypingIndicator()` renders an *indeterminate* indicator. It used to march "Initializing context -> Fetching profile data -> Querying Bedrock LLM" on a fixed 700 ms timer with nothing behind it, so a slow turn showed three completed steps while nothing had arrived and a fast turn showed steps for work that never happened. Waiting and streaming are the only two states this code can observe |
-| Busy composer | `setInputState()` sets `readOnly` plus `aria-busy`, not `disabled`. The visitor is almost always focused in the composer when they press Enter, and disabling the focused element drops focus to `<body>`; both submit handlers already guard on `isGenerating`, so Enter cannot re-send. The refocus after a turn is gated on `#ai` still being the active section |
+| Busy composer | `setInputState()` sets `readOnly`, not `disabled`, and puts `aria-busy` on the two message lists - the live regions the reply is being re-rendered into - rather than on the field. Both send buttons swap their `aria-label` along with their `title` ("Stop generating" / "Send message"), because the markup's static label outranks a title. The visitor is almost always focused in the composer when they press Enter, and disabling the focused element drops focus to `<body>`; both submit handlers already guard on `isGenerating`, so Enter cannot re-send. The refocus after a turn is gated on `#ai` still being the active section |
 | Modality | The widget sets `aria-modal` while open and traps Tab with `handleFocusTrap` from `modal.js`. `body.chat-open` paints a scrim that takes pointer events, so it was already modal for a mouse while Tab walked out of it into a page the visitor could no longer click. It focuses the composer directly on open — it used to wait on a `transitionend` that never fires, because the global `.hidden` utility is `display: none !important` and an element leaving `display: none` runs no transition |
 | Destructive actions | Deleting one conversation and clearing all history both go through `confirmAction` from `confirm-dialog.js`. Delete used to ask nothing while Clear All called the browser's blocking `confirm()` |
-| Accessibility | `announceToScreenReader` for streamed replies. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
+| Accessibility | `announceToScreenReader` writes to the page's permanent `#route-announcer` (clearing it first, then setting the text on the next frame), and a finished reply is announced once as "Response received". A reply cut off at the server's ceiling says so in visible text ("Cut off at the length limit"), not in a tooltip. The widget header's status reads Online, Offline or Unavailable from `navigator.onLine` and `isApiConfigured()`, updated on `online`/`offline`. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
 
 ### `activity.js` (1,461 lines, lazy)
 
@@ -536,7 +545,7 @@ completion on an empty prompt. Claiming Tab in both directions made
 `#terminal-input` a keyboard trap (WCAG 2.1.2): focus could enter the About
 prompt and never leave it without a mouse.
 
-### `palette.js` (271 lines)
+### `palette.js` (277 lines)
 
 `initPalette({registry, run, panel, navigate})` — the `Ctrl+K` overlay. A second
 renderer over the same registry, which is the payoff for modelling commands as
@@ -985,10 +994,11 @@ under the CSS deadline.
 integrator that gives `animations.js` framework-quality motion without a
 framework.
 
-### `confetti.js` (144 lines)
+### `confetti.js` (150 lines)
 
 `triggerConfetti(options)` and `confettiPresets`. Canvas-based, self-removing,
-colours read from CSS custom properties so it matches the active accent.
+colours read from CSS custom properties so it matches the active accent. Returns
+without drawing when `prefersReducedMotion` (`config.js`) matches.
 
 ---
 
@@ -1013,18 +1023,21 @@ The build treats the six standalone-app entries as one esbuild `splitting`
 group, so `app-switcher.js` and `app-shortcuts.js` are emitted once and shared
 rather than inlined into each app's bundle.
 
-### `app-switcher.js` (126 lines)
+### `app-switcher.js` (127 lines)
 
 Turns each app's Back control into a popover listing all seven apps plus
 Portfolio home and the shelf, with the current one marked `aria-current="page"`
-rather than removed - a menu whose contents change per page has to be re-read
+rather than removed - a list whose contents change per page has to be re-read
 on every page. Back keeps its place and its press, so nothing that was one
-press away becomes two. `Esc` closes and returns focus to the trigger;
+press away becomes two. It is a disclosure, not an ARIA menu: the panel is a
+`<nav>` of plain links, the trigger carries `aria-expanded`/`aria-controls`
+and no `aria-haspopup`, opening focuses the first link, and Tab walks the
+links while it is open. `Esc` closes and returns focus to the trigger;
 clicking outside dismisses. The `APPS` array is the single list of what the
 shelf holds, and `app-shared.test.js` asserts it against `index.html` so the
 two cannot drift.
 
-### `app-shortcuts.js` (214 lines)
+### `app-shortcuts.js` (233 lines)
 
 Binds `?` (the sheet), `/` (focus the primary input) and `1`-`9` (switch tab),
 and builds the sheet **from the same table that does the binding** - a
@@ -1035,7 +1048,9 @@ how `/diff`'s `j`/`k` appear in its sheet and nowhere else. An entry with no
 the keyboard back entirely: `/arcade` passes one for the time a game is on
 screen, because `Escape` belongs to the shell then. The "not while you are
 typing" guard (text fields, `contenteditable`, any modifier) lives here once
-rather than in each app.
+rather than in each app. While the sheet is open, Tab and Shift+Tab stay inside
+it, which is what its `aria-modal="true"` promises; the trap is local rather
+than `modal.js`'s, because that module belongs to the SPA's build group.
 
 ### `predictor-chrome.js` (25 lines)
 
@@ -1043,6 +1058,20 @@ rather than in each app.
 entry of their own to hang the two above on. This is it, and the only external
 script either page loads. Which app it is comes from the URL rather than a
 per-page parameter, so both pages load byte-identical script.
+
+### `theme-prepaint.js` (29 lines)
+
+A **classic script**, not a module, loaded blocking in the `<head>` of `/cron`,
+`/crypto`, `/json` and `/diff` ahead of their stylesheets. It sets
+`data-theme` on `<html>` from the shared `theme` key - `"light"` or `"dark"`,
+anything else falls to `prefers-color-scheme` - with the storage read guarded.
+Those pages hard-code `data-theme="dark"` as the no-JS default and used to apply
+a saved light theme at `DOMContentLoaded`, a visible dark flash. It is a file
+rather than an inline script because the four pages' CSP is
+`script-src 'self'`; `scripts/build.mjs` builds it as its own IIFE entry, the
+same way as `theme-bootstrap.js`. Each app's module still runs its own theme
+code afterwards, which syncs the toggle's icon and label and the
+`theme-color` meta.
 
 ---
 
@@ -1228,7 +1257,7 @@ resolved in as many slices as that takes.
 
 A standalone visual developer utility for back-end engineers and technical visitors. Like the Arcade, it lives on its own page (`frontend/cron.html`) with its own entry point (`js/cron/cron-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
 
-### `cron-main.js` (298 lines)
+### `cron-main.js` (333 lines)
 
 The application controller. Binds the tab switcher between Cron and Regex views, synchronizes state to the URL hash and query string (`#cron?expr=...` and `#regex?pattern=...&flags=...`), handles clipboard sharing with visual toast feedback, and persists user inputs in `localStorage`.
 
@@ -1236,7 +1265,7 @@ The application controller. Binds the tab switcher between Cron and Regex views,
 
 Pure mathematical parser and validator for standard 5-part POSIX cron schedules (`minute hour day-of-month month day-of-week`). Evaluates step expressions, lists, ranges, and month/weekday names. Provides natural language translation (`translateCron`) and calculates the next sequential trigger timestamps (`getNextRuns`) with leap year and calendar edge awareness.
 
-### `cron-ui.js` (486 lines)
+### `cron-ui.js` (497 lines)
 
 DOM controller for the Cron Visualizer view. Renders quick-select preset chips, an interactive 5-part picker with synchronized dropdowns, real-time error banner, human translation card, and next-10 scheduled triggers timeline with relative countdown badges.
 
@@ -1244,7 +1273,7 @@ DOM controller for the Cron Visualizer view. Renders quick-select preset chips, 
 
 Browser RegExp tokenizer and safe execution engine. Breaks regular expressions into semantic tokens (character classes, quantifiers, capturing groups, anchors, alternations, escapes, literals) for syntax highlighting. Evaluates matches with boundary indices and extracts numbered and named capture groups with zero-length match guards to prevent infinite loops and ReDoS.
 
-### `regex-ui.js` (407 lines)
+### `regex-ui.js` (418 lines)
 
 DOM controller for the Regex Visualizer view. Binds pattern input and flag toggles (`gimsuy`), renders a color-coded syntax token breakdown bar, manages mirrored backdrop match highlighting in the sample textarea, and displays match summary cards and capture group tables.
 
@@ -1254,13 +1283,13 @@ DOM controller for the Regex Visualizer view. Binds pattern input and flag toggl
 
 A standalone client-side cryptographic and data transformation workbench for software engineers and technical visitors. Like the Logic Inspector and Arcade, it lives on its own page (`frontend/crypto.html`) with its own entry point (`js/crypto/crypto-main.js`), zero third-party assets (ADR-016), and pure vanilla ES modules (ADR-001).
 
-### `crypto-main.js` (211 lines)
+### `crypto-main.js` (226 lines)
 
 The application controller. Manages tab switching across `#encoders`, `#hasher`, `#generators`, and `#time`, synchronizes state with the URL hash, handles dark/light theme toggling, provides shareable link copying, and initializes workbench UI handlers.
 
-### `crypto-ui.js` (692 lines)
+### `crypto-ui.js` (744 lines)
 
-DOM controller for the Crypto & Encoders workbench. Manages live text encoding/decoding, file drag-and-drop for Base64 Data URIs (enforcing the 5 MB limit), real-time cryptographic hash updates, generator controls with customizable character sets, live ticking clock, and the "Clear All" privacy wipe action.
+DOM controller for the Crypto & Encoders workbench. Manages live text encoding/decoding, file drag-and-drop for Base64 Data URIs (enforcing the 5 MB limit), real-time cryptographic hash updates, generator controls with customizable character sets, live ticking clock, and the "Clear All" privacy wipe action. Results are announced through one polite `#crypto-status` region, on transitions only: an output entering or changing its error, a converted file, an explicit Generate - never each keystroke's live output.
 
 ### `encoders.js` (216 lines)
 
@@ -1310,7 +1339,7 @@ The structural difference from `/crypto` is that its tabs are **not** independen
 
 Two invariants hold across the whole directory. **No `eval` or `new Function`**: query filters are tokenised, parsed into an AST and walked by a `switch`, because the page ships `script-src 'self'` with no `'unsafe-eval'` and almost every JSONPath library implements filters with an evaluator. **No `innerHTML`**: every document-derived string reaches the DOM through `textContent`, so no sanitiser is needed — no HTML string is ever built.
 
-### `json-main.js` (208 lines)
+### `json-main.js` (216 lines)
 
 The application controller. Resolves the theme from the shared `theme` key before the panels render, manages the four deep-linkable tabs (`#format`, `#query`, `#tree`, `#convert`) with arrow-key roving tabindex and `hashchange` sync, persists preferences, and wraps startup in an error boundary. Document text is persisted **only** while the "Remember my document" switch is on, and that switch defaults to off.
 
@@ -1391,7 +1420,7 @@ manages the three deep-linkable tabs (`#compare`, `#patch`, `#about`) with
 arrow-key roving tabindex and `hashchange` sync, and wraps startup in an error
 boundary.
 
-### `diff-ui.js` (602 lines)
+### `diff-ui.js` (638 lines)
 
 DOM controller. Owns both panes, the debounced recompute, drag-and-drop with the
 5 MB cap, the normalisation toggles, the split/unified switch, change navigation

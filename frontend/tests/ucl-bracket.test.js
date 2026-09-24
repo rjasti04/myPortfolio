@@ -7,11 +7,12 @@ const html = readFileSync("frontend/ucl.html", "utf8");
 
 // JSDOM parses asynchronously, so the page is only wired up once it has fired
 // its own DOMContentLoaded.
-function boot(search = "") {
+function boot(search = "", { beforeParse } = {}) {
   const dom = new JSDOM(html, {
     runScripts: "dangerously",
     url: "https://rjasti.com/ucl" + search,
     pretendToBeVisual: true,
+    beforeParse,
   });
 
   return new Promise((resolve) => {
@@ -753,4 +754,92 @@ test("Reset takes two presses and never raises a browser dialog", async () => {
 test("the page loads the shared chrome, so the shelf is reachable from inside", () => {
   assert.match(html, /js\/app-shared\/predictor-chrome\.js/);
   assert.match(html, /href="app-shared\.css"/);
+});
+
+/* --- Codebase review section 4 ---------------------------------------------- */
+
+// U2: picking a tie rebuilt the bracket and dropped focus on <body>.
+test("picking a tie keeps focus on the picked club", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const row = doc.querySelector("#playoff-container .match-team[data-focus-key]");
+  const focusKey = row.dataset.focusKey;
+
+  row.focus();
+  row.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+
+  assert.equal(doc.activeElement.dataset.focusKey, focusKey);
+  assert.notEqual(doc.activeElement, row, "on the re-rendered node, not the detached one");
+  assert.equal(doc.activeElement.getAttribute("aria-pressed"), "true");
+});
+
+// U9: "a shared link wins" silently overwrote the visitor's own saved
+// bracket. It is backed up once, and offered back.
+test("a shared link keeps the visitor's own bracket, and Restore brings it back", async () => {
+  const mine = await boot();
+  mine.window.document.getElementById("autofill-btn")
+    .dispatchEvent(new mine.window.MouseEvent("click", { bubbles: true }));
+  const own = mine.window.localStorage.getItem("ucl-predictor-state");
+  const theirs = (await boot()).window.localStorage.getItem("ucl-predictor-state");
+  assert.notEqual(own, theirs, "precondition: two different brackets");
+
+  const { window } = await boot(`?s=${theirs}`, {
+    beforeParse(win) { win.localStorage.setItem("ucl-predictor-state", own); },
+  });
+  const doc = window.document;
+  assert.equal(window.localStorage.getItem("ucl-predictor-state"), theirs);
+  assert.equal(window.localStorage.getItem("ucl-predictor-state:own"), own);
+  assert.equal(window.location.search, "");
+  assert.equal(doc.getElementById("shared-banner").hidden, false);
+
+  doc.getElementById("shared-restore-btn").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.equal(window.localStorage.getItem("ucl-predictor-state"), own);
+  assert.equal(window.localStorage.getItem("ucl-predictor-state:own"), null);
+  assert.equal(doc.getElementById("shared-banner").hidden, true);
+});
+
+test("opening your own link again shows no banner", async () => {
+  const theirs = (await boot()).window.localStorage.getItem("ucl-predictor-state");
+  const { window } = await boot(`?s=${theirs}`, {
+    beforeParse(win) { win.localStorage.setItem("ucl-predictor-state", theirs); },
+  });
+  assert.equal(window.localStorage.getItem("ucl-predictor-state:own"), null);
+  assert.equal(window.document.getElementById("shared-banner").hidden, true);
+});
+
+// U10: "copied" was shown whatever execCommand returned.
+test("a failed copy says so and leaves the link in the address bar", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  doc.execCommand = () => false;
+
+  doc.getElementById("share-btn").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+  const toast = doc.querySelector("#toast-container .toast");
+  assert.ok(toast.classList.contains("toast-warning"));
+  assert.ok(toast.querySelector('button[aria-label="Dismiss notification"]'));
+  assert.match(window.location.search, /^\?s=/);
+});
+
+// U6 and U11: the armed Reset is announced, and Random Fill's name begins
+// with the words on it.
+test("an armed Reset announces itself, and Random Fill is named by its label", async () => {
+  const { window } = await boot();
+  const doc = window.document;
+  const reset = doc.getElementById("reset-btn");
+  const label = reset.getAttribute("aria-label");
+
+  reset.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.match(reset.getAttribute("aria-label"), /: press again to confirm$/);
+  reset.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.equal(reset.getAttribute("aria-label"), label);
+
+  assert.match(doc.getElementById("autofill-btn").getAttribute("aria-label"), /^Random fill/);
+});
+
+// U7: the arrows' hit areas overlapped, so a tap on the bottom of "move up"
+// moved the club down. They now meet at the gap's midline.
+test("each reorder arrow has its own hit area", () => {
+  assert.match(html, /\.reorder-up::after\s*\{\s*inset:\s*-10px -6px -2px/);
+  assert.match(html, /\.reorder-down::after\s*\{\s*inset:\s*-2px -6px -10px/);
 });
