@@ -34,6 +34,30 @@ from server.config.bedrock import acquire_bedrock_slot
 router = APIRouter(prefix="/chat", tags=["Chat & AI"])
 logger = logging.getLogger("server.chat_routes")
 
+
+def enforce_free_message_limit(messages, current_user: Optional[User]) -> None:
+    """Refuse an anonymous conversation past CHAT_FREE_MESSAGE_LIMIT user turns.
+
+    chat.js caps anonymous conversations and already handles this 401, but the
+    limit was only ever enforced in the browser: calling the API directly gave
+    an anonymous caller unlimited inference at our expense. Both routes that
+    reach Bedrock call this - `/chat/summarize` used to skip it, so the two
+    enforced different contracts for the same anonymous caller (ADR-023).
+
+    A plain function rather than a dependency: as a dependency it would have
+    to declare the request body a second time beside the route's own.
+    """
+    if current_user is not None:
+        return
+    user_messages = sum(1 for message in messages if message.role == "user")
+    if user_messages > CHAT_FREE_MESSAGE_LIMIT:
+        raise HTTPException(
+            status_code=401,
+            detail="You have reached the maximum number of free messages. Please log in to continue.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 @router.post("", summary="Stream Bedrock Chat Completion")
 @router.post("/", summary="Stream Bedrock Chat Completion")
 @router.post("/stream", summary="Stream Bedrock Chat Completion with Prompt Caching")
@@ -51,17 +75,7 @@ async def chat_stream_endpoint(
     if ALLOWED_MODEL_IDS and requested_model not in ALLOWED_MODEL_IDS:
         raise HTTPException(status_code=400, detail=f"Unsupported model: {requested_model}")
 
-    # chat.js caps anonymous conversations and already handles this 401, but the
-    # limit was only ever enforced in the browser: calling the API directly gave
-    # an anonymous caller unlimited inference at our expense.
-    if current_user is None:
-        user_messages = sum(1 for message in request_data.messages if message.role == "user")
-        if user_messages > CHAT_FREE_MESSAGE_LIMIT:
-            raise HTTPException(
-                status_code=401,
-                detail="You have reached the maximum number of free messages. Please log in to continue.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+    enforce_free_message_limit(request_data.messages, current_user)
 
     messages_payload = ensure_alternating_roles([msg.model_dump() for msg in request_data.messages])
 
@@ -195,8 +209,14 @@ async def chat_stream_endpoint(
     )
 
 @router.post("/summarize", summary="Summarize Conversation History")
-async def chat_summarize_endpoint(request_data: ChatStreamRequest, request: Request):
+async def chat_summarize_endpoint(
+    request_data: ChatStreamRequest,
+    request: Request,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
     """Summarize long conversation history to fit within token limits."""
+    # Before the slot is taken, so a refused call costs nothing.
+    enforce_free_message_limit(request_data.messages, current_user)
     messages_payload = ensure_alternating_roles([msg.model_dump() for msg in request_data.messages])
 
     # This calls Bedrock exactly like the streaming route does, but used to take

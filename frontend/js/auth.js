@@ -319,22 +319,40 @@ export async function deleteAccount(currentPassword, confirmationPhrase) {
 }
 
 export async function logoutUser() {
-    // Notify server if needed (optional)
-    try {
-        await fetch(`${API_BASE}/auth/logout`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${getAuthToken()}`
-            }
-        });
-    } catch(e) {}
+    // Ends this device's session on the server, and only this one. The refresh
+    // token is the credential being ended, so it is what gets sent. This used
+    // to send only the access token: after thirty minutes of reading that had
+    // expired, the server answered 401, nothing was revoked, and the refresh
+    // token stayed valid for thirty days behind a UI that said "Signed out."
+    // The bearer is the fallback for a session that somehow holds no refresh
+    // token, and with neither there is nothing to end.
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    const accessToken = getAuthToken();
+    if (refreshToken || accessToken) {
+        try {
+            await fetch(`${API_BASE}/auth/logout`, refreshToken
+                ? {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh_token: refreshToken })
+                }
+                : {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+        } catch(e) {
+            // Offline: the sign-out below still happens here, but the server
+            // copy lives until it expires. Nothing on this device can use it.
+        }
+    }
 
     clearTokens();
     // Dispatch event so other parts of the app can update
     window.dispatchEvent(new Event('auth-changed'));
 }
 
-// In-flight refresh, shared by every caller that 401s at the same time.
+// In-flight refresh, shared by every caller in this tab that 401s at the same
+// time.
 //
 // The server rotates refresh tokens: `refresh_user_token` revokes the presented
 // token and issues a new one. Without this, concurrent 401s - which is exactly
@@ -343,7 +361,26 @@ export async function logoutUser() {
 // first won; the rest were told the token had been revoked, fell through to
 // clearTokens(), and signed the user out mid-session. Whichever loser finished
 // last also overwrote the winner's new token pair in localStorage.
+//
+// This variable only de-duplicates within one tab. Two tabs share
+// localStorage, so two tabs whose tokens expired together (a laptop waking up)
+// raced exactly the same way, and the loser's clearTokens() deleted the pair
+// the winner had just stored - signing out both. withRefreshLock() and the
+// re-read in refreshAccessTokenOnce() are the cross-tab half.
 let refreshInFlight = null;
+
+/* Runs `fn` under a lock every tab of this origin shares, where the browser has
+   Web Locks, so only one tab at a time can spend the refresh token and the
+   next one finds the rotated pair already in storage. Read at call time rather
+   than import time so a test can install one. Where there is no lock manager
+   the call runs directly, and the post-401 re-read below is the fallback. */
+function withRefreshLock(fn) {
+  const locks = globalThis.navigator?.locks;
+  if (locks && typeof locks.request === 'function') {
+    return locks.request('rj-auth-refresh', fn);
+  }
+  return fn();
+}
 
 /* Whether a failed request means the *credential* was rejected, or only that
    the request did not get through.
@@ -361,18 +398,29 @@ export function isCredentialRejection(status) {
 
 /**
  * Refreshes the access token at most once at a time.
+ * @param {string|null} sentRefreshToken The refresh token that was stored when
+ *   the failed request was made. If storage holds a different one by the time
+ *   this runs, another tab (or an earlier refresh in this one) has already
+ *   rotated the pair, and its access token is the one to retry with.
  * @returns {Promise<{token: string|null, rejected: boolean}>} `token` is the
  *   new access token when the refresh succeeded. `rejected` is true only when
  *   the server refused the refresh token itself - the one case where signing
  *   the visitor out is the correct response.
  */
-function refreshAccessTokenOnce() {
+function refreshAccessTokenOnce(sentRefreshToken) {
   if (refreshInFlight) return refreshInFlight;
 
-  refreshInFlight = (async () => {
+  refreshInFlight = withRefreshLock(async () => {
     const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
     // No refresh token at all is a genuine dead end, not a transient failure.
     if (!refreshToken) return { token: null, rejected: true };
+
+    // Rotated while this request was in flight or while waiting for the lock.
+    // The pair in storage was issued moments ago, so spending it again would
+    // only revoke it out from under the tab that holds it.
+    if (sentRefreshToken && refreshToken !== sentRefreshToken) {
+      return { token: getAuthToken(), rejected: false };
+    }
 
     try {
       const refreshResponse = await fetch(`${API_BASE}/auth/refresh`, {
@@ -381,7 +429,17 @@ function refreshAccessTokenOnce() {
         body: JSON.stringify({ refresh_token: refreshToken })
       });
       if (!refreshResponse.ok) {
-        return { token: null, rejected: isCredentialRejection(refreshResponse.status) };
+        if (!isCredentialRejection(refreshResponse.status)) {
+          return { token: null, rejected: false };
+        }
+        // Without a lock manager another tab can spend the same token at the
+        // same moment and win. If it has stored its new pair by now, this 401
+        // is about the token that tab already replaced, not about the session.
+        const stored = localStorage.getItem(REFRESH_TOKEN_KEY);
+        if (stored && stored !== refreshToken) {
+          return { token: getAuthToken(), rejected: false };
+        }
+        return { token: null, rejected: true };
       }
 
       const data = await refreshResponse.json();
@@ -393,7 +451,7 @@ function refreshAccessTokenOnce() {
       console.error('Failed to refresh token', e);
       return { token: null, rejected: false };
     }
-  })();
+  });
 
   // Cleared before the awaiting callers resume, so a later 401 starts a fresh
   // attempt rather than reusing this settled promise.
@@ -404,8 +462,28 @@ function refreshAccessTokenOnce() {
   return refreshInFlight;
 }
 
+/* 401s that authenticatedFetch() could not resolve for a reason that says
+   nothing about the credential: the refresh was rate-limited, the server
+   failed, or the request never completed. The caller still gets the original
+   401 - but it is not a rejection, and isRejectedResponse() says so. */
+const unresolvedAuthFailures = new WeakSet();
+
+/**
+ * Whether a response from authenticatedFetch() means the server refused the
+ * credential. Prefer this to `isCredentialRejection(res.status)` for those
+ * responses: a 401 whose refresh failed transiently has already been judged
+ * safe to keep, and treating it as a rejection clears tokens that are still
+ * good for thirty days.
+ * @param {Response} response
+ * @returns {boolean}
+ */
+export function isRejectedResponse(response) {
+  return isCredentialRejection(response.status) && !unresolvedAuthFailures.has(response);
+}
+
 export async function authenticatedFetch(url, options = {}) {
   const token = getAuthToken();
+  const sentRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
   const headers = {
     ...options.headers,
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -414,7 +492,7 @@ export async function authenticatedFetch(url, options = {}) {
   const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401 && token) {
-      const { token: newAccessToken, rejected } = await refreshAccessTokenOnce();
+      const { token: newAccessToken, rejected } = await refreshAccessTokenOnce(sentRefreshToken);
 
       if (newAccessToken) {
           // Retry the original request with the refreshed credential.
@@ -430,6 +508,8 @@ export async function authenticatedFetch(url, options = {}) {
       if (rejected) {
           clearTokens();
           window.dispatchEvent(new Event('auth-changed'));
+      } else {
+          unresolvedAuthFailures.add(response);
       }
   }
 

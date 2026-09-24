@@ -44,7 +44,7 @@ capability token, and `trackEvent`. Anything talking to the API imports from it.
 
 ## Entry points
 
-### `main.js` (333 lines)
+### `main.js` (372 lines)
 
 Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
 
@@ -68,19 +68,29 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   relevant nav target, by the section gaining `.active` (via `MutationObserver`),
   or by the matching location hash. Each delegated document listener is bound to
   an `AbortController` and removed once its module resolves — otherwise the
-  listener runs on every click in the viewport forever.
+  listener runs on every click in the viewport forever. Both go through the
+  exported `loadLazyModule(importer, init)`: a deploy deletes the previous
+  build's hashed chunks and these are not precached, so a tab on the old build
+  404s on the import. That used to be only a `console.warn`. A rejected
+  **import** (not a throwing `init`, and not while `navigator.onLine` is false)
+  fires `rj:stale-build`, which shows the update banner; `activity.js` fires the
+  same event for the owner panel's chunk.
 - Background layer selection: **gone.** `main.js` no longer mounts an animated
   background on any device, so there is no capability gate, no viewport gate and
   no route listener for it, and the two canvas modules that painted it have been
   deleted.
-- Service-worker registration, an update check every 60 s, and the update
-  banner whose button posts `SKIP_WAITING` and reloads on `controllerchange`.
+- Service-worker registration, an update check every 30 min and on returning
+  to the foreground (`watchServiceWorkerUpdates`, exported), and the update
+  banner whose button posts `SKIP_WAITING` and reloads on `controllerchange` -
+  or plainly reloads when no worker is waiting. A worker **already waiting**
+  when the page loads is offered too: `updatefound` fires only for an install
+  during the page's life, so the usual case after a deploy was never offered.
   One banner node for the life of the page, with a dismiss control and its
   listener bound to the element: every `updatefound` used to append another
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,588 lines)
+### `auth-ui.js` (1,607 lines)
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -134,7 +144,7 @@ into JS. **Does not** hold `API_BASE`.
 | `mobileDevice` | `(pointer: coarse) and (max-width: 768px)` — phones only; iPads are 768px+ in portrait and laptops always have a fine pointer |
 | `motionMs(name, fallbackMs)` | A `--motion-*` token as milliseconds, e.g. `motionMs("base", 180)`. Reads the computed value off the root element and caches per token; returns the fallback when the property is absent or unparseable, which is the case under jsdom and before the stylesheet applies. Exists so JS animating alongside CSS reads the scale rather than restating it — see ADR-025 |
 
-### `analytics.js` (610 lines)
+### `analytics.js` (689 lines)
 
 API base resolution, session lifecycle, the event queue, and request telemetry.
 
@@ -157,7 +167,16 @@ containing `www.` → `https://www.rjasti.com/api`; otherwise
 `https://rjasti.com/api`.
 
 **Queue** — max 200 events, flushed at 10 queued, on a 2 s timer, on
-`visibilitychange` → hidden, and on `pagehide` (with `keepalive`). Persisted to
+`visibilitychange` → hidden, and on `pagehide` (with `keepalive`). The two
+`keepalive` flushes send only the oldest events that fit
+`KEEPALIVE_BUDGET_BYTES` (60 KiB, less whatever a hide flush still has in
+flight): Fetch caps the **sum** of in-flight keepalive bodies at 64 KiB, and a
+backlog near the cap used to go out as one body the browser refused. A hide
+flush leaves its events queued - and persisted - until the answer arrives,
+marked so no other flush sends them meanwhile; they used to be wiped as soon as
+the request was fired, which lost the persisted queue to a tab hidden offline.
+An unload removes what it sends at once, since the page may never see the
+answer, and leaves the rest for the next page load. Persisted to
 `localStorage` under `rj_event_queue:<session_id>`. Namespacing matters: the
 session id lives in `sessionStorage` (per tab) while the queue lives in
 `localStorage` (shared), and each queued event carries a baked-in `session_id` —
@@ -177,7 +196,7 @@ stale session and starting a fresh one.
 count, reason, ok, at}` to `onTelemetry` subscribers. `serverMs` is parsed from
 the `Server-Timing: app;dur=…` header; `networkMs` is the remainder.
 
-### `auth.js` (437 lines)
+### `auth.js` (517 lines)
 
 Token storage and every authenticated call.
 
@@ -186,7 +205,7 @@ Token storage and every authenticated call.
 | `AUTH_TOKEN_KEY`, `REFRESH_TOKEN_KEY` | `rj_access_token`, `rj_refresh_token` |
 | `getAuthToken()`, `setTokens(a, r)`, `clearTokens()` | `localStorage` accessors |
 | `getErrorMessage(errorData, fallback)` | Normalises FastAPI's string / array `detail` shapes |
-| `loginUser`, `registerUser`, `logoutUser` | Credential flows. `registerUser` returns the created `UserResponse` and signs **nobody** in — the address has to be confirmed first |
+| `loginUser`, `registerUser`, `logoutUser` | Credential flows. `registerUser` returns the created `UserResponse` and signs **nobody** in — the address has to be confirmed first. `logoutUser` sends the refresh token in the body and no bearer, so an expired access token no longer stops the server-side revocation; it ends this device's session only |
 | `setup2FA`, `enable2FA(pw, code)`, `disable2FA(pw, code)`, `verify2FA` | TOTP enrolment, teardown and challenge. Enable and disable both re-authenticate with the password |
 | `requestMagicLink`, `verifyMagicLink` | Passwordless sign-in |
 | `requestPasswordReset`, `resetPassword`, `changePassword` | Password flows |
@@ -194,6 +213,7 @@ Token storage and every authenticated call.
 | `fetchActiveSessions`, `revokeOtherSessions`, `revokeSpecificSession` | Session management |
 | `authenticatedFetch(url, options)` | Bearer-attached fetch with a single-flight 401 refresh and retry |
 | `isCredentialRejection(status)` | `401`/`403` only — separates a refused credential from an unanswered request |
+| `isRejectedResponse(response)` | For responses from `authenticatedFetch`: a `401`/`403` that is **not** one whose refresh failed transiently. Use it rather than the status alone, or a rate-limited refresh signs the visitor out anyway |
 
 `authenticatedFetch` is the important one. The server **rotates** refresh
 tokens, so concurrent 401s each sending the same refresh token would have the
@@ -201,7 +221,18 @@ first win and the rest told the token was revoked — signing the user out
 mid-session, with the last loser also overwriting the winner's new pair. A
 module-level `refreshInFlight` promise makes every concurrent 401 share one
 refresh, and it is cleared before awaiting callers resume so a later 401 starts
-a fresh attempt. Guarded by `frontend/tests/auth-refresh.test.js`.
+a fresh attempt.
+
+That promise is per tab, and tabs share `localStorage`. Two tabs whose tokens
+expired together both spent the same refresh token, and the loser's
+`clearTokens()` deleted the pair the winner had just stored, signing out both.
+The refresh now runs under a Web Lock (`navigator.locks`, `rj-auth-refresh`).
+Each request remembers the refresh token that was stored when it was sent, and
+if storage holds a different one by the time the lock is granted, the pair has
+already been rotated and its access token is used without another refresh.
+Where there is no lock manager, a 401 from `/auth/refresh` re-reads storage
+before it is treated as a rejection, which covers the common ordering of that
+race but not all of it. Guarded by `frontend/tests/auth-refresh.test.js`.
 
 **Registration does not log anyone in.** `registerUser` used to call
 `loginUser` straight after a 201 — correct when registration handed back a
@@ -266,7 +297,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (2,317 lines, lazy)
+### `chat.js` (2,441 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -285,13 +316,15 @@ Internals worth knowing:
 | Highlighting | `syntax-highlighter.js`, not a library |
 | Sessions | Up to 50 conversations in `localStorage` (`rj_chat_sessions`, `rj_chat_active_session`), with a sidebar for rename/delete/switch. Each carries `createdAt`/`updatedAt`; rows stored before those shipped fall back to `Number(session.id)`, which is the creation timestamp, so there is no migration |
 | History rail | Rows are ordered by `updatedAt` and bucketed into Today / Yesterday / Previous 7 days / Previous 30 days / Older against local midnights, with an empty state for a cleared or unmatched list. The row's title is a real `<button>` — as a bare `<div>` with a click listener the whole history was unreachable by keyboard |
-| Restore on load | `initChat()` ends in `restoreActiveSession()`. Without it, `loadSessions()` only reached that call through `createNewSession()`, so a returning visitor landed on the empty greeting while the rail listed the thread they had just been reading |
+| Restore on load | `initChat()` ends in `restoreActiveSession()` - or, when the active row is an unhydrated server stub, in `openSession()`, because painting a stub draws "Loading this conversation…" and nothing else would ever fetch it. Without it, `loadSessions()` only reached that call through `createNewSession()`, so a returning visitor landed on the empty greeting while the rail listed the thread they had just been reading |
 | Thread title | `renderConversationTitle()` writes the active session's title into the `#ai` top bar, hung off `renderSidebar()` and `restoreActiveSession()` rather than off each call site |
 | Jump to latest | A scroll listener on `.ai-content-area` toggles `#ai-jump-btn` once the scroller is more than `JUMP_THRESHOLD_PX` clear of the bottom; `scrollToBottom()` re-syncs it, because a turn appended while the reader is scrolled up changes `scrollHeight` without firing a scroll event |
 | Streaming | `authenticatedFetch` → `response.body.getReader()`, manual SSE line parsing, throttled markdown re-parse, `AbortController` for stop-generation |
+| Stop and busy state | One `AbortController` per turn, created - and the turn marked busy - before the first `await`, and held in a local as well as `currentAbortController` (which `abortGeneration()` nulls before the aborted request rejects). Its signal covers `/chat/summarize` as well as the stream, and each `await` before the stream is a checkpoint. Stop before the headers, before the first token or during the summary ends the turn quietly: no error card, no Retry. The `finally` resets the composer only while this turn still owns it, since after a Stop the next turn may |
 | Metrics | The `{"type":"metrics"}` frame is kept **per turn** as well as on `window.lastStreamMetrics`. The per-turn copy is credited to the conversation once the turn produces text, so a later turn moving the global on cannot double-count it; the global stays for console debugging |
 | Usage totals | `session.usage` (`inputTokens`, `outputTokens`, `latencyMsTotal`, `timedTurns`) accumulates each turn's metrics frame and renders into the `#ai` top bar as `in / out` and a mean latency. The strip is `hidden` until a turn has actually been measured - on an empty conversation `0 / 0` beside an em dash is the loudest pair on the bar and reports nothing. It lives on the session, so it survives a reload, follows the sidebar's selection and starts at zero on a New Chat; turns that never report a latency (a stopped generation) are left out of the mean rather than counted as 0 ms. Sessions stored before this shipped get the key lazily, with no migration |
 | Summarisation | At `SUMMARIZE_TOKEN_THRESHOLD` estimated tokens, everything before the current message is sent to `/chat/summarize` and replaced by the summary |
+| Persistence and the cap | `saveSessions()` serialises through a replacer that drops `hydrating` and `loadError` - per-view state; a persisted `hydrating: true` was a spinner no request would clear - and `loadSessions()` strips both from rows an older build saved. Over `MAX_SESSIONS`, unhydrated server stubs are evicted first, oldest first and never the active one, because the next sync lists them straight back while a local conversation may exist nowhere else |
 | Conversation identity | Each session carries a local `id` (the `localStorage` key, still `Date.now().toString()`) **and** a `conversationId` v4 UUID sent as `conversation_id` on every turn. Without it `save_or_update_conversation` took its create branch each turn and wrote a fresh `ai_conversations` row holding the whole transcript so far - ten turns, ten rows. Two fields rather than one because stored sessions predate UUID ids, and reusing `id` would mean migrating the active-session pointer with them. `backfillConversationIds()` gives old rows one on load |
 | Server history | For a signed-in visitor `syncServerHistory()` lists `GET /chat/history` on load and on `auth-changed`, merging server-only conversations into the rail as **stubs** (`remote: true`, `messages: []`). The listing carries summaries only, so `hydrateSession()` fetches `GET /chat/history/{id}` when a stub is opened, a 404 drops it (deleted from another device), and `deleteSession()` also issues `DELETE /chat/history/{id}` or the next sync brings it back. On a merge the local copy wins on title and transcript - it is the fuller one - and only `updatedAt` is reconciled. Anonymous visitors keep the pure-`localStorage` path; `POST /chat` stays deliberately anonymous |
 | Clearing all history | **Delete all** was browser-only: it emptied `sessions` and `rj_chat_sessions` and left every `ai_conversations` row alone, so the next `syncServerHistory()` re-listed the whole account and the history reappeared. `deleteAllRemoteConversations()` now issues one `DELETE /chat/history` after the local clear. One request, not a loop over the rail: the listing is capped at 100 and `saveSessions()` truncates at `MAX_SESSIONS`, so anything older than the newest 50 is not in `sessions` to delete. A failed request paints a `renderTranscriptNotice()` alert rather than reporting a history that will come back as cleared, and a signed-out visitor calls nothing |
@@ -304,7 +337,7 @@ Internals worth knowing:
 | Destructive actions | Deleting one conversation and clearing all history both go through `confirmAction` from `confirm-dialog.js`. Delete used to ask nothing while Clear All called the browser's blocking `confirm()` |
 | Accessibility | `announceToScreenReader` for streamed replies. The conversation row menu carries `aria-haspopup`, a synced `aria-expanded`, `role="menu"`/`"menuitem"`, focus moved in on open and Escape returning it |
 
-### `activity.js` (1,424 lines, lazy)
+### `activity.js` (1,461 lines, lazy)
 
 `initActivity()`, `loadActivity()`, `loadActivitySummary()`,
 `loadActivityFunnel()`.
@@ -338,7 +371,11 @@ report rendered as Navigation, filed under the one label that hides it and
 reachable only from the filter chip with nothing to do with it.
 
 Also owns: the live SSE connection (`EventSource` with `withCredentials: true`
-so the `HttpOnly` session cookie is sent even when the API is on another port),
+so the `HttpOnly` session cookie is sent even when the API is on another port;
+an HTTP error answer closes it for good after one `error`, so a `CLOSED` source
+reports "error" at once and is released, and Refresh reopens a stream that is
+not open), an entry generation that stops an entry awaited across a leave from
+opening the stream and timers on a hidden section,
 frame normalisation between the compact and verbose shapes, the pipeline DAG
 painted from `pipeline`/`hello` frames, a rolling 200-sample latency reservoir
 fed by `onTelemetry`, focus restoration across re-renders, paginated
@@ -407,11 +444,13 @@ user agent too. On close the iframe element is dropped rather than pointed at
 the closed dialog. The `src` comes from the trigger's `href`, because the build
 content-hashes the PDF. Covered by `frontend/tests/resume-pdf.test.js`.
 
-### `analytics`-adjacent: `syntax-highlighter.js` (67 lines)
+### `analytics`-adjacent: `syntax-highlighter.js` (71 lines)
 
 `highlightCode(code, lang)` — regex highlighting for Python, JavaScript, SQL,
 JSON, HTML and Bash/Shell, escaping first. Small enough to ship instead of a
-highlighting library.
+highlighting library. Masked tokens are restored with a replacement
+**function**: a string replacement is scanned for `$&`, `` $` ``, `$'` and
+`$$`, so a JS literal like `'$&'` rendered as the placeholder it replaced.
 
 ---
 
@@ -505,7 +544,7 @@ invalid inside `role="listbox"`, so the kind is a badge *inside* each option
 Find-in-page is not a substitute: the router keeps one section in the DOM at a
 time, so the browser never has the other seven to search.
 
-### `owner-analytics.js` (310 lines, lazy)
+### `owner-analytics.js` (319 lines, lazy)
 
 `initOwnerAnalytics()` — the aggregate panel at the foot of the Activity
 section. Everything above it is the visitor's own session, which is what the
@@ -514,6 +553,9 @@ only after `/admin/analytics/*` confirms the caller is the owner. A 401 or 403
 hides the panel and clears it, so the page never ships an empty shell of it to
 a visitor — and signing out takes it down, or the next person at that browser
 would see the previous owner's figures.
+
+The window picker paints only the latest click's answer (`loadSeq`): a slower
+90-day query used to land after a 7-day one and sit under the pressed 7d button.
 
 `activity.js` imports it dynamically and does **not** await it: a slow or
 failing request for this must not hold up the dashboard the section actually

@@ -33,6 +33,12 @@ const HASHED_EXTENSIONS = new Set([
   ".pdf",
 ]);
 
+/* The un-hashed copies the build ships on purpose (scripts/build.mjs,
+   isStableAlias). Restated rather than imported: the test is the contract,
+   and a pattern widened in the build by accident should fail here. */
+const isStableAlias = (rel) =>
+  rel === "rjasti_resume.pdf" || rel === "favicon.ico" || /^[\w-]+-preview\.png$/.test(rel);
+
 const build = () =>
   execFileSync("node", [join(ROOT, "scripts/build.mjs")], {
     cwd: ROOT,
@@ -147,14 +153,69 @@ describe("build: caching contract", () => {
       }
     });
 
-    it("every shipped image and PDF is hashed, so none gets a year of silence", () => {
+    // Every image and PDF has a hashed copy that pages point at. An un-hashed
+    // one ships only for the stable aliases, and .htaccess gives those the
+    // one-hour must-revalidate rule, never a year of immutable.
+    it("every shipped image and PDF is hashed, apart from the stable aliases", () => {
       const immutable = immutablePattern();
       for (const rel of files) {
         if (!HASHED_EXTENSIONS.has(extname(rel))) continue;
+        if (isStableAlias(rel)) {
+          assert.ok(!immutable.test(basename(rel)), `${rel} is an alias and must not be immutable`);
+          continue;
+        }
         assert.ok(
           immutable.test(basename(rel)),
           `${rel} ships un-hashed at a stable URL - its bytes can change under a cached copy`,
         );
+      }
+    });
+  });
+
+  /* A recruiter's bookmark to the résumé, the favicon browsers request
+     unprompted, and the sitemap's image URLs all name un-hashed paths the
+     build cannot rewrite. Shipped only under hashed names, every one of them
+     404'd in production. */
+  describe("stable public URLs", () => {
+    for (const rel of ["rjasti_resume.pdf", "favicon.ico"]) {
+      it(`ships /${rel} at its stable URL`, () => {
+        assert.ok(existsSync(join(DIST, rel)), `dist/${rel} is missing - its public URL 404s`);
+      });
+    }
+
+    it("serves every alias with the same bytes as its hashed copy", () => {
+      const aliases = files.filter(isStableAlias);
+      assert.ok(aliases.length >= 3, `expected the résumé, the favicon and the preview cards, got ${aliases}`);
+      for (const alias of aliases) {
+        const ext = extname(alias);
+        const stem = alias.slice(0, -ext.length);
+        const hashed = files.filter((f) => new RegExp(`^${stem}-[A-Za-z0-9_-]{8}\\${ext}$`).test(f));
+        assert.equal(hashed.length, 1, `${alias} has no single hashed copy (${hashed})`);
+        assert.ok(
+          readFileSync(join(DIST, alias)).equals(readFileSync(join(DIST, hashed[0]))),
+          `${alias} and ${hashed[0]} differ - the two URLs would serve different files`,
+        );
+      }
+    });
+
+    it("every image the sitemap lists is a shipped file", () => {
+      const sitemap = readFileSync(join(DIST, "sitemap.xml"), "utf8");
+      const images = [...sitemap.matchAll(/<image:loc>([^<]+)<\/image:loc>/g)].map((m) => m[1]);
+      assert.ok(images.length > 0, "sitemap.xml lists no images");
+      for (const url of images) {
+        const rel = new URL(url).pathname.slice(1);
+        assert.ok(existsSync(join(DIST, rel)), `sitemap image ${url} has no file in dist/ - it 404s`);
+      }
+    });
+
+    it("every page the sitemap lists is a shipped page", () => {
+      const sitemap = readFileSync(join(DIST, "sitemap.xml"), "utf8");
+      const pages = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+      assert.ok(pages.length > 0, "sitemap.xml lists no pages");
+      for (const url of pages) {
+        const path = new URL(url).pathname.slice(1);
+        const rel = path === "" ? "index.html" : `${path}.html`;
+        assert.ok(existsSync(join(DIST, rel)), `sitemap page ${url} has no ${rel} in dist/`);
       }
     });
   });

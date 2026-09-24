@@ -10,7 +10,7 @@ from collections import defaultdict, deque
 from typing import Any, Optional, Deque, Dict, List, Set
 
 import structlog
-from sqlalchemy.exc import OperationalError, InterfaceError
+from sqlalchemy.exc import IntegrityError, OperationalError, InterfaceError
 from server.config.settings import MAX_STREAMS_PER_SESSION
 from server.db.database import AsyncSessionLocal
 from server.models.event import UserActivityEvent
@@ -615,6 +615,118 @@ def pipeline_snapshot() -> Dict[str, Any]:
     }
 
 
+def _event_row(item: Dict[str, Any]) -> UserActivityEvent:
+    """One buffered event dict as a row, with its created_at resolved."""
+    created_at_val = item.get("created_at")
+    if not created_at_val:
+        created_at_val = datetime.now(timezone.utc)
+    elif isinstance(created_at_val, str):
+        try:
+            created_at_val = datetime.fromisoformat(created_at_val)
+        except ValueError:
+            created_at_val = datetime.now(timezone.utc)
+
+    return UserActivityEvent(
+        session_id=UUID(str(item["session_id"])),
+        event_type=item["event_type"],
+        page_path=item.get("page_path"),
+        event_data=item.get("event_data"),
+        created_at=created_at_val
+    )
+
+
+async def _write_events(items: List[Dict[str, Any]]) -> None:
+    """Writes these events in one transaction, or none of them."""
+    async with AsyncSessionLocal() as session:
+        session.add_all([_event_row(item) for item in items])
+        await session.commit()
+
+
+async def _return_to_buffer(events: List[Dict[str, Any]]) -> None:
+    """Puts unwritten events back for a later attempt, but never past the cap:
+    a long outage would otherwise buffer until the process died.
+
+    Prepended, not appended. Anything already in the buffer arrived while
+    this flush was in flight, so it is *newer* than the batch coming back:
+    `extend` put the older events last, which both scrambled the order and
+    - because the trim below drops from the front - made the cap evict the
+    newest arrivals instead of the oldest backlog.
+    """
+    async with batch_lock:
+        batch_buffer[:0] = events
+        overflow = len(batch_buffer) - MAX_BUFFERED_EVENTS
+        if overflow > 0:
+            del batch_buffer[:overflow]
+            METRICS["events_dropped_overflow"] += overflow
+            logger.error(
+                "kafka_stream_buffer_overflow",
+                dropped=overflow,
+                buffered=len(batch_buffer),
+                cap=MAX_BUFFERED_EVENTS,
+            )
+
+
+def _log_refused_event(item: Dict[str, Any], error: IntegrityError) -> None:
+    logger.warning(
+        "kafka_stream_event_rejected",
+        session_id=str(item.get("session_id")),
+        event_type=item.get("event_type"),
+        error=str(error.orig),
+    )
+
+
+def _halves(chunk: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+    middle = len(chunk) // 2
+    return [chunk[:middle], chunk[middle:]]
+
+
+async def _salvage_rejected_batch(
+    items: List[Dict[str, Any]], error: IntegrityError,
+) -> tuple[int, int, List[Dict[str, Any]]]:
+    """Writes what it can of a batch the database has just refused as a whole.
+
+    One event naming an unknown session_id - a foreign-key violation - used to
+    send the entire batch to the unrecoverable branch, discarding every valid
+    event alongside it. The batch is bisected instead: each half is committed
+    in its own transaction, a half that is refused again is split again, and
+    only a single row the database still refuses is dropped. For k bad rows in
+    n that is O(k log n) commits rather than the n a row-by-row retry costs,
+    which matters because after an outage the buffer can hold
+    MAX_BUFFERED_EVENTS rows.
+
+    Returns (written, rejected, unwritten). `unwritten` is non-empty only when
+    the database went away part-way through: those rows are for the caller to
+    return to the buffer, exactly as a batch-level outage would.
+    """
+    written = rejected = 0
+    # Split straight away: the whole batch was refused a moment ago, and
+    # committing it again would only be refused again.
+    if len(items) == 1:
+        _log_refused_event(items[0], error)
+        return 0, 1, []
+    pending = _halves(items)
+    while pending:
+        chunk = pending.pop(0)
+        try:
+            await _write_events(chunk)
+            written += len(chunk)
+        except IntegrityError as e:
+            if len(chunk) == 1:
+                rejected += 1
+                _log_refused_event(chunk[0], e)
+            else:
+                pending[:0] = _halves(chunk)
+        except (OperationalError, InterfaceError):
+            return written, rejected, [item for part in (chunk, *pending) for item in part]
+        except Exception as e:
+            # Not a constraint and not an outage: nothing more can be learned
+            # by splitting further, so what is left goes the unrecoverable way.
+            remaining = len(chunk) + sum(len(part) for part in pending)
+            logger.error("kafka_stream_salvage_failed", error=str(e), count=remaining)
+            return written, rejected + remaining, []
+    return written, rejected, []
+
+
 async def save_batch() -> None:
     """Writes accumulated events in the buffer to the PostgreSQL database in bulk."""
     async with batch_lock:
@@ -626,59 +738,39 @@ async def save_batch() -> None:
 
     started = time.perf_counter()
     try:
-        async with AsyncSessionLocal() as session:
-            db_events = []
-            for item in events_to_save:
-                # Resolve created_at timezone
-                created_at_val = item.get("created_at")
-                if not created_at_val:
-                    created_at_val = datetime.now(timezone.utc)
-                elif isinstance(created_at_val, str):
-                    try:
-                        created_at_val = datetime.fromisoformat(created_at_val)
-                    except ValueError:
-                        created_at_val = datetime.now(timezone.utc)
-
-                db_event = UserActivityEvent(
-                    session_id=UUID(str(item["session_id"])),
-                    event_type=item["event_type"],
-                    page_path=item.get("page_path"),
-                    event_data=item.get("event_data"),
-                    created_at=created_at_val
-                )
-                db_events.append(db_event)
-
-            session.add_all(db_events)
-            await session.commit()
-            METRICS["rows_written"] += len(db_events)
-            METRICS["flush_count"] += 1
-            METRICS["last_flush_ms"] = round((time.perf_counter() - started) * 1000, 1)
-            METRICS["last_error"] = None
-            logger.info("kafka_stream_batch_write_success", count=len(db_events))
+        await _write_events(events_to_save)
+        METRICS["rows_written"] += len(events_to_save)
+        METRICS["flush_count"] += 1
+        METRICS["last_flush_ms"] = round((time.perf_counter() - started) * 1000, 1)
+        METRICS["last_error"] = None
+        logger.info("kafka_stream_batch_write_success", count=len(events_to_save))
+    except IntegrityError as e:
+        written, rejected, unwritten = await _salvage_rejected_batch(events_to_save, e)
+        METRICS["rows_written"] += written
+        METRICS["events_dropped_rejected"] += rejected
+        METRICS["flush_count"] += 1
+        METRICS["last_flush_ms"] = round((time.perf_counter() - started) * 1000, 1)
+        # Nothing refused on the retry - a constraint race that did not
+        # reproduce - is a clean flush.
+        METRICS["last_error"] = None
+        if rejected:
+            METRICS["flush_failures"] += 1
+            METRICS["last_error"] = "write rejected"
+        if unwritten:
+            METRICS["last_error"] = "database unavailable"
+            await _return_to_buffer(unwritten)
+        logger.warning(
+            "kafka_stream_batch_write_partially_rejected",
+            written=written,
+            rejected=rejected,
+            returned=len(unwritten),
+            total_rejected=METRICS["events_dropped_rejected"],
+        )
     except (OperationalError, InterfaceError) as e:
         METRICS["flush_failures"] += 1
         METRICS["last_error"] = "database unavailable"
         logger.error("kafka_stream_batch_write_recoverable_error", error=str(e))
-        # Return the events for a later attempt, but never past the cap: a long
-        # outage would otherwise buffer until the process died.
-        #
-        # Prepended, not appended. Anything already in the buffer arrived while
-        # this flush was in flight, so it is *newer* than the batch coming back:
-        # `extend` put the older events last, which both scrambled the order and
-        # - because the trim below drops from the front - made the cap evict the
-        # newest arrivals instead of the oldest backlog.
-        async with batch_lock:
-            batch_buffer[:0] = events_to_save
-            overflow = len(batch_buffer) - MAX_BUFFERED_EVENTS
-            if overflow > 0:
-                del batch_buffer[:overflow]
-                METRICS["events_dropped_overflow"] += overflow
-                logger.error(
-                    "kafka_stream_buffer_overflow",
-                    dropped=overflow,
-                    buffered=len(batch_buffer),
-                    cap=MAX_BUFFERED_EVENTS,
-                )
+        await _return_to_buffer(events_to_save)
     except Exception as e:
         METRICS["flush_failures"] += 1
         METRICS["last_error"] = "write rejected"

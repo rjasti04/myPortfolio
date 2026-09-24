@@ -22,6 +22,12 @@ asyncpg>=0.29.0
 sqlalchemy>=2.0.0
 alembic>=1.13.0
 
+# --- Configuration loading ---
+# Imported directly by server/alembic/env.py and scripts/clear_2fa.py to read
+# the root .env. It used to arrive only through uvicorn[standard]'s extras, so
+# a change to those would have broken `alembic upgrade` in the deploy.
+python-dotenv>=1.0.0
+
 # --- Serialization and validation ---
 pydantic>=2.5.0
 python-multipart>=0.0.6

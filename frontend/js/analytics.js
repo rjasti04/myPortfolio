@@ -114,6 +114,7 @@ function clearSessionId() {
     if (sessionId) localStorage.removeItem(eventQueueKey());
   } catch (e) {}
   eventQueue.length = 0;
+  sentOnHide.clear();
   sessionId = null;
   sessionToken = null;
   sessionStartedAt = null;
@@ -141,6 +142,12 @@ export function withSessionToken(url) {
   return url;
 }
 const eventQueue = [];
+/* Events a `hidden` flush has sent and not yet heard back about. They stay in
+   eventQueue - and so in the persisted copy - until the answer arrives, and
+   every other flush skips them so they are not sent twice meanwhile. */
+const sentOnHide = new Set();
+// Body bytes those requests still have in flight; see KEEPALIVE_BUDGET_BYTES.
+let keepaliveBytesInFlight = 0;
 let heartbeatInterval;
 let flushInterval;
 
@@ -388,12 +395,46 @@ function trimQueueToCap() {
   }
 }
 
+/** Removes exactly these events from the queue, by identity, and persists it. */
+function removeFromQueue(sent) {
+  const kept = eventQueue.filter((event) => !sent.has(event));
+  eventQueue.length = 0;
+  eventQueue.push(...kept);
+  saveEventQueue();
+}
+
+const utf8Length = (text) => new TextEncoder().encode(text).length;
+
+/* Fetch caps `keepalive` bodies at 64 KiB - and the cap is on the sum of every
+   keepalive body still in flight from this page, not per request, so a second
+   chunk sent during the same unload is refused just as the first would have
+   been. Kept a little under the cap so the small /sessions/{id}/end PATCH that
+   follows on unload still fits. A queue near its 200-event cap used to go out
+   as one body over the limit, which the browser rejects outright. */
+const KEEPALIVE_BUDGET_BYTES = 60 * 1024;
+
+/** The oldest queued events not already in flight whose bulk body fits `budget`. */
+function takeKeepaliveBatch(budget) {
+  // `{"events":[],"client_ts":<13 digits>,"flush_reason":"unload"}`, with room to spare.
+  let bytes = 80;
+  const batch = [];
+  for (const event of eventQueue) {
+    if (sentOnHide.has(event)) continue;
+    const size = utf8Length(JSON.stringify(event)) + 1; // and its comma
+    if (bytes + size > budget) break;
+    bytes += size;
+    batch.push(event);
+  }
+  return batch;
+}
+
 async function flushEvents(flushReason = "threshold") {
   if (eventQueue.length === 0 || !sessionId) return;
 
-  const eventsToSend = [...eventQueue];
-  eventQueue.length = 0; // Clear the queue
-  saveEventQueue();
+  // Not the events a `hidden` flush is still waiting to hear about.
+  const eventsToSend = eventQueue.filter((event) => !sentOnHide.has(event));
+  if (eventsToSend.length === 0) return;
+  removeFromQueue(new Set(eventsToSend));
 
   const startedAt = performance.now();
   try {
@@ -468,24 +509,62 @@ async function flushEvents(flushReason = "threshold") {
   }
 }
 
+/* Flushes with `keepalive` when the page is hidden or going away.
+
+   The queue used to be emptied straight after the request was fired, without
+   waiting for its answer. A tab hidden while offline therefore wiped the very
+   persisted queue the offline design exists to keep, and nothing was sent.
+
+   - `hidden` (isEndingSession false): the page usually survives to hear back,
+     so events leave the queue only once the send succeeds - or fails in a way
+     retrying cannot fix, a 4xx, as in flushEvents. Until then they stay
+     persisted, and every other flush skips them.
+   - `unload`: the page may not see the answer at all, so what is sent now is
+     removed now - at most once, as before - and that includes whatever a
+     `hidden` flush a moment earlier still has in flight: a tab close fires
+     `hidden` and then `pagehide`. What does not fit the keepalive budget stays
+     persisted, and the next page load restores and sends it. */
 function flushEventsOnUnload(isEndingSession = false) {
   if (eventQueue.length > 0 && sessionId) {
-    const payload = JSON.stringify({
-      events: eventQueue,
-      client_ts: Date.now(),
-      flush_reason: isEndingSession ? "unload" : "hidden"
-    });
+    const batch = takeKeepaliveBatch(KEEPALIVE_BUDGET_BYTES - keepaliveBytesInFlight);
+    const flushReason = isEndingSession ? "unload" : "hidden";
 
-    // Use fetch with keepalive as it can reliably send data on unload and supports proper headers/methods
-    apiFetch(`${API_BASE}/events/bulk`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: payload,
-      keepalive: true
-    }).catch(err => console.warn("Analytics: Failed to bulk send events on unload", err));
+    if (batch.length > 0) {
+      const payload = JSON.stringify({
+        events: batch,
+        client_ts: Date.now(),
+        flush_reason: flushReason
+      });
+      const payloadBytes = utf8Length(payload);
 
-    eventQueue.length = 0;
-    saveEventQueue();
+      // Use fetch with keepalive as it can reliably send data on unload and supports proper headers/methods
+      const request = apiFetch(`${API_BASE}/events/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        keepalive: true
+      });
+
+      if (isEndingSession) {
+        removeFromQueue(new Set([...batch, ...sentOnHide]));
+        request.catch(err => console.warn("Analytics: Failed to bulk send events on unload", err));
+      } else {
+        batch.forEach((event) => sentOnHide.add(event));
+        keepaliveBytesInFlight += payloadBytes;
+        request
+          .then((response) => {
+            const retryable = response.status >= 500 || response.status === 429;
+            if (response.ok || !retryable) removeFromQueue(new Set(batch));
+          })
+          .catch(err => console.warn("Analytics: Failed to bulk send events on hide; kept for later", err))
+          .finally(() => {
+            batch.forEach((event) => sentOnHide.delete(event));
+            keepaliveBytesInFlight -= payloadBytes;
+          });
+      }
+    } else if (isEndingSession && sentOnHide.size > 0) {
+      removeFromQueue(new Set(sentOnHide));
+    }
   }
 
   // Also send an end session call if we are explicitly closing the page/tab

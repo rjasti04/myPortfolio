@@ -135,3 +135,110 @@ async def test_the_cap_drops_the_oldest_not_the_newest(monkeypatch):
     assert len(ids) == 4
     assert ids[-1] == "s302", "the newest event must survive the trim"
     assert "s200" not in ids, "the oldest event is the one to drop"
+
+
+# --- one bad event must not take its batch with it (C9) ----------------------
+# A single message naming an unknown session_id is a foreign-key violation, and
+# the whole batch used to go to the unrecoverable branch with it: up to
+# BATCH_SIZE valid events discarded for one bad one.
+
+
+def _uuid_events(count):
+    return [
+        {"session_id": f"00000000-0000-4000-8000-{i:012d}", "event_type": "page_view"}
+        for i in range(count)
+    ]
+
+
+class _ConstraintCheckingSession:
+    """Commits a batch unless it holds a refused session_id, as an FK would.
+
+    `outage_on` makes the Nth session opened fail as if the database went away.
+    """
+
+    opened = 0
+
+    def __init__(self, refused, written, outage_on=None):
+        self.refused, self.written, self.outage_on = refused, written, outage_on
+        self.rows = []
+
+    async def __aenter__(self):
+        _ConstraintCheckingSession.opened += 1
+        if _ConstraintCheckingSession.opened == self.outage_on:
+            raise OperationalError("INSERT", {}, Exception("server closed the connection"))
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+    def add_all(self, rows):
+        self.rows = list(rows)
+
+    async def commit(self):
+        from sqlalchemy.exc import IntegrityError
+
+        ids = [str(row.session_id) for row in self.rows]
+        if any(session_id in self.refused for session_id in ids):
+            raise IntegrityError("INSERT", {}, Exception("violates foreign key constraint"))
+        self.written.extend(ids)
+
+
+@pytest.mark.asyncio
+async def test_one_refused_event_does_not_discard_the_rest_of_its_batch(monkeypatch):
+    events = _uuid_events(10)
+    refused = {events[6]["session_id"]}
+    written = []
+    _ConstraintCheckingSession.opened = 0
+    monkeypatch.setattr(ks, "AsyncSessionLocal", lambda: _ConstraintCheckingSession(refused, written))
+    rows_before = ks.METRICS["rows_written"]
+    ks.batch_buffer.extend(events)
+
+    await ks.save_batch()
+
+    expected = [e["session_id"] for e in events if e["session_id"] not in refused]
+    assert sorted(written) == sorted(expected), "every valid event is written"
+    assert ks.METRICS["events_dropped_rejected"] == 1, "only the refused one is dropped, and counted"
+    assert ks.METRICS["rows_written"] - rows_before == 9
+    assert ks.batch_buffer == [], "nothing is left to retry a constraint against"
+    assert _ConstraintCheckingSession.opened < 1 + len(events), (
+        "bisection must cost fewer commits than retrying row by row"
+    )
+
+
+@pytest.mark.asyncio
+async def test_an_outage_during_the_salvage_returns_what_was_not_written(monkeypatch):
+    events = _uuid_events(10)
+    refused = {events[6]["session_id"]}
+    written = []
+    _ConstraintCheckingSession.opened = 0
+    # 1: the whole batch (refused), 2: the first half (written), 3: the database goes away.
+    monkeypatch.setattr(
+        ks, "AsyncSessionLocal", lambda: _ConstraintCheckingSession(refused, written, outage_on=3)
+    )
+    ks.batch_buffer.extend(events)
+
+    await ks.save_batch()
+
+    assert written == [e["session_id"] for e in events[:5]]
+    assert [e["session_id"] for e in ks.batch_buffer] == [e["session_id"] for e in events[5:]], (
+        "the unwritten half goes back to the buffer, in order, for a later attempt"
+    )
+    assert ks.METRICS["events_dropped_rejected"] == 0, "nothing was refused before the outage"
+
+
+@pytest.mark.asyncio
+async def test_a_refused_batch_of_one_is_dropped_without_a_second_attempt(monkeypatch):
+    events = _uuid_events(1)
+    written = []
+    _ConstraintCheckingSession.opened = 0
+    monkeypatch.setattr(
+        ks, "AsyncSessionLocal",
+        lambda: _ConstraintCheckingSession({events[0]["session_id"]}, written),
+    )
+    ks.batch_buffer.extend(events)
+
+    await ks.save_batch()
+
+    assert written == []
+    assert ks.METRICS["events_dropped_rejected"] == 1
+    assert _ConstraintCheckingSession.opened == 1, "a refused single row is not retried"

@@ -56,7 +56,10 @@ JWT bearer tokens, HS256, signed with `JWT_SECRET`
 
 **Rotation.** `/auth/refresh` revokes the presented `jti` and issues a new one.
 A reused, revoked or expired token is rejected. Clients must serialise
-concurrent refreshes; `js/auth.js` does so with a single-flight guard.
+concurrent refreshes; `js/auth.js` does so with a single-flight guard inside a
+tab and a Web Lock across tabs. Tabs share the stored pair, so without the lock
+two tabs spent the same token, and the loser's sign-out deleted the pair the
+winner had just stored.
 
 **Purpose binding.** Every single-use token carries a `jti` recorded in
 `one_time_tokens` with a `purpose`. `consume_one_time_token` checks the purpose,
@@ -83,9 +86,20 @@ recorded before the 2FA branch on the magic-link path: whether a second factor
 is still owed does not change what the redemption has already proven.
 
 **Blast radius of a revocation.** `revoke_user_tokens` revokes all refresh
-tokens, ends active `user_sessions`, **and** voids unused one-time tokens — a
-pending reset link is a credential too. It runs on logout, password change,
-password reset and account deletion.
+tokens **and** voids unused one-time tokens — a pending reset link is a
+credential too. It runs on password change, password reset and account deletion.
+
+**Logout ends one device, authenticated by its refresh token.** `POST
+/auth/logout` revokes the single `refresh_tokens` row named by the refresh token
+in the body, scoped to that token's own `sub`, and leaves other devices and
+pending links alone. This is a deliberate exception to the rule that a write to
+a user's own data takes `get_current_user`: the credential being ended is the
+proof, as it is on `/auth/refresh`. Requiring a live access token meant a
+visitor whose token had expired got a 401, nothing was revoked, and the 30-day
+refresh token outlived the sign-out. The signature and `type` are verified;
+expiry is not, because revoking a dead token is harmless. A bearer without a
+body still works (its `sid` names the session), and the response is identical
+whether or not a row matched.
 
 ---
 

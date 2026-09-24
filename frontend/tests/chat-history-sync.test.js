@@ -301,6 +301,166 @@ describe('Chat server-history sync', () => {
     assert.equal(notice.getAttribute('role'), 'alert');
   });
 
+  /* C5: `hydrating` was persisted while still true, so after a reload the
+     conversation painted "Loading this conversation…" and the hydrating guard
+     refused to refetch it. Invariant: the spinner is painted only while a
+     GET /chat/history/{id} is actually in flight. */
+  const transcript = () => document.getElementById('ai-page-messages');
+  const stubId = (n) => `${String(n).padStart(8, '0')}-7777-4777-8777-777777777777`;
+  const storeActiveStub = (id, extra = {}) => {
+    dom.window.localStorage.setItem(STORAGE_KEY, JSON.stringify([{
+      id: `remote-${id}`, conversationId: id, title: 'Stub', messages: [],
+      createdAt: 1, updatedAt: 2, remote: true, messageCount: 2, ...extra,
+    }]));
+    dom.window.localStorage.setItem('rj_chat_active_session', `remote-${id}`);
+  };
+  const transcriptHandler = (id, answer) => async (url) => {
+    if (url.endsWith(`/chat/history/${id}`)) {
+      return {
+        ok: true, status: 200,
+        json: async () => ({ id, messages: [
+          { role: 'user', content: 'Q' }, { role: 'assistant', content: answer },
+        ] }),
+      };
+    }
+    return { ok: true, status: 200, json: async () => ({ conversations: [] }) };
+  };
+
+  it('never persists the per-view hydrating or loadError flags', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
+    const id = stubId(1);
+    handlers['/chat/history'] = async (url) => {
+      if (url.endsWith(`/chat/history/${id}`)) return transcriptHandler(id, 'A')(url);
+      return { ok: true, status: 200, json: async () => ({ conversations: [conversation(id, 'Hydrates', '2026-01-01T00:00:00Z')] }) };
+    };
+    initChat();
+    await settle();
+    [...document.querySelectorAll('.history-item-open')]
+      .find((b) => b.textContent === 'Hydrates')
+      .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    await settle();
+
+    const raw = dom.window.localStorage.getItem(STORAGE_KEY);
+    assert.ok(!raw.includes('"hydrating"'), `hydrating was persisted: ${raw}`);
+    assert.ok(!raw.includes('"loadError"'), `loadError was persisted: ${raw}`);
+  });
+
+  it('recovers a conversation stored mid-hydration by an older build', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
+    const id = stubId(2);
+    storeActiveStub(id, { hydrating: true });
+    handlers['/chat/history'] = transcriptHandler(id, 'Recovered answer');
+    initChat();
+    await settle();
+
+    assert.equal(calls.filter((c) => c.url.endsWith(`/chat/history/${id}`)).length, 1,
+      'a stored hydrating flag must not block the fetch');
+    assert.match(transcript().textContent, /Recovered answer/);
+    assert.equal(transcript().querySelector('.chat-transcript-loading'), null);
+  });
+
+  it('fetches the active stub on load instead of painting a spinner forever', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
+    const id = stubId(3);
+    storeActiveStub(id);
+    handlers['/chat/history'] = transcriptHandler(id, 'Loaded on reload');
+    initChat();
+    await settle();
+
+    assert.equal(calls.filter((c) => c.url.endsWith(`/chat/history/${id}`)).length, 1);
+    assert.match(transcript().textContent, /Loaded on reload/);
+  });
+
+  it('says why a stub cannot load when signed out, rather than spinning', async () => {
+    storeActiveStub(stubId(4));
+    initChat();
+    await settle();
+
+    assert.equal(transcript().querySelector('.chat-transcript-loading'), null,
+      'nothing is in flight, so nothing may say it is loading');
+    const notice = transcript().querySelector('.chat-transcript-error');
+    assert.ok(notice, 'a stub nobody can fetch must say so');
+    assert.match(notice.textContent, /Sign in/);
+  });
+
+  /* C11 */
+  it('repaints the newly active conversation when an opened stub 404s', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
+    const id = stubId(5);
+    handlers['/chat/history'] = async (url) => {
+      if (url.endsWith(`/chat/history/${id}`)) return { ok: false, status: 404, json: async () => ({}) };
+      return { ok: true, status: 200, json: async () => ({ conversations: [conversation(id, 'Gone', '2026-01-01T00:00:00Z')] }) };
+    };
+    initChat();
+    await settle();
+    [...document.querySelectorAll('.history-item-open')]
+      .find((b) => b.textContent === 'Gone')
+      .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    await settle();
+
+    assert.equal(transcript().querySelector('.chat-transcript-loading'), null,
+      "the dropped stub's Loading… must not stay on screen");
+  });
+
+  for (const [status, expectNotice] of [[500, true], [429, true], [404, false]]) {
+    it(`${expectNotice ? 'reports' : 'accepts'} a ${status} when deleting the server copy`, async () => {
+      dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
+      const id = stubId(600 + status);
+      handlers['/chat/history'] = async (url, options) => {
+        if (options.method === 'DELETE') return { ok: false, status, json: async () => ({}) };
+        return { ok: true, status: 200, json: async () => ({ conversations: [conversation(id, 'Delete me', '2026-01-01T00:00:00Z')] }) };
+      };
+      initChat();
+      await settle();
+
+      const row = [...document.querySelectorAll('.history-item')]
+        .find((el) => el.querySelector('.history-item-open')?.textContent === 'Delete me');
+      row.querySelector('.session-menu-btn').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      row.querySelector('.dropdown-item.danger').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      await settle();
+      document.querySelector('.confirm-modal-confirm').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      await settle();
+
+      const notice = transcript().querySelector('.chat-transcript-error');
+      if (expectNotice) {
+        assert.ok(notice, `a ${status} leaves the server copy, which the next sync brings back`);
+        assert.match(notice.textContent, /may reappear/);
+      } else {
+        assert.equal(notice, null, 'a 404 means it was never saved, which is as gone as deleted');
+      }
+    });
+  }
+
+  it('evicts server stubs before local-only conversations at the 50-row cap', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
+    const locals = Array.from({ length: 45 }, (_, i) => ({
+      id: String(1000 + i),
+      conversationId: `${String(i).padStart(8, '0')}-1111-4111-8111-111111111111`,
+      title: `Local ${i}`,
+      messages: [{ text: 'only here', sender: 'user' }],
+      createdAt: 1000 + i,
+      updatedAt: 1000 + i,
+    }));
+    dom.window.localStorage.setItem(STORAGE_KEY, JSON.stringify(locals));
+    // Ten server conversations, all newer than every local row.
+    const remote = Array.from({ length: 10 }, (_, i) =>
+      conversation(stubId(900 + i), `Server ${i}`, `2026-01-${String(10 + i).padStart(2, '0')}T00:00:00Z`));
+    handlers['/chat/history'] = async () => ({ ok: true, status: 200, json: async () => ({ conversations: remote }) });
+
+    initChat();
+    await settle();
+
+    const kept = stored();
+    assert.equal(kept.length, 50);
+    const keptLocal = kept.filter((row) => row.title.startsWith('Local '));
+    assert.equal(keptLocal.length, 45, 'every local-only transcript survives the sign-in');
+    assert.deepEqual(
+      kept.filter((row) => row.remote).map((row) => row.title).sort(),
+      ['Server 5', 'Server 6', 'Server 7', 'Server 8', 'Server 9'],
+      'the newest stubs fill what is left',
+    );
+  });
+
   it('survives an unreachable history API', async () => {
     dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
     handlers['/chat/history'] = async () => { throw new Error('offline'); };

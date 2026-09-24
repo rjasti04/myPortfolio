@@ -120,6 +120,8 @@ as P0–P3. Line numbers refer to the tree at commit `f33d629`.
 | **Location** | `frontend/js/auth.js:346-405` (`refreshAccessTokenOnce`), `:430-433` (clear on rejection) |
 | **The "Why"** | `refreshInFlight` is a module variable, so it de-duplicates refreshes only within one tab. Two tabs whose access tokens expired together (a laptop waking up, say) both read the same refresh token from shared `localStorage` and both POST it. The server's atomic claim (`auth_service.py:388-398`) lets exactly one win. The loser gets 401, sets `rejected`, and calls `clearTokens()`, which deletes the pair the winner has just stored, so **both** tabs are signed out. The comment at `:339-345` describes this exact failure as fixed. It is fixed only for one tab. No `storage` listener, `navigator.locks` or `BroadcastChannel` exists anywhere in `frontend/js`. |
 | **The Fix** | Before clearing, re-read the stored refresh token. If it is no longer the one this tab sent, another tab rotated it: adopt the new pair and retry. Better still, run the refresh under a Web Lock and re-read storage once the lock is held. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `refreshAccessTokenOnce` runs under a Web Lock (`navigator.locks`, `rj-auth-refresh`), and each request remembers the refresh token that was stored when it was sent. A tab that finds the pair already rotated once it holds the lock retries with the new access token instead of spending the token again. Where there is no lock manager, a 401 from `/auth/refresh` re-reads storage before it counts as a rejection. **Differs from the suggested fix:** the re-read alone leaves the race open when the loser's 401 arrives before the winner has written its new pair, so the lock is the fix and the re-read is the fallback. `auth-refresh.test.js` runs two module instances over one storage. |
 
 ```js
 // inside refreshAccessTokenOnce, after a 401/403 from /auth/refresh
@@ -137,6 +139,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | Server: `server/services/auth_service.py:501-503` (change-password), `:816-818` (delete), `:898` (2FA enable), `:945` (2FA disable). Client: `frontend/js/auth.js:76,89,283,303` call these through `authenticatedFetch`, whose `:416` treats any 401 as an expired access token |
 | **The "Why"** | An "Incorrect current password" answer is indistinguishable from "your bearer token expired". The client rotates the refresh token and re-POSTs the same wrong password. On 2FA enable/disable each attempt calls `register_failed_attempt`, so **one typo counts twice** and the account locks (15 min) on the third typo instead of the fifth. Every typo on the other two routes also burns a refresh-token rotation. |
 | **The Fix** | Fix it on the server. A wrong *re-authentication* password is a validation failure of the request body, not of the bearer credential, so answer **400**. Not 403: `isCredentialRejection` (`auth.js:358-360`) treats 403 as "sign out". Update the four `HTTPException`s and their tests, and keep 401 for the bearer token only. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | All four routes answer **400** `"Incorrect current password"`, with no `WWW-Authenticate` header. The client needed no change: its four wrappers were already status-agnostic, and 400 is not in `isCredentialRejection`. `docs/API.md` documents the rule once, under change-password. |
 
 ### C3 — Logout either signs out every device or revokes nothing
 
@@ -147,6 +151,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/auth.js:321-334`; `server/services/auth_service.py:479-489`; `server/auth/security.py:92-93` |
 | **The "Why"** | The client logs out with a plain `fetch` carrying the current access token and ignores the status. After 30 minutes of reading, the token has expired: `get_current_user` answers 401, `logout_user` never runs, and the **30-day refresh token stays valid server-side** while the UI says "Signed out." (With no token at all the header is `Bearer null`.) When the call does succeed, it revokes **every** refresh token the user holds. The docstring says this is because "the access token carries no refresh `jti`". That stopped being true when the `sid` claim shipped, and `revoke_all_other_sessions` already uses it. Signing out of a phone signs out the laptop. |
 | **The Fix** | `POST /auth/logout` takes the refresh token in the body (the client has it) and revokes that one row, authenticating by the refresh token itself so an expired access token doesn't matter. Keep "sign out everywhere" as the existing `/auth/sessions/revoke-others` plus the caller's own logout. Correct the docstring. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `POST /auth/logout` takes an optional `{"refresh_token"}` and revokes that one row, scoped to the token's own `sub`. The signature and `type` are verified and expiry is deliberately not. With no body, a valid bearer's `sid` names the session, and a pre-`sid` token still ends all of them. `logoutUser()` sends the body and no bearer. The docstring is corrected, and `docs/SECURITY.md` records the deliberate exception to the `get_current_user` rule. |
 
 ### C4 — Nav header clears tokens after a transient refresh failure
 
@@ -157,6 +163,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/auth-ui.js:1444` (`authenticatedFetch('/auth/me')`), `:1541-1545` |
 | **The "Why"** | If the access token has expired and `/auth/refresh` answers 429, 5xx or fails offline, `authenticatedFetch` deliberately keeps the tokens (`auth.js:390-395,427-433`). It then hands back the **original 401**. `setupNavUI` reads that 401 as `isCredentialRejection` and calls `clearTokens()`, undoing the design in `auth.js:348-360`. The refresh route shares the general per-IP budget, which the comment at `:1546-1552` itself says the Activity page can exhaust. |
 | **The Fix** | Have `authenticatedFetch` report whether the credential was actually rejected (return `{ response, rejected }`, or tag the response). `setupNavUI` clears only on `rejected === true`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `authenticatedFetch` keeps its return shape and records a 401 whose refresh failed transiently. `setupNavUI` clears tokens only on the new `isRejectedResponse(res)`. Covered through the real header in `auth-nav-session.test.js`. |
 
 ### C5 — Opened server conversations stick on "Loading…" after reload
 
@@ -167,6 +175,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/chat.js:1025-1027` (save), `:1035` (`finally` clears the flag), `:1457` (render), `:1003` (guard) |
 | **The "Why"** | `hydrateSession` calls `saveSessions()` while `session.hydrating` is still `true`; the `finally` resets it only afterwards, so `"hydrating": true` is what lands in `localStorage`. After a reload, `:1457` paints "Loading this conversation…" with a spinner. `:1003` then refuses to refetch, because `remote` is already `false`. Every later save writes the flag back, so the conversation stays stuck until it is deleted. Not covered by `chat-history-sync.test.js`. |
 | **The Fix** | Clear `hydrating` before `saveSessions()`, and have `saveSessions` strip transient fields (`hydrating`, `loadError`) from what it serialises. Also reset them on load for rows already persisted. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `saveSessions()` serialises through a replacer that drops `hydrating` and `loadError`, and `loadSessions()` strips both from rows an older build saved. `hydrateSession` settles `hydrating` before it saves. **Wider than reported:** init repainted an active stub without ever fetching it, so even with the flag fixed, "Loading…" could sit with nothing in flight. Init now opens an active stub through `openSession()`, and a signed-out stub says "Sign in to load this conversation." instead of spinning. |
 
 ### C6 — Content-hashed build removes stable public URLs
 
@@ -177,6 +187,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `scripts/build.mjs:41-43` (`HASHED_COPY_EXTENSIONS`), `:435` (only the hashed name is emitted), `:454-458` (rewrite list: HTML + `manifest.json` only); `frontend/sitemap.xml:10,21,32,43,54,65,76,87` |
 | **The "Why"** | Every png/jpg/webp/ico/svg/pdf ships **only** under its hashed name. `sitemap.xml` is copied verbatim, so all eight `<image:loc>` URLs 404 in production. `/rjasti_resume.pdf` stops existing at the URL a recruiter bookmarks or a résumé links to, and `/favicon.ico`, which browsers and crawlers request unprompted, 404s too. `.htaccess` has no redirect for any of them. Recruiters are the site's first audience (`AGENTS.md`). |
 | **The Fix** | Emit an unhashed copy (short cache, `must-revalidate`, as `.htaccess:112-114` already sets for un-hashed assets) for an allowlist: resume PDF, favicon, the `*-preview.png` social images. Add `sitemap.xml` to the rewrite pass for anything else. Add a `build.test.js` assertion that `dist/rjasti_resume.pdf` and every `sitemap.xml` URL exist. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `build.mjs` ships `rjasti_resume.pdf`, `favicon.ico` and every root `*-preview.png` un-hashed at their source path as well as hashed (`isStableAlias`, matched by pattern). Pages still point at the hashed names, and `.htaccess` already serves un-hashed images `max-age=3600, must-revalidate`, so it needed no change. `sitemap.xml` ships verbatim, since every URL in it now resolves. The report's alternative, rewriting it, was not taken, because crawlers should hold stable URLs. `build.test.js`'s "every image is hashed" rule now allows exactly that alias set, and new cases assert the résumé and favicon exist, each alias matches its hashed copy byte for byte, and every sitemap image and page is a shipped file. |
 
 ### C7 — Rollback probably doesn't run on a job timeout
 
@@ -187,6 +199,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `.github/workflows/deploy.yml:288` (`timeout-minutes: 20`), `:562-563`, `:600-601` (`if: failure() && env.DEPLOY_SNAPSHOT == 'ok'`) |
 | **The "Why"** | A job-level timeout cancels the job rather than failing a step, and `failure()` is false on cancellation. A hang in rsync or `alembic upgrade` would leave a half-deployed release with no rollback. |
 | **The Fix** | `if: (failure() \|\| cancelled()) && env.DEPLOY_SNAPSHOT == 'ok'`, and give the rsync and migration steps their own `timeout-minutes` so a hang surfaces as a step failure. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Every deploy step that can take more than seconds has its own `timeout-minutes`, sized to its worst case: snapshot 5, build 5, backend 3, frontend 3, install and migrate 8, restart 3, health 5 (its probe loop alone can run 3 min), smoke 3. A step timeout is a step failure, so a hang reaches the rollback through `failure()` whichever way Actions treats a job timeout. Both rollback steps also run on `cancelled()` and carry their own budgets (8 and 3). The job timeout rises from 20 to 50 so the 46-minute sum fits, and a comment above it shows the arithmetic. A green deploy takes about 30 s, measured from the last eight runs. |
 
 ### C8 — A bulk-event database outage is reported as 422, so the client drops the batch
 
@@ -197,6 +211,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/controllers/event_controller.py:134-137` |
 | **The "Why"** | Any exception from the insert, a dropped connection included, becomes a 422 "possibly invalid session_id". `analytics.js` re-queues only on 5xx/429, so a transient database blip permanently loses every buffered event in the batch. |
 | **The Fix** | `except IntegrityError` → 422; `except (OperationalError, InterfaceError)` → 503; let anything else be a 500. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `IntegrityError` → 422; `OperationalError`/`InterfaceError` → **503**, which `analytics.js` re-queues; anything else is re-raised as a 500, which it also re-queues. The flush metric and live broadcast moved after the commit and are best-effort, so a failure there can neither roll back nor misreport rows already saved. |
 
 ### C9 — One bad Kafka event drops its whole batch
 
@@ -207,6 +223,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/services/kafka_stream.py:682-694` |
 | **The "Why"** | A single message naming an unknown `session_id` (an FK violation) sends the whole `save_batch` to the "unrecoverable" branch, which discards up to `BATCH_SIZE` valid events along with it. |
 | **The Fix** | On `IntegrityError`, retry the batch row by row and drop only the rows that fail, counting them in `events_dropped_rejected`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | A batch refused with an `IntegrityError` is **bisected** rather than dropped: each half commits in its own transaction, a refused half splits again, and only a single row still refused is dropped and counted in `events_dropped_rejected`. **Differs from the suggested fix:** not row by row. After an outage the buffer can hold `MAX_BUFFERED_EVENTS` (10,000) rows, and bisection costs O(k log n) commits for k bad rows. An outage part-way through returns the unwritten rows to the buffer, in order. |
 
 ### C10 — The unload/hidden flush clears the event queue before the send finishes
 
@@ -217,6 +235,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/analytics.js:471-489`; queue cap `:38` |
 | **The "Why"** | `eventQueue.length = 0; saveEventQueue()` runs straight after firing the `keepalive` fetch, without waiting for the result. On `visibilitychange` while offline, the persisted queue the offline design exists to keep is wiped. A backlog near the 200-event cap can also exceed the 64 KiB `keepalive` body limit, which rejects the request outright. |
 | **The Fix** | For `hidden`, remove events only once the send resolves OK. Chunk `keepalive` bodies under about 60 KiB. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | A hide flush keeps its events queued, and persisted, until the send succeeds; other flushes skip them while it is in flight. An unload removes what it sends at once and leaves the rest persisted. Both send only the oldest events that fit a 60 KiB budget, less whatever a hide flush still has in flight. **Differs from the suggested fix:** chunking does not help, because Fetch's 64 KiB applies to the sum of in-flight keepalive bodies; a second chunk is refused like the first. |
 
 ### C11 — Chat history edge cases
 
@@ -227,6 +247,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/chat.js:939-951`; `:1015,1046`; `:992-993` with `:497-499` |
 | **The "Why"** | (a) `deleteRemoteConversation` never checks `res.ok`, and `fetch` doesn't throw on 429/5xx. A failed server delete is silent, and the conversation reappears on the next sync. (b) A 404 while opening a conversation removes the stub and activates another one, but `openSession` skips the repaint, leaving the deleted conversation's "Loading…" in the transcript. (c) Merging server stubs happens before the 50-row cap is applied, so a sign-in can evict **local-only** transcripts that exist nowhere else. |
 | **The Fix** | (a) Check `res.ok` and surface a toast, as Clear-all already does (`:1081-1087`). (b) Repaint unconditionally after a 404. (c) Never cap away rows without a `conversationId`; cap stubs first. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | (a) `deleteRemoteConversation` checks the status. A 404 counts as deleted; anything else paints the same may-reappear notice Clear-all uses. The report said "toast", but the code's own precedent is the transcript notice. (b) `openSession` repaints unconditionally after hydrating. (c) The cap evicts unhydrated server stubs first, oldest first and never the active one. **Differs from the suggested fix:** "rows without a `conversationId`" would protect nothing, because `backfillConversationIds()` gives every row one. |
 
 ### C12 — The Stop button's state handling has three gaps
 
@@ -237,6 +259,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/chat.js:1622-1628` (`abortGeneration`), `:1860` (`/chat/summarize` without a signal), `:2141` (outer catch), `:2054` (inner `AbortError` check), `:1767` vs `:1805` |
 | **The "Why"** | (1) Pressing Stop while a long conversation is being summarised only resets the UI. The turn continues, and a second submit can interleave two replies into one transcript. (2) Stopping before response headers arrive lands in the outer catch, which lacks the `AbortError` check the inner one has, and shows "Could not reach the assistant" with a Retry button. (3) `await ensureSession()` runs before `setInputState(true)`, so two fast submits on a first visit both stream. |
 | **The Fix** | Create the `AbortController` before the summarise call and pass its signal. Treat `AbortError` in the outer catch as a clean stop. Set the busy flag before the first `await`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | One `AbortController` per turn, created and the turn marked busy before the first `await`. Its signal covers `/chat/summarize`, each `await` before the stream is a checkpoint, and both catch blocks check the turn's own controller. Stop before the headers, before the first token or during the summary ends quietly. The last of those was a fourth gap: it painted "The assistant did not return a response." `chat-stop.test.js` drives all four through the real composer. |
 
 ### C13 — Activity dashboard lifecycle
 
@@ -247,6 +271,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/activity.js:1120-1151`; `:1047-1053`; `:1403-1408` |
 | **The "Why"** | (1) `enterActivitySection` awaits `ensureSession`/`loadActivity`. If the visitor leaves during that wait, `leaveActivitySection` finds nothing to stop, and entry then opens the EventSource and a 15-second refetch timer on a hidden section. (2) When `/stream` returns an HTTP error, the browser closes the EventSource for good after **one** `error` event. The count (1) never passes `STREAM_GIVE_UP_AFTER` (3), so the pill says "Connecting…" forever. (3) The error state tells the visitor to "use Refresh", but Refresh never restarts the stream. |
 | **The Fix** | Keep an entry generation counter and bail out after each `await` if it changed. When `readyState === EventSource.CLOSED`, go straight to "error". Have Refresh call `startActivityStream()`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | (1) An entry generation, bumped on enter and leave, stops an entry that was awaited across a leave from opening the stream and its timers. (2) A source the browser has `CLOSED` reports "error" at once and is released. (3) Refresh reopens a stream that is not open and leaves a healthy one alone. Covered by `activity-lifecycle.test.js` with a fake `EventSource`. |
 
 ### C14 — Out-of-order paints and a listener leak
 
@@ -257,6 +283,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/owner-analytics.js:154-160`; `frontend/js/auth-ui.js:1490` |
 | **The "Why"** | The owner dashboard's 7d/30d buttons `paint(await load())` with no sequencing, so a slower earlier response paints last under the wrong pressed button. `setupNavUI` runs on every `auth-changed` event and adds another `document` click listener each time, holding a detached dropdown. |
 | **The Fix** | A request counter (ignore stale results), or `AbortController` per load. Register the outside-click listener once, or with an `AbortSignal` that is aborted on the next `setupNavUI`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | (a): the owner panel's window picker numbers each load, and only the latest click paints or clears the busy state. (b): the header's outside-click listener is registered with an `AbortSignal`, and each render aborts the previous one. |
 
 ### C15 — Service worker: stale tabs and the update prompt
 
@@ -267,6 +295,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/main.js:260-268`; `frontend/sw.js:85-92`; `.github/workflows/deploy.yml:436-438` (`rsync --delete`) |
 | **The "Why"** | Deploys delete the previous build's hashed chunks, and the lazily loaded chat, activity and owner-analytics chunks are not precached. A tab still on the old build 404s on those imports, and the only trace is a `console.warn`. The update banner appears only on an `updatefound` during the current page's life. A worker already `waiting` when the page loads is never offered. |
 | **The Fix** | After `register()`, check `registration.waiting` and show the banner. On a dynamic-import failure, show "A new version is available — reload". |
+| **Status** | ✅ **Resolved** |
+| **What changed** | A worker already `waiting` when the page loads is offered. The lazy loaders go through `loadLazyModule`, which reports a failed import (not a throwing initialiser, and not while offline) as `rj:stale-build`. `main.js` answers with the update banner, and `activity.js` fires the same event for the owner panel's chunk. The registration wiring and the loader are exported so `sw-update.test.js` can drive them. |
 
 ### C16 — Syntax highlighter garbles `$&`, `` $` ``, `$'` and `$$`
 
@@ -277,6 +307,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/syntax-highlighter.js:62-64` |
 | **The "Why"** | `escaped.replace(key, html)` passes the replacement as a string, so `$` patterns inside a highlighted token are interpreted. JS `'$&'` renders as a placeholder fragment. Only the display is affected; Copy is correct. |
 | **The Fix** | `escaped.replace(key, () => html)`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Placeholders are restored with a replacement function. `syntax-highlighter.test.js` round-trips all four `$` patterns and a template literal's `$${…}`. |
 
 ### C17 — `/chat/summarize` skips the anonymous free-message cap
 
@@ -287,6 +319,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/routes/chat_routes.py:197-234` (compare `:57-64`) |
 | **The "Why"** | ADR-023 lists the free-message limit among the server-side ceilings, but only the streaming route applies it. Summarise is still bounded by the chat rate budget and a concurrency slot, so the exposure is small, but the two routes enforce different contracts. |
 | **The Fix** | Share one guard (a dependency) between both routes. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `enforce_free_message_limit()` is shared by both routes, and `/chat/summarize` calls it before taking a concurrency slot. It is a plain function rather than a dependency, so the request body is declared once. `model_id` (S1) is untouched. |
 
 ### C18 — `python-dotenv` is imported directly but only installed transitively
 
@@ -297,6 +331,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/alembic/env.py:27`, `scripts/clear_2fa.py:40`; `server/requirements.txt:778` (`# via uvicorn`) |
 | **The "Why"** | Migrations and the 2FA recovery script work only because `uvicorn[standard]` happens to pull `python-dotenv` in. A change to uvicorn's extras would break `alembic upgrade` in the deploy. |
 | **The Fix** | Add `python-dotenv` to `server/requirements.in` and regenerate both locks (ADR-021). |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `python-dotenv>=1.0.0` is a direct dependency in `server/requirements.in`, with a comment naming its two importers. Both locks were regenerated with `uv pip compile`. The diff is annotation-only: the pin stays 1.2.3 with the same hashes, and `# via uvicorn` becomes `# via -r server/requirements.in, uvicorn`. |
 
 ---
 

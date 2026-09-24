@@ -299,7 +299,7 @@ one-time-token purposes (`password_reset`, `magic_link`, `2fa_pre_auth`).
 | `authenticate_user` | Spends a bcrypt verification on an unknown address so timing is not an existence oracle; 5 failures → 15-minute lock; upgrades a legacy hash on success; **does not** clear lockout counters when 2FA is pending |
 | `refresh_user_token` | Rotation: revoke the presented `jti`, issue a new one |
 | `revoke_user_tokens` | Revokes refresh tokens, ends active `user_sessions`, and voids unused one-time tokens (a pending reset link is a credential too) |
-| `logout_user` | Revokes the whole set — the access token carries no refresh `jti`, so the caller's individual token cannot be singled out |
+| `logout_user` | Ends one device's session: the row named by the refresh token in the body, or by the bearer's `sid` claim when there is no body. Only a pre-`sid` bearer still ends every session. 401 when neither names one |
 | `change_user_password` | Verify current → HIBP → reuse check (current + last 5) → archive old → set new → prune history → revoke everything → email |
 | `request_password_reset` / `request_magic_link` | Identical generic response for every outcome, so neither enumerates accounts |
 | `reset_password_with_token` | Burn the token first, then the same pipeline, plus clearing lockout |
@@ -375,7 +375,7 @@ monotonic deque behind the throughput figure), `METRICS` (the counter dict).
 | `_publish_fanout` / `_on_fanout_notify` / `run_pg_fanout` | Cross-instance relay over Postgres `LISTEN/NOTIFY`, on a dedicated connection (a listening connection cannot be pooled), with an `INSTANCE_ID` origin check and a 7800-byte payload cap |
 | `prune_replay_buffers` | Reaps rings for sessions gone longer than `SSE_REPLAY_TTL` |
 | `pipeline_mode` / `pipeline_snapshot` / `_simulated_kafka_stats` | The health report and its modelled Kafka stage |
-| `save_batch` | Bulk write; recoverable failures return events to the buffer (capped at `MAX_BUFFERED_EVENTS`, overflow counted), unrecoverable ones are dropped and counted |
+| `save_batch` | Bulk write; recoverable failures return events to the buffer (capped at `MAX_BUFFERED_EVENTS`, overflow counted), unrecoverable ones are dropped and counted. A batch refused by a constraint (`IntegrityError`, e.g. one unknown `session_id`) is **bisected** rather than dropped: each half commits in its own transaction and only a single row still refused is dropped and counted, O(k log n) commits for k bad rows; an outage part-way through returns the unwritten rows to the buffer |
 | `add_to_batch` / `periodic_flusher` | Size-triggered and time-triggered flushing |
 | `process_incoming_event` | Decode → batch + broadcast (simulated events skip the batch) |
 | `decode_payload` | Tolerates raw JSON, base64-wrapped JSON, bytes, and nested encoded payloads |

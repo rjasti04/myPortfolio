@@ -137,6 +137,25 @@ def verify_token(token: str, expected_type: str = "access") -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
 
+def decode_refresh_token_for_revocation(token: str) -> Optional[dict]:
+    """A refresh token's payload for the purpose of revoking it, or None.
+
+    The signature and `type` are checked; expiry is deliberately not. An
+    expired refresh token is already dead, so revoking it costs nothing, and
+    refusing it would turn a sign-out into an error for exactly the visitor
+    who left a tab open longest. Nothing else may use this: `verify_token` is
+    what authenticates a request.
+    """
+    try:
+        payload = jwt.decode(
+            token, JWT_SECRET, algorithms=[ALGORITHM], options={"verify_exp": False}
+        )
+    except jwt.InvalidTokenError:
+        return None
+    if payload.get("type") != "refresh" or not payload.get("sub") or not payload.get("jti"):
+        return None
+    return payload
+
 def create_pre_auth_token(subject: Union[str, int], jti: str) -> str:
     """Half-authenticated token issued between password and second factor.
 

@@ -113,4 +113,7 @@ def test_logout_revokes_tokens_rather_than_only_clearing_the_client(app):
 
     from server.services import auth_service
 
-    assert "revoke_user_tokens" in inspect.getsource(auth_service.logout_user)
+    # One device's refresh token, not the whole set: the behaviour is covered
+    # end to end in test_auth.py; this only pins that the service still writes.
+    service = inspect.getsource(auth_service.logout_user)
+    assert "update(RefreshToken)" in service and "is_revoked=True" in service

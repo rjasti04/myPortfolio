@@ -1,4 +1,4 @@
-import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, isCredentialRejection, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, disable2FA, verify2FA, requestMagicLink, verifyMagicLink, verifyEmail, resendVerification, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession, clearTokens } from './auth.js';
+import { loginUser, registerUser, logoutUser, getAuthToken, authenticatedFetch, isRejectedResponse, requestPasswordReset, resetPassword, changePassword, deleteAccount, setup2FA, enable2FA, disable2FA, verify2FA, requestMagicLink, verifyMagicLink, verifyEmail, resendVerification, fetchActiveSessions, revokeOtherSessions, revokeSpecificSession, clearTokens } from './auth.js';
 import { API_BASE } from './analytics.js';
 import { closeAllDropdowns } from './navigation.js';
 import { closeModal, openModal } from './modal.js';
@@ -1421,7 +1421,17 @@ export async function initAuthUI() {
     window.addEventListener('auth-changed', setupNavUI);
 }
 
+/* Scopes the header's document-level listeners to one render. setupNavUI runs
+   on every `auth-changed` - login, logout, 2FA, a failed refresh - and used to
+   add a fresh outside-click listener each time without removing the last,
+   each one holding the dropdown that render had just thrown away. Aborting
+   the previous controller removes them. */
+let navUserMenuListeners = null;
+
 async function setupNavUI() {
+    navUserMenuListeners?.abort();
+    navUserMenuListeners = null;
+
     let authContainer = document.getElementById('nav-auth-container') || document.querySelector('.nav-auth-container');
     if (!authContainer) {
         const parentContainer = document.querySelector('.header-actions');
@@ -1487,12 +1497,17 @@ async function setupNavUI() {
                     }
                 });
 
+                // Aborted again here, not only on entry: two auth-changed events
+                // in quick succession overlap across the /auth/me await, and the
+                // later render is the one whose listener should survive.
+                navUserMenuListeners?.abort();
+                navUserMenuListeners = new AbortController();
                 document.addEventListener('click', (e) => {
                     if (dropdown && !dropdown.contains(e.target) && !profileBtn.contains(e.target)) {
                         dropdown.classList.remove('show');
                         profileBtn.setAttribute('aria-expanded', 'false');
                     }
-                });
+                }, { signal: navUserMenuListeners.signal });
 
                 if (btn2FA) {
                     // Routes on state. The label used to read "2FA Enabled"
@@ -1538,9 +1553,13 @@ async function setupNavUI() {
                 });
 
                 return; // Successfully setup logged-in state
-            } else if (isCredentialRejection(res.status)) {
+            } else if (isRejectedResponse(res)) {
                 // The server refused the credential. This is the only branch
-                // that may destroy it.
+                // that may destroy it. Not `isCredentialRejection(res.status)`:
+                // when the refresh behind this 401 was rate-limited or failed,
+                // authenticatedFetch deliberately kept the tokens and handed
+                // back the original 401, and reading the status alone undid
+                // that decision here.
                 clearTokens();
             }
             /* Anything else - 429 from the rate limiter, a 5xx while the
