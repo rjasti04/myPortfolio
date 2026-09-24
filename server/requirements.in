@@ -42,6 +42,11 @@ botocore>=1.34.0
 # 4; the prehash scheme in server/auth/security.py is custom anyway, so passlib
 # only ever wrapped hashpw/checkpw.
 bcrypt>=4.2.0
+# Imported directly by server/auth/security.py, which runs bcrypt on its worker
+# threads. It already arrives through starlette; declared so that cannot change
+# under us. 4.2 is the first release whose CapacityLimiter can be built at
+# import, before an event loop is running.
+anyio>=4.2.0
 pyjwt>=2.8.0
 pyotp>=2.9.0
 qrcode>=7.4.2

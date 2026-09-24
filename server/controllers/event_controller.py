@@ -9,7 +9,7 @@ from fastapi import Request, HTTPException, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import desc, func
+from sqlalchemy import cast, desc, func, literal_column, null, union_all
 from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError
 from server.db.database import get_db
 from server.models.session import UserSession
@@ -370,6 +370,8 @@ async def get_session_path_funnel(
     Uses a single window-function pass to pair every event with the next
     distinct path in the session, which is what makes the transition edges
     computable without pulling the whole event set into the application.
+    Steps, transitions and the total are three branches of one statement over
+    that pass, so it runs once rather than once per figure.
     """
     ordered = (
         select(
@@ -386,56 +388,75 @@ async def get_session_path_funnel(
             UserActivityEvent.session_id == session_id,
             UserActivityEvent.page_path.isnot(None),
         )
-        .subquery()
+        .cte("ordered")
     )
 
-    result = await db.execute(
+    # One statement, as in analytics_routes.funnel: each limited branch is a
+    # subquery because SQLite refuses ORDER BY or LIMIT on a bare UNION
+    # member, and the placeholder NULLs are typed because PostgreSQL types a
+    # bare one in a subquery's output as text. The steps branch goes first:
+    # SQLAlchemy types a UNION's columns from its first branch, and that is
+    # what turns SQLite's stored text back into `first_at` datetimes.
+    no_path = cast(null(), UserActivityEvent.page_path.type)
+    no_time = cast(null(), UserActivityEvent.created_at.type)
+    step_branch = (
         select(
-            ordered.c.path,
-            func.count().label("hits"),
+            literal_column("'step'").label("kind"),
+            ordered.c.path.label("path"),
+            no_path.label("next_path"),
+            func.count().label("n"),
             func.min(ordered.c.at).label("first_at"),
             func.max(ordered.c.at).label("last_at"),
         )
         .group_by(ordered.c.path)
-        .order_by(desc("hits"))
+        .order_by(desc("n"))
         .limit(limit)
+        .subquery()
     )
-    steps = [
-        {
-            "path": row.path,
-            "hits": row.hits,
-            "first_at": row.first_at,
-            "last_at": row.last_at,
-        }
-        for row in result
-    ]
-
-    transitions_result = await db.execute(
+    edge_branch = (
         select(
-            ordered.c.path.label("from_path"),
-            ordered.c.next_path.label("to_path"),
-            func.count().label("weight"),
+            literal_column("'edge'").label("kind"),
+            ordered.c.path.label("path"),
+            ordered.c.next_path.label("next_path"),
+            func.count().label("n"),
+            no_time.label("first_at"),
+            no_time.label("last_at"),
         )
         .where(
             ordered.c.next_path.isnot(None),
             ordered.c.next_path != ordered.c.path,
         )
         .group_by(ordered.c.path, ordered.c.next_path)
-        .order_by(desc("weight"))
+        .order_by(desc("n"))
         .limit(limit * 2)
+        .subquery()
     )
-    transitions = [
-        {"from": row.from_path, "to": row.to_path, "weight": row.weight}
-        for row in transitions_result
-    ]
-
     # Over every path in the session, not just the `limit` returned above.
     # Summing the returned steps meant `total_hits` silently omitted the tail
     # the LIMIT cut, and every `share` was a fraction of the visible rows - so
     # the shares always came to 1.0 however much had been left out.
-    total = (
-        await db.execute(select(func.count()).select_from(ordered))
-    ).scalar_one() or 0
+    total_branch = select(
+        literal_column("'total'").label("kind"),
+        no_path.label("path"),
+        no_path.label("next_path"),
+        func.count().label("n"),
+        no_time.label("first_at"),
+        no_time.label("last_at"),
+    ).select_from(ordered)
+
+    rows = (
+        await db.execute(union_all(select(step_branch), select(edge_branch), total_branch))
+    ).all()
+    # UNION ALL keeps no branch's order, so each kind is sorted again here.
+    steps = [
+        {"path": row.path, "hits": row.n, "first_at": row.first_at, "last_at": row.last_at}
+        for row in sorted((r for r in rows if r.kind == "step"), key=lambda r: r.n, reverse=True)
+    ]
+    transitions = [
+        {"from": row.path, "to": row.next_path, "weight": row.n}
+        for row in sorted((r for r in rows if r.kind == "edge"), key=lambda r: r.n, reverse=True)
+    ]
+    total = next((r.n for r in rows if r.kind == "total"), 0) or 0
 
     for step in steps:
         step["share"] = round(step["hits"] / total, 4) if total else 0.0

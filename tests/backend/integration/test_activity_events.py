@@ -415,3 +415,124 @@ async def test_a_failed_broadcast_after_the_commit_is_still_a_success(async_clie
     assert response.json()["inserted"] == 1
     stored = await async_client.get(f"/api/sessions/{session_id}/events", headers=headers)
     assert [e["event_type"] for e in stored.json()] == ["click"]
+
+
+# The order the funnel tests below write, one minute apart. Includes a revisit
+# of "/", a self-transition on "/#about", and an event with no path, which the
+# funnel must leave out of every figure.
+FUNNEL_PATHS = ["/", "/#about", "/#about", None, "/#projects", "/", "/#contact", "/"]
+
+
+async def _seed_funnel(session_id):
+    """Writes FUNNEL_PATHS through the ORM, because an API-posted event's
+    `created_at` is the server's clock, which leaves `first_at` and `last_at`
+    nothing to tell apart. Returns each event's timestamp, by index."""
+    import uuid
+    from datetime import datetime, timedelta, timezone
+
+    from server.db.database import get_db
+    from server.main import app
+    from server.models.event import UserActivityEvent
+
+    start = datetime.now(timezone.utc).replace(microsecond=0) - timedelta(hours=1)
+    stamps = [start + timedelta(minutes=index) for index in range(len(FUNNEL_PATHS))]
+    gen = app.dependency_overrides[get_db]()
+    db = await gen.__anext__()
+    try:
+        for path, at in zip(FUNNEL_PATHS, stamps, strict=True):
+            db.add(
+                UserActivityEvent(
+                    session_id=uuid.UUID(session_id),
+                    event_type="page_view",
+                    page_path=path,
+                    event_data={},
+                    created_at=at,
+                )
+            )
+        await db.commit()
+    finally:
+        await gen.aclose()
+    return stamps
+
+
+def _same_instant(reported: str, expected) -> bool:
+    # SQLite hands back naive UTC and PostgreSQL aware UTC; the instant is what
+    # the funnel promises, so compare that.
+    from datetime import datetime
+
+    return datetime.fromisoformat(reported).replace(tzinfo=None) == expected.replace(tzinfo=None)
+
+
+@pytest.mark.asyncio
+async def test_session_funnel_counts_steps_transitions_and_total(async_client):
+    """The per-session funnel's figures, pinned before its query was rewritten
+    from three statements into one."""
+    session_id, headers = await _new_session(async_client)
+    stamps = await _seed_funnel(session_id)
+
+    cut = await async_client.get(
+        f"/api/sessions/{session_id}/events/funnel?limit=2", headers=headers
+    )
+    assert cut.status_code == 200, cut.text
+    body = cut.json()
+
+    # Seven events with a path; the pathless one counts nowhere. The total
+    # includes the two paths the limit cut.
+    assert body["total_hits"] == 7
+    steps = body["steps"]
+    assert [(s["path"], s["hits"], s["share"]) for s in steps] == [
+        ("/", 3, round(3 / 7, 4)),
+        ("/#about", 2, round(2 / 7, 4)),
+    ]
+    # ISO 8601 with a "T": a datetime the database handed back as text would
+    # serialise with a space instead.
+    assert "T" in steps[0]["first_at"]
+    assert _same_instant(steps[0]["first_at"], stamps[0])
+    assert _same_instant(steps[0]["last_at"], stamps[7])
+    assert _same_instant(steps[1]["first_at"], stamps[1])
+    assert _same_instant(steps[1]["last_at"], stamps[2])
+
+    full = await async_client.get(f"/api/sessions/{session_id}/events/funnel", headers=headers)
+    assert full.status_code == 200, full.text
+    body = full.json()
+    assert body["total_hits"] == 7
+    assert {s["path"]: s["hits"] for s in body["steps"]} == {
+        "/": 3, "/#about": 2, "/#projects": 1, "/#contact": 1,
+    }
+    # The pathless event is skipped, so "/#about" leads straight to
+    # "/#projects"; the self-transition on "/#about" is not an edge.
+    assert {(t["from"], t["to"], t["weight"]) for t in body["transitions"]} == {
+        ("/", "/#about", 1),
+        ("/#about", "/#projects", 1),
+        ("/#projects", "/", 1),
+        ("/", "/#contact", 1),
+        ("/#contact", "/", 1),
+    }
+
+
+@pytest.mark.asyncio
+async def test_the_session_funnel_is_one_statement(async_client):
+    """Steps, transitions and the total each re-ran the same window-function
+    scan. They now read one CTE in a single statement."""
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+
+    session_id, headers = await _new_session(async_client)
+    await _seed_funnel(session_id)
+
+    statements = []
+
+    def record(_conn, _cursor, statement, *_args):
+        if "user_activity_events" in statement:
+            statements.append(statement)
+
+    event.listen(Engine, "before_cursor_execute", record)
+    try:
+        response = await async_client.get(
+            f"/api/sessions/{session_id}/events/funnel", headers=headers
+        )
+    finally:
+        event.remove(Engine, "before_cursor_execute", record)
+
+    assert response.status_code == 200, response.text
+    assert len(statements) == 1, f"{len(statements)} statements read user_activity_events"

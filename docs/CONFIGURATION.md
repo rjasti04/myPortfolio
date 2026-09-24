@@ -260,7 +260,7 @@ separates them; the general 60/min budget would have allowed 3,600 an hour.
 
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
-| `LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL`. Applied by `setup_logging()`, called from `main.py` |
+| `LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL`. Applied by `setup_logging()`, called from `main.py`. `DEBUG` adds a line per ingested event (`broadcasting_event`, `kafka_message_received`, `simulated_event_generated`); at `INFO` the pipeline counters in `GET /system/pipeline` carry those figures |
 | `TESTING` | *(unset)* | `true` disables rate limiting **and** stops the three background pipeline tasks from starting |
 | `TEST_DATABASE_URL` | `sqlite+aiosqlite:///:memory:?cache=shared` | Read by `tests/backend/conftest.py` only |
 
