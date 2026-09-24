@@ -161,8 +161,17 @@ Runs only on a push to `main` with all three gates green.
 
 ## Rollback
 
-Automatic on any failure after the snapshot succeeded
-(`if: failure() && env.DEPLOY_SNAPSHOT == 'ok'`).
+Automatic on any failure, or cancellation, after the snapshot succeeded
+(`if: (failure() || cancelled()) && env.DEPLOY_SNAPSHOT == 'ok'`).
+
+A hang counts as a failure. Every deploy step that can take more than seconds
+carries its own `timeout-minutes`, sized to its worst case, and a step timeout
+fails the step. A hang in `rsync` or `alembic upgrade` used to be bounded only
+by the job timeout, which cancels the job instead, so `failure()` stayed false
+and the half-deployed release was left in place. The budgets, and the sum that has
+to fit inside the job timeout with the rollback's own, are in a comment above
+the job's `timeout-minutes`. A deploy cancelled by hand part-way through rolls
+back for the same reason.
 
 1. Resolve `deploy-backups/current` → the newest snapshot.
 2. `rsync -a --delete` the snapshot's `server/` and `html/` back.

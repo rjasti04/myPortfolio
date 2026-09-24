@@ -5,8 +5,10 @@ findings **C1–C18** (6 × P2, 12 × P3). The report's line numbers refer to
 `f33d629`. HEAD at the time of writing, `4aa4792`, only adds the report, so the
 line numbers still apply.
 **Companion spec**: `.claude/specs/2026-09-24-codebase-review-correctness.md`
-**Status**: planning only. This document and its spec are the whole of this
-change. No source file is edited until the spec is approved.
+**Status**: implemented, in the five phases the spec sets out (A-E), each
+committed separately. All 18 findings are resolved. Where implementation
+departed from the plan, the spec says so in a **Revised during
+implementation** note on that finding's row.
 
 ## 1. Problem & Persona Context
 

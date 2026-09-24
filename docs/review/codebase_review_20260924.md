@@ -187,6 +187,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `scripts/build.mjs:41-43` (`HASHED_COPY_EXTENSIONS`), `:435` (only the hashed name is emitted), `:454-458` (rewrite list: HTML + `manifest.json` only); `frontend/sitemap.xml:10,21,32,43,54,65,76,87` |
 | **The "Why"** | Every png/jpg/webp/ico/svg/pdf ships **only** under its hashed name. `sitemap.xml` is copied verbatim, so all eight `<image:loc>` URLs 404 in production. `/rjasti_resume.pdf` stops existing at the URL a recruiter bookmarks or a résumé links to, and `/favicon.ico`, which browsers and crawlers request unprompted, 404s too. `.htaccess` has no redirect for any of them. Recruiters are the site's first audience (`AGENTS.md`). |
 | **The Fix** | Emit an unhashed copy (short cache, `must-revalidate`, as `.htaccess:112-114` already sets for un-hashed assets) for an allowlist: resume PDF, favicon, the `*-preview.png` social images. Add `sitemap.xml` to the rewrite pass for anything else. Add a `build.test.js` assertion that `dist/rjasti_resume.pdf` and every `sitemap.xml` URL exist. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `build.mjs` ships `rjasti_resume.pdf`, `favicon.ico` and every root `*-preview.png` un-hashed at their source path as well as hashed (`isStableAlias`, matched by pattern). Pages still point at the hashed names, and `.htaccess` already serves un-hashed images `max-age=3600, must-revalidate`, so it needed no change. `sitemap.xml` ships verbatim, since every URL in it now resolves. The report's alternative, rewriting it, was not taken, because crawlers should hold stable URLs. `build.test.js`'s "every image is hashed" rule now allows exactly that alias set, and new cases assert the résumé and favicon exist, each alias matches its hashed copy byte for byte, and every sitemap image and page is a shipped file. |
 
 ### C7 — Rollback probably doesn't run on a job timeout
 
@@ -197,6 +199,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `.github/workflows/deploy.yml:288` (`timeout-minutes: 20`), `:562-563`, `:600-601` (`if: failure() && env.DEPLOY_SNAPSHOT == 'ok'`) |
 | **The "Why"** | A job-level timeout cancels the job rather than failing a step, and `failure()` is false on cancellation. A hang in rsync or `alembic upgrade` would leave a half-deployed release with no rollback. |
 | **The Fix** | `if: (failure() \|\| cancelled()) && env.DEPLOY_SNAPSHOT == 'ok'`, and give the rsync and migration steps their own `timeout-minutes` so a hang surfaces as a step failure. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Every deploy step that can take more than seconds has its own `timeout-minutes`, sized to its worst case: snapshot 5, build 5, backend 3, frontend 3, install and migrate 8, restart 3, health 5 (its probe loop alone can run 3 min), smoke 3. A step timeout is a step failure, so a hang reaches the rollback through `failure()` whichever way Actions treats a job timeout. Both rollback steps also run on `cancelled()` and carry their own budgets (8 and 3). The job timeout rises from 20 to 50 so the 46-minute sum fits, and a comment above it shows the arithmetic. A green deploy takes about 30 s, measured from the last eight runs. |
 
 ### C8 — A bulk-event database outage is reported as 422, so the client drops the batch
 
@@ -327,6 +331,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/alembic/env.py:27`, `scripts/clear_2fa.py:40`; `server/requirements.txt:778` (`# via uvicorn`) |
 | **The "Why"** | Migrations and the 2FA recovery script work only because `uvicorn[standard]` happens to pull `python-dotenv` in. A change to uvicorn's extras would break `alembic upgrade` in the deploy. |
 | **The Fix** | Add `python-dotenv` to `server/requirements.in` and regenerate both locks (ADR-021). |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `python-dotenv>=1.0.0` is a direct dependency in `server/requirements.in`, with a comment naming its two importers. Both locks were regenerated with `uv pip compile`. The diff is annotation-only: the pin stays 1.2.3 with the same hashes, and `# via uvicorn` becomes `# via -r server/requirements.in, uvicorn`. |
 
 ---
 

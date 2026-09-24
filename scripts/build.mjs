@@ -42,6 +42,21 @@ const HASHED_COPY_EXTENSIONS = new Set([
   ".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg", ".pdf",
 ]);
 
+/* Files that also ship un-hashed, at the URL they have in frontend/.
+
+   Every image and PDF ships under a content-hashed name, and the pages are
+   rewritten to point at it. These URLs are held by things the build cannot
+   rewrite: a recruiter's bookmark or a résumé link to /rjasti_resume.pdf,
+   the /favicon.ico browsers and crawlers ask for unprompted, and the
+   <image:loc> entries sitemap.xml gives search engines for the *-preview.png
+   social cards. Shipped only hashed, all of them 404'd in production. The
+   hashed copy still ships and the pages still reference it; the alias is a
+   second copy, which .htaccess serves `max-age=3600, must-revalidate` because
+   its name carries no hash. Matched by pattern, so a new app's preview card
+   needs no registration here. */
+const isStableAlias = (rel) =>
+  rel === "rjasti_resume.pdf" || rel === "favicon.ico" || /^[\w-]+-preview\.png$/.test(rel);
+
 /** Never shipped: tests are excluded from the deploy already, .htaccess is copied explicitly. */
 const SKIP_DIRS = new Set(["tests"]);
 
@@ -439,6 +454,10 @@ async function main() {
     copied.push(outputRel);
 
     if (outputRel !== rel) rewrites.set(rel, outputRel);
+    if (outputRel !== rel && isStableAlias(normalizedRel)) {
+      await cp(source, join(OUT, rel));
+      copied.push(rel);
+    }
   }
   // Vendored third-party scripts, copied verbatim: they are already minified
   // and their filenames are referenced from index.html unchanged.

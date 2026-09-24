@@ -285,7 +285,19 @@ jobs:
     needs: [frontend-check, backend-check, migration-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Every step that can take more than seconds carries its own
+    # `timeout-minutes`, sized to its worst case rather than its usual one
+    # (a green deploy takes about 30 s end to end). A step timeout is a step
+    # *failure*, so a hang in rsync or `alembic upgrade` reaches the rollback
+    # below through `failure()`. The job timeout alone used to be the only
+    # bound: it cancels the job rather than failing a step, `failure()` is
+    # false on cancellation, and a hang left a half-deployed release with no
+    # rollback. The job budget is the sum, plus the few seconds of checkout
+    # and setup:
+    #   snapshot 5 + build 5 + backend 3 + frontend 3 + install/migrate 8
+    #   + restart 3 + health 5 + smoke 3 = 35, then rollback 8 + confirm 3 = 46.
+    # Health is 5 because its probe loop alone can run 12 x (10 s + 5 s) = 3 min.
+    timeout-minutes: 50
 
     # Serialises deploys. Two merges in quick succession previously ran two
     # `rsync --delete` passes and two `alembic upgrade head` invocations against
@@ -340,6 +352,7 @@ jobs:
       # Everything below this point is recoverable: the previous release is on
       # disk before a single byte is overwritten.
       - name: Snapshot Current Release for Rollback
+        timeout-minutes: 5
         run: |
           ssh "$EC2_USER@$EC2_HOST" bash -se -- "$REMOTE_APP_DIR" "$WEB_ROOT" <<'REMOTE'
           set -euo pipefail
@@ -397,6 +410,7 @@ jobs:
       # audited - so here the call buys nothing at all, on a job holding the
       # production-deploy concurrency lock.
       - name: Build Frontend
+        timeout-minutes: 5
         run: |
           npm ci --no-audit --no-fund
           npm run build
@@ -415,6 +429,7 @@ jobs:
           test -d dist/assets || { echo "::error::dist/assets is missing - the build did not run"; exit 1; }
 
       - name: Deploy FastAPI Backend (server/)
+        timeout-minutes: 3
         run: |
           # Sync server directory to EC2, excluding virtual environments, secrets, and caches
           rsync -avz --delete \
@@ -426,6 +441,7 @@ jobs:
             server/ "$EC2_USER@$EC2_HOST:$REMOTE_APP_DIR/server/"
 
       - name: Deploy Static Frontend to Apache (/var/www/html/)
+        timeout-minutes: 3
         run: |
           # Deploys the build output, not the source tree: minified, bundled and
           # content-hashed. `frontend/` remains the source of truth and stays
@@ -438,6 +454,7 @@ jobs:
             dist/ "$EC2_USER@$EC2_HOST:$WEB_ROOT/"
 
       - name: Install Dependencies and Run Migrations
+        timeout-minutes: 8
         run: |
           ssh "$EC2_USER@$EC2_HOST" bash -se -- "$REMOTE_APP_DIR" <<'REMOTE'
           set -euo pipefail
@@ -456,6 +473,7 @@ jobs:
           REMOTE
 
       - name: Restart FastAPI and HTTPD Services
+        timeout-minutes: 3
         run: |
           ssh "$EC2_USER@$EC2_HOST" bash -se <<'REMOTE'
           set -euo pipefail
@@ -468,6 +486,7 @@ jobs:
       # exits after systemd has already reported success, which used to leave
       # the site down behind a green checkmark.
       - name: Verify Deployment Health
+        timeout-minutes: 5
         run: |
           ssh "$EC2_USER@$EC2_HOST" bash -se <<'REMOTE'
           set -euo pipefail
@@ -511,6 +530,7 @@ jobs:
       #
       # Deliberately read-only: nothing here writes to the production database.
       - name: Smoke Test the Deployed Site
+        timeout-minutes: 3
         run: |
           SITE_URL="${HEALTH_URL%/api/health}"
           echo "Smoke testing $SITE_URL"
@@ -556,11 +576,15 @@ jobs:
           echo "Smoke test passed"
 
       # Restores the previous code on both tiers and brings the services back.
+      # Also on `cancelled()`: a deploy cancelled by hand, or by the job
+      # timeout, part-way through `rsync --delete` is exactly as half-deployed
+      # as one that failed there.
       # The database is deliberately NOT downgraded: `alembic downgrade` can
       # drop columns and lose rows, so migrations must stay backward-compatible
       # with the release before them (expand now, contract in a later deploy).
       - name: Roll Back Failed Deployment
-        if: failure() && env.DEPLOY_SNAPSHOT == 'ok'
+        if: (failure() || cancelled()) && env.DEPLOY_SNAPSHOT == 'ok'
+        timeout-minutes: 8
         run: |
           echo "::warning::Deployment failed - restoring the previous release"
           ssh "$EC2_USER@$EC2_HOST" bash -se -- "$REMOTE_APP_DIR" "$WEB_ROOT" <<'REMOTE'
@@ -598,7 +622,8 @@ jobs:
           REMOTE
 
       - name: Confirm Rollback Restored Service
-        if: failure() && env.DEPLOY_SNAPSHOT == 'ok'
+        if: (failure() || cancelled()) && env.DEPLOY_SNAPSHOT == 'ok'
+        timeout-minutes: 3
         run: |
           for attempt in $(seq 1 6); do
             if curl -fsS --max-time 10 "$HEALTH_URL" \
