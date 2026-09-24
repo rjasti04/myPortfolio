@@ -358,9 +358,13 @@ which carries the account id and role ARN, is only logged.
 - **Terminal output is structural.** Every builder in `js/terminal/output.js`
   writes through `textContent`, so a command handler cannot inject markup even
   if it forgets to sanitise.
-- **Markdown is sanitised.** `renderBotHTML()` is
-  `DOMPurify.sanitize(marked.parse(text))`, degrading to escaped plain text with
-  `<br>` if either global is missing.
+- **Markdown is sanitised, and carries no images.** `renderBotHTML()` is
+  `DOMPurify.sanitize(marked.parse(text), { FORBID_TAGS: ['img', 'image'] })`,
+  and a marked renderer turns a markdown image into a link, degrading to escaped
+  plain text with `<br>` if either global is missing. DOMPurify's default kept
+  `<img>`, so a reply could make the page fetch any URL it named - a tracking
+  pixel, or conversation text carried out in the URL. `img-src 'self' data:`
+  backs it.
 - **Code copy buttons** carry their payload URI-encoded in a `data-code`
   attribute and decode it in JavaScript, so no code content is ever interpolated
   as markup.
@@ -375,7 +379,9 @@ Two policies apply.
 [`FRONTEND.md`](FRONTEND.md#content-security-policy) for the full text.
 Highlights: `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`,
 `form-action https://formsubmit.co`, `script-src 'self'` plus three `sha256-`
-pinned inline scripts, `font-src 'self'`.
+pinned inline scripts, `font-src 'self'`, `img-src 'self' data:`. The shipped
+copy (`dist/index.html`) drops the two loopback `connect-src` origins that local
+development needs.
 
 **Server-level** (`.htaccess`) — `Content-Security-Policy: frame-ancestors
 'self'`, which a `<meta>` CSP cannot express.
@@ -395,9 +401,12 @@ From `frontend/.htaccess`:
 | :--- | :--- |
 | `X-Content-Type-Options` | `nosniff` |
 | `X-Frame-Options` | `SAMEORIGIN` |
-| `X-XSS-Protection` | `1; mode=block` |
+| `X-XSS-Protection` | `0` - the auditor it enabled is gone, and `mode=block` could itself be abused |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` |
 | `Content-Security-Policy` | `frame-ancestors 'self'` |
+| `Permissions-Policy` | `camera=(), geolocation=(), microphone=(self)` - the chat's voice input keeps the mic |
+
+Every one is `Header always set`, so Apache's own error pages carry them too.
 
 From the API: `X-Request-ID` and `Server-Timing` on every response, both
 explicitly CORS-exposed. CORS allows credentials, so the origin list is the
@@ -480,7 +489,8 @@ Structured JSON via structlog, with `request_id` on every line.
 | :--- | :--- |
 | IP addresses truncated in log lines | `session_controller.create_session` |
 | Tokens logged only as a 12-char digest | `notification_service._token_fingerprint` |
-| Client error reports carry `pathname + hash`, never the query string | `error-handler.reportClientError` — the query string can carry a reset or magic-link token, and this payload is persisted |
+| Client error reports carry `pathname + hash`, never the query string | `error-handler.reportClientError` — this payload is persisted. Mailed tokens now travel in the fragment, and the inline pre-boot script strips them before any module runs, so the hash is clean by the time this or analytics' `page_path` reads it |
+| Mailed tokens stay out of server logs and caches | Reset, verification and sign-in links carry the token in the fragment (`/#magic_token=…`), which never reaches Apache's access log; the service worker caches navigations by path, so a query-string token from an older link is not persisted either |
 | Client error reports capped and deduplicated | 10 per page load, deduplicated by `name:message` |
 | API responses never cached by the service worker | `sw.js` skips `/api/` |
 | Bedrock invocation logs get the analytics session id only — never its token, a user id or an IP | `bedrock_service.stream_chat_response` (`requestMetadata`) |
@@ -543,6 +553,8 @@ Before merging anything that touches these areas:
 - [ ] **Rendering user-controlled text?** Build DOM nodes, or `escapeHTML()`
       first.
 - [ ] **Touched `index.html`?** Run `npm run check:csp`.
+- [ ] **Emailing a link?** Put the token in the fragment, not the query string,
+      and add its key to the pre-boot script's list in `index.html`.
 - [ ] **New third-party origin?** It needs a CSP `connect-src`/`script-src`
       entry — and a reason it cannot be vendored.
 - [ ] **New secret?** Required with no fallback, documented in

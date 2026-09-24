@@ -13,6 +13,13 @@ from server.config.settings import CONTACT_EMAIL
 logger = structlog.get_logger(__name__)
 
 
+# Mailed links carry their token in the URL *fragment*. In the query string the
+# GET that opened `/?magic_token=…` was written to Apache's access log, and the
+# service worker cached the page under its full URL, so the token sat in Cache
+# Storage with no expiry. A fragment never leaves the browser; the inline
+# pre-boot script in index.html lifts it out before any module can record it.
+
+
 def _token_fingerprint(token: str) -> str:
     """A short, non-reversible tag for correlating a token across log lines.
 
@@ -229,7 +236,7 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
     """
     Asynchronously sends a password reset link email to the user via local/configured SMTP server.
     """
-    reset_link = f"https://rjasti.com/?reset_token={reset_token}"
+    reset_link = f"https://rjasti.com/#reset_token={reset_token}"
     logger.info(
         "sending_password_reset_email",
         recipient_email=email,
@@ -268,7 +275,7 @@ async def send_password_reset_email(email: str, reset_token: str) -> None:
 
 async def send_email_verification_email(email: str, verify_token: str) -> None:
     """Confirms the registrant controls the address."""
-    link = f"https://rjasti.com/?verify_token={verify_token}"
+    link = f"https://rjasti.com/#verify_token={verify_token}"
     logger.info(
         "sending_email_verification",
         recipient_email=email,
@@ -338,7 +345,7 @@ async def send_existing_account_email(email: str) -> None:
 
 
 async def send_magic_link_email(email: str, magic_token: str) -> None:
-    magic_link = f"https://rjasti.com/?magic_token={magic_token}"
+    magic_link = f"https://rjasti.com/#magic_token={magic_token}"
     logger.info(
         "sending_magic_link_email",
         recipient_email=email,

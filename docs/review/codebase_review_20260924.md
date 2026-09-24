@@ -514,6 +514,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/notification_service.py:232,271,305`; `frontend/sw.js:177-188` |
 | **The "Why"** | The GET that loads `/?magic_token=…` is written to Apache's access log. The service worker then caches every navigation under its **full URL** with no expiry, so the token is persisted in Cache Storage. Every `?s=` share link also adds another full HTML copy to that cache. |
 | **The Fix** | Put tokens in the fragment (`/#magic_token=…`), which never reaches the server. Strip it **before analytics starts**, because `analytics.js:364` records `pathname + hash` as `page_path`; today's query tokens are safe from that. Have the service worker cache navigations under `url.pathname` only. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | The three mail helpers link to `/#reset_token=…`, `/#verify_token=…` and `/#magic_token=…`; a fragment never reaches the server, its access log or a fetch. The inline pre-boot script, which runs before any module, hands the token to `auth-ui.js` as `window.__rjAuthLink` and strips it from the address bar, so `analytics.js`'s `pathname + hash` page_path and the error reporter never see it. Its CSP hash is re-pinned. **Differs from the suggested fix:** the report did not account for the hash router; stripping in that first-running inline script is what makes the fragment safe. `takeAuthLinkTokens()` keeps the query string as a fallback for links mailed before the change (verify links live 24 h). `sw.js` caches navigations under `origin + pathname`, so neither an old query token nor a `?s=` share link becomes a cache key. |
 
 ### S15 — AI chat can make the SPA load arbitrary third-party images
 
@@ -524,6 +526,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `frontend/js/chat.js:17-28` (`DOMPurify.sanitize(marked.parse(text))`, default config); `frontend/index.html:7` (`img-src 'self' data: https:`) |
 | **The "Why"** | Markdown images in a model reply survive sanitisation, and the CSP allows any HTTPS origin. Model output, or text a visitor pastes in, becomes a tracking pixel or a markdown-image exfiltration channel. That goes against the spirit of ADR-016, even though script execution stays blocked. |
 | **The Fix** | `DOMPurify.sanitize(html, { FORBID_TAGS: ['img'] })`, or a `marked` image renderer that emits a link. Narrow `img-src` to `'self' data:`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `renderBotHTML` sanitises with `FORBID_TAGS: ['img', 'image']`, and a marked `image` renderer emits a link to the URL instead, so the visitor sees where it points and nothing is fetched. `img-src` is narrowed to `'self' data:`; checked first that no SPA image comes from another origin or `blob:` (the blob URLs in the diff and JSON apps are downloads, on pages with their own CSP). `chat-render.test.js` loads the real vendored DOMPurify and marked. |
 
 ### S16 — Security headers and CSP have drifted
 
@@ -534,6 +538,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `frontend/.htaccess:102-107`; `frontend/index.html:7` |
 | **The "Why"** | `X-XSS-Protection "1; mode=block"` is deprecated; the current guidance is `0`. `Header set` without `always` leaves Apache's own 4xx/5xx pages unprotected. There is no `Permissions-Policy`. The production `connect-src` still lists `http://localhost:8000`, `http://127.0.0.1:8000` and `staging-api`. HSTS is already a known limitation. |
 | **The Fix** | Use `Header always set`; set `X-XSS-Protection "0"`; add `Permissions-Policy: camera=(), geolocation=(), microphone=(self)` (voice input needs the mic). Have `build.mjs` strip the dev origins from the shipped CSP and re-pin the hashes. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Every `.htaccess` security header is `Header always set`; `X-XSS-Protection` is `0`; `Permissions-Policy: camera=(), geolocation=(), microphone=(self)` is added (only the chat's voice input uses a device). `build.mjs` strips the two loopback origins from `dist/index.html`'s `connect-src`; the source keeps them for local development, and `staging-api` stays because `getApiBaseUrl()` still routes a staging host there. **Differs from the suggested fix:** no hash re-pin was needed for that, because a CSP hash covers an inline script's body, not the meta tag. A build test asserts every inline script in the shipped page is still pinned. |
 
 ### S17 — GitHub workflows lack basic hardening
 

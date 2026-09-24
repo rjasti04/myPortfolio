@@ -3,7 +3,8 @@
 **Related Intent**: `.claude/intents/2026-09-24-codebase-review-security.md`
 **Source report**: `docs/review/codebase_review_20260924.md` §2 (S1–S18)
 **Target Audience**: Owner first, then Visitor / Recruiter and Work Sample
-**Status**: planned. Nothing is implemented yet.
+**Status**: implemented, phases A-E. Deviations from the plan are listed in
+**Revised during implementation** at the end of §6.
 **Tree**: line numbers are at `537be41`, which is the report's `f33d629` plus
 the §1 implementation. Where §1 moved a line, the number here differs from the
 report's, and the number here is the one to use.
@@ -314,7 +315,7 @@ PYTHONPATH=. pytest --cov=server --cov-report=term-missing --cov-fail-under=55
 
 # Phase D only
 npm audit --omit=dev --audit-level=high
-server/.venv/bin/pip-audit -r server/requirements.txt --require-hashes --disable-pip --no-deps
+server/.venv/bin/pip-audit -r server/requirements.txt --require-hashes --disable-pip
 python3 -c 'import sys,yaml; [yaml.safe_load(open(f)) for f in sys.argv[1:]]' .github/workflows/*.yml
 
 # Every phase
@@ -399,3 +400,30 @@ the agent):
 - **S5 / S18**: how many rows still use the legacy raw-password hash. A hash
   alone cannot tell the two schemes apart, so the legacy branch, and the
   second verification it forces, stay.
+
+### Revised during implementation
+
+| # | Plan | What shipped, and why |
+| :--- | :--- | :--- |
+| S3 | Reset a lapsed lock, then reserve | The reset is keyed on the `until` value the request saw (`WHERE until = :seen`). A plain reset let a burst arriving at the moment of expiry all get attempt number one, which is the race this finding closes |
+| S3 | Parallel-guess test on SQLite | Also run on PostgreSQL 16 (`TEST_DATABASE_URL`), with the whole auth suite, because SQLite's single shared test connection cannot show real transaction interleaving |
+| S4 | One "locked" message for the routes behind a token | Two: `PASSWORD_LOCKED_DETAIL` still suggests a reset, and `CODE_LOCKED_DETAIL` does not, because a reset no longer clears the code tally |
+| S4 | Three login-while-locked tests change | Six tests changed. Three assert the generic 401 at login. The other three (bad 2FA codes, bad disable codes, the unlock script) now lock the **code** tally, so they assert that the password still yields a challenge and a correct code is refused |
+| S11 | `consume_totp(db, user, code, now)` | No `now` parameter: the clock is `_totp_time()`, a seam the tests move one step per code, because every test that enables 2FA and then signs in would otherwise need two real 30-second steps |
+| S12 | Re-auth routes reserve on the password tally | Through one shared `check_current_password`, which 2FA enable and disable use too, so all four re-check a password the same way |
+| S5 | Spy on `pwd_context.verify` | Phase D removed passlib, so the test spies on `security._checkpw` |
+| S8 | `purged == 1` | `purged >= 1`, plus assertions on the test's own rows: the suite shares one database, and another test leaves an account soft-deleted past the window |
+| S9 | Signed in: drop other accounts' rows | A token whose `sub` cannot be read drops nothing. The harness's placeholder token has no subject, and a real one always does, but "cannot tell" should not mean "signed out" |
+| S17 | Pin actions to SHAs | Pinned to the latest release **within the major each workflow already used** (checkout v4.4.0, setup-python v5.6.0, setup-node v4.4.0), and the matched v4 pair for the artifact actions, so no major-version change rides in with the hardening. Dependabot moves them from here |
+| S17 | `pip-audit … --no-deps` | Without `--no-deps`, which is redundant with `--require-hashes`. Both audits were clean at introduction |
+| S18 | Edit `resume_context.py:25` | Edited `content/resume.json` and regenerated, because `resume_context.py` is generated and `test_resume_context.py` holds it to the source |
+| S18 | Only passlib and bcrypt move in the locks | `cffi` and `pycparser` went too: only bcrypt < 4 needed them. bcrypt resolved to 5.0.0. The pytest ignore for passlib's `crypt` warning went with passlib, and `.gitignore` also covers `id_ed25519*` |
+| S14 | Bump `CACHE_NAME` | Bumped in the source for local development. The build already derives the shipped name from the worker's bytes, so production would have rotated anyway |
+| S15 | `FORBID_TAGS: ['img']` | `['img', 'image']`: an SVG `<image>` fetches the same way |
+
+**Drift fixed along the way**, each where the change touched the doc anyway:
+`SECURITY.md` quoted the general budget as 60/min (it is 1000); `DATABASE.md`'s
+migration list stopped at revision 10 of 11 and said "nine"; `FRONTEND.md`'s CSP
+block quoted a stale third hash; `TESTING.md`'s `test_chat_stream.py` row missed
+the Phase A tests; `navigation.md` put `initChat()` at line 57.
+

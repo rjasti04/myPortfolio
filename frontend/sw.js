@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rj-portfolio-v30';
+const CACHE_NAME = 'rj-portfolio-v31';
 const CACHE_EXPIRATION_DAYS = 7;
 const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -175,16 +175,23 @@ self.addEventListener('fetch', event => {
     (event.request.headers.get('accept') || '').includes('text/html');
 
   if (isDocument) {
+    // Keyed by path alone. The full URL used to be the key, so every `?s=`
+    // share link cached another whole copy of the page, and a link mailed with
+    // its token in the query string wrote that token into Cache Storage with
+    // no expiry. Mailed tokens now travel in the fragment, which never reaches
+    // a fetch, but links sent before that change still carry a query.
+    const url = new URL(event.request.url);
+    const cacheKey = url.origin + url.pathname;
     event.respondWith(
       fetch(event.request)
         .then(response => {
           if (response && response.status === 200) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+            caches.open(CACHE_NAME).then(cache => cache.put(cacheKey, copy));
           }
           return response;
         })
-        .catch(() => caches.match(event.request).then(hit => hit || caches.match('/index.html')))
+        .catch(() => caches.match(cacheKey).then(hit => hit || caches.match('/index.html')))
     );
     return;
   }

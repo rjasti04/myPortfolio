@@ -164,6 +164,22 @@ describe('Two-factor authentication UI', () => {
     assert.doesNotMatch($('register-success').textContent, /account created/i);
   });
 
+  // S14: a mailed link's token arrives through the pre-boot script's hand-off,
+  // once; a link mailed before that change still has it in the query string.
+  it('takes a mailed link token once, from the hand-off or the old query string', () => {
+    window.__rjAuthLink = { kind: 'magic_token', token: 'from-the-fragment' };
+    assert.deepEqual(authUi.takeAuthLinkTokens(), { magic_token: 'from-the-fragment' });
+    assert.equal(window.__rjAuthLink, undefined, 'the hand-off is consumed');
+    assert.deepEqual(authUi.takeAuthLinkTokens(), {});
+
+    window.history.replaceState(null, '', '/?verify_token=from-the-query');
+    try {
+      assert.deepEqual(authUi.takeAuthLinkTokens(), { verify_token: 'from-the-query' });
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  });
+
   it('offers enrolment, and renders the QR and the secret, when 2FA is off', async () => {
     totpEnabled = false;
     await settle(async () => {

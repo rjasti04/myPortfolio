@@ -2034,3 +2034,34 @@ def test_a_malformed_stored_hash_fails_the_check_rather_than_the_request():
     from server.auth.security import verify_password_scheme
 
     assert verify_password_scheme("anything", "not-a-bcrypt-hash") == (False, False)
+
+
+# --- mailed tokens stay out of the query string -------------------------------
+
+
+@pytest.mark.asyncio
+async def test_mailed_links_carry_their_token_in_the_fragment(monkeypatch):
+    """In the query string, opening `/?magic_token=…` wrote the token to Apache's
+    access log, and the service worker cached the page under its full URL. A
+    fragment never leaves the browser."""
+    from server.services import notification_service
+
+    bodies = []
+
+    async def _capture(subject, recipient, plain, html, log_event):
+        bodies.append(plain + html)
+        return True
+
+    monkeypatch.setattr(notification_service, "_send", _capture)
+    await notification_service.send_password_reset_email("a@example.com", "RESET.TOKEN")
+    await notification_service.send_email_verification_email("a@example.com", "VERIFY.TOKEN")
+    await notification_service.send_magic_link_email("a@example.com", "MAGIC.TOKEN")
+
+    for body, kind, token in zip(
+        bodies,
+        ("reset_token", "verify_token", "magic_token"),
+        ("RESET.TOKEN", "VERIFY.TOKEN", "MAGIC.TOKEN"),
+        strict=True,
+    ):
+        assert f"https://rjasti.com/#{kind}={token}" in body
+        assert f"?{kind}=" not in body

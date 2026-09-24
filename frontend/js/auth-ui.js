@@ -12,6 +12,27 @@ export const REGISTER_SENT_MESSAGE =
     'Check your inbox. A new address gets a confirmation link; one that '
     + 'already has an account gets a sign-in reminder instead.';
 
+/* A mailed link's token, once. Links carry it in the URL fragment, which the
+   inline pre-boot script in index.html lifts into `window.__rjAuthLink` before
+   any module runs - so it never reaches the server's access log, the service
+   worker's cache, or analytics' page_path, which records the hash. The query
+   string is the fallback for links mailed before that change: a verification
+   link lives 24 hours. Returns `{ reset_token?, verify_token?, magic_token? }`. */
+export function takeAuthLinkTokens() {
+    const tokens = {};
+    const handed = window.__rjAuthLink;
+    delete window.__rjAuthLink;
+    if (handed && typeof handed.token === 'string' && handed.token) {
+        tokens[handed.kind] = handed.token;
+    }
+    const urlParams = new URLSearchParams(window.location.search);
+    for (const kind of ['reset_token', 'verify_token', 'magic_token']) {
+        const fromQuery = urlParams.get(kind);
+        if (!tokens[kind] && fromQuery) tokens[kind] = fromQuery;
+    }
+    return tokens;
+}
+
 /* --- Submit readiness ---------------------------------------------------
    Four forms used to set `submitBtn.disabled` from a live validity check. A
    disabled button is not focusable and announces nothing, so a keyboard or
@@ -1370,9 +1391,9 @@ export async function initAuthUI() {
         });
     }
 
-    // Check URL query parameters for reset_token or magic_token
-    const urlParams = new URLSearchParams(window.location.search);
-    const resetTokenParam = urlParams.get('reset_token');
+    // A reset, verification or sign-in link this page was opened from.
+    const linkTokens = takeAuthLinkTokens();
+    const resetTokenParam = linkTokens.reset_token;
     if (resetTokenParam) {
         if (resetTokenInput) resetTokenInput.value = resetTokenParam;
         if (modal) openAuthModal('reset-password');
@@ -1380,7 +1401,7 @@ export async function initAuthUI() {
         window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
     }
 
-    const verifyTokenParam = urlParams.get('verify_token');
+    const verifyTokenParam = linkTokens.verify_token;
     if (verifyTokenParam) {
         (async () => {
             try {
@@ -1401,7 +1422,7 @@ export async function initAuthUI() {
         })();
     }
 
-    const magicTokenParam = urlParams.get('magic_token');
+    const magicTokenParam = linkTokens.magic_token;
     if (magicTokenParam) {
         (async () => {
             try {

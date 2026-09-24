@@ -99,12 +99,21 @@
 </IfModule>
 
 # Security Headers
+#
+# `always`, so they ride on Apache's own 4xx/5xx pages too - plain `set` only
+# applies to successful responses. X-XSS-Protection is "0": the browser XSS
+# auditor it switched on is gone from every current browser, and where it
+# lingered `mode=block` could itself be abused to blank a page; current
+# guidance is to disable it and rely on the CSP. Permissions-Policy denies the
+# device APIs nothing here uses, keeping the microphone for the chat's voice
+# input (chat.js, SpeechRecognition).
 <IfModule mod_headers.c>
-  Header set X-Content-Type-Options "nosniff"
-  Header set X-Frame-Options "SAMEORIGIN"
-  Header set X-XSS-Protection "1; mode=block"
-  Header set Referrer-Policy "strict-origin-when-cross-origin"
-  Header set Content-Security-Policy "frame-ancestors 'self'"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-XSS-Protection "0"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Content-Security-Policy "frame-ancestors 'self'"
+  Header always set Permissions-Policy "camera=(), geolocation=(), microphone=(self)"
   
   # Un-hashed static assets must revalidate. This is deliberately broader than
   # the fingerprinted rule below so a stable URL can never receive a year of

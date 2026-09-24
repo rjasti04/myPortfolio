@@ -14,7 +14,17 @@ const TOKEN_LIMIT = 2000;
 const SUMMARIZE_TOKEN_THRESHOLD = 6000;
 const MARKDOWN_PARSE_THROTTLE_MS = 100;
 
-function renderBotHTML(text) {
+/* Images are the one thing a reply cannot contain. A markdown image - or a raw
+   <img> that marked passes through - made the page fetch whatever URL the
+   model named, or text a visitor pasted in did: a tracking pixel, or a channel
+   that carries conversation text out in the URL. Script execution was never at
+   risk, but it was a third-party request the SPA does not otherwise make
+   (ADR-016). The marked renderer below turns an image into a link, this strips
+   any that arrive as HTML, and the CSP's `img-src 'self' data:` backs both. */
+const RENDER_SANITIZE_CONFIG = { FORBID_TAGS: ["img", "image"] };
+
+/* Exported for the render test; nothing else imports it. */
+export function renderBotHTML(text) {
   if (typeof marked === "undefined") {
     return escapeHTML(text).replace(/\n/g, "<br>");
   }
@@ -24,7 +34,7 @@ function renderBotHTML(text) {
     return escapeHTML(text).replace(/\n/g, "<br>");
   }
 
-  return DOMPurify.sanitize(marked.parse(text));
+  return DOMPurify.sanitize(marked.parse(text), RENDER_SANITIZE_CONFIG);
 }
 
 if (typeof marked !== 'undefined') {
@@ -35,6 +45,11 @@ if (typeof marked !== 'undefined') {
     const escapedText = encodeURIComponent(text);
     const highlightedContent = highlightCode(text, lang);
     return `<pre><button type="button" class="code-copy-btn" data-code="${escapedText}" title="Copy code"><i class="fas fa-copy"></i> <span>Copy</span></button>${highlightedContent}</pre>`;
+  };
+  renderer.image = function (token) {
+    const href = typeof token === 'object' ? token.href : arguments[0];
+    const label = typeof token === 'object' ? token.text : arguments[2];
+    return `<a href="${escapeHTML(href || '')}" target="_blank" rel="noopener noreferrer nofollow">${escapeHTML(label || href || 'image')}</a>`;
   };
   marked.use({ renderer });
 

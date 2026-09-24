@@ -113,3 +113,50 @@ describe('Update prompt', () => {
     assert.equal(banners().length, 0);
   });
 });
+
+/* S14 (docs/review/codebase_review_20260924.md): the worker cached every
+   navigation under its full URL, so a link mailed as `/?magic_token=…` wrote
+   the token into Cache Storage with no expiry, and every `?s=` share link
+   added another whole copy of the page. Driven against the real sw.js in a
+   bare VM context, with just enough of a worker around it. */
+describe('Service worker navigation cache', () => {
+  const load = async () => {
+    const { readFileSync } = await import('node:fs');
+    const vm = await import('node:vm');
+    const source = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+    const listeners = {};
+    const stored = new Map();
+    const cache = {
+      put: async (key, response) => { stored.set(typeof key === 'string' ? key : key.url, response); },
+      match: async (key) => stored.get(typeof key === 'string' ? key : key.url),
+    };
+    const context = vm.createContext({
+      self: { addEventListener: (type, fn) => { listeners[type] = fn; } },
+      caches: { open: async () => cache, match: async (key) => cache.match(key) },
+      fetch: async () => new Response('<!doctype html>', { status: 200 }),
+      location: { origin: 'https://rjasti.com' },
+      URL, Response, Headers, Promise, Date, console,
+    });
+    vm.runInContext(source, context);
+    const navigate = async (href) => {
+      let responded;
+      listeners.fetch({
+        request: { url: href, method: 'GET', mode: 'navigate', headers: new Headers() },
+        respondWith: (promise) => { responded = promise; },
+      });
+      await responded;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    };
+    return { navigate, stored };
+  };
+
+  it('caches a navigation under its path, never its query string', async () => {
+    const { navigate, stored } = await load();
+    await navigate('https://rjasti.com/?magic_token=eyJ.secret.sig');
+    await navigate('https://rjasti.com/?s=abc123');
+    await navigate('https://rjasti.com/');
+
+    assert.deepEqual([...stored.keys()], ['https://rjasti.com/']);
+    assert.ok(![...stored.keys()].some((key) => key.includes('token')), 'a token must not become a cache key');
+  });
+});

@@ -6,7 +6,10 @@ findings **S1–S18** (1 × P1, 8 × P2, 9 × P3). The report's line numbers ref
 implementation, and that moved lines in `auth_service.py`, `chat_routes.py`,
 `chat.js`, `auth.js` and `deploy.yml`. The spec cites line numbers at `537be41`.
 **Companion spec**: `.claude/specs/2026-09-24-codebase-review-security.md`
-**Status**: planned. Nothing is implemented yet.
+**Status**: implemented, in the five phases the spec sets out (A-E), each
+committed separately. All 18 findings are resolved. Where implementation
+departed from the plan, the spec's **Revised during implementation** table
+says so.
 
 ## 1. Problem & Persona Context
 

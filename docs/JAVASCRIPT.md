@@ -90,10 +90,15 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,615 lines)
+### `auth-ui.js` (1,636 lines)
 
 `export const REGISTER_SENT_MESSAGE` — the register panel's success copy, the
 same for a new address and one that already has an account.
+
+`export function takeAuthLinkTokens()` — a mailed link's token, once: from
+`window.__rjAuthLink`, which the inline pre-boot script fills from the URL
+fragment before any module runs, or from the query string for a link mailed
+before tokens moved to the fragment.
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -101,7 +106,8 @@ meter and requirement checklist, confirm-password matching, visibility toggles,
 2FA enrolment with the QR code and the manage panel that turns it back off,
 active-session list with per-session and
 "log out everywhere else" revocation, change password, delete account, magic-link
-and reset-token handling from query parameters, and the injected profile
+and reset, verification and magic-link handling (from `takeAuthLinkTokens()`),
+and the injected profile
 dropdown in the header (`setupNavUI`).
 
 Loaded as its own esbuild entry so the account UI is available without waiting
@@ -304,7 +310,7 @@ reset or magic-link token, and this payload is persisted.
 
 ## Feature modules
 
-### `chat.js` (2,497 lines, lazy)
+### `chat.js` (2,512 lines, lazy)
 
 `export function initChat()` — one large initialiser driving **two surfaces**
 from the same state: the floating chat widget and the full-page `#ai` section.
@@ -317,7 +323,7 @@ Internals worth knowing:
 
 | Area | Behaviour |
 | :--- | :--- |
-| Rendering | `renderBotHTML` = `DOMPurify.sanitize(marked.parse(text))`, degrading to escaped text with `<br>` if either global is missing |
+| Rendering | `renderBotHTML` (exported for its test) = `DOMPurify.sanitize(marked.parse(text), { FORBID_TAGS: ['img', 'image'] })`, and a marked renderer turns a markdown image into a link - a reply must not make the page fetch an arbitrary URL. Degrades to escaped text with `<br>` if either global is missing |
 | Message actions | `createMessageActions()` serves both surfaces, but the `#ai` page passes it only bot turns: a question there sits a scroll away from an always-visible composer, so Edit and Copy earned nothing beside it. The widget's bubbles still carry both on the visitor's own turns |
 | Code blocks | A custom `marked` renderer injects a copy button carrying the source as a URI-encoded `data-code` attribute; a delegated document listener handles the copy |
 | Highlighting | `syntax-highlighter.js`, not a library |
