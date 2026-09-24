@@ -25,9 +25,16 @@ from _bash_targets import expand, normalize, parse  # noqa: E402
 
 CSP_COVERED = ["frontend/index.html"]
 
+# Every file scripts/check_docs.py reads, kept identical to the case list in
+# verify-docs.sh. tests/tooling/test_edit_hooks.py derives that set from
+# check_docs.py's own tables and fails when a file is missing here: README.md
+# was, and its drift surfaced only in CI. package-lock.json mostly changes
+# through `npm install`, which names no target, so CI stays its backstop.
 DOCS_COVERED = [
     "docs/*.md",
     "AGENTS.md",
+    "README.md",
+    "package-lock.json",
     ".claude/rules/*.md",
     "frontend/styles.css",
     "frontend/index.html",

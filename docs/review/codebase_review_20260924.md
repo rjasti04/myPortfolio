@@ -876,6 +876,8 @@ hooks:
 | **Location** | `scripts/check_docs.py:170` (reference-table regex matches root `README.md`); `.claude/hooks/verify-docs.sh:13-18`; `.claude/hooks/verify-bash-edits.py:28` (`DOCS_COVERED`) |
 | **The "Why"** | Editing `README.md` can drift its token figure in `.claude/rules/reference-docs.md`, but neither PostToolUse hook watches `README.md`, so the drift first appears in CI. That is the gap the hooks exist to close. |
 | **The Fix** | Add `README.md` to both pattern lists. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `README.md` and `package-lock.json` join both hooks' lists. **Differs from the suggested fix:** it is widened to `package-lock.json`, which the navigation table measures and neither hook watched. It is also backed by a test that derives every file `check_docs.py` reads, from its own tables plus its `JS_EXCLUDED` and `TEST_ROOTS`, and fails when either hook misses one. Against the previous hooks that test fails on exactly `README.md` and `package-lock.json`, on both. `package-lock.json` mostly changes through `npm install`, which names no target, so CI stays the backstop for that row. |
 
 ### CS6 — The vendored `accessibility` skill description is garbled upstream
 
@@ -926,6 +928,18 @@ which describe the tree as it was reviewed.
 | **The Fix** | Treat each of them as opaque, so the guards fall back to the paths the command mentions. |
 | **Status** | ✅ **Resolved** |
 | **What changed** | `OPAQUE` gains `bash`, `sh`, `zsh`, `dash`, `ksh`, `eval`, `source` and `.`. The command is also opaque when it contains a `$(`, a backtick, a `<(` or a `>(` anywhere, a `find` action, or an `xargs` in front of the utility. `check_spa_egress` now checks opaque writers as well, so a `python3 -c` appending to an SPA file is checked for origins. Heredoc bodies are still stripped before mentions are collected, so the `git commit -m "$(cat <<'EOF' …)"` idiom passes even when the message names a migration. Eight cases in `test_bash_write_guard.py` pin the bypasses. |
+
+#### CS10 — "A web session has no `server/.venv`" is stale
+
+| Attribute | Detail |
+| :--- | :--- |
+| **Category** | Architecture |
+| **Severity** | P3 |
+| **Location** | `.claude/rules/navigation.md:36-39`; `.claude/hooks/protect-bash-writes.py:117-119`; `tests/tooling/test_bash_write_guard.py:69-74` |
+| **The "Why"** | All three said a Claude Code web session is a fresh clone with no `server/.venv`, so the venv search rule cannot fire there. That stopped being true on 2026-09-22, when `f1bf3b6` added `.claude/hooks/session-start.sh`. It creates the venv in every web session, and the rule fires in them: this remediation's own first repo-wide `find` and `grep` were refused. The rule is right, but the prose told web agents it did not apply to them. |
+| **The Fix** | Say where the venv exists: not in CI, but in every web session. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | As the fix. Prose only; no behaviour changed. |
 
 ---
 

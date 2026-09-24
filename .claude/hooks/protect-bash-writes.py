@@ -133,9 +133,10 @@ def check_venv_search(command: str, root: Path) -> None:
     """AGENTS.md's '--exclude-dir=.venv' rule, as an actual guarantee."""
     if ".venv" in command:
         return
-    # A fresh clone - which is what CI and every Claude Code web session get -
-    # has no server/.venv at all. Blocking a search there cost the agent a tool
-    # call and a retry to avoid a directory walk that could not happen.
+    # CI's fresh clone has no server/.venv at all, and blocking a search there
+    # cost the agent a tool call and a retry to avoid a directory walk that could
+    # not happen. A web session does have one: session-start.sh creates it
+    # before the first turn, so there the rule applies.
     if not (root / "server" / ".venv").exists():
         return
     # Heredoc bodies are text being written, not commands: once line breaks

@@ -85,11 +85,12 @@ ALLOWED = [
 
 
 # The .venv rule is the one guard that is conditional by design: it fires only
-# where server/.venv actually exists, because a fresh clone -- CI and every web
-# session -- has none, and blocking there costs a call and a retry to avoid a
-# directory walk that cannot happen. So the rule cannot be asserted against this
-# repo, where the directory is present or absent depending on whose machine it
-# is; it needs a root built either way, and both ways are pinned below.
+# where server/.venv actually exists. CI's fresh clone has none, and blocking
+# there costs a call and a retry to avoid a directory walk that cannot happen;
+# a web session has one, because session-start.sh creates it. So the rule
+# cannot be asserted against this repo, where the directory is present or absent
+# depending on where it runs; it needs a root built either way, and both ways
+# are pinned below.
 VENV_BLOCKED = [
     ("venv-reachable grep", "grep -r 'async def' ."),
     ("venv-reachable grep on server", "grep -rn 'FastAPI' server"),
