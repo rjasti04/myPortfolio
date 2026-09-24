@@ -347,8 +347,43 @@ def test_required_secret_rejects_an_unset_key(monkeypatch):
 
 
 def test_required_secret_accepts_a_generated_key(monkeypatch):
-    monkeypatch.setenv("PROBE_SECRET", "a" * settings.JWT_SECRET_MIN_LENGTH)
-    assert settings._required_secret("PROBE_SECRET") == "a" * settings.JWT_SECRET_MIN_LENGTH
+    import secrets
+
+    key = secrets.token_hex(32)
+    monkeypatch.setenv("PROBE_SECRET", key)
+    assert settings._required_secret("PROBE_SECRET") == key
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "replace-me-with-openssl-rand-hex-32",  # what .env.example used to ship
+        "CHANGE-ME-before-deploying-this-to-production",
+        "changeme" * 5,
+    ],
+)
+def test_required_secret_rejects_a_placeholder_shape(monkeypatch, value):
+    """`.env.example`'s placeholder was 35 characters and passed the length
+    check, so a `.env` copied as-is started with a key anyone could read."""
+    monkeypatch.setenv("PROBE_SECRET", value)
+    with pytest.raises(RuntimeError, match="placeholder"):
+        settings._required_secret("PROBE_SECRET")
+
+
+@pytest.mark.parametrize("value", ["a" * 64, "ab" * 32, "qwertyui" * 5])
+def test_required_secret_rejects_a_key_that_is_not_random(monkeypatch, value):
+    monkeypatch.setenv("PROBE_SECRET", value)
+    with pytest.raises(RuntimeError, match="distinct"):
+        settings._required_secret("PROBE_SECRET")
+
+
+def test_the_example_env_leaves_the_signing_key_empty():
+    """So a copied `.env` refuses to start rather than starting with a public key."""
+    from pathlib import Path
+
+    example = Path(__file__).resolve().parents[3] / ".env.example"
+    lines = [line for line in example.read_text().splitlines() if line.startswith("JWT_SECRET=")]
+    assert lines == ["JWT_SECRET="]
 
 
 def test_security_module_has_no_default_signing_key():
@@ -547,3 +582,33 @@ async def test_the_model_inventory_route_is_gone(async_client):
     for path in ("/models", "/api/models"):
         assert (await async_client.get(path)).status_code == 404, f"{path} still routes"
     assert not hasattr(bedrock_config, "bedrock_mgmt")
+
+
+# --- repository hygiene ---------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "path, ignored",
+    [
+        (".env", True),
+        (".env.production", True),
+        (".env.staging.local", True),
+        ("id_rsa", True),
+        ("id_ed25519.pub", True),
+        ("deploy.pem", True),
+        ("server/tls.key", True),
+        (".env.example", False),
+    ],
+)
+def test_secrets_cannot_be_committed_by_accident(path, ignored):
+    """Only `.env` and `.env.local` were ignored, so `.env.production` or an SSH
+    key dropped in the tree would have been committed. The deploy's rsync
+    already excluded `.env*`, which says those variants exist."""
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    result = subprocess.run(
+        ["git", "check-ignore", "--quiet", "--no-index", path], cwd=root, check=False
+    )
+    assert (result.returncode == 0) is ignored, f"{path}: expected ignored={ignored}"

@@ -526,7 +526,7 @@ Direct runtime dependencies (`server/requirements.in`):
 | Database | `asyncpg`, `sqlalchemy`, `alembic` |
 | Validation | `pydantic`, `python-multipart`, `email-validator` |
 | AWS | `boto3`, `botocore` |
-| Auth | `passlib[bcrypt]`, `bcrypt<4.0.0`, `pyjwt`, `pyotp`, `qrcode`, `pillow` |
+| Auth | `bcrypt` (called directly; passlib is gone), `pyjwt`, `pyotp`, `qrcode`, `pillow` |
 | Ingest | `aiokafka` |
 | Outbound | `httpx`, `aiosmtplib` |
 | Logging | `structlog` |

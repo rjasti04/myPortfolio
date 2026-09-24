@@ -414,11 +414,20 @@ still works while production always gets it.
 ## Secrets handling
 
 - **No secret has a fallback.** `JWT_SECRET` is required, must be ≥ 32
-  characters, and is rejected if it equals the placeholder that shipped in this
-  repository — which is public in the git history, so any token signed with it
-  must be treated as forgeable.
-- **`.env` is gitignored** and the deploy's rsync **excludes `.env*`**, so a
-  deploy can never overwrite host configuration or publish a local file.
+  characters with at least 10 distinct, and is rejected if it equals the
+  placeholder that shipped in this repository — which is public in the git
+  history, so any token signed with it must be treated as forgeable — or
+  contains `replace-me` / `change-me` / `changeme`. `.env.example` leaves it
+  empty: its old placeholder was 35 characters, passed every check, and would
+  have let anyone reading the repository mint a token for any user.
+- **`.env*` (bar `.env.example`), `*.pem`, `*.key` and SSH keys are gitignored**,
+  and the deploy's rsync **excludes `.env*`**, so a deploy can never overwrite
+  host configuration or publish a local file.
+- **The deploy key never shares a job with package code.** `frontend-check`
+  builds `dist/` with no secrets in reach and hands it over as an artifact; the
+  deploy job writes the key and runs no `npm` at all. Secrets reach the shell
+  through `env:`, never `${{ }}` inside `run:`, where a quote or `$(` in a value
+  would be evaluated.
 - **AWS credentials** come from the instance profile in production; none are in
   the repository.
 - **Reset and magic-link tokens are never logged in full** — only a 12-character
@@ -438,10 +447,21 @@ still works while production always gets it.
   deploy, so an unpinned or substituted artifact is a hard failure rather than a
   silent upgrade. `test_dependency_locks.py` asserts every direct dependency is
   pinned and every pin carries a hash.
-- **`npm ci`** in CI and the deploy, from the committed `package-lock.json`.
-- **`npm run audit`** runs in CI at `--audit-level=high`, non-blocking
-  (`continue-on-error`) because the current findings are transitive dev-tooling
-  advisories via stylelint and jsdom — visible rather than silently unrun.
+- **`npm ci`** in CI, from the committed `package-lock.json`. The deploy job
+  installs nothing.
+- **Shipped npm packages are audited, blocking.** `dompurify`, `marked` and Font
+  Awesome are `dependencies` because their bytes reach visitors, so
+  `npm audit --omit=dev --audit-level=high` covers exactly them; a test holds
+  the vendored copies byte-identical to `node_modules`, so that audit is of what
+  ships. An unreachable advisory endpoint is a warning, not a failure.
+- **`npm run audit`** (everything) runs in CI at `--audit-level=high`,
+  non-blocking (`continue-on-error`) because the current findings are transitive
+  dev-tooling advisories via stylelint and jsdom — visible rather than silently
+  unrun.
+- **`pip-audit`** checks the production lock, blocking, in `backend-check` and
+  the weekly audit.
+- **Actions are pinned to commit SHAs**, with the release in a comment and
+  Dependabot moving them, and every workflow's token is `contents: read`.
 - **Vendored libraries** are copied verbatim from pinned npm packages, not
   fetched from a CDN. With them local, `script-src` is `'self'` alone and there
   is no third-party origin that could be compromised or blocked.

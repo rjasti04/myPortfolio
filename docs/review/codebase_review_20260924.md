@@ -418,6 +418,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `.env.example:25` (`JWT_SECRET=replace-me-with-openssl-rand-hex-32`); comment `:19-24`; `server/config/settings.py:10,22,27` |
 | **The "Why"** | The guard rejects only the legacy string and anything under 32 characters. The placeholder is 35 characters, so a `.env` copied as-is starts cleanly. Anyone who reads this public file can then mint HS256 tokens for any user id, owner analytics included. The comment tells the operator the opposite. |
 | **The Fix** | Leave the example value empty so `required_env` fails. Also reject values containing `replace-me`/`change`, and values with low character diversity. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `.env.example` ships `JWT_SECRET=` empty, so a copied `.env` fails with "JWT_SECRET must be set". `_required_secret` also rejects `replace-me`, `change-me` and `changeme`, and fewer than 10 distinct characters (`JWT_SECRET_MIN_DISTINCT`). The report's broader "contains change" was narrowed, because a real passphrase may say it. The CI and test secrets all pass. **Owner action:** confirm the production `JWT_SECRET` is not the old placeholder before this deploys; if it is, the API refuses to start and the deploy rolls back. |
 
 ### S7 — The deploy key sits on disk while npm install scripts run
 
@@ -428,6 +430,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `.github/workflows/deploy.yml:323-327` (writes `~/.ssh/id_rsa`), then `:399-402` (`npm ci`, `npm run build`); `:437,462-463` (`sudo rsync`, `sudo systemctl`) |
 | **The "Why"** | `npm ci` runs dependency install scripts (esbuild's and Font Awesome's `postinstall`), and the build then executes esbuild, both **after** a root-equivalent SSH key is on disk. One compromised devDependency in a weekly Dependabot group means root on the production host. |
 | **The Fix** | Build `dist/` in a job with no secrets and pass it on with `actions/upload-artifact`. Write the key only in the deploy job, which then runs no package code. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `frontend-check`, which holds no secrets, uploads the `dist/` it built and tested (a push to `main` only, kept one day). The deploy job downloads it *before* writing the key, and no longer sets up Node or runs `npm ci` or the build, so it runs no package code at all. The report's separate build job was folded into the existing gate, which already builds the same commit. The step budget comment is recomputed (33 + 11 of 50). |
 
 ### S8 — Deleted accounts are never actually deleted
 
@@ -540,6 +544,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | All three `.github/workflows/*.yml` (no `permissions:`); `deploy.yml:25,56,318` (tag-pinned actions); `:326-330` (secrets interpolated into `run:`); `:138-140` and `weekly-audit.yml:34` (audit never fails); `deploy.yml:58,320` (Node 18, end of life) |
 | **The "Why"** | The token gets the repository default scope. Actions float on mutable tags. A secret containing `$(`, a backtick or a quote would be evaluated by the shell. Vulnerabilities never block a merge: `npm audit` currently reports 8 high, all in transitive dev tooling. There is no pip-audit or CodeQL, and the CI runtime is past end of life. |
 | **The Fix** | Add `permissions: contents: read` at the top level. Pin actions to SHAs (Dependabot keeps them current). Pass secrets through `env:`. Make `npm audit --omit=dev` blocking and add `pip-audit -r server/requirements.txt`. Move to Node 20 or 22 in the workflows and in `package.json` `engines`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | All three workflows run with `permissions: contents: read`. Every `uses:` is pinned to a commit SHA with its release in a comment (the latest release within the major each already used), and the existing Dependabot `github-actions` entry keeps them current. The SSH secrets reach the shell through `env:`. **Differs from the suggested fix:** `npm audit --omit=dev` audited nothing, because every package was a devDependency. `dompurify`, `marked` and Font Awesome, whose bytes ship, move to `dependencies`; a new build test holds the vendored copies byte-identical to `node_modules`; and the blocking shipped audit warns rather than fails when the advisory endpoint is unreachable. `pip-audit` is added to the dev lock and blocks in `backend-check` and the weekly audit. Node moves to 22, not 20, which reached end of life on 2026-04-30. Both audits are clean at introduction. |
 
 ### S18 — Repo hygiene: `.gitignore` gaps and an unmaintained password library
 
@@ -550,6 +556,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `.gitignore:13-14`; `server/requirements.in:35-36` (`passlib[bcrypt]`, `bcrypt<4.0.0` → `bcrypt==3.2.2`) |
 | **The "Why"** | Only `.env` and `.env.local` are ignored, so `.env.production`, `*.pem` or `id_rsa` would be committed. The deploy's rsync already excludes `.env*`, which suggests those variants exist. `passlib` has had no release since 2020 and forces bcrypt below 4. There is no known advisory; it is a maintenance trap. |
 | **The Fix** | `.env*` + `!.env.example`, `*.pem`, `*.key`. The prehash scheme is already custom, so calling `bcrypt` directly is a small change and lifts the cap. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `.gitignore` covers `.env*` except `.env.example`, `*.pem`, `*.key` and SSH keys; a test runs `git check-ignore` over eight cases. passlib is gone: `security.py` calls `bcrypt` 5.0.0 directly (12 rounds, passlib's default). The legacy branch truncates to 72 bytes, because bcrypt < 4 did that silently and bcrypt 5 raises instead. Fixtures made by passlib 1.7.4 over bcrypt 3.2.2 before the swap, including a legacy hash of an 81-byte password, still verify. Only passlib, bcrypt and the two packages old bcrypt needed (`cffi`, `pycparser`) moved in the locks. The pytest ignore for passlib's `crypt` warning went with it. |
 
 ---
 

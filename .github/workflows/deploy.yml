@@ -11,6 +11,17 @@ on:
     branches:
       - main
 
+# Least privilege for GITHUB_TOKEN. Nothing here writes to the repository: the
+# deploy reaches the host over SSH, and the dist/ hand-off between jobs uses the
+# Actions runtime token, not this one. Without it the token had the repository's
+# default scope.
+#
+# Every action below is pinned to a full commit SHA, not a tag - a tag can be
+# moved to other code after review. Dependabot's github-actions entry keeps the
+# pins current, and the comment beside each names the release.
+permissions:
+  contents: read
+
 jobs:
   # ─── AGENT CONFIGURATION GATE ───────────────────────────────────────
   agent-config-check:
@@ -22,10 +33,10 @@ jobs:
       cancel-in-progress: true
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
 
@@ -50,12 +61,15 @@ jobs:
       cancel-in-progress: true
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
+      # 22, not 18: 18 reached end of life in April 2025 and 20 in April 2026.
+      # It is also what Claude Code web sessions run, so a local green
+      # `npm test` there is evidence for this job.
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 18
+          node-version: 22
           cache: 'npm'
 
       # --no-audit is what makes this step fast, and it is not a weakening of
@@ -143,6 +157,46 @@ jobs:
           npm_config_fetch_timeout: '60000'
           npm_config_fetch_retries: '1'
 
+      # Blocking, unlike the audit above, because these are the packages whose
+      # bytes reach visitors: DOMPurify and marked (vendored, and held to their
+      # node_modules copies by build.test.js) and Font Awesome. `--omit=dev`
+      # audits exactly those now that they are `dependencies`; while every
+      # package was a devDependency it had nothing to audit. An unreachable
+      # advisory endpoint - npm reports it as an `error` object - is a warning,
+      # for the reason the audit above is continue-on-error. A finding fails.
+      - name: Audit Shipped npm Packages
+        timeout-minutes: 3
+        env:
+          npm_config_fetch_timeout: '60000'
+          npm_config_fetch_retries: '1'
+        run: |
+          set +e
+          npm audit --omit=dev --audit-level=high --json > "$RUNNER_TEMP/shipped-audit.json"
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "Shipped packages: no high or critical advisories."
+            exit 0
+          fi
+          if node -e "process.exit(JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).error ? 0 : 1)" "$RUNNER_TEMP/shipped-audit.json"; then
+            echo "::warning::npm's advisory endpoint could not be reached; the shipped-package audit did not run."
+            exit 0
+          fi
+          cat "$RUNNER_TEMP/shipped-audit.json"
+          exit "$status"
+
+      # The deploy job ships this dist/ rather than building its own, so that
+      # it runs no package code while it holds the SSH key. Only for the event
+      # the deploy runs on; the same commit, since both jobs build github.sha.
+      - name: Upload the Built Frontend
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
   # ─── 2. BACKEND QUALITY GATE ──────────────────────────────────────────
   backend-check:
     name: Backend Lint & Pytest (py${{ matrix.python-version }})
@@ -161,10 +215,10 @@ jobs:
         python-version: ['3.10', '3.12']
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
@@ -178,6 +232,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install --require-hashes -r server/requirements-dev.txt
+
+      # Advisories against the lock the production host installs. Nothing
+      # checked it before, so a vulnerable pin could ship with every gate green.
+      # Blocking: it reads PyPI, which the install step above has just needed,
+      # so it adds no availability dependency of its own. One leg is enough -
+      # both install the same lock.
+      - name: Audit Python Dependencies
+        if: matrix.python-version == '3.10'
+        timeout-minutes: 3
+        run: pip-audit -r server/requirements.txt --require-hashes --disable-pip --progress-spinner off
 
       # The backend had no linting while the frontend had two linters. F821
       # alone would have caught the five auth routes that shipped calling
@@ -237,10 +301,10 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
           cache: 'pip'
@@ -294,8 +358,8 @@ jobs:
     # false on cancellation, and a hang left a half-deployed release with no
     # rollback. The job budget is the sum, plus the few seconds of checkout
     # and setup:
-    #   snapshot 5 + build 5 + backend 3 + frontend 3 + install/migrate 8
-    #   + restart 3 + health 5 + smoke 3 = 35, then rollback 8 + confirm 3 = 46.
+    #   download 3 + snapshot 5 + backend 3 + frontend 3 + install/migrate 8
+    #   + restart 3 + health 5 + smoke 3 = 33, then rollback 8 + confirm 3 = 44.
     # Health is 5 because its probe loop alone can run 12 x (10 s + 5 s) = 3 min.
     timeout-minutes: 50
 
@@ -319,27 +383,41 @@ jobs:
 
     steps:
       - name: Checkout the Tested Commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # Pin to the commit that triggered this run. Checking out the branch
           # would deploy whatever main points at when the job starts, which is
           # not necessarily what the quality gates just passed.
           ref: ${{ github.sha }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      # The dist/ that frontend-check built and tested from this same commit.
+      # This job used to run `npm ci` and `npm run build` itself - dependency
+      # install scripts, then esbuild - *after* the step below had written a
+      # root-equivalent SSH key to disk. One compromised package in a weekly
+      # Dependabot group would have been root on the production host. The build
+      # now happens in a job that holds no secrets, and this one runs no
+      # package code at all.
+      - name: Download the Built Frontend
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        timeout-minutes: 3
         with:
-          node-version: 18
-          cache: 'npm'
+          name: dist
+          path: dist
 
+      # Secrets reach the shell through `env:`, never `${{ }}` inside `run:`.
+      # Interpolated, a value containing `$(`, a backtick or a quote would be
+      # evaluated as script before the command ran.
       - name: Configure SSH Key
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST_KEY: ${{ secrets.EC2_HOST_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          if [ -n "${{ secrets.EC2_HOST_KEY }}" ]; then
+          if [ -n "$EC2_HOST_KEY" ]; then
             # Pinned: the deploy will refuse to talk to anything else.
-            printf '%s\n' "${{ secrets.EC2_HOST_KEY }}" >> ~/.ssh/known_hosts
+            printf '%s\n' "$EC2_HOST_KEY" >> ~/.ssh/known_hosts
             echo "Using the pinned host key"
           else
             # Trust-on-first-use, every run: whatever answers on that address is
@@ -400,21 +478,9 @@ jobs:
       # `rsync --delete` mirrors the source, so an empty or wrong source
       # directory does not fail - it deletes the destination. The frontend sync
       # targets Apache's document root, where that would take the site down.
-      # The frontend is deployed from dist/, so it has to exist before the
-      # emptiness check below - which is the guard that stops `rsync --delete`
-      # mirroring an empty directory over the live document root.
-      # --no-audit --no-fund for the reason spelled out on the quality gate's
-      # install step: the audit `npm ci` runs by default is a registry call
-      # that can take minutes and is already covered there. This job has no
-      # audit step of its own - it deploys a commit the gate has already
-      # audited - so here the call buys nothing at all, on a job holding the
-      # production-deploy concurrency lock.
-      - name: Build Frontend
-        timeout-minutes: 5
-        run: |
-          npm ci --no-audit --no-fund
-          npm run build
-
+      # The frontend is deployed from the downloaded dist/, and the emptiness
+      # check below is the guard that stops `rsync --delete` mirroring an empty
+      # directory over the live document root.
       - name: Verify Deploy Sources Are Not Empty
         run: |
           for dir in server dist; do

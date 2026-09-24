@@ -9,6 +9,15 @@ logger = structlog.get_logger(__name__)
 # history, so any token signed with it must be treated as forgeable.
 _LEGACY_JWT_SECRET = "supersecret_default_key_change_in_production"
 JWT_SECRET_MIN_LENGTH = 32
+# `openssl rand -hex 32` draws from 16 symbols over 64 characters, so a real key
+# has about that many distinct characters. Ten is far below that and far above
+# a repeated one ("aaaa...") or a keyboard run.
+JWT_SECRET_MIN_DISTINCT = 10
+# Placeholder shapes. `.env.example` shipped `replace-me-with-openssl-rand-hex-32`,
+# which is 35 characters and passed the length check, so a `.env` copied as-is
+# started cleanly with a signing key anyone reading the repository could use.
+# Narrower than "contains change": a passphrase may say that legitimately.
+_PLACEHOLDER_MARKERS = ("replace-me", "change-me", "changeme")
 
 
 def _required_secret(name: str) -> str:
@@ -24,9 +33,18 @@ def _required_secret(name: str) -> str:
             f"{name} is set to the placeholder value that shipped in the repository. "
             "Generate a fresh one with `openssl rand -hex 32`."
         )
+    if any(marker in value.lower() for marker in _PLACEHOLDER_MARKERS):
+        raise RuntimeError(
+            f"{name} is still a placeholder. Generate one with `openssl rand -hex 32`."
+        )
     if len(value) < JWT_SECRET_MIN_LENGTH:
         raise RuntimeError(
             f"{name} must be at least {JWT_SECRET_MIN_LENGTH} characters. "
+            "Generate one with `openssl rand -hex 32`."
+        )
+    if len(set(value)) < JWT_SECRET_MIN_DISTINCT:
+        raise RuntimeError(
+            f"{name} has too few distinct characters to be a random key. "
             "Generate one with `openssl rand -hex 32`."
         )
     return value

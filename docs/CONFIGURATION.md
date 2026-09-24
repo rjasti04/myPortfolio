@@ -48,9 +48,12 @@ The service refuses to start without all four.
 | `DEFAULT_MODEL_ID` | `us.anthropic.claude-3-5-sonnet-20241022-v2:0` | Default chat model; always added to the allowlist |
 | `JWT_SECRET` | `openssl rand -hex 32` | Signs **every** token: access, refresh, password reset, magic link, 2FA pre-auth — **and** the HMAC analytics session tokens |
 
-`JWT_SECRET` is rejected if it is unset/blank, shorter than 32 characters, or
+`JWT_SECRET` is rejected if it is unset/blank, shorter than 32 characters,
 equal to the placeholder that once shipped in this repository (any token signed
-with that value must be treated as forgeable). **Rotating it invalidates every
+with that value must be treated as forgeable), contains `replace-me`,
+`change-me` or `changeme`, or has fewer than 10 distinct characters.
+`.env.example` leaves it **empty**, so a `.env` copied as-is refuses to start:
+its old placeholder was 35 characters and passed every check. **Rotating it invalidates every
 outstanding token, logs everyone out, and invalidates every live analytics
 session token.**
 

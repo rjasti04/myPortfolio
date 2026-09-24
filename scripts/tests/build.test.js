@@ -319,3 +319,21 @@ describe("build: size budget", () => {
     }
   });
 });
+
+/* The shipped copies of DOMPurify and marked are copied out of node_modules by
+   hand (frontend/vendor/README.md), and nothing checked they were still the
+   same bytes. CI's blocking `npm audit --omit=dev` audits node_modules, so
+   without this it would be auditing versions that do not ship. */
+describe("vendored libraries", () => {
+  for (const [shipped, source] of [
+    ["frontend/vendor/purify.min.js", "node_modules/dompurify/dist/purify.min.js"],
+    ["frontend/vendor/marked.min.js", "node_modules/marked/marked.min.js"],
+  ]) {
+    it(`${shipped} is byte-identical to ${source}`, () => {
+      assert.ok(
+        readFileSync(join(ROOT, shipped)).equals(readFileSync(join(ROOT, source))),
+        `${shipped} has drifted from ${source}: re-copy it (frontend/vendor/README.md)`
+      );
+    });
+  }
+});

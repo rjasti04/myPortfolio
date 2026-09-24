@@ -1763,7 +1763,7 @@ async def test_every_login_refusal_costs_the_same_two_verifications(async_client
         "purged": (purged_email, purged_password),
     }
     for label, (email, password) in cases.items():
-        with patch.object(security.pwd_context, "verify", wraps=security.pwd_context.verify) as spy:
+        with patch.object(security, "_checkpw", wraps=security._checkpw) as spy:
             response = await async_client.post(
                 "/api/auth/login", json={"email": email, "password": password}
             )
@@ -2000,3 +2000,37 @@ async def test_deleted_accounts_are_purged_after_the_reactivation_window(async_c
         assert await _count(User, User.email, active_email) == 1
     finally:
         await sessions.aclose()
+
+
+# --- passlib -> bcrypt --------------------------------------------------------
+
+# Made by passlib 1.7.4 over bcrypt 3.2.2, the pair this code used before it
+# called bcrypt directly. Every stored hash was made that way, so these are the
+# rows the swap must keep verifying.
+PASSLIB_CURRENT_SCHEME = "$2b$12$XHE3TFUQ4M.uSUgX8TLooOzyR7UqlC6XheRvXEPdtrPy6zrSTvfvK"  # sha256 hex of "Str0ngPassw0rd!"
+PASSLIB_LEGACY_SCHEME = "$2b$12$Zp.OH3V0nUXQFUmWEpg.Su089VxyfsHgRVjKSNbYe6eWaN6/eAUJS"  # raw 81-byte password
+LEGACY_PASSWORD = "L" * 70 + "egacy-tail!"
+
+
+def test_hashes_made_by_passlib_still_verify():
+    from server.auth.security import verify_password_scheme
+
+    assert verify_password_scheme("Str0ngPassw0rd!", PASSLIB_CURRENT_SCHEME) == (True, False)
+    assert verify_password_scheme("wrong", PASSLIB_CURRENT_SCHEME) == (False, False)
+
+
+def test_a_legacy_hash_of_a_long_password_still_verifies_and_asks_for_a_rehash():
+    """bcrypt < 4 cut every input at 72 bytes without a word, so an 81-byte
+    password was stored as its first 72. bcrypt 5 raises on the same input
+    instead - the legacy check truncates, exactly as the old library did."""
+    from server.auth.security import verify_password_scheme
+
+    assert len(LEGACY_PASSWORD.encode()) == 81
+    assert verify_password_scheme(LEGACY_PASSWORD, PASSLIB_LEGACY_SCHEME) == (True, True)
+    assert verify_password_scheme("L" * 70 + "different!", PASSLIB_LEGACY_SCHEME) == (False, False)
+
+
+def test_a_malformed_stored_hash_fails_the_check_rather_than_the_request():
+    from server.auth.security import verify_password_scheme
+
+    assert verify_password_scheme("anything", "not-a-bcrypt-hash") == (False, False)
