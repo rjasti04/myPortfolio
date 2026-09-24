@@ -70,6 +70,7 @@ describe('Header session handling', () => {
   // What /auth/refresh answers; /auth/me answers 401 unless `signedIn`.
   let refreshStatus = 429;
   let signedIn = false;
+  let username = 'owner';
 
   before(async () => {
     dom = installDom(
@@ -87,7 +88,7 @@ describe('Header session handling', () => {
         return {
           ok: true, status: 200,
           json: async () => ({
-            id: 'u1', email: 'owner@example.com', username: 'owner',
+            id: 'u1', email: 'owner@example.com', username,
             is_totp_enabled: false, is_active: true,
           }),
         };
@@ -107,6 +108,7 @@ describe('Header session handling', () => {
     localStorage.setItem('rj_access_token', 'expired-access');
     localStorage.setItem('rj_refresh_token', 'refresh-0');
     signedIn = false;
+    username = 'owner';
   });
 
   for (const status of [429, 500, 503]) {
@@ -154,5 +156,109 @@ describe('Header session handling', () => {
       [true, true, false],
       'every render but the last has had its listener removed',
     );
+  });
+
+  // Codebase review U1: the account control was a <div aria-haspopup> with no
+  // role, no tab stop and a one-letter name, so Logout and every account
+  // action were out of reach from a keyboard.
+  describe('account menu (U1)', () => {
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const key = (target, name, init = {}) => target.dispatchEvent(
+      new window.KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true, ...init }),
+    );
+
+    beforeEach(async () => {
+      signedIn = true;
+    });
+
+    it('is a named disclosure button, not a div', async () => {
+      await renderHeader();
+      const btn = document.getElementById('nav-user-btn');
+      assert.equal(btn.tagName, 'BUTTON');
+      assert.equal(btn.getAttribute('type'), 'button');
+      assert.equal(btn.getAttribute('aria-expanded'), 'false');
+      assert.equal(btn.getAttribute('aria-controls'), 'nav-user-dropdown');
+      assert.equal(btn.hasAttribute('aria-haspopup'), false, 'a disclosure, not an ARIA menu');
+      assert.match(btn.getAttribute('aria-label'), /owner/);
+      for (const icon of document.querySelectorAll('#nav-auth-container i')) {
+        assert.equal(icon.getAttribute('aria-hidden'), 'true');
+      }
+    });
+
+    it('takes the username as text, never as markup', async () => {
+      username = '"><img src=x onerror=alert(1)>';
+      await renderHeader();
+      const container = document.getElementById('nav-auth-container');
+      assert.equal(container.querySelector('img'), null);
+      assert.equal(
+        document.getElementById('nav-user-btn').getAttribute('aria-label'),
+        `Account menu for ${username}`,
+      );
+    });
+
+    it('opens into the menu, walks it with arrows, and Escape returns to the button', async () => {
+      await renderHeader();
+      const btn = document.getElementById('nav-user-btn');
+      const dropdown = document.getElementById('nav-user-dropdown');
+      btn.focus();
+      btn.click();
+      await flush();
+
+      assert.equal(btn.getAttribute('aria-expanded'), 'true');
+      assert.ok(dropdown.classList.contains('show'));
+      assert.equal(document.activeElement.id, 'nav-2fa-btn');
+
+      for (let i = 0; i < 5; i += 1) key(document.activeElement, 'ArrowDown');
+      assert.equal(document.activeElement.id, 'nav-2fa-btn', 'ArrowDown wraps after the last item');
+      key(document.activeElement, 'ArrowUp');
+      assert.equal(document.activeElement.id, 'nav-logout-btn', 'ArrowUp wraps before the first');
+      key(document.activeElement, 'Home');
+      assert.equal(document.activeElement.id, 'nav-2fa-btn');
+      key(document.activeElement, 'End');
+      assert.equal(document.activeElement.id, 'nav-logout-btn');
+
+      key(document.activeElement, 'Escape');
+      assert.equal(btn.getAttribute('aria-expanded'), 'false');
+      assert.ok(!dropdown.classList.contains('show'));
+      assert.equal(document.activeElement, btn);
+    });
+
+    it('Tab out closes it; a blur that goes nowhere (a Safari click) does not', async () => {
+      await renderHeader();
+      const btn = document.getElementById('nav-user-btn');
+      const dropdown = document.getElementById('nav-user-dropdown');
+      btn.click();
+      await flush();
+
+      document.activeElement.dispatchEvent(new window.FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
+      assert.ok(dropdown.classList.contains('show'), 'no relatedTarget: stay open so the click can land');
+
+      const outside = document.createElement('button');
+      document.body.appendChild(outside);
+      outside.focus();
+      assert.ok(!dropdown.classList.contains('show'));
+      assert.equal(btn.getAttribute('aria-expanded'), 'false');
+      assert.equal(document.activeElement, outside, 'Tab carries on; focus is not pulled back');
+      outside.remove();
+    });
+
+    it('choosing an item reports the menu closed, and its dialog returns focus to the button', async () => {
+      await renderHeader();
+      const btn = document.getElementById('nav-user-btn');
+      btn.click();
+      await flush();
+      document.getElementById('nav-change-pw-btn').click();
+      await flush();
+
+      assert.equal(btn.getAttribute('aria-expanded'), 'false');
+      assert.notEqual(document.activeElement, btn, 'precondition: the dialog took focus');
+      // openModal recorded the active element when the item asked for the
+      // dialog. That used to be the item, hidden by now, so focus fell to
+      // <body>; closing the menu first makes it the button.
+      key(document.activeElement, 'Escape');
+      await flush();
+      await flush();
+      assert.equal(document.activeElement, btn);
+    });
   });
 });

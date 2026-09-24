@@ -971,6 +971,10 @@ touched).
 - `<noscript>` banner when JavaScript is unavailable.
 - Focus trapping and focus restoration for every dialog (`js/modal.js`), with a
   reference-counted body scroll lock so nested opens behave.
+- The signed-in account menu is a disclosure button: keyboard-operable, with
+  focus moved in on open and back to the button on Escape or on choosing an
+  item. Every control meets the 44px touch floor (`--min-touch-target`),
+  including the password visibility toggle inside the auth fields.
 - `aria-current="page"` on the active nav link; `role="status"` on toasts;
   `role="alert"` on the update banner; screen-reader announcements for streamed
   chat replies.

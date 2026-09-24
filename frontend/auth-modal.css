@@ -239,6 +239,11 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  /* A <button> since the review's U1: the UA's own padding, fill and font
+     would otherwise change the 44px circle. */
+  padding: 0;
+  background: transparent;
+  font: inherit;
   width: var(--header-action-size, var(--min-touch-target));
   height: var(--header-action-size, var(--min-touch-target));
   border-radius: 50%;
@@ -250,6 +255,11 @@
 .nav-user-profile:hover {
   border-color: var(--accent-mild, rgb(225 38 77 / 30%));
   background-color: var(--accent-soft, rgb(225 38 77 / 20%));
+}
+
+.nav-user-profile:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .nav-user-icon {
@@ -316,10 +326,16 @@
   transition: background-color 0.2s, color 0.2s;
 }
 
-.nav-dropdown-item:hover {
+.nav-dropdown-item:hover,
+.nav-dropdown-item:focus-visible {
   /* Was white at 5%: no visible hover state at all in light theme. */
   background-color: var(--accent-soft);
   color: var(--accent-text);
+}
+
+.nav-dropdown-item:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 
 /* --- Auth Modal Enhancement Styles --- */
@@ -553,10 +569,13 @@
   color: var(--color-error);
 }
 
-/* Password Visibility Toggle Styles */
+/* Password Visibility Toggle Styles. The same touch floor as every other
+   control in the app: it was 20x20px, under WCAG 2.5.8's 24px, and it sits
+   inside the field, so the spacing exception never applied. The 52px-tall
+   input fits it; the field's right padding below keeps text clear of it. */
 .password-toggle-btn {
   position: absolute;
-  right: 12px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
   background: transparent;
@@ -566,14 +585,18 @@
   cursor: pointer;
   padding: 0;
   margin: 0;
-  height: 20px;
-  width: 20px;
-  border-radius: 4px;
+  height: var(--min-touch-target);
+  width: var(--min-touch-target);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10;
   transition: color var(--motion-base, 180ms) var(--ease-standard), transform var(--motion-fast, 120ms) var(--ease-standard);
+}
+
+.auth-form .floating-label-group .input-wrapper:has(> .password-toggle-btn) input {
+  padding-right: calc(var(--min-touch-target) + 8px);
 }
 
 .password-toggle-btn:hover {

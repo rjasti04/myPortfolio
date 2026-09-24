@@ -90,7 +90,7 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,636 lines)
+### `auth-ui.js` (1,686 lines)
 
 `export const REGISTER_SENT_MESSAGE` — the register panel's success copy, the
 same for a new address and one that already has an account.
@@ -107,8 +107,17 @@ meter and requirement checklist, confirm-password matching, visibility toggles,
 active-session list with per-session and
 "log out everywhere else" revocation, change password, delete account, magic-link
 and reset, verification and magic-link handling (from `takeAuthLinkTokens()`),
-and the injected profile
-dropdown in the header (`setupNavUI`).
+and the injected account menu in the header (`setupNavUI`).
+
+The account menu is a disclosure: a `<button id="nav-user-btn">` with
+`aria-expanded` and `aria-controls`, opening a panel of ordinary buttons.
+Opening moves focus to the first item; Tab walks the items, and ArrowUp,
+ArrowDown, Home and End are shortcuts on top. Escape closes the panel and
+returns focus to the button, and Tab out of it closes it without moving focus.
+Choosing an item closes the panel and focuses the button *before* the item's
+`request-*-modal` event fires, so the dialog returns focus there on close. The
+button's `aria-label` carries the username and is set with `setAttribute`,
+never through the `innerHTML` template.
 
 Loaded as its own esbuild entry so the account UI is available without waiting
 for `main.js`.

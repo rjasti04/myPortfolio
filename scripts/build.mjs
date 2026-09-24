@@ -189,7 +189,19 @@ const SKIP_DIRS = new Set(["tests"]);
    nobody has audited the ACTIVITY and AI PAGE regions, which are still the
    two largest by a wide margin, and that is still the right move for whoever
    needs room next. 296 leaves ~4 KiB, which is a margin and not room. */
-const BUDGETS_KIB = { js: 390, css: 296 };
+/* Raised for docs/review/codebase_review_20260924.md section 4 (UI/UX), the
+   accessibility pass. Both ceilings were already full going in: CSS measured
+   296.0 of 296 (100%) and JS 387.0 of 390 on the tree that pass started from,
+   so there was nothing to spend and nothing obvious to trim that belongs to
+   this work - the reclaim every note above points at is still an audit of the
+   ACTIVITY and AI PAGE regions, which is its own job.
+
+   Each raise below is the measured cost of one phase, no more:
+   - Phase A (U1, U7): CSS +0.4 KiB - the account control's button reset and
+     focus rings, and the 44px password toggle with the padding its field
+     needs. JS +0.9 KiB - the account menu's keyboard handling.
+     CSS 296 -> 297, JS 390 -> 391. */
+const BUDGETS_KIB = { js: 391, css: 297 };
 
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);
