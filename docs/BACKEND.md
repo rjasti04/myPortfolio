@@ -269,7 +269,7 @@ The largest controller. Six handlers plus the SSE plumbing.
 | `stream_session_events` | The SSE endpoint: `hello` / `activity` / `pipeline` channels, replay, keep-alive, disconnect detection |
 | `get_session_events` | Paginated list with a stable `created_at DESC, event_id DESC` ordering |
 | `get_session_event_summary` | Two indexed round trips; zero-fills every declared type |
-| `get_session_path_funnel` | Single window-function pass producing steps and transition edges |
+| `get_session_path_funnel` | One statement: a window-function CTE read by three branches, for the steps, the transition edges and the total |
 
 Module constants: `SSE_KEEPALIVE_SECONDS = 15.0`,
 `SSE_PIPELINE_INTERVAL_SECONDS = 2.0`, `SSE_RETRY_MS = 3000`. Helpers:

@@ -350,3 +350,87 @@ async def test_a_narrow_window_excludes_older_events(async_client, owner_configu
         await async_client.get("/api/admin/analytics/commands?days=365", headers=headers)
     ).json()
     assert "ancient" in {row["command"] for row in wide["commands"]}
+
+
+async def _seed_two_visits(first, second):
+    """Two sessions, each walking first -> second -> first. Paths are unique per
+    call, because the database is shared and other tests seed the same window."""
+    gen = app.dependency_overrides[get_db]()
+    db = await gen.__anext__()
+    now = datetime.now(timezone.utc)
+    try:
+        for index in range(2):
+            session_id = uuid.uuid4()
+            db.add(
+                UserSession(
+                    session_id=session_id,
+                    ip_address=f"198.51.100.{index}",
+                    user_agent="pytest",
+                    device_type="desktop",
+                    started_at=now - timedelta(hours=2),
+                    last_active_at=now,
+                    is_active=False,
+                )
+            )
+            await db.flush()
+            for offset, path in enumerate([first, second, first]):
+                db.add(
+                    UserActivityEvent(
+                        session_id=session_id,
+                        event_type="page_view",
+                        page_path=path,
+                        event_data={},
+                        created_at=now - timedelta(minutes=50 - offset - 10 * index),
+                    )
+                )
+        await db.commit()
+    finally:
+        await gen.aclose()
+
+
+@pytest.mark.asyncio
+async def test_the_funnel_counts_hits_sessions_and_edges_per_path(async_client, owner_configured):
+    """Exact figures for two known visits, pinned before the three statements
+    behind this route became one."""
+    tag = uuid.uuid4().hex[:8]
+    first, second = f"/pin-{tag}-a", f"/pin-{tag}-b"
+    await _seed_two_visits(first, second)
+    headers = await _headers(async_client, OWNER_EMAIL)
+
+    body = (
+        await async_client.get(f"/api/admin/analytics/funnel{WINDOW}&limit=25", headers=headers)
+    ).json()
+
+    steps = {step["path"]: step for step in body["steps"]}
+    assert (steps[first]["hits"], steps[first]["sessions"]) == (4, 2)
+    assert (steps[second]["hits"], steps[second]["sessions"]) == (2, 2)
+    assert steps[first]["share"] == round(4 / body["total_hits"], 4)
+
+    edges = {(t["from"], t["to"]): t["weight"] for t in body["transitions"]}
+    assert edges[(first, second)] == 2
+    assert edges[(second, first)] == 2
+
+
+@pytest.mark.asyncio
+async def test_the_funnel_is_one_statement(async_client, owner_configured):
+    """Steps, transitions and the total each re-ran the window-function scan
+    over the whole date window. They now read one CTE in a single statement."""
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+
+    await _seed()
+    headers = await _headers(async_client, OWNER_EMAIL)
+    statements = []
+
+    def record(_conn, _cursor, statement, *_args):
+        if "user_activity_events" in statement:
+            statements.append(statement)
+
+    event.listen(Engine, "before_cursor_execute", record)
+    try:
+        response = await async_client.get(f"/api/admin/analytics/funnel{WINDOW}", headers=headers)
+    finally:
+        event.remove(Engine, "before_cursor_execute", record)
+
+    assert response.status_code == 200, response.text
+    assert len(statements) == 1, f"{len(statements)} statements read user_activity_events"

@@ -596,6 +596,8 @@ async def verify_password_async(p: str, h: str) -> bool:
 | **Location** | `server/models/event.py:35-39` (`ix_events_data_gin`); migration `h1c2d3e4f5a6_activity_events_jsonb_index.py:53`; `server/routes/analytics_routes.py:204-206` |
 | **The "Why"** | Every analytics event pays for GIN index maintenance, but no query uses `@>`, `?` or `?&`; a grep across `server/` finds none. The `/commands` docstring says `event_data->>'command'` is "indexable through `ix_events_data_gin`". It isn't: `jsonb_ops` GIN serves containment and key-existence, not `->>` extraction or `GROUP BY`. |
 | **The Fix** | Drop the index in a new migration (never edit `h1c2…`). If `/commands` needs help, use a partial expression index: `(event_data->>'command') WHERE event_type = 'terminal_command'`. Correct the docstring. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Migration `m6b7c8d9e0f1` drops the index, and `h1c2d3e4f5a6` is untouched. The `/commands` docstring now says what serves it: `ix_events_created_type` narrows the scan, and `->>` extraction is read from each row. **Differs from the report:** no partial expression index. PF3's index already narrows `/commands` to the window's terminal commands, and the grouping reads the heap row either way, so the expression index would only add a write. |
 
 ### PF3 — Owner analytics filter on unindexed timestamps
 
@@ -606,6 +608,8 @@ async def verify_password_async(p: str, h: str) -> bool:
 | **Location** | `server/routes/analytics_routes.py:61,68,77,89,133,226` and the `/llm` queries |
 | **The "Why"** | Every panel filters `created_at >= since` or `started_at >= since`, but the event indexes lead with `session_id`, so each request is a sequential scan of a table that never shrinks. The module comment acknowledges this. |
 | **The Fix** | Add `(event_type, created_at)` on `user_activity_events` and `(started_at)` on `user_sessions`, via a new Alembic migration. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `m6b7c8d9e0f1` adds `ix_events_created_type` and `ix_user_sessions_started_at`. **Differs from the report:** the column order is `(created_at, event_type)`. `/overview`'s two event queries and `/funnel` filter on `created_at` alone, and a B-tree cannot seek on a second column: skip scan arrives only in PostgreSQL 18, and CI runs 16. The reverse order would have served only `/commands` and `/llm`. On PostgreSQL 16, with 20,000 seeded events over 400 days and statistics in place, a 30-day window uses the new index for every shape: index-only scans for `/overview`'s type and daily counts, the typed count and the sessions window, and a bitmap scan for the funnel's range. `test_owner_analytics_filters_lead_an_index` holds both columns to leading an index. |
 
 ### PF4 — Redundant single-column indexes
 
@@ -616,6 +620,8 @@ async def verify_password_async(p: str, h: str) -> bool:
 | **Location** | `server/models/event.py:16`; `server/models/ai_conversation.py:9`; `server/models/password_history.py:9`; `server/models/one_time_token.py:22` (`index=True` on a column that already leads a composite index) |
 | **The "Why"** | Each duplicates the leading column of a composite index on the same table, so every write pays for it and no read benefits. |
 | **The Fix** | Drop the four single-column indexes in one migration and remove `index=True` from the models (`alembic check` then stays green). |
+| **Status** | ✅ **Resolved** |
+| **What changed** | The same migration drops all four, with `IF EXISTS`, because two of the migrations that made them skip a pre-existing table. `index=True` is gone from the four columns, and `alembic check` is clean on PostgreSQL 16. `ix_user_sessions_user_id` and `ix_refresh_tokens_user_id` look alike but lead no composite, so they stay. `test_no_index_repeats_the_leading_column_of_another` reads `Base.metadata` and fails, naming all four, against the old models. |
 
 ### PF5 — Per-event INFO logging in the ingest path
 
@@ -638,6 +644,8 @@ async def verify_password_async(p: str, h: str) -> bool:
 | **Location** | `server/controllers/event_controller.py:352-416`; `server/routes/analytics_routes.py:121-174` |
 | **The "Why"** | The same `ordered` window-function subquery is executed separately for steps, transitions and total, which is three scans and three window sorts. |
 | **The Fix** | One CTE, with the three aggregates as `UNION ALL` branches, or materialise it once per request. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Both funnels, owner and per-session, are now one statement. `ordered` is a CTE, and steps, transitions and the total are three `UNION ALL` branches over it. On PostgreSQL 16, `EXPLAIN` shows one `WindowAgg` and three `CTE Scan`s for each. Each limited branch is a subquery, because SQLite refuses `ORDER BY`/`LIMIT` on a bare `UNION` member. The placeholder NULLs are cast to their column types, because PostgreSQL types a bare `NULL` in a subquery's output as `text`, which it then cannot union with `bigint`. SQLite accepted the untyped version, and only the PostgreSQL run caught it. Characterization tests for both routes were written first and passed on the old code. They pin exact hits, sessions, `first_at`/`last_at`, shares, edges and totals. A statement-count test on each route went from 3 to 1. |
 
 ---
 

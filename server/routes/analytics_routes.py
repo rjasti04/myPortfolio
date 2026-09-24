@@ -9,7 +9,8 @@ which terminal commands anyone actually runs, what the chat has cost.
 The per-session funnel algorithm below is the one from `event_controller`
 with the session filter removed and a date window in its place - the same
 single window-function pass, so the transition edges stay computable in the
-database rather than by pulling every event into the process.
+database rather than by pulling every event into the process. Steps,
+transitions and the total are three branches of one statement over that pass.
 
 The visitor-facing "Session Activity" section is deliberately untouched. It is
 a live demo of the ingest pipeline, not a report, and the two audiences want
@@ -19,7 +20,7 @@ different things from the same table.
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import case, desc, func, select
+from sqlalchemy import BigInteger, case, cast, desc, func, literal_column, null, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from server.auth.dependencies import require_owner
@@ -30,8 +31,10 @@ from server.models.user import User
 
 router = APIRouter(prefix="/admin/analytics", tags=["Owner analytics"])
 
-# A year is the longest window offered. These are unindexed aggregates over a
-# growing table, and an unbounded range is the query that eventually times out.
+# A year is the longest window offered. `ix_events_created_type` and
+# `ix_user_sessions_started_at` let every panel skip what falls before the
+# window, but a year-long window is still a year-long scan of a table that
+# never shrinks, and an unbounded range is the query that eventually times out.
 MAX_WINDOW_DAYS = 365
 
 
@@ -133,45 +136,66 @@ async def funnel(
             UserActivityEvent.created_at >= since,
             UserActivityEvent.page_path.isnot(None),
         )
-        .subquery()
+        .cte("ordered")
     )
 
-    steps = (
-        await db.execute(
-            select(
-                ordered.c.path,
-                func.count().label("hits"),
-                func.count(func.distinct(ordered.c.session_id)).label("sessions"),
-            )
-            .group_by(ordered.c.path)
-            .order_by(desc("hits"))
-            .limit(limit)
+    # Steps, transitions and the total were three statements, and each re-ran
+    # the window - a sort of the whole date window - from scratch. As branches
+    # of one statement they share it: PostgreSQL materialises a CTE referenced
+    # more than once. Each limited branch is a subquery because SQLite refuses
+    # ORDER BY or LIMIT on a bare member of a UNION. The placeholder NULLs are
+    # typed: PostgreSQL types a bare NULL in a subquery's output as text, which
+    # the UNION then cannot match against the other branches' bigint.
+    no_path = cast(null(), UserActivityEvent.page_path.type)
+    no_count = cast(null(), BigInteger)
+    step_branch = (
+        select(
+            literal_column("'step'").label("kind"),
+            ordered.c.path.label("path"),
+            no_path.label("next_path"),
+            func.count().label("n"),
+            func.count(func.distinct(ordered.c.session_id)).label("sessions"),
         )
-    ).all()
-
-    transitions = (
-        await db.execute(
-            select(
-                ordered.c.path.label("from_path"),
-                ordered.c.next_path.label("to_path"),
-                func.count().label("weight"),
-            )
-            .where(
-                ordered.c.next_path.isnot(None),
-                ordered.c.next_path != ordered.c.path,
-            )
-            .group_by(ordered.c.path, ordered.c.next_path)
-            .order_by(desc("weight"))
-            .limit(limit * 2)
+        .group_by(ordered.c.path)
+        .order_by(desc("n"))
+        .limit(limit)
+        .subquery()
+    )
+    edge_branch = (
+        select(
+            literal_column("'edge'").label("kind"),
+            ordered.c.path.label("path"),
+            ordered.c.next_path.label("next_path"),
+            func.count().label("n"),
+            no_count.label("sessions"),
         )
-    ).all()
-
+        .where(
+            ordered.c.next_path.isnot(None),
+            ordered.c.next_path != ordered.c.path,
+        )
+        .group_by(ordered.c.path, ordered.c.next_path)
+        .order_by(desc("n"))
+        .limit(limit * 2)
+        .subquery()
+    )
     # Over every path in the window, not just the `limit` rows returned. The sum
     # of the returned steps made `total_hits` under-report by whatever the LIMIT
     # cut, and made the shares add to 1.0 no matter how much was missing.
-    total = (
-        await db.execute(select(func.count()).select_from(ordered))
-    ).scalar_one() or 0
+    total_branch = select(
+        literal_column("'total'").label("kind"),
+        no_path.label("path"),
+        no_path.label("next_path"),
+        func.count().label("n"),
+        no_count.label("sessions"),
+    ).select_from(ordered)
+
+    rows = (
+        await db.execute(union_all(select(step_branch), select(edge_branch), total_branch))
+    ).all()
+    # UNION ALL keeps no branch's order, so each kind is sorted again here.
+    steps = sorted((r for r in rows if r.kind == "step"), key=lambda r: r.n, reverse=True)
+    transitions = sorted((r for r in rows if r.kind == "edge"), key=lambda r: r.n, reverse=True)
+    total = next((r.n for r in rows if r.kind == "total"), 0) or 0
 
     return {
         "window_days": days,
@@ -179,14 +203,14 @@ async def funnel(
         "steps": [
             {
                 "path": row.path,
-                "hits": row.hits,
+                "hits": row.n,
                 "sessions": row.sessions,
-                "share": round(row.hits / total, 4) if total else 0.0,
+                "share": round(row.n / total, 4) if total else 0.0,
             }
             for row in steps
         ],
         "transitions": [
-            {"from": row.from_path, "to": row.to_path, "weight": row.weight}
+            {"from": row.path, "to": row.next_path, "weight": row.n}
             for row in transitions
         ],
     }
@@ -201,9 +225,12 @@ async def commands(
 ):
     """The answer decides which commands are worth keeping.
 
-    `event_data->>'command'` is indexable through `ix_events_data_gin` on
-    PostgreSQL; SQLAlchemy renders the same indexed access as `json_extract`
-    under SQLite, which is what the test harness runs on.
+    `ix_events_created_type` narrows the scan to the window's terminal
+    commands. The grouping key, `event_data->>'command'`, is read from each of
+    those rows: `->>` extraction is not something GIN's `jsonb_ops` indexes,
+    which is why the GIN index this docstring used to cite was dropped.
+    SQLAlchemy renders the same access as `json_extract` under SQLite, which
+    is what the test harness runs on.
     """
     since = _since(days)
     name = UserActivityEvent.event_data["command"].as_string()

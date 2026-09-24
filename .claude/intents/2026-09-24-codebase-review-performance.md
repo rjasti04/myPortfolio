@@ -7,7 +7,8 @@ findings **PF1–PF6** (2 × P2, 4 × P3). The report's line numbers refer to
 `kafka_stream.py`, and §2 Phase D replaced passlib with direct `bcrypt` calls.
 The spec cites line numbers at `8e44ed9`.
 **Companion spec**: `.claude/specs/2026-09-24-codebase-review-performance.md`
-**Status**: Phase A implemented. Phase B in progress. Where implementation
+**Status**: implemented, in the two phases the spec sets out (A, B), each
+committed separately. All six findings are resolved. Where implementation
 departs from the plan, the spec's **Revised during implementation** table
 says so.
 

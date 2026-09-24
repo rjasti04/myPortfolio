@@ -578,7 +578,8 @@ Requires the session token. `limit` (1–25, default 8) caps the returned paths.
 
 Computed in a single window-function pass (`LEAD` over `created_at, event_id`),
 which is what makes the transition edges computable without pulling the whole
-event set into the application.
+event set into the application. Steps, transitions and the total are three
+branches of **one statement** over that pass, so it runs once per request.
 
 ```json
 { "session_id": "…", "total_hits": 91,
@@ -767,7 +768,9 @@ silently published every visitor's browsing to any registered account is a
 worse failure than one that locks the owner out.
 
 Every route takes `days` (1–365, default 30). The ceiling is deliberate: these
-are unindexed aggregates over a growing table, and an unbounded range is the
+are aggregates over a table that never shrinks: `ix_events_created_type` and
+`ix_user_sessions_started_at` let each one skip what falls before the window,
+but a year-long window is still a year-long scan, and an unbounded range is the
 query that eventually times out.
 
 | Route | Returns |
@@ -783,7 +786,9 @@ one address and a phone roams across several.
 The funnel's `LEAD` is partitioned by `session_id`. Without the partition the
 last event of one session pairs with the first of the next, inventing a
 transition nobody made; the per-session version in `event_controller` needs no
-partition because its `WHERE` already guarantees one session.
+partition because its `WHERE` already guarantees one session. Both are one
+statement: the window-function pass is a CTE that the steps, transitions and
+total branches all read.
 
 `GET /admin/analytics/llm` is the first reader `ai_llm_telemetry` has ever had.
 `chat_routes` has written those rows after every completed stream since the

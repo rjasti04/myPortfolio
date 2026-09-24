@@ -212,14 +212,13 @@ columns and never the blob.
 | :--- | :--- | :--- | :--- |
 | `ix_users_email` | `users` | `(email)` unique | Login lookup |
 | `ix_user_sessions_user_id` | `user_sessions` | `(user_id)` | `GET /auth/sessions` |
-| `ix_user_activity_events_session_id` | `user_activity_events` | `(session_id)` | FK lookups, summary aggregation |
-| `ix_events_session_created` | `user_activity_events` | `(session_id, created_at DESC, event_id DESC)` | Mirrors the list endpoint's `ORDER BY` exactly, so pagination is an index scan rather than a sort over the session's whole event set |
-| `ix_events_data_gin` | `user_activity_events` | GIN `(event_data)` | Containment lookups, e.g. `event_data @> '{"theme":"dark"}'` |
+| `ix_user_sessions_started_at` | `user_sessions` | `(started_at)` | The owner dashboard's date window (`/admin/analytics/overview`) |
+| `ix_events_session_created` | `user_activity_events` | `(session_id, created_at DESC, event_id DESC)` | Mirrors the list endpoint's `ORDER BY` exactly, so pagination is an index scan rather than a sort over the session's whole event set. Leading with `session_id`, it also serves the FK cascade, the summary and the per-session funnel |
+| `ix_events_created_type` | `user_activity_events` | `(created_at, event_type)` | Every `/admin/analytics` date window. The window leads because `/overview` and `/funnel` filter on it alone; the type then narrows `/commands` and `/llm` inside the index, and `/overview`'s per-type and per-day counts are index-only |
 | `ix_refresh_tokens_user_id` | `refresh_tokens` | `(user_id)` | Bulk revocation |
 | `ix_refresh_tokens_token_jti` | `refresh_tokens` | `(token_jti)` unique | Refresh validation |
 | `ix_one_time_tokens_jti` | `one_time_tokens` | `(jti)` unique | Redemption lookup |
-| `ix_one_time_tokens_user_id` | `one_time_tokens` | `(user_id)` | Bulk voiding on password change or logout |
-| `ix_one_time_tokens_user_purpose` | `one_time_tokens` | `(user_id, purpose)` | Per-purpose sweeps |
+| `ix_one_time_tokens_user_purpose` | `one_time_tokens` | `(user_id, purpose)` | Per-purpose sweeps, and bulk voiding on password change or logout through its leading column |
 | `ix_password_history_user_created` | `password_history` | `(user_id, created_at DESC)` | Fetch and prune the most recent N |
 | `ix_ai_conversations_user_updated` | `ai_conversations` | `(user_id, updated_at DESC)` | The history list ordering |
 
@@ -227,11 +226,17 @@ The `event_id DESC` tiebreak in `ix_events_session_created` is not cosmetic:
 bulk inserts share a `created_at`, and without a stable secondary sort the same
 row can appear on two pages.
 
+No index repeats the leading column of a composite on the same table: the
+composite already serves that column, so a second index only costs writes.
+`tests/backend/unit/test_schema_indexes.py` fails if one comes back. There is
+no index on `event_data`: nothing filters with `@>` or `?`, and the analytics
+queries' `->>` extraction is not something GIN's `jsonb_ops` indexes.
+
 ---
 
 ## Migrations
 
-Twelve revisions, a single linear chain, one head. CI asserts exactly one head,
+Thirteen revisions, a single linear chain, one head. CI asserts exactly one head,
 applies the chain against `postgres:16`, runs `alembic check` for model/schema
 drift, and verifies the chain is reversible (`downgrade base` then `upgrade
 head`).
@@ -249,7 +254,8 @@ head`).
 | 9 | `i2d3e4f5a6b7` | `one_time_tokens` |
 | 10 | `j3e4f5a6b7c8` | `users.email_verified_at`, backfilled from `created_at` |
 | 11 | `k4f5a6b7c8d9` | Device context on `refresh_tokens`: `ip_address`, `user_agent`, `device_type`, `last_used_at` |
-| 12 | `l5a6b7c8d9e0` | The code tally (`totp_failed_attempts`, `totp_locked_until`) and `totp_last_step` (head) |
+| 12 | `l5a6b7c8d9e0` | The code tally (`totp_failed_attempts`, `totp_locked_until`) and `totp_last_step` |
+| 13 | `m6b7c8d9e0f1` | Drops the GIN index and four single-column indexes a composite already led; adds `ix_events_created_type` and `ix_user_sessions_started_at` (head) |
 
 ---
 

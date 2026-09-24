@@ -3,8 +3,8 @@
 **Related Intent**: `.claude/intents/2026-09-24-codebase-review-performance.md`
 **Source report**: `docs/review/codebase_review_20260924.md` §3 (PF1–PF6)
 **Target Audience**: Visitor / Recruiter (PF1), then Owner and Work Sample
-**Status**: Phase A implemented. Phase B in progress. Deviations from the plan
-are listed in **Revised during implementation** at the end of §6.
+**Status**: implemented, phases A and B. All six findings are resolved.
+Deviations from the plan are listed in **Revised during implementation** at the end of §6.
 **Tree**: line numbers are at `8e44ed9`. That is the report's `f33d629` plus
 the §1 and §2 implementations. Where those moved a line, the number here
 differs from the report's, and the number here is the one to use.
@@ -335,7 +335,10 @@ the agent):
   `op.get_context().autocommit_block()` before deploying.
 - **After Phase B deploys**: run `EXPLAIN (ANALYZE, BUFFERS)` on the
   `/overview` event-mix query with a 30-day window, and confirm it scans
-  `ix_events_created_type`. With few rows, PostgreSQL may still choose a
+  `ix_events_created_type`. Write the date as a literal, for example
+  `created_at >= now() - interval '30 days'`. A statement prepared with a
+  `$1` parameter gets a generic plan, and a generic plan guesses that a
+  range matches a third of the table, whatever the data holds. With few rows, PostgreSQL may still choose a
   sequential scan, and that is correct. The index starts to pay off as the
   table outgrows the window.
 
@@ -386,3 +389,11 @@ the agent):
 | PF1 | Tests "fail before the fix" (implied) | Checked. Against the old call sites, the thread test fails ("a bcrypt call ran on the event loop") and the heartbeat test gets **1** tick |
 | PF5 | TESTING.md count moved by the new test | The `test_pipeline_simulation.py` row said 10 tests. There were 12 before this change, so it now says 13. `test_auth.py` goes from 75 to 77. `check_docs.py` checks JS test files only, so it cannot catch this drift |
 | PF1 | `docs/BACKEND.md` gains a paragraph | Also corrected: its `security.py` heading said 137 lines. The file was 207 lines before this change and is 238 after |
+| PF6 | Placeholder columns as `null()` (§4 sketch) | Cast to the column's type: `cast(null(), page_path.type)`, `cast(null(), BigInteger)` and `cast(null(), created_at.type)`. PostgreSQL types a bare `NULL` in a subquery's output as `text`, and the `UNION` then fails with "types bigint and text cannot be matched". SQLite accepted the untyped version, and the owner-analytics suite on PostgreSQL 16 caught it |
+| PF6 | One `test_each_funnel_is_one_statement` | Two tests, one per route, each in the file that already has that route's fixtures: `test_the_session_funnel_is_one_statement` in `test_activity_events.py` and `test_the_funnel_is_one_statement` in `test_owner_analytics.py`. Each counted 3 statements before the rewrite and counts 1 after |
+| PF6 | A characterization test for the per-session funnel only | One for the owner funnel too: `test_the_funnel_counts_hits_sessions_and_edges_per_path`. The existing owner tests checked only `sessions >= 1`, which is too loose to judge a rewrite that moves `sessions` into a `UNION` branch. The paths are unique per run because the test database is shared. Both tests passed on the old code, on SQLite and on PostgreSQL |
+| PF6 | "PostgreSQL computes the window once" (expected) | Measured. On PostgreSQL 16, `EXPLAIN` of each funnel shows one `WindowAgg` under `CTE ordered` and three `CTE Scan`s |
+| PF3 | Planner use of the new indexes: owner action after deploy | Also checked here, on PostgreSQL 16 with 20,000 events over 400 days after `VACUUM ANALYZE`, for a 30-day window. `/overview`'s type mix and daily series, and the typed count, are index-only scans on `ix_events_created_type`. The funnel's range is a bitmap scan on it, and the sessions window is an index-only scan on `ix_user_sessions_started_at` |
+| PF2-PF4 | Migration checks in CI only (plus alembic-guard locally) | Run locally on PostgreSQL 16: single head, `upgrade head`, `alembic check` clean, `downgrade base` then `upgrade head`. Between the two heads, the index diff is exactly the five drops and two creates, and the downgrade restores the original definitions. On a database missing two of the dropped indexes, the upgrade still succeeds |
+| PF2 | The JSONB column comment keeps its claim | Reworded: it said JSONB "supports the containment operators payload filtering needs", and no payload filtering exists. It now says JSONB is open to them should a filter ever need them |
+| PF6 | TESTING.md rows move | `test_owner_analytics.py` had **no row at all**, which is pre-existing drift, so one was added. `test_contact.py` and `test_resume_context.py` also have no row. This work doesn't touch them, so they are left for their own fix |
