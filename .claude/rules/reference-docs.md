@@ -14,7 +14,7 @@ in order ("add or change an API endpoint" -> `API.md` -> `BACKEND.md` ->
 `SECURITY.md#checklist-for-changes`). The table below is for budgeting the read
 once you know which doc you want.
 
-**These docs are also too big to read whole.** Together they are ~113,000
+**These docs are also too big to read whole.** Together they are ~113,500
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
@@ -29,7 +29,7 @@ whole doc only when you genuinely need all of it.
 | Doc | ~Tokens | Read it before... | Jump to a section with |
 | :--- | ---: | :--- | :--- |
 | `docs/ARCHITECTURE.md` | ~7,500 | you need the repo map, the request lifecycle, or how the tiers interact | `grep -n '^#\{2,3\} '` (19 headings) |
-| `docs/API.md` | ~9,500 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (40 endpoint sections) |
+| `docs/API.md` | ~10,000 | adding or modifying a FastAPI route, or calling one from the client | `grep -n '^### ' docs/API.md` (40 endpoint sections) |
 | `docs/BACKEND.md` | ~7,000 | changing anything under `server/` - it is the package-by-package reference | `grep -n '^#\{2,3\} '` (33 headings) |
 | `docs/DATABASE.md` | ~4,000 | changing a model, an index, or writing a migration | `grep -n '^#\{2,3\} '` (16 headings) |
 | `docs/JAVASCRIPT.md` | ~24,500 | adding or refactoring a frontend ES module | `grep -n '^### ' docs/JAVASCRIPT.md` (84 module sections) |

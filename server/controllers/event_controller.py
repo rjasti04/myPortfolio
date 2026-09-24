@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import desc, func
+from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError
 from server.db.database import get_db
 from server.models.session import UserSession
 from server.models.event import UserActivityEvent
@@ -112,10 +113,33 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
     if not events:
         return {"inserted": 0, "rejected": rejected}
 
+    # The status decides whether analytics.js keeps the batch: it re-queues on
+    # 5xx and 429 and drops anything else. Every failure here used to become a
+    # 422 "possibly invalid session_id" - a dropped connection or a database
+    # restart included - so a transient blip permanently lost every buffered
+    # event in the batch. Only a constraint violation is the batch's own fault.
     try:
         db.add_all(events)
         await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        logger.warning("bulk_event_insert_rejected", count=len(events), error=str(e.orig))
+        raise HTTPException(422, "Failed to insert events (possibly invalid session_id)") from e
+    except (OperationalError, InterfaceError) as e:
+        await db.rollback()
+        logger.exception("bulk_event_insert_storage_unavailable", count=len(events))
+        raise HTTPException(503, "Event storage is temporarily unavailable") from e
+    except Exception:
+        # Anything else is a bug, and a 500 - which the client also retries.
+        await db.rollback()
+        logger.exception("bulk_event_insert_failed", count=len(events))
+        raise
 
+    # The rows are committed by now, so nothing from here on may be answered
+    # as a failed insert: a 5xx would have the client re-send rows that were
+    # already saved, and a 422 would report as rejected what was stored. The
+    # flush metric and the live broadcast are best-effort beside that.
+    try:
         if payload.flush_reason:
             from server.services.kafka_stream import record_flush_reason
             record_flush_reason(payload.flush_reason, len(events))
@@ -131,10 +155,8 @@ async def create_events_bulk(payload: BulkEventCreate, request: Request, db: Asy
                 "event_data": e.event_data,
                 "created_at": (e.created_at or _now()).isoformat()
             }))
-    except Exception as e:
-        await db.rollback()
-        logger.exception("Bulk event insert failed")
-        raise HTTPException(422, "Failed to insert events (possibly invalid session_id)") from e
+    except Exception:
+        logger.exception("bulk_event_post_commit_failed", count=len(events))
 
     return {"inserted": len(events), "rejected": rejected}
 

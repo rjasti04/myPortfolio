@@ -207,6 +207,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/controllers/event_controller.py:134-137` |
 | **The "Why"** | Any exception from the insert, a dropped connection included, becomes a 422 "possibly invalid session_id". `analytics.js` re-queues only on 5xx/429, so a transient database blip permanently loses every buffered event in the batch. |
 | **The Fix** | `except IntegrityError` → 422; `except (OperationalError, InterfaceError)` → 503; let anything else be a 500. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `IntegrityError` → 422; `OperationalError`/`InterfaceError` → **503**, which `analytics.js` re-queues; anything else is re-raised as a 500, which it also re-queues. The flush metric and live broadcast moved after the commit and are best-effort, so a failure there can neither roll back nor misreport rows already saved. |
 
 ### C9 — One bad Kafka event drops its whole batch
 
@@ -217,6 +219,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/services/kafka_stream.py:682-694` |
 | **The "Why"** | A single message naming an unknown `session_id` (an FK violation) sends the whole `save_batch` to the "unrecoverable" branch, which discards up to `BATCH_SIZE` valid events along with it. |
 | **The Fix** | On `IntegrityError`, retry the batch row by row and drop only the rows that fail, counting them in `events_dropped_rejected`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | A batch refused with an `IntegrityError` is **bisected** rather than dropped: each half commits in its own transaction, a refused half splits again, and only a single row still refused is dropped and counted in `events_dropped_rejected`. **Differs from the suggested fix:** not row by row. After an outage the buffer can hold `MAX_BUFFERED_EVENTS` (10,000) rows, and bisection costs O(k log n) commits for k bad rows. An outage part-way through returns the unwritten rows to the buffer, in order. |
 
 ### C10 — The unload/hidden flush clears the event queue before the send finishes
 

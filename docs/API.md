@@ -511,7 +511,13 @@ only re-queues on 5xx/429.
 Everything structural stays strict: **400** for an empty list or more than 500
 items, **403** if any row names a session the caller does not hold the token for
 (one batch, one session — an authorisation boundary, not schema drift),
-**422** for structurally invalid rows or a failed insert.
+**422** for structurally invalid rows or an insert a constraint refused (an
+unknown `session_id`), and **503** when the database is unreachable or drops
+the connection. That split is what decides whether the client keeps the batch:
+every insert failure used to be a 422, so a transient database blip
+permanently lost everything `analytics.js` had buffered. Once the rows are
+committed, a failure in the live broadcast or the flush metric no longer
+changes the answer: a 5xx would have the client re-send rows already saved.
 
 ### `GET /sessions/{session_id}/events` → 200
 
@@ -815,10 +821,10 @@ Validation errors carry the standard array form:
 | 403 | Missing or wrong analytics session token (identical body whether or not the session exists) |
 | 404 | Unknown session, user, or conversation |
 | 413 | Body above `MAX_BODY_BYTES` |
-| 422 | Pydantic validation failure, unknown `event_type` on the single-event route, failed bulk insert |
+| 422 | Pydantic validation failure, unknown `event_type` on the single-event route, a bulk insert refused by a constraint |
 | 429 | Rate budget exceeded, Bedrock slots saturated, or too many SSE streams for the session |
 | 500 | Unhandled server error (e.g. Bedrock control-plane failure on `/models`) |
-| 503 | `/health` only — database unreachable |
+| 503 | Database unreachable — `/health`, and `POST /events/bulk` so the client re-queues the batch |
 
 ---
 

@@ -359,3 +359,59 @@ async def test_a_call_with_neither_cookie_nor_header_is_still_refused(async_clie
 async def test_client_error_is_an_accepted_event_type():
     """Uncaught frontend exceptions had nowhere to go but the browser console."""
     assert "client_error" in EVENT_TYPES
+
+
+# --- bulk insert failure statuses (C8) ---------------------------------------
+# analytics.js re-queues a batch on 5xx and 429 and drops it on anything else.
+# Every failure used to answer 422 "possibly invalid session_id", so a dropped
+# connection or a database restart permanently lost the whole buffered batch.
+
+
+def _one_click(session_id):
+    return {"events": [{"session_id": session_id, "event_type": "click", "page_path": "/#about"}]}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        ("operational", 503),
+        ("interface", 503),
+        ("integrity", 422),
+    ],
+)
+async def test_bulk_failure_status_tells_the_client_whether_to_retry(async_client, error, expected):
+    from unittest.mock import patch
+
+    from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    raised = {
+        "operational": OperationalError("INSERT", {}, Exception("server closed the connection")),
+        "interface": InterfaceError("INSERT", {}, Exception("connection is closed")),
+        "integrity": IntegrityError("INSERT", {}, Exception("violates foreign key constraint")),
+    }[error]
+    session_id, headers = await _new_session(async_client)
+
+    with patch.object(AsyncSession, "commit", side_effect=raised):
+        response = await async_client.post("/api/events/bulk", json=_one_click(session_id), headers=headers)
+
+    assert response.status_code == expected, response.text
+
+
+@pytest.mark.asyncio
+async def test_a_failed_broadcast_after_the_commit_is_still_a_success(async_client):
+    """The rows are saved by then. Reporting a failure would have the client
+    re-send them, or drop a batch that was stored."""
+    from unittest.mock import patch
+
+    session_id, headers = await _new_session(async_client)
+
+    payload = {**_one_click(session_id), "flush_reason": "timer"}
+    with patch("server.services.kafka_stream.record_flush_reason", side_effect=RuntimeError("metrics broke")):
+        response = await async_client.post("/api/events/bulk", json=payload, headers=headers)
+
+    assert response.status_code == 201, response.text
+    assert response.json()["inserted"] == 1
+    stored = await async_client.get(f"/api/sessions/{session_id}/events", headers=headers)
+    assert [e["event_type"] for e in stored.json()] == ["click"]

@@ -375,7 +375,7 @@ monotonic deque behind the throughput figure), `METRICS` (the counter dict).
 | `_publish_fanout` / `_on_fanout_notify` / `run_pg_fanout` | Cross-instance relay over Postgres `LISTEN/NOTIFY`, on a dedicated connection (a listening connection cannot be pooled), with an `INSTANCE_ID` origin check and a 7800-byte payload cap |
 | `prune_replay_buffers` | Reaps rings for sessions gone longer than `SSE_REPLAY_TTL` |
 | `pipeline_mode` / `pipeline_snapshot` / `_simulated_kafka_stats` | The health report and its modelled Kafka stage |
-| `save_batch` | Bulk write; recoverable failures return events to the buffer (capped at `MAX_BUFFERED_EVENTS`, overflow counted), unrecoverable ones are dropped and counted |
+| `save_batch` | Bulk write; recoverable failures return events to the buffer (capped at `MAX_BUFFERED_EVENTS`, overflow counted), unrecoverable ones are dropped and counted. A batch refused by a constraint (`IntegrityError`, e.g. one unknown `session_id`) is **bisected** rather than dropped: each half commits in its own transaction and only a single row still refused is dropped and counted, O(k log n) commits for k bad rows; an outage part-way through returns the unwritten rows to the buffer |
 | `add_to_batch` / `periodic_flusher` | Size-triggered and time-triggered flushing |
 | `process_incoming_event` | Decode → batch + broadcast (simulated events skip the batch) |
 | `decode_payload` | Tolerates raw JSON, base64-wrapped JSON, bytes, and nested encoded payloads |

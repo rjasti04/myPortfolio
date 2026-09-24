@@ -338,6 +338,8 @@ report instead.
 A failed flush returns its events to the buffer, capped at
 `MAX_BUFFERED_EVENTS`; overflow and unrecoverable rejections are **counted**, not
 just logged, so the `postgres` stage stops reporting healthy when data is lost.
+A batch refused by a constraint is bisected, so one event naming an unknown
+session costs that event rather than the whole batch.
 
 ### 4. AI chat
 
