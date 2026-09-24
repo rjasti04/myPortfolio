@@ -674,7 +674,10 @@ call in the account's model invocation logs.
 
 ### `POST /chat/summarize` → 200
 
-Same request schema. Takes a concurrency slot exactly like the streaming route.
+Same request schema. Takes a concurrency slot exactly like the streaming route,
+and applies the same anonymous free-message cap first (**401** past
+`CHAT_FREE_MESSAGE_LIMIT` user turns, before a slot is taken) - it used to skip
+it, so the two routes enforced different contracts for one anonymous caller.
 
 ```json
 { "summary": "…" }

@@ -272,6 +272,54 @@ async def test_the_free_limit_does_not_apply_to_signed_in_callers(async_client):
     assert "ok" in response.text
 
 
+def _past_the_free_limit():
+    from server.config.settings import CHAT_FREE_MESSAGE_LIMIT
+
+    messages = [
+        {"role": "user" if i % 2 == 0 else "assistant", "content": f"m{i}"}
+        for i in range(CHAT_FREE_MESSAGE_LIMIT * 2 + 2)
+    ]
+    assert sum(1 for m in messages if m["role"] == "user") > CHAT_FREE_MESSAGE_LIMIT
+    return messages
+
+
+@pytest.mark.asyncio
+async def test_summarize_applies_the_anonymous_free_message_limit(async_client):
+    """/chat/summarize calls Bedrock exactly like /chat/stream but skipped the
+    free-message cap, so the two routes enforced different contracts for the
+    same anonymous caller. Refused before a concurrency slot is taken."""
+    from server.routes import chat_routes
+
+    with patch("server.services.bedrock_service.bedrock_service.client.converse_stream") as mock_converse, \
+            patch.object(chat_routes, "acquire_bedrock_slot") as mock_slot:
+        response = await async_client.post(
+            "/api/chat/summarize", json={"messages": _past_the_free_limit()}
+        )
+
+    assert response.status_code == 401, response.text
+    assert "free messages" in response.text
+    mock_converse.assert_not_called()
+    mock_slot.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_summarize_free_limit_does_not_apply_to_signed_in_callers(async_client):
+    email = f"sum-{uuid.uuid4().hex[:12]}@example.com"
+    password = "Str0ngPassw0rd!"
+    await register_verified_account(async_client, email, password)
+    login = await async_client.post("/api/auth/login", json={"email": email, "password": password})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    with patch("server.services.bedrock_service.bedrock_service.client.converse_stream") as mock_converse:
+        mock_converse.return_value = {"stream": list(_GEMMA_EVENTS)}
+        response = await async_client.post(
+            "/api/chat/summarize", headers=headers, json={"messages": _past_the_free_limit()}
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["summary"]
+
+
 # --- Request ceilings (SEC-01) ----------------------------------------------
 # /chat is unauthenticated by design, so whatever the schema accepts is what an
 # anonymous caller can bill to the Bedrock account. These are cost controls.

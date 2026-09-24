@@ -460,6 +460,11 @@ export function initChat() {
         sessions = Array.isArray(parsed)
           ? parsed.filter(entry => entry && typeof entry === 'object' && entry.id)
           : [];
+        // Rows saved before saveSessions() dropped these still carry them, and
+        // a stored `hydrating: true` is a spinner that no request will clear.
+        sessions.forEach(session => {
+          TRANSIENT_SESSION_KEYS.forEach(key => delete session[key]);
+        });
       } catch (e) {
         sessions = [];
       }
@@ -492,13 +497,45 @@ export function initChat() {
     if (changed) saveSessions();
   }
 
+  /* Per-view state that must never be persisted. `hydrating` was saved while
+     still true - hydrateSession() saves before its `finally` clears it - so
+     after a reload the conversation painted "Loading this conversation…"
+     forever: the `hydrating` guard refused to refetch, and every later save
+     wrote the flag back. `loadError` is the same kind of thing: a failure of
+     this page view, not a fact about the conversation. */
+  const TRANSIENT_SESSION_KEYS = new Set(['hydrating', 'loadError']);
+  const dropTransientKeys = (key, value) => (TRANSIENT_SESSION_KEYS.has(key) ? undefined : value);
+
+  function isUnhydratedStub(session) {
+    return Boolean(session?.remote && !session.hydrated);
+  }
+
+  /* Limit to MAX_SESSIONS to prevent localStorage quota issues - by evicting
+     what can be recovered first. An unhydrated server stub is a title and an
+     id the next GET /chat/history lists straight back; a local conversation
+     may exist nowhere else. The cap used to be a plain slice after the stubs
+     had been merged and sorted in, so signing in on a browser with a long
+     local history evicted local-only transcripts in favour of rows that were
+     safe on the server all along. `conversationId` cannot tell the two apart:
+     backfillConversationIds() gives every row one. */
+  function capSessions(list) {
+    const overflow = list.length - MAX_SESSIONS;
+    const evicted = new Set(
+      list
+        .filter(session => isUnhydratedStub(session) && session.id !== activeSessionId)
+        .sort((a, b) => sessionTime(a) - sessionTime(b))
+        .slice(0, overflow)
+    );
+    const kept = list.filter(session => !evicted.has(session));
+    return kept.length > MAX_SESSIONS ? kept.slice(0, MAX_SESSIONS) : kept;
+  }
+
   function saveSessions() {
-    // Limit to MAX_SESSIONS to prevent localStorage quota issues
     if (sessions.length > MAX_SESSIONS) {
-      sessions = sessions.slice(0, MAX_SESSIONS);
+      sessions = capSessions(sessions);
     }
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions, dropTransientKeys));
     } catch (e) {
       // Quota or blocked storage. The conversation still works for this view;
       // throwing here would abort the turn that is mid-flight.
@@ -938,16 +975,27 @@ export function initChat() {
 
   async function deleteRemoteConversation(session) {
     if (!session?.conversationId || !isSignedIn()) return;
+    let removed = false;
     try {
-      await authenticatedFetch(
+      const res = await authenticatedFetch(
         `${API_BASE}/chat/history/${session.conversationId}`,
         { method: 'DELETE' }
       );
+      // A 404 means it was never saved - an anonymous conversation, or one
+      // that never got a reply - which is as gone as a successful delete.
+      removed = res.ok || res.status === 404;
     } catch (e) {
-      // A 404 means it was never saved (an anonymous conversation, or one that
-      // never got a reply); anything else is a transient failure the next
-      // delete will retry. Either way the row is already gone from this view.
       console.warn('Could not delete the server copy of this conversation:', e);
+    }
+    // fetch() does not throw on a 429 or a 5xx, and this used to check only
+    // for a throw, so a failed delete was silent until the next sync listed
+    // the conversation straight back. Same notice as Delete all.
+    if (!removed) {
+      renderTranscriptNotice({
+        text: 'Deleted on this device. The saved copy could not be removed from your '
+          + 'account and may reappear - try again in a moment.',
+        className: 'chat-transcript-error',
+      });
     }
   }
 
@@ -1001,12 +1049,20 @@ export function initChat() {
   /* Fetch one stub's transcript. Returns true when the caller should repaint. */
   async function hydrateSession(session) {
     if (!session?.remote || session.hydrated || session.hydrating) return false;
-    if (!isSignedIn()) return false;
+    if (!isSignedIn()) {
+      // A stub only this account can fetch. Returning quietly left it painted
+      // as "Loading…" with no request behind it.
+      session.loadError = 'Sign in to load this conversation.';
+      return true;
+    }
 
     session.hydrating = true;
     session.loadError = null;
     try {
       const res = await authenticatedFetch(`${API_BASE}/chat/history/${session.conversationId}`);
+      // Settled before the saves below: saveSessions() repaints the rail, and
+      // it should see this row as it now is.
+      session.hydrating = false;
       if (res.status === 404) {
         // Deleted from another device. Drop the stub rather than leaving a row
         // that fails every time it is opened.
@@ -1036,14 +1092,19 @@ export function initChat() {
     }
   }
 
-  /* Open a stub: paint the loading state, fetch, then repaint. */
+  /* Open a stub: paint the loading state, fetch, then repaint.
+
+     The repaint is unconditional. It used to run only while this session was
+     still the active one - but a 404 drops the stub and activates another,
+     which is exactly when the transcript most needs repainting, and it was
+     left showing the dropped conversation's "Loading…". */
   async function openSession(session) {
     setActiveSession(session.id);
     renderSidebar();
     restoreActiveSession();
-    if (session.remote && !session.hydrated) {
+    if (isUnhydratedStub(session)) {
       await hydrateSession(session);
-      if (activeSessionId === session.id) restoreActiveSession();
+      restoreActiveSession();
       renderSidebar();
     }
   }
@@ -1764,10 +1825,37 @@ export function initChat() {
       appendMessage("AI service is not configured.", 'bot', { save: false, showCopy: false });
       return;
     }
+
+    /* One controller for the whole turn, created - and the turn marked busy -
+       before the first await. The busy flag used to be set only after
+       `ensureSession()`, so two fast submits on a first visit both got past
+       every `isGenerating` guard and both streamed. And the controller used to
+       be created only for the stream, so Stop pressed while a long
+       conversation was being summarised found nothing to abort: the UI reset
+       and the turn carried on regardless, free to interleave with the next.
+
+       `controller` is local on purpose. abortGeneration() nulls
+       currentAbortController the moment Stop is pressed, before the aborted
+       request has rejected, so by the time a catch block looks, the shared
+       variable no longer says whether this turn was stopped. */
+    const controller = new AbortController();
+    currentAbortController = controller;
+    const ownsTurn = () => currentAbortController === controller;
+    setInputState(true);
+
     if (!(await ensureSession())) {
-      appendMessage("AI service is not available.", 'bot', { save: false, showCopy: false });
+      if (ownsTurn()) {
+        currentAbortController = null;
+        setInputState(false);
+      }
+      if (!controller.signal.aborted) {
+        appendMessage("AI service is not available.", 'bot', { save: false, showCopy: false });
+      }
       return;
     }
+    // Stopped while the session was being created. abortGeneration() has
+    // already reset the composer, and a new turn may own it by now.
+    if (controller.signal.aborted) return;
 
 
     if (regenerate) {
@@ -1802,7 +1890,6 @@ export function initChat() {
     } else {
       appendMessage(text, 'user', { save: true, showCopy: true });
     }
-    setInputState(true);
 
     let widgetIndicator = null;
     let aiIndicator = null;
@@ -1831,6 +1918,7 @@ export function initChat() {
     if (!getAuthToken() && userMessageCount > FREE_MESSAGE_LIMIT) {
       if (widgetIndicator) widgetIndicator.remove();
       if (aiIndicator) aiIndicator.remove();
+      currentAbortController = null;
       setInputState(false);
       window.dispatchEvent(new Event('request-login-modal'));
       appendMessage("Please log in to continue chatting with the AI. You have reached the free message limit.", 'bot', { save: false, showCopy: false });
@@ -1860,7 +1948,8 @@ export function initChat() {
           const sumRes = await authenticatedFetch(`${API_BASE}/chat/summarize`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
-            body: JSON.stringify({ messages: summaryPayload })
+            body: JSON.stringify({ messages: summaryPayload }),
+            signal: controller.signal
           });
           if (sumRes.ok) {
             const sumData = await sumRes.json();
@@ -1880,9 +1969,17 @@ export function initChat() {
             ];
           }
         } catch (err) {
-          console.error("Failed to summarize context:", err);
+          if (!controller.signal.aborted) console.error("Failed to summarize context:", err);
         }
       }
+    }
+
+    // Stopped during the summary. Nothing has been streamed or saved for this
+    // turn, so there is nothing to keep: take the indicators down and go.
+    if (controller.signal.aborted) {
+      if (widgetIndicator) widgetIndicator.remove();
+      if (aiIndicator) aiIndicator.remove();
+      return;
     }
 
     let messages = (compactedMessages ?? session.messages)
@@ -1900,12 +1997,11 @@ export function initChat() {
     let aiMsgEl = null;
 
     try {
-      currentAbortController = new AbortController();
       const response = await authenticatedFetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
         body: JSON.stringify({ messages, stream: true, conversation_id: session.conversationId }),
-        signal: currentAbortController.signal
+        signal: controller.signal
       });
 
       if (!response.ok) {
@@ -2051,16 +2147,23 @@ export function initChat() {
           processSSELine(buffer);
         }
       } catch (streamError) {
-        if (streamError.name === 'AbortError' || currentAbortController?.signal?.aborted) {
+        if (streamError.name === 'AbortError' || controller.signal.aborted) {
           console.log("Stream generation stopped by user.");
-          if (botFullText.length > 0) {
-            if (parseTimer) {
-              clearTimeout(parseTimer);
-              parseTimer = null;
-            }
-            flushParse();
-            botFullText += "\n\n*(Generation stopped)*";
+          if (!botFullText) {
+            // Stopped before the first token. There is no partial reply to
+            // keep, and falling through painted "The assistant did not return
+            // a response. Try again." for a turn the visitor ended on purpose.
+            dropIndicators();
+            widgetMsgEl?.remove();
+            aiMsgEl?.remove();
+            return;
           }
+          if (parseTimer) {
+            clearTimeout(parseTimer);
+            parseTimer = null;
+          }
+          flushParse();
+          botFullText += "\n\n*(Generation stopped)*";
         } else {
           console.error("Stream reading error:", streamError);
 
@@ -2139,6 +2242,17 @@ export function initChat() {
 
 
     } catch (err) {
+      if (err?.name === 'AbortError' || controller.signal.aborted) {
+        // Stopped before the response headers arrived. The fetch rejects here,
+        // not in the stream loop, and this branch used to lack the check the
+        // inner one has: it showed "Could not reach the assistant" and a Retry
+        // for a turn the visitor had just stopped.
+        if (widgetIndicator) widgetIndicator.remove();
+        if (aiIndicator) aiIndicator.remove();
+        widgetMsgEl?.remove();
+        aiMsgEl?.remove();
+        return;
+      }
       console.error('Chat API Error:', err);
       if (widgetIndicator) widgetIndicator.remove();
       if (aiIndicator) aiIndicator.remove();
@@ -2190,9 +2304,13 @@ export function initChat() {
     } finally {
       // The controller belongs to the stream that just ended. Leaving it set
       // meant abortGeneration() held a reference to a finished request and the
-      // AbortError branch could consult a stale signal.
-      currentAbortController = null;
-      setInputState(false);
+      // AbortError branch could consult a stale signal. Only while this turn
+      // still owns it, though: after a Stop, abortGeneration() has already
+      // reset the composer and the next turn may be running.
+      if (ownsTurn()) {
+        currentAbortController = null;
+        setInputState(false);
+      }
       if (aiPageInput) {
         aiPageInput.style.height = 'auto'; // Reset height
         // Only if the AI page is still the section on screen. This refocused
@@ -2273,7 +2391,13 @@ export function initChat() {
   // when there is no history at all. So a returning visitor arrived to the
   // greeting and an empty widget while the rail listed the thread they had
   // just been reading, and only a click on that row brought it back.
-  restoreActiveSession();
+  //
+  // An active server stub is opened rather than painted: painting it drew
+  // "Loading this conversation…" and nothing ever fetched it, so the spinner
+  // stayed until the row was clicked.
+  const initialSession = getActiveSession();
+  if (isUnhydratedStub(initialSession)) openSession(initialSession);
+  else restoreActiveSession();
 
   /* Pull whatever the server holds for a signed-in visitor, then repaint. The
      local conversations are already on screen by this point, so this only ever

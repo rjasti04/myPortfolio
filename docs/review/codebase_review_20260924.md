@@ -175,6 +175,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/chat.js:1025-1027` (save), `:1035` (`finally` clears the flag), `:1457` (render), `:1003` (guard) |
 | **The "Why"** | `hydrateSession` calls `saveSessions()` while `session.hydrating` is still `true`; the `finally` resets it only afterwards, so `"hydrating": true` is what lands in `localStorage`. After a reload, `:1457` paints "Loading this conversation…" with a spinner. `:1003` then refuses to refetch, because `remote` is already `false`. Every later save writes the flag back, so the conversation stays stuck until it is deleted. Not covered by `chat-history-sync.test.js`. |
 | **The Fix** | Clear `hydrating` before `saveSessions()`, and have `saveSessions` strip transient fields (`hydrating`, `loadError`) from what it serialises. Also reset them on load for rows already persisted. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `saveSessions()` serialises through a replacer that drops `hydrating` and `loadError`, and `loadSessions()` strips both from rows an older build saved. `hydrateSession` settles `hydrating` before it saves. **Wider than reported:** init repainted an active stub without ever fetching it, so even with the flag fixed, "Loading…" could sit with nothing in flight. Init now opens an active stub through `openSession()`, and a signed-out stub says "Sign in to load this conversation." instead of spinning. |
 
 ### C6 — Content-hashed build removes stable public URLs
 
@@ -235,6 +237,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/chat.js:939-951`; `:1015,1046`; `:992-993` with `:497-499` |
 | **The "Why"** | (a) `deleteRemoteConversation` never checks `res.ok`, and `fetch` doesn't throw on 429/5xx. A failed server delete is silent, and the conversation reappears on the next sync. (b) A 404 while opening a conversation removes the stub and activates another one, but `openSession` skips the repaint, leaving the deleted conversation's "Loading…" in the transcript. (c) Merging server stubs happens before the 50-row cap is applied, so a sign-in can evict **local-only** transcripts that exist nowhere else. |
 | **The Fix** | (a) Check `res.ok` and surface a toast, as Clear-all already does (`:1081-1087`). (b) Repaint unconditionally after a 404. (c) Never cap away rows without a `conversationId`; cap stubs first. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | (a) `deleteRemoteConversation` checks the status. A 404 counts as deleted; anything else paints the same may-reappear notice Clear-all uses. The report said "toast", but the code's own precedent is the transcript notice. (b) `openSession` repaints unconditionally after hydrating. (c) The cap evicts unhydrated server stubs first, oldest first and never the active one. **Differs from the suggested fix:** "rows without a `conversationId`" would protect nothing, because `backfillConversationIds()` gives every row one. |
 
 ### C12 — The Stop button's state handling has three gaps
 
@@ -245,6 +249,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `frontend/js/chat.js:1622-1628` (`abortGeneration`), `:1860` (`/chat/summarize` without a signal), `:2141` (outer catch), `:2054` (inner `AbortError` check), `:1767` vs `:1805` |
 | **The "Why"** | (1) Pressing Stop while a long conversation is being summarised only resets the UI. The turn continues, and a second submit can interleave two replies into one transcript. (2) Stopping before response headers arrive lands in the outer catch, which lacks the `AbortError` check the inner one has, and shows "Could not reach the assistant" with a Retry button. (3) `await ensureSession()` runs before `setInputState(true)`, so two fast submits on a first visit both stream. |
 | **The Fix** | Create the `AbortController` before the summarise call and pass its signal. Treat `AbortError` in the outer catch as a clean stop. Set the busy flag before the first `await`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | One `AbortController` per turn, created and the turn marked busy before the first `await`. Its signal covers `/chat/summarize`, each `await` before the stream is a checkpoint, and both catch blocks check the turn's own controller. Stop before the headers, before the first token or during the summary ends quietly. The last of those was a fourth gap: it painted "The assistant did not return a response." `chat-stop.test.js` drives all four through the real composer. |
 
 ### C13 — Activity dashboard lifecycle
 
@@ -297,6 +303,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/routes/chat_routes.py:197-234` (compare `:57-64`) |
 | **The "Why"** | ADR-023 lists the free-message limit among the server-side ceilings, but only the streaming route applies it. Summarise is still bounded by the chat rate budget and a concurrency slot, so the exposure is small, but the two routes enforce different contracts. |
 | **The Fix** | Share one guard (a dependency) between both routes. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `enforce_free_message_limit()` is shared by both routes, and `/chat/summarize` calls it before taking a concurrency slot. It is a plain function rather than a dependency, so the request body is declared once. `model_id` (S1) is untouched. |
 
 ### C18 — `python-dotenv` is imported directly but only installed transitively
 
