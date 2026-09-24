@@ -842,6 +842,8 @@ hooks:
 | **Location** | `.claude/REVIEW.md:11`; `.claude/skills/security-audit/SKILL.md` |
 | **The "Why"** | The rule asks whether the **frontend** sends model ids, system prompts or token limits. The frontend doesn't. The API accepts them, so S1 passes every review the policy drives. The security-audit checklist has no item for it, and no backend test asserts that `model_id` is refused. |
 | **The Fix** | Reword it as: "Does any request schema accept a model id, system prompt or token ceiling from the client?" Add the same line to `security-audit` and a pinning test to `tests/backend`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `REVIEW.md` now asks whether any request schema accepts a model id, a system prompt or an inference setting from the client. That covers a new field on `ChatStreamRequest`, a `role` beyond `user`/`assistant`, or a route reading the raw body. The `security-audit` checklist asks the same, mirrored into `.agents/skills/`. **Differs from the suggested fix:** the `model_id` pin already existed. §2's S1 fix added `test_a_supplied_model_id_is_ignored` and its `/summarize` twin, beside the older `system_prompt` pin. No test covered the rest of ADR-023, so the new `test_chat_request_carries_nothing_the_server_owns` asserts the request's exact fields and roles. A token ceiling, a temperature or any new field now fails it until someone decides, as a trial `max_tokens` field showed. The skill's note that `/chat/summarize` skips the free-message cap had been stale since C17, and is corrected. |
 
 ### CS3 — PreToolUse guards fail open
 
@@ -888,6 +890,8 @@ hooks:
 | **Location** | `.claude/skills/accessibility/SKILL.md:3-4` (digest `d8578fe7…` matches `.claude/ecc/install-state.json`, ECC 2.2.1) |
 | **The "Why"** | The folded description reads "…screen-reader support. standards. Use this skill…", and it spends always-loaded description tokens on iOS/Android scope this repo doesn't have. The file matches upstream, so this is an ECC bug, not a local edit, and `docs/ECC.md` rightly forbids hand edits. |
 | **The Fix** | Report it upstream and pick up the fixed version with `npx ecc-universal … --skills accessibility`. If upstream is slow, record a deliberate local override in `docs/ECC.md` so `check_agent_config.py` expects the new digest. |
+| **Status** | ✅ **Resolved**: recorded as a known upstream defect. The fix itself is ECC's to ship |
+| **What changed** | Recorded under "Known rough edges" in `docs/ECC.md`, with the evidence that the text is upstream's. The vendored file is unchanged (digest `d8578fe7…`). **Differs from the suggested fix:** there was nothing to upgrade to. On 2026-09-24 npm's `latest` was still 2.2.1 and ECC's `main` carried the same frontmatter. And `check_agent_config.py` checks no digest, so a local override "it expects" had nothing to update, while a hand edit is what `docs/ECC.md` forbids. An upstream report is drafted in `.claude/specs/2026-09-24-codebase-review-claude-setup.md` for the owner to file. |
 
 ### CS7 — A stale IDE artifact is committed
 
@@ -898,6 +902,8 @@ hooks:
 | **Location** | `.antigravity/antigravity-ide/brain/1c01715d-7fc3-4e95-ac02-e30a6ec898bf/task.md` |
 | **The "Why"** | This is a half-finished task list from another agent's session. It refers to `server/routers/auth.py`, which doesn't exist. Any tool that indexes the folder picks up instructions that are obsolete. |
 | **The Fix** | `git rm` it and ignore `.antigravity/antigravity-ide/`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | As the fix. The three `.antigravity/` stubs that point at `AGENTS.md` stay tracked. |
 
 ### Found during remediation (not scored)
 

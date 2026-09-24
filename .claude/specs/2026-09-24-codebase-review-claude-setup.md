@@ -4,7 +4,8 @@
 **Source report**: `docs/review/codebase_review_20260924.md` §5 (CS1–CS7), plus
 CS8–CS10, which were found while re-verifying it
 **Target Audience**: Owner, then Work Sample
-**Status**: planned. Awaiting approval before Phase A.
+**Status**: implemented, phases A–D. Deviations from the plan are listed in
+**Revised during implementation** at the end of §6.
 **Tree**: line numbers are at `9aefeec`. §1–§4 did not touch the lines §5
 cites, so they match the report's `f33d629` numbers too.
 
@@ -364,3 +365,19 @@ the §2 spec asked for.
 - **A project subagent's frontmatter hooks in this environment.** Moot for the
   design, which does not rely on them. The report's route would have been
   inert here if these web sessions count as untrusted.
+
+### Revised during implementation
+
+| # | Plan | What shipped, and why |
+| :--- | :--- | :--- |
+| CS8 | Newlines, continuations, glued operators, `(`/`)` and the new `PREFIXES` | Also turns off shlex's `#` comments. shlex reads a comment through the end of its line, newline included, so `echo x # note` would still have merged the next line into its segment. A comment-then-write template pins it |
+| CS1 | Redirect targets from `parse()` | Read from operator tokens instead. `parse()`'s regex safety net takes a quoted ` > ` for a redirection, so `jq 'select(.x > 1)'` and `awk '$3 > 100'` would have been refused as writes. A command whose quoting shlex cannot parse is refused outright, because its tokens cannot be trusted |
+| CS1 | `file`, `tree` and `base64` as plain readers | Conditional readers: `file -C`, `tree -o` and `base64 -o` write files |
+| CS1 | sed and awk conditions | Also refused: `sed -f`, `awk -f`, and gawk's `-i` (in place), `-E` and `-l`, whose programs or extensions cannot be read. A sed `-i` inside a cluster (`-ni`, `-ie`) is refused too |
+| CS1 | Refuse after identification | A subagent whose agent definitions cannot be read is refused rather than trusted |
+| CS5 | The derived coverage test | Plus a check that the derivation itself finds `README.md`, `package-lock.json`, `frontend/styles.css` and `docs/API.md`, so a changed table format cannot make the coverage tests pass vacuously |
+
+**Drift fixed along the way**, each where the change touched the doc anyway.
+`TESTING.md`'s tooling section said 2 files and 50 tests, where pytest collected
+82. Its backend line said 15 files and 225 test functions, where there were 16
+files and 258 functions before CS2 added one.

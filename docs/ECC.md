@@ -68,12 +68,23 @@ side a directory belongs to. Two mechanisms supply that instead.
 **Never hand-edit a vendored `SKILL.md`.** The installer compares content digests, so a
 local edit either blocks the next upgrade or is silently replaced.
 
-### Known rough edge
+### Known rough edges
 
-`accessibility/SKILL.md` ends with a "Related Skills" list naming `frontend-patterns`,
-`design-system`, `liquid-glass-design` and `swiftui-patterns` — none of which are
-installed, and three of which never should be here. The references are inert prose and are
-left as-is rather than patched, because editing the file breaks the upgrade path above.
+Both are in `accessibility/SKILL.md`, and both are ECC's own text rather than a local edit:
+the file's digest matches the one `.claude/ecc/install-state.json` recorded at install.
+
+- It ends with a "Related Skills" list naming `frontend-patterns`, `design-system`,
+  `liquid-glass-design` and `swiftui-patterns`. None of them are installed, and three
+  never should be here.
+- Its `description` folds into "…or screen-reader support. standards. Use this skill to
+  generate semantic ARIA for Web and accessibility traits for Web and Native platforms
+  (iOS/Android)." That is a stray word, plus about 20 always-loaded tokens of
+  native-platform scope this repository does not have. On 2026-09-24 npm's `latest` was
+  still 2.2.1, and ECC's `main` carried the same frontmatter, so there was no fixed version
+  to take.
+
+Both are left as they are rather than patched, because editing the file breaks the upgrade
+path above. When ECC ships a fix, the command in [Upgrading](#upgrading) picks it up.
 
 ### Why there is no attribution key
 

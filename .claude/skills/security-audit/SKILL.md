@@ -47,11 +47,12 @@ is the exact bug `require_session_access` was introduced to close.
   `/2fa/verify`, `/magic-link/request`, `/magic-link/verify`, `/forgot-password`,
   `/reset-password`.
 - `POST /contact`.
-- `POST /chat/summarize` (`server/routes/chat_routes.py`) - **takes no auth, no
-  db and no session binding while calling Bedrock.** It holds a concurrency slot
-  but not the per-session free-message budget `POST /chat` applies, so it is the
-  one anonymous inference path not bounded by a per-visitor cost ceiling. Treat
-  any change that widens it as a cost-exposure change.
+- `POST /chat/summarize` (`server/routes/chat_routes.py`) - **needs no auth, and
+  takes no db and no session binding while calling Bedrock.** Like `POST /chat`,
+  it refuses an anonymous request past `CHAT_FREE_MESSAGE_LIMIT` user turns
+  (`enforce_free_message_limit`) before it takes a concurrency slot. It is still
+  a second anonymous inference path, so treat any change that widens it as a
+  cost-exposure change.
 
 **Secret Hygiene**: `JWT_SECRET` is never hardcoded and meets the 32-character
 minimum enforced by `server/config/settings.py`.
@@ -76,4 +77,5 @@ minimum enforced by `server/config/settings.py`.
 ## 5. Security Checklist
 - [ ] No hardcoded passwords, tokens, or private keys.
 - [ ] No third-party network egress added (only `formsubmit.co` contact form fallback is allowed).
+- [ ] No request schema accepts a model id, a system prompt or an inference setting from the client (ADR-023). `test_chat_request_carries_nothing_the_server_owns` pins the chat request's fields and roles.
 - [ ] Python ruff lint passes: `ruff check server tests`.

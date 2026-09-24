@@ -7,8 +7,11 @@ files §5 cites, those commits changed only count figures in the two
 `.claude/rules/` files and `.gitignore`, so every line number the report gives
 for a hook, an agent, a skill or `check_docs.py` still holds.
 **Companion spec**: `.claude/specs/2026-09-24-codebase-review-claude-setup.md`
-**Status**: planned. No hook, agent, skill or setting has changed yet.
-Implementation follows, phase by phase, once the spec is approved.
+**Status**: implemented, in the four phases the spec sets out (A–D), one
+commit per phase. All seven findings are resolved, and so are the three found
+while re-verifying. CS6 is resolved as a recorded upstream defect. Where
+implementation departed from the plan, the spec's **Revised during
+implementation** table says so.
 
 ## 1. Problem & Persona Context
 
