@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
-    "eslint": "^8.57.1",
+    "eslint": "^10.11.0",
     "jsdom": "^26.1.0",
     "prettier": "^3.5.3",
     "stylelint": "^16.15.0",
