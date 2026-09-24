@@ -365,10 +365,12 @@ python scripts/clear_2fa.py --email someone@example.com
 ```
 
 It prints the account's 2FA and lockout state, asks you to type the address back
-to confirm, then clears `totp_secret` and `is_totp_enabled` — and with them
-`failed_login_attempts` and `locked_until`, which the wrong codes that led here
-will normally have set. The same four fields `disable_2fa` clears, so the row
-ends up in the state the supported path would have left it in.
+to confirm, then clears `totp_secret`, `is_totp_enabled` and `totp_last_step` —
+and with them both lockout tallies: `totp_failed_attempts` / `totp_locked_until`,
+which the wrong codes that led here will normally have set, and
+`failed_login_attempts` / `locked_until`, since an owner in this position has
+usually been trying their password too. That is the state `disable_2fa` leaves
+behind, so nothing downstream can tell an emergency unlock from an ordinary one.
 
 | Flag | Effect |
 | :--- | :--- |

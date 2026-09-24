@@ -46,22 +46,26 @@ def verify_password_scheme(plain_password: str, hashed_password: str) -> tuple[b
 _dummy_hash: Optional[str] = None
 
 
-def spend_verification_time() -> None:
-    """Burns roughly one bcrypt verification.
+def spend_verification_time(rounds: int = 1) -> None:
+    """Burns `rounds` bcrypt verifications.
 
     A login for an address with no account used to return before doing any
     hashing, so response time alone told an attacker which addresses exist.
-    Called on that path so both outcomes cost the same.
+    A *wrong* password for a real account costs two - the prehash check fails,
+    then the legacy raw-password check runs - so every refusal that skips the
+    real check (unknown, purged, locked) calls this with `rounds=2`. One round
+    still left the unknown address measurably faster than a real one.
     """
     global _dummy_hash
     if _dummy_hash is None:
         # Built on first use rather than at import, so the cost lands on a
         # request rather than on every process start and test collection.
         _dummy_hash = get_password_hash("timing-equalisation-placeholder")
-    try:
-        pwd_context.verify(_get_sha256_hex("not-the-placeholder"), _dummy_hash)
-    except Exception:
-        pass
+    for _ in range(rounds):
+        try:
+            pwd_context.verify(_get_sha256_hex("not-the-placeholder"), _dummy_hash)
+        except Exception:
+            pass
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(_get_sha256_hex(password))

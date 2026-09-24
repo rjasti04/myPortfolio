@@ -75,16 +75,23 @@ signed-in user, which is what `GET /auth/sessions` lists.
 | `updated_at` | `TIMESTAMPTZ` | yes | `onupdate` |
 | `is_active` | `BOOLEAN` | no | Default `true` |
 | `last_login` | `TIMESTAMPTZ` | yes | Set on a completed sign-in |
-| `failed_login_attempts` | `INTEGER` | no | Default `0`; 5 triggers a lock |
-| `locked_until` | `TIMESTAMPTZ` | yes | 15 minutes from the fifth failure |
+| `failed_login_attempts` | `INTEGER` | no | The password tally. Default `0`; 5 triggers a lock |
+| `locked_until` | `TIMESTAMPTZ` | yes | Password lock: 15 minutes from the fifth failure |
 | `deleted_at` | `TIMESTAMPTZ` | yes | Soft delete; reactivation window is 30 days |
 | `email_verified_at` | `TIMESTAMPTZ` | yes | `NULL` until the address is confirmed; login refuses `NULL` |
 | `totp_secret` | `VARCHAR(255)` | yes | Base32 TOTP secret |
 | `is_totp_enabled` | `BOOLEAN` | no | Default `false` |
+| `totp_failed_attempts` | `INTEGER` | no | The code tally: wrong or replayed TOTP codes. Default `0`; 5 triggers a lock |
+| `totp_locked_until` | `TIMESTAMPTZ` | yes | Code lock: 15 minutes from the fifth failure |
+| `totp_last_step` | `BIGINT` | yes | The 30-second step a code was last accepted for; a code for that step or an earlier one is refused |
 
-Failed second factors count toward the same `failed_login_attempts` tally as
-failed passwords — the counters are deliberately not cleared while 2FA is
-pending, or an attacker could reset the tally between code guesses.
+Failed second factors have their **own** tally. They used to share
+`failed_login_attempts` with passwords, which made a lock from password guesses
+indistinguishable from one from code guesses: five wrong passwords shut the
+owner out of the magic-link route too, and a password reset cleared the code
+guesses with it. A correct password clears only the password tally, so an
+attacker who knows the password still cannot reset the code count by logging in
+again. See `docs/SECURITY.md`, "Account lockout".
 
 `email_verified_at` is a timestamp rather than a boolean for the same reason
 `one_time_tokens.used_at` is one: it keeps *when*, which a bool throws away.
@@ -224,7 +231,7 @@ row can appear on two pages.
 
 ## Migrations
 
-Nine revisions, a single linear chain, one head. CI asserts exactly one head,
+Twelve revisions, a single linear chain, one head. CI asserts exactly one head,
 applies the chain against `postgres:16`, runs `alembic check` for model/schema
 drift, and verifies the chain is reversible (`downgrade base` then `upgrade
 head`).
@@ -240,7 +247,9 @@ head`).
 | 7 | `g9b0c1d2e3f4` | `ai_conversations` |
 | 8 | `h1c2d3e4f5a6` | `event_data` → `JSONB`, plus `ix_events_session_created` and the GIN index |
 | 9 | `i2d3e4f5a6b7` | `one_time_tokens` |
-| 10 | `j3e4f5a6b7c8` | `users.email_verified_at`, backfilled from `created_at` (head) |
+| 10 | `j3e4f5a6b7c8` | `users.email_verified_at`, backfilled from `created_at` |
+| 11 | `k4f5a6b7c8d9` | Device context on `refresh_tokens`: `ip_address`, `user_agent`, `device_type`, `last_used_at` |
+| 12 | `l5a6b7c8d9e0` | The code tally (`totp_failed_attempts`, `totp_locked_until`) and `totp_last_step` (head) |
 
 ---
 

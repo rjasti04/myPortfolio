@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update, delete
+from sqlalchemy import update, delete, or_
+from sqlalchemy.orm.attributes import set_committed_value
 from fastapi import HTTPException, Request, status, BackgroundTasks
 from typing import Any, Optional
 from server.models.user import User
@@ -14,6 +15,8 @@ import pyotp
 import qrcode
 import io
 import base64
+import time
+from dataclasses import dataclass
 from server.schemas.auth import (
     UserCreate, UserLogin, Token, RefreshTokenRequest, ChangePasswordRequest,
     ForgotPasswordRequest, ResetPasswordRequest, DeleteAccountRequest,
@@ -39,7 +42,7 @@ from server.auth.security import (
 from server.services.hibp_service import check_password_breached
 from server.services.notification_service import (
     send_security_notification_email, send_password_reset_email, send_magic_link_email,
-    send_email_verification_email, send_2fa_change_notification
+    send_email_verification_email, send_2fa_change_notification, send_existing_account_email
 )
 from sqlalchemy.exc import IntegrityError
 import structlog
@@ -50,10 +53,30 @@ logger = structlog.get_logger(__name__)
 
 PASSWORD_HISTORY_LIMIT = 5
 
-# Failed attempts before an account locks, and for how long. The tally is
-# shared between failed passwords and failed TOTP codes - see docs/SECURITY.md.
+# Failed attempts before a tally locks, and for how long. There are two
+# tallies - passwords and TOTP codes - see docs/SECURITY.md, "Account lockout".
 LOCKOUT_THRESHOLD = 5
 LOCKOUT_DURATION = timedelta(minutes=15)
+
+# Every refused sign-in says this, whatever the reason: an unknown address, a
+# wrong password, or a locked account. "Account is temporarily locked" used to
+# be the answer for the last, and only real accounts can lock, so it confirmed
+# that an address had one. The second sentence tells a locked-out owner the way
+# in without telling anyone else that they are locked out.
+LOGIN_FAILED_DETAIL = (
+    "Incorrect email or password. After 5 failed attempts, password sign-in "
+    "pauses for 15 minutes; a sign-in link from your email still works."
+)
+# The routes behind a bearer or pre-auth token can say "locked" plainly: their
+# caller has already proven the account exists.
+PASSWORD_LOCKED_DETAIL = (
+    "Account is temporarily locked due to multiple failed attempts. "
+    "Try again later or reset your password."
+)
+CODE_LOCKED_DETAIL = (
+    "Two-factor verification is temporarily locked after too many incorrect "
+    "codes. Try again in 15 minutes."
+)
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -83,43 +106,180 @@ def _session_context(request: Optional[Request]) -> dict[str, Any]:
     }
 
 
-def enforce_lockout(user: User, now: datetime, event: str) -> None:
-    """Refuse while a lock is live, and clear one that has expired.
+@dataclass(frozen=True)
+class Tally:
+    """One lockout counter: the `User` attribute that counts, and the one that locks."""
 
-    Clearing is the half that was missing. `failed_login_attempts` only ever
-    reset on a *successful* sign-in, so someone who had been locked out came
-    back fifteen minutes later still carrying a full tally of five: the next
-    single mistyped password took it to six, tripped the threshold again, and
-    locked them out for another fifteen minutes. Nothing but getting the
-    password right first time could break that cycle, which is the opposite of
-    what a *temporary* lock is for. An expired lock now returns the account to
-    a clean five attempts.
+    count: str
+    until: str
 
-    Shared by the password and the TOTP path so the two cannot drift; that
-    sharing is what makes the tally common to both, which is deliberate.
+
+# Wrong passwords - at login, and on every route that re-checks one.
+PASSWORD_TALLY = Tally("failed_login_attempts", "locked_until")
+# Wrong or replayed TOTP codes. Kept apart from the password tally because a
+# shared one made a lock from password guesses indistinguishable from one from
+# code guesses: anyone could lock the owner out of the magic-link route with
+# five wrong passwords, and a password reset cleared the code guesses with it.
+CODE_TALLY = Tally("totp_failed_attempts", "totp_locked_until")
+
+
+def login_failed() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=LOGIN_FAILED_DETAIL,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+async def reserve_attempt(
+    db: AsyncSession, user: User, tally: Tally, now: datetime, event: str
+) -> bool:
+    """Count this attempt *before* the credential is checked, and commit.
+
+    False means the tally is locked: refuse without checking the credential.
+
+    The count used to be taken after a wrong answer, as a read-modify-write on
+    the row loaded at the start of the request. Parallel guesses all read the
+    same count, so N of them recorded about one - and all N had passed the lock
+    check before any was recorded, so every one of them was *checked*. Making
+    the increment atomic fixes the first half only. Reserving first fixes both:
+    the database hands out attempt numbers one at a time, and the sixth request
+    is refused whatever the first five are still doing.
+
+    Committed straight away, so no row lock is held across the bcrypt check.
     """
-    if not user.locked_until:
-        return
-    if _as_utc(user.locked_until) > now:
+    until = getattr(user, tally.until)
+    if until and _as_utc(until) > now:
         logger.warning(event, user_id=str(user.id))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Account is temporarily locked due to multiple failed login attempts. "
-                "Try again later or reset your password."
-            ),
+        return False
+
+    if until:
+        # A lapsed lock returns a full set of attempts (docs/SECURITY.md). Keyed
+        # on the value this request saw, so when several arrive together only
+        # one resets and the rest count on from it - a plain reset would hand
+        # each of them attempt number one.
+        await db.execute(
+            update(User)
+            .where(User.id == user.id)
+            .where(getattr(User, tally.until) == until)
+            .values({tally.count: 0, tally.until: None})
+            .execution_options(synchronize_session=False)
         )
-    user.failed_login_attempts = 0
-    user.locked_until = None
+        set_committed_value(user, tally.until, None)
 
+    count_column = getattr(User, tally.count)
+    reserved = (
+        await db.execute(
+            update(User)
+            .where(User.id == user.id)
+            .values({tally.count: count_column + 1})
+            .returning(count_column)
+            .execution_options(synchronize_session=False)
+        )
+    ).scalar_one()
+    # Kept in step, so a later flush of `user` cannot write back a stale count.
+    set_committed_value(user, tally.count, reserved)
 
-def register_failed_attempt(db: AsyncSession, user: User, now: datetime, event: str) -> None:
-    """Count one failed credential and lock the account at the threshold."""
-    user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
-    if user.failed_login_attempts >= LOCKOUT_THRESHOLD:
-        user.locked_until = now + LOCKOUT_DURATION
+    if reserved > LOCKOUT_THRESHOLD:
+        # More requests in flight than attempts left. Lock if nothing has yet,
+        # so the tally still lapses - otherwise a count past the threshold with
+        # no `until` would refuse every attempt for good.
+        await db.execute(
+            update(User)
+            .where(User.id == user.id)
+            .where(getattr(User, tally.until).is_(None))
+            .values({tally.until: now + LOCKOUT_DURATION})
+            .execution_options(synchronize_session=False)
+        )
+        await db.commit()
         logger.warning(event, user_id=str(user.id))
+        return False
+
+    await db.commit()
+    return True
+
+
+def record_failure(db: AsyncSession, user: User, tally: Tally, now: datetime, event: str) -> None:
+    """The credential was wrong. `reserve_attempt` already counted it, so this
+    only locks once the count reaches the threshold. The caller commits."""
+    if (getattr(user, tally.count) or 0) >= LOCKOUT_THRESHOLD:
+        setattr(user, tally.until, now + LOCKOUT_DURATION)
+        db.add(user)
+        logger.warning(event, user_id=str(user.id))
+
+
+def clear_tally(db: AsyncSession, user: User, tally: Tally) -> None:
+    """The credential was right. The caller commits."""
+    setattr(user, tally.count, 0)
+    setattr(user, tally.until, None)
     db.add(user)
+
+
+async def check_current_password(
+    db: AsyncSession, user: User, password: str, now: datetime, action: str
+) -> None:
+    """Re-authentication, held to the password tally exactly as login is.
+
+    Change-password and delete-account checked the password with no tally at
+    all, and sat on the general rate budget, so a stolen access token bought
+    about a thousand guesses a minute. All four routes that re-check a
+    password now come through here. The clear is committed at once, so a later
+    refusal on the same request (a breached new password, say) cannot leave a
+    correct password counted as a failure.
+
+    400, not 401: a wrong password in the body is a bad request, not a bad
+    bearer token, and authenticatedFetch() answers every 401 by rotating the
+    refresh token and re-sending the same body. 403 would be worse - the client
+    reads it as a refused credential and signs the visitor out.
+    """
+    if not await reserve_attempt(db, user, PASSWORD_TALLY, now, f"{action}_rejected_account_locked"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=PASSWORD_LOCKED_DETAIL)
+    if not verify_password(password, user.hashed_password):
+        record_failure(db, user, PASSWORD_TALLY, now, f"account_locked_due_to_failed_{action}")
+        await db.commit()
+        logger.warning(f"{action}_invalid_password", user_id=str(user.id))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password"
+        )
+    clear_tally(db, user, PASSWORD_TALLY)
+    await db.commit()
+
+
+def _totp_time() -> float:
+    """The clock codes are checked against. A seam for tests only: a code is
+    single-use within its step, so a test that needs two walks this forward."""
+    return time.time()
+
+
+async def consume_totp(db: AsyncSession, user: User, code: str) -> bool:
+    """True if `code` is right for the current step and that step is unused.
+
+    A code is valid for its whole 30-second step, so one seen over a shoulder
+    or relayed by a phishing proxy used to work again until the step ran out
+    (RFC 6238 §5.2). The step is claimed with a conditional UPDATE, so two
+    requests presenting the same code cannot both win. A replay is refused like
+    any wrong code, and counts toward the code tally the same way. The caller
+    commits.
+    """
+    if not user.totp_secret:
+        return False
+    totp = pyotp.TOTP(user.totp_secret)
+    moment = datetime.fromtimestamp(_totp_time(), timezone.utc)
+    if not totp.verify(code, for_time=moment):
+        return False
+    step = totp.timecode(moment)
+    claimed = await db.execute(
+        update(User)
+        .where(User.id == user.id)
+        .where(or_(User.totp_last_step.is_(None), User.totp_last_step < step))
+        .values(totp_last_step=step)
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount != 1:
+        logger.warning("2fa_code_replayed", user_id=str(user.id))
+        return False
+    set_committed_value(user, "totp_last_step", step)
+    return True
 
 
 def confirm_address_if_unverified(db: AsyncSession, user: User, now: datetime, via: str) -> None:
@@ -169,48 +329,61 @@ async def consume_one_time_token(db: AsyncSession, jti: Optional[str], purpose: 
     one flow being redeemed in another. The caller commits."""
     if not jti:
         return False
-    result = await db.execute(select(OneTimeToken).where(OneTimeToken.jti == jti))
-    token = result.scalars().first()
-    if token is None or token.purpose != purpose or token.used_at is not None:
-        return False
-    expires_at = token.expires_at
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
     now = datetime.now(timezone.utc)
-    if expires_at < now:
+    # Claim and check in one statement. Reading the row and testing `used_at`
+    # in Python let two concurrent redemptions of one magic link both pass and
+    # both mint a session - the race refresh_user_token already closes the
+    # same way. The purpose is part of the claim, so a token for another flow
+    # is refused without being spent.
+    claimed = await db.execute(
+        update(OneTimeToken)
+        .where(OneTimeToken.jti == jti)
+        .where(OneTimeToken.purpose == purpose)
+        .where(OneTimeToken.used_at.is_(None))
+        .values(used_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount != 1:
         return False
-    token.used_at = now
-    db.add(token)
-    return True
+    # Expiry after the claim, as in refresh_user_token: stored timestamps
+    # compare differently under SQLite and PostgreSQL, and burning an expired
+    # token is harmless.
+    expires_at = (
+        await db.execute(select(OneTimeToken.expires_at).where(OneTimeToken.jti == jti))
+    ).scalar_one_or_none()
+    return expires_at is not None and _as_utc(expires_at) >= now
+
+# What registration answers for every address, new or not. "Email already
+# registered" was a direct oracle for which addresses have accounts - one the
+# enumeration table in docs/SECURITY.md never listed. The difference now goes
+# to the address's inbox, where only its owner reads it.
+REGISTER_ACCEPTED = {"message": "Check your inbox to finish setting up your account."}
+
 
 async def register_user(
     db: AsyncSession,
     user_data: UserCreate,
     background_tasks: Optional[BackgroundTasks] = None,
-) -> User:
+) -> dict:
     email_normalized = user_data.email.strip().lower()
     # Check if user already exists
     result = await db.execute(select(User).where(User.email == email_normalized))
     existing_user = result.scalars().first()
     if existing_user:
         now = datetime.now(timezone.utc)
-        if existing_user.deleted_at:
-            deleted_at_utc = existing_user.deleted_at if existing_user.deleted_at.tzinfo else existing_user.deleted_at.replace(tzinfo=timezone.utc)
-            if now - deleted_at_utc > timedelta(days=30):
-                await db.delete(existing_user)
-                await db.commit()
-            else:
-                logger.info("registration_failed_email_exists", email=email_normalized)
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Email already registered"
-                )
+        deleted_at = existing_user.deleted_at
+        if deleted_at and now - _as_utc(deleted_at) > timedelta(days=30):
+            await db.delete(existing_user)
+            await db.commit()
         else:
-            logger.info("registration_failed_email_exists", email=email_normalized)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
-            )
+            # Same answer and the same bcrypt cost as a new registration, so
+            # neither the body nor the response time tells the two apart. The
+            # mail is sent in the background on both paths, off the clock.
+            get_password_hash(user_data.password)
+            logger.info("registration_existing_address", user_id=str(existing_user.id))
+            if background_tasks:
+                background_tasks.add_task(send_existing_account_email, existing_user.email)
+            return REGISTER_ACCEPTED
 
     # Hash the password
     hashed_password = get_password_hash(user_data.password)
@@ -228,13 +401,11 @@ async def register_user(
         await db.refresh(db_user)
         logger.info("user_registered", user_id=str(db_user.id), email=db_user.email)
         await _issue_email_verification(db, db_user, background_tasks)
-        return db_user
+        return REGISTER_ACCEPTED
     except IntegrityError:
+        # Raced another registration of the same address, which sends the mail.
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        ) from None
+        return REGISTER_ACCEPTED
 
 async def authenticate_user(
     db: AsyncSession, user_data: UserLogin, request: Optional[Request] = None
@@ -243,43 +414,44 @@ async def authenticate_user(
     result = await db.execute(select(User).where(User.email == email_normalized))
     user = result.scalars().first()
 
+    # Every refusal below looks the same from outside: one status, one body,
+    # and two bcrypt verifications - which is what a wrong password costs, the
+    # prehash check then the legacy one. The unknown-address path burned one
+    # and the purged and locked paths burned none, so response time told an
+    # attacker which addresses have accounts even where the body did not.
     if not user:
-        # Same bcrypt cost as a real check: returning early made response time
-        # a reliable oracle for which addresses have accounts.
-        spend_verification_time()
+        spend_verification_time(rounds=2)
         logger.warning("login_failed", email=email_normalized)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise login_failed()
 
     now = datetime.now(timezone.utc)
 
-    if user.deleted_at:
-        deleted_at_utc = user.deleted_at if user.deleted_at.tzinfo else user.deleted_at.replace(tzinfo=timezone.utc)
-        if now - deleted_at_utc > timedelta(days=30):
-            logger.warning("login_failed_account_purged", email=email_normalized)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+    if user.deleted_at and now - _as_utc(user.deleted_at) > timedelta(days=30):
+        spend_verification_time(rounds=2)
+        logger.warning("login_failed_account_purged", user_id=str(user.id))
+        raise login_failed()
 
-    enforce_lockout(user, now, "login_failed_account_locked")
+    if not await reserve_attempt(db, user, PASSWORD_TALLY, now, "login_failed_account_locked"):
+        spend_verification_time(rounds=2)
+        raise login_failed()
 
     password_matched, needs_rehash = verify_password_scheme(
         user_data.password, user.hashed_password
     )
     if not password_matched:
-        register_failed_attempt(db, user, now, "account_locked_due_to_failed_logins")
+        record_failure(db, user, PASSWORD_TALLY, now, "account_locked_due_to_failed_logins")
         await db.commit()
+        raise login_failed()
 
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # The password is proven, so its tally clears - committed now, because the
+    # inactive and unconfirmed refusals below would otherwise leave this
+    # attempt counted, and five correct passwords would lock an unconfirmed
+    # account. This used to wait for a completed sign-in, because one tally
+    # also held the TOTP guesses and clearing it here let an attacker who knew
+    # the password reset the code count by logging in again. The code tally is
+    # separate now, and a correct password does not touch it.
+    clear_tally(db, user, PASSWORD_TALLY)
+    await db.commit()
 
     # Automatic reactivation if account was soft deleted within 30 days
     if user.deleted_at:
@@ -316,11 +488,10 @@ async def authenticate_user(
         logger.info("password_hash_upgraded", user_id=str(user.id))
 
     if user.is_totp_enabled:
-        # The lockout counters are deliberately NOT cleared here. A correct
-        # password is only half of this login, and clearing them at this point
-        # reset the tally on every attempt, so failed second factors could never
-        # accumulate to a lockout - an attacker just logged in again between
-        # guesses. verify_2fa_login clears them once the code checks out.
+        # The code tally is deliberately NOT cleared here. A correct password
+        # is only half of this login; clearing the code count at this point
+        # would let an attacker who knows the password log in again between
+        # guesses. verify_2fa_login clears it once a code checks out.
         pre_auth_jti = issue_one_time_token(db, user.id, PURPOSE_2FA_PRE_AUTH, timedelta(minutes=5))
         db.add(user)
         await db.commit()
@@ -332,9 +503,7 @@ async def authenticate_user(
         )
 
     # Fully authenticated from here: no second factor stands between the caller
-    # and a token pair, so the lockout state can be cleared.
-    user.failed_login_attempts = 0
-    user.locked_until = None
+    # and a token pair. The password tally was cleared above.
     user.last_login = now
     db.add(user)
     await db.commit()
@@ -552,20 +721,10 @@ async def change_user_password(
     data: ChangePasswordRequest,
     background_tasks: Optional[BackgroundTasks] = None
 ) -> dict:
-    # Step 1: Verify Current Password
-    #
-    # 400, not 401, here and on the three other routes that re-check a password
-    # (delete-account, 2FA enable/disable). A wrong password in the body is a
-    # bad request, not a bad bearer token, and authenticatedFetch() answers
-    # every 401 by rotating the refresh token and re-sending the same body - so
-    # one typo spent a rotation and, on the 2FA routes, counted twice toward
-    # the lockout. 403 would be worse: the client reads it as a refused
-    # credential and signs the visitor out.
-    if not verify_password(data.current_password, user.hashed_password):
-        logger.warning("password_change_failed_invalid_current", user_id=str(user.id))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password"
-        )
+    # Step 1: Verify Current Password (400 on a miss - see check_current_password)
+    await check_current_password(
+        db, user, data.current_password, datetime.now(timezone.utc), "password_change"
+    )
 
     # Step 2: Check Password Breach Status (Have I Been Pwned API)
     is_breached = await check_password_breached(data.new_password)
@@ -820,11 +979,12 @@ async def reset_password_with_token(
     )
     db.add(history_entry)
 
-    # Step 6: Update Active Password and clear lockout status
+    # Step 6: Update Active Password and clear the *password* tally. The code
+    # tally stays: this used to clear a single shared count, so anyone holding
+    # the inbox could reset, sign in, try five codes, and reset again - which
+    # left the second factor bounded by the rate limiter rather than the lock.
     user.hashed_password = get_password_hash(data.new_password)
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    db.add(user)
+    clear_tally(db, user, PASSWORD_TALLY)
 
     # The reset link was mailed to this address and has just been redeemed, so
     # the address is confirmed. Without this, an account that never clicked the
@@ -874,13 +1034,9 @@ async def delete_user_account(
             detail="Confirmation phrase must be 'DELETE'."
         )
 
-    if not verify_password(data.current_password, user.hashed_password):
-        logger.warning("account_deletion_failed_invalid_password", user_id=str(user.id))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password"
-        )
-
     now = datetime.now(timezone.utc)
+    await check_current_password(db, user, data.current_password, now, "account_deletion")
+
     user.deleted_at = now
     user.is_active = False
     db.add(user)
@@ -950,28 +1106,21 @@ async def enable_2fa(
     background_tasks: Optional[BackgroundTasks] = None,
 ) -> dict:
     now = datetime.now(timezone.utc)
-    enforce_lockout(user, now, "2fa_enable_rejected_account_locked")
-
-    if not verify_password(data.current_password, user.hashed_password):
-        register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa_enable")
-        await db.commit()
-        logger.warning("2fa_enable_invalid_password", user_id=str(user.id))
-        raise HTTPException(status_code=400, detail="Incorrect current password")
+    await check_current_password(db, user, data.current_password, now, "2fa_enable")
 
     if not user.totp_secret:
         raise HTTPException(status_code=400, detail="2FA setup not initiated")
 
-    totp = pyotp.TOTP(user.totp_secret)
-    if not totp.verify(data.code):
-        register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa_enable")
+    if not await reserve_attempt(db, user, CODE_TALLY, now, "2fa_enable_rejected_code_locked"):
+        raise HTTPException(status_code=400, detail=CODE_LOCKED_DETAIL)
+    if not await consume_totp(db, user, data.code):
+        record_failure(db, user, CODE_TALLY, now, "account_locked_due_to_failed_2fa_enable")
         await db.commit()
         logger.warning("2fa_enable_invalid_code", user_id=str(user.id))
         raise HTTPException(status_code=400, detail="Invalid 2FA code")
 
     user.is_totp_enabled = True
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    db.add(user)
+    clear_tally(db, user, CODE_TALLY)
     await db.commit()
 
     # Anything else holding a live token predates the second factor and has not
@@ -997,29 +1146,23 @@ async def disable_2fa(
     background_tasks: Optional[BackgroundTasks] = None,
 ) -> dict:
     now = datetime.now(timezone.utc)
-    enforce_lockout(user, now, "2fa_disable_rejected_account_locked")
-
-    if not verify_password(data.current_password, user.hashed_password):
-        register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa_disable")
-        await db.commit()
-        logger.warning("2fa_disable_invalid_password", user_id=str(user.id))
-        raise HTTPException(status_code=400, detail="Incorrect current password")
+    await check_current_password(db, user, data.current_password, now, "2fa_disable")
 
     if not user.totp_secret or not user.is_totp_enabled:
         raise HTTPException(status_code=400, detail="2FA is not enabled")
 
-    totp = pyotp.TOTP(user.totp_secret)
-    if not totp.verify(data.code):
-        register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa_disable")
+    if not await reserve_attempt(db, user, CODE_TALLY, now, "2fa_disable_rejected_code_locked"):
+        raise HTTPException(status_code=400, detail=CODE_LOCKED_DETAIL)
+    if not await consume_totp(db, user, data.code):
+        record_failure(db, user, CODE_TALLY, now, "account_locked_due_to_failed_2fa_disable")
         await db.commit()
         logger.warning("2fa_disable_invalid_code", user_id=str(user.id))
         raise HTTPException(status_code=400, detail="Invalid 2FA code")
 
     user.is_totp_enabled = False
     user.totp_secret = None
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    db.add(user)
+    user.totp_last_step = None
+    clear_tally(db, user, CODE_TALLY)
     await db.commit()
 
     await revoke_all_other_sessions(db, user, current_jti)
@@ -1072,18 +1215,21 @@ async def verify_2fa_login(
         raise HTTPException(status_code=400, detail="User not found or 2FA not enabled")
 
     # The second factor was outside the lockout entirely: failed codes were not
-    # counted, so a six-digit secret could be walked through at will.
-    enforce_lockout(user, now, "2fa_verify_rejected_account_locked")
-
-    totp = pyotp.TOTP(user.totp_secret)
-    if not totp.verify(data.code):
-        register_failed_attempt(db, user, now, "account_locked_due_to_failed_2fa")
+    # counted, so a six-digit secret could be walked through at will. Only the
+    # code tally applies here. A pre-auth token already proves the password or
+    # the inbox, and checking the password tally too let anyone who could guess
+    # at the login form lock the owner out of the magic-link route as well.
+    if not await reserve_attempt(db, user, CODE_TALLY, now, "2fa_verify_rejected_code_locked"):
+        raise HTTPException(status_code=400, detail=CODE_LOCKED_DETAIL)
+    if not await consume_totp(db, user, data.code):
+        record_failure(db, user, CODE_TALLY, now, "account_locked_due_to_failed_2fa")
         await db.commit()
         logger.warning("2fa_verify_failed", user_id=str(user.id))
         raise HTTPException(status_code=400, detail="Invalid 2FA code")
 
-    user.failed_login_attempts = 0
-    user.locked_until = None
+    # A completed sign-in clears both tallies.
+    clear_tally(db, user, CODE_TALLY)
+    clear_tally(db, user, PASSWORD_TALLY)
     user.last_login = now
     db.add(user)
 

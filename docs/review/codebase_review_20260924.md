@@ -371,6 +371,8 @@ if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
 | **Location** | `server/services/auth_service.py:115-121` (`register_failed_attempt`), user row read at `:242-243`; `server/middlewares/rate_limit.py:124`; `server/utils/ip_utils.py:31-43` |
 | **The "Why"** | `failed_login_attempts = (n or 0) + 1` is a read-modify-write on an ORM object loaded at the start of the request. Parallel wrong-password requests all read the same `n` and all write `n + 1`, so N concurrent guesses count as about one. The five-strike lockout therefore bounds sequential guessing only. The rate limiter keys on the full client address, so a single IPv6 /64 gives an attacker 2⁶⁴ separate 5/min budgets. Together these remove both online brute-force bounds for anyone who parallelises. |
 | **The Fix** | Make the increment atomic and decide on the returned value; key IPv6 limiter buckets on the /64. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Each attempt is **reserved before the credential is checked**: `reserve_attempt` numbers it with an atomic `UPDATE … RETURNING`, commits, and refuses without checking once the number passes the threshold. **Differs from the suggested fix:** an atomic increment on its own still let every parallel request pass the lock check and be checked; reserving first is what bounds them. A lapsed lock is reset keyed on the value the request saw, so a burst at the moment of expiry cannot all get attempt number one. The rate limiter keys every budget on `_rate_bucket`: the /64 for IPv6, the IPv4 inside a mapped address. `test_parallel_guesses_are_not_all_checked` fires ten wrong guesses at once and passes on both SQLite and PostgreSQL 16; at most five reach the password check. |
 
 ```python
 row = (await db.execute(
@@ -392,6 +394,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:85-112` (`enforce_lockout`), `:268` (login), `:1015` (2FA verify) |
 | **The "Why"** | Five wrong passwords from one IP, which is exactly the per-minute auth budget, lock any address for 15 minutes, and repeating it keeps the owner out indefinitely. A 2FA-enabled owner can't get around it with a magic link, because `verify_2fa_login` enforces the same lock. "Account is temporarily locked" is also an oracle: addresses without an account never lock. `docs/SECURITY.md` "Known limitations" doesn't list either effect. |
 | **The Fix** | Return the generic 401 while locked. Replace the hard lock with per-(account, source) counting plus an exponential delay, or exempt a mailed link (magic link / reset) from the lock. At minimum, record the DoS in "Known limitations". |
+| **Status** | ✅ **Resolved** |
+| **What changed** | The tally is split into a **password** tally (`failed_login_attempts`, `locked_until`) and a **code** tally (`totp_failed_attempts`, `totp_locked_until`, migration `l5a6b7c8d9e0`). `/auth/login` answers a locked account with the same 401 and body as a wrong password, at the same bcrypt cost. `verify_2fa_login` checks only the code tally, so a password lock no longer closes magic link → 2FA. **Differs from the suggested fix:** a mailed-link exemption is only safe once the tallies are separate, because a shared one cannot say which kind of guessing locked it. The split also closes a gap the report missed: a password reset cleared the shared tally, so an inbox holder could reset between rounds of five code guesses. The reset now clears the password tally only. The residual (anyone can keep password sign-in locked) is recorded in `SECURITY.md` "Known limitations". |
 
 ### S5 — Account-enumeration defences are documented but don't work
 
@@ -402,6 +406,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:203-212` (register); `server/auth/security.py:33-43` (legacy fallback), `:49-64` (`spend_verification_time`); `server/main.py:99` (`Server-Timing` exposed); `docs/SECURITY.md:186-192` |
 | **The "Why"** | `/auth/register` answers "Email already registered", a direct oracle that the enumeration table in `SECURITY.md` doesn't mention. On login, a wrong password for a real account runs **two** bcrypt checks (prehash, then the legacy raw-password fallback), but an unknown address burns **one**. `ServerTimingMiddleware` then publishes the handler time to the millisecond, readable cross-origin. The documented "response time is not an oracle" claim doesn't hold. |
 | **The Fix** | Registration returns the same 201/202 either way and mails "you already have an account" to an existing address. Burn two verifications on the unknown path, or retire the legacy branch once rehashing has migrated the rows. Omit `Server-Timing` on `/auth/*`. Update the `SECURITY.md` table. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `/auth/register` answers **202** with one `RegisterResponse` body for every address. An existing one costs the same bcrypt hash and is mailed `send_existing_account_email`, with no token, instead of a link. Every login refusal (unknown, wrong password, locked, purged) now costs two verifications, `spend_verification_time(rounds=2)`, which is what a wrong password costs. The legacy branch stays, because a hash alone cannot say which scheme made it. `Server-Timing` is left off `/auth/*`. The register panel's copy no longer says "Account created". The `SECURITY.md` enumeration table lists register and the timing defence. |
 
 ### S6 — The `.env.example` JWT placeholder passes the startup check
 
@@ -452,6 +458,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:165-183` (`consume_one_time_token`); compare `:388-398` |
 | **The "Why"** | It SELECTs the row, checks `used_at` in Python, then writes. Two concurrent redemptions of one magic link both pass and both mint sessions. The refresh path already fixed the same race with a conditional UPDATE. (For 2FA pre-auth, an incidental autoflush lock happens to serialise the lockout counter, but that is luck, not design.) |
 | **The Fix** | `UPDATE one_time_tokens SET used_at=now() WHERE jti=:jti AND purpose=:p AND used_at IS NULL AND expires_at > now()`, and check `rowcount == 1`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `consume_one_time_token` claims with one conditional `UPDATE … WHERE jti = :jti AND purpose = :purpose AND used_at IS NULL` and checks `rowcount`. **Differs from the suggested fix:** expiry is checked in Python after the claim, not in the `WHERE`, mirroring `refresh_user_token`, because stored timestamps compare differently under SQLite and PostgreSQL. A wrong-purpose claim is refused and leaves the token unspent. |
 
 ### S11 — TOTP codes can be replayed within their 30-second step
 
@@ -462,6 +470,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:903-904`, `:950-951`, `:1017-1018` |
 | **The "Why"** | No last-used timestep is stored, so a code observed by a phishing proxy or over a shoulder is valid again until its step ends (RFC 6238 §5.2). |
 | **The Fix** | Store `totp_last_step` and reject a step ≤ it. This needs a column and a migration, so it fits with the open `2fa.md` findings 9/10. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | New `users.totp_last_step` (migration `l5a6b7c8d9e0`). `consume_totp` verifies the code, then claims its step with `UPDATE … WHERE totp_last_step IS NULL OR totp_last_step < :step`; a replay is refused as a wrong code and counts on the code tally. It is used at 2FA verify, enable and disable. The code that enables 2FA cannot sign in within its step. The tests own the TOTP clock (`_totp_time`), so each `_totp_now()` gets a fresh step. |
 
 ### S12 — Change-password and delete-account are password oracles outside the lockout
 
@@ -472,6 +482,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:499-505`, `:814-820`; `server/middlewares/rate_limit.py:17-42` |
 | **The "Why"** | Both verify the current password without `enforce_lockout`/`register_failed_attempt`, and neither path is on the strict auth budget. With a stolen access token (30 min), that is about 1,000 guesses a minute. 2FA enable/disable already do this correctly. |
 | **The Fix** | Apply the same lockout sequence and add `/auth/change-password`, `/auth/delete-account` and `/auth/account` to `AUTH_RATE_LIMITED_PATHS`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Change-password and delete-account go through `check_current_password`, the same reserve / record / clear sequence 2FA enable and disable now use, on the password tally. `/auth/change-password`, `/auth/delete-account` and `/auth/account` are on the strict auth budget. C2's 400 on a wrong current password was already in place. |
 
 ### S13 — `/models` is anonymous and calls the AWS control plane
 

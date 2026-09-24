@@ -210,7 +210,9 @@ vocabulary is still enforced, in `create_events_bulk`, per row.
 
 Request/response models for all 19 auth routes. `TokenResponseOr2FA` is the
 union shape `/auth/login`, `/auth/2fa/verify` and `/auth/magic-link/verify`
-return. `UserResponse` and `UserSessionResponse` use
+return. `RegisterResponse` is a bare `message`: registration answers the same
+for an address that already has an account, so it cannot return the user it may
+not have created. `UserResponse` and `UserSessionResponse` use
 `ConfigDict(from_attributes=True)`.
 
 ### `session.py`
@@ -286,26 +288,38 @@ so a task whose result is discarded can be collected mid-await.
 
 ## `services/`
 
-### `auth_service.py` (878 lines)
+### `auth_service.py` (1,441 lines)
 
-The whole account domain. Constants: `PASSWORD_HISTORY_LIMIT = 5`, and the three
-one-time-token purposes (`password_reset`, `magic_link`, `2fa_pre_auth`).
+The whole account domain. Constants: `PASSWORD_HISTORY_LIMIT = 5`,
+`LOCKOUT_THRESHOLD = 5` and `LOCKOUT_DURATION` (15 minutes), the refusal texts
+(`LOGIN_FAILED_DETAIL`, `PASSWORD_LOCKED_DETAIL`, `CODE_LOCKED_DETAIL`), and the
+one-time-token purposes (`password_reset`, `magic_link`, `2fa_pre_auth`,
+`email_verify`).
+
+**Two lockout tallies**, `PASSWORD_TALLY` and `CODE_TALLY`, share three helpers.
+`reserve_attempt` counts an attempt with an atomic `UPDATE … RETURNING` and
+commits it *before* the credential is checked, returning False once the tally is
+locked or the number passes the threshold. `record_failure` locks at the
+threshold; `clear_tally` resets. `check_current_password` is the one
+re-authentication check the four routes that re-check a password share.
+`consume_totp` checks a code and claims its 30-second step, so a code cannot be
+used twice; `_totp_time` is its clock, a seam the tests walk forward.
 
 | Function | Behaviour worth knowing |
 | :--- | :--- |
-| `issue_one_time_token` / `consume_one_time_token` | Mint and burn with a **purpose check**, so a token minted for one flow cannot be spent in another. The caller commits |
-| `register_user` | Lowercases the email; purges an account soft-deleted more than 30 days ago and frees the address; catches `IntegrityError` for the race |
-| `authenticate_user` | Spends a bcrypt verification on an unknown address so timing is not an existence oracle; 5 failures → 15-minute lock; upgrades a legacy hash on success; **does not** clear lockout counters when 2FA is pending |
+| `issue_one_time_token` / `consume_one_time_token` | Mint, and claim with one conditional `UPDATE` that includes the **purpose**, so two concurrent redemptions cannot both win and a token minted for one flow cannot be spent in another. Expiry is checked after the claim, as `refresh_user_token` does. The caller commits |
+| `register_user` | Lowercases the email; purges an account soft-deleted more than 30 days ago and frees the address. Returns `REGISTER_ACCEPTED` for every address: an existing one costs the same bcrypt hash and is mailed `send_existing_account_email` instead of a link |
+| `authenticate_user` | Every refusal - unknown, purged, locked, wrong password - is the same 401 `LOGIN_FAILED_DETAIL` at the cost of two bcrypt verifications. Reserves on the password tally before checking; a correct password clears that tally, even with 2FA pending. Upgrades a legacy hash on success |
 | `refresh_user_token` | Rotation: revoke the presented `jti`, issue a new one |
 | `revoke_user_tokens` | Revokes refresh tokens, ends active `user_sessions`, and voids unused one-time tokens (a pending reset link is a credential too) |
 | `logout_user` | Ends one device's session: the row named by the refresh token in the body, or by the bearer's `sid` claim when there is no body. Only a pre-`sid` bearer still ends every session. 401 when neither names one |
-| `change_user_password` | Verify current → HIBP → reuse check (current + last 5) → archive old → set new → prune history → revoke everything → email |
+| `change_user_password` | `check_current_password` → HIBP → reuse check (current + last 5) → archive old → set new → prune history → revoke everything → email |
 | `request_password_reset` / `request_magic_link` | Identical generic response for every outcome, so neither enumerates accounts |
-| `reset_password_with_token` | Burn the token first, then the same pipeline, plus clearing lockout |
-| `delete_user_account` | Requires the literal phrase `DELETE` and the current password; soft delete with 30-day reactivation |
+| `reset_password_with_token` | Burn the token first, then the same pipeline, plus clearing the **password** tally only - the code tally stays, or an inbox holder could reset between code guesses |
+| `delete_user_account` | Requires the literal phrase `DELETE` and the current password (`check_current_password`); soft delete with 30-day reactivation |
 | `setup_2fa` | **Refuses** if 2FA is already enabled — re-enrolling would overwrite the live secret and lock the account behind a factor nobody can produce |
-| `enable_2fa` / `disable_2fa` | Both require the current password **and** a valid code, and both run **lockout → password → state → code → mutate → revoke → notify**. Wrong credentials count toward the shared lockout; a state error ("2FA is not enabled") does not. Each revokes every *other* session and emails the owner |
-| `verify_2fa_login` | Burns the pre-auth `jti` (otherwise a captured token bought unlimited code guesses) and counts failed codes toward the lockout |
+| `enable_2fa` / `disable_2fa` | Both require the current password **and** a valid code, and both run **password (password tally) → state → code (code tally) → mutate → revoke → notify**. A state error ("2FA is not enabled") counts toward neither. Each revokes every *other* session and emails the owner |
+| `verify_2fa_login` | Burns the pre-auth `jti` (otherwise a captured token bought unlimited code guesses), then checks the **code tally only** - a password lock must not close the emailed-link route - and clears both tallies on success |
 | `verify_magic_link` | Redeems, then still routes through 2FA if enabled |
 | `get_user_sessions` / `revoke_all_other_sessions` / `revoke_specific_session` | Session management for the account UI |
 
@@ -424,9 +438,10 @@ so a legacy row (bcrypt over the raw password) can be migrated on the one
 occasion the plaintext is available — a successful login. Without that flag the
 fallback would be permanent and no row would ever migrate.
 
-`spend_verification_time()` burns roughly one bcrypt verification on the
-unknown-address login path, building its dummy hash lazily on first use so the
-cost lands on a request rather than every process start.
+`spend_verification_time(rounds=1)` burns `rounds` bcrypt verifications,
+building its dummy hash lazily on first use so the cost lands on a request
+rather than every process start. Every login refusal that skips the real check
+calls it with `rounds=2`, which is what a wrong password costs.
 
 Token constructors: `create_access_token`, `create_refresh_token`,
 `create_password_reset_token`, `create_pre_auth_token`, `create_magic_link_token`.
@@ -470,8 +485,8 @@ hot event-ingest path.
 | :--- | :--- |
 | `request_id.py` | Sets `scope["request_id"]` and appends `X-Request-ID` |
 | `body_size.py` | 413 on an oversized `Content-Length`, and again mid-stream via a wrapped `receive` that raises `BodyTooLargeError` |
-| `rate_limit.py` | Three sliding windows (chat / auth / general) keyed by client IP, with `_normalise_path` stripping the `/api` mount prefix; 1-in-100 probabilistic pruning bounds memory. No-op when `TESTING=true` |
-| `server_timing.py` | Appends `Server-Timing: app;dur=<ms>` measuring handler time only |
+| `rate_limit.py` | Four sliding windows (chat / contact / auth / general) keyed by `_rate_bucket(client IP)` - the address for IPv4, the /64 for IPv6 - with `_normalise_path` stripping the `/api` mount prefix; 1-in-100 probabilistic pruning bounds memory. No-op when `TESTING=true` |
+| `server_timing.py` | Appends `Server-Timing: app;dur=<ms>` measuring handler time only; left off `/auth/*`, where it would time an enumeration attack |
 
 ---
 

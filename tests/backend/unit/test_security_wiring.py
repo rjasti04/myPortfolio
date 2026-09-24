@@ -17,6 +17,7 @@ from server.middlewares.rate_limit import (
     CHAT_RATE_LIMITED_PATHS,
     RateLimitMiddleware,
     _normalise_path,
+    _rate_bucket,
 )
 from server.middlewares.request_id import RequestIDMiddleware
 from server.middlewares.server_timing import ServerTimingMiddleware
@@ -124,6 +125,55 @@ def test_auth_routes_are_strict_limited_under_both_mount_prefixes(path):
     so the brute-force guard came off by adding four characters to the URL."""
     assert _normalise_path(path) in AUTH_RATE_LIMITED_PATHS
     assert _normalise_path(f"/api{path}") in AUTH_RATE_LIMITED_PATHS
+
+
+@pytest.mark.parametrize(
+    "path", ["/auth/change-password", "/auth/delete-account", "/auth/account"]
+)
+def test_re_authentication_routes_are_strict_limited_under_both_mount_prefixes(path):
+    """Each checks the current password. On the general budget, a stolen
+    access token could guess at about a thousand a minute."""
+    assert _normalise_path(path) in AUTH_RATE_LIMITED_PATHS
+    assert _normalise_path(f"/api{path}") in AUTH_RATE_LIMITED_PATHS
+
+
+@pytest.mark.parametrize(
+    "address, bucket",
+    [
+        ("2001:db8::1", "2001:db8::/64"),
+        ("2001:db8::ffff:1", "2001:db8::/64"),
+        ("2001:db8:0:1::1", "2001:db8:0:1::/64"),
+        ("::ffff:192.0.2.1", "192.0.2.1"),
+        ("192.0.2.1", "192.0.2.1"),
+        ("unknown", "unknown"),
+    ],
+)
+def test_rate_buckets_key_ipv6_on_the_64(address, bucket):
+    """One ordinary IPv6 allocation is a /64. Keyed on the full address, it
+    handed an attacker 2^64 separate 5/min auth budgets."""
+    assert _rate_bucket(address) == bucket
+
+
+@pytest.mark.asyncio
+async def test_addresses_in_one_ipv6_64_share_the_auth_budget():
+    limiter = RateLimitMiddleware(app=_downstream, max_requests=1000)
+
+    for suffix in range(1, 6):
+        assert await _send(limiter, f"2001:db8::{suffix}", "/auth/login") == 200
+    assert await _send(limiter, "2001:db8::99", "/auth/login") == 429, (
+        "a fresh address in the same /64 must not get a fresh budget"
+    )
+    assert await _send(limiter, "2001:db8:0:1::1", "/auth/login") == 200
+
+
+@pytest.mark.asyncio
+async def test_server_timing_is_left_off_the_auth_routes(async_client):
+    """The header is exposed cross-origin. On login and registration a
+    millisecond-accurate handler time is what an enumeration attack measures."""
+    for path in ("/auth/login", "/api/auth/login"):
+        response = await async_client.post(path, json={"email": "a@example.com", "password": "x"})
+        assert "server-timing" not in response.headers, path
+    assert "server-timing" in (await async_client.get("/api/health")).headers
 
 
 def test_code_driven_login_surfaces_are_strict_limited():

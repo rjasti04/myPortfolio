@@ -198,19 +198,27 @@ access token.
 | POST | `/auth/sessions/revoke-others` | 🔒 | End every session except the named one |
 | DELETE | `/auth/sessions/{session_id}` | 🔒 | End one named session |
 
-### `POST /auth/register` → 201
+### `POST /auth/register` → 202 `RegisterResponse`
 
 ```json
 { "email": "you@example.com", "password": "at least 8 chars", "username": "optional, 3-50" }
 ```
-Returns a `UserResponse` (`id`, `email`, `username`, `created_at`, `is_active`,
-`is_totp_enabled`). Email is normalised to lowercase. **400** — `"Email already
-registered"`. An account soft-deleted more than 30 days ago is purged and the
-address freed.
+```json
+{ "message": "Check your inbox to finish setting up your account." }
+```
+
+The **same 202 and the same body whether or not the address already has an
+account**, at the cost of one bcrypt hash either way. A new address is mailed a
+verification link; one that already has an account (or was soft-deleted within
+30 days) is mailed a "you already have an account" note instead, with no token.
+It used to answer **400** `"Email already registered"` and return the created
+`UserResponse`, which told anyone which addresses have accounts. Email is
+normalised to lowercase. An account soft-deleted more than 30 days ago is purged
+and the address freed.
 
 Registering does **not** sign the caller in, and returns no tokens. The account
 is created with `email_verified_at` NULL, and `POST /auth/login` answers **403**
-until the mailed link is redeemed — so a client must not chase a 201 here with a
+until the mailed link is redeemed — so a client must not chase a 202 here with a
 login. `auth.js` did, and painted the resulting 403 as a registration failure.
 
 > Registration does **not** run the Have I Been Pwned check. That check applies
@@ -240,14 +248,22 @@ With 2FA:
 { "requires_2fa": true, "pre_auth_token": "…" }
 ```
 
-- **401** `"Incorrect email or password"` — wrong credentials *or* unknown
-  address. The unknown-address path deliberately spends one bcrypt verification
-  so response time is not an account-existence oracle.
-- **400** — account locked (5 failed attempts → 15-minute lock), or inactive.
+- **401** `"Incorrect email or password. After 5 failed attempts, password
+  sign-in pauses for 15 minutes; a sign-in link from your email still works."`
+  — for a wrong password, an unknown address, an account soft-deleted past its
+  window, **and a locked account** (5 wrong passwords → 15-minute lock). All of
+  them spend two bcrypt verifications, so neither the body nor the response
+  time says which. A locked account used to answer 400 "Account is temporarily
+  locked", which only real accounts can say.
+- **400** — inactive user, after a correct password.
+- Every attempt is counted on the password tally *before* the password is
+  checked, so parallel guesses cannot all be checked
+  ([`SECURITY.md`](SECURITY.md#account-lockout)).
 - A legacy password hash (bcrypt over the raw password) is transparently
   upgraded to the current scheme on a successful login.
-- Lockout counters are **not** cleared when 2FA is pending — only
-  `/auth/2fa/verify` clears them, so failed second factors accumulate.
+- A correct password clears the password tally even when 2FA is pending. The
+  **code** tally is separate, and only a correct code at `/auth/2fa/verify`
+  clears it, so failed second factors still accumulate.
 
 ### `POST /auth/refresh` → 200 `Token`
 
@@ -291,9 +307,11 @@ would starve the `/2fa/enable` call moments later.
 without the password an access token alone could bind an attacker's
 authenticator to an account that had none, locking the owner out rather than
 merely reading their data. **400** on a wrong password, on a wrong code, or when
-no setup was initiated; either wrong credential increments the lockout
-counter, 5 → 15-minute lock. On success every *other* session is revoked and the
-account owner is emailed. On the strict 5/min auth budget.
+no setup was initiated. A wrong password counts on the password tally and a
+wrong code on the code tally, each 5 → 15-minute lock, and a locked tally
+answers 400 with "locked" in the detail. The code that enables 2FA is spent: it
+cannot sign in within its 30-second step. On success every *other* session is
+revoked and the account owner is emailed. On the strict 5/min auth budget.
 
 ### `POST /auth/2fa/disable` → 200
 
@@ -310,8 +328,13 @@ since it refuses every caller equally.
 `{"pre_auth_token": "…", "code": "123456"}`. The pre-auth `jti` is burned on
 use — **before** the code is checked, so a failed attempt spends the token and
 the client must start the sign-in over rather than retry on the same challenge.
-Failed codes increment the lockout counter; 5 → 15-minute lock.
-**400** — `"This sign-in attempt has expired. Please log in again."` on replay.
+Failed codes count on the **code** tally only; 5 → 15-minute lock, answered
+with **400** `"Two-factor verification is temporarily locked…"`. A password
+lock does not apply here, so the emailed sign-in link still reaches a 2FA
+account while someone is guessing at its password. A code is single-use within
+its step: a replay is **400** `"Invalid 2FA code"` and counts as a wrong code.
+**400** — `"This sign-in attempt has expired. Please log in again."` on replay
+of the pre-auth token.
 
 ### `POST /auth/verify-email` → 200
 
@@ -359,7 +382,11 @@ to log in, which reads as the new password not having taken.
 
 `{"current_password": "…", "new_password": "…"}`. Same pipeline as above, with
 the current password verified first instead of a token. **400**
-`"Incorrect current password"` when it does not match.
+`"Incorrect current password"` when it does not match. The check counts on the
+password tally exactly as login does - five misses lock it and a locked tally
+answers **400** "Account is temporarily locked…" - and the route is on the
+strict 5/min auth budget. Neither was true before, so a stolen access token
+could guess at the password about a thousand times a minute.
 
 A wrong current password is a **400** on all four routes that re-check one
 (this, delete-account and 2FA enable/disable), never a 401. `authenticatedFetch`
@@ -373,7 +400,8 @@ treats it as a refused credential and signs the visitor out.
 `{"current_password": "…", "confirmation_phrase": "DELETE"}` (case-insensitive,
 trimmed). Soft delete: `deleted_at` set, `is_active` cleared, all tokens
 revoked. Signing in within 30 days automatically reactivates the account.
-**400** on a wrong current password or confirmation phrase.
+**400** on a wrong current password or confirmation phrase. The password check
+is held to the password tally and the strict auth budget, as change-password is.
 
 ### `GET /auth/sessions` → 200 `[UserSessionResponse]`
 
@@ -821,7 +849,7 @@ Validation errors carry the standard array form:
 
 | Status | Typical cause |
 | :--- | :--- |
-| 400 | Bad request state — already-registered email, locked account, spent token, wrong current password on a re-authenticated route, empty or oversized bulk list |
+| 400 | Bad request state — a locked tally on a re-authenticated or 2FA route, spent token, wrong current password on a re-authenticated route, empty or oversized bulk list |
 | 401 | Missing/invalid/expired bearer token, wrong credentials, anonymous free-message limit |
 | 403 | Missing or wrong analytics session token (identical body whether or not the session exists) |
 | 404 | Unknown session, user, or conversation |

@@ -228,8 +228,10 @@ export async function registerUser(email, password) {
        5-per-minute auth budget with /auth/register, on a call guaranteed to
        fail.
 
-       The created user is returned instead; the caller tells the visitor to
-       go and confirm. */
+       The server's message is returned instead, and the caller tells the
+       visitor to check their inbox. It is the same answer whether or not the
+       address already had an account - "Email already registered" told anyone
+       which addresses do - so the caller must not promise a new one. */
     return await response.json();
   } catch (err) {
     console.error('Registration error:', err);

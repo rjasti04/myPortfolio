@@ -301,6 +301,42 @@ async def send_email_verification_email(email: str, verify_token: str) -> None:
     )
 
 
+async def send_existing_account_email(email: str) -> None:
+    """Someone tried to register an address that already has an account.
+
+    Registration answers the same whatever the address, so this mail is where
+    the difference goes: the owner of the inbox learns it, and nobody else
+    does. It carries no token - signing in, or resetting the password, is the
+    ordinary flow from the site.
+    """
+    logger.info("sending_existing_account_email", recipient_email=email)
+
+    plain = (
+        "Someone tried to create an rjasti.com account with this address, but "
+        "it already has one.\n\n"
+        "If that was you, sign in at https://rjasti.com/ - or use \"Forgot "
+        "password\" there if you no longer remember it.\n\n"
+        "If it was not you, ignore this message. Nothing about your account has "
+        "changed."
+    )
+    html = _wrap_html(
+        "You already have an account",
+        "<p>Someone tried to create an rjasti.com account with this address, "
+        "but it already has one.</p>"
+        '<p>If that was you, <a href="https://rjasti.com/">sign in</a> - or use '
+        "<em>Forgot password</em> there if you no longer remember it.</p>"
+        "<p>If it was not you, ignore this message. Nothing about your account "
+        "has changed.</p>",
+    )
+    await _send(
+        subject="You already have an account - rjasti.com",
+        recipient=email,
+        plain=plain,
+        html=html,
+        log_event="existing_account_email",
+    )
+
+
 async def send_magic_link_email(email: str, magic_token: str) -> None:
     magic_link = f"https://rjasti.com/?magic_token={magic_token}"
     logger.info(

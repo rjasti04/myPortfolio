@@ -90,6 +90,7 @@ const pathOf = (url) => String(url).replace(/^.*\/api/, '');
 
 describe('Two-factor authentication UI', () => {
   let dom;
+  let authUi;
   let calls = [];
   let totpEnabled = false;
 
@@ -124,6 +125,9 @@ describe('Two-factor authentication UI', () => {
         }
         return body({ secret: SECRET, qr_code: QR_DATA_URI });
       }
+      if (route === '/auth/register') {
+        return { ok: true, status: 202, json: async () => ({ message: 'Check your inbox to finish setting up your account.' }) };
+      }
       if (route === '/auth/2fa/disable') return body({ message: '2FA successfully disabled' });
       if (route === '/auth/2fa/enable') return body({ message: '2FA successfully enabled' });
       return body({});
@@ -131,7 +135,7 @@ describe('Two-factor authentication UI', () => {
 
     // auth-ui.js self-initialises on import: readyState is 'complete' under
     // jsdom, so initAuthUI runs straight through the form wiring.
-    await import('../js/auth-ui.js');
+    authUi = await import('../js/auth-ui.js');
   });
 
   after(() => {
@@ -141,6 +145,23 @@ describe('Two-factor authentication UI', () => {
 
   beforeEach(() => {
     calls = [];
+  });
+
+  // Not 2FA, but the same modal and the same harness. Registration answers the
+  // same whether or not the address already has an account, so the page must
+  // not claim one was created.
+  it('reports a registration without claiming an account was created', async () => {
+    type($('register-email'), 'someone@example.com');
+    type($('register-password'), 'Str0ng-Passw0rd!');
+    type($('register-confirm-password'), 'Str0ng-Passw0rd!');
+    await settle(async () => {
+      $('register-form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    assert.ok(calls.some((c) => c.route === '/auth/register'), 'should have registered');
+    assert.equal($('register-error').textContent, '');
+    assert.equal($('register-success').textContent.startsWith(authUi.REGISTER_SENT_MESSAGE), true);
+    assert.doesNotMatch($('register-success').textContent, /account created/i);
   });
 
   it('offers enrolment, and renders the QR and the secret, when 2FA is off', async () => {

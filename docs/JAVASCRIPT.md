@@ -90,7 +90,10 @@ Wires everything on `DOMContentLoaded` and owns the lazy-loading policy.
   banner carrying the same `id`, so `getElementById` found the first and the
   newest banner's Refresh did nothing.
 
-### `auth-ui.js` (1,607 lines)
+### `auth-ui.js` (1,615 lines)
+
+`export const REGISTER_SENT_MESSAGE` — the register panel's success copy, the
+same for a new address and one that already has an account.
 
 `export async function initAuthUI()` — one large function owning the entire
 account surface: modal tabs (login / register / forgot), password strength
@@ -196,7 +199,7 @@ stale session and starting a fresh one.
 count, reason, ok, at}` to `onTelemetry` subscribers. `serverMs` is parsed from
 the `Server-Timing: app;dur=…` header; `networkMs` is the remainder.
 
-### `auth.js` (517 lines)
+### `auth.js` (519 lines)
 
 Token storage and every authenticated call.
 
@@ -243,10 +246,13 @@ address" into the register form's **error** slot: no success toast, the dialog
 still open, and `"Email already registered"` if the visitor tried again. It also
 spent a second request on `/auth/login`, which shares the strict 5-per-minute
 auth budget with `/auth/register`, on a call certain to fail. `registerUser` now
-returns the created user, and the register panel paints `#register-success` with
-a "check your inbox" message plus the same resend affordance the login panel
-offers. Pinned by `frontend/tests/auth-register.test.js` and, server-side, by
-`test_a_fresh_registration_cannot_log_in_until_it_is_confirmed`.
+returns the server's message, and the register panel paints `#register-success`
+with `REGISTER_SENT_MESSAGE` plus the same resend affordance the login panel
+offers. That copy does not say "Account created": `/auth/register` answers the
+same 202 whether or not the address already had an account (it mails that
+address a reminder instead), so the page cannot tell and must not claim. Pinned
+by `frontend/tests/auth-register.test.js`, `auth-2fa.test.js` and, server-side,
+by `test_a_fresh_registration_cannot_log_in_until_it_is_confirmed`.
 
 **Only a refused credential ends the session.** `refreshAccessTokenOnce()`
 returns `{token, rejected}` rather than a bare token, and `clearTokens()` runs
