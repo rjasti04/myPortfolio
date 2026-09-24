@@ -1023,18 +1023,21 @@ The build treats the six standalone-app entries as one esbuild `splitting`
 group, so `app-switcher.js` and `app-shortcuts.js` are emitted once and shared
 rather than inlined into each app's bundle.
 
-### `app-switcher.js` (126 lines)
+### `app-switcher.js` (127 lines)
 
 Turns each app's Back control into a popover listing all seven apps plus
 Portfolio home and the shelf, with the current one marked `aria-current="page"`
-rather than removed - a menu whose contents change per page has to be re-read
+rather than removed - a list whose contents change per page has to be re-read
 on every page. Back keeps its place and its press, so nothing that was one
-press away becomes two. `Esc` closes and returns focus to the trigger;
+press away becomes two. It is a disclosure, not an ARIA menu: the panel is a
+`<nav>` of plain links, the trigger carries `aria-expanded`/`aria-controls`
+and no `aria-haspopup`, opening focuses the first link, and Tab walks the
+links while it is open. `Esc` closes and returns focus to the trigger;
 clicking outside dismisses. The `APPS` array is the single list of what the
 shelf holds, and `app-shared.test.js` asserts it against `index.html` so the
 two cannot drift.
 
-### `app-shortcuts.js` (214 lines)
+### `app-shortcuts.js` (230 lines)
 
 Binds `?` (the sheet), `/` (focus the primary input) and `1`-`9` (switch tab),
 and builds the sheet **from the same table that does the binding** - a
@@ -1045,7 +1048,9 @@ how `/diff`'s `j`/`k` appear in its sheet and nowhere else. An entry with no
 the keyboard back entirely: `/arcade` passes one for the time a game is on
 screen, because `Escape` belongs to the shell then. The "not while you are
 typing" guard (text fields, `contenteditable`, any modifier) lives here once
-rather than in each app.
+rather than in each app. While the sheet is open, Tab and Shift+Tab stay inside
+it, which is what its `aria-modal="true"` promises; the trap is local rather
+than `modal.js`'s, because that module belongs to the SPA's build group.
 
 ### `predictor-chrome.js` (25 lines)
 
@@ -1268,9 +1273,9 @@ A standalone client-side cryptographic and data transformation workbench for sof
 
 The application controller. Manages tab switching across `#encoders`, `#hasher`, `#generators`, and `#time`, synchronizes state with the URL hash, handles dark/light theme toggling, provides shareable link copying, and initializes workbench UI handlers.
 
-### `crypto-ui.js` (692 lines)
+### `crypto-ui.js` (726 lines)
 
-DOM controller for the Crypto & Encoders workbench. Manages live text encoding/decoding, file drag-and-drop for Base64 Data URIs (enforcing the 5 MB limit), real-time cryptographic hash updates, generator controls with customizable character sets, live ticking clock, and the "Clear All" privacy wipe action.
+DOM controller for the Crypto & Encoders workbench. Manages live text encoding/decoding, file drag-and-drop for Base64 Data URIs (enforcing the 5 MB limit), real-time cryptographic hash updates, generator controls with customizable character sets, live ticking clock, and the "Clear All" privacy wipe action. Results are announced through one polite `#crypto-status` region, on transitions only: an output entering or changing its error, a converted file, an explicit Generate - never each keystroke's live output.
 
 ### `encoders.js` (216 lines)
 
@@ -1401,7 +1406,7 @@ manages the three deep-linkable tabs (`#compare`, `#patch`, `#about`) with
 arrow-key roving tabindex and `hashchange` sync, and wraps startup in an error
 boundary.
 
-### `diff-ui.js` (602 lines)
+### `diff-ui.js` (606 lines)
 
 DOM controller. Owns both panes, the debounced recompute, drag-and-drop with the
 5 MB cap, the normalisation toggles, the split/unified switch, change navigation

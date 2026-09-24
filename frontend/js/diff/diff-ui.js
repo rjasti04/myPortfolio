@@ -464,8 +464,11 @@ export function initWorkbench() {
   for (const button of document.querySelectorAll(".seg-btn[data-view]")) {
     button.addEventListener("click", () => {
       state.view = button.dataset.view;
+      // aria-pressed as well as the class: the other apps' toggles expose
+      // their state, and this one showed it by colour alone.
       for (const other of document.querySelectorAll(".seg-btn[data-view]")) {
         other.classList.toggle("active", other === button);
+        other.setAttribute("aria-pressed", String(other === button));
       }
       writePreferences({ view: state.view });
       draw();
@@ -581,6 +584,7 @@ export function initWorkbench() {
   if (preferences.view === "unified" || preferences.view === "split") state.view = preferences.view;
   for (const button of document.querySelectorAll(".seg-btn[data-view]")) {
     button.classList.toggle("active", button.dataset.view === state.view);
+    button.setAttribute("aria-pressed", String(button.dataset.view === state.view));
   }
   shell.dataset.wrap = wrapToggle.checked ? "on" : "off";
 

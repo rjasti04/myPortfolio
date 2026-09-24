@@ -72,7 +72,7 @@
                 <i class="fas fa-shield-halved"></i>
               </div>
               <div class="brand-text">
-                <div class="brand-title">Crypto &amp; Encoders</div>
+                <h1 class="brand-title">Crypto &amp; Encoders</h1>
                 <span class="brand-tag">Client-Side Workbench</span>
               </div>
             </div>
@@ -96,7 +96,7 @@
               id="share-link-btn"
               class="action-btn"
               title="Copy a link to this tab and its settings"
-              aria-label="Copy a link to this tab and its settings"
+              aria-label="Share: copy a link to this tab and its settings"
             >
               <i class="fas fa-copy" aria-hidden="true"></i>
               <span class="action-label">Share</span>
@@ -210,6 +210,7 @@
     </header>
 
     <main class="main-content">
+      <p class="visually-hidden" id="crypto-status" role="status" aria-live="polite"></p>
       <!-- 1. ENCODERS & DECODERS PANEL -->
       <section
         id="panel-encoders"
@@ -351,7 +352,7 @@
               tabindex="0"
               aria-label="Upload file for Base64 Data URI conversion (maximum 5 MB)"
             >
-              <input type="file" id="file-input" class="visually-hidden" />
+              <input type="file" id="file-input" class="visually-hidden" aria-hidden="true" tabindex="-1" />
               <i class="fas fa-file-lines dropzone-icon" aria-hidden="true"></i>
               <p class="dropzone-text">
                 <strong>Click to upload</strong> or drag and drop any file

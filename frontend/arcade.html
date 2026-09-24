@@ -106,6 +106,9 @@
         </div>
       </header>
 
+      <!-- The page's one main landmark: arcade had none, so a screen reader's
+           landmark list offered nothing between the header and the footer. -->
+      <main id="main-content" class="arcade-main">
       <!-- Launcher and stage are siblings, toggled by the `hidden` attribute by the
            arcade shell. Only one is ever in the accessibility tree, so a
            screen reader never lands on a board that is not on screen. -->
@@ -267,6 +270,7 @@
           </div>
         </div>
       </section>
+      </main>
 
       <!-- Pausing, resuming and a new personal best are announced here: each
            changes what the page is doing without changing any text on it. -->

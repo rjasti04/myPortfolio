@@ -231,3 +231,149 @@ test("app-shared.css names only the seven-token chrome contract", () => {
     }
   }
 });
+
+/* --- Codebase review section 4: Dev Tools focus and semantics ------------- */
+
+const DEV_TOOLS = ["cron", "crypto", "json", "diff"];
+
+// U4: tab panels are Tab stops whose focus ring was removed with nothing in
+// its place, and /crypto's hash and output fields did the same (WCAG 2.4.7).
+test("every Dev Tools Tab stop shows where focus is", () => {
+  for (const sheet of ["cron.css", "crypto.css"]) {
+    const css = read(sheet);
+    assert.doesNotMatch(css, /\.panel-container:focus\s*\{\s*outline:\s*none/, `${sheet} still hides panel focus outright`);
+    assert.match(css, /\.panel-container:focus-visible\s*\{[^}]*outline:\s*2px solid/, `${sheet} has no visible panel focus`);
+  }
+  const crypto = read("crypto.css");
+  assert.match(crypto, /\.hash-input:focus-visible/);
+  assert.match(crypto, /\.field-output:focus-visible/);
+});
+
+// U6 (1): a hidden file input nested in a role="button" dropzone was a
+// nameless Tab stop inside another control. diff.html had it right.
+test("no file input is a Tab stop of its own", () => {
+  for (const app of DEV_TOOLS) {
+    const d = new JSDOM(read(`${app}.html`)).window.document;
+    for (const input of d.querySelectorAll('input[type="file"]')) {
+      assert.equal(input.getAttribute("tabindex"), "-1", `${app}: #${input.id}`);
+      assert.equal(input.getAttribute("aria-hidden"), "true", `${app}: #${input.id}`);
+    }
+  }
+});
+
+// U6 (3): aria-modal="true" with nothing keeping Tab inside.
+test("the shortcuts sheet keeps Tab inside itself", () => {
+  const dom = mount("diff.html", "https://rjasti.com/diff");
+  initAppShortcuts({ focusPrimary: "#input-left", doc: dom.window.document });
+  const d = dom.window.document;
+  const panel = d.getElementById("shortcuts-sheet");
+
+  key(dom, { key: "?" });
+  assert.equal(panel.hidden, false);
+  const tab = (shiftKey) => d.activeElement.dispatchEvent(
+    new dom.window.KeyboardEvent("keydown", { key: "Tab", shiftKey, bubbles: true, cancelable: true }),
+  );
+  assert.equal(tab(false), false, "Tab from the last control is taken back");
+  assert.ok(panel.contains(d.activeElement));
+  assert.equal(tab(true), false, "and so is Shift+Tab from the first");
+  assert.ok(panel.contains(d.activeElement));
+});
+
+// U6 (4): role="menu" promised arrow keys and a single Tab stop it never had.
+test("the Apps switcher is a disclosure of links, not an ARIA menu", () => {
+  const dom = mount("cron.html", "https://rjasti.com/cron");
+  const switcher = initAppSwitcher({ current: "cron", doc: dom.window.document });
+  const d = dom.window.document;
+  const menu = d.getElementById("app-switcher-menu");
+
+  assert.equal(menu.tagName, "NAV");
+  assert.equal(d.querySelector('[role="menu"], [role="menuitem"]'), null);
+  assert.equal(d.getElementById("app-switcher-trigger").hasAttribute("aria-haspopup"), false);
+  switcher.open();
+  assert.equal(d.activeElement, menu.querySelector("a"), "opening moves focus to the first link");
+});
+
+// U11: three apps had no <h1> and /json's was a card title; arcade had no
+// <main>; a control's name has to contain what it shows (WCAG 2.5.3).
+test("each app has one top-level heading and a main landmark", () => {
+  for (const app of [...DEV_TOOLS, "arcade"]) {
+    const d = new JSDOM(read(`${app}.html`)).window.document;
+    assert.equal(d.querySelectorAll("h1").length, 1, `${app}.html`);
+    assert.equal(d.querySelectorAll("main").length, 1, `${app}.html`);
+  }
+  const json = new JSDOM(read("json.html")).window.document;
+  assert.equal(json.querySelector("h1").textContent.trim(), "JSON Workbench");
+});
+
+test("a labelled control's name contains the words on it", () => {
+  for (const app of [...DEV_TOOLS, "arcade"]) {
+    const d = new JSDOM(read(`${app}.html`)).window.document;
+    for (const label of d.querySelectorAll(".action-label, .back-label-long, .back-label-short")) {
+      const control = label.closest("[aria-label]");
+      if (!control) continue;
+      const name = control.getAttribute("aria-label").toLowerCase();
+      assert.ok(
+        name.includes(label.textContent.trim().toLowerCase()),
+        `${app}: "${control.getAttribute("aria-label")}" does not contain "${label.textContent.trim()}"`,
+      );
+    }
+  }
+});
+
+function mountApp(page, url) {
+  const dom = mount(page, url);
+  global.localStorage = dom.window.localStorage;
+  global.navigator ??= dom.window.navigator;
+  global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+  dom.window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+  global.matchMedia = dom.window.matchMedia;
+  return dom;
+}
+
+// U6 (2): Split/Unified showed its state by colour alone.
+test("Diff's layout toggle exposes which layout is on", async () => {
+  const dom = mountApp("diff.html", "https://rjasti.com/diff");
+  const { initWorkbench } = await import("../js/diff/diff-ui.js");
+  initWorkbench();
+  const d = dom.window.document;
+  const split = d.getElementById("btn-view-split");
+  const unified = d.getElementById("btn-view-unified");
+  assert.equal(split.getAttribute("aria-pressed"), "true");
+
+  unified.click();
+  assert.equal(unified.getAttribute("aria-pressed"), "true");
+  assert.equal(split.getAttribute("aria-pressed"), "false");
+});
+
+// U6 (5): /crypto's results and errors landed in a read-only field that
+// nothing announced.
+test("a /crypto error is announced once, not on every keystroke", async () => {
+  const dom = mountApp("crypto.html", "https://rjasti.com/crypto");
+  const { initCryptoUI } = await import("../js/crypto/crypto-ui.js");
+  // The Unix-time panel ticks on a global interval, which would hold the
+  // test process open.
+  const realSetInterval = global.setInterval;
+  global.setInterval = () => 0;
+  try {
+    initCryptoUI();
+  } finally {
+    global.setInterval = realSetInterval;
+  }
+  const d = dom.window.document;
+  const status = d.getElementById("crypto-status");
+  const input = d.getElementById("encoder-input");
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 80));
+
+  d.getElementById("encoder-format").value = "base64";
+  d.getElementById("encoder-decode-btn").click();
+  input.value = "%%%";
+  input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  await settle();
+  assert.match(status.textContent, /^Error:/);
+
+  status.textContent = "unchanged";
+  input.value = "%%%%";
+  input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  await settle();
+  assert.equal(status.textContent, "unchanged", "the same error is not re-announced per keystroke");
+});

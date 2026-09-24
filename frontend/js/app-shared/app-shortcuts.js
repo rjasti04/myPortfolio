@@ -126,6 +126,22 @@ export function initAppShortcuts({
       return;
     }
 
+    // aria-modal="true" promises the page behind is out of reach, but Tab
+    // kept walking into it. A local trap rather than modal.js's: that module
+    // belongs to the SPA's build group, and the sheet holds one control.
+    if (event.key === "Tab" && !sheet.root.hidden) {
+      const focusable = [...sheet.root.querySelectorAll('button, a[href], [tabindex]:not([tabindex="-1"])')];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = doc.activeElement;
+      if (!sheet.root.contains(active) || (event.shiftKey && active === first) || (!event.shiftKey && active === last)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      }
+      return;
+    }
+
     if (isTypingContext(event)) return;
 
     if (event.key === "?") {

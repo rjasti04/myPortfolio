@@ -63,7 +63,7 @@
                 <i class="fas fa-diagram-project"></i>
               </div>
               <div class="brand-text">
-                <div class="brand-title">JSON Workbench</div>
+                <h1 class="brand-title">JSON Workbench</h1>
                 <span class="brand-tag">Query Studio</span>
               </div>
             </div>
@@ -192,9 +192,9 @@
       <section class="card source-card" id="source-card" aria-labelledby="source-heading">
         <div class="card-header-row">
           <div class="card-head">
-            <h1 class="card-title" id="source-heading">
+            <h2 class="card-title" id="source-heading">
               <i class="fas fa-code" aria-hidden="true"></i>Source document
-            </h1>
+            </h2>
             <p class="card-hint" id="source-hint">
               Paste JSON once — every tab reads the same document. Nothing is
               uploaded, and nothing is stored unless you ask.
@@ -239,7 +239,7 @@
           </div>
           <div class="dropzone-text">Drop a .json, .yaml or .csv file, or click to choose</div>
           <div class="dropzone-limit">Up to 5 MB &bull; read in your browser, never uploaded</div>
-          <input type="file" id="file-input" class="sr-only" accept=".json,.yaml,.yml,.csv,.txt,application/json,text/plain,text/csv" />
+          <input type="file" id="file-input" class="sr-only" aria-hidden="true" tabindex="-1" accept=".json,.yaml,.yml,.csv,.txt,application/json,text/plain,text/csv" />
         </div>
         </div>
 

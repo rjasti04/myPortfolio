@@ -246,8 +246,16 @@ body {
   scroll-margin-top: calc(var(--header-h) + 16px);
 }
 
-.panel-container:focus {
+/* A tab panel is a Tab stop, so it needs a visible focus when the keyboard
+   lands on it (WCAG 2.4.7). This used to remove the outline outright; a
+   mouse click still draws none. */
+.panel-container:focus:not(:focus-visible) {
   outline: none;
+}
+
+.panel-container:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .workspace {
@@ -869,7 +877,9 @@ body {
 .btn-sm:focus-visible,
 .select-input:focus-visible,
 .hasher-chip:focus-visible,
-.text-input:focus-visible {
+.text-input:focus-visible,
+.hash-input:focus-visible,
+.field-output:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }

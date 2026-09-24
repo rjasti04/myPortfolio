@@ -9,7 +9,7 @@
  * room, so the shelf becomes navigable from inside the apps.
  *
  * Back to the portfolio is still the first entry, and still the default
- * action: the trigger is a menu button, not a link that used to be one, so
+ * action: the trigger is a disclosure button, not a link that used to be one, so
  * nothing that was one press away is now two.
  *
  * One module, one call per app. The apps stay self-contained: this reads no
@@ -50,7 +50,6 @@ export function initAppSwitcher({ current, doc = document } = {}) {
   trigger.type = "button";
   trigger.className = "action-btn app-switcher-trigger";
   trigger.id = "app-switcher-trigger";
-  trigger.setAttribute("aria-haspopup", "true");
   trigger.setAttribute("aria-expanded", "false");
   trigger.setAttribute("aria-controls", "app-switcher-menu");
   trigger.setAttribute("aria-label", "Portfolio and other apps");
@@ -59,11 +58,14 @@ export function initAppSwitcher({ current, doc = document } = {}) {
     '<i class="fas fa-bars" aria-hidden="true"></i>' +
     '<span class="action-label">Apps</span>';
 
-  const menu = doc.createElement("div");
+  // A disclosure of links, not an ARIA menu: role="menu" promises arrow-key
+  // navigation and a single Tab stop, and this had neither, so a screen
+  // reader announced a menu that did not behave like one. A <nav> of plain
+  // links is what it actually is; Tab walks it while it is open.
+  const menu = doc.createElement("nav");
   menu.className = "app-switcher-menu";
   menu.id = "app-switcher-menu";
-  menu.setAttribute("role", "menu");
-  menu.setAttribute("aria-labelledby", "app-switcher-trigger");
+  menu.setAttribute("aria-label", "Portfolio and other apps");
   menu.hidden = true;
 
   // The portfolio first: it is where Back went, and it is still the way out.
@@ -82,7 +84,7 @@ export function initAppSwitcher({ current, doc = document } = {}) {
   function setOpen(open) {
     menu.hidden = !open;
     trigger.setAttribute("aria-expanded", String(open));
-    if (open) menu.querySelector('[role="menuitem"]')?.focus();
+    if (open) menu.querySelector("a")?.focus();
   }
 
   trigger.addEventListener("click", () => setOpen(menu.hidden));
@@ -108,9 +110,8 @@ function item(doc, app, isCurrent) {
   const link = doc.createElement("a");
   link.className = "app-switcher-item";
   link.href = app.href;
-  link.setAttribute("role", "menuitem");
-  // The current app is marked rather than removed: a menu whose contents
-  // change per page is a menu you have to re-read every time.
+  // The current app is marked rather than removed: a list whose contents
+  // change per page is a list you have to re-read every time.
   // aria-current carries both jobs: the announcement and the styling hook, so
   // the two cannot drift apart.
   if (isCurrent) link.setAttribute("aria-current", "page");
@@ -121,6 +122,6 @@ function item(doc, app, isCurrent) {
 function separator(doc) {
   const rule = doc.createElement("div");
   rule.className = "app-switcher-sep";
-  rule.setAttribute("role", "separator");
+  rule.setAttribute("aria-hidden", "true");
   return rule;
 }

@@ -42,6 +42,37 @@ import {
  * @param {object} [options]
  * @returns {object} Public controls
  */
+/*
+ * One polite status region for the tool's results. Encoder output lands in a
+ * read-only field that nothing announced, so an error there was silent for a
+ * screen-reader user. Only transitions are announced - entering an error, a
+ * changed error, an explicit Generate - never each keystroke's live output.
+ * Cleared first, so the same message twice is still read.
+ */
+function announce(message) {
+  const region = document.getElementById("crypto-status");
+  if (!region) return;
+  region.textContent = "";
+  window.setTimeout(() => {
+    region.textContent = message;
+  }, 50);
+}
+
+/** Error state on an output field, announced only when it changes. */
+function setOutputError(outputEl, message) {
+  outputEl.value = `Error: ${message}`;
+  outputEl.classList.add("has-error");
+  if (outputEl.dataset.announcedError !== message) {
+    outputEl.dataset.announcedError = message;
+    announce(`Error: ${message}`);
+  }
+}
+
+function clearOutputError(outputEl) {
+  outputEl.classList.remove("has-error");
+  delete outputEl.dataset.announcedError;
+}
+
 export function initCryptoUI() {
   setupCopyButtons();
   setupEncodersUI();
@@ -156,10 +187,9 @@ function setupEncodersUI() {
         result = isEncode ? textToBinary(text) : binaryToText(text);
       }
       outputEl.value = result;
-      outputEl.classList.remove("has-error");
+      clearOutputError(outputEl);
     } catch (err) {
-      outputEl.value = `Error: ${err.message}`;
-      outputEl.classList.add("has-error");
+      setOutputError(outputEl, err.message);
     }
     updateEncoderStats();
   }
@@ -224,7 +254,7 @@ function setupEncodersUI() {
   clearBtn?.addEventListener("click", () => {
     inputEl.value = "";
     outputEl.value = "";
-    outputEl.classList.remove("has-error");
+    clearOutputError(outputEl);
     if (fileInfo) fileInfo.textContent = "";
     updateEncoderStats();
     inputEl.focus();
@@ -274,12 +304,12 @@ function setupEncodersUI() {
         formatSelect.value = "base64";
         syncFormatControls();
         outputEl.value = dataUri;
-        outputEl.classList.remove("has-error");
+        clearOutputError(outputEl);
         if (fileInfo) fileInfo.textContent = `Converted "${file.name}" to Base64 Data URI.`;
+        announce(`Converted ${file.name} to a Base64 data URI.`);
         updateEncoderStats();
       } catch (err) {
-        outputEl.value = `Error: ${err.message}`;
-        outputEl.classList.add("has-error");
+        setOutputError(outputEl, err.message);
         if (fileInfo) fileInfo.textContent = err.message;
       }
     }
@@ -536,7 +566,11 @@ function setupGeneratorsUI() {
     if (detailsEl) detailsEl.textContent = extraDetails;
   }
 
-  generateBtn.addEventListener("click", runGeneration);
+  generateBtn.addEventListener("click", () => {
+    runGeneration();
+    const count = batchSelect ? parseInt(batchSelect.value, 10) : 1;
+    announce(count === 1 ? "Generated a new value." : `Generated ${count} new values.`);
+  });
 
   // Run generation initially
   runGeneration();

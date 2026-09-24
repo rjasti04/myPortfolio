@@ -245,6 +245,8 @@ body {
 }
 
 .brand-title {
+  /* The app's <h1>: the UA's heading margin is zeroed. */
+  margin: 0;
   font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -404,8 +406,16 @@ body {
   scroll-margin-top: calc(var(--header-h) + 16px);
 }
 
-.panel-container:focus {
+/* A tab panel is a Tab stop, so it needs a visible focus when the keyboard
+   lands on it (WCAG 2.4.7). This used to remove the outline outright; a
+   mouse click still draws none. */
+.panel-container:focus:not(:focus-visible) {
   outline: none;
+}
+
+.panel-container:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .workspace {

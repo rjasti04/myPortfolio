@@ -989,6 +989,11 @@ touched).
 - `prefers-reduced-motion` is honoured by every animated surface, and toggling it
   mid-session tears down the running layer.
 - The command palette is a labelled `role="dialog"` with `aria-modal`.
+- The standalone apps: every Dev Tools Tab stop draws a `:focus-visible` ring
+  (`outline: 2px solid var(--primary)`), hidden file inputs are
+  `aria-hidden` and out of the Tab order, the Apps switcher is a disclosure of
+  links rather than an ARIA menu, the `?` sheet traps Tab, and each app has
+  one `<h1>` (its brand) and one `<main>` - `app-shared.test.js` holds all of it.
 
 ---
 

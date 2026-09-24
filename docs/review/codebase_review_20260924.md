@@ -684,6 +684,8 @@ async def verify_password_async(p: str, h: str) -> bool:
 | **Location** | `frontend/cron.css:407-409` and `frontend/crypto.css:249-251` (`.panel-container:focus { outline: none; }` on `tabindex="0"` panels: `cron.html:165,346,515`, `crypto.html:219,374,552,664,852,931`); `crypto.css:803-812,990-999` (`.hash-input`, `.field-output`) |
 | **The "Why"** | These are Tab stops with no visible focus and no `:focus-visible` replacement (WCAG 2.4.7). |
 | **The Fix** | Replace with `:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }`, using whatever token the apps' shared chrome uses. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `.panel-container` keeps no outline for a mouse click (`:focus:not(:focus-visible)`) and draws one on keyboard focus, in `cron.css` and `crypto.css`; `.hash-input` and `.field-output` join `crypto.css`'s existing `:focus-visible` group. **Differs from the suggested fix:** no Dev Tools stylesheet defines `--focus-ring`, so the ring is the apps' own `outline: 2px solid var(--primary); outline-offset: 2px`. A static test in `app-shared.test.js`. |
 
 ### U5 — Three apps die when browser storage is blocked
 
@@ -758,6 +760,8 @@ async def verify_password_async(p: str, h: str) -> bool:
 | **Location** | `frontend/index.html:1113→1132`, `1356→1361`, `1432→1455`, `1626→1698`, `1764→1842` (h1 → h3); no `<h1>` in `cron.html:74`, `crypto.html:75`, `diff.html:66`; `/json`'s h1 is "Source document" (`json.html:195-197`); `arcade.html` has no `<main>`; label-in-name mismatches (`crypto.html:93-99`, `index.html:859-862`, the predictors' Random Fill); `index.html:2163-2164` (`<a href="#">` used as buttons); `frontend/js/terminal/palette.js:119-123,159` |
 | **The "Why"** | Five SPA views skip a heading level, and three apps have no top-level heading for screen-reader navigation. Voice-control users can't activate "Share" or "Ask AI" by their visible text (WCAG 2.5.3). 73 of 165 Font Awesome icons in `index.html` lack `aria-hidden`. The command palette's empty state leaves `aria-activedescendant` pointing at an id that no longer exists. |
 | **The Fix** | Promote the h3s, make the app titles `<h1>`, wrap arcade in `<main>`, start each `aria-label` with its visible text, use `<button>` for the two auth actions, clear `aria-activedescendant` on the empty state, and bulk-add `aria-hidden="true"` to decorative icons. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | SPA: Hobbies, Apps, Activity and Contact promote their h3s to h2, and the Experience section's levels are set in `scripts/generate_resume.py` (h2/h3), which writes that markup; the owner panel moves up a level with them. Forgot password and Magic link are `<button>`s. "Ask AI" is named "Ask AI assistant". The 71 remaining decorative glyphs in `index.html` are `aria-hidden`. The palette's empty state removes `aria-activedescendant`. Predictors: Random Fill's name begins "Random fill". Apps: each brand title is the page's `<h1>` (`/json`'s "Source document" is an h2 like its siblings), arcade's launcher and stage sit in a `<main>`, and `/crypto`'s Share is named "Share: copy a link…". Computed styles of every promoted element match the previous build at 375 and 1280px. `route-semantics.test.js` fails on a skipped heading level, an exposed glyph or an `<a href="#">`, and `app-shared.test.js` on a missing h1 or main or a name that does not contain its visible label. |
 
 ### U12 — Inconsistencies between apps
 

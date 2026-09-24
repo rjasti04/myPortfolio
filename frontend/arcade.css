@@ -574,6 +574,16 @@ a {
   background: rgba(255, 250, 242, 0.86);
 }
 
+/* The launcher and the stage share one <main>. It is a column that takes the
+   shell's spare height, so the playing layout's `flex: 1` on #stage still
+   resolves against the viewport, as it did when both were children of .shell. */
+.arcade-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* ---- Stage ------------------------------------------------------------ */
 
 #stage {
