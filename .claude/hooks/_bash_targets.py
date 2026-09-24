@@ -71,6 +71,10 @@ FIND_ACTIONS = {"-delete", "-exec", "-execdir", "-ok", "-okdir",
 # `git` subcommands that overwrite tracked files in the working tree.
 OPAQUE_GIT = {"apply", "checkout", "restore", "clean", "stash", "reset"}
 
+# Options that take the rest of their short-option cluster as an argument. An
+# `i` before one of them is the in-place flag; after it, the `i` is text.
+GLUED_ARG = {"sed": set("efl"), "perl": set("0DFIlmMxeE")}
+
 
 HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 
@@ -198,6 +202,25 @@ def _operands(args: list[str]) -> list[str]:
     return [a for a in args if _is_operand(a)]
 
 
+def _in_place(name: str, args: list[str]) -> bool:
+    """`--in-place`, or an `i` anywhere in a short-option cluster.
+
+    Testing `startswith("-i")` missed the clusters people actually type:
+    `perl -pi -e …` is perl's own in-place idiom, and `sed -ni` or `sed -Ei`
+    edit in place as surely as `sed -i`.
+    """
+    for a in args:
+        if a == "--in-place" or a.startswith("--in-place="):
+            return True
+        if a.startswith("-") and not a.startswith("--"):
+            for ch in a[1:]:
+                if ch == "i":
+                    return True
+                if ch in GLUED_ARG[name]:
+                    break
+    return False
+
+
 def _split_search_patterns(tokens: list[str]) -> tuple[set[str], set[str]]:
     """Return (paths named only inside a search pattern, paths named elsewhere).
 
@@ -299,10 +322,7 @@ def parse(command: str) -> tuple[set[str], set[str], bool]:
         if name == "find" and FIND_ACTIONS.intersection(args):
             opaque = True
 
-        if name in ("sed", "perl") and any(
-            a == "--in-place" or (a.startswith("-i") and not a.startswith("--"))
-            for a in args
-        ):
+        if name in ("sed", "perl") and _in_place(name, args):
             # sed's script is the first operand unless it was given with -e/-f.
             script_given = any(a.startswith(("-e", "-f")) for a in args)
             targets.update(operands if script_given else operands[1:])

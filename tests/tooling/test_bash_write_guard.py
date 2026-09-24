@@ -81,6 +81,9 @@ ALLOWED = [
     ("find -exec into a reader", "find frontend -name '*.js' -exec grep -l fetch {{}} +"),
     ("allowlisted protocol-relative origin", "sed -i 's|a|//rjasti.com/x.js|' frontend/js/form.js"),
     ("a line comment is not an origin", "sed -i 's|a|// see below|' frontend/js/form.js"),
+    # Clusters that read: no `i` among the flags, or one that is only text.
+    ("sed -nE reads", "sed -nE '/x/p' server/alembic/versions/{migration}"),
+    ("perl -ne reads", "perl -ne 'print if /i/' server/alembic/versions/{migration}"),
 ]
 
 
@@ -172,6 +175,10 @@ def test_venv_rule_is_quiet_without_a_venv(label: str, command: str, tmp_path: P
     "echo `rm {path}`",
     "find {path} -delete",
     "echo {path} | xargs rm",
+    # In place from inside an option cluster, which `startswith("-i")` missed.
+    "perl -pi -e 's/a/b/' {path}",
+    "sed -ni 's/a/b/p' {path}",
+    "sed -Ei 's/a/b/' {path}",
 ])
 def test_tracked_migrations_are_immutable(template: str) -> None:
     result = run(GUARD, template.format(path=tracked_migration()))

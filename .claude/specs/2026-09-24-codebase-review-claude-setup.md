@@ -371,6 +371,7 @@ the §2 spec asked for.
 | # | Plan | What shipped, and why |
 | :--- | :--- | :--- |
 | CS8 | Newlines, continuations, glued operators, `(`/`)` and the new `PREFIXES` | Also turns off shlex's `#` comments. shlex reads a comment through the end of its line, newline included, so `echo x # note` would still have merged the next line into its segment. A comment-then-write template pins it |
+| CS9 | Shells, `eval`, substitution, `find` actions, `xargs` | Also an in-place flag inside an option cluster. `parse()` tested only `startswith("-i")`, so `perl -pi -e` (perl's own in-place idiom), `sed -ni` and `sed -Ei` rewrote a tracked migration unchecked. It now reads the whole cluster, stopping at an option that takes the rest as its argument. That comes as its own commit after Phase D |
 | CS1 | Redirect targets from `parse()` | Read from operator tokens instead. `parse()`'s regex safety net takes a quoted ` > ` for a redirection, so `jq 'select(.x > 1)'` and `awk '$3 > 100'` would have been refused as writes. A command whose quoting shlex cannot parse is refused outright, because its tokens cannot be trusted |
 | CS1 | `file`, `tree` and `base64` as plain readers | Conditional readers: `file -C`, `tree -o` and `base64 -o` write files |
 | CS1 | sed and awk conditions | Also refused: `sed -f`, `awk -f`, and gawk's `-i` (in place), `-E` and `-l`, whose programs or extensions cannot be read. A sed `-i` inside a cluster (`-ni`, `-ie`) is refused too |
