@@ -127,28 +127,26 @@ is not a licence to pad — §4's "Zero Fluff" still governs. For every finding:
 | **The Fix** | Concise code snippet or architectural change. |
 
 ## 6. Validation & Testing
-*   **Lightweight & Token-Efficient:** Do not launch heavy browser subagents, extensive test runs, or create unnecessary walkthrough artifacts for routine or minor edits unless explicitly requested.
+*   **Lightweight & Token-Efficient:** A minor edit — §2's list, including a CSS or markup fix
+    that leaves JS, the API and the schema alone — gets a minor verification pass by default;
+    the user should not have to ask for it. Going further needs an explicit request: if you
+    think it is warranted, say so in the summary instead of doing it.
+    *   **Gates:** the lint and test commands below for each layer you touched, run **once,
+        after the last edit**; if one fails, fix it and re-run that gate alone. For `frontend/`
+        that is `npm run lint` and `npm test` — `npm test` already builds `dist/` and enforces
+        the size budget (`scripts/tests/build.test.js`), so a separate `npm run build` adds
+        nothing. The `check_docs.py` repair below still applies.
+    *   **Evidence:** at most one check that the bug is gone, at the width or state that showed
+        it. No sweeps across widths or font sizes, no before/after diffs, no screenshots, no
+        browser subagents.
+    *   **Scope:** pick the smallest fix that fits the surrounding idiom; don't survey
+        alternatives. Edit a doc only where the change made it wrong — no notes recording the fix.
 *   **Targeted Sanity Checks:** Prefer fast, static sanity checks (or brief syntax verification) to preserve context window and reduce token usage.
-*   **Local Environment Setup:** The API needs a root `.env`:
-    ```bash
-    DATABASE_URL=postgresql+asyncpg://<user>:<password>@localhost:5432/<dbname>
-    AWS_REGION=us-east-1
-    DEFAULT_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
-    TESTING=false
-    JWT_SECRET=<openssl rand -hex 32>
-    ```
-    `JWT_SECRET` is required, has no fallback and must be at least 32 characters;
-    `server/config/settings.py` validates it at import, so a missing or too-short
-    value fails before the app starts.
-
-    `tests/backend/conftest.py` sets `TESTING=true` plus throwaway values for
-    `DATABASE_URL` (in-memory SQLite), `AWS_REGION`, `DEFAULT_MODEL_ID` and
-    `JWT_SECRET` — it *satisfies* that import-time validation rather than bypassing
-    it, so you never need to export anything to run the suite. `TESTING=true` itself
-    does exactly two things: it short-circuits the rate-limiting middleware
-    (`server/middlewares/rate_limit.py`) and it stops `server/main.py` from scheduling
-    the Kafka consumer, batch flusher and PG fan-out tasks. `PYTHONPATH` must include
-    the repo root.
+*   **Local Environment Setup:** Running the API needs a root `.env`; the variables and
+    `JWT_SECRET`'s 32-character floor are in `docs/CONFIGURATION.md`. The test suite needs
+    none of it: `tests/backend/conftest.py` sets `TESTING=true` and throwaway values that
+    satisfy the import-time validation (`docs/TESTING.md`), so you never export anything to
+    run it. `PYTHONPATH` must include the repo root.
 *   **Autonomous Test Commands:** These are what CI runs
     (`.github/workflows/deploy.yml`); use the same ones so a green local run means a
     green pipeline.
