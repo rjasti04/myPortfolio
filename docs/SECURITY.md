@@ -465,6 +465,8 @@ Structured JSON via structlog, with `request_id` on every line.
 | API responses never cached by the service worker | `sw.js` skips `/api/` |
 | Bedrock invocation logs get the analytics session id only — never its token, a user id or an IP | `bedrock_service.stream_chat_response` (`requestMetadata`) |
 | Analytics click tracking records shape, not content | tag name, whether an id exists, link origin — not text or href |
+| A deleted account is deleted | `auth_service.run_account_purger` — 30 days after deletion the row and everything cascading from it goes. "Scheduled for deletion" used to delete nothing |
+| An account's chat history leaves the browser at sign-out | `chat.js` `dropForeignSessions()` — rows are tagged with the owning account; anonymous conversations stay |
 
 The `robots.txt` disallows `/api/`.
 

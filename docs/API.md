@@ -399,7 +399,8 @@ treats it as a refused credential and signs the visitor out.
 
 `{"current_password": "…", "confirmation_phrase": "DELETE"}` (case-insensitive,
 trimmed). Soft delete: `deleted_at` set, `is_active` cleared, all tokens
-revoked. Signing in within 30 days automatically reactivates the account.
+revoked. Signing in within 30 days automatically reactivates the account; after
+that the account and everything attached to it is purged by a daily job.
 **400** on a wrong current password or confirmation phrase. The password check
 is held to the password tally and the strict auth budget, as change-password is.
 

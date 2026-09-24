@@ -438,6 +438,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/services/auth_service.py:802-835` (soft delete), `:196-200` (purge only on re-registration); `docs/DATABASE.md:325` |
 | **The "Why"** | The UI tells the user their account is "scheduled for deletion", but nothing ever runs that schedule. The email, password hash, TOTP secret and every saved conversation are kept indefinitely, unless someone else happens to register the same address after 30 days. |
 | **The Fix** | A scheduled purge (a systemd timer or a lifespan task) that deletes `users WHERE deleted_at < now() - interval '30 days'`. The `ondelete="CASCADE"` FKs already take the rest. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `purge_deleted_accounts` deletes every account soft-deleted more than `ACCOUNT_REACTIVATION_WINDOW` (30 days) ago, and the existing `ON DELETE CASCADE` foreign keys take its tokens, password history, conversations and session rows. `run_account_purger` is a lifespan task, like the ingest workers: it runs at start (so on every deploy) and every 24 hours, and logs a failed run instead of ending. The window is compared in Python, the same tz precedent as token expiry. Registration, login and the purge now read one constant. The test passes on SQLite, with `PRAGMA foreign_keys` on, and on PostgreSQL 16. |
 
 ### S9 — Signed-in chat transcripts survive sign-out
 
@@ -448,6 +450,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `frontend/js/auth.js:15-18` (`clearTokens` removes two keys); `frontend/js/chat.js:2281-2290` (`auth-changed` handler returns early when signed out) |
 | **The "Why"** | `rj_chat_sessions` keeps every transcript fetched from the account. After sign-out, the next person on that browser sees them in the sidebar, and a different account signing in inherits the previous user's `conversationId`s. |
 | **The Fix** | On sign-out, drop every session with a `conversationId` (server-backed) and re-render. Keep anonymous local conversations. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Rows are tagged with the owning account's id (`ownerId`, the token's `sub` through a new `getTokenSubject()`) when the server lists them and when a turn is sent signed in. `dropForeignSessions()` runs at load and on `auth-changed`: signed out, it drops tagged rows and untagged stubs; signed in, it drops another account's rows. Anonymous conversations stay. **Differs from the suggested fix:** "drop every session with a `conversationId`" would have dropped anonymous conversations too, because `backfillConversationIds()` gives every row one. The §1 C5 notice stays for a sign-out in another tab, which fires no `auth-changed` here. |
 
 ### S10 — Single-use tokens are consumed non-atomically
 

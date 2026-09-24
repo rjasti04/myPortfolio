@@ -7,6 +7,25 @@ export function getAuthToken() {
   return localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
+/* The account id (`sub`) in the stored access token, or null. Read without
+   verifying the signature, which only the server can do: it labels which
+   conversations in this browser belong to which account, so they can be
+   dropped at sign-out. It authorises nothing - the server still checks every
+   read against the bearer. */
+export function getTokenSubject() {
+  try {
+    const token = getAuthToken();
+    const payload = token ? token.split('.')[1] : '';
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const sub = JSON.parse(atob(padded))?.sub;
+    return typeof sub === 'string' && sub ? sub : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export function setTokens(access, refresh) {
   if (access) localStorage.setItem(AUTH_TOKEN_KEY, access);
   if (refresh) localStorage.setItem(REFRESH_TOKEN_KEY, refresh);

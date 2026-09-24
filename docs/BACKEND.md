@@ -52,10 +52,11 @@ Two conventions are worth internalising:
 
 ## `main.py`
 
-126 lines. Constructs the app, the middleware stack and the lifespan.
+134 lines. Constructs the app, the middleware stack and the lifespan.
 
-**Startup/shutdown** — `lifespan` schedules three background tasks unless
-`TESTING=true`: `kafka-consumer`, `batch-flusher`, `pg-fanout`. On shutdown it
+**Startup/shutdown** — `lifespan` schedules four background tasks unless
+`TESTING=true`: `kafka-consumer`, `batch-flusher`, `pg-fanout` and
+`account-purger` (`auth_service.run_account_purger`). On shutdown it
 cancels them, flushes the remaining write buffer via `save_batch()`, awaits
 in-flight fire-and-forget tasks via `drain_background_tasks()`, and disposes the
 engine.
@@ -316,7 +317,8 @@ used twice; `_totp_time` is its clock, a seam the tests walk forward.
 | `change_user_password` | `check_current_password` → HIBP → reuse check (current + last 5) → archive old → set new → prune history → revoke everything → email |
 | `request_password_reset` / `request_magic_link` | Identical generic response for every outcome, so neither enumerates accounts |
 | `reset_password_with_token` | Burn the token first, then the same pipeline, plus clearing the **password** tally only - the code tally stays, or an inbox holder could reset between code guesses |
-| `delete_user_account` | Requires the literal phrase `DELETE` and the current password (`check_current_password`); soft delete with 30-day reactivation |
+| `delete_user_account` | Requires the literal phrase `DELETE` and the current password (`check_current_password`); soft delete with `ACCOUNT_REACTIVATION_WINDOW` (30 days) reactivation |
+| `purge_deleted_accounts` / `run_account_purger` | Deletes every account soft-deleted more than the window ago; `ON DELETE CASCADE` takes its tokens, history, conversations and session rows. The window is compared in Python, as token expiry is. The runner goes at start and every 24 hours, and logs a failed run rather than ending |
 | `setup_2fa` | **Refuses** if 2FA is already enabled — re-enrolling would overwrite the live secret and lock the account behind a factor nobody can produce |
 | `enable_2fa` / `disable_2fa` | Both require the current password **and** a valid code, and both run **password (password tally) → state → code (code tally) → mutate → revoke → notify**. A state error ("2FA is not enabled") counts toward neither. Each revokes every *other* session and emails the owner |
 | `verify_2fa_login` | Burns the pre-auth `jti` (otherwise a captured token bought unlimited code guesses), then checks the **code tally only** - a password lock must not close the emailed-link route - and clears both tallies on success |

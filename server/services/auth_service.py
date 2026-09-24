@@ -9,8 +9,10 @@ from server.models.token import RefreshToken
 from server.models.one_time_token import OneTimeToken
 from server.models.password_history import PasswordHistory
 from server.config.settings import TRUSTED_PROXY_NETWORKS
+from server.db.database import AsyncSessionLocal
 from server.utils.ip_utils import client_ip_from_request
 from server.utils.user_agent import device_type_from_user_agent
+import asyncio
 import pyotp
 import qrcode
 import io
@@ -52,6 +54,14 @@ import uuid
 logger = structlog.get_logger(__name__)
 
 PASSWORD_HISTORY_LIMIT = 5
+
+# How long a deleted account can be brought back by signing in. After it,
+# `purge_deleted_accounts` removes the row and everything that hangs off it.
+# One constant for the three places that read it - registration, login and the
+# purge - so they cannot drift apart.
+ACCOUNT_REACTIVATION_WINDOW = timedelta(days=30)
+# How often the purge runs, on top of once at every start (and so every deploy).
+ACCOUNT_PURGE_INTERVAL_SECONDS = 24 * 60 * 60
 
 # Failed attempts before a tally locks, and for how long. There are two
 # tallies - passwords and TOTP codes - see docs/SECURITY.md, "Account lockout".
@@ -372,7 +382,7 @@ async def register_user(
     if existing_user:
         now = datetime.now(timezone.utc)
         deleted_at = existing_user.deleted_at
-        if deleted_at and now - _as_utc(deleted_at) > timedelta(days=30):
+        if deleted_at and now - _as_utc(deleted_at) > ACCOUNT_REACTIVATION_WINDOW:
             await db.delete(existing_user)
             await db.commit()
         else:
@@ -426,7 +436,7 @@ async def authenticate_user(
 
     now = datetime.now(timezone.utc)
 
-    if user.deleted_at and now - _as_utc(user.deleted_at) > timedelta(days=30):
+    if user.deleted_at and now - _as_utc(user.deleted_at) > ACCOUNT_REACTIVATION_WINDOW:
         spend_verification_time(rounds=2)
         logger.warning("login_failed_account_purged", user_id=str(user.id))
         raise login_failed()
@@ -1050,6 +1060,53 @@ async def delete_user_account(
     return {
         "message": "Account successfully scheduled for deletion. Logging back in within 30 days will automatically reactivate your account."
     }
+
+
+async def purge_deleted_accounts(db: AsyncSession, now: datetime) -> int:
+    """Delete every account soft-deleted more than the reactivation window ago.
+
+    The UI tells a visitor their account is "scheduled for deletion", but
+    nothing ran that schedule: the email, the password hash, the TOTP secret and
+    every saved conversation stayed for good, unless someone else happened to
+    register the same address. The `ON DELETE CASCADE` foreign keys take the
+    refresh tokens, one-time tokens, password history, conversations and
+    session rows with the user.
+
+    The window is compared in Python, as refresh_user_token compares expiry:
+    stored timestamps compare differently under SQLite and PostgreSQL. Few rows
+    are ever soft-deleted at once, so reading them costs nothing.
+    """
+    rows = (
+        await db.execute(select(User.id, User.deleted_at).where(User.deleted_at.is_not(None)))
+    ).all()
+    expired = [
+        user_id for user_id, deleted_at in rows
+        if now - _as_utc(deleted_at) > ACCOUNT_REACTIVATION_WINDOW
+    ]
+    if not expired:
+        return 0
+    await db.execute(
+        delete(User).where(User.id.in_(expired)).execution_options(synchronize_session=False)
+    )
+    await db.commit()
+    # Ids only: the addresses are exactly what is being removed.
+    logger.info("deleted_accounts_purged", count=len(expired), user_ids=[str(i) for i in expired])
+    return len(expired)
+
+
+async def run_account_purger() -> None:
+    """Runs the purge at start and then every ACCOUNT_PURGE_INTERVAL_SECONDS.
+
+    Started from the app's lifespan. A failed run is logged and retried on the
+    next interval rather than ending the task.
+    """
+    while True:
+        try:
+            async with AsyncSessionLocal() as session:
+                await purge_deleted_accounts(session, datetime.now(timezone.utc))
+        except Exception as exc:  # noqa: BLE001 - one bad run must not end the loop
+            logger.error("deleted_account_purge_failed", error=str(exc))
+        await asyncio.sleep(ACCOUNT_PURGE_INTERVAL_SECONDS)
 
 
 async def setup_2fa(db: AsyncSession, user: User) -> Setup2FAResponse:

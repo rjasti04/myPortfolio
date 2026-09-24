@@ -372,8 +372,23 @@ describe('Chat server-history sync', () => {
   });
 
   it('says why a stub cannot load when signed out, rather than spinning', async () => {
-    storeActiveStub(stubId(4));
+    // Signed out at load, a stub is dropped outright (S9, below). What is left
+    // for this notice is a sign-out in *another* tab, which fires no
+    // auth-changed here: the token goes from storage and the rail still
+    // holds the account's stub.
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, 'token');
+    const id = stubId(4);
+    handlers['/chat/history'] = async () => ({
+      ok: true, status: 200,
+      json: async () => ({ conversations: [conversation(id, 'Elsewhere', '2026-01-01T00:00:00Z')] }),
+    });
     initChat();
+    await settle();
+
+    dom.window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    [...document.querySelectorAll('.history-item-open')]
+      .find((b) => b.textContent === 'Elsewhere')
+      .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
     await settle();
 
     assert.equal(transcript().querySelector('.chat-transcript-loading'), null,
@@ -468,5 +483,160 @@ describe('Chat server-history sync', () => {
     await settle();
     // The portfolio never depends on the API: a local conversation is still there.
     assert.equal(rows().length, 1);
+  });
+});
+
+/* S9 (docs/review/codebase_review_20260924.md): `rj_chat_sessions` kept every
+   transcript fetched from an account, so after sign-out the next person on
+   the browser saw them in the rail, and a different account signing in
+   inherited the previous one's conversation ids.
+
+   A fresh window per test: these dispatch `auth-changed`, and every initChat()
+   in a shared window leaves a listener holding its own copy of the rail, all
+   of which would answer. */
+describe('Chat history belongs to one account', () => {
+  let dom;
+  let initChat;
+  let getTokenSubject;
+  let handlers;
+
+  const jwt = (sub) => `h.${Buffer.from(JSON.stringify({ sub })).toString('base64url')}.s`;
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
+  const stored = () => JSON.parse(dom.window.localStorage.getItem(STORAGE_KEY) || '[]');
+  const titles = () => stored().map((row) => row.title).sort();
+  const signOut = () => {
+    dom.window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    dom.window.dispatchEvent(new dom.window.Event('auth-changed'));
+  };
+  const listing = (...conversations) => async () => ({
+    ok: true, status: 200, json: async () => ({ conversations }),
+  });
+  const local = (id, title, extra = {}) => ({
+    id, conversationId: `${id}-0000-4000-8000-000000000000`.slice(0, 36), title,
+    messages: [{ text: title, sender: 'user' }], createdAt: Number(id), updatedAt: Number(id),
+    ...extra,
+  });
+
+  beforeEach(async () => {
+    dom = new JSDOM(HTML, { url: 'http://localhost:8080/' });
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.localStorage = dom.window.localStorage;
+    global.HTMLElement = dom.window.HTMLElement;
+    global.requestAnimationFrame = (cb) => setTimeout(() => cb(0), 0);
+    dom.window.matchMedia = () => ({
+      matches: false,
+      addEventListener() {}, removeEventListener() {},
+      addListener() {}, removeListener() {},
+    });
+    dom.window.Element.prototype.scrollTo = function () {};
+    dom.window.Element.prototype.scrollIntoView = function () {};
+    handlers = {};
+    global.fetch = async (url, options = {}) => {
+      const key = Object.keys(handlers).find((k) => String(url).includes(k));
+      if (!key) return { ok: false, status: 404, json: async () => ({}) };
+      return handlers[key](String(url), options);
+    };
+    ({ initChat } = await import('../js/chat.js'));
+    ({ getTokenSubject } = await import('../js/auth.js'));
+  });
+
+  after(() => {
+    delete global.window;
+    delete global.document;
+    delete global.localStorage;
+    delete global.HTMLElement;
+    delete global.fetch;
+  });
+
+  it('reads the account id out of the access token, and nothing out of junk', () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, jwt('user-1'));
+    assert.equal(getTokenSubject(), 'user-1');
+    for (const junk of ['token', 'a.b.c', 'a.@@@.c']) {
+      dom.window.localStorage.setItem(AUTH_TOKEN_KEY, junk);
+      assert.equal(getTokenSubject(), null, junk);
+    }
+    dom.window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    assert.equal(getTokenSubject(), null);
+  });
+
+  it('tags the rows an account owns when the server lists them', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, jwt('user-1'));
+    const mine = local('1700000000001', 'Typed here, saved there');
+    dom.window.localStorage.setItem(STORAGE_KEY, JSON.stringify([mine]));
+    handlers['/chat/history'] = listing(
+      conversation(mine.conversationId, 'Typed here, saved there', '2026-01-02T00:00:00Z'),
+      conversation('99999999-9999-4999-8999-999999999999', 'From my phone', '2026-01-01T00:00:00Z'),
+    );
+    initChat();
+    await settle();
+
+    assert.deepEqual(stored().map((row) => row.ownerId), ['user-1', 'user-1']);
+  });
+
+  it('drops the account\'s rows at sign-out and keeps anonymous ones', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, jwt('user-1'));
+    dom.window.localStorage.setItem(STORAGE_KEY, JSON.stringify([
+      local('1700000000002', 'Mine', { ownerId: 'user-1' }),
+      local('1700000000001', 'Anonymous'),
+    ]));
+    initChat();
+    await settle();
+    assert.deepEqual(titles(), ['Anonymous', 'Mine']);
+
+    signOut();
+    await settle();
+
+    assert.deepEqual(titles(), ['Anonymous'], 'the next person on this browser must not see it');
+    assert.ok(!dom.window.localStorage.getItem(STORAGE_KEY).includes('Mine'));
+    assert.ok(![...document.querySelectorAll('.history-item-open')].some((b) => b.textContent === 'Mine'));
+  });
+
+  it('drops the previous account\'s rows when another one signs in', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, jwt('user-1'));
+    dom.window.localStorage.setItem(STORAGE_KEY, JSON.stringify([
+      local('1700000000002', 'First account', { ownerId: 'user-1' }),
+      local('1700000000001', 'Anonymous'),
+    ]));
+    initChat();
+    await settle();
+
+    // Signed out in another tab, then in again as someone else in this one.
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, jwt('user-2'));
+    handlers['/chat/history'] = listing();
+    dom.window.dispatchEvent(new dom.window.Event('auth-changed'));
+    await settle();
+
+    assert.deepEqual(titles(), ['Anonymous']);
+  });
+
+  it('drops server stubs stored before tagging when nobody is signed in', async () => {
+    dom.window.localStorage.setItem(STORAGE_KEY, JSON.stringify([
+      local('1700000000002', 'Old stub', { remote: true }),
+      local('1700000000001', 'Anonymous'),
+    ]));
+    initChat();
+    await settle();
+
+    assert.deepEqual(titles(), ['Anonymous'], 'an untagged stub is a server row only an account owns');
+  });
+
+  it('moves to the newest remaining conversation when the open one goes', async () => {
+    dom.window.localStorage.setItem(AUTH_TOKEN_KEY, jwt('user-1'));
+    dom.window.localStorage.setItem(STORAGE_KEY, JSON.stringify([
+      local('1700000000003', 'Mine', { ownerId: 'user-1' }),
+      local('1700000000002', 'Newer anonymous'),
+      local('1700000000001', 'Older anonymous'),
+    ]));
+    dom.window.localStorage.setItem('rj_chat_active_session', '1700000000003');
+    initChat();
+    await settle();
+
+    signOut();
+    await settle();
+
+    assert.equal(dom.window.localStorage.getItem('rj_chat_active_session'), '1700000000002');
+    assert.match(document.getElementById('ai-page-messages').textContent, /Newer anonymous/);
+    assert.doesNotMatch(document.getElementById('ai-page-messages').textContent, /Mine/);
   });
 });

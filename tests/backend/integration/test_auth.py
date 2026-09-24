@@ -1930,3 +1930,73 @@ async def test_re_authentication_is_held_to_the_password_lock(async_client, rout
     assert row.deleted_at is None, "the locked request must not have deleted the account"
     await _expire_the_lock(email)
     await _login(async_client, email, password)  # and the password is unchanged
+
+
+# --- deleted accounts are purged ---------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_deleted_accounts_are_purged_after_the_reactivation_window(async_client):
+    """The UI said "scheduled for deletion" and nothing ran the schedule: the
+    email, the password hash, the TOTP secret and every saved conversation were
+    kept for good. The purge removes the row, and the foreign keys take the
+    rest with it."""
+    from sqlalchemy import func, select, text
+
+    from server.db.database import get_db
+    from server.main import app
+    from server.models.ai_conversation import AIConversation
+    from server.models.token import RefreshToken
+    from server.models.user import User
+    from server.services.chat_history_service import save_or_update_conversation
+
+    expired_email, expired_password = await _register(async_client)
+    await _login(async_client, expired_email, expired_password)  # leaves a refresh token
+    recent_email, _ = await _register(async_client)
+    active_email, _ = await _register(async_client)
+
+    now = datetime.now(timezone.utc)
+    sessions = app.dependency_overrides[get_db]()
+    session = await sessions.__anext__()
+    sqlite = session.bind.dialect.name == "sqlite"
+    try:
+        expired_id = (await _user_row(expired_email)).id
+        await save_or_update_conversation(
+            session, expired_id, None, "dummy-model-id",
+            [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "hello"}],
+        )
+        for email, age in ((expired_email, 31), (recent_email, 29)):
+            await session.execute(
+                update(User)
+                .where(User.email == email)
+                .values(deleted_at=now - timedelta(days=age), is_active=False)
+            )
+        await session.commit()
+
+        # SQLite enforces ON DELETE CASCADE only with this set, and only
+        # outside a transaction; PostgreSQL always enforces it.
+        if sqlite:
+            await session.execute(text("PRAGMA foreign_keys=ON"))
+        try:
+            purged = await auth_service.purge_deleted_accounts(session, now)
+        finally:
+            if sqlite:
+                await session.commit()
+                await session.execute(text("PRAGMA foreign_keys=OFF"))
+
+        # At least this one: the suite shares a database, and other tests
+        # leave accounts soft-deleted past the window too.
+        assert purged >= 1
+
+        async def _count(model, column, value):
+            return (await session.execute(
+                select(func.count()).select_from(model).where(column == value)
+            )).scalar_one()
+
+        assert await _count(User, User.email, expired_email) == 0
+        assert await _count(RefreshToken, RefreshToken.user_id, expired_id) == 0
+        assert await _count(AIConversation, AIConversation.user_id, expired_id) == 0
+        assert await _count(User, User.email, recent_email) == 1, "still inside its window"
+        assert await _count(User, User.email, active_email) == 1
+    finally:
+        await sessions.aclose()

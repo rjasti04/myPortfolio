@@ -321,7 +321,8 @@ PostgreSQL exists to close.
 
 ## Retention and lifecycle
 
-There is no scheduled cleanup job. Growth and lifecycle today:
+One scheduled job: `account-purger` (`auth_service.run_account_purger`), at
+start and every 24 hours. Growth and lifecycle today:
 
 | Data | Lifecycle |
 | :--- | :--- |
@@ -331,7 +332,7 @@ There is no scheduled cleanup job. Growth and lifecycle today:
 | `one_time_tokens` | Retained after `used_at` is set, as an audit trail |
 | `password_history` | Pruned to the most recent 5 per user on every password change |
 | `ai_conversations` | Retained until the owner deletes the conversation or the account |
-| Soft-deleted users | Reactivated by signing in within 30 days; purged only when the same address registers again after that window |
+| Soft-deleted users | Reactivated by signing in within 30 days (`ACCOUNT_REACTIVATION_WINDOW`); **purged** after it, with every row that cascades from `users` - refresh and one-time tokens, password history, conversations. Before the purge existed they were kept for good unless the address registered again |
 
 If event volume becomes a problem, partitioning `user_activity_events` by
 `created_at` or adding a retention sweep is the natural next step — neither is

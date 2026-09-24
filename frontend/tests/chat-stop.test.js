@@ -135,6 +135,32 @@ describe('Chat Stop and busy state', () => {
     assert.equal(streamCalls().length, 1, 'the second submit must see the turn as busy');
   });
 
+  /* Not Stop, but this is the harness that sends a turn. A turn sent signed in
+     is saved to that account, so its row is the account's and must leave this
+     browser at sign-out (S9); an anonymous one belongs to nobody. */
+  it('tags a conversation with the account a turn was sent from', async () => {
+    const jwt = (sub) => `h.${Buffer.from(JSON.stringify({ sub })).toString('base64url')}.s`;
+    handlers['/chat/stream'] = async () => ({
+      ok: true, status: 200,
+      body: sseBody(['data: {"type":"delta","text":"Hello"}', 'data: [DONE]']),
+    });
+    const activeRow = () => {
+      const rows = JSON.parse(dom.window.localStorage.getItem('rj_chat_sessions') || '[]');
+      return rows.find((row) => row.id === dom.window.localStorage.getItem('rj_chat_active_session'));
+    };
+
+    initChat();
+    await settle();
+    submit('anonymous turn');
+    await settle();
+    assert.equal(activeRow().ownerId, undefined, 'an anonymous turn belongs to nobody');
+
+    dom.window.localStorage.setItem('rj_access_token', jwt('user-7'));
+    submit('signed-in turn');
+    await settle();
+    assert.equal(activeRow().ownerId, 'user-7');
+  });
+
   it('Stop during a summary aborts the turn instead of only resetting the UI', async () => {
     // Long enough to cross SUMMARIZE_TOKEN_THRESHOLD, short enough to stay
     // under the anonymous free-message limit.
