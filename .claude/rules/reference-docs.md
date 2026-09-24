@@ -14,7 +14,7 @@ in order ("add or change an API endpoint" -> `API.md` -> `BACKEND.md` ->
 `SECURITY.md#checklist-for-changes`). The table below is for budgeting the read
 once you know which doc you want.
 
-**These docs are also too big to read whole.** Together they are ~120,500
+**These docs are also too big to read whole.** Together they are ~121,500
 tokens, and every one is cleanly sectioned. Get the heading map first, then
 pull only the section you need:
 
