@@ -232,3 +232,26 @@ def test_no_broker_configured_still_reports_the_simulation(clock, monkeypatch):
     monkeypatch.setattr(ks, "SIMULATE_KAFKA_METRICS", True)
     monkeypatch.setattr(ks, "KAFKA_BOOTSTRAP_SERVERS", "")
     assert _kafka()["mode"] == "simulated"
+
+
+@pytest.mark.asyncio
+async def test_a_broadcast_logs_nothing_per_event_at_info(clock, caplog):
+    """Every event delivered to a watched session wrote an INFO line, which made
+    per-event logging most of the log volume. The counter pipeline_snapshot
+    already reports carries the same figure, so the line is DEBUG now."""
+    import logging
+
+    caplog.set_level(logging.DEBUG)
+    session_id = uuid4()
+    queue = await ks.register_stream(session_id)
+    try:
+        for index in range(3):
+            ks.deliver_local(session_id, {"event_id": index, "event_type": "click"})
+    finally:
+        ks.unregister_stream(session_id, queue)
+
+    lines = [r for r in caplog.records if "broadcasting_event" in r.getMessage()]
+    assert len(lines) == 3, "the line still exists, for LOG_LEVEL=DEBUG"
+    assert all(r.levelno == logging.DEBUG for r in lines)
+    assert ks.METRICS["events_broadcast"] == 3
+    assert ks.pipeline_snapshot()["stages"]["ingress"]["events"] == 3

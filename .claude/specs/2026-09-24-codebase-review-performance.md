@@ -3,7 +3,8 @@
 **Related Intent**: `.claude/intents/2026-09-24-codebase-review-performance.md`
 **Source report**: `docs/review/codebase_review_20260924.md` §3 (PF1–PF6)
 **Target Audience**: Visitor / Recruiter (PF1), then Owner and Work Sample
-**Status**: planned. Implementation waits for approval of this spec.
+**Status**: Phase A implemented. Phase B in progress. Deviations from the plan
+are listed in **Revised during implementation** at the end of §6.
 **Tree**: line numbers are at `8e44ed9`. That is the report's `f33d629` plus
 the §1 and §2 implementations. Where those moved a line, the number here
 differs from the report's, and the number here is the one to use.
@@ -29,9 +30,10 @@ differs from the report's, and the number here is the one to use.
   body. That includes the two funnel routes, whose response shape is pinned
   by a test before either is rewritten.
 
-- **No new module and no new dependency.** Phase A adds two functions to
-  `security.py`. `anyio==4.14.2` is already pinned, because Starlette depends
-  on it.
+- **No new module.** Phase A adds two functions to `security.py`.
+  `anyio==4.14.2` was already pinned, because Starlette depends on it. It is
+  now also declared in `requirements.in`, because `security.py` imports it
+  directly (see **Revised during implementation**).
 
 - **Delivery**: two phases, each committed separately. Each phase runs the
   gates for the layers it touches (§6).
@@ -374,3 +376,13 @@ the agent):
 - **Whether the planner uses the new indexes at production size.** Covered
   by the owner's post-deploy `EXPLAIN` above. On a small table, a
   sequential scan is the right plan and is not a regression.
+
+### Revised during implementation
+
+| # | Plan | What shipped, and why |
+| :--- | :--- | :--- |
+| PF1 | "Nothing is added to `server/requirements*.in`" | `anyio>=4.2.0` is declared in `requirements.in`, and both locks were regenerated. The only lock change is anyio's `# via` comment, and no version moved. `security.py` imports anyio directly, and §1's C18 (python-dotenv) is the precedent: a direct import that is only installed transitively breaks when the package that brings it in changes. The floor was measured: anyio 4.0.0 raises `AsyncLibraryNotFoundError` when a `CapacityLimiter` is built at import, and 4.2.0 returns the adapter |
+| PF1 | PostgreSQL 16 run "where one is reachable" | One was: the container has PostgreSQL 16 installed. All 78 `test_auth.py` tests pass on it, including the parallel-guess test with real transaction interleaving |
+| PF1 | Tests "fail before the fix" (implied) | Checked. Against the old call sites, the thread test fails ("a bcrypt call ran on the event loop") and the heartbeat test gets **1** tick |
+| PF5 | TESTING.md count moved by the new test | The `test_pipeline_simulation.py` row said 10 tests. There were 12 before this change, so it now says 13. `test_auth.py` goes from 75 to 77. `check_docs.py` checks JS test files only, so it cannot catch this drift |
+| PF1 | `docs/BACKEND.md` gains a paragraph | Also corrected: its `security.py` heading said 137 lines. The file was 207 lines before this change and is 238 after |

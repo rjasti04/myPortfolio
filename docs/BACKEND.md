@@ -429,7 +429,7 @@ so an outage there does not block password changes.
 
 ## `auth/`
 
-### `security.py` (137 lines)
+### `security.py` (238 lines)
 
 `ALGORITHM = "HS256"`, `ACCESS_TOKEN_EXPIRE_MINUTES = 30`,
 `REFRESH_TOKEN_EXPIRE_DAYS = 30`.
@@ -444,6 +444,16 @@ fallback would be permanent and no row would ever migrate.
 building its dummy hash lazily on first use so the cost lands on a request
 rather than every process start. Every login refusal that skips the real check
 calls it with `rounds=2`, which is what a wrong password costs.
+
+None of these runs on the event loop. `auth_service` hands each one to
+`run_bcrypt(fn, *args)`, which runs it on an anyio worker thread under a
+limiter of one fewer than the core count. bcrypt releases the GIL, so the loop
+keeps serving chat and SSE while it hashes. Inline, one password change -
+fourteen checks, since every history miss also tries the legacy scheme -
+froze the worker for about four seconds. The reuse check is one
+`matches_any(password, hashes)` call, so it takes one thread hop, not six. Call
+sites pass the function they imported, so a test that patches that name still
+sees the call.
 
 Token constructors: `create_access_token`, `create_refresh_token`,
 `create_password_reset_token`, `create_pre_auth_token`, `create_magic_link_token`.

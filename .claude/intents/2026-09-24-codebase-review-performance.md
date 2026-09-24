@@ -7,8 +7,9 @@ findings **PF1–PF6** (2 × P2, 4 × P3). The report's line numbers refer to
 `kafka_stream.py`, and §2 Phase D replaced passlib with direct `bcrypt` calls.
 The spec cites line numbers at `8e44ed9`.
 **Companion spec**: `.claude/specs/2026-09-24-codebase-review-performance.md`
-**Status**: planned. Nothing is implemented yet. The two phases (A, B) follow
-once the spec is approved.
+**Status**: Phase A implemented. Phase B in progress. Where implementation
+departs from the plan, the spec's **Revised during implementation** table
+says so.
 
 ## 1. Problem & Persona Context
 
@@ -101,8 +102,10 @@ once the spec is approved.
       checked. The offload happens after the reservation, never before it.
     - *every login refusal costs two verifications*: each path still makes
       the same number of calls, and they queue on the same limiter.
-  - Every new dependency is already pinned: `anyio==4.14.2` comes in through
-    Starlette. Nothing is added to `server/requirements*.in`.
+  - No new package enters the locks. `anyio==4.14.2` already came in
+    through Starlette. It is now also declared in `requirements.in`, because
+    `security.py` imports it directly (the spec's **Revised during
+    implementation** table explains why).
 
 - **Explicit Non-Goals**:
   - §1, §2, §4 and §5 of the report. §1 and §2 are done. §4 (UI/UX) and §5

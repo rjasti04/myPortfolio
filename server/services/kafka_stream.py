@@ -324,7 +324,9 @@ def deliver_local(session_id: UUID, event_copy: Dict[str, Any]) -> None:
     if session_id not in active_streams:
         return
 
-    logger.info("broadcasting_event", session_id=str(session_id), streams_count=len(active_streams[session_id]))
+    # DEBUG, like the consumer's per-message line: at INFO these two were most
+    # of the log volume, and METRICS already counts both for pipeline_snapshot.
+    logger.debug("broadcasting_event", session_id=str(session_id), streams_count=len(active_streams[session_id]))
     for queue in list(active_streams[session_id]):
         try:
             queue.put_nowait(event_copy)
@@ -885,7 +887,7 @@ async def run_kafka_consumer() -> None:
             logger.info("kafka_client_connected", topic=KAFKA_TOPIC)
 
             async for msg in consumer:
-                logger.info("kafka_message_received", partition=msg.partition, offset=msg.offset)
+                logger.debug("kafka_message_received", partition=msg.partition, offset=msg.offset)
                 METRICS["kafka_messages"] += 1
                 monotonic_now = time.monotonic()
                 if monotonic_now - _last_lag_sample_at >= LAG_SAMPLE_INTERVAL_SECONDS:
@@ -950,7 +952,7 @@ async def run_simulated_consumer() -> None:
                         "event_data": mock_template["event_data"],
                         "created_at": datetime.now(timezone.utc)
                     }
-                    logger.info("simulated_event_generated", session_id=str(active_session_id), type=event_payload["event_type"])
+                    logger.debug("simulated_event_generated", session_id=str(active_session_id), type=event_payload["event_type"])
                     await process_incoming_event(event_payload, is_simulated=True)
 
             # Wait between 2.0 and 5.0 seconds

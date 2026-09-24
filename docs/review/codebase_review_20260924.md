@@ -578,6 +578,8 @@ if row >= LOCKOUT_THRESHOLD:
 | **Location** | `server/auth/security.py:19-67` (sync `pwd_context.verify/hash`), called from `async` services in `server/services/auth_service.py`; worst case `:527-534` and `:743-750` |
 | **The "Why"** | Each bcrypt call takes about 250 ms of CPU, and it runs inside `async def` handlers, which blocks the event loop. A password change or reset checks up to six history hashes in a row, **freezing the worker for about 1.5 s**. That stalls every open SSE stream, chat response and health check on the worker. Any login, including an attacker's wrong guesses, does the same in smaller steps. |
 | **The Fix** | Offload to a worker thread. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Every bcrypt call in `auth_service` now goes through `run_bcrypt(fn, *args)` in `security.py`, which runs it on an anyio worker thread. A dedicated `CapacityLimiter` allows one fewer thread than there are cores, so the loop keeps a core and a login flood slows logins, not the API. Each call site passes the function it imported, so the S3 and S5 spies still count real calls, and the parallel-guess test gained a lower bound so it cannot pass at zero. The reuse check is one `matches_any` call. **Differs from the report:** the cost was understated. A password change is 14 bcrypt operations (about 3.9 s), not six, because every history miss also tries the legacy scheme. The report's snippet used anyio's shared 40-thread pool; a dedicated limiter replaces it. Measured on the pinned bcrypt 5.0.0, four concurrent checks stalled the loop for 1,085 ms inline and 3 ms threaded. `anyio>=4.2.0` is now declared in `requirements.in`, since it is imported directly. `test_password_hashing_never_runs_on_the_event_loop` checks the thread on every hash across register, a wrong login and a password change. `test_a_wrong_login_does_not_stall_the_event_loop` got 1 heartbeat tick before the fix. The auth suite also passes on PostgreSQL 16. |
 
 ```python
 from anyio import to_thread
@@ -624,6 +626,8 @@ async def verify_password_async(p: str, h: str) -> bool:
 | **Location** | `server/services/kafka_stream.py:327` (`broadcasting_event`), `:796` (`kafka_message_received`) |
 | **The "Why"** | Two JSON log lines per event on the hottest path, which dominates log volume and serialisation cost. |
 | **The Fix** | DEBUG level, or sampled counters surfaced through `pipeline_snapshot()`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Both lines are DEBUG, and so is a third the report missed: `simulated_event_generated`. No counter was added. `METRICS["events_broadcast"]` and `METRICS["kafka_messages"]` already counted the same events, and `pipeline_snapshot()` already reported both. `filter_by_level` is the first structlog processor, so at the default `LOG_LEVEL=INFO` a DEBUG line is dropped before JSON rendering. `broadcasting_event` only ever fired for a session with a live listener, so the volume was per *watched* event. The second line has moved to `:888`. `test_a_broadcast_logs_nothing_per_event_at_info` asserts the line is DEBUG and the counter still moves. |
 
 ### PF6 — The funnel subquery is evaluated three times
 
