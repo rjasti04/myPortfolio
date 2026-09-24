@@ -28,6 +28,8 @@ from server.schemas.auth import (
 )
 from server.auth.security import (
     get_password_hash,
+    matches_any,
+    run_bcrypt,
     spend_verification_time,
     verify_password,
     verify_password_scheme,
@@ -244,7 +246,7 @@ async def check_current_password(
     """
     if not await reserve_attempt(db, user, PASSWORD_TALLY, now, f"{action}_rejected_account_locked"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=PASSWORD_LOCKED_DETAIL)
-    if not verify_password(password, user.hashed_password):
+    if not await run_bcrypt(verify_password, password, user.hashed_password):
         record_failure(db, user, PASSWORD_TALLY, now, f"account_locked_due_to_failed_{action}")
         await db.commit()
         logger.warning(f"{action}_invalid_password", user_id=str(user.id))
@@ -389,14 +391,14 @@ async def register_user(
             # Same answer and the same bcrypt cost as a new registration, so
             # neither the body nor the response time tells the two apart. The
             # mail is sent in the background on both paths, off the clock.
-            get_password_hash(user_data.password)
+            await run_bcrypt(get_password_hash, user_data.password)
             logger.info("registration_existing_address", user_id=str(existing_user.id))
             if background_tasks:
                 background_tasks.add_task(send_existing_account_email, existing_user.email)
             return REGISTER_ACCEPTED
 
     # Hash the password
-    hashed_password = get_password_hash(user_data.password)
+    hashed_password = await run_bcrypt(get_password_hash, user_data.password)
 
     # Create new user
     db_user = User(
@@ -430,23 +432,23 @@ async def authenticate_user(
     # and the purged and locked paths burned none, so response time told an
     # attacker which addresses have accounts even where the body did not.
     if not user:
-        spend_verification_time(rounds=2)
+        await run_bcrypt(spend_verification_time, 2)
         logger.warning("login_failed", email=email_normalized)
         raise login_failed()
 
     now = datetime.now(timezone.utc)
 
     if user.deleted_at and now - _as_utc(user.deleted_at) > ACCOUNT_REACTIVATION_WINDOW:
-        spend_verification_time(rounds=2)
+        await run_bcrypt(spend_verification_time, 2)
         logger.warning("login_failed_account_purged", user_id=str(user.id))
         raise login_failed()
 
     if not await reserve_attempt(db, user, PASSWORD_TALLY, now, "login_failed_account_locked"):
-        spend_verification_time(rounds=2)
+        await run_bcrypt(spend_verification_time, 2)
         raise login_failed()
 
-    password_matched, needs_rehash = verify_password_scheme(
-        user_data.password, user.hashed_password
+    password_matched, needs_rehash = await run_bcrypt(
+        verify_password_scheme, user_data.password, user.hashed_password
     )
     if not password_matched:
         record_failure(db, user, PASSWORD_TALLY, now, "account_locked_due_to_failed_logins")
@@ -494,7 +496,7 @@ async def authenticate_user(
     # chance to migrate a pre-SHA256-prehash row. Without this the legacy branch
     # in verify_password_scheme stays load-bearing forever.
     if needs_rehash:
-        user.hashed_password = get_password_hash(user_data.password)
+        user.hashed_password = await run_bcrypt(get_password_hash, user_data.password)
         logger.info("password_hash_upgraded", user_id=str(user.id))
 
     if user.is_totp_enabled:
@@ -757,13 +759,12 @@ async def change_user_password(
 
     # Compare new_password against active password and recent history
     all_candidate_hashes = [user.hashed_password] + list(recent_history_hashes)
-    for past_hash in all_candidate_hashes:
-        if verify_password(data.new_password, past_hash):
-            logger.warning("password_change_failed_reused", user_id=str(user.id))
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="You cannot reuse a recent password."
-            )
+    if await run_bcrypt(matches_any, data.new_password, all_candidate_hashes):
+        logger.warning("password_change_failed_reused", user_id=str(user.id))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot reuse a recent password."
+        )
 
     # Step 4: Record in Password History (Store OLD password hash)
     old_hash = user.hashed_password
@@ -774,7 +775,7 @@ async def change_user_password(
     db.add(history_entry)
 
     # Step 5: Update Active Password
-    user.hashed_password = get_password_hash(data.new_password)
+    user.hashed_password = await run_bcrypt(get_password_hash, data.new_password)
     db.add(user)
 
     # Clean up or prune history entries older than the last N records
@@ -973,13 +974,12 @@ async def reset_password_with_token(
     recent_history_hashes = history_result.scalars().all()
 
     all_candidate_hashes = [user.hashed_password] + list(recent_history_hashes)
-    for past_hash in all_candidate_hashes:
-        if verify_password(data.new_password, past_hash):
-            logger.warning("password_reset_failed_reused", user_id=str(user.id))
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="You cannot reuse a recent password."
-            )
+    if await run_bcrypt(matches_any, data.new_password, all_candidate_hashes):
+        logger.warning("password_reset_failed_reused", user_id=str(user.id))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot reuse a recent password."
+        )
 
     # Step 5: Record in Password History (Store OLD password hash)
     old_hash = user.hashed_password
@@ -993,7 +993,7 @@ async def reset_password_with_token(
     # tally stays: this used to clear a single shared count, so anyone holding
     # the inbox could reset, sign in, try five codes, and reset again - which
     # left the second factor bounded by the rate limiter rather than the lock.
-    user.hashed_password = get_password_hash(data.new_password)
+    user.hashed_password = await run_bcrypt(get_password_hash, data.new_password)
     clear_tally(db, user, PASSWORD_TALLY)
 
     # The reset link was mailed to this address and has just been redeemed, so

@@ -514,8 +514,9 @@ It **fails closed**. An unset `OWNER_EMAIL` denies everyone, including the
 owner: a deploy that silently published every visitor's browsing to any
 registered account is a worse failure than one that locks the dashboard.
 
-The window is capped at 365 days. These are unindexed aggregates over a
-growing table, and an unbounded range is the query that eventually times out.
+The window is capped at 365 days. The date columns are indexed, but a
+year-long window is still a year-long scan of a table that never shrinks, and
+an unbounded range is the query that eventually times out.
 
 ---
 

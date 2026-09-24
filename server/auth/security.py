@@ -1,8 +1,11 @@
 import hashlib
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Union, Optional
+import anyio.to_thread
 import bcrypt
 import jwt
+from anyio import CapacityLimiter
 from fastapi import HTTPException, status
 
 from server.config.settings import JWT_SECRET
@@ -72,7 +75,8 @@ def spend_verification_time(rounds: int = 1) -> None:
     global _dummy_hash
     if _dummy_hash is None:
         # Built on first use rather than at import, so the cost lands on a
-        # request rather than on every process start and test collection.
+        # request rather than on every process start and test collection. Two
+        # worker threads may both build it; either hash serves, so no lock.
         _dummy_hash = get_password_hash("timing-equalisation-placeholder")
     for _ in range(rounds):
         _checkpw(_get_sha256_hex("not-the-placeholder").encode("ascii"), _dummy_hash)
@@ -80,6 +84,33 @@ def spend_verification_time(rounds: int = 1) -> None:
 def get_password_hash(password: str) -> str:
     digest = _get_sha256_hex(password).encode("ascii")
     return bcrypt.hashpw(digest, bcrypt.gensalt(rounds=BCRYPT_ROUNDS)).decode("ascii")
+
+
+def matches_any(plain_password: str, hashed_passwords) -> bool:
+    """True if the password matches any of the hashes, stopping at the first.
+
+    The reuse check tries up to six hashes at two verifications each; checking
+    them in one call costs one thread hop rather than six.
+    """
+    return any(verify_password(plain_password, h) for h in hashed_passwords)
+
+
+# bcrypt is pure CPU and releases the GIL, so on a worker thread it leaves the
+# event loop free to serve streams while it hashes. Inline, one password change
+# (fourteen checks) froze every request on the worker for about four seconds.
+# More threads than cores add latency, not throughput, and one core is left for
+# the loop, so a login flood slows logins rather than everything else.
+_BCRYPT_LIMITER = CapacityLimiter(max(1, (os.cpu_count() or 2) - 1))
+
+
+async def run_bcrypt(fn, *args):
+    """Runs one of this module's bcrypt-bound functions on a worker thread.
+
+    Callers pass the function object they imported, so a test that patches that
+    name still sees the call. The arguments are evaluated on the loop: pass
+    strings, never ORM objects, since a lazy load cannot run from a thread.
+    """
+    return await anyio.to_thread.run_sync(fn, *args, limiter=_BCRYPT_LIMITER)
 
 def create_access_token(
     subject: Union[str, int],

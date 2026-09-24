@@ -10,7 +10,8 @@ class UserSession(Base):
     ip_address = Column(String(64), nullable=False)
     user_agent = Column(String(512), nullable=True)
     device_type = Column(String(50), nullable=True)
-    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # Indexed for the owner dashboard's date window (/admin/analytics/overview).
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     last_active_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     ended_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)

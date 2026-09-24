@@ -6,7 +6,7 @@ class AIConversation(Base):
     __tablename__ = "ai_conversations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title = Column(String(255), nullable=False, default="New Conversation")
     model_id = Column(String(100), nullable=False)
     compressed_payload = Column(LargeBinary, nullable=False)

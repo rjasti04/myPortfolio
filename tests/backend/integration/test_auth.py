@@ -1723,6 +1723,9 @@ async def test_parallel_guesses_are_not_all_checked(async_client):
     assert checked.call_count <= auth_service.LOCKOUT_THRESHOLD, (
         f"{checked.call_count} of 10 parallel guesses reached the password check"
     )
+    # The upper bound alone passes at zero, which is what a refactor that moved
+    # the check out of this spy's reach would produce.
+    assert checked.call_count >= 1, "no guess reached the spied password check"
     row = await _user_row(email)
     assert row.locked_until is not None, "the burst must leave the account locked"
 
@@ -1769,6 +1772,76 @@ async def test_every_login_refusal_costs_the_same_two_verifications(async_client
             )
         _assert_login_refused(response)
         assert spy.call_count == 2, f"{label}: {spy.call_count} verifications"
+
+
+@pytest.mark.asyncio
+async def test_password_hashing_never_runs_on_the_event_loop(async_client):
+    """bcrypt ran inside the async handlers, so every ~250 ms check froze each
+    request on the worker - chat streams, SSE frames and health checks
+    included. A password change is fourteen checks. Every hash and every
+    verification now runs on a worker thread."""
+    import threading
+
+    import bcrypt
+    from server.auth import security
+
+    on_loop = {"checkpw": [], "hashpw": []}
+    real_checkpw, real_hashpw = security._checkpw, bcrypt.hashpw
+
+    def checkpw(*args):
+        on_loop["checkpw"].append(threading.current_thread() is threading.main_thread())
+        return real_checkpw(*args)
+
+    def hashpw(*args):
+        on_loop["hashpw"].append(threading.current_thread() is threading.main_thread())
+        return real_hashpw(*args)
+
+    with patch.object(security, "_checkpw", checkpw), patch.object(bcrypt, "hashpw", hashpw):
+        email, password = await _register(async_client)
+        _assert_login_refused(
+            await async_client.post("/api/auth/login", json={"email": email, "password": "wrong"})
+        )
+        headers = await _auth_header(async_client, email, password)
+        response = await async_client.post(
+            "/api/auth/change-password",
+            headers=headers,
+            json={"current_password": password, "new_password": "An0therPassw0rd!"},
+        )
+
+    assert response.status_code == 200, response.text
+    assert on_loop["checkpw"] and on_loop["hashpw"], f"nothing was recorded: {on_loop}"
+    assert not any(on_loop["checkpw"] + on_loop["hashpw"]), "a bcrypt call ran on the event loop"
+
+
+@pytest.mark.asyncio
+async def test_a_wrong_login_does_not_stall_the_event_loop(async_client):
+    """Anyone could freeze the worker for half a second per wrong password: two
+    real bcrypt checks ran inline. Drive one wrong login and assert an
+    unrelated coroutine keeps getting scheduled throughout."""
+    import asyncio
+
+    email, _ = await _register(async_client)
+    ticks = 0
+
+    async def heartbeat():
+        nonlocal ticks
+        while True:
+            await asyncio.sleep(0.01)
+            ticks += 1
+
+    beat = asyncio.create_task(heartbeat())
+    try:
+        response = await async_client.post(
+            "/api/auth/login", json={"email": email, "password": "not-the-password"}
+        )
+    finally:
+        beat.cancel()
+
+    _assert_login_refused(response)
+    # ~0.5 s of hashing against a 10 ms heartbeat: about 50 ticks off the loop
+    # and next to none on it. The threshold sits far below 50 so timing jitter
+    # cannot make this flaky.
+    assert ticks >= 15, f"event loop was starved during the login (only {ticks} ticks)"
 
 
 @pytest.mark.asyncio
