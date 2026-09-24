@@ -660,6 +660,8 @@ async def verify_password_async(p: str, h: str) -> bool:
 | **Location** | `frontend/worldcup.html:1977,2163,2424` (re-render via `innerHTML = ""`), `:2186-2187` and `:2452-2453` (rows: `tabindex` + `aria-label`, no role or state); `frontend/ucl.html:2738` (same re-render). `ucl.html:2701-2703` is the correct pattern |
 | **The "Why"** | Each Enter or arrow keypress destroys the focused element, so keyboard users Tab back from the top after every pick. That makes ordering 48 teams or picking 32 ties impractical (WCAG 2.4.3). On `/worldcup`, a `div` with an `aria-label` and no role is often not announced at all, and the chosen team is shown by a CSS class only (WCAG 4.1.2). |
 | **The Fix** | Remember the focused row's key, re-render, then refocus the matching node, as `ucl.html`'s league reorder already does with `pendingFocusRank`. Give World Cup rows `role="button"` and `aria-pressed`, and wildcard cards `role="checkbox"` and `aria-checked`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Every focusable a pick re-renders carries a `data-focus-key` built from data, not position (`row:`, `up:`/`down:` + team, `wild:` + group, `pick:` + tie + team), and `keepFocus()` snapshots the key, re-renders and refocuses the matching node with `preventScroll`. Keys follow the team, so after ArrowUp focus is on the same team at its new rank. `/ucl`'s tie rows use the same helper; its league table keeps `pendingFocusRank`. World Cup tie rows are `role="button"` with `aria-pressed`, and wildcard cards `role="checkbox"` with `aria-checked`, the state no longer spelled out in the label. Keys are compared as data rather than spliced into a selector, because `/ucl` keys on club names. Tests in both bracket files drive Enter, ArrowUp and Space and assert where focus lands. |
 
 ### U3 — The chat is announced wrongly to screen readers
 
@@ -712,6 +714,8 @@ async def verify_password_async(p: str, h: str) -> bool:
 | **Location** | `frontend/auth-modal.css:569-570` (show/hide password, 20×20 px, inside the input); `frontend/worldcup.html:662-684`, `frontend/ucl.html:614-635` (up/down arrows whose extended hit areas overlap) |
 | **The "Why"** | The password toggle is below WCAG 2.5.8's 24 px, and the spacing exception doesn't apply because it overlaps the field. It is also well under the project's own 44 px target. On phones, the bottom few pixels of a "move up" arrow belong to the "move down" arrow painted over it, so the team moves the wrong way. This comes from reading the CSS geometry, not from measuring on a device. |
 | **The Fix** | Make the toggle 44×44 px with padding in the input's right inset. Make the arrow hit areas meet at the midline, for example with `::before` insets that stop at half the gap. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | The password toggle takes `--min-touch-target` (44px, 48px on coarse pointers) and fields that hold one pad their right side to fit it (Phase A). Each predictor's arrows now have separate hit areas meeting at the gap's midline. **Differs from the suggested fix:** the insets count from the padding box, inside each arrow's 1px border, so reaching the midline takes one more pixel than the gap arithmetic suggests. `/ucl`'s outer inset grew so each 15px arrow is at least 24px tall. Measured in Chromium at 375px: scanning down from an up arrow, the target switched to "down" 5.75px (`/worldcup`) and 4.75px (`/ucl`) **inside** the up arrow before; it now switches at the midline, and no row's arrow reaches the next row's. Not measured on a device. |
 
 ### U8 — Reduced-motion setting is ignored by confetti and JS scrolling
 
@@ -732,6 +736,8 @@ async def verify_password_async(p: str, h: str) -> bool:
 | **Location** | `frontend/worldcup.html:1878-1881` (compare `ucl.html:3420`) |
 | **The "Why"** | Saved picks are loaded first and the `?s=` link is read only when there are none. Someone opening a friend's shared bracket sees their own bracket, with no message. `/ucl` gives the link priority. |
 | **The Fix** | Prefer the URL state, and offer "Restore my saved bracket" as a secondary action, as `/ucl` does. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `/worldcup` reads the link first, as `/ucl` does. **Differs from the suggested fix:** `/ucl` had no restore action - its URL-first load silently **overwrote** the visitor's saved bracket, so copying it would have brought that data loss along. Both predictors now back up the visitor's bracket once under `<key>:own` before a link replaces it (once, so a second link cannot back up the first friend's bracket over theirs), drop `?s=` from the address bar once the link's state is saved (a reload used to re-apply it over later edits), and show a banner with **Restore my bracket** and **Keep this one**. With storage blocked nothing is backed up and the `?s=` stays, as the only copy. Tests in both bracket files. |
 
 ### U10 — Feedback states that report the wrong thing
 

@@ -632,7 +632,21 @@
     .reorder-btn::after {
       content: '';
       position: absolute;
-      inset: -7px -6px;
+    }
+
+    /* Each hit area stops at the middle of the 2px gap between the pair: both
+       used to reach 7px past their own box, so the bottom of "move up" was
+       painted over by "move down" and a tap there moved the club the wrong
+       way. Insets count from the padding box, inside the 1px border: -2px
+       reaches the gap's midline, and -10px puts 9px beyond the outer edge, so
+       each target is 9 + 15 + 1 = 25px tall - over WCAG 2.5.8's 24px with a
+       pixel to spare for sub-pixel snapping. */
+    .reorder-up::after {
+      inset: -10px -6px -2px;
+    }
+
+    .reorder-down::after {
+      inset: -2px -6px -10px;
     }
 
     .reorder-btn:hover:not(:disabled) {
@@ -1396,6 +1410,74 @@
       max-width: 320px;
     }
 
+    .toast-text {
+      flex: 1;
+    }
+
+    /* The SPA's toast behaviour (js/utils.js): a way to dismiss it, and a
+       timer that holds while it has the pointer or focus (WCAG 2.2.1). */
+    .toast-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      margin: -6px -10px -6px 0;
+      padding: 0;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .toast-close:hover,
+    .toast-close:focus-visible {
+      color: var(--text);
+      background-color: var(--border);
+    }
+
+    /* Shown while this browser holds a backup of the visitor's own bracket,
+       taken when a shared link replaced it. */
+    .shared-banner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      margin-top: 16px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      border-radius: var(--radius-md);
+      background-color: var(--surface);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .shared-banner[hidden] {
+      display: none;
+    }
+
+    .shared-banner-text {
+      flex: 1 1 12rem;
+      margin: 0;
+    }
+
+    .shared-banner-btn {
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background-color: var(--chrome-action-bg);
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .shared-banner-btn:hover {
+      background-color: var(--chrome-action-hover);
+    }
+
     .toast-success {
       border-left-color: var(--accent-success);
     }
@@ -1775,7 +1857,7 @@
                 class="back-label-short">Back</span></span>
           </a>
           <button id="autofill-btn" class="action-btn"
-            aria-label="Randomly fill every undecided tie across the bracket"
+            aria-label="Random fill: every undecided tie across the bracket"
             title="Random fill remaining ties">
             <i class="fas fa-dice" aria-hidden="true"></i> <span class="action-label">Random Fill</span>
           </button>
@@ -1814,6 +1896,11 @@
           <div class="progress-fill" id="progress-fill"></div>
         </div>
         <div class="progress-label" id="progress-label">0 of 23 ties decided</div>
+      </div>
+      <div class="shared-banner" id="shared-banner" hidden>
+        <p class="shared-banner-text" id="shared-banner-text" role="status"></p>
+        <button type="button" class="shared-banner-btn" id="shared-restore-btn">Restore my bracket</button>
+        <button type="button" class="shared-banner-btn" id="shared-keep-btn">Keep this one</button>
       </div>
     </section>
 
@@ -2209,14 +2296,64 @@
       if (type === "success") icon = '<i class="fas fa-circle-check" aria-hidden="true"></i>';
       if (type === "warning") icon = '<i class="fas fa-circle-exclamation" aria-hidden="true"></i>';
 
-      toast.innerHTML = `${icon} <span>${escapeHtml(message)}</span>`;
+      toast.setAttribute("role", type === "warning" ? "alert" : "status");
+      toast.innerHTML = `${icon} <span class="toast-text"></span>` +
+        '<button type="button" class="toast-close" aria-label="Dismiss notification">' +
+        '<i class="fas fa-xmark" aria-hidden="true"></i></button>';
+      toast.querySelector(".toast-text").textContent = message;
       container.appendChild(toast);
 
-      setTimeout(() => {
+      // 3.2s, held while the toast has the pointer or focus, with a close
+      // button - the SPA's toast (js/utils.js). This one vanished after 3s
+      // with no way to keep it or dismiss it.
+      let timer = null;
+      let gone = false;
+      const dismiss = () => {
+        if (gone) return;
+        gone = true;
+        window.clearTimeout(timer);
         toast.classList.add("fade-out");
-        toast.addEventListener("animationend", () => toast.remove());
-      }, 3000);
+        toast.addEventListener("animationend", () => toast.remove(), { once: true });
+        // Floor: a toast that never animates - a backgrounded tab - still goes.
+        window.setTimeout(() => toast.remove(), 600);
+      };
+      const arm = () => { timer = window.setTimeout(dismiss, 3200); };
+      const hold = () => window.clearTimeout(timer);
+      toast.querySelector(".toast-close").addEventListener("click", dismiss);
+      toast.addEventListener("mouseenter", hold);
+      toast.addEventListener("mouseleave", arm);
+      toast.addEventListener("focusin", hold);
+      toast.addEventListener("focusout", arm);
+      arm();
     }
+
+    /*
+     * Focus that survives a re-render. Every pick rebuilds its view with
+     * innerHTML = "", which destroyed the focused element and dropped keyboard
+     * users back to <body> - so picking 23 ties meant tabbing in from the top
+     * after every keypress (WCAG 2.4.3). Tie rows carry a data-focus-key built
+     * from the tie and the club. The league table keeps its own
+     * pendingFocusRank, which predates this and is tested.
+     */
+    function keepFocus(render) {
+      const active = document.activeElement;
+      const key = active && active.closest ? active.closest("[data-focus-key]")?.dataset.focusKey : null;
+      render();
+      if (key) restoreFocus(key);
+    }
+
+    function restoreFocus(key) {
+      // Compared as data, not spliced into a selector: /ucl keys on club
+      // names, and a name is not a safe CSS string.
+      const nodes = Array.from(document.querySelectorAll("[data-focus-key]"))
+        .filter((node) => node.dataset.focusKey === key);
+      // The desktop and mobile brackets can both render a key; the visible one wins.
+      const target = nodes.find((node) => node.getClientRects().length) || nodes[0];
+      if (!target) return;
+      target.focus({ preventScroll: true });
+      if (typeof target.scrollIntoView === "function") target.scrollIntoView({ block: "nearest" });
+    }
+
 
     // ---------------------------------------------------------------------
     // MATCH ENGINE
@@ -2622,9 +2759,11 @@
 
       validateTree();
       saveStateToLocalStorage();
-      renderPlayoffs();
-      renderKnockoutBracket();
-      renderProgress();
+      keepFocus(() => {
+        renderPlayoffs();
+        renderKnockoutBracket();
+        renderProgress();
+      });
     }
 
     // ---------------------------------------------------------------------
@@ -2636,8 +2775,10 @@
 
       validateTree();
       saveStateToLocalStorage();
-      renderKnockoutBracket();
-      renderProgress();
+      keepFocus(() => {
+        renderKnockoutBracket();
+        renderProgress();
+      });
 
       if (matchId === "final") triggerChampionCelebration();
     }
@@ -2703,6 +2844,7 @@
         row.setAttribute("aria-pressed", String(isWinner));
         row.setAttribute("aria-label", `${matchTitle(matchId)}: pick ${team.name} to go through`);
         row.dataset.team = team.name;
+        row.dataset.focusKey = `pick:${matchId}:${team.name}`;
         row.innerHTML = `
           ${flagHtml(team, "match-team-flag")}
           <span class="match-team-name" title="${escapeHtml(team.name)}">${escapeHtml(team.name)}</span>
@@ -3059,12 +3201,37 @@
       return bit === "0" ? match.team1 : match.team2;
     }
 
-    function saveStateToLocalStorage() {
+    // The visitor's own bracket, kept once when a shared link replaces it.
+    const OWN_STATE_KEY = `${STORAGE_KEY}:own`;
+
+    function readStored(key) {
       try {
-        localStorage.setItem(STORAGE_KEY, serializeState());
+        return localStorage.getItem(key);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function writeStored(key, value) {
+      try {
+        localStorage.setItem(key, value);
+        return true;
       } catch (err) {
         /* Private browsing or a full quota — the session simply is not saved. */
+        return false;
       }
+    }
+
+    function removeStored(key) {
+      try {
+        localStorage.removeItem(key);
+      } catch (err) {
+        /* Nothing was stored, then. */
+      }
+    }
+
+    function saveStateToLocalStorage() {
+      return writeStored(STORAGE_KEY, serializeState());
     }
 
     function loadStateFromLocalStorage() {
@@ -3076,12 +3243,58 @@
       }
     }
 
+    /*
+     * A shared link replaces the bracket on screen and in storage. It used to
+     * overwrite the visitor's own saved bracket silently. That bracket is now
+     * backed up first - once: a second link opened before they chose would
+     * otherwise back up the first friend's bracket over theirs - and the
+     * banner offers it back.
+     */
     function loadStateFromUrl() {
       const serial = new URLSearchParams(window.location.search).get("s");
       if (!serial) return false;
+      const saved = readStored(STORAGE_KEY);
       if (!deserializeState(serial)) return false;
-      saveStateToLocalStorage();
+      if (saved && saved !== serial && readStored(OWN_STATE_KEY) === null) {
+        writeStored(OWN_STATE_KEY, saved);
+      }
+      // Once it is saved the link has done its job. Left in the address bar,
+      // a reload would apply it again over any change made since. Kept when
+      // storage is blocked, because then it is the only copy.
+      if (saveStateToLocalStorage()) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
       return true;
+    }
+
+    function renderSharedBanner() {
+      const banner = document.getElementById("shared-banner");
+      if (!banner) return;
+      const show = readStored(OWN_STATE_KEY) !== null;
+      banner.hidden = !show;
+      // Written after the region is visible, so it is announced as a change.
+      document.getElementById("shared-banner-text").textContent = show
+        ? "You're viewing a shared bracket. Your own is saved."
+        : "";
+    }
+
+    function setupSharedBanner() {
+      document.getElementById("shared-restore-btn")?.addEventListener("click", () => {
+        const own = readStored(OWN_STATE_KEY);
+        if (own && deserializeState(own)) {
+          saveStateToLocalStorage();
+          showToast("Your saved bracket is back.", "success");
+        }
+        removeStored(OWN_STATE_KEY);
+        renderAllViews();
+        renderSharedBanner();
+        document.getElementById("share-btn")?.focus();
+      });
+      document.getElementById("shared-keep-btn")?.addEventListener("click", () => {
+        removeStored(OWN_STATE_KEY);
+        renderSharedBanner();
+        document.getElementById("share-btn")?.focus();
+      });
     }
 
     function createShareableUrl() {
@@ -3094,6 +3307,8 @@
       state.playoffWinner = {};
       state.bracketWinner = {};
       saveStateToLocalStorage();
+      removeStored(OWN_STATE_KEY);
+      renderSharedBanner();
 
       if (showFeedback) {
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -3342,18 +3557,27 @@
     }
 
     function copyToClipboard(text) {
+      // execCommand reports failure by returning false, not by throwing, so
+      // this used to say "copied" when nothing was. On failure the link goes
+      // in the address bar, where it can be copied by hand.
       const fallback = () => {
         const input = document.createElement("input");
         input.value = text;
         document.body.appendChild(input);
         input.select();
+        let copied = false;
         try {
-          document.execCommand("copy");
-          showToast("Share link copied to your clipboard.", "success");
+          copied = document.execCommand("copy");
         } catch (err) {
-          window.prompt("Copy this share link:", text);
+          copied = false;
         }
         document.body.removeChild(input);
+        if (copied) {
+          showToast("Share link copied to your clipboard.", "success");
+        } else {
+          window.history.replaceState({}, document.title, text);
+          showToast("Couldn't copy. The link is in the address bar now.", "warning");
+        }
       };
 
       if (navigator.clipboard) {
@@ -3377,18 +3601,25 @@
     function armTwoPress(btn, armedLabel, onConfirm) {
       let timer = null;
       let original = null;
+      let originalLabel = null;
 
       function disarm() {
         window.clearTimeout(timer);
         timer = null;
         btn.classList.remove("is-confirming");
         if (original !== null) btn.innerHTML = original;
+        if (originalLabel !== null) btn.setAttribute("aria-label", originalLabel);
         original = null;
+        originalLabel = null;
       }
 
       btn.addEventListener("click", () => {
         if (!btn.classList.contains("is-confirming")) {
           original = btn.innerHTML;
+          // The fixed aria-label outranked the armed text, so the "Confirm?"
+          // state was never announced.
+          originalLabel = btn.getAttribute("aria-label");
+          btn.setAttribute("aria-label", `${armedLabel.replace(/\?$/, "")}: press again to confirm`);
           btn.classList.add("is-confirming");
           btn.innerHTML = '<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> <span class="action-label">' + armedLabel + "</span>";
           // An armed button left alone is a trap for the next click, so it
@@ -3426,8 +3657,10 @@
       setupRouteHighlighting();
       setupUtilityButtons();
       setupDragListeners();
+      setupSharedBanner();
 
       renderAllViews();
+      renderSharedBanner();
 
       let redrawTimer = null;
       window.addEventListener("resize", () => {
