@@ -8,7 +8,7 @@ one appears to be wrong, argue it against the ADR - do not silently pass it.
 
 - **ADR-001 (Vanilla ES Modules)**: Does the PR add any frontend framework, JSX, or unvetted build-time transform? If yes, flag as **Critical**.
 - **ADR-016 (Zero Third-Party Assets)**: Does the PR introduce external script tags, stylesheets, Google Fonts links, or unvetted cdnjs URLs? If yes, flag as **Critical**.
-- **ADR-023 (Server Owns Model & Token Ceilings)**: Does the frontend attempt to send model IDs, system prompts, or token limits to the backend? If yes, flag as **Critical**.
+- **ADR-023 (Server Owns Model & Token Ceilings)**: Does any request schema accept a model id, a system prompt or an inference setting (token ceiling, temperature) from the client? That includes a new field on `ChatStreamRequest`, a `role` beyond `user`/`assistant`, or a route that reads the raw body. If yes, flag as **Critical**. What the frontend sends is not the check, because the API is what an anonymous caller reaches.
 
 ## 2. Security & Schema Safety
 - **Authentication**: Is every new endpoint in one of the three guard tiers (`get_current_user`, `require_owner`, `require_session_access`) unless `docs/SECURITY.md` lists it as anonymous? Check `server/controllers/` too: `session_routes.py`, `system_routes.py` and `event_routes.py` register handlers with `router.add_api_route(...)`, so a `@router`-only grep misses them. The `security-audit` skill has the full checklist.

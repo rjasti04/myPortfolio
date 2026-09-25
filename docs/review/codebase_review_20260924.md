@@ -821,6 +821,8 @@ async def verify_password_async(p: str, h: str) -> bool:
 | **Location** | `.claude/agents/backend-reviewer.md`, `frontend-reviewer.md`, `security-reviewer.md`, `verifier.md` (`tools: [Read, Grep, Glob, Bash]`) |
 | **The "Why"** | All four describe themselves as read-only, and `disallowedTools` removes Write/Edit/NotebookEdit, but Bash can still `sed -i`, redirect and `git commit`. The docs say that when the main session is in `acceptEdits`, `auto` or `bypassPermissions` (the usual mode for web sessions), the subagent runs in that mode and **its own `permissionMode` is ignored**, so `permissionMode: plan` wouldn't hold. The project-level Bash guard protects only migrations, templates, secrets and egress. |
 | **The Fix** | Use the documented subagent-scoped hook. `_bash_targets.parse` already extracts write targets from a command, so reuse it in a new `.claude/hooks/readonly-bash.py` that exits 2 when `targets` is non-empty or the command is opaque (`bash -c`, `eval`). Register it in each agent's frontmatter. `check_agent_config.py` should validate the new hook script and its registration. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `.claude/hooks/readonly-bash.py` holds every agent that removes both `Write` and `Edit` from itself to an allow-list of read-only commands. The list covers known readers, the gate commands the `testing` and `verify` skills prescribe minus their mutating modes, and read-only `git`. Redirection is allowed only onto an absolute path outside the repository. The new `check_readonly_guard` in `check_agent_config.py` fails when such an agent exists and the hook is not registered on a `PreToolUse` `Bash` group. **Differs from the suggested fix:** (1) It is registered in `settings.json` and keyed on the hook input's `agent_type`, not in agent frontmatter. Claude Code skips a project subagent's frontmatter hooks until the folder's workspace trust is accepted, and never runs them under `-p`. (2) Exiting 2 on `parse()`'s targets or opacity would have refused every `2>/dev/null` and the verifier's own `python3` gates. It would also still have missed `git commit`, `touch`, `find -delete` and the fix modes. An allow-list refuses even the writer nobody listed. Redirections are read from operator tokens, not from `parse()`'s regex safety net, which would take the `>` in `jq 'select(.x > 1)'` for a write. `test_readonly_bash_guard.py` pins 54 refusals and 32 allowed commands, including the verifier's seven gates verbatim. |
 
 ```yaml
 hooks:
@@ -840,6 +842,8 @@ hooks:
 | **Location** | `.claude/REVIEW.md:11`; `.claude/skills/security-audit/SKILL.md` |
 | **The "Why"** | The rule asks whether the **frontend** sends model ids, system prompts or token limits. The frontend doesn't. The API accepts them, so S1 passes every review the policy drives. The security-audit checklist has no item for it, and no backend test asserts that `model_id` is refused. |
 | **The Fix** | Reword it as: "Does any request schema accept a model id, system prompt or token ceiling from the client?" Add the same line to `security-audit` and a pinning test to `tests/backend`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `REVIEW.md` now asks whether any request schema accepts a model id, a system prompt or an inference setting from the client. That covers a new field on `ChatStreamRequest`, a `role` beyond `user`/`assistant`, or a route reading the raw body. The `security-audit` checklist asks the same, mirrored into `.agents/skills/`. **Differs from the suggested fix:** the `model_id` pin already existed. §2's S1 fix added `test_a_supplied_model_id_is_ignored` and its `/summarize` twin, beside the older `system_prompt` pin. No test covered the rest of ADR-023, so the new `test_chat_request_carries_nothing_the_server_owns` asserts the request's exact fields and roles. A token ceiling, a temperature or any new field now fails it until someone decides, as a trial `max_tokens` field showed. The skill's note that `/chat/summarize` skips the free-message cap had been stale since C17, and is corrected. |
 
 ### CS3 — PreToolUse guards fail open
 
@@ -850,6 +854,8 @@ hooks:
 | **Location** | `.claude/hooks/protect-migrations.sh`, `.claude/hooks/protect-spa-egress.sh` (`set -euo pipefail` + `jq`) |
 | **The "Why"** | Per the hooks docs, only exit 2 blocks. Any other non-zero exit is a "non-blocking error" and the tool call **proceeds**. A missing `jq` (exit 127), malformed input or an unexpected `jq` error therefore waves through the edit these hooks exist to stop. `jq` is present in this container, so this is defence in depth. |
 | **The Fix** | `trap 'echo "guard error; refusing" >&2; exit 2' ERR` at the top of both guards, plus a `command -v jq >/dev/null \|\| { echo "jq required" >&2; exit 2; }` check. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Both guards open with an `EXIT` trap that turns any exit other than 0 or 2 into a refusal, followed by the `jq` check with its own message. `protect-bash-writes.py` does the same for an exception escaping `main()`, which used to exit 1. It still passes a payload that is not JSON, as `test_guard_ignores_malformed_payload` pins. **Differs from the suggested fix:** an `ERR` trap does not fire on a `set -u` expansion error, which still exited 1 and passed, so the trap is on `EXIT`. `test_edit_hooks.py` runs each guard with no `jq` on `PATH` (was 127) and on input `jq` cannot parse (was 5). Both now exit 2, and an unguarded path still exits 0. |
 
 ### CS4 — Egress guard misses protocol-relative URLs
 
@@ -860,6 +866,8 @@ hooks:
 | **Location** | `.claude/hooks/protect-spa-egress.sh` (`grep -oE 'https?://…'`); the same regex family in `protect-bash-writes.py` |
 | **The "Why"** | `<script src="//cdn.example.com/x.js">` contains no `http`, so it passes the ADR-016 guard. The CSP would still block it at runtime, but the guard is meant to catch it at edit time. |
 | **The Fix** | Match `(https?:)?//[host]` in `src=`/`href=`/`url(` contexts. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | Both guards treat an origin as any scheme followed by `//host`, or a scheme-less `//host` that begins a token. The host has to look like one: a dotted name with an alphabetic TLD, or an IPv4 literal. **Differs from the suggested fix:** matching only in `src=`/`href=`/`url(` contexts still missed `import x from '//cdn…'` and `fetch('//…')`, and `wss://` passed both guards as well. Across the 104 SPA-guarded files the new rule flags exactly the hosts the old one did. One case table in `test_edit_hooks.py` runs through the ERE (`Write`/`Edit`) and the Python regex (Bash), so the two cannot drift apart. |
 
 ### CS5 — README.md drift is checked by CI but not by the hooks
 
@@ -870,6 +878,8 @@ hooks:
 | **Location** | `scripts/check_docs.py:170` (reference-table regex matches root `README.md`); `.claude/hooks/verify-docs.sh:13-18`; `.claude/hooks/verify-bash-edits.py:28` (`DOCS_COVERED`) |
 | **The "Why"** | Editing `README.md` can drift its token figure in `.claude/rules/reference-docs.md`, but neither PostToolUse hook watches `README.md`, so the drift first appears in CI. That is the gap the hooks exist to close. |
 | **The Fix** | Add `README.md` to both pattern lists. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `README.md` and `package-lock.json` join both hooks' lists. **Differs from the suggested fix:** it is widened to `package-lock.json`, which the navigation table measures and neither hook watched. It is also backed by a test that derives every file `check_docs.py` reads, from its own tables plus its `JS_EXCLUDED` and `TEST_ROOTS`, and fails when either hook misses one. Against the previous hooks that test fails on exactly `README.md` and `package-lock.json`, on both. `package-lock.json` mostly changes through `npm install`, which names no target, so CI stays the backstop for that row. |
 
 ### CS6 — The vendored `accessibility` skill description is garbled upstream
 
@@ -880,6 +890,8 @@ hooks:
 | **Location** | `.claude/skills/accessibility/SKILL.md:3-4` (digest `d8578fe7…` matches `.claude/ecc/install-state.json`, ECC 2.2.1) |
 | **The "Why"** | The folded description reads "…screen-reader support. standards. Use this skill…", and it spends always-loaded description tokens on iOS/Android scope this repo doesn't have. The file matches upstream, so this is an ECC bug, not a local edit, and `docs/ECC.md` rightly forbids hand edits. |
 | **The Fix** | Report it upstream and pick up the fixed version with `npx ecc-universal … --skills accessibility`. If upstream is slow, record a deliberate local override in `docs/ECC.md` so `check_agent_config.py` expects the new digest. |
+| **Status** | ✅ **Resolved**: recorded as a known upstream defect. The fix itself is ECC's to ship |
+| **What changed** | Recorded under "Known rough edges" in `docs/ECC.md`, with the evidence that the text is upstream's. The vendored file is unchanged (digest `d8578fe7…`). **Differs from the suggested fix:** there was nothing to upgrade to. On 2026-09-24 npm's `latest` was still 2.2.1 and ECC's `main` carried the same frontmatter. And `check_agent_config.py` checks no digest, so a local override "it expects" had nothing to update, while a hand edit is what `docs/ECC.md` forbids. An upstream report is drafted in `.claude/specs/2026-09-24-codebase-review-claude-setup.md` for the owner to file. |
 
 ### CS7 — A stale IDE artifact is committed
 
@@ -890,6 +902,50 @@ hooks:
 | **Location** | `.antigravity/antigravity-ide/brain/1c01715d-7fc3-4e95-ac02-e30a6ec898bf/task.md` |
 | **The "Why"** | This is a half-finished task list from another agent's session. It refers to `server/routers/auth.py`, which doesn't exist. Any tool that indexes the folder picks up instructions that are obsolete. |
 | **The Fix** | `git rm` it and ignore `.antigravity/antigravity-ide/`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | As the fix. The three `.antigravity/` stubs that point at `AGENTS.md` stay tracked. |
+
+### Found during remediation (not scored)
+
+Re-verifying this section turned up more defects of the same kind, in the same
+files. They are recorded here rather than added to the scored totals above,
+which describe the tree as it was reviewed.
+
+#### CS8 — A newline hides the rest of a command from every Bash-path guard
+
+| Attribute | Detail |
+| :--- | :--- |
+| **Category** | Architecture |
+| **Severity** | P2 |
+| **Location** | `.claude/hooks/_bash_targets.py:108-117` (`tokenize`) |
+| **The "Why"** | `shlex` with `whitespace_split` lexes a newline as whitespace, so `SPLITTERS`' `"\n"` never occurred and every later line merged into the first line's segment. `cd <repo>`, a newline, then `sed -i … <tracked migration>` exited 0, where the same `sed -i` on one line exits 2. The ADR-016 egress check and the template guard failed the same way, and `verify-bash-edits.py` found no target, so the CSP and docs gates never ran. The other forms failed differently. A line continuation's escaped newline became a `"\n"` token that cut `sed -i` off from its operands. `shlex` read a `#` comment through the end of its line, newline included. And glued operators such as `);` and `)&&` split nothing. |
+| **The Fix** | Lex `\n` as an operator. Remove continuations first, turn `shlex`'s comments off, decompose glued punctuation, split on `(` and `)`, and step over `if`, `while`, `until` and `{`. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | As the fix. `check_venv_search` also reads the heredoc-stripped command now, because a body line reading `find .` would otherwise look like a search. `test_bash_write_guard.py` pins these cases, all of which passed unchecked before: seven segmentation forms against a tracked migration, the egress and template writes on a second line, and the `verify-bash-edits.py` gate for a second-line write. |
+
+#### CS9 — Shells, `eval`, substitution, `find -delete` and `xargs` hide a write
+
+| Attribute | Detail |
+| :--- | :--- |
+| **Category** | Architecture |
+| **Severity** | P3 |
+| **Location** | `.claude/hooks/_bash_targets.py:42` (`OPAQUE`), `parse()` |
+| **The "Why"** | `bash -c`, `sh -c`, `eval`, `x=$(rm …)`, `echo $(sed -i …)`, backticks, `find <path> -delete` and `… \| xargs rm` each rewrote or deleted a tracked migration with the guard exiting 0. The shells and `eval` were not opaque, and a substitution sits inside another command's words. `find`'s actions were never read, and `xargs` takes its operands from stdin. |
+| **The Fix** | Treat each of them as opaque, so the guards fall back to the paths the command mentions. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | `OPAQUE` gains `bash`, `sh`, `zsh`, `dash`, `ksh`, `eval`, `source` and `.`. The command is also opaque when it contains a `$(`, a backtick, a `<(` or a `>(` anywhere, a `find` action, or an `xargs` in front of the utility. `check_spa_egress` now checks opaque writers as well, so a `python3 -c` appending to an SPA file is checked for origins. Heredoc bodies are still stripped before mentions are collected, so the `git commit -m "$(cat <<'EOF' …)"` idiom passes even when the message names a migration. Eight cases in `test_bash_write_guard.py` pin the bypasses. A ninth kind turned up while this was written: `perl -pi -e`, perl's own in-place idiom, and `sed -ni` or `sed -Ei` also passed, because in-place was detected only as an argument starting with `-i`. The whole short-option cluster is now read, up to an option that takes the rest as its argument, and three more cases pin it. |
+
+#### CS10 — "A web session has no `server/.venv`" is stale
+
+| Attribute | Detail |
+| :--- | :--- |
+| **Category** | Architecture |
+| **Severity** | P3 |
+| **Location** | `.claude/rules/navigation.md:36-39`; `.claude/hooks/protect-bash-writes.py:117-119`; `tests/tooling/test_bash_write_guard.py:69-74` |
+| **The "Why"** | All three said a Claude Code web session is a fresh clone with no `server/.venv`, so the venv search rule cannot fire there. That stopped being true on 2026-09-22, when `f1bf3b6` added `.claude/hooks/session-start.sh`. It creates the venv in every web session, and the rule fires in them: this remediation's own first repo-wide `find` and `grep` were refused. The rule is right, but the prose told web agents it did not apply to them. |
+| **The Fix** | Say where the venv exists: not in CI, but in every web session. |
+| **Status** | ✅ **Resolved** |
+| **What changed** | As the fix. Prose only; no behaviour changed. |
 
 ---
 

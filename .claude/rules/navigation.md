@@ -33,7 +33,8 @@ Always pass `--exclude-dir=.venv` (or `-not -path '*/.venv/*'`) when searching
 from Bash: without it a repo-wide `grep -r --include=*.py` returns 1,950 files
 instead of 40 and takes over two minutes.
 
-A fresh clone — CI, and every Claude Code web session — has no `server/.venv` at
-all, so none of that cost exists there. The guard in
-`.claude/hooks/protect-bash-writes.py` checks for the directory before it
-blocks, and an unqualified search is refused only where it really is present.
+CI is a fresh clone with no `server/.venv`, so none of that cost exists there.
+A Claude Code web session is not: `.claude/hooks/session-start.sh` creates the
+venv before the first turn. The guard in `.claude/hooks/protect-bash-writes.py`
+checks for the directory before it blocks, so an unqualified search is refused
+exactly where the venv is present, and that includes every web session.

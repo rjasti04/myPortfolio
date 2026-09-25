@@ -409,6 +409,24 @@ async def test_system_prompt_override_is_not_accepted(async_client):
     assert not hasattr(request, "system_prompt")
 
 
+def test_chat_request_carries_nothing_the_server_owns():
+    """ADR-023 as a shape rather than a list of names.
+
+    `test_a_supplied_model_id_is_ignored` and the test above catch `model_id` and
+    `system_prompt` by name. A token ceiling, a temperature or any other new
+    field would pass both, and so would a `system` message smuggled in as a
+    turn. So the fields are pinned exactly: adding one means changing this test,
+    and that is where the ADR-023 question gets asked.
+    """
+    from typing import get_args
+
+    from server.schemas.chat import ChatMessage, ChatStreamRequest
+
+    assert set(ChatStreamRequest.model_fields) == {"messages", "conversation_id", "stream"}
+    assert set(ChatMessage.model_fields) == {"role", "content"}
+    assert get_args(ChatMessage.model_fields["role"].annotation) == ("user", "assistant")
+
+
 @pytest.mark.asyncio
 async def test_oversized_single_message_is_rejected(async_client):
     from server.schemas.chat import MAX_MESSAGE_CHARS

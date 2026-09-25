@@ -32,7 +32,7 @@ Each of these was evaluated against the repository, not skipped by default.
 
 | Rejected | Reason |
 | :--- | :--- |
-| **All 24 hooks** | Four independent blockers. `check_vendored_ecc` in `scripts/check_agent_config.py` requires every configured hook to run a script from `.claude/hooks/`, so merging them fails CI — that check is by authorship and holds under any event name, including the `PostToolUseFailure` one ECC uses. (It used to be the event name that blocked them, because `VALID_HOOK_EVENTS` listed only nine of the documented thirty-three. Widening that set to all thirty-three left the authorship check as the guard, which is the stronger one.) `pre:edit-write:gateguard-fact-force` blocks the first `Edit`/`Write` to every file; `pre:config-protection` blocks edits to `ruff.toml`, `.eslintrc.json` and `pytest.ini`; `pre:write:doc-file-warning` fires on exactly the `.claude/intents/` and `.claude/specs/` writes this repo's workflow produces. They would also stack a Bash pre-dispatcher and two `.*`-matched PostToolUse dispatchers on top of the seven hooks in `.claude/hooks/`, which already run `check_docs.py` and `check_csp_hashes.py` on every write |
+| **All 24 hooks** | Four independent blockers. `check_vendored_ecc` in `scripts/check_agent_config.py` requires every configured hook to run a script from `.claude/hooks/`, so merging them fails CI — that check is by authorship and holds under any event name, including the `PostToolUseFailure` one ECC uses. (It used to be the event name that blocked them, because `VALID_HOOK_EVENTS` listed only nine of the documented thirty-three. Widening that set to all thirty-three left the authorship check as the guard, which is the stronger one.) `pre:edit-write:gateguard-fact-force` blocks the first `Edit`/`Write` to every file; `pre:config-protection` blocks edits to `ruff.toml`, `.eslintrc.json` and `pytest.ini`; `pre:write:doc-file-warning` fires on exactly the `.claude/intents/` and `.claude/specs/` writes this repo's workflow produces. They would also stack a Bash pre-dispatcher and two `.*`-matched PostToolUse dispatchers on top of the eight hooks in `.claude/hooks/`, which already run `check_docs.py` and `check_csp_hashes.py` on every write |
 | **All 122 rule files** | ECC rules carry no `paths:` frontmatter, so they are always-loaded — the opposite of what `.claude/rules/` and the "Navigating This Repo Without Burning Context" contract exist to do (~5,000 tokens per session). `rules/common` also contradicts the repo directly: it documents a `~/.claude/agents/` roster that does not exist here, mandates `gh search` (no `gh` CLI) and Context7/Exa MCP servers (not configured), and states that ECC installs set `includeCoAuthoredBy: false` |
 | **All 68 agents** | `agents/security-reviewer.md` collides by name with a project agent that `check_agent_config.py` pins. Adding language-specific reviewers would also fragment the fan-out that `.claude/skills/review/SKILL.md` defines over the four project agents |
 | **All 94 commands** | `.claude/commands` is a **prohibited path** in `check_agent_config.py` |
@@ -68,12 +68,23 @@ side a directory belongs to. Two mechanisms supply that instead.
 **Never hand-edit a vendored `SKILL.md`.** The installer compares content digests, so a
 local edit either blocks the next upgrade or is silently replaced.
 
-### Known rough edge
+### Known rough edges
 
-`accessibility/SKILL.md` ends with a "Related Skills" list naming `frontend-patterns`,
-`design-system`, `liquid-glass-design` and `swiftui-patterns` — none of which are
-installed, and three of which never should be here. The references are inert prose and are
-left as-is rather than patched, because editing the file breaks the upgrade path above.
+Both are in `accessibility/SKILL.md`, and both are ECC's own text rather than a local edit:
+the file's digest matches the one `.claude/ecc/install-state.json` recorded at install.
+
+- It ends with a "Related Skills" list naming `frontend-patterns`, `design-system`,
+  `liquid-glass-design` and `swiftui-patterns`. None of them are installed, and three
+  never should be here.
+- Its `description` folds into "…or screen-reader support. standards. Use this skill to
+  generate semantic ARIA for Web and accessibility traits for Web and Native platforms
+  (iOS/Android)." That is a stray word, plus about 20 always-loaded tokens of
+  native-platform scope this repository does not have. On 2026-09-24 npm's `latest` was
+  still 2.2.1, and ECC's `main` carried the same frontmatter, so there was no fixed version
+  to take.
+
+Both are left as they are rather than patched, because editing the file breaks the upgrade
+path above. When ECC ships a fix, the command in [Upgrading](#upgrading) picks it up.
 
 ### Why there is no attribution key
 

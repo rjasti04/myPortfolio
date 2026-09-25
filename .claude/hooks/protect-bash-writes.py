@@ -23,7 +23,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _bash_targets import (  # noqa: E402
-    REDIRECTS, _operands, _utility, expand, normalize, parse, segments, tokenize,
+    REDIRECTS, _operands, _utility, expand, normalize, parse, segments,
+    strip_heredocs, tokenize,
 )
 
 
@@ -94,6 +95,20 @@ def is_secret(rel: str) -> bool:
     return name.startswith(".env") and parent in (".", "server")
 
 
+# An origin reference: any scheme followed by `//host`, or a scheme-less `//host`
+# that begins a token. `https?://` alone let `<script src="//cdn…">`,
+# `import x from '//cdn…'` and `new WebSocket('wss://…')` through. The host must
+# look like a host (a dotted name with an alphabetic TLD, or an IPv4 literal), so
+# `// a comment` and `a//b` are not origins. Kept identical to the ERE in
+# protect-spa-egress.sh: tests/tooling/test_edit_hooks.py runs one case table
+# through both guards, so the two cannot drift apart.
+ORIGIN_REF = re.compile(
+    r"(?:^|[^A-Za-z0-9_/:.])//((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}|(?:[0-9]{1,3}\.){3}[0-9]{1,3})"
+    r"|[A-Za-z][A-Za-z0-9+.-]*://([A-Za-z0-9.-]+)",
+    re.M,
+)
+
+
 def check_spa_egress(command: str, written: set[str]) -> None:
     """ADR-016, on the Bash write path. The new text is the command itself."""
     guarded = [p for p in written
@@ -101,25 +116,32 @@ def check_spa_egress(command: str, written: set[str]) -> None:
                and not any(fnmatch.fnmatch(p, e) for e in SPA_EXEMPT)]
     if not guarded:
         return
-    for url in sorted(set(re.findall(r"https?://[A-Za-z0-9.-]+", command))):
-        host = url.split("//", 1)[1]
-        if host not in _allowed_origins():
-            die(
-                f"Error: Unapproved external asset/origin detected in {guarded[0]}: {url}",
-                "Egress protection blocked this modification per ADR-016.",
-            )
+    allowed = _allowed_origins()
+    for m in ORIGIN_REF.finditer(command):
+        host = m.group(1) or m.group(2)
+        if host in allowed:
+            continue
+        # A scheme-less match starts with the character before `//`; drop it.
+        ref = m.group(0)[m.group(0).index("//"):] if m.group(1) else m.group(0)
+        die(
+            f"Error: Unapproved external asset/origin detected in {guarded[0]}: {ref}",
+            "Egress protection blocked this modification per ADR-016.",
+        )
 
 
 def check_venv_search(command: str, root: Path) -> None:
     """AGENTS.md's '--exclude-dir=.venv' rule, as an actual guarantee."""
     if ".venv" in command:
         return
-    # A fresh clone - which is what CI and every Claude Code web session get -
-    # has no server/.venv at all. Blocking a search there cost the agent a tool
-    # call and a retry to avoid a directory walk that could not happen.
+    # CI's fresh clone has no server/.venv at all, and blocking a search there
+    # cost the agent a tool call and a retry to avoid a directory walk that could
+    # not happen. A web session does have one: session-start.sh creates it
+    # before the first turn, so there the rule applies.
     if not (root / "server" / ".venv").exists():
         return
-    for segment in segments(tokenize(command)):
+    # Heredoc bodies are text being written, not commands: once line breaks
+    # split segments, a body line reading `find . -name x` looked like a search.
+    for segment in segments(tokenize(strip_heredocs(command))):
         clean = [t for t in segment if t not in REDIRECTS]
         name, args = _utility(clean)
         if name not in SEARCHERS:
@@ -196,10 +218,22 @@ def main() -> int:
                 ".claude/specs/YYYY-MM-DD-<slug>.md instead (AGENTS.md 2).",
             )
 
-    check_spa_egress(command, targets)
+    # Opaque writers too, like the migration rule: a `python3 -c` appending to
+    # an SPA file was never checked for origins.
+    check_spa_egress(command, at_risk)
     check_venv_search(command, root)
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except Exception as exc:
+        # Only exit 2 blocks. A traceback exits 1, which Claude Code treats as a
+        # non-blocking error and runs the command unchecked - so a guard that
+        # cannot check refuses instead. A payload that is not JSON is still
+        # passed, deliberately, in main() (test_guard_ignores_malformed_payload).
+        die(f"Error: {Path(__file__).name} could not check this command "
+            f"({type(exc).__name__}: {exc}); refusing it rather than running it unchecked.")

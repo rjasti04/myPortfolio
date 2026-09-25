@@ -70,8 +70,8 @@ def test_repository_passes_its_own_validator():
     errors = []
     module = load_checker()
     for name in ["check_entrypoint", "check_skills", "check_agents", "check_settings",
-                 "check_mirror_drift", "check_templates", "check_rules",
-                 "check_prohibited_config", "check_vendored_ecc"]:
+                 "check_readonly_guard", "check_mirror_drift", "check_templates",
+                 "check_rules", "check_prohibited_config", "check_vendored_ecc"]:
         getattr(module, name)(errors)
     assert errors == []
 
@@ -299,3 +299,64 @@ def test_if_filter_on_a_single_tool_group_is_allowed(checker, tmp_path):
     errors = []
     checker.check_settings(errors)
     assert not [e for e in errors if "covers both Write and Edit" in e], errors
+
+
+# --- read-only agents -------------------------------------------------------
+#
+# From docs/review/codebase_review_20260924.md CS1. `disallowedTools` removed
+# Write and Edit from the four reviewers, and Bash could still write for them.
+# The guard that closes that is only as good as its registration, so the
+# validator checks the registration exists wherever an agent needs it.
+
+
+GUARD_COMMAND = '"$CLAUDE_PROJECT_DIR"/.claude/hooks/readonly-bash.py'
+
+
+def write_agent(tmp_path: Path, name: str, disallowed: list[str]) -> None:
+    d = tmp_path / ".claude" / "agents"
+    d.mkdir(parents=True, exist_ok=True)
+    items = "".join(f"  - {tool}\n" for tool in disallowed)
+    d.joinpath(f"{name}.md").write_text(
+        f"---\nname: {name}\ndescription: x\ndisallowedTools:\n{items}---\n\n# body\n",
+        encoding="utf-8",
+    )
+
+
+def test_read_only_agent_without_the_bash_guard_is_rejected(checker, tmp_path):
+    write_agent(tmp_path, "auditor", ["Write", "Edit"])
+    write_settings(tmp_path, {"hooks": {}})
+
+    errors = []
+    checker.check_readonly_guard(errors)
+    assert len(errors) == 1 and "readonly-bash.py" in errors[0] and "auditor" in errors[0]
+
+
+def test_bash_guard_registered_for_other_tools_does_not_count(checker, tmp_path):
+    write_agent(tmp_path, "auditor", ["Write", "Edit"])
+    write_settings(tmp_path, {"hooks": {"PreToolUse": [
+        {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": GUARD_COMMAND}]},
+    ]}})
+
+    errors = []
+    checker.check_readonly_guard(errors)
+    assert len(errors) == 1
+
+
+def test_bash_guard_registered_for_bash_passes(checker, tmp_path):
+    write_agent(tmp_path, "auditor", ["Write", "Edit"])
+    write_settings(tmp_path, {"hooks": {"PreToolUse": [
+        {"matcher": "Bash", "hooks": [{"type": "command", "command": GUARD_COMMAND}]},
+    ]}})
+
+    errors = []
+    checker.check_readonly_guard(errors)
+    assert errors == []
+
+
+def test_agent_that_keeps_write_needs_no_guard(checker, tmp_path):
+    write_agent(tmp_path, "helper", ["NotebookEdit"])
+    write_settings(tmp_path, {"hooks": {}})
+
+    errors = []
+    checker.check_readonly_guard(errors)
+    assert errors == []

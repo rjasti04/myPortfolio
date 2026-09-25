@@ -50,6 +50,17 @@ BLOCKED = [
     ("template redirect", "echo x > .claude/templates/spec.md"),
     ("egress via sed", "sed -i 's|a|https://evil.example.com/x|' frontend/js/form.js"),
     ("egress via redirect", "echo 'https://cdnjs.cloudflare.com/x.js' > frontend/sw.js"),
+    # A line break ends a command. It used to be lexed as whitespace, so every
+    # later line merged into the first line's segment and was never judged.
+    ("egress on a second line", "cd /tmp\nsed -i 's|a|https://evil.example.com/x|' frontend/js/form.js"),
+    ("template on a second line", "cd /tmp\ncp draft.md .claude/templates/intent.md"),
+    # Scheme-less and non-http origins are origins too.
+    ("protocol-relative egress", "sed -i 's|a|//evil.example.com/x.js|' frontend/js/form.js"),
+    ("websocket egress", "sed -i \"s|a|new WebSocket('wss://evil.example.com')|\" frontend/js/form.js"),
+    # An opaque writer into an SPA file is checked for origins, as it already
+    # was for migrations and templates.
+    ("egress through python3 -c",
+     "python3 -c \"open('frontend/js/form.js', 'a').write('https://evil.example.com/x.js')\""),
 ]
 
 ALLOWED = [
@@ -63,15 +74,26 @@ ALLOWED = [
     ("exempt predictor page", "sed -i 's|a|https://flagcdn.com/x.png|' frontend/ucl.html"),
     ("scratch file", "echo hi > /tmp/scratch.txt"),
     ("plain status", "git status --short"),
+    # The forms the tokenizer now looks into, used the way agents use them.
+    ("multi-line reads", "git status --short\ngit diff --stat"),
+    ("a comment, then a read", "# look first\ngit log --oneline -3"),
+    ("xargs into a reader", "git ls-files docs | xargs wc -l"),
+    ("find -exec into a reader", "find frontend -name '*.js' -exec grep -l fetch {{}} +"),
+    ("allowlisted protocol-relative origin", "sed -i 's|a|//rjasti.com/x.js|' frontend/js/form.js"),
+    ("a line comment is not an origin", "sed -i 's|a|// see below|' frontend/js/form.js"),
+    # Clusters that read: no `i` among the flags, or one that is only text.
+    ("sed -nE reads", "sed -nE '/x/p' server/alembic/versions/{migration}"),
+    ("perl -ne reads", "perl -ne 'print if /i/' server/alembic/versions/{migration}"),
 ]
 
 
 # The .venv rule is the one guard that is conditional by design: it fires only
-# where server/.venv actually exists, because a fresh clone -- CI and every web
-# session -- has none, and blocking there costs a call and a retry to avoid a
-# directory walk that cannot happen. So the rule cannot be asserted against this
-# repo, where the directory is present or absent depending on whose machine it
-# is; it needs a root built either way, and both ways are pinned below.
+# where server/.venv actually exists. CI's fresh clone has none, and blocking
+# there costs a call and a retry to avoid a directory walk that cannot happen;
+# a web session has one, because session-start.sh creates it. So the rule
+# cannot be asserted against this repo, where the directory is present or absent
+# depending on where it runs; it needs a root built either way, and both ways
+# are pinned below.
 VENV_BLOCKED = [
     ("venv-reachable grep", "grep -r 'async def' ."),
     ("venv-reachable grep on server", "grep -rn 'FastAPI' server"),
@@ -135,6 +157,28 @@ def test_venv_rule_is_quiet_without_a_venv(label: str, command: str, tmp_path: P
     "cp /tmp/other.py {path}",
     "rm {path}",
     "python3 -c \"open('{path}', 'w')\"",
+    # Segmentation: each of these reached the write from a place the old
+    # tokenizer merged away or split wrongly.
+    "cd /tmp\nsed -i 's/a/b/' {path}",
+    "sed -i \\\n  's/a/b/' {path}",
+    "echo start # tidy up\nsed -i 's/a/b/' {path}",
+    "(sed -i 's/a/b/' {path})",
+    "(true);sed -i 's/a/b/' {path}",
+    "if sed -i 's/a/b/' {path}; then :; fi",
+    "{{ sed -i 's/a/b/' {path}; }}",
+    # Opacity: text run as a command somewhere no segment sees it.
+    "bash -c \"sed -i 's/a/b/' {path}\"",
+    "sh -c 'rm {path}'",
+    "eval \"rm {path}\"",
+    "x=$(rm {path})",
+    "echo $(sed -i 's/a/b/' {path})",
+    "echo `rm {path}`",
+    "find {path} -delete",
+    "echo {path} | xargs rm",
+    # In place from inside an option cluster, which `startswith("-i")` missed.
+    "perl -pi -e 's/a/b/' {path}",
+    "sed -ni 's/a/b/p' {path}",
+    "sed -Ei 's/a/b/' {path}",
 ])
 def test_tracked_migrations_are_immutable(template: str) -> None:
     result = run(GUARD, template.format(path=tracked_migration()))
@@ -206,6 +250,38 @@ def test_heredoc_body_is_not_read_as_operands() -> None:
     assert run(GUARD, body).returncode == 0
 
 
+def test_heredoc_body_is_not_a_search(venv_root: Path) -> None:
+    """A body line is text being written. Once line breaks split segments, a
+    body line reading `find .` looked like a search that descends into .venv."""
+    body = "cat > notes.md <<'EOF'\nfind . -name '*.py'\ngrep -r x .\nEOF"
+    assert run(GUARD, body, root=venv_root).returncode == 0
+
+
+def test_commit_message_naming_guarded_paths_is_allowed() -> None:
+    """`$(…)` makes a command opaque, and an opaque command falls back to the
+    paths it mentions. The heredoc body is stripped before mentions are
+    collected, so the usual commit idiom stays usable even when the message
+    names a migration, an SPA file and an origin."""
+    message = f"Touch {tracked_migration()} and frontend/index.html (https://evil.example.com)"
+    command = f"git commit -m \"$(cat <<'EOF'\n{message}\nEOF\n)\""
+    result = run(GUARD, command)
+    assert result.returncode == 0, result.stderr.strip()
+
+
+def test_guard_refuses_when_it_cannot_check(tmp_path: Path) -> None:
+    """Only exit 2 blocks. A traceback exits 1, and the command would run
+    unchecked, so an unexpected error refuses instead. A project root that does
+    not exist makes `git ls-files` raise."""
+    result = subprocess.run(
+        [sys.executable, str(GUARD)],
+        input=json.dumps({"tool_name": "Bash", "tool_input": {"command": "git status"}}),
+        cwd=ROOT, capture_output=True, text=True,
+        env={"PATH": "/usr/bin:/bin:/usr/local/bin", "CLAUDE_PROJECT_DIR": str(tmp_path / "missing")},
+    )
+    assert result.returncode == 2
+    assert "refusing" in result.stderr
+
+
 def test_guard_ignores_malformed_payload() -> None:
     result = subprocess.run([sys.executable, str(GUARD)], input="not json",
                             cwd=ROOT, capture_output=True, text=True)
@@ -221,3 +297,15 @@ def test_verify_runs_gates_for_covered_paths() -> None:
 
 def test_verify_skips_uncovered_paths() -> None:
     assert run(VERIFY, "echo hi > /tmp/scratch.txt").returncode == 0
+
+
+def test_verify_sees_a_write_on_a_second_line(tmp_path: Path) -> None:
+    """The CSP gate has to run for a write found only after a line break.
+
+    Against this repo the gate passes whether it runs or not, so the root here
+    is a stub whose check exits 1: exit 2 is then proof that it ran.
+    """
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "check_csp_hashes.py").write_text("raise SystemExit(1)\n", encoding="utf-8")
+    result = run(VERIFY, "cd /tmp\nsed -i 's/a/a/' frontend/index.html", root=tmp_path)
+    assert result.returncode == 2

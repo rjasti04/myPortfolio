@@ -316,6 +316,60 @@ def check_settings(errors):
                         errors.append(f"Hook script is not executable: {script_path}")
 
 
+READONLY_GUARD = ".claude/hooks/readonly-bash.py"
+
+
+def read_only_agents():
+    """Agents that remove both Write and Edit from themselves.
+
+    The same criterion readonly-bash.py applies at runtime, and the one
+    check_agents already demands of the reviewers and the verifier.
+    """
+    agents_dir = ROOT / ".claude" / "agents"
+    names = []
+    for agent_file in sorted(agents_dir.glob("*.md")) if agents_dir.is_dir() else []:
+        fm, _body = parse_frontmatter(agent_file)
+        disallowed = fm.get("disallowedTools", [])
+        if isinstance(disallowed, str):
+            disallowed = [t.strip() for t in disallowed.strip("[]").split(",")]
+        if {"Write", "Edit"} <= set(disallowed):
+            names.append(fm.get("name") or agent_file.stem)
+    return names
+
+
+def check_readonly_guard(errors):
+    """A read-only agent's promise is enforced for Bash, not only stated.
+
+    `disallowedTools` removes Write and Edit, but Bash can still `sed -i`,
+    redirect into a file and `git commit`. A subagent inherits the main session's
+    acceptEdits, auto or bypassPermissions mode and ignores its own
+    `permissionMode`, so readonly-bash.py is what holds it to the promise. It has
+    to be registered in settings.json: Claude Code skips a project subagent's
+    frontmatter hooks until workspace trust is accepted, and never runs them
+    under `-p`.
+    """
+    readonly = read_only_agents()
+    if not readonly:
+        return
+    try:
+        data = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    except Exception:
+        return  # check_settings already reported the missing or invalid file.
+    for item in data.get("hooks", {}).get("PreToolUse", []):
+        matcher = item.get("matcher", "")
+        tools = {t for t in re.split(r"[|,\s]+", matcher) if t}
+        if matcher in ("", "*") or "Bash" in tools:
+            if any(READONLY_GUARD in h.get("command", "") for h in item.get("hooks", [])):
+                return
+    errors.append(
+        f"Agents {', '.join(readonly)} remove Write and Edit from themselves, but no "
+        f"PreToolUse hook on Bash runs {READONLY_GUARD}, so Bash can still `sed -i`, "
+        "redirect into a file and `git commit` for them. Register it in "
+        ".claude/settings.json: frontmatter hooks on a project subagent are skipped "
+        "until workspace trust is accepted, and never run under -p."
+    )
+
+
 def check_mirror_drift(errors):
     claude_skills = ROOT / ".claude" / "skills"
     agents_skills = ROOT / ".agents" / "skills"
@@ -485,6 +539,7 @@ def main():
     check_skills(errors)
     check_agents(errors)
     check_settings(errors)
+    check_readonly_guard(errors)
     check_mirror_drift(errors)
     check_templates(errors)
     check_rules(errors)
