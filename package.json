@@ -7,8 +7,6 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "node server.js",
-    "start": "node server.js",
     "lint": "npm run lint:js && npm run lint:css",
     "lint:js": "eslint frontend/*.js frontend/js/*.js frontend/js/app-shared/*.js frontend/js/arcade/*.js frontend/js/cron/*.js frontend/js/crypto/*.js frontend/js/diff/*.js frontend/js/json/*.js frontend/js/terminal/*.js",
     "lint:css": "stylelint \"frontend/**/*.css\"",
@@ -25,9 +23,7 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.4.0",
-    "@google/genai": "^2.24.0",
     "dompurify": "^3.4.14",
-    "express": "^5.2.1",
     "marked": "^15.0.12"
   },
   "devDependencies": {

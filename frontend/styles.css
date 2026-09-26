@@ -6208,47 +6208,18 @@ body.dark-theme .skill-group:hover {
   border-radius: var(--radius-sm);
   background: var(--wash-raise);
   color: var(--text);
-  border: 1px solid var(--border);
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  cursor: pointer;
+  cursor: default;
   transition:
-    background-color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-enter);
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
   position: relative;
   overflow: hidden;
-}
-
-/* Staggered entrance animation for technical skill tags in the About section.
-   Armed only under `.reveals-armed` (which is set by animations.js), so if
-   JavaScript fails or is disabled the tags remain fully visible. */
-.reveals-armed #about .skill-tags:not(.tags-revealed) .skill-tag {
-  opacity: 0;
-  transform: translateY(10px);
-  will-change: opacity, transform;
-}
-
-.reveals-armed #about .skill-tags.tags-revealed .skill-tag,
-.reveals-armed #about .skill-group.active .skill-tag {
-  opacity: 1;
-  transform: translateY(0);
-  transition:
-    opacity var(--motion-reveal) var(--ease-enter) var(--tag-delay, 0ms),
-    transform var(--motion-reveal) var(--ease-enter) var(--tag-delay, 0ms),
-    background-color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard);
-}
-
-.reveals-armed #about .skill-tag:hover {
-  --tag-delay: 0ms;
-  transition-delay: 0ms;
-  transform: translateY(-2px) scale(1.04);
 }
 
 .skill-tag i,
@@ -6256,10 +6227,6 @@ body.dark-theme .skill-group:hover {
 .skill-tag .fas {
   font-size: var(--text-xs);
   opacity: 0.85;
-  transition:
-    transform var(--motion-fast) var(--ease-enter),
-    color var(--motion-fast) var(--ease-standard),
-    opacity var(--motion-fast) var(--ease-standard);
 }
 
 .skill-tag.primary {
@@ -6298,21 +6265,13 @@ body.dark-theme .skill-tag.primary {
   animation: sheen-sweep var(--motion-slow) var(--ease-standard) forwards;
 }
 
-/* Interactive hover effect: subtle scale lift, accent border glow, and tint shift. */
+/* Mixed against --wash-raise, the chip's own resting surface, rather than
+   against --skill-bg as this did before the token rebuild: --wash-raise is a
+   4% overlay where --skill-bg is a near-opaque cream, so mixing into the old
+   token would swap the chip's material on hover instead of tinting it. */
 .skill-tag:hover {
-  background: color-mix(in srgb, var(--accent-fill) 24%, var(--wash-raise));
-  border-color: color-mix(in srgb, var(--accent-fill) 45%, var(--border));
-  color: var(--accent-text);
-  transform: translateY(-2px) scale(1.04);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-fill) 18%, transparent);
-}
-
-.skill-tag:hover i,
-.skill-tag:hover .fab,
-.skill-tag:hover .fas {
-  opacity: 1;
-  color: var(--accent-text);
-  transform: scale(1.12);
+  background: color-mix(in srgb, var(--accent-fill) 20%, var(--wash-raise));
+  transform: translateY(-1px);
 }
 
 @media (width <=1024px) {
@@ -7651,9 +7610,7 @@ body.dark-theme .skill-tag.primary {
 
   .js-enabled section.active,
   .pdf-modal.active .pdf-modal-panel,
-  .hero-char,
-  .reveals-armed #about .skill-tag,
-  .skill-tag:hover {
+  .hero-char {
     animation: none !important;
     transform: none !important;
     opacity: 1 !important;

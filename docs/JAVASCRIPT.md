@@ -787,7 +787,7 @@ shipped `open`. The collapsing needs no JavaScript; this module adds only what
 
 This is also why the anchor id sits on the `<details>` rather than the `<h4>`.
 
-### `skills-carousel.js` (287 lines)
+### `skills-carousel.js` (286 lines)
 
 `initSkillsCarousel()` — a carousel below 640 px and a static grid above.
 Autoplay at 4.5 s, 40 px swipe threshold, dot navigation, paused under
@@ -958,7 +958,7 @@ is pressed.
 
 ## Visual effects
 
-### `animations.js` (342 lines)
+### `animations.js` (309 lines)
 
 `initAnimations()` — scroll reveals via `IntersectionObserver` (all revealed
 immediately under reduced motion or without the API), animated stat counters,

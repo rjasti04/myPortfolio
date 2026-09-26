@@ -212,7 +212,7 @@ const SKIP_DIRS = new Set(["tests"]);
      three armed confirm labels, and the new theme-prepaint entry.
      CSS 297 -> 298, JS 391 -> 392.
    Section 4 in all: CSS 296.0 -> 297.5 KiB, JS 387.0 -> 391.2 KiB. */
-const BUDGETS_KIB = { js: 392, css: 299 };
+const BUDGETS_KIB = { js: 392, css: 298 };
 
 const hash8 = (contents) =>
   createHash("sha256").update(contents).digest("base64url").slice(0, 8);
