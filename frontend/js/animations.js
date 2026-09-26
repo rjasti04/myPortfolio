@@ -8,6 +8,8 @@ const REVEAL_STAGGER_MS = 80;
 const STAT_COUNT_DURATION_MS = 900;
 const MATRIX_FRAME_MS = 28;
 const MATRIX_ITERATION_STEP = 0.2;
+const SKILL_TAG_BASE_DELAY_MS = 40;
+const SKILL_TAG_STAGGER_MS = 30;
 
 /* The terminal intro's start delay and per-line step were both a literal 180,
    which is --motion-base restated in JS: change the token and these silently
@@ -34,6 +36,9 @@ function initReveals() {
 
   if (prefersReducedMotion.matches || !("IntersectionObserver" in window)) {
     revealElements.forEach((element) => element.classList.add("active"));
+    document.querySelectorAll("#about .skill-tags").forEach((container) => {
+      container.classList.add("tags-revealed");
+    });
     return;
   }
 
@@ -60,6 +65,34 @@ function initReveals() {
       child.style.setProperty("--reveal-delay", `${i * REVEAL_STAGGER_MS}ms`);
     });
   });
+
+  // Stagger entrance animation for technical skill tags in the About section
+  const skillTagContainers = Array.from(document.querySelectorAll("#about .skill-tags"));
+  if (skillTagContainers.length > 0) {
+    skillTagContainers.forEach((container) => {
+      const tags = Array.from(container.querySelectorAll(".skill-tag"));
+      tags.forEach((tag, i) => {
+        tag.style.setProperty("--tag-delay", `${SKILL_TAG_BASE_DELAY_MS + i * SKILL_TAG_STAGGER_MS}ms`);
+      });
+
+      container.addEventListener("transitionend", (event) => {
+        if (event.target.classList.contains("skill-tag") && event.propertyName === "opacity") {
+          event.target.style.setProperty("--tag-delay", "0ms");
+        }
+      });
+    });
+
+    const tagsObserver = new IntersectionObserver((entries, tagsIo) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("tags-revealed");
+          tagsIo.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: "0px 0px -30px 0px" });
+
+    skillTagContainers.forEach((container) => tagsObserver.observe(container));
+  }
 }
 
 function initStats() {

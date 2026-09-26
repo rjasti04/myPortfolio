@@ -60,6 +60,7 @@ function initCarouselLogic(carousel, track, slides) {
       slide.classList.remove("is-active", "is-prev", "is-next", "active");
       if (i === activeIdx) {
         slide.classList.add("is-active", "active");
+        slide.querySelector(".skill-tags")?.classList.add("tags-revealed");
       } else if (i === prevI) {
         slide.classList.add("is-prev");
       } else if (i === nextI) {
